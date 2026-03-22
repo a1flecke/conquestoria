@@ -77,6 +77,8 @@ export function createTechState(): TechState {
       military: 'medium',
       economy: 'medium',
       science: 'medium',
+      civics: 'medium',
+      exploration: 'medium',
     },
   };
 }

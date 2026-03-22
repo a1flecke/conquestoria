@@ -67,6 +67,12 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap): City
     return tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain';
   });
 
+  // Initialize 5x5 grid (all null), place city center in the middle
+  const grid: (string | null)[][] = Array.from({ length: 5 }, () =>
+    Array.from({ length: 5 }, () => null),
+  );
+  grid[2][2] = 'city-center';
+
   return {
     id: `city-${nextCityId++}`,
     name,
@@ -79,6 +85,8 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap): City
     productionQueue: [],
     productionProgress: 0,
     ownedTiles,
+    grid,
+    gridSize: 3,
   };
 }
 

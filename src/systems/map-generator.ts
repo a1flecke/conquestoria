@@ -129,11 +129,12 @@ export function generateMap(width: number, height: number, seed: string): GameMa
         improvement: 'none',
         owner: null,
         improvementTurnsLeft: 0,
+        hasRiver: false,
       };
     }
   }
 
-  return { width, height, tiles, wrapsHorizontally: true };
+  return { width, height, tiles, wrapsHorizontally: true, rivers: [] };
 }
 
 function isLandTerrain(terrain: TerrainType): boolean {

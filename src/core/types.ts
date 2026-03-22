@@ -9,7 +9,8 @@ export interface HexCoord {
 
 export type TerrainType =
   | 'grassland' | 'plains' | 'desert' | 'tundra' | 'snow'
-  | 'forest' | 'hills' | 'mountain' | 'ocean' | 'coast';
+  | 'forest' | 'hills' | 'mountain' | 'ocean' | 'coast'
+  | 'jungle' | 'swamp' | 'volcanic';
 
 export type Elevation = 'lowland' | 'highland' | 'mountain';
 
@@ -46,6 +47,7 @@ export interface HexTile {
   improvement: ImprovementType;
   owner: string | null;             // civilization ID that owns this tile
   improvementTurnsLeft: number;     // turns remaining to complete improvement
+  hasRiver: boolean;
 }
 
 export interface GameMap {
@@ -53,6 +55,7 @@ export interface GameMap {
   height: number;
   tiles: Record<string, HexTile>;   // key is "q,r"
   wrapsHorizontally: boolean;
+  rivers: Array<{ from: HexCoord; to: HexCoord }>;
 }
 
 // --- Visibility (per player) ---
@@ -90,12 +93,22 @@ export interface Unit {
 
 // --- Cities ---
 
+export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | 'military' | 'culture';
+
+export interface AdjacencyBonus {
+  adjacentTo: string;
+  yields: Partial<ResourceYield>;
+}
+
 export interface Building {
   id: string;
   name: string;
+  category?: BuildingCategory;
   yields: ResourceYield;
   productionCost: number;
   description: string;
+  techRequired?: string | null;
+  adjacencyBonuses?: AdjacencyBonus[];
 }
 
 export interface City {
@@ -110,11 +123,13 @@ export interface City {
   productionQueue: string[]; // what's being built (building or unit ID)
   productionProgress: number;
   ownedTiles: HexCoord[];    // tiles this city works
+  grid: (string | null)[][];  // 5x5 city interior grid
+  gridSize: number;           // unlocked grid size (3, 4, or 5)
 }
 
 // --- Tech ---
 
-export type TechTrack = 'military' | 'economy' | 'science';
+export type TechTrack = 'military' | 'economy' | 'science' | 'civics' | 'exploration';
 
 export type TechStatus = 'locked' | 'available' | 'researching' | 'completed';
 
@@ -241,6 +256,8 @@ export interface GameEvents {
   'game:saved': { turn: number };
   'game:loaded': { turn: number };
   'game:over': { winnerId: string };
+  'grid:slot-unlocked': { cityId: string; newGridSize: number };
+  'grid:building-placed': { cityId: string; buildingId: string; row: number; col: number };
   'ui:select-unit': { unitId: string };
   'ui:select-city': { cityId: string };
   'ui:deselect': {};
