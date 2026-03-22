@@ -250,6 +250,20 @@ Techs form a web across tracks:
 - Manual boost option to rush a specific tech
 - Advisors suggest priorities based on game state
 
+### The Twelve Eras
+1. Tribal
+2. Stone Age
+3. Bronze Age
+4. Iron Age
+5. Classical
+6. Medieval
+7. Renaissance
+8. Enlightenment
+9. Industrial
+10. Modern
+11. Atomic
+12. Information
+
 ### Tech Count
 - ~15-20 techs per track × 15 tracks = **225-300 total techs**
 - Branching choices within tracks for further variety
