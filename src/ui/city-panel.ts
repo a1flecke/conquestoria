@@ -1,6 +1,7 @@
 import type { City, GameState } from '@/core/types';
 import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { calculateCityYields } from '@/systems/resource-system';
+import { createCityGrid } from './city-grid';
 
 export interface CityPanelCallbacks {
   onBuild: (cityId: string, itemId: string) => void;
@@ -35,6 +36,12 @@ export function createCityPanel(
       <span>💰 +${yields.gold}</span>
       <span>🔬 +${yields.science}</span>
     </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">List</div>
+      <div id="tab-grid" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Grid</div>
+    </div>
+    <div id="city-list-view">
   `;
 
   // Current production
@@ -90,7 +97,9 @@ export function createCityPanel(
       <div style="font-size:11px;opacity:0.7;">Cost: ${u.cost} · ${turns} turns</div>
     </div>`;
   }
-  html += '</div>';
+  html += '</div>'; // close build section
+  html += '</div>'; // close city-list-view
+  html += '<div id="city-grid-view" style="display:none;"></div>';
 
   panel.innerHTML = html;
   container.appendChild(panel);
@@ -106,6 +115,37 @@ export function createCityPanel(
       callbacks.onBuild(city.id, itemId);
       panel.remove();
     });
+  });
+
+  // Tab switching
+  const listTab = panel.querySelector('#tab-list') as HTMLElement;
+  const gridTab = panel.querySelector('#tab-grid') as HTMLElement;
+  const listView = panel.querySelector('#city-list-view') as HTMLElement;
+  const gridView = panel.querySelector('#city-grid-view') as HTMLElement;
+
+  listTab?.addEventListener('click', () => {
+    listView.style.display = 'block';
+    gridView.style.display = 'none';
+    listTab.style.background = 'rgba(255,255,255,0.15)';
+    gridTab.style.background = 'rgba(255,255,255,0.05)';
+  });
+
+  gridTab?.addEventListener('click', () => {
+    listView.style.display = 'none';
+    gridView.style.display = 'block';
+    gridTab.style.background = 'rgba(255,255,255,0.15)';
+    listTab.style.background = 'rgba(255,255,255,0.05)';
+    if (!gridView.hasChildNodes()) {
+      createCityGrid(gridView, city, state.map, {
+        onSlotTap: (row, col) => {
+          callbacks.onClose();
+        },
+        onBuyExpansion: () => {
+          callbacks.onClose();
+        },
+        onClose: callbacks.onClose,
+      });
+    }
   });
 
   return panel;
