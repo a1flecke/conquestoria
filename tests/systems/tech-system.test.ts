@@ -8,19 +8,52 @@ import {
 } from '@/systems/tech-system';
 
 describe('TECH_TREE', () => {
-  it('has techs in 3 tracks', () => {
+  it('has techs in 5 tracks', () => {
     const tracks = new Set(TECH_TREE.map(t => t.track));
-    expect(tracks.size).toBe(3);
+    expect(tracks.size).toBe(5);
     expect(tracks).toContain('military');
     expect(tracks).toContain('economy');
     expect(tracks).toContain('science');
+    expect(tracks).toContain('civics');
+    expect(tracks).toContain('exploration');
   });
 
-  it('has at least 5 techs per track', () => {
-    for (const track of ['military', 'economy', 'science'] as const) {
+  it('has at least 7 techs per track', () => {
+    for (const track of ['military', 'economy', 'science', 'civics', 'exploration'] as const) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      expect(techs.length).toBeGreaterThanOrEqual(5);
+      expect(techs.length).toBeGreaterThanOrEqual(7);
+      expect(techs.length).toBeLessThanOrEqual(9);
     }
+  });
+});
+
+describe('expanded tech tree', () => {
+  it('has 40 techs total', () => {
+    expect(TECH_TREE.length).toBe(40);
+  });
+
+  it('supports cross-track prerequisites', () => {
+    const ironForging = TECH_TREE.find(t => t.id === 'iron-forging');
+    expect(ironForging).toBeDefined();
+    expect(ironForging!.prerequisites).toContain('mining-tech');
+  });
+
+  it('all prerequisite references are valid tech IDs', () => {
+    const ids = new Set(TECH_TREE.map(t => t.id));
+    for (const tech of TECH_TREE) {
+      for (const prereq of tech.prerequisites) {
+        expect(ids.has(prereq)).toBe(true);
+      }
+    }
+  });
+
+  it('techs span eras 1-5', () => {
+    const eras = new Set(TECH_TREE.map(t => t.era));
+    expect(eras).toContain(1);
+    expect(eras).toContain(2);
+    expect(eras).toContain(3);
+    expect(eras).toContain(4);
+    expect(eras).toContain(5);
   });
 });
 
