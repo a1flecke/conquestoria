@@ -1,0 +1,9 @@
+{
+  "name": "Conquestoria",
+  "short_name": "Conquestoria",
+  "start_url": "/conquestoria/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#e8c170",
+  "icons": []
+}
