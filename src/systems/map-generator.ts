@@ -1,5 +1,6 @@
 import type { GameMap, HexTile, HexCoord, TerrainType, Elevation } from '@/core/types';
 import { hexKey, hexDistance, hexesInRange } from './hex-utils';
+import { generateRivers, applyRiversToMap } from './river-system';
 
 // Simple seeded PRNG (mulberry32)
 function createRng(seed: string): () => number {
@@ -150,7 +151,10 @@ export function generateMap(width: number, height: number, seed: string): GameMa
     }
   }
 
-  return { width, height, tiles, wrapsHorizontally: true, rivers: [] };
+  const mapResult: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
+  const rivers = generateRivers(mapResult, seed);
+  applyRiversToMap(mapResult, rivers);
+  return mapResult;
 }
 
 function isLandTerrain(terrain: TerrainType): boolean {
