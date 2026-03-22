@@ -57,6 +57,44 @@ describe('generateMap', () => {
   });
 });
 
+describe('new terrain types', () => {
+  it('generates jungle tiles', () => {
+    const map = generateMap(30, 30, 'jungle-test');
+    const jungleTiles = Object.values(map.tiles).filter(t => t.terrain === 'jungle');
+    expect(jungleTiles.length).toBeGreaterThan(0);
+  });
+
+  it('generates swamp tiles', () => {
+    const map = generateMap(30, 30, 'swamp-test');
+    const swampTiles = Object.values(map.tiles).filter(t => t.terrain === 'swamp');
+    expect(swampTiles.length).toBeGreaterThan(0);
+  });
+
+  it('generates volcanic tiles', () => {
+    let found = false;
+    for (const seed of ['vol-1', 'vol-2', 'vol-3', 'vol-4', 'vol-5']) {
+      const map = generateMap(30, 30, seed);
+      if (Object.values(map.tiles).some(t => t.terrain === 'volcanic')) {
+        found = true;
+        break;
+      }
+    }
+    expect(found).toBe(true);
+  });
+
+  it('all tiles have hasRiver field', () => {
+    const map = generateMap(30, 30, 'river-field-test');
+    for (const tile of Object.values(map.tiles)) {
+      expect(tile.hasRiver).toBeDefined();
+    }
+  });
+
+  it('map has rivers array', () => {
+    const map = generateMap(30, 30, 'rivers-test');
+    expect(Array.isArray(map.rivers)).toBe(true);
+  });
+});
+
 describe('findStartPositions', () => {
   it('finds requested number of start positions on land', () => {
     const map = generateMap(30, 30, 'start-pos-seed');

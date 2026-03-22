@@ -68,32 +68,48 @@ function getElevation(noiseVal: number): Elevation {
 function getTerrain(
   landNoise: number,
   moistureNoise: number,
+  elevationNoise: number,
   tempNoise: number,
-  elevation: Elevation,
   r: number,
   height: number,
 ): TerrainType {
   // Polar regions
-  const polarDistance = Math.min(r, height - 1 - r) / (height * 0.15);
-  if (polarDistance < 1) {
-    const temp = tempNoise + polarDistance;
-    if (temp < 0.3) return 'snow';
-    if (temp < 0.7) return 'tundra';
-  }
+  const distFromEdge = Math.min(r, height - 1 - r) / (height / 2);
+  if (distFromEdge < 0.1) return tempNoise > 0.5 ? 'tundra' : 'snow';
 
-  // Ocean
-  if (landNoise < -0.1) return 'ocean';
-  if (landNoise < 0.0) return 'coast';
+  // Ocean and coast
+  if (landNoise < -0.15) return 'ocean';
+  if (landNoise < 0) return 'coast';
+
+  const elevation = getElevation(elevationNoise);
 
   // Mountains
   if (elevation === 'mountain') return 'mountain';
 
-  // Land terrain based on moisture and temperature
-  if (moistureNoise > 0.4) return 'forest';
-  if (moistureNoise > 0.2 && tempNoise > 0.3) return 'grassland';
-  if (tempNoise > 0.5) return 'desert';
-  if (moistureNoise > 0.0) return 'plains';
-  if (elevation === 'highland') return 'hills';
+  // Volcanic — rare, near high elevation
+  if (elevationNoise > 0.45 && moistureNoise < 0.2 && landNoise > 0.3) return 'volcanic';
+
+  // Hills
+  if (elevation === 'highland') {
+    if (moistureNoise > 0.5) return 'forest';
+    return 'hills';
+  }
+
+  // Lowland terrain by climate
+  // Swamp — low-lying, very wet
+  if (moistureNoise > 0.6 && landNoise < 0.2 && tempNoise > 0.3) return 'swamp';
+
+  // Jungle — hot and wet
+  if (tempNoise > 0.65 && moistureNoise > 0.5) return 'jungle';
+
+  // Forest — moderate moisture
+  if (moistureNoise > 0.5) return 'forest';
+
+  // Desert — hot and dry
+  if (tempNoise > 0.6 && moistureNoise < 0.3) return 'desert';
+
+  // Plains vs grassland
+  if (moistureNoise > 0.3) return 'grassland';
   return 'plains';
 }
 
@@ -116,15 +132,15 @@ export function generateMap(width: number, height: number, seed: string): GameMa
       const elev = elevationNoise(nx + 200, ny + 200);
       const temp = (tempNoise(nx + 300, ny + 300) + 1) / 2;
 
+      const terrain = getTerrain(land, moisture, elev, temp, r, height);
       const elevation = getElevation(elev);
-      const terrain = getTerrain(land, moisture, temp, elevation, r, height);
 
       const key = hexKey({ q, r });
 
       tiles[key] = {
         coord: { q, r },
         terrain,
-        elevation: terrain === 'mountain' ? 'mountain' : terrain === 'hills' ? 'highland' : elevation === 'mountain' ? 'highland' : elevation,
+        elevation: terrain === 'mountain' ? 'mountain' : terrain === 'hills' ? 'highland' : terrain === 'volcanic' ? 'highland' : elevation === 'mountain' ? 'highland' : elevation,
         resource: null,
         improvement: 'none',
         owner: null,
