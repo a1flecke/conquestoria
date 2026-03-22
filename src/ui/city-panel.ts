@@ -1,0 +1,112 @@
+import type { City, GameState } from '@/core/types';
+import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { calculateCityYields } from '@/systems/resource-system';
+
+export interface CityPanelCallbacks {
+  onBuild: (cityId: string, itemId: string) => void;
+  onClose: () => void;
+}
+
+export function createCityPanel(
+  container: HTMLElement,
+  city: City,
+  state: GameState,
+  callbacks: CityPanelCallbacks,
+): HTMLElement {
+  const panel = document.createElement('div');
+  panel.id = 'city-panel';
+  panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
+
+  const yields = calculateCityYields(city, state.map);
+  const availableBuildings = getAvailableBuildings(city, state.civilizations.player.techState.completed);
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <h2 style="font-size:18px;color:#e8c170;margin:0;">${city.name}</h2>
+        <div style="font-size:12px;opacity:0.7;">Population: ${city.population}</div>
+      </div>
+      <span id="city-close" style="cursor:pointer;font-size:24px;opacity:0.6;">✕</span>
+    </div>
+
+    <div style="display:flex;gap:16px;margin-bottom:16px;font-size:13px;">
+      <span>🌾 +${yields.food}</span>
+      <span>⚒️ +${yields.production}</span>
+      <span>💰 +${yields.gold}</span>
+      <span>🔬 +${yields.science}</span>
+    </div>
+  `;
+
+  // Current production
+  if (city.productionQueue.length > 0) {
+    const currentItem = city.productionQueue[0];
+    const building = BUILDINGS[currentItem];
+    const unit = TRAINABLE_UNITS.find(u => u.type === currentItem);
+    const totalCost = building?.productionCost ?? unit?.cost ?? 0;
+    const progress = totalCost > 0 ? Math.round((city.productionProgress / totalCost) * 100) : 0;
+    const turnsLeft = yields.production > 0 ? Math.ceil((totalCost - city.productionProgress) / yields.production) : '∞';
+
+    html += `
+      <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
+        <div style="font-weight:bold;color:#e8c170;">Building: ${building?.name ?? currentItem}</div>
+        <div style="font-size:12px;opacity:0.7;">${turnsLeft} turns remaining</div>
+        <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
+          <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Existing buildings
+  if (city.buildings.length > 0) {
+    html += '<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>';
+    for (const bid of city.buildings) {
+      const b = BUILDINGS[bid];
+      if (b) {
+        html += `<div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:4px;font-size:12px;">
+          <strong>${b.name}</strong> — ${b.description}
+        </div>`;
+      }
+    }
+    html += '</div>';
+  }
+
+  // Available to build
+  html += '<div><h3 style="font-size:14px;margin:0 0 8px;">Build</h3>';
+
+  for (const b of availableBuildings) {
+    const turns = yields.production > 0 ? Math.ceil(b.productionCost / yields.production) : '∞';
+    html += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+      <div style="font-weight:bold;font-size:13px;">🏗️ ${b.name}</div>
+      <div style="font-size:11px;opacity:0.7;">${b.description} · ${turns} turns</div>
+    </div>`;
+  }
+
+  html += '<div style="margin-top:12px;font-size:12px;opacity:0.5;margin-bottom:8px;">Units</div>';
+  for (const u of TRAINABLE_UNITS) {
+    const turns = yields.production > 0 ? Math.ceil(u.cost / yields.production) : '∞';
+    html += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+      <div style="font-weight:bold;font-size:13px;">⚔️ ${u.name}</div>
+      <div style="font-size:11px;opacity:0.7;">Cost: ${u.cost} · ${turns} turns</div>
+    </div>`;
+  }
+  html += '</div>';
+
+  panel.innerHTML = html;
+  container.appendChild(panel);
+
+  panel.querySelector('#city-close')?.addEventListener('click', () => {
+    panel.remove();
+    callbacks.onClose();
+  });
+
+  panel.querySelectorAll('.build-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const itemId = (el as HTMLElement).dataset.itemId!;
+      callbacks.onBuild(city.id, itemId);
+      panel.remove();
+    });
+  });
+
+  return panel;
+}
