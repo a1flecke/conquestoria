@@ -2,6 +2,7 @@ import type { City, GameMap, ResourceYield } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { getImprovementYieldBonus } from './improvement-system';
 import { BUILDINGS } from './city-system';
+import { getTotalAdjacencyYields } from './adjacency-system';
 
 export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   grassland:  { food: 2, production: 0, gold: 0, science: 0 },
@@ -65,6 +66,15 @@ export function calculateCityYields(city: City, map: GameMap): ResourceYield {
       yields.gold += building.yields.gold;
       yields.science += building.yields.science;
     }
+  }
+
+  // Adjacency bonuses from city grid
+  if (city.grid) {
+    const adjYields = getTotalAdjacencyYields(city.grid, city.gridSize);
+    yields.food += adjYields.food;
+    yields.production += adjYields.production;
+    yields.gold += adjYields.gold;
+    yields.science += adjYields.science;
   }
 
   return yields;

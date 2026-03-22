@@ -34,6 +34,19 @@ describe('calculateCityYields', () => {
   });
 });
 
+describe('adjacency yields in city calculation', () => {
+  it('includes adjacency bonuses in city yields', () => {
+    const map = generateMap(30, 30, 'adj-yield');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    city.grid[2][1] = 'library';
+    city.buildings = ['library'];
+
+    const yields = calculateCityYields(city, map);
+    // Base science from library (2) + adjacency to city-center (+1) = at least 3
+    expect(yields.science).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe('new terrain yields', () => {
   it('jungle yields 2 food', () => {
     expect(TERRAIN_YIELDS.jungle.food).toBe(2);
