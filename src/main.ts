@@ -68,10 +68,26 @@ function createUI(): void {
 
 function createButton(label: string, icon: string, onClick: () => void): HTMLElement {
   const btn = document.createElement('div');
-  btn.style.cssText = 'text-align:center;font-size:10px;cursor:pointer;user-select:none;';
+  btn.style.cssText = 'text-align:center;font-size:10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;';
   btn.innerHTML = `<div style="width:40px;height:40px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin:0 auto 2px;">${icon}</div>${label}`;
-  btn.addEventListener('click', onClick);
-  btn.addEventListener('touchend', (e) => { e.preventDefault(); onClick(); });
+  let handled = false;
+  btn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!handled) {
+      handled = true;
+      onClick();
+      setTimeout(() => { handled = false; }, 300);
+    }
+  });
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!handled) {
+      handled = true;
+      onClick();
+      setTimeout(() => { handled = false; }, 300);
+    }
+  });
   return btn;
 }
 
@@ -328,6 +344,7 @@ function handleHexLongPress(coord: HexCoord): void {
 }
 
 async function endTurn(): Promise<void> {
+  try {
   SFX.endTurn();
 
   // Process improvements (count down build timers)
@@ -353,6 +370,10 @@ async function endTurn(): Promise<void> {
   // Auto-save
   await autoSave(gameState);
   bus.emit('game:saved', { turn: gameState.turn });
+  } catch (err) {
+    console.error('endTurn error:', err);
+    showNotification('Error processing turn!', 'warning');
+  }
 }
 
 // --- Event listeners ---
