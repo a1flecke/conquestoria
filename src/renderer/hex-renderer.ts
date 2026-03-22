@@ -13,6 +13,9 @@ const TERRAIN_COLORS: Record<string, string> = {
   mountain: '#6b6b7b',
   ocean: '#2a5f8f',
   coast: '#4a8faf',
+  jungle: '#2d5a2d',
+  swamp: '#4a6b4a',
+  volcanic: '#5a3a3a',
 };
 
 const HEX_CORNERS_POINTY = (function () {
@@ -39,6 +42,43 @@ export function drawHexMap(
     const scaledSize = size * camera.zoom;
 
     drawHex(ctx, screen.x, screen.y, scaledSize, tile);
+  }
+}
+
+export function drawRivers(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  camera: Camera,
+): void {
+  ctx.strokeStyle = '#4a8faf';
+  ctx.lineWidth = 3 * camera.zoom;
+  ctx.lineCap = 'round';
+
+  for (const river of map.rivers) {
+    if (!camera.isHexVisible(river.from) && !camera.isHexVisible(river.to)) continue;
+
+    const fromPixel = hexToPixel(river.from, camera.hexSize);
+    const toPixel = hexToPixel(river.to, camera.hexSize);
+    const fromScreen = camera.worldToScreen(fromPixel.x, fromPixel.y);
+    const toScreen = camera.worldToScreen(toPixel.x, toPixel.y);
+
+    // Draw river along the edge between hexes
+    const midX = (fromScreen.x + toScreen.x) / 2;
+    const midY = (fromScreen.y + toScreen.y) / 2;
+
+    // Perpendicular to edge for visual width
+    const dx = toScreen.x - fromScreen.x;
+    const dy = toScreen.y - fromScreen.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) continue;
+
+    const perpX = (-dy / len) * camera.hexSize * camera.zoom * 0.3;
+    const perpY = (dx / len) * camera.hexSize * camera.zoom * 0.3;
+
+    ctx.beginPath();
+    ctx.moveTo(midX - perpX, midY - perpY);
+    ctx.lineTo(midX + perpX, midY + perpY);
+    ctx.stroke();
   }
 }
 

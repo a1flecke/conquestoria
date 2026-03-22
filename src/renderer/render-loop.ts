@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { Camera } from './camera';
-import { drawHexMap } from './hex-renderer';
+import { drawHexMap, drawRivers } from './hex-renderer';
 import { drawFogOfWar } from './fog-renderer';
 import { drawUnits } from './unit-renderer';
 import { AnimationSystem } from './animation-system';
@@ -69,6 +69,9 @@ export class RenderLoop {
 
     // Draw hex map
     drawHexMap(this.ctx, this.state.map, this.camera);
+
+    // Draw rivers
+    drawRivers(this.ctx, this.state.map, this.camera);
 
     // Draw units
     const playerVis = this.state.civilizations.player?.visibility;
