@@ -3,7 +3,7 @@ import { hexKey } from './hex-utils';
 import { getImprovementYieldBonus } from './improvement-system';
 import { BUILDINGS } from './city-system';
 
-const TERRAIN_YIELDS: Record<string, ResourceYield> = {
+export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   grassland:  { food: 2, production: 0, gold: 0, science: 0 },
   plains:     { food: 1, production: 1, gold: 0, science: 0 },
   desert:     { food: 0, production: 0, gold: 0, science: 0 },
@@ -14,6 +14,9 @@ const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   mountain:   { food: 0, production: 0, gold: 0, science: 0 },
   ocean:      { food: 1, production: 0, gold: 0, science: 0 },
   coast:      { food: 2, production: 0, gold: 1, science: 0 },
+  jungle:     { food: 2, production: 0, gold: 0, science: 0 },
+  swamp:      { food: 1, production: 0, gold: 0, science: 0 },
+  volcanic:   { food: 0, production: 0, gold: 0, science: 0 },
 };
 
 export function calculateCityYields(city: City, map: GameMap): ResourceYield {
@@ -34,6 +37,14 @@ export function calculateCityYields(city: City, map: GameMap): ResourceYield {
     yields.production += terrainYield.production;
     yields.gold += terrainYield.gold;
     yields.science += terrainYield.science;
+
+    // River bonus
+    if (tile.hasRiver) {
+      yields.gold += 1;
+      if (tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
+        yields.food += 1;
+      }
+    }
 
     // Improvement bonuses
     if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) {

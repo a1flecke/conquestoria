@@ -51,3 +51,20 @@ describe('getImprovementYieldBonus', () => {
     expect(bonus.food + bonus.production + bonus.gold + bonus.science).toBe(0);
   });
 });
+
+describe('new terrain improvements', () => {
+  it('can build farm on jungle', () => {
+    const tile = { terrain: 'jungle', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false } as any;
+    expect(canBuildImprovement(tile, 'farm')).toBe(true);
+  });
+
+  it('cannot build mine on swamp', () => {
+    const tile = { terrain: 'swamp', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false } as any;
+    expect(canBuildImprovement(tile, 'mine')).toBe(false);
+  });
+
+  it('can build mine on volcanic', () => {
+    const tile = { terrain: 'volcanic', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false } as any;
+    expect(canBuildImprovement(tile, 'mine')).toBe(true);
+  });
+});

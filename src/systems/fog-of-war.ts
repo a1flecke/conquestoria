@@ -78,7 +78,8 @@ export function updateVisibility(
   return newlyRevealed;
 }
 
-function getTerrainVisionBonus(terrain: string): number {
+export function getTerrainVisionBonus(terrain: string): number {
   if (terrain === 'hills') return 1;
+  if (terrain === 'jungle') return -1;
   return 0;
 }

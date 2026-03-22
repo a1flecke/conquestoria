@@ -1,4 +1,4 @@
-import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored } from '@/systems/fog-of-war';
+import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus } from '@/systems/fog-of-war';
 import type { VisibilityMap, GameMap, Unit } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 
@@ -66,5 +66,15 @@ describe('fog-of-war', () => {
     // Old position should be fog (seen before but no longer visible)
     expect(isFog(vis, { q: 15, r: 15 })).toBe(true);
     expect(isVisible(vis, { q: 15, r: 15 })).toBe(false);
+  });
+});
+
+describe('new terrain vision', () => {
+  it('jungle has -1 vision penalty', () => {
+    expect(getTerrainVisionBonus('jungle')).toBe(-1);
+  });
+
+  it('swamp has no vision bonus', () => {
+    expect(getTerrainVisionBonus('swamp')).toBe(0);
   });
 });

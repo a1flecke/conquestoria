@@ -1,4 +1,4 @@
-import { resolveCombat } from '@/systems/combat-system';
+import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import type { GameMap } from '@/core/types';
 import { createUnit } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
@@ -68,5 +68,15 @@ describe('resolveCombat', () => {
 
     const result = resolveCombat(warrior, settler, map);
     expect(result.defenderSurvived).toBe(false);
+  });
+});
+
+describe('new terrain defense bonuses', () => {
+  it('jungle provides 0.15 defense bonus', () => {
+    expect(getTerrainDefenseBonus('jungle')).toBe(0.15);
+  });
+
+  it('swamp provides no defense bonus', () => {
+    expect(getTerrainDefenseBonus('swamp')).toBe(0);
   });
 });

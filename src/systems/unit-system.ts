@@ -66,6 +66,7 @@ function getMovementCost(terrain: string): number {
   const costs: Record<string, number> = {
     grassland: 1, plains: 1, desert: 1, tundra: 1,
     forest: 2, hills: 2, snow: 2,
+    jungle: 2, swamp: 2, volcanic: 2,
     mountain: Infinity, ocean: Infinity, coast: Infinity,
   };
   return costs[terrain] ?? Infinity;

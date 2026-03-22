@@ -7,8 +7,8 @@ export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
 };
 
 const VALID_TERRAIN: Record<ImprovementType, string[]> = {
-  farm: ['grassland', 'plains', 'desert', 'forest'],
-  mine: ['hills', 'plains', 'mountain'],
+  farm: ['grassland', 'plains', 'desert', 'forest', 'jungle'],
+  mine: ['hills', 'plains', 'mountain', 'volcanic'],
   none: [],
 };
 

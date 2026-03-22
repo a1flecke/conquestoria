@@ -2,11 +2,12 @@ import type { Unit, CombatResult, GameMap } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 
-function getTerrainDefenseBonus(terrain: string): number {
+export function getTerrainDefenseBonus(terrain: string): number {
   const bonuses: Record<string, number> = {
     hills: 0.25,
     forest: 0.25,
     mountain: 0.5,
+    jungle: 0.15,
   };
   return bonuses[terrain] ?? 0;
 }
