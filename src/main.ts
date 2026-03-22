@@ -8,6 +8,9 @@ import { MouseHandler } from '@/input/mouse-handler';
 import { hexKey } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
+import { startResearch } from '@/systems/tech-system';
+import { createTechPanel } from '@/ui/tech-panel';
+import { createCityPanel } from '@/ui/city-panel';
 import { resolveCombat } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { updateVisibility, isVisible } from '@/systems/fog-of-war';
@@ -130,9 +133,44 @@ function showNotification(message: string, type: 'info' | 'success' | 'warning' 
   SFX.notification();
 }
 
-function togglePanel(_panel: string): void {
-  // Stub — panels will be expanded in later tasks
-  showNotification(`${_panel} panel coming soon!`);
+function togglePanel(panel: string): void {
+  // Remove any existing panel
+  document.getElementById('tech-panel')?.remove();
+  document.getElementById('city-panel')?.remove();
+
+  if (panel === 'tech') {
+    createTechPanel(uiLayer, gameState, {
+      onStartResearch: (techId) => {
+        gameState.civilizations.player.techState = startResearch(
+          gameState.civilizations.player.techState,
+          techId,
+        );
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        showNotification(`Researching ${techId}...`, 'info');
+      },
+      onClose: () => {},
+    });
+  } else if (panel === 'city') {
+    const playerCityId = gameState.civilizations.player.cities[0];
+    const city = playerCityId ? gameState.cities[playerCityId] : null;
+    if (!city) {
+      showNotification('No cities founded yet!', 'info');
+      return;
+    }
+    createCityPanel(uiLayer, city, gameState, {
+      onBuild: (cityId, itemId) => {
+        const targetCity = gameState.cities[cityId];
+        if (targetCity) {
+          targetCity.productionQueue = [itemId];
+          targetCity.productionProgress = 0;
+          renderLoop.setGameState(gameState);
+          showNotification(`${targetCity.name}: building ${itemId}`, 'info');
+        }
+      },
+      onClose: () => {},
+    });
+  }
 }
 
 function selectUnit(unitId: string): void {
