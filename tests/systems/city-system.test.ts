@@ -2,6 +2,8 @@ import {
   foundCity,
   getAvailableBuildings,
   processCity,
+  checkGridExpansion,
+  purchaseGridExpansion,
   BUILDINGS,
   CITY_NAMES,
 } from '@/systems/city-system';
@@ -76,5 +78,78 @@ describe('processCity', () => {
 
     const result = processCity(city, map, 3, 5);
     expect(result.city.productionProgress).toBe(5);
+  });
+});
+
+describe('expanded buildings', () => {
+  it('has at least 20 buildings defined', () => {
+    expect(Object.keys(BUILDINGS).length).toBeGreaterThanOrEqual(20);
+  });
+
+  it('all buildings have a category', () => {
+    for (const building of Object.values(BUILDINGS)) {
+      expect(building.category).toBeDefined();
+      expect(['production', 'food', 'science', 'economy', 'military', 'culture']).toContain(building.category);
+    }
+  });
+
+  it('getAvailableBuildings filters by tech requirements', () => {
+    const map = generateMap(30, 30, 'building-test');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const available = getAvailableBuildings(city, []);
+    for (const b of available) {
+      expect(b.techRequired).toBeNull();
+    }
+  });
+});
+
+describe('city grid', () => {
+  it('foundCity initializes a 3x3 grid', () => {
+    const map = generateMap(30, 30, 'grid-test');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    expect(city.gridSize).toBe(3);
+    expect(city.grid.length).toBe(5);
+    expect(city.grid[0].length).toBe(5);
+  });
+
+  it('city center is placed in the center of the grid', () => {
+    const map = generateMap(30, 30, 'grid-center');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    expect(city.grid[2][2]).toBe('city-center');
+  });
+});
+
+describe('grid expansion', () => {
+  it('expands to 4x4 at population 3', () => {
+    const map = generateMap(30, 30, 'expand-test');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    city.population = 3;
+    expect(checkGridExpansion(city)).toBe(true);
+    expect(city.gridSize).toBe(4);
+  });
+
+  it('expands to 5x5 at population 6', () => {
+    const map = generateMap(30, 30, 'expand-test-2');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    city.population = 6;
+    city.gridSize = 4;
+    expect(checkGridExpansion(city)).toBe(true);
+    expect(city.gridSize).toBe(5);
+  });
+
+  it('purchase grid expansion costs 50 gold for 4x4', () => {
+    const map = generateMap(30, 30, 'buy-test');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const cost = purchaseGridExpansion(city, 60);
+    expect(cost).toBe(50);
+    expect(city.gridSize).toBe(4);
+  });
+
+  it('purchase fails with insufficient gold', () => {
+    const map = generateMap(30, 30, 'buy-test-2');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const cost = purchaseGridExpansion(city, 30);
+    expect(cost).toBe(0);
+    expect(city.gridSize).toBe(3);
   });
 });

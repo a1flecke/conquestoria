@@ -12,41 +12,37 @@ export const CITY_NAMES = [
 ];
 
 export const BUILDINGS: Record<string, Building> = {
-  granary: {
-    id: 'granary', name: 'Granary',
-    yields: { food: 2, production: 0, gold: 0, science: 0 },
-    productionCost: 40, description: 'Stores food, +2 food per turn',
-  },
-  workshop: {
-    id: 'workshop', name: 'Workshop',
-    yields: { food: 0, production: 2, gold: 0, science: 0 },
-    productionCost: 50, description: 'Improves crafting, +2 production',
-  },
-  library: {
-    id: 'library', name: 'Library',
-    yields: { food: 0, production: 0, gold: 0, science: 2 },
-    productionCost: 60, description: 'Center of learning, +2 science',
-  },
-  marketplace: {
-    id: 'marketplace', name: 'Marketplace',
-    yields: { food: 0, production: 0, gold: 3, science: 0 },
-    productionCost: 50, description: 'Trading hub, +3 gold',
-  },
-  barracks: {
-    id: 'barracks', name: 'Barracks',
-    yields: { food: 0, production: 0, gold: 0, science: 0 },
-    productionCost: 40, description: 'Trains soldiers, new units start with bonus experience',
-  },
-  temple: {
-    id: 'temple', name: 'Temple',
-    yields: { food: 0, production: 0, gold: 0, science: 1 },
-    productionCost: 45, description: 'Spiritual center, +1 science, +happiness',
-  },
-  herbalist: {
-    id: 'herbalist', name: 'Herbalist',
-    yields: { food: 1, production: 0, gold: 0, science: 0 },
-    productionCost: 35, description: 'Heals and nurtures, +1 food, +health',
-  },
+  // Food
+  granary: { id: 'granary', name: 'Granary', category: 'food', yields: { food: 2, production: 0, gold: 0, science: 0 }, productionCost: 40, description: 'Stores food for growth', techRequired: null, adjacencyBonuses: [] },
+  herbalist: { id: 'herbalist', name: 'Herbalist', category: 'food', yields: { food: 1, production: 0, gold: 0, science: 0 }, productionCost: 35, description: 'Herbal medicine boosts health', techRequired: null, adjacencyBonuses: [] },
+  aqueduct: { id: 'aqueduct', name: 'Aqueduct', category: 'food', yields: { food: 2, production: 0, gold: 0, science: 0 }, productionCost: 80, description: 'Brings fresh water for growth', techRequired: 'engineering', adjacencyBonuses: [] },
+
+  // Production
+  workshop: { id: 'workshop', name: 'Workshop', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 50, description: 'Tools boost production', techRequired: null, adjacencyBonuses: [] },
+  forge: { id: 'forge', name: 'Forge', category: 'production', yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 70, description: 'Metalworking facility', techRequired: 'engineering', adjacencyBonuses: [] },
+  lumbermill: { id: 'lumbermill', name: 'Lumbermill', category: 'production', yields: { food: 0, production: 2, gold: 1, science: 0 }, productionCost: 50, description: 'Processes timber efficiently', techRequired: 'state-workforce', adjacencyBonuses: [] },
+  'quarry-building': { id: 'quarry-building', name: 'Quarry', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 55, description: 'Cuts stone for construction', techRequired: 'state-workforce', adjacencyBonuses: [] },
+
+  // Science
+  library: { id: 'library', name: 'Library', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 60, description: 'Knowledge repository', techRequired: 'writing', adjacencyBonuses: [] },
+  archive: { id: 'archive', name: 'Archive', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 75, description: 'Preserves ancient knowledge', techRequired: 'mathematics', adjacencyBonuses: [] },
+  observatory: { id: 'observatory', name: 'Observatory', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 100, description: 'Studies the stars', techRequired: 'astronomy', adjacencyBonuses: [] },
+
+  // Economy
+  marketplace: { id: 'marketplace', name: 'Marketplace', category: 'economy', yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 50, description: 'Center of trade', techRequired: 'currency', adjacencyBonuses: [] },
+  harbor: { id: 'harbor', name: 'Harbor', category: 'economy', yields: { food: 1, production: 0, gold: 3, science: 0 }, productionCost: 80, description: 'Enables sea trade', techRequired: 'harbor-tech', adjacencyBonuses: [] },
+
+  // Military
+  barracks: { id: 'barracks', name: 'Barracks', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 40, description: 'Trains soldiers', techRequired: null, adjacencyBonuses: [] },
+  walls: { id: 'walls', name: 'Walls', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 60, description: 'Defends the city', techRequired: 'fortification', adjacencyBonuses: [] },
+  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units', techRequired: 'horseback-riding', adjacencyBonuses: [] },
+
+  // Culture
+  temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center', techRequired: 'philosophy', adjacencyBonuses: [] },
+  monument: { id: 'monument', name: 'Monument', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 30, description: 'Commemorates your civilization', techRequired: 'code-of-laws', adjacencyBonuses: [] },
+  amphitheater: { id: 'amphitheater', name: 'Amphitheater', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 85, description: 'Entertainment and culture', techRequired: 'drama-poetry', adjacencyBonuses: [] },
+  shrine: { id: 'shrine', name: 'Shrine', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 25, description: 'Place of worship', techRequired: null, adjacencyBonuses: [] },
+  forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', adjacencyBonuses: [] },
 };
 
 export const TRAINABLE_UNITS: Array<{ type: UnitType; name: string; cost: number }> = [
@@ -96,7 +92,31 @@ export function resetCityId(): void {
 }
 
 export function getAvailableBuildings(city: City, completedTechs: string[]): Building[] {
-  return Object.values(BUILDINGS).filter(b => !city.buildings.includes(b.id));
+  return Object.values(BUILDINGS).filter(b => {
+    if (city.buildings.includes(b.id)) return false;
+    if (b.techRequired && !completedTechs.includes(b.techRequired)) return false;
+    return true;
+  });
+}
+
+export function checkGridExpansion(city: City): boolean {
+  if (city.population >= 6 && city.gridSize < 5) {
+    city.gridSize = 5;
+    return true;
+  }
+  if (city.population >= 3 && city.gridSize < 4) {
+    city.gridSize = 4;
+    return true;
+  }
+  return false;
+}
+
+export function purchaseGridExpansion(city: City, currentGold: number): number {
+  if (city.gridSize >= 5) return 0;
+  const cost = city.gridSize < 4 ? 50 : 150;
+  if (currentGold < cost) return 0;
+  city.gridSize = city.gridSize < 4 ? 4 : 5;
+  return cost;
 }
 
 export interface CityProcessResult {
@@ -122,11 +142,17 @@ export function processCity(
   let newPop = city.population;
   let newFoodNeeded = city.foodNeeded;
 
+  let newGridSize = city.gridSize;
+
   if (newFood >= city.foodNeeded) {
     newPop++;
     newFood -= city.foodNeeded;
     newFoodNeeded = Math.floor(city.foodNeeded * 1.3);
     grew = true;
+
+    // Check grid expansion thresholds
+    if (newPop >= 6 && newGridSize < 5) newGridSize = 5;
+    else if (newPop >= 3 && newGridSize < 4) newGridSize = 4;
   }
 
   // Production
@@ -165,6 +191,7 @@ export function processCity(
       productionProgress: newProgress,
       productionQueue: newQueue,
       buildings: newBuildings,
+      gridSize: newGridSize,
     },
     grew,
     completedBuilding,
