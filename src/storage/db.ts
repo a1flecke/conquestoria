@@ -48,3 +48,14 @@ export async function dbDelete(key: string): Promise<void> {
     request.onerror = () => reject(request.error);
   });
 }
+
+export async function dbGetAllKeys(): Promise<string[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAllKeys();
+    request.onsuccess = () => resolve(request.result as string[]);
+    request.onerror = () => reject(request.error);
+  });
+}
