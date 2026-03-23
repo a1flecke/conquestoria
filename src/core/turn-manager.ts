@@ -6,6 +6,7 @@ import { processResearch } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { updateVisibility } from '@/systems/fog-of-war';
+import { processRelationshipDrift, decayEvents, tickTreaties } from '@/systems/diplomacy-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -58,13 +59,47 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
     }
 
-    // Update visibility
+    // Get civ units for visibility and diplomacy
     const civUnits = civ.units
       .map(id => newState.units[id])
       .filter((u): u is NonNullable<typeof u> => u !== undefined);
     const cityPositions = civ.cities
       .map(id => newState.cities[id]?.position)
       .filter((p): p is NonNullable<typeof p> => p !== undefined);
+
+    // Process diplomacy
+    if (civ.diplomacy) {
+      const unitsNearBorder: Record<string, boolean> = {};
+      for (const otherCivId of Object.keys(newState.civilizations)) {
+        if (otherCivId === civId) continue;
+        const otherCities = newState.civilizations[otherCivId].cities
+          .map(id => newState.cities[id])
+          .filter(Boolean);
+        const hasUnitsNear = civUnits.some(u =>
+          otherCities.some(c => {
+            const dq = Math.abs(u.position.q - c!.position.q);
+            const dr = Math.abs(u.position.r - c!.position.r);
+            return dq + dr <= 3;
+          }),
+        );
+        unitsNearBorder[otherCivId] = hasUnitsNear;
+      }
+
+      let dipState = processRelationshipDrift(civ.diplomacy, unitsNearBorder);
+      dipState = decayEvents(dipState, newState.turn);
+      dipState = tickTreaties(dipState);
+
+      // Trade agreement gold income
+      for (const treaty of dipState.treaties) {
+        if (treaty.type === 'trade_agreement' && treaty.goldPerTurn) {
+          newState.civilizations[civId].gold += treaty.goldPerTurn;
+        }
+      }
+
+      newState.civilizations[civId].diplomacy = dipState;
+    }
+
+    // Update visibility
     updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
   }
 

@@ -1,4 +1,4 @@
-import type { City, Building, HexCoord, GameMap, UnitType } from '@/core/types';
+import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect } from '@/core/types';
 import { hexKey, hexesInRange } from './hex-utils';
 
 let nextCityId = 1;
@@ -197,4 +197,25 @@ export function processCity(
     completedBuilding,
     completedUnit,
   };
+}
+
+const WONDER_BUILDINGS = ['monument', 'amphitheater'];
+
+export function applyProductionBonus(
+  itemId: string,
+  bonusEffect: CivBonusEffect | undefined,
+): number {
+  if (!bonusEffect) return 1;
+
+  if (bonusEffect.type === 'faster_wonders' && WONDER_BUILDINGS.includes(itemId)) {
+    return bonusEffect.speedMultiplier;
+  }
+
+  if (bonusEffect.type === 'faster_military') {
+    const isMilitary = ['warrior', 'scout'].includes(itemId) ||
+      ['barracks', 'walls', 'stable'].includes(itemId);
+    if (isMilitary) return bonusEffect.speedMultiplier;
+  }
+
+  return 1;
 }

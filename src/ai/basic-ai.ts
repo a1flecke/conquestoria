@@ -1,4 +1,4 @@
-import type { GameState, Unit, HexCoord } from '@/core/types';
+import type { GameState, Unit, HexCoord, PersonalityTraits } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -6,11 +6,31 @@ import { getMovementRange, moveUnit } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
+import { getCivDefinition } from '@/systems/civ-definitions';
+import { chooseTech, chooseProduction } from './ai-strategy';
+import { evaluateDiplomacy } from './ai-diplomacy';
+import {
+  declareWar,
+  makePeace,
+  proposeTreaty,
+} from '@/systems/diplomacy-system';
+
+function getPersonality(civType: string): PersonalityTraits {
+  const def = getCivDefinition(civType);
+  return def?.personality ?? {
+    traits: [],
+    warLikelihood: 0.5,
+    diplomacyFocus: 0.5,
+    expansionDrive: 0.5,
+  };
+}
 
 export function processAITurn(state: GameState, civId: string, bus: EventBus): GameState {
   let newState = structuredClone(state);
   const civ = newState.civilizations[civId];
   if (!civ) return newState;
+
+  const personality = getPersonality(civ.civType ?? 'generic');
 
   // --- Handle settlers: found cities ---
   const settlers = civ.units
@@ -18,14 +38,12 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     .filter((u): u is Unit => u !== undefined && u.type === 'settler');
 
   for (const settler of settlers) {
-    // Found city at current position
     const tile = newState.map.tiles[hexKey(settler.position)];
     if (tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain' && tile.terrain !== 'coast') {
       const city = foundCity(civId, settler.position, newState.map);
       newState.cities[city.id] = city;
       civ.cities.push(city.id);
 
-      // Mark tiles as owned
       for (const ownedCoord of city.ownedTiles) {
         const key = hexKey(ownedCoord);
         if (newState.map.tiles[key]) {
@@ -33,13 +51,9 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         }
       }
 
-      // Remove settler
       delete newState.units[settler.id];
       civ.units = civ.units.filter(id => id !== settler.id);
-
       bus.emit('city:founded', { city });
-
-      // Start building a warrior
       city.productionQueue = ['warrior'];
     }
   }
@@ -65,7 +79,6 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       if (occupantId) {
         const occupant = newState.units[occupantId];
         if (occupant && occupant.owner !== civId && occupant.owner !== 'barbarian') {
-          // Attack!
           const result = resolveCombat(unit, occupant, newState.map);
           if (!result.attackerSurvived) {
             delete newState.units[unit.id];
@@ -95,29 +108,104 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     // Explore: move toward unexplored territory
     const range = getMovementRange(unit, newState.map, unitPositions);
     if (range.length > 0) {
-      const target = range[Math.floor(Math.random() * range.length)];
+      const unexplored = range.filter(
+        coord => civ.visibility.tiles[hexKey(coord)] !== 'visible',
+      );
+      const candidates = unexplored.length > 0 ? unexplored : range;
+      const target = candidates[Math.floor(Math.random() * candidates.length)];
       newState.units[unit.id] = moveUnit(unit, target, 1);
-      // Update unit positions
       delete unitPositions[hexKey(unit.position)];
       unitPositions[hexKey(target)] = unit.id;
     }
   }
 
-  // --- Handle research ---
+  // --- Handle research (personality-driven) ---
   if (!civ.techState.currentResearch) {
     const available = getAvailableTechs(civ.techState);
     if (available.length > 0) {
-      const chosen = available[Math.floor(Math.random() * available.length)];
+      const chosen = chooseTech(personality, available);
       newState.civilizations[civId].techState = startResearch(civ.techState, chosen.id);
       bus.emit('tech:started', { civId, techId: chosen.id });
     }
   }
 
-  // --- Handle city production ---
+  // --- Handle city production (personality-driven) ---
+  const isUnderThreat = militaryUnits.length < civ.cities.length;
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
     if (city && city.productionQueue.length === 0) {
-      city.productionQueue = ['warrior'];
+      const availableItems = ['warrior', 'scout', 'granary', 'settler'];
+      const chosen = chooseProduction(personality, availableItems, isUnderThreat, civ.cities.length);
+      city.productionQueue = [chosen];
+    }
+  }
+
+  // --- Handle diplomacy ---
+  if (civ.diplomacy) {
+    const selfStrength = militaryUnits.reduce((sum, u) => {
+      const def = newState.units[u.id];
+      return sum + (def?.health ?? 0);
+    }, 0);
+
+    const otherStrengths: Record<string, number> = {};
+    for (const [otherId, otherCiv] of Object.entries(newState.civilizations)) {
+      if (otherId === civId) continue;
+      const otherMil = otherCiv.units
+        .map(id => newState.units[id])
+        .filter((u): u is Unit => u !== undefined && u.type === 'warrior');
+      otherStrengths[otherId] = otherMil.reduce((sum, u) => sum + u.health, 0);
+    }
+
+    const decisions = evaluateDiplomacy(
+      personality,
+      civ.diplomacy,
+      civ.techState.completed,
+      newState.era,
+      otherStrengths,
+      selfStrength,
+    );
+
+    for (const decision of decisions) {
+      switch (decision.action) {
+        case 'declare_war':
+          newState.civilizations[civId].diplomacy = declareWar(
+            civ.diplomacy, decision.targetCiv, newState.turn,
+          );
+          if (newState.civilizations[decision.targetCiv]?.diplomacy) {
+            newState.civilizations[decision.targetCiv].diplomacy = declareWar(
+              newState.civilizations[decision.targetCiv].diplomacy, civId, newState.turn,
+            );
+          }
+          bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv });
+          break;
+        case 'request_peace':
+          newState.civilizations[civId].diplomacy = makePeace(
+            civ.diplomacy, decision.targetCiv, newState.turn,
+          );
+          if (newState.civilizations[decision.targetCiv]?.diplomacy) {
+            newState.civilizations[decision.targetCiv].diplomacy = makePeace(
+              newState.civilizations[decision.targetCiv].diplomacy, civId, newState.turn,
+            );
+          }
+          bus.emit('diplomacy:peace-made', { civA: civId, civB: decision.targetCiv });
+          break;
+        case 'non_aggression_pact':
+        case 'trade_agreement':
+        case 'open_borders':
+        case 'alliance':
+          newState.civilizations[civId].diplomacy = proposeTreaty(
+            civ.diplomacy, decision.targetCiv, decision.action,
+            decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
+          );
+          if (newState.civilizations[decision.targetCiv]?.diplomacy) {
+            newState.civilizations[decision.targetCiv].diplomacy = proposeTreaty(
+              newState.civilizations[decision.targetCiv].diplomacy, civId, decision.action,
+              decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
+            );
+          }
+          bus.emit('diplomacy:treaty-accepted', { civA: civId, civB: decision.targetCiv, treaty: decision.action });
+          break;
+      }
     }
   }
 
