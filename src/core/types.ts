@@ -252,6 +252,41 @@ export interface CombatResult {
   defenderPosition: HexCoord;
 }
 
+// --- Trade & Resources ---
+
+export type LuxuryResource = 'silk' | 'wine' | 'spices' | 'gems' | 'ivory' | 'incense';
+export type StrategicResource = 'copper' | 'iron' | 'horses' | 'stone';
+export type ResourceType = LuxuryResource | StrategicResource;
+
+export interface TradeRoute {
+  fromCityId: string;
+  toCityId: string;
+  goldPerTurn: number;
+  foreignCivId?: string;
+}
+
+export interface MarketplaceState {
+  prices: Record<string, number>;
+  priceHistory: Record<string, number[]>;
+  fashionable: ResourceType | null;
+  fashionTurnsLeft: number;
+  tradeRoutes: TradeRoute[];
+}
+
+// --- Advisors ---
+
+export type AdvisorType = 'builder' | 'explorer' | 'chancellor' | 'warchief';
+
+// --- Save Slots ---
+
+export interface SaveSlotMeta {
+  id: string;
+  name: string;
+  civType: string;
+  turn: number;
+  lastPlayed: string;
+}
+
 // --- Tutorial ---
 
 export type TutorialStep =
@@ -285,6 +320,7 @@ export interface GameState {
   gameOver: boolean;
   winner: string | null;
   settings: GameSettings;
+  marketplace?: MarketplaceState;
 }
 
 export interface GameSettings {
@@ -294,6 +330,7 @@ export interface GameSettings {
   musicVolume: number;       // 0-1
   sfxVolume: number;         // 0-1
   tutorialEnabled: boolean;
+  advisorsEnabled: Record<AdvisorType, boolean>;
 }
 
 // --- Events ---
@@ -328,6 +365,9 @@ export interface GameEvents {
   'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
   'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
+  'advisor:message': { advisor: AdvisorType; message: string; icon: string };
+  'trade:route-created': { route: TradeRoute };
+  'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'ui:select-unit': { unitId: string };
   'ui:select-city': { cityId: string };
   'ui:deselect': {};

@@ -6,6 +6,7 @@ import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
 import { spawnBarbarianCamp } from '@/systems/barbarian-system';
 import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createMarketplaceState } from '@/systems/trade-system';
 
 export function createNewGame(civType?: string, seed?: string): GameState {
   const gameSeed = seed ?? `game-${Date.now()}`;
@@ -92,6 +93,7 @@ export function createNewGame(civType?: string, seed?: string): GameState {
     units,
     cities: {},
     barbarianCamps,
+    marketplace: createMarketplaceState(),
     tutorial: { active: true, currentStep: 'welcome', completedSteps: [] },
     currentPlayer: 'player',
     gameOver: false,
@@ -103,6 +105,7 @@ export function createNewGame(civType?: string, seed?: string): GameState {
       musicVolume: 0.5,
       sfxVolume: 0.7,
       tutorialEnabled: true,
+      advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true },
     },
   };
 }

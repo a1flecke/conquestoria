@@ -151,10 +151,39 @@ export function generateMap(width: number, height: number, seed: string): GameMa
     }
   }
 
+  // Place resources on tiles
+  const resourceRng = createRng(seed + '-resources');
+  placeResources(tiles, resourceRng);
+
   const mapResult: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
   const rivers = generateRivers(mapResult, seed);
   applyRiversToMap(mapResult, rivers);
   return mapResult;
+}
+
+const TERRAIN_RESOURCES: Record<string, string[]> = {
+  grassland: ['silk'],
+  plains: ['wine', 'horses'],
+  jungle: ['spices'],
+  hills: ['gems', 'copper', 'iron'],
+  forest: ['ivory'],
+  desert: ['incense'],
+};
+
+function placeResources(tiles: Record<string, HexTile>, rng: () => number): void {
+  for (const tile of Object.values(tiles)) {
+    const candidates = TERRAIN_RESOURCES[tile.terrain];
+    if (!candidates || candidates.length === 0) continue;
+    if (rng() < 0.15) { // 15% chance
+      tile.resource = candidates[Math.floor(rng() * candidates.length)];
+    }
+  }
+  // Stone: place near mountains
+  for (const tile of Object.values(tiles)) {
+    if (tile.terrain === 'hills' && !tile.resource && rng() < 0.08) {
+      tile.resource = 'stone';
+    }
+  }
 }
 
 function isLandTerrain(terrain: TerrainType): boolean {

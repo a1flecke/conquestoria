@@ -7,6 +7,7 @@ import { processBarbarians } from '@/systems/barbarian-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { processRelationshipDrift, decayEvents, tickTreaties } from '@/systems/diplomacy-system';
+import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/systems/trade-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -101,6 +102,27 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
     // Update visibility
     updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
+  }
+
+  // --- Process marketplace ---
+  if (newState.marketplace) {
+    // Trade route income for player
+    const playerRouteIncome = processTradeRouteIncome(
+      newState.marketplace.tradeRoutes.filter(r => {
+        const city = newState.cities[r.fromCityId];
+        return city?.owner === 'player';
+      }),
+    );
+    newState.civilizations.player.gold += playerRouteIncome;
+
+    // Simple fashion cycle with seeded rng
+    let rngState = newState.turn * 16807;
+    const simpleRng = () => {
+      rngState = (rngState * 48271) % 2147483647;
+      return rngState / 2147483647;
+    };
+    newState.marketplace = processFashionCycle(newState.marketplace, simpleRng);
+    newState.marketplace = updatePrices(newState.marketplace, {}, {});
   }
 
   // --- Process barbarians ---
