@@ -15,11 +15,14 @@ import { resolveCombat } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { updateVisibility, isVisible } from '@/systems/fog-of-war';
 import { destroyCamp } from '@/systems/barbarian-system';
-import { autoSave, loadAutoSave } from '@/storage/save-manager';
+import { autoSave, loadAutoSave, saveGame, loadGame, listSaves } from '@/storage/save-manager';
 import { AudioManager } from '@/audio/audio-manager';
 import { SFX } from '@/audio/sfx';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
+import { createMarketplacePanel } from '@/ui/marketplace-panel';
+import { createSavePanel } from '@/ui/save-panel';
+import { AdvisorSystem } from '@/ui/advisor-system';
 import { declareWar, makePeace, proposeTreaty } from '@/systems/diplomacy-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
 
@@ -30,6 +33,7 @@ let movementRange: HexCoord[] = [];
 let inputInitialized = false;
 const bus = new EventBus();
 const audio = new AudioManager();
+const advisorSystem = new AdvisorSystem(bus);
 
 // --- Canvas Setup ---
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -58,6 +62,7 @@ function createUI(): void {
   bottomBar.appendChild(createButton('Tech', '🔬', () => togglePanel('tech')));
   bottomBar.appendChild(createButton('City', '🏛️', () => togglePanel('city')));
   bottomBar.appendChild(createButton('Diplo', '🤝', () => togglePanel('diplomacy')));
+  bottomBar.appendChild(createButton('Trade', '💰', () => togglePanel('marketplace')));
   bottomBar.appendChild(endTurnBtn);
   uiLayer.appendChild(bottomBar);
 
@@ -187,6 +192,7 @@ function togglePanel(panel: string): void {
   document.getElementById('tech-panel')?.remove();
   document.getElementById('city-panel')?.remove();
   document.getElementById('diplomacy-panel')?.remove();
+  document.getElementById('marketplace-panel')?.remove();
 
   if (panel === 'tech') {
     createTechPanel(uiLayer, gameState, {
@@ -223,6 +229,10 @@ function togglePanel(panel: string): void {
   } else if (panel === 'diplomacy') {
     createDiplomacyPanel(uiLayer, gameState, {
       onAction: handleDiplomaticAction,
+      onClose: () => {},
+    });
+  } else if (panel === 'marketplace') {
+    createMarketplacePanel(uiLayer, gameState, {
       onClose: () => {},
     });
   }
@@ -460,6 +470,14 @@ async function endTurn(): Promise<void> {
   renderLoop.setGameState(gameState);
   updateHUD();
 
+  // Check advisors
+  advisorSystem.check(gameState);
+
+  // Update music if era changed
+  if (gameState.settings.musicEnabled && gameState.era !== audio.getCurrentEra()) {
+    audio.playProceduralMusic(gameState.era);
+  }
+
   // Auto-save
   await autoSave(gameState);
   bus.emit('game:saved', { turn: gameState.turn });
@@ -506,6 +524,10 @@ bus.on('diplomacy:peace-made', ({ civA, civB }) => {
   }
 });
 
+bus.on('advisor:message', ({ advisor, message, icon }) => {
+  showNotification(`${icon} ${message}`, 'info');
+});
+
 bus.on('barbarian:spawned', ({ campId }) => {
   // Only notify if visible
   const camp = gameState.barbarianCamps[campId];
@@ -530,37 +552,56 @@ async function init(): Promise<void> {
 
   createUI();
 
-  // Try to load auto-save
-  const saved = await loadAutoSave();
-  if (saved) {
-    gameState = saved;
-    // Add diplomacy for legacy saves
-    for (const [civId, civ] of Object.entries(gameState.civilizations)) {
-      if (!civ.civType) (civ as any).civType = 'generic';
-      if (!civ.diplomacy) {
-        const relationships: Record<string, number> = {};
-        for (const otherId of Object.keys(gameState.civilizations)) {
-          if (otherId !== civId) relationships[otherId] = 0;
-        }
-        (civ as any).diplomacy = {
-          relationships,
-          treaties: [],
-          events: [],
-          atWarWith: [],
-        };
-      }
-    }
-    startGame();
-    showNotification(`Welcome back! Turn ${gameState.turn}`, 'info');
-  } else {
-    // Show civ selection
-    createCivSelectPanel(uiLayer, {
-      onSelect: (civId) => {
-        gameState = createNewGame(civId);
+  // Show save panel on start
+  await createSavePanel(uiLayer, {
+    onNewGame: () => {
+      createCivSelectPanel(uiLayer, {
+        onSelect: (civId) => {
+          gameState = createNewGame(civId);
+          startGame();
+          showNotification('Your tribe has settled near a river...', 'info');
+        },
+      });
+    },
+    onContinue: async () => {
+      const saved = await loadAutoSave();
+      if (saved) {
+        gameState = saved;
+        migrateLegacySave();
         startGame();
-        showNotification('Your tribe has settled near a river...', 'info');
-      },
-    });
+        showNotification(`Welcome back! Turn ${gameState.turn}`, 'info');
+      }
+    },
+    onLoadSlot: async (slotId) => {
+      const saved = await loadGame(slotId);
+      if (saved) {
+        gameState = saved;
+        migrateLegacySave();
+        startGame();
+        showNotification(`Game loaded! Turn ${gameState.turn}`, 'info');
+      }
+    },
+  });
+}
+
+function migrateLegacySave(): void {
+  for (const [civId, civ] of Object.entries(gameState.civilizations)) {
+    if (!civ.civType) (civ as any).civType = 'generic';
+    if (!civ.diplomacy) {
+      const relationships: Record<string, number> = {};
+      for (const otherId of Object.keys(gameState.civilizations)) {
+        if (otherId !== civId) relationships[otherId] = 0;
+      }
+      (civ as any).diplomacy = {
+        relationships,
+        treaties: [],
+        events: [],
+        atWarWith: [],
+      };
+    }
+  }
+  if (!gameState.settings.advisorsEnabled) {
+    gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true };
   }
 }
 
@@ -584,6 +625,14 @@ function startGame(): void {
     new MouseHandler(canvas, renderLoop.camera, callbacks);
     inputInitialized = true;
   }
+
+  // Start procedural music
+  if (gameState.settings.musicEnabled) {
+    audio.playProceduralMusic(gameState.era);
+  }
+
+  // Initial advisor check
+  advisorSystem.check(gameState);
 
   // Start render loop
   renderLoop.start();
