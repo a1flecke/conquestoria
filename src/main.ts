@@ -18,12 +18,16 @@ import { destroyCamp } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave } from '@/storage/save-manager';
 import { AudioManager } from '@/audio/audio-manager';
 import { SFX } from '@/audio/sfx';
-import type { GameState, HexCoord, Unit } from '@/core/types';
+import { createCivSelectPanel } from '@/ui/civ-select';
+import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
+import { declareWar, makePeace, proposeTreaty } from '@/systems/diplomacy-system';
+import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
 
 // --- App State ---
 let gameState: GameState;
 let selectedUnitId: string | null = null;
 let movementRange: HexCoord[] = [];
+let inputInitialized = false;
 const bus = new EventBus();
 const audio = new AudioManager();
 
@@ -53,6 +57,7 @@ function createUI(): void {
 
   bottomBar.appendChild(createButton('Tech', '🔬', () => togglePanel('tech')));
   bottomBar.appendChild(createButton('City', '🏛️', () => togglePanel('city')));
+  bottomBar.appendChild(createButton('Diplo', '🤝', () => togglePanel('diplomacy')));
   bottomBar.appendChild(endTurnBtn);
   uiLayer.appendChild(bottomBar);
 
@@ -133,10 +138,55 @@ function showNotification(message: string, type: 'info' | 'success' | 'warning' 
   SFX.notification();
 }
 
+function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
+  switch (action) {
+    case 'declare_war':
+      gameState.civilizations.player.diplomacy = declareWar(
+        gameState.civilizations.player.diplomacy, targetCivId, gameState.turn,
+      );
+      if (gameState.civilizations[targetCivId]?.diplomacy) {
+        gameState.civilizations[targetCivId].diplomacy = declareWar(
+          gameState.civilizations[targetCivId].diplomacy, 'player', gameState.turn,
+        );
+      }
+      bus.emit('diplomacy:war-declared', { attackerId: 'player', defenderId: targetCivId });
+      break;
+    case 'request_peace':
+      gameState.civilizations.player.diplomacy = makePeace(
+        gameState.civilizations.player.diplomacy, targetCivId, gameState.turn,
+      );
+      if (gameState.civilizations[targetCivId]?.diplomacy) {
+        gameState.civilizations[targetCivId].diplomacy = makePeace(
+          gameState.civilizations[targetCivId].diplomacy, 'player', gameState.turn,
+        );
+      }
+      bus.emit('diplomacy:peace-made', { civA: 'player', civB: targetCivId });
+      break;
+    case 'non_aggression_pact':
+    case 'trade_agreement':
+    case 'open_borders':
+    case 'alliance':
+      gameState.civilizations.player.diplomacy = proposeTreaty(
+        gameState.civilizations.player.diplomacy, targetCivId, action,
+        action === 'non_aggression_pact' ? 10 : -1, gameState.turn,
+      );
+      if (gameState.civilizations[targetCivId]?.diplomacy) {
+        gameState.civilizations[targetCivId].diplomacy = proposeTreaty(
+          gameState.civilizations[targetCivId].diplomacy, 'player', action,
+          action === 'non_aggression_pact' ? 10 : -1, gameState.turn,
+        );
+      }
+      bus.emit('diplomacy:treaty-accepted', { civA: 'player', civB: targetCivId, treaty: action });
+      break;
+  }
+  showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
+}
+
 function togglePanel(panel: string): void {
   // Remove any existing panel
   document.getElementById('tech-panel')?.remove();
   document.getElementById('city-panel')?.remove();
+  document.getElementById('diplomacy-panel')?.remove();
 
   if (panel === 'tech') {
     createTechPanel(uiLayer, gameState, {
@@ -168,6 +218,11 @@ function togglePanel(panel: string): void {
           showNotification(`${targetCity.name}: building ${itemId}`, 'info');
         }
       },
+      onClose: () => {},
+    });
+  } else if (panel === 'diplomacy') {
+    createDiplomacyPanel(uiLayer, gameState, {
+      onAction: handleDiplomaticAction,
       onClose: () => {},
     });
   }
@@ -436,6 +491,21 @@ bus.on('city:building-complete', ({ cityId, buildingId }) => {
   }
 });
 
+bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
+  if (defenderId === 'player') {
+    const attacker = gameState.civilizations[attackerId];
+    showNotification(`${attacker?.name ?? 'Unknown'} has declared war!`, 'warning');
+  }
+});
+
+bus.on('diplomacy:peace-made', ({ civA, civB }) => {
+  const otherId = civA === 'player' ? civB : civA;
+  if (civA === 'player' || civB === 'player') {
+    const other = gameState.civilizations[otherId];
+    showNotification(`Peace with ${other?.name ?? 'Unknown'}!`, 'success');
+  }
+});
+
 bus.on('barbarian:spawned', ({ campId }) => {
   // Only notify if visible
   const camp = gameState.barbarianCamps[campId];
@@ -464,12 +534,37 @@ async function init(): Promise<void> {
   const saved = await loadAutoSave();
   if (saved) {
     gameState = saved;
+    // Add diplomacy for legacy saves
+    for (const [civId, civ] of Object.entries(gameState.civilizations)) {
+      if (!civ.civType) (civ as any).civType = 'generic';
+      if (!civ.diplomacy) {
+        const relationships: Record<string, number> = {};
+        for (const otherId of Object.keys(gameState.civilizations)) {
+          if (otherId !== civId) relationships[otherId] = 0;
+        }
+        (civ as any).diplomacy = {
+          relationships,
+          treaties: [],
+          events: [],
+          atWarWith: [],
+        };
+      }
+    }
+    startGame();
     showNotification(`Welcome back! Turn ${gameState.turn}`, 'info');
   } else {
-    gameState = createNewGame();
-    showNotification('Your tribe has settled near a river...', 'info');
+    // Show civ selection
+    createCivSelectPanel(uiLayer, {
+      onSelect: (civId) => {
+        gameState = createNewGame(civId);
+        startGame();
+        showNotification('Your tribe has settled near a river...', 'info');
+      },
+    });
   }
+}
 
+function startGame(): void {
   // Center camera on player's starting position
   const playerUnits = Object.values(gameState.units).filter(u => u.owner === 'player');
   if (playerUnits.length > 0) {
@@ -479,13 +574,16 @@ async function init(): Promise<void> {
   renderLoop.setGameState(gameState);
   updateHUD();
 
-  // Input
-  const callbacks: InputCallbacks = {
-    onHexTap: handleHexTap,
-    onHexLongPress: handleHexLongPress,
-  };
-  new TouchHandler(canvas, renderLoop.camera, callbacks);
-  new MouseHandler(canvas, renderLoop.camera, callbacks);
+  // Input (only set up once)
+  if (!inputInitialized) {
+    const callbacks: InputCallbacks = {
+      onHexTap: handleHexTap,
+      onHexLongPress: handleHexLongPress,
+    };
+    new TouchHandler(canvas, renderLoop.camera, callbacks);
+    new MouseHandler(canvas, renderLoop.camera, callbacks);
+    inputInitialized = true;
+  }
 
   // Start render loop
   renderLoop.start();
