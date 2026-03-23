@@ -1,12 +1,18 @@
+import { MusicGenerator } from './music-generator';
+
 export class AudioManager {
   private musicElement: HTMLAudioElement | null = null;
+  private musicGenerator = new MusicGenerator();
   private musicVolume = 0.5;
   private sfxVolume = 0.7;
   private musicEnabled = true;
   private sfxEnabled = true;
+  private currentEra = 0;
 
   async playMusic(src: string): Promise<void> {
     if (!this.musicEnabled) return;
+
+    this.musicGenerator.stop();
 
     if (this.musicElement) {
       this.musicElement.pause();
@@ -23,11 +29,26 @@ export class AudioManager {
     }
   }
 
+  playProceduralMusic(era: number): void {
+    if (!this.musicEnabled) return;
+
+    // Stop file-based music
+    if (this.musicElement) {
+      this.musicElement.pause();
+      this.musicElement = null;
+    }
+
+    this.currentEra = era;
+    this.musicGenerator.start(era, this.musicVolume);
+  }
+
   stopMusic(): void {
     if (this.musicElement) {
       this.musicElement.pause();
       this.musicElement = null;
     }
+    this.musicGenerator.stop();
+    this.currentEra = 0;
   }
 
   setMusicVolume(volume: number): void {
@@ -35,6 +56,7 @@ export class AudioManager {
     if (this.musicElement) {
       this.musicElement.volume = this.musicVolume;
     }
+    this.musicGenerator.setVolume(this.musicVolume);
   }
 
   setSfxVolume(volume: number): void {
@@ -43,7 +65,11 @@ export class AudioManager {
 
   toggleMusic(): boolean {
     this.musicEnabled = !this.musicEnabled;
-    if (!this.musicEnabled) this.stopMusic();
+    if (!this.musicEnabled) {
+      this.stopMusic();
+    } else if (this.currentEra > 0) {
+      this.musicGenerator.start(this.currentEra, this.musicVolume);
+    }
     return this.musicEnabled;
   }
 
@@ -54,4 +80,5 @@ export class AudioManager {
 
   getMusicEnabled(): boolean { return this.musicEnabled; }
   getSfxEnabled(): boolean { return this.sfxEnabled; }
+  getCurrentEra(): number { return this.currentEra; }
 }
