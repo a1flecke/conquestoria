@@ -150,6 +150,69 @@ export interface TechState {
   trackPriorities: Record<TechTrack, 'high' | 'medium' | 'low' | 'ignore'>;
 }
 
+// --- Civilization Definitions ---
+
+export type PersonalityTrait = 'aggressive' | 'diplomatic' | 'expansionist' | 'trader';
+
+export interface PersonalityTraits {
+  traits: PersonalityTrait[];
+  warLikelihood: number;      // 0-1, how likely to declare war
+  diplomacyFocus: number;     // 0-1, how much to prioritize diplomacy
+  expansionDrive: number;     // 0-1, how much to prioritize expansion
+}
+
+export type CivBonusEffect =
+  | { type: 'faster_wonders'; speedMultiplier: number }
+  | { type: 'auto_roads' }
+  | { type: 'diplomacy_start_bonus'; bonus: number }
+  | { type: 'mounted_movement'; bonus: number }
+  | { type: 'free_tech_on_era' }
+  | { type: 'faster_military'; speedMultiplier: number };
+
+export interface CivDefinition {
+  id: string;
+  name: string;
+  color: string;
+  bonusName: string;
+  bonusDescription: string;
+  bonusEffect: CivBonusEffect;
+  personality: PersonalityTraits;
+}
+
+// --- Diplomacy ---
+
+export type DiplomaticAction =
+  | 'declare_war'
+  | 'request_peace'
+  | 'non_aggression_pact'
+  | 'trade_agreement'
+  | 'open_borders'
+  | 'alliance';
+
+export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance';
+
+export interface Treaty {
+  type: TreatyType;
+  civA: string;
+  civB: string;
+  turnsRemaining: number;     // -1 = permanent until broken
+  goldPerTurn?: number;       // for trade agreements
+}
+
+export interface DiplomaticEvent {
+  type: string;               // 'war_declared', 'peace_made', 'treaty_broken', etc.
+  turn: number;
+  otherCiv: string;
+  weight: number;             // decays over time
+}
+
+export interface DiplomacyState {
+  relationships: Record<string, number>;    // civId -> score (-100 to +100)
+  treaties: Treaty[];
+  events: DiplomaticEvent[];
+  atWarWith: string[];
+}
+
 // --- Civilizations ---
 
 export interface Civilization {
@@ -157,12 +220,14 @@ export interface Civilization {
   name: string;
   color: string;
   isHuman: boolean;
+  civType: string;              // references CivDefinition.id, 'generic' for legacy
   cities: string[];          // city IDs
   units: string[];           // unit IDs
   techState: TechState;
   gold: number;
   visibility: VisibilityMap;
   score: number;
+  diplomacy: DiplomacyState;
 }
 
 // --- Barbarians ---
@@ -258,6 +323,11 @@ export interface GameEvents {
   'game:over': { winnerId: string };
   'grid:slot-unlocked': { cityId: string; newGridSize: number };
   'grid:building-placed': { cityId: string; buildingId: string; row: number; col: number };
+  'diplomacy:war-declared': { attackerId: string; defenderId: string };
+  'diplomacy:peace-made': { civA: string; civB: string };
+  'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
+  'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };
+  'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
   'ui:select-unit': { unitId: string };
   'ui:select-city': { cityId: string };
   'ui:deselect': {};
