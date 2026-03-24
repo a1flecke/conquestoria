@@ -19,7 +19,7 @@ export function createCityPanel(
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
 
   const yields = calculateCityYields(city, state.map);
-  const availableBuildings = getAvailableBuildings(city, state.civilizations.player.techState.completed);
+  const availableBuildings = getAvailableBuildings(city, state.civilizations[state.currentPlayer].techState.completed);
 
   let html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">

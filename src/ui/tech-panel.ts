@@ -15,7 +15,7 @@ export function createTechPanel(
   panel.id = 'tech-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
 
-  const civ = state.civilizations.player;
+  const civ = state.civilizations[state.currentPlayer];
   const available = getAvailableTechs(civ.techState);
 
   let html = `

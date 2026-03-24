@@ -45,7 +45,7 @@ export function createMarketplacePanel(
 
 function countPlayerResources(state: GameState): Record<string, number> {
   const counts: Record<string, number> = {};
-  const playerCities = state.civilizations.player?.cities ?? [];
+  const playerCities = state.civilizations[state.currentPlayer]?.cities ?? [];
   for (const cityId of playerCities) {
     const city = state.cities[cityId];
     if (!city) continue;
@@ -100,7 +100,7 @@ function renderSparkline(history: number[]): string {
 function renderTradeRoutes(marketplace: MarketplaceState, state: GameState): string {
   const playerRoutes = marketplace.tradeRoutes.filter(r => {
     const city = state.cities[r.fromCityId];
-    return city?.owner === 'player';
+    return city?.owner === state.currentPlayer;
   });
 
   if (playerRoutes.length === 0) {

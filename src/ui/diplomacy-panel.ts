@@ -16,7 +16,7 @@ export function createDiplomacyPanel(
   panel.id = 'diplomacy-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
 
-  const playerCiv = state.civilizations.player;
+  const playerCiv = state.civilizations[state.currentPlayer];
   const playerDiplomacy = playerCiv.diplomacy;
 
   let html = `
@@ -27,7 +27,7 @@ export function createDiplomacyPanel(
   `;
 
   for (const [civId, civ] of Object.entries(state.civilizations)) {
-    if (civId === 'player') continue;
+    if (civId === state.currentPlayer) continue;
 
     const civDef = getCivDefinition(civ.civType ?? '');
     const relationship = getRelationship(playerDiplomacy, civId);

@@ -1,5 +1,5 @@
 import { EventBus } from '@/core/event-bus';
-import { createNewGame } from '@/core/game-state';
+import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import { processAITurn } from '@/ai/basic-ai';
 import { RenderLoop } from '@/renderer/render-loop';
@@ -24,6 +24,9 @@ import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import { declareWar, makePeace, proposeTreaty } from '@/systems/diplomacy-system';
+import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
+import { showTurnHandoff } from '@/ui/turn-handoff';
+import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
 
 // --- App State ---
@@ -105,16 +108,21 @@ function createButton(label: string, icon: string, onClick: () => void): HTMLEle
 }
 
 // --- Game Logic ---
+function currentCiv() {
+  return gameState.civilizations[gameState.currentPlayer];
+}
+
 function updateHUD(): void {
   const hud = document.getElementById('hud');
   if (!hud) return;
-  const civ = gameState.civilizations.player;
+  const civ = currentCiv();
+  const nameLabel = gameState.hotSeat ? `${civ.name} · ` : '';
   hud.innerHTML = `
     <div style="display:flex;gap:12px;">
       <span>💰 ${civ.gold}</span>
       <span>🔬 ${civ.techState.currentResearch ? '...' : 'None'}</span>
     </div>
-    <div>Turn ${gameState.turn} · Era ${gameState.era}</div>
+    <div>${nameLabel}Turn ${gameState.turn} · Era ${gameState.era}</div>
   `;
 }
 
@@ -144,44 +152,45 @@ function showNotification(message: string, type: 'info' | 'success' | 'warning' 
 }
 
 function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
+  const cp = gameState.currentPlayer;
   switch (action) {
     case 'declare_war':
-      gameState.civilizations.player.diplomacy = declareWar(
-        gameState.civilizations.player.diplomacy, targetCivId, gameState.turn,
+      currentCiv().diplomacy = declareWar(
+        currentCiv().diplomacy, targetCivId, gameState.turn,
       );
       if (gameState.civilizations[targetCivId]?.diplomacy) {
         gameState.civilizations[targetCivId].diplomacy = declareWar(
-          gameState.civilizations[targetCivId].diplomacy, 'player', gameState.turn,
+          gameState.civilizations[targetCivId].diplomacy, cp, gameState.turn,
         );
       }
-      bus.emit('diplomacy:war-declared', { attackerId: 'player', defenderId: targetCivId });
+      bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId });
       break;
     case 'request_peace':
-      gameState.civilizations.player.diplomacy = makePeace(
-        gameState.civilizations.player.diplomacy, targetCivId, gameState.turn,
+      currentCiv().diplomacy = makePeace(
+        currentCiv().diplomacy, targetCivId, gameState.turn,
       );
       if (gameState.civilizations[targetCivId]?.diplomacy) {
         gameState.civilizations[targetCivId].diplomacy = makePeace(
-          gameState.civilizations[targetCivId].diplomacy, 'player', gameState.turn,
+          gameState.civilizations[targetCivId].diplomacy, cp, gameState.turn,
         );
       }
-      bus.emit('diplomacy:peace-made', { civA: 'player', civB: targetCivId });
+      bus.emit('diplomacy:peace-made', { civA: cp, civB: targetCivId });
       break;
     case 'non_aggression_pact':
     case 'trade_agreement':
     case 'open_borders':
     case 'alliance':
-      gameState.civilizations.player.diplomacy = proposeTreaty(
-        gameState.civilizations.player.diplomacy, targetCivId, action,
+      currentCiv().diplomacy = proposeTreaty(
+        currentCiv().diplomacy, targetCivId, action,
         action === 'non_aggression_pact' ? 10 : -1, gameState.turn,
       );
       if (gameState.civilizations[targetCivId]?.diplomacy) {
         gameState.civilizations[targetCivId].diplomacy = proposeTreaty(
-          gameState.civilizations[targetCivId].diplomacy, 'player', action,
+          gameState.civilizations[targetCivId].diplomacy, cp, action,
           action === 'non_aggression_pact' ? 10 : -1, gameState.turn,
         );
       }
-      bus.emit('diplomacy:treaty-accepted', { civA: 'player', civB: targetCivId, treaty: action });
+      bus.emit('diplomacy:treaty-accepted', { civA: cp, civB: targetCivId, treaty: action });
       break;
   }
   showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
@@ -197,8 +206,8 @@ function togglePanel(panel: string): void {
   if (panel === 'tech') {
     createTechPanel(uiLayer, gameState, {
       onStartResearch: (techId) => {
-        gameState.civilizations.player.techState = startResearch(
-          gameState.civilizations.player.techState,
+        currentCiv().techState = startResearch(
+          currentCiv().techState,
           techId,
         );
         renderLoop.setGameState(gameState);
@@ -208,7 +217,7 @@ function togglePanel(panel: string): void {
       onClose: () => {},
     });
   } else if (panel === 'city') {
-    const playerCityId = gameState.civilizations.player.cities[0];
+    const playerCityId = currentCiv().cities[0];
     const city = playerCityId ? gameState.cities[playerCityId] : null;
     if (!city) {
       showNotification('No cities founded yet!', 'info');
@@ -241,7 +250,7 @@ function togglePanel(panel: string): void {
 function selectUnit(unitId: string): void {
   selectedUnitId = unitId;
   const unit = gameState.units[unitId];
-  if (!unit || unit.owner !== 'player') return;
+  if (!unit || unit.owner !== gameState.currentPlayer) return;
 
   // Calculate movement range
   const unitPositions: Record<string, string> = {};
@@ -296,21 +305,22 @@ function foundCityAction(): void {
   const unit = gameState.units[selectedUnitId];
   if (!unit || unit.type !== 'settler') return;
 
-  const city = foundCity('player', unit.position, gameState.map);
+  const cp = gameState.currentPlayer;
+  const city = foundCity(cp, unit.position, gameState.map);
   gameState.cities[city.id] = city;
-  gameState.civilizations.player.cities.push(city.id);
+  currentCiv().cities.push(city.id);
 
   // Mark tiles as owned
   for (const coord of city.ownedTiles) {
     const key = hexKey(coord);
     if (gameState.map.tiles[key]) {
-      gameState.map.tiles[key].owner = 'player';
+      gameState.map.tiles[key].owner = cp;
     }
   }
 
   // Remove settler
   delete gameState.units[selectedUnitId];
-  gameState.civilizations.player.units = gameState.civilizations.player.units.filter(id => id !== selectedUnitId);
+  currentCiv().units = currentCiv().units.filter(id => id !== selectedUnitId);
 
   deselectUnit();
   bus.emit('city:founded', { city });
@@ -318,13 +328,13 @@ function foundCityAction(): void {
   SFX.foundCity();
 
   // Update visibility
-  const playerUnits = gameState.civilizations.player.units
+  const playerUnits = currentCiv().units
     .map(id => gameState.units[id])
     .filter((u): u is Unit => u !== undefined);
-  const cityPositions = gameState.civilizations.player.cities
+  const cityPositions = currentCiv().cities
     .map(id => gameState.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
-  updateVisibility(gameState.civilizations.player.visibility, playerUnits, gameState.map, cityPositions);
+  updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
 
   renderLoop.setGameState(gameState);
   updateHUD();
@@ -355,7 +365,7 @@ function handleHexTap(coord: HexCoord): void {
     ([_, u]) => hexKey(u.position) === key
   );
 
-  if (unitAtHex && unitAtHex[1].owner === 'player') {
+  if (unitAtHex && unitAtHex[1].owner === gameState.currentPlayer) {
     selectUnit(unitAtHex[0]);
     return;
   }
@@ -366,13 +376,13 @@ function handleHexTap(coord: HexCoord): void {
     if (!unit) return;
 
     // Check for enemy unit at target (attack)
-    if (unitAtHex && unitAtHex[1].owner !== 'player') {
+    if (unitAtHex && unitAtHex[1].owner !== gameState.currentPlayer) {
       const result = resolveCombat(unit, unitAtHex[1], gameState.map);
       bus.emit('combat:resolved', { result });
 
       if (!result.attackerSurvived) {
         delete gameState.units[selectedUnitId];
-        gameState.civilizations.player.units = gameState.civilizations.player.units.filter(id => id !== selectedUnitId);
+        currentCiv().units = currentCiv().units.filter(id => id !== selectedUnitId);
         showNotification('Our unit was destroyed!', 'warning');
       } else {
         gameState.units[selectedUnitId].health -= result.attackerDamage;
@@ -392,7 +402,7 @@ function handleHexTap(coord: HexCoord): void {
           if (hexKey(camp.position) === key) {
             const reward = destroyCamp(camp);
             delete gameState.barbarianCamps[campId];
-            gameState.civilizations.player.gold += reward;
+            currentCiv().gold += reward;
             showNotification(`Barbarian camp destroyed! +${reward} gold`, 'success');
           }
         }
@@ -408,13 +418,13 @@ function handleHexTap(coord: HexCoord): void {
       SFX.tap();
 
       // Update visibility after move
-      const playerUnits = gameState.civilizations.player.units
+      const playerUnits = currentCiv().units
         .map(id => gameState.units[id])
         .filter((u): u is Unit => u !== undefined);
-      const cityPositions = gameState.civilizations.player.cities
+      const cityPositions = currentCiv().cities
         .map(id => gameState.cities[id]?.position)
         .filter((p): p is HexCoord => p !== undefined);
-      const revealed = updateVisibility(gameState.civilizations.player.visibility, playerUnits, gameState.map, cityPositions);
+      const revealed = updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
 
       if (revealed.length > 0) {
         bus.emit('fog:revealed', { tiles: revealed });
@@ -448,9 +458,69 @@ function handleHexLongPress(coord: HexCoord): void {
 
 async function endTurn(): Promise<void> {
   try {
-  SFX.endTurn();
+    SFX.endTurn();
+    deselectUnit();
 
-  // Process improvements (count down build timers)
+    const hotSeat = gameState.hotSeat;
+
+    if (hotSeat) {
+      // --- Hot Seat Mode ---
+      if (isRoundComplete(hotSeat, gameState.currentPlayer)) {
+        // Last human player finished — process improvements, AI, and round end
+        processImprovements();
+
+        for (const ai of getAIPlayers(hotSeat)) {
+          gameState = processAITurn(gameState, ai.slotId, bus);
+        }
+
+        gameState = processTurn(gameState, bus);
+
+        if (gameState.settings.musicEnabled && gameState.era !== audio.getCurrentEra()) {
+          audio.playProceduralMusic(gameState.era);
+        }
+      }
+
+      // Advance to next human player
+      const nextSlotId = getNextPlayer(hotSeat, gameState.currentPlayer);
+      gameState.currentPlayer = nextSlotId;
+      const nextPlayer = hotSeat.players.find(p => p.slotId === nextSlotId);
+
+      await autoSave(gameState);
+
+      // Show handoff screen
+      showTurnHandoff(uiLayer, gameState, nextSlotId, nextPlayer?.name ?? 'Player', {
+        onReady: () => {
+          centerOnCurrentPlayer();
+          renderLoop.setGameState(gameState);
+          updateHUD();
+        },
+      });
+    } else {
+      // --- Solo Mode ---
+      processImprovements();
+
+      gameState = processAITurn(gameState, 'ai-1', bus);
+      gameState = processTurn(gameState, bus);
+
+      renderLoop.setGameState(gameState);
+      updateHUD();
+
+      advisorSystem.check(gameState);
+
+      if (gameState.settings.musicEnabled && gameState.era !== audio.getCurrentEra()) {
+        audio.playProceduralMusic(gameState.era);
+      }
+
+      await autoSave(gameState);
+      bus.emit('game:saved', { turn: gameState.turn });
+    }
+  } catch (err) {
+    console.error('endTurn error:', err);
+    showNotification('Error processing turn!', 'warning');
+  }
+}
+
+function processImprovements(): void {
   for (const tile of Object.values(gameState.map.tiles)) {
     if (tile.improvementTurnsLeft > 0) {
       tile.improvementTurnsLeft--;
@@ -460,36 +530,18 @@ async function endTurn(): Promise<void> {
       }
     }
   }
+}
 
-  // Process AI turn
-  gameState = processAITurn(gameState, 'ai-1', bus);
-
-  // Process end of turn (cities, research, barbarians, etc.)
-  gameState = processTurn(gameState, bus);
-
-  renderLoop.setGameState(gameState);
-  updateHUD();
-
-  // Check advisors
-  advisorSystem.check(gameState);
-
-  // Update music if era changed
-  if (gameState.settings.musicEnabled && gameState.era !== audio.getCurrentEra()) {
-    audio.playProceduralMusic(gameState.era);
-  }
-
-  // Auto-save
-  await autoSave(gameState);
-  bus.emit('game:saved', { turn: gameState.turn });
-  } catch (err) {
-    console.error('endTurn error:', err);
-    showNotification('Error processing turn!', 'warning');
+function centerOnCurrentPlayer(): void {
+  const units = Object.values(gameState.units).filter(u => u.owner === gameState.currentPlayer);
+  if (units.length > 0) {
+    renderLoop.camera.centerOn(units[0].position);
   }
 }
 
 // --- Event listeners ---
 bus.on('tech:completed', ({ civId, techId }) => {
-  if (civId === 'player') {
+  if (civId === gameState.currentPlayer) {
     showNotification(`Research complete: ${techId}!`, 'success');
     SFX.research();
   }
@@ -497,28 +549,29 @@ bus.on('tech:completed', ({ civId, techId }) => {
 
 bus.on('city:grew', ({ cityId, newPopulation }) => {
   const city = gameState.cities[cityId];
-  if (city && city.owner === 'player') {
+  if (city && city.owner === gameState.currentPlayer) {
     showNotification(`${city.name} grew to ${newPopulation} population!`, 'success');
   }
 });
 
 bus.on('city:building-complete', ({ cityId, buildingId }) => {
   const city = gameState.cities[cityId];
-  if (city && city.owner === 'player') {
+  if (city && city.owner === gameState.currentPlayer) {
     showNotification(`${city.name}: ${buildingId} completed!`, 'success');
   }
 });
 
 bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
-  if (defenderId === 'player') {
+  if (defenderId === gameState.currentPlayer) {
     const attacker = gameState.civilizations[attackerId];
     showNotification(`${attacker?.name ?? 'Unknown'} has declared war!`, 'warning');
   }
 });
 
 bus.on('diplomacy:peace-made', ({ civA, civB }) => {
-  const otherId = civA === 'player' ? civB : civA;
-  if (civA === 'player' || civB === 'player') {
+  const cp = gameState.currentPlayer;
+  const otherId = civA === cp ? civB : civA;
+  if (civA === cp || civB === cp) {
     const other = gameState.civilizations[otherId];
     showNotification(`Peace with ${other?.name ?? 'Unknown'}!`, 'success');
   }
@@ -532,8 +585,8 @@ bus.on('barbarian:spawned', ({ campId }) => {
   // Only notify if visible
   const camp = gameState.barbarianCamps[campId];
   if (camp) {
-    const vis = gameState.civilizations.player.visibility;
-    if (isVisible(vis, camp.position)) {
+    const vis = currentCiv()?.visibility;
+    if (vis && isVisible(vis, camp.position)) {
       showNotification('Barbarian raiders spotted!', 'warning');
     }
   }
@@ -555,13 +608,7 @@ async function init(): Promise<void> {
   // Show save panel on start
   await createSavePanel(uiLayer, {
     onNewGame: () => {
-      createCivSelectPanel(uiLayer, {
-        onSelect: (civId) => {
-          gameState = createNewGame(civId);
-          startGame();
-          showNotification('Your tribe has settled near a river...', 'info');
-        },
-      });
+      showGameModeSelection();
     },
     onContinue: async () => {
       const saved = await loadAutoSave();
@@ -603,14 +650,63 @@ function migrateLegacySave(): void {
   if (!gameState.settings.advisorsEnabled) {
     gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true };
   }
+  // Ensure pendingEvents exists for hot seat saves
+  if (!gameState.pendingEvents) {
+    gameState.pendingEvents = {};
+  }
+}
+
+function showGameModeSelection(): void {
+  const modePanel = document.createElement('div');
+  modePanel.id = 'mode-select';
+  modePanel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.98);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;';
+  modePanel.innerHTML = `
+    <h1 style="font-size:22px;color:#e8c170;margin-bottom:24px;">New Game</h1>
+    <div style="display:flex;gap:16px;">
+      <div id="mode-solo" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:24px;cursor:pointer;text-align:center;min-width:140px;transition:border-color 0.2s;">
+        <div style="font-size:28px;margin-bottom:8px;">&#x1f3ae;</div>
+        <div style="font-weight:bold;font-size:16px;color:#e8c170;">Solo</div>
+        <div style="font-size:11px;opacity:0.6;margin-top:4px;">You vs AI</div>
+      </div>
+      <div id="mode-hotseat" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:24px;cursor:pointer;text-align:center;min-width:140px;transition:border-color 0.2s;">
+        <div style="font-size:28px;margin-bottom:8px;">&#x1f46a;</div>
+        <div style="font-weight:bold;font-size:16px;color:#e8c170;">Hot Seat</div>
+        <div style="font-size:11px;opacity:0.6;margin-top:4px;">Pass the device</div>
+      </div>
+    </div>
+  `;
+
+  uiLayer.appendChild(modePanel);
+
+  document.getElementById('mode-solo')?.addEventListener('click', () => {
+    modePanel.remove();
+    createCivSelectPanel(uiLayer, {
+      onSelect: (civId) => {
+        gameState = createNewGame(civId);
+        startGame();
+        showNotification('Your tribe has settled near a river...', 'info');
+      },
+    });
+  });
+
+  document.getElementById('mode-hotseat')?.addEventListener('click', () => {
+    modePanel.remove();
+    showHotSeatSetup(uiLayer, {
+      onComplete: (config) => {
+        gameState = createHotSeatGame(config);
+        startGame();
+        showNotification(`Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`, 'info');
+      },
+      onCancel: () => {
+        showGameModeSelection();
+      },
+    });
+  });
 }
 
 function startGame(): void {
-  // Center camera on player's starting position
-  const playerUnits = Object.values(gameState.units).filter(u => u.owner === 'player');
-  if (playerUnits.length > 0) {
-    renderLoop.camera.centerOn(playerUnits[0].position);
-  }
+  // Center camera on current player's starting position
+  centerOnCurrentPlayer();
 
   renderLoop.setGameState(gameState);
   updateHUD();
