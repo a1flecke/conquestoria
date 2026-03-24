@@ -1,4 +1,4 @@
-import type { GameState, Civilization, Unit } from './types';
+import type { GameState, Civilization, Unit, HotSeatConfig } from './types';
 import { generateMap, findStartPositions } from '@/systems/map-generator';
 import { createUnit } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
@@ -8,9 +8,16 @@ import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createMarketplaceState } from '@/systems/trade-system';
 
-export function createNewGame(civType?: string, seed?: string): GameState {
+export const MAP_DIMENSIONS = {
+  small: { width: 30, height: 30, maxPlayers: 3 },
+  medium: { width: 50, height: 50, maxPlayers: 5 },
+  large: { width: 80, height: 80, maxPlayers: 8 },
+} as const;
+
+export function createNewGame(civType?: string, seed?: string, mapSize?: 'small' | 'medium' | 'large'): GameState {
   const gameSeed = seed ?? `game-${Date.now()}`;
-  const map = generateMap(30, 30, gameSeed);
+  const dims = MAP_DIMENSIONS[mapSize ?? 'small'];
+  const map = generateMap(dims.width, dims.height, gameSeed);
   const startPositions = findStartPositions(map, 2);
 
   const playerCivDef = getCivDefinition(civType ?? '');
@@ -99,12 +106,87 @@ export function createNewGame(civType?: string, seed?: string): GameState {
     gameOver: false,
     winner: null,
     settings: {
-      mapSize: 'small',
+      mapSize: mapSize ?? 'small',
       soundEnabled: true,
       musicEnabled: true,
       musicVolume: 0.5,
       sfxVolume: 0.7,
       tutorialEnabled: true,
+      advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true },
+    },
+  };
+}
+
+export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameState {
+  const gameSeed = seed ?? `hotseat-${Date.now()}`;
+  const dims = MAP_DIMENSIONS[config.mapSize];
+  const map = generateMap(dims.width, dims.height, gameSeed);
+  const startPositions = findStartPositions(map, config.players.length);
+  const allSlotIds = config.players.map(p => p.slotId);
+
+  const civilizations: Record<string, Civilization> = {};
+  const units: Record<string, Unit> = {};
+
+  for (let i = 0; i < config.players.length; i++) {
+    const player = config.players[i];
+    const civDef = getCivDefinition(player.civType);
+    const startBonus = civDef?.bonusEffect.type === 'diplomacy_start_bonus'
+      ? (civDef.bonusEffect as { type: 'diplomacy_start_bonus'; bonus: number }).bonus
+      : 0;
+
+    const civ: Civilization = {
+      id: player.slotId,
+      name: player.isHuman ? player.name : (civDef?.name ?? player.name),
+      color: civDef?.color ?? '#888888',
+      isHuman: player.isHuman,
+      civType: player.civType,
+      cities: [],
+      units: [],
+      techState: createTechState(),
+      gold: 0,
+      visibility: createVisibilityMap(),
+      score: 0,
+      diplomacy: createDiplomacyState(allSlotIds, player.slotId, startBonus),
+    };
+
+    const settler = createUnit('settler', player.slotId, startPositions[i]);
+    const warrior = createUnit('warrior', player.slotId, startPositions[i]);
+    units[settler.id] = settler;
+    units[warrior.id] = warrior;
+    civ.units = [settler.id, warrior.id];
+    updateVisibility(civ.visibility, [settler, warrior], map);
+    civilizations[player.slotId] = civ;
+  }
+
+  const barbarianCamps: Record<string, any> = {};
+  const campCount = config.mapSize === 'large' ? 8 : config.mapSize === 'medium' ? 5 : 3;
+  for (let i = 0; i < campCount; i++) {
+    const camp = spawnBarbarianCamp(map, startPositions, Object.values(barbarianCamps));
+    if (camp) barbarianCamps[camp.id] = camp;
+  }
+
+  return {
+    turn: 1,
+    era: 1,
+    civilizations,
+    map,
+    units,
+    cities: {},
+    barbarianCamps,
+    marketplace: createMarketplaceState(),
+    tutorial: { active: false, currentStep: 'welcome', completedSteps: [] },
+    currentPlayer: config.players[0].slotId,
+    gameOver: false,
+    winner: null,
+    hotSeat: config,
+    pendingEvents: {},
+    settings: {
+      mapSize: config.mapSize,
+      soundEnabled: true,
+      musicEnabled: true,
+      musicVolume: 0.5,
+      sfxVolume: 0.7,
+      tutorialEnabled: false,
       advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true },
     },
   };

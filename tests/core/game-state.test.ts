@@ -1,4 +1,5 @@
-import { createNewGame } from '@/core/game-state';
+import { createNewGame, createHotSeatGame, MAP_DIMENSIONS } from '@/core/game-state';
+import type { HotSeatConfig } from '@/core/types';
 
 describe('createNewGame', () => {
   it('creates a valid initial game state', () => {
@@ -56,5 +57,46 @@ describe('createNewGame', () => {
   it('defaults to generic civType when no civType provided', () => {
     const state = createNewGame(undefined, 'test-seed');
     expect(state.civilizations.player.civType).toBe('generic');
+  });
+
+  it('createNewGame accepts mapSize parameter', () => {
+    const state = createNewGame(undefined, 'test-seed', 'medium');
+    expect(state.map.width).toBe(50);
+    expect(state.map.height).toBe(50);
+    expect(state.settings.mapSize).toBe('medium');
+  });
+});
+
+describe('createHotSeatGame', () => {
+  const config: HotSeatConfig = {
+    playerCount: 3,
+    mapSize: 'medium',
+    players: [
+      { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+      { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      { name: 'AI Greece', slotId: 'ai-1', civType: 'greece', isHuman: false },
+    ],
+  };
+
+  it('creates correct number of civs', () => {
+    const state = createHotSeatGame(config, 'hs-test');
+    expect(Object.keys(state.civilizations)).toHaveLength(3);
+    expect(state.hotSeat).toBeDefined();
+    expect(state.hotSeat!.playerCount).toBe(3);
+    expect(state.currentPlayer).toBe('player-1');
+    expect(state.civilizations['player-1'].civType).toBe('egypt');
+    expect(state.civilizations['ai-1'].isHuman).toBe(false);
+    expect(state.map.width).toBe(50);
+  });
+
+  it('disables tutorial for hot seat games', () => {
+    const state = createHotSeatGame(config, 'hs-test');
+    expect(state.tutorial.active).toBe(false);
+    expect(state.settings.tutorialEnabled).toBe(false);
+  });
+
+  it('initializes pending events', () => {
+    const state = createHotSeatGame(config, 'hs-test');
+    expect(state.pendingEvents).toEqual({});
   });
 });
