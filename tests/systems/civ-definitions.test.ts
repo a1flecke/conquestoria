@@ -2,17 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 
 describe('civ-definitions', () => {
-  it('defines exactly 6 civilizations', () => {
-    expect(CIV_DEFINITIONS).toHaveLength(6);
+  it('defines exactly 12 civilizations', () => {
+    expect(CIV_DEFINITIONS).toHaveLength(12);
   });
 
   it('each civ has unique id, name, and color', () => {
     const ids = CIV_DEFINITIONS.map(c => c.id);
     const names = CIV_DEFINITIONS.map(c => c.name);
     const colors = CIV_DEFINITIONS.map(c => c.color);
-    expect(new Set(ids).size).toBe(6);
-    expect(new Set(names).size).toBe(6);
-    expect(new Set(colors).size).toBe(6);
+    expect(new Set(ids).size).toBe(12);
+    expect(new Set(names).size).toBe(12);
+    expect(new Set(colors).size).toBe(12);
   });
 
   it('getCivDefinition returns correct civ by id', () => {
@@ -50,5 +50,25 @@ describe('civ-definitions', () => {
   it('greece has diplomacy_start_bonus of 20', () => {
     const greece = getCivDefinition('greece')!;
     expect(greece.bonusEffect).toEqual({ type: 'diplomacy_start_bonus', bonus: 20 });
+  });
+
+  it('china has extra_tech_speed bonus', () => {
+    const china = getCivDefinition('china')!;
+    expect(china.bonusEffect.type).toBe('extra_tech_speed');
+  });
+
+  it('india has faster_growth bonus', () => {
+    const india = getCivDefinition('india')!;
+    expect(india.bonusEffect.type).toBe('faster_growth');
+  });
+
+  it('japan has bushido bonus', () => {
+    const japan = getCivDefinition('japan')!;
+    expect(japan.bonusEffect.type).toBe('bushido');
+  });
+
+  it('persia has trade_route_bonus', () => {
+    const persia = getCivDefinition('persia')!;
+    expect(persia.bonusEffect.type).toBe('trade_route_bonus');
   });
 });

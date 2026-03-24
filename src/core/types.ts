@@ -167,7 +167,13 @@ export type CivBonusEffect =
   | { type: 'diplomacy_start_bonus'; bonus: number }
   | { type: 'mounted_movement'; bonus: number }
   | { type: 'free_tech_on_era' }
-  | { type: 'faster_military'; speedMultiplier: number };
+  | { type: 'faster_military'; speedMultiplier: number }
+  | { type: 'extra_tech_speed'; speedMultiplier: number }
+  | { type: 'trade_route_bonus'; bonusGold: number }
+  | { type: 'naval_bonus'; visionBonus: number }
+  | { type: 'combat_production'; productionBonus: number }
+  | { type: 'bushido' }
+  | { type: 'faster_growth'; foodReduction: number };
 
 export interface CivDefinition {
   id: string;
@@ -252,6 +258,29 @@ export interface CombatResult {
   defenderPosition: HexCoord;
 }
 
+// --- Game Modes ---
+
+export type GameMode = 'solo' | 'hotseat';
+
+export interface HotSeatPlayer {
+  name: string;
+  slotId: string;     // e.g. 'player-1', 'player-2', 'ai-1'
+  civType: string;    // e.g. 'egypt', 'rome' — maps to CivDefinition.id
+  isHuman: boolean;
+}
+
+export interface HotSeatConfig {
+  playerCount: number;
+  mapSize: 'small' | 'medium' | 'large';
+  players: HotSeatPlayer[];
+}
+
+export interface GameEvent {
+  type: string;
+  message: string;
+  turn: number;
+}
+
 // --- Trade & Resources ---
 
 export type LuxuryResource = 'silk' | 'wine' | 'spices' | 'gems' | 'ivory' | 'incense';
@@ -285,6 +314,9 @@ export interface SaveSlotMeta {
   civType: string;
   turn: number;
   lastPlayed: string;
+  gameMode?: GameMode;
+  playerCount?: number;
+  playerNames?: string[];
 }
 
 // --- Tutorial ---
@@ -321,10 +353,12 @@ export interface GameState {
   winner: string | null;
   settings: GameSettings;
   marketplace?: MarketplaceState;
+  hotSeat?: HotSeatConfig;
+  pendingEvents?: Record<string, GameEvent[]>;
 }
 
 export interface GameSettings {
-  mapSize: 'small';          // only small for M1
+  mapSize: 'small' | 'medium' | 'large';
   soundEnabled: boolean;
   musicEnabled: boolean;
   musicVolume: number;       // 0-1
