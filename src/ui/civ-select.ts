@@ -4,10 +4,18 @@ export interface CivSelectCallbacks {
   onSelect: (civId: string) => void;
 }
 
+export interface CivSelectOptions {
+  disabledCivs?: string[];
+  headerText?: string;
+}
+
 export function createCivSelectPanel(
   container: HTMLElement,
   callbacks: CivSelectCallbacks,
+  options?: CivSelectOptions,
 ): HTMLElement {
+  const disabledCivs = options?.disabledCivs ?? [];
+  const headerText = options?.headerText ?? 'Choose Your Civilization';
   const panel = document.createElement('div');
   panel.id = 'civ-select';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.98);z-index:50;overflow-y:auto;padding:16px;display:flex;flex-direction:column;align-items:center;';
@@ -15,14 +23,16 @@ export function createCivSelectPanel(
   let selectedCiv: string | null = null;
 
   let html = `
-    <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;">Choose Your Civilization</h1>
+    <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;">${headerText}</h1>
     <p style="font-size:13px;opacity:0.6;margin-bottom:24px;text-align:center;">Each civilization has a unique bonus that shapes your strategy.</p>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:400px;width:100%;">
   `;
 
   for (const civ of CIV_DEFINITIONS) {
+    const isDisabled = disabledCivs.includes(civ.id);
+    const disabledStyle = isDisabled ? 'opacity:0.3;pointer-events:none;' : '';
     html += `
-      <div class="civ-card" data-civ-id="${civ.id}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:14px;cursor:pointer;transition:border-color 0.2s;">
+      <div class="civ-card" data-civ-id="${civ.id}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:14px;cursor:pointer;transition:border-color 0.2s;${disabledStyle}">
         <div style="width:100%;height:4px;background:${civ.color};border-radius:2px;margin-bottom:10px;"></div>
         <div style="font-weight:bold;font-size:15px;color:${civ.color};">${civ.name}</div>
         <div style="font-size:12px;color:#e8c170;margin-top:4px;">${civ.bonusName}</div>
@@ -62,8 +72,10 @@ export function createCivSelectPanel(
   });
 
   panel.querySelector('#civ-random')?.addEventListener('click', () => {
-    const randomIdx = Math.floor(Math.random() * CIV_DEFINITIONS.length);
-    selectedCiv = CIV_DEFINITIONS[randomIdx].id;
+    const available = CIV_DEFINITIONS.filter(c => !disabledCivs.includes(c.id));
+    if (available.length === 0) return;
+    const randomIdx = Math.floor(Math.random() * available.length);
+    selectedCiv = available[randomIdx].id;
 
     cards.forEach(c => {
       const id = (c as HTMLElement).dataset.civId;
