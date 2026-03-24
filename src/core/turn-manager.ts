@@ -106,14 +106,16 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // --- Process marketplace ---
   if (newState.marketplace) {
-    // Trade route income for player
-    const playerRouteIncome = processTradeRouteIncome(
-      newState.marketplace.tradeRoutes.filter(r => {
-        const city = newState.cities[r.fromCityId];
-        return city?.owner === 'player';
-      }),
-    );
-    newState.civilizations.player.gold += playerRouteIncome;
+    // Trade route income for each civ
+    for (const [civId, civ] of Object.entries(newState.civilizations)) {
+      const civRouteIncome = processTradeRouteIncome(
+        newState.marketplace.tradeRoutes.filter(r => {
+          const city = newState.cities[r.fromCityId];
+          return city?.owner === civId;
+        }),
+      );
+      newState.civilizations[civId].gold += civRouteIncome;
+    }
 
     // Simple fashion cycle with seeded rng
     let rngState = newState.turn * 16807;

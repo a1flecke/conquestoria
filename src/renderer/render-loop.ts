@@ -74,7 +74,8 @@ export class RenderLoop {
     drawRivers(this.ctx, this.state.map, this.camera);
 
     // Draw units
-    const playerVis = this.state.civilizations.player?.visibility;
+    const currentCiv = this.state.civilizations[this.state.currentPlayer];
+    const playerVis = currentCiv?.visibility;
     if (playerVis) {
       drawUnits(this.ctx, this.state.units, this.camera, playerVis);
     }
