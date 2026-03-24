@@ -105,7 +105,7 @@ function renderSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): string {
     <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:bold;">${save.name}</div>
-        <div style="font-size:11px;opacity:0.5;">Turn ${save.turn} · ${save.civType} · ${dateStr}</div>
+        <div style="font-size:11px;opacity:0.5;">Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType} · ${dateStr}</div>
       </div>
       <div style="display:flex;gap:6px;">
         ${mode === 'start'

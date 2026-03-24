@@ -41,9 +41,12 @@ export async function saveGame(slotId: string, name: string, state: GameState): 
   const meta: SaveSlotMeta = {
     id: slotId,
     name,
-    civType: state.civilizations.player?.civType ?? 'generic',
+    civType: state.hotSeat ? 'hotseat' : (state.civilizations[state.currentPlayer]?.civType ?? 'generic'),
     turn: state.turn,
     lastPlayed: new Date().toISOString(),
+    gameMode: state.hotSeat ? 'hotseat' : 'solo',
+    playerCount: state.hotSeat?.playerCount,
+    playerNames: state.hotSeat?.players.filter(p => p.isHuman).map(p => p.name),
   };
   await dbPut(SAVE_PREFIX + slotId, state);
   await dbPut(META_PREFIX + slotId, meta);
