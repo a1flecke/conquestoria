@@ -68,7 +68,10 @@ export class RenderLoop {
     this.ctx.fillRect(0, 0, width, height);
 
     // Draw hex map
-    drawHexMap(this.ctx, this.state.map, this.camera);
+    const villagePositions = new Set(
+      Object.values(this.state.tribalVillages ?? {}).map(v => `${v.position.q},${v.position.r}`),
+    );
+    drawHexMap(this.ctx, this.state.map, this.camera, villagePositions);
 
     // Draw rivers
     drawRivers(this.ctx, this.state.map, this.camera);

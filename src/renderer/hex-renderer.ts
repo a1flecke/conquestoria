@@ -31,6 +31,7 @@ export function drawHexMap(
   ctx: CanvasRenderingContext2D,
   map: GameMap,
   camera: Camera,
+  villagePositions?: Set<string>,
 ): void {
   const size = camera.hexSize;
 
@@ -40,8 +41,9 @@ export function drawHexMap(
     const pixel = hexToPixel(tile.coord, size);
     const screen = camera.worldToScreen(pixel.x, pixel.y);
     const scaledSize = size * camera.zoom;
+    const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
 
-    drawHex(ctx, screen.x, screen.y, scaledSize, tile);
+    drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage);
   }
 }
 
@@ -88,6 +90,7 @@ function drawHex(
   cy: number,
   size: number,
   tile: HexTile,
+  isVillage: boolean = false,
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -116,6 +119,27 @@ function drawHex(
     ctx.textBaseline = 'middle';
     const icon = tile.improvement === 'farm' ? '🌾' : '⛏️';
     ctx.fillText(icon, cx, cy);
+  }
+
+  // Draw wonder indicator
+  if (tile.wonder) {
+    ctx.font = `bold ${size * 0.55}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#e8c170';
+    ctx.shadowBlur = size * 0.3;
+    ctx.fillStyle = '#e8c170';
+    ctx.fillText('✦', cx, cy);
+    ctx.shadowBlur = 0;
+  }
+
+  // Draw village indicator
+  if (isVillage && !tile.wonder) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = `${size * 0.5}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🏕️', cx, cy);
   }
 
   // Draw ownership indicator

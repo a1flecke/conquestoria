@@ -5,7 +5,7 @@ describe('canBuildImprovement', () => {
   it('allows farm on grassland', () => {
     const tile: HexTile = {
       coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
-      resource: null, improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false,
+      resource: null, improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
     };
     expect(canBuildImprovement(tile, 'farm')).toBe(true);
   });
@@ -13,7 +13,7 @@ describe('canBuildImprovement', () => {
   it('allows mine on hills', () => {
     const tile: HexTile = {
       coord: { q: 0, r: 0 }, terrain: 'hills', elevation: 'highland',
-      resource: null, improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false,
+      resource: null, improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
     };
     expect(canBuildImprovement(tile, 'mine')).toBe(true);
   });
@@ -21,7 +21,7 @@ describe('canBuildImprovement', () => {
   it('does not allow farm on ocean', () => {
     const tile: HexTile = {
       coord: { q: 0, r: 0 }, terrain: 'ocean', elevation: 'lowland',
-      resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false,
+      resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
     };
     expect(canBuildImprovement(tile, 'farm')).toBe(false);
   });
@@ -29,7 +29,7 @@ describe('canBuildImprovement', () => {
   it('does not allow building on already improved tile', () => {
     const tile: HexTile = {
       coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
-      resource: null, improvement: 'farm', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false,
+      resource: null, improvement: 'farm', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
     };
     expect(canBuildImprovement(tile, 'mine')).toBe(false);
   });
