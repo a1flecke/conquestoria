@@ -203,7 +203,7 @@ Advisor disagreements are deferred to a later milestone. Each advisor fires inde
 |------|---------|
 | `src/core/types.ts` | Add `WonderEffect`, `WonderDefinition`, `TribalVillage`, `VillageOutcomeType`; expand `AdvisorType`; add `wonder` to `HexTile`; add `tribalVillages`, `discoveredWonders`, `wonderDiscoverers` to `GameState`; add new `GameEvents` entries: `'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean }`, `'wonder:eruption': { wonderId: string; position: HexCoord; tilesAffected: HexCoord[] }`, `'village:visited': { civId: string; position: HexCoord; outcome: VillageOutcomeType; message: string }` |
 | `src/systems/map-generator.ts` | Call `placeWonders` and `placeVillages` after terrain generation |
-| `src/core/game-state.ts` | Initialize `tribalVillages`, `discoveredWonders` in `createNewGame` and `createHotSeatGame` |
+| `src/core/game-state.ts` | Initialize `tribalVillages`, `discoveredWonders`, `wonderDiscoverers` in `createNewGame` and `createHotSeatGame` |
 | `src/core/turn-manager.ts` | Call `processWonderEffects` during turn processing |
 | `src/systems/resource-system.ts` | Add wonder yields and adjacent wonder bonuses in `calculateCityYields` |
 | `src/systems/combat-system.ts` | Check wonder combat_bonus in `resolveCombat` |
