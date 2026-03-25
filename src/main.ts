@@ -24,6 +24,9 @@ import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import { declareWar, makePeace, proposeTreaty } from '@/systems/diplomacy-system';
+import { visitVillage } from '@/systems/village-system';
+import { processWonderDiscovery } from '@/systems/wonder-system';
+import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
@@ -404,6 +407,8 @@ function handleHexTap(coord: HexCoord): void {
             delete gameState.barbarianCamps[campId];
             currentCiv().gold += reward;
             showNotification(`Barbarian camp destroyed! +${reward} gold`, 'success');
+            advisorSystem.resetMessage('treasurer_camp_reward');
+            advisorSystem.check(gameState);
           }
         }
       } else {
@@ -417,6 +422,31 @@ function handleHexTap(coord: HexCoord): void {
       gameState.units[selectedUnitId] = moveUnit(unit, coord, 1);
       SFX.tap();
 
+      // Check for tribal village at destination
+      const villageAtDest = Object.values(gameState.tribalVillages).find(
+        v => hexKey(v.position) === key,
+      );
+      if (villageAtDest) {
+        let rngState = gameState.turn * 16807 + unit.id.charCodeAt(0);
+        const villageRng = () => {
+          rngState = (rngState * 48271) % 2147483647;
+          return rngState / 2147483647;
+        };
+        const result = visitVillage(gameState, villageAtDest.id, unit, villageRng);
+        bus.emit('village:visited', {
+          civId: gameState.currentPlayer,
+          position: villageAtDest.position,
+          outcome: result.outcome,
+          message: result.message,
+        });
+        showNotification(result.message, result.outcome === 'ambush' || result.outcome === 'illness' ? 'warning' : 'success');
+
+        if (result.outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
+        if (result.outcome === 'science') advisorSystem.resetMessage('scholar_village_science');
+        if (result.outcome === 'free_tech') advisorSystem.resetMessage('scholar_village_tech');
+        advisorSystem.check(gameState);
+      }
+
       // Update visibility after move
       const playerUnits = currentCiv().units
         .map(id => gameState.units[id])
@@ -428,6 +458,29 @@ function handleHexTap(coord: HexCoord): void {
 
       if (revealed.length > 0) {
         bus.emit('fog:revealed', { tiles: revealed });
+
+        // Wonder discovery
+        for (const revealedCoord of revealed) {
+          const revTile = gameState.map.tiles[hexKey(revealedCoord)];
+          if (revTile?.wonder) {
+            const isFirst = processWonderDiscovery(gameState, gameState.currentPlayer, revTile.wonder);
+            const wonderDef = getWonderDefinition(revTile.wonder);
+            bus.emit('wonder:discovered', {
+              civId: gameState.currentPlayer,
+              wonderId: revTile.wonder,
+              position: revealedCoord,
+              isFirstDiscoverer: isFirst,
+            });
+            if (isFirst && wonderDef) {
+              showNotification(
+                `Discovered ${wonderDef.name}! +${wonderDef.discoveryBonus.amount} ${wonderDef.discoveryBonus.type}`,
+                'success',
+              );
+            } else if (wonderDef) {
+              showNotification(`Found ${wonderDef.name}!`, 'info');
+            }
+          }
+        }
       }
 
       // Re-select to update movement range
@@ -452,7 +505,8 @@ function handleHexLongPress(coord: HexCoord): void {
   // Show tile info
   const tile = gameState.map.tiles[hexKey(coord)];
   if (tile) {
-    showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + tile.improvement : ''}${tile.resource ? ' · ' + tile.resource : ''}`);
+    const wonderInfo = tile.wonder ? ` · ⭐ ${getWonderDefinition(tile.wonder)?.name ?? tile.wonder}` : '';
+    showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + tile.improvement : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
   }
 }
 
