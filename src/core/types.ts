@@ -33,6 +33,37 @@ export interface ResourceYield {
   science: number;
 }
 
+// --- Natural Wonders ---
+
+export type WonderEffectType = 'adjacent_yield_bonus' | 'healing' | 'eruption' | 'vision' | 'combat_bonus' | 'none';
+
+export type WonderEffect =
+  | { type: 'adjacent_yield_bonus'; yields: Partial<ResourceYield> }
+  | { type: 'healing'; hpPerTurn: number }
+  | { type: 'eruption'; chance: number }
+  | { type: 'vision'; bonus: number }
+  | { type: 'combat_bonus'; defenseBonus: number }
+  | { type: 'none' };
+
+export interface WonderDefinition {
+  id: string;
+  name: string;
+  description: string;
+  yields: ResourceYield;
+  discoveryBonus: { type: 'gold' | 'science' | 'production'; amount: number };
+  effect: WonderEffect;
+  validTerrain: TerrainType[];
+}
+
+// --- Tribal Villages ---
+
+export type VillageOutcomeType = 'gold' | 'food' | 'science' | 'free_unit' | 'free_tech' | 'ambush' | 'illness';
+
+export interface TribalVillage {
+  id: string;
+  position: HexCoord;
+}
+
 // --- Map ---
 
 export type VisibilityState = 'unexplored' | 'fog' | 'visible';
@@ -48,6 +79,7 @@ export interface HexTile {
   owner: string | null;             // civilization ID that owns this tile
   improvementTurnsLeft: number;     // turns remaining to complete improvement
   hasRiver: boolean;
+  wonder: string | null;           // wonder definition ID
 }
 
 export interface GameMap {
@@ -304,7 +336,7 @@ export interface MarketplaceState {
 
 // --- Advisors ---
 
-export type AdvisorType = 'builder' | 'explorer' | 'chancellor' | 'warchief';
+export type AdvisorType = 'builder' | 'explorer' | 'chancellor' | 'warchief' | 'treasurer' | 'scholar';
 
 // --- Save Slots ---
 
@@ -355,6 +387,9 @@ export interface GameState {
   marketplace?: MarketplaceState;
   hotSeat?: HotSeatConfig;
   pendingEvents?: Record<string, GameEvent[]>;
+  tribalVillages: Record<string, TribalVillage>;
+  discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
+  wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
 }
 
 export interface GameSettings {
@@ -387,7 +422,7 @@ export interface GameEvents {
   'improvement:completed': { coord: HexCoord; type: ImprovementType };
   'barbarian:spawned': { campId: string; unitId: string };
   'barbarian:camp-destroyed': { campId: string; reward: number };
-  'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' };
+  'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
   'game:saved': { turn: number };
   'game:loaded': { turn: number };
@@ -402,6 +437,9 @@ export interface GameEvents {
   'advisor:message': { advisor: AdvisorType; message: string; icon: string };
   'trade:route-created': { route: TradeRoute };
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
+  'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };
+  'wonder:eruption': { wonderId: string; position: HexCoord; tilesAffected: HexCoord[] };
+  'village:visited': { civId: string; position: HexCoord; outcome: VillageOutcomeType; message: string };
   'ui:select-unit': { unitId: string };
   'ui:select-city': { cityId: string };
   'ui:deselect': {};

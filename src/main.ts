@@ -648,11 +648,24 @@ function migrateLegacySave(): void {
     }
   }
   if (!gameState.settings.advisorsEnabled) {
-    gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true };
+    gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true };
+  }
+  // Add new advisor types if missing (M3b migration)
+  if (gameState.settings.advisorsEnabled && !('treasurer' in gameState.settings.advisorsEnabled)) {
+    (gameState.settings.advisorsEnabled as any).treasurer = true;
+    (gameState.settings.advisorsEnabled as any).scholar = true;
   }
   // Ensure pendingEvents exists for hot seat saves
   if (!gameState.pendingEvents) {
     gameState.pendingEvents = {};
+  }
+  // Add wonder/village state if missing
+  if (!gameState.tribalVillages) (gameState as any).tribalVillages = {};
+  if (!gameState.discoveredWonders) (gameState as any).discoveredWonders = {};
+  if (!gameState.wonderDiscoverers) (gameState as any).wonderDiscoverers = {};
+  // Add wonder field to tiles if missing
+  for (const tile of Object.values(gameState.map.tiles)) {
+    if (!('wonder' in tile)) (tile as any).wonder = null;
   }
 }
 

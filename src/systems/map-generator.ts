@@ -3,7 +3,7 @@ import { hexKey, hexDistance, hexesInRange } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
 
 // Simple seeded PRNG (mulberry32)
-function createRng(seed: string): () => number {
+export function createRng(seed: string): () => number {
   let h = 0;
   for (let i = 0; i < seed.length; i++) {
     h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
@@ -147,6 +147,7 @@ export function generateMap(width: number, height: number, seed: string): GameMa
         owner: null,
         improvementTurnsLeft: 0,
         hasRiver: false,
+        wonder: null,
       };
     }
   }
