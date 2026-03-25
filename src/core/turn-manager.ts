@@ -8,6 +8,7 @@ import { calculateCityYields } from '@/systems/resource-system';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { processRelationshipDrift, decayEvents, tickTreaties } from '@/systems/diplomacy-system';
 import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/systems/trade-system';
+import { processWonderEffects } from '@/systems/wonder-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -125,6 +126,16 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     };
     newState.marketplace = processFashionCycle(newState.marketplace, simpleRng);
     newState.marketplace = updatePrices(newState.marketplace, {}, {});
+  }
+
+  // --- Process wonder effects (after city processing) ---
+  const eruptions = processWonderEffects(newState);
+  for (const eruption of eruptions) {
+    bus.emit('wonder:eruption', {
+      wonderId: eruption.wonderId,
+      position: eruption.position,
+      tilesAffected: eruption.tilesAffected,
+    });
   }
 
   // --- Process barbarians ---

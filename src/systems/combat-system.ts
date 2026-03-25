@@ -1,6 +1,7 @@
 import type { Unit, CombatResult, GameMap } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { getWonderCombatBonus } from './wonder-system';
 
 export function getTerrainDefenseBonus(terrain: string): number {
   const bonuses: Record<string, number> = {
@@ -27,6 +28,10 @@ export function resolveCombat(
   const defTile = map.tiles[hexKey(defender.position)];
   if (defTile) {
     defStrength *= (1 + getTerrainDefenseBonus(defTile.terrain));
+    // Wonder defense bonus
+    if (defTile.wonder) {
+      defStrength *= (1 + getWonderCombatBonus(defTile.wonder));
+    }
   }
 
   // Non-combat units auto-lose

@@ -1,6 +1,7 @@
 import type { VisibilityMap, VisibilityState, HexCoord, Unit, GameMap } from '@/core/types';
 import { hexKey, hexesInRange } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { getWonderVisionBonus } from './wonder-system';
 
 export function createVisibilityMap(): VisibilityMap {
   return { tiles: {} };
@@ -60,8 +61,9 @@ export function updateVisibility(
     // Check if unit is on elevated terrain for bonus
     const unitTile = map.tiles[hexKey(unit.position)];
     const bonus = unitTile ? getTerrainVisionBonus(unitTile.terrain) : 0;
+    const wonderBonus = unitTile?.wonder ? getWonderVisionBonus(unitTile.wonder) : 0;
 
-    const visible = hexesInRange(unit.position, visionRange + bonus);
+    const visible = hexesInRange(unit.position, visionRange + bonus + wonderBonus);
     for (const coord of visible) {
       revealTile(coord);
     }
