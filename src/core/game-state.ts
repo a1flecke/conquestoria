@@ -7,6 +7,8 @@ import { spawnBarbarianCamp } from '@/systems/barbarian-system';
 import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createMarketplaceState } from '@/systems/trade-system';
+import { placeWonders } from '@/systems/wonder-system';
+import { placeVillages } from '@/systems/village-system';
 
 export const MAP_DIMENSIONS = {
   small: { width: 30, height: 30, maxPlayers: 3 },
@@ -17,8 +19,13 @@ export const MAP_DIMENSIONS = {
 export function createNewGame(civType?: string, seed?: string, mapSize?: 'small' | 'medium' | 'large'): GameState {
   const gameSeed = seed ?? `game-${Date.now()}`;
   const dims = MAP_DIMENSIONS[mapSize ?? 'small'];
+  const actualSize = mapSize ?? 'small';
   const map = generateMap(dims.width, dims.height, gameSeed);
   const startPositions = findStartPositions(map, 2);
+
+  // Place wonders and villages
+  placeWonders(map, startPositions, actualSize, gameSeed);
+  const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
 
   const playerCivDef = getCivDefinition(civType ?? '');
   const aiCivDefs = CIV_DEFINITIONS.filter(c => c.id !== (civType ?? ''));
@@ -105,11 +112,11 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     currentPlayer: 'player',
     gameOver: false,
     winner: null,
-    tribalVillages: {},
+    tribalVillages,
     discoveredWonders: {},
     wonderDiscoverers: {},
     settings: {
-      mapSize: mapSize ?? 'small',
+      mapSize: actualSize,
       soundEnabled: true,
       musicEnabled: true,
       musicVolume: 0.5,
@@ -125,6 +132,11 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
   const dims = MAP_DIMENSIONS[config.mapSize];
   const map = generateMap(dims.width, dims.height, gameSeed);
   const startPositions = findStartPositions(map, config.players.length);
+
+  // Place wonders and villages
+  placeWonders(map, startPositions, config.mapSize, gameSeed);
+  const tribalVillages = placeVillages(map, startPositions, config.mapSize, gameSeed);
+
   const allSlotIds = config.players.map(p => p.slotId);
 
   const civilizations: Record<string, Civilization> = {};
@@ -183,7 +195,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
     winner: null,
     hotSeat: config,
     pendingEvents: {},
-    tribalVillages: {},
+    tribalVillages,
     discoveredWonders: {},
     wonderDiscoverers: {},
     settings: {
