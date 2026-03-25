@@ -42,7 +42,7 @@ During map generation, after terrain and resources, place wonders on valid terra
 - **Minimum 8-hex distance** between wonders
 - **Minimum 6-hex distance** from start positions
 - Wonders replace the tile's resource (if any)
-- Selection: shuffle `WONDER_DEFINITIONS`, filter by valid terrain availability, place until count reached
+- Selection: shuffle `WONDER_DEFINITIONS`, filter by valid terrain availability, place until count reached or no valid tiles remain (graceful degradation — fewer wonders is fine)
 
 ### 1.3 The 15 Wonders
 
@@ -66,21 +66,25 @@ During map generation, after terrain and resources, place wonders on valid terra
 
 ### 1.4 Discovery
 
-When fog-of-war reveals a wonder tile for a civ:
-- Emit `'wonder:discovered'` event with `{ civId, wonderId, position, isFirstDiscoverer }`
+Wonder discovery is checked in `main.ts` after `updateVisibility` calls (where `currentPlayer` is known), not via the `fog:revealed` event (which lacks `civId`). After visibility updates, scan newly revealed tiles for wonders and call `processWonderDiscovery(state, civId, wonderId)`.
+
 - Track first discoverer in `GameState.discoveredWonders: Record<string, string>` (wonderId -> civId)
+- Track all discoverers in `GameState.wonderDiscoverers: Record<string, string[]>` (wonderId -> civId[]) for advisor triggers
 - First discoverer gets the discovery bonus (gold/science/production added directly)
+- Emit `'wonder:discovered'` event with `{ civId, wonderId, position, isFirstDiscoverer }`
 - All discoverers get a notification
 
 ### 1.5 Unique Effects
 
-Effects are processed by a `processWonderEffects(state)` function called during `processTurn`:
+Wonder base yields **add to** terrain base yields (they do not replace them). `calculateCityYields` imports `getWonderDefinition` from `wonder-definitions.ts` and checks each owned tile's `wonder` field.
 
-- **adjacent_yield_bonus:** Calculated in `calculateCityYields` — if a city's owned tile is adjacent to a wonder with this effect, add the bonus yields.
-- **healing:** During unit reset phase, units on a wonder tile with healing gain extra HP (capped at 100).
-- **eruption:** Roll chance per turn. On eruption, destroy improvements (set to `'none'`) on adjacent tiles. Emit `'wonder:eruption'` event.
+Effects are processed by a `processWonderEffects(state)` function called in `processTurn` **after** city processing (so eruption damage affects next turn's yields, not the current turn):
+
+- **adjacent_yield_bonus:** Calculated in `calculateCityYields` — if a city's owned tile is adjacent to a wonder with this effect, add the bonus yields. `calculateCityYields` gains a third parameter `map: GameMap` (already has it) and checks adjacent tiles for wonders.
+- **healing:** During unit reset phase in `processTurn`, units on a wonder tile with healing gain extra HP (capped at 100).
+- **eruption:** Roll chance per turn. On eruption, destroy improvements (set to `'none'`, `improvementTurnsLeft: 0`) on adjacent tiles. Emit `'wonder:eruption'` event with `{ wonderId, position, tilesAffected }`.
 - **vision:** Checked when calculating unit vision range — units on this tile get bonus vision.
-- **combat_bonus:** Checked during combat resolution — defender on this tile gets bonus defense.
+- **combat_bonus:** Checked during combat resolution — defender on this tile gets bonus defense. `defenseBonus` is stored as a decimal (0.30 means +30%), matching the existing `getTerrainDefenseBonus` pattern.
 
 ---
 
@@ -119,15 +123,15 @@ When any unit (not barbarian) moves onto a tile containing a village:
 
 ### 2.4 Outcome Table
 
-| Outcome | Weight | Effect |
-|---------|--------|--------|
-| Gold | 25% | +25-50 gold to visiting civ |
-| Food | 20% | +15-30 food to nearest city (gold if no city) |
-| Science | 15% | +10-25 research progress toward current tech |
-| Free unit | 15% | Spawn scout or warrior at village position, owned by visiting civ |
-| Free tech | 10% | Complete a random available (unlocked, not researching) tech |
-| Ambush | 10% | Spawn 1-2 barbarian warriors on adjacent passable tiles |
-| Illness | 5% | Visiting unit loses 20-40 HP (cannot kill — minimum 1 HP) |
+| Outcome | Weight | Effect | Fallback |
+|---------|--------|--------|----------|
+| Gold | 25% | +25-50 gold to visiting civ | — |
+| Food | 20% | +15-30 food to nearest city | If no city: +25-50 gold instead |
+| Science | 15% | +10-25 research progress toward current tech | If no research active: +25 gold instead |
+| Free unit | 15% | Spawn scout or warrior at village position, owned by visiting civ | — |
+| Free tech | 10% | Complete a random tech with status `'available'` | If no available techs: +50 gold instead |
+| Ambush | 10% | Spawn 1-2 barbarian warriors on adjacent passable tiles | If no passable adjacent tiles: spawn 0 (ambush fizzles, still show warning message) |
+| Illness | 5% | Visiting unit loses 20-40 HP (minimum 1 HP — cannot kill) | — |
 
 ### 2.5 Hot Seat
 
@@ -142,6 +146,8 @@ Village visits happen immediately on the active player's turn. Once visited, the
 Expand `AdvisorType` to: `'builder' | 'explorer' | 'chancellor' | 'warchief' | 'treasurer' | 'scholar'`
 
 Update `GameSettings.advisorsEnabled` default to include both new types as `true`.
+
+**Test fixture impact:** All existing test files that construct `advisorsEnabled` with only 4 keys must be updated to include `treasurer: true, scholar: true`. Update these fixtures as the first step of the advisor task to avoid type errors blocking other work.
 
 ### 3.2 Unlock Triggers
 
@@ -165,7 +171,7 @@ Update `GameSettings.advisorsEnabled` default to include both new types as `true
 
 | ID | Trigger | Message |
 |----|---------|---------|
-| treasurer_rich_idle | Gold > 100, no production queued in any city | "We're sitting on a fortune! Invest in buildings or units." |
+| treasurer_rich_idle | Gold > 100, no production queued in any of current player's cities | "We're sitting on a fortune! Invest in buildings or units." |
 | treasurer_village_gold | Village visit gave gold | "A generous village! Our coffers grow." |
 | treasurer_trade_route | Trade route count increased | "Trade is flowing. Each route strengthens our economy." |
 | treasurer_wonder_yields | City works a wonder tile | "Our city near [wonder] is thriving from its bounty." |
@@ -195,7 +201,7 @@ Advisor disagreements are deferred to a later milestone. Each advisor fires inde
 
 | File | Changes |
 |------|---------|
-| `src/core/types.ts` | Add `WonderEffect`, `WonderDefinition`, `TribalVillage`, `VillageOutcomeType`; expand `AdvisorType`; add `wonder` to `HexTile`; add `tribalVillages` and `discoveredWonders` to `GameState`; add new events to `GameEvents` |
+| `src/core/types.ts` | Add `WonderEffect`, `WonderDefinition`, `TribalVillage`, `VillageOutcomeType`; expand `AdvisorType`; add `wonder` to `HexTile`; add `tribalVillages`, `discoveredWonders`, `wonderDiscoverers` to `GameState`; add new `GameEvents` entries: `'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean }`, `'wonder:eruption': { wonderId: string; position: HexCoord; tilesAffected: HexCoord[] }`, `'village:visited': { civId: string; position: HexCoord; outcome: VillageOutcomeType; message: string }` |
 | `src/systems/map-generator.ts` | Call `placeWonders` and `placeVillages` after terrain generation |
 | `src/core/game-state.ts` | Initialize `tribalVillages`, `discoveredWonders` in `createNewGame` and `createHotSeatGame` |
 | `src/core/turn-manager.ts` | Call `processWonderEffects` during turn processing |
@@ -258,5 +264,7 @@ Advisor disagreements are deferred to a later milestone. Each advisor fires inde
 - The `wonder` field on `HexTile` is nullable (`string | null`), same pattern as `resource`.
 - Wonder effects that modify other systems (combat, vision, healing) should be checked at the call site, not pushed from the wonder system — keeps coupling low.
 - Eruption is the only wonder effect that mutates state during `processTurn`. All others are read-only bonuses.
-- The `'scholar_no_research'` message replaces the existing Explorer message for the same trigger — move it, don't duplicate.
-- Legacy save migration: add `tribalVillages: {}`, `discoveredWonders: {}` if missing; add `treasurer: true, scholar: true` to `advisorsEnabled`.
+- The `'scholar_no_research'` message replaces the existing Explorer `research_tech` message (advisor-system.ts). Remove the Explorer version and add the Scholar version. Update the corresponding test in `tests/ui/advisor-system.test.ts`.
+- Legacy save migration: add `tribalVillages: {}`, `discoveredWonders: {}`, `wonderDiscoverers: {}` if missing; add `treasurer: true, scholar: true` to `advisorsEnabled`. Add `wonder: null` to any `HexTile` missing it.
+- Village placement also degrades gracefully — place as many as possible, stop if no valid tiles remain.
+- Wonder `combat_bonus.defenseBonus` uses decimal format (0.30 = +30%) matching the existing `getTerrainDefenseBonus` convention.
