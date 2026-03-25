@@ -61,10 +61,13 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
   },
   {
     id: 'research_tech',
-    advisor: 'explorer',
-    icon: '🔭',
+    advisor: 'scholar',
+    icon: '📚',
     message: 'Knowledge is power! Open the Tech panel and choose something to research. Each discovery unlocks new possibilities.',
-    trigger: (state) => state.civilizations.player?.techState.currentResearch === null && state.turn >= 2,
+    trigger: (state) => {
+      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      return civ?.techState.currentResearch === null && state.turn >= 2;
+    },
     tutorialStep: 'research_tech',
   },
   {
@@ -185,6 +188,115 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       );
     },
   },
+
+  // --- Scholar (unlocks when techState.completed.length > 0) ---
+  {
+    id: 'scholar_wonder',
+    advisor: 'scholar',
+    icon: '📚',
+    message: 'Fascinating! This wonder could advance our knowledge. Settle nearby to benefit.',
+    trigger: () => false, // Triggered via event in main.ts on wonder discovery
+  },
+  {
+    id: 'scholar_no_research',
+    advisor: 'scholar',
+    icon: '📚',
+    message: 'Our scholars are idle! Choose a tech to research.',
+    trigger: (state) => {
+      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      if (!civ) return false;
+      if (civ.techState.completed.length === 0) return false;
+      return civ.techState.currentResearch === null && state.turn >= 2;
+    },
+  },
+  {
+    id: 'scholar_tech_complete',
+    advisor: 'scholar',
+    icon: '📚',
+    message: 'Excellent progress! Our understanding deepens.',
+    trigger: () => false, // Triggered via event
+  },
+  {
+    id: 'scholar_village_science',
+    advisor: 'scholar',
+    icon: '📚',
+    message: 'The villagers shared ancient knowledge with us!',
+    trigger: () => false, // Triggered via event on village science outcome
+  },
+  {
+    id: 'scholar_village_tech',
+    advisor: 'scholar',
+    icon: '📚',
+    message: 'Remarkable — the villagers taught us something entirely new!',
+    trigger: () => false, // Triggered via event on village free_tech outcome
+  },
+  {
+    id: 'scholar_era',
+    advisor: 'scholar',
+    icon: '📚',
+    message: "We're making strides. Continue researching to reach a new era.",
+    trigger: (state) => {
+      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      if (!civ || civ.techState.completed.length === 0) return false;
+      return state.turn > 0 && state.turn % 20 === 0;
+    },
+  },
+
+  // --- Treasurer (unlocks when gold >= 50 or has trade route) ---
+  {
+    id: 'treasurer_rich_idle',
+    advisor: 'treasurer',
+    icon: '💎',
+    message: "We're sitting on a fortune! Invest in buildings or units.",
+    trigger: (state) => {
+      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      if (!civ || civ.gold <= 100) return false;
+      return civ.cities.every(cityId => {
+        const city = state.cities[cityId];
+        return !city || city.productionQueue.length === 0;
+      });
+    },
+  },
+  {
+    id: 'treasurer_broke',
+    advisor: 'treasurer',
+    icon: '💎',
+    message: 'Our coffers are nearly empty. We need gold-producing tiles or trade.',
+    trigger: (state) => {
+      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      if (!civ) return false;
+      if (civ.cities.length === 0 || state.turn < 5) return false;
+      return civ.gold < 10;
+    },
+  },
+  {
+    id: 'treasurer_village_gold',
+    advisor: 'treasurer',
+    icon: '💎',
+    message: 'A generous village! Our coffers grow.',
+    trigger: () => false, // Triggered via event
+  },
+  {
+    id: 'treasurer_trade_route',
+    advisor: 'treasurer',
+    icon: '💎',
+    message: 'Trade is flowing. Each route strengthens our economy.',
+    trigger: () => false, // Triggered via event on trade route creation
+  },
+  {
+    id: 'treasurer_wonder_yields',
+    advisor: 'treasurer',
+    icon: '💎',
+    message: 'Our city near a wonder is thriving from its bounty.',
+    trigger: () => false, // Triggered via event
+  },
+  {
+    id: 'treasurer_camp_reward',
+    advisor: 'treasurer',
+    icon: '💎',
+    message: 'The spoils of victory bolster our treasury.',
+    trigger: () => false, // Triggered via event
+  },
 ];
 
 export class AdvisorSystem {
@@ -220,7 +332,7 @@ export class AdvisorSystem {
           this.bus.emit('tutorial:step', {
             step: msg.tutorialStep,
             message: msg.message,
-            advisor: msg.advisor as 'builder' | 'explorer',
+            advisor: msg.advisor as 'builder' | 'explorer' | 'scholar',
           });
         }
 

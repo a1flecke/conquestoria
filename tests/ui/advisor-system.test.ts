@@ -169,11 +169,89 @@ describe('AdvisorSystem', () => {
     expect(messages).toHaveLength(2);
   });
 
-  it('getAdvisorMessageIds returns all message IDs', () => {
+  it('shows scholar no-research reminder when tech completed but idle', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = makeState();
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: true };
+    state.civilizations.player.techState.completed = ['agriculture'];
+    state.civilizations.player.techState.currentResearch = null;
+    state.turn = 5;
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+
+    advisor.check(state);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].advisor).toBe('scholar');
+    expect(messages[0].message).toContain('idle');
+  });
+
+  it('shows treasurer broke warning when gold is low', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity();
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false };
+    state.civilizations.player.gold = 5;
+    state.turn = 10;
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+
+    advisor.check(state);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].advisor).toBe('treasurer');
+    expect(messages[0].message).toContain('empty');
+  });
+
+  it('does not show treasurer broke on turn 1', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity();
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false };
+    state.civilizations.player.gold = 0;
+    state.turn = 1;
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+
+    advisor.check(state);
+    expect(messages).toHaveLength(0);
+  });
+
+  it('shows treasurer rich-idle when gold high and no production', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity();
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false };
+    state.civilizations.player.gold = 200;
+    // Ensure city has empty production queue
+    const cityId = state.civilizations.player.cities[0];
+    state.cities[cityId].productionQueue = [];
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+
+    advisor.check(state);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].advisor).toBe('treasurer');
+    expect(messages[0].message).toContain('fortune');
+  });
+
+  it('getAdvisorMessageIds includes new advisor IDs', () => {
     const ids = getAdvisorMessageIds();
-    expect(ids.length).toBeGreaterThan(8);
     expect(ids).toContain('welcome');
     expect(ids).toContain('chancellor_hostile_civ');
     expect(ids).toContain('warchief_undefended_city');
+    expect(ids).toContain('scholar_no_research');
+    expect(ids).toContain('scholar_wonder');
+    expect(ids).toContain('scholar_era');
+    expect(ids).toContain('treasurer_rich_idle');
+    expect(ids).toContain('treasurer_broke');
+    expect(ids).toContain('treasurer_village_gold');
   });
 });
