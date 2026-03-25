@@ -1,8 +1,10 @@
 import type { City, GameMap, ResourceYield } from '@/core/types';
-import { hexKey } from './hex-utils';
+import { hexKey, hexNeighbors } from './hex-utils';
 import { getImprovementYieldBonus } from './improvement-system';
 import { BUILDINGS } from './city-system';
 import { getTotalAdjacencyYields } from './adjacency-system';
+import { getWonderYieldBonus } from './wonder-system';
+import { getWonderDefinition } from './wonder-definitions';
 
 export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   grassland:  { food: 2, production: 0, gold: 0, science: 0 },
@@ -54,6 +56,31 @@ export function calculateCityYields(city: City, map: GameMap): ResourceYield {
       yields.production += bonus.production;
       yields.gold += bonus.gold;
       yields.science += bonus.science;
+    }
+
+    // Wonder yields (add to terrain yields)
+    if (tile.wonder) {
+      const wonderYields = getWonderYieldBonus(tile.wonder);
+      yields.food += wonderYields.food;
+      yields.production += wonderYields.production;
+      yields.gold += wonderYields.gold;
+      yields.science += wonderYields.science;
+    }
+
+    // Adjacent wonder bonus
+    const neighbors = hexNeighbors(coord);
+    for (const neighbor of neighbors) {
+      const neighborTile = map.tiles[hexKey(neighbor)];
+      if (neighborTile?.wonder) {
+        const wonderDef = getWonderDefinition(neighborTile.wonder);
+        if (wonderDef?.effect.type === 'adjacent_yield_bonus') {
+          const bonusYields = wonderDef.effect.yields;
+          if (bonusYields.food) yields.food += bonusYields.food;
+          if (bonusYields.production) yields.production += bonusYields.production;
+          if (bonusYields.gold) yields.gold += bonusYields.gold;
+          if (bonusYields.science) yields.science += bonusYields.science;
+        }
+      }
     }
   }
 
