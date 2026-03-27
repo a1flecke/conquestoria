@@ -13,7 +13,7 @@ import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { resolveCombat } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
-import { updateVisibility, isVisible } from '@/systems/fog-of-war';
+import { updateVisibility, isVisible, getVisibility } from '@/systems/fog-of-war';
 import { destroyCamp } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves } from '@/storage/save-manager';
 import { AudioManager } from '@/audio/audio-manager';
@@ -504,12 +504,26 @@ function handleHexTap(coord: HexCoord): void {
 }
 
 function handleHexLongPress(coord: HexCoord): void {
-  // Show tile info
   const tile = gameState.map.tiles[hexKey(coord)];
-  if (tile) {
-    const wonderInfo = tile.wonder ? ` · ⭐ ${getWonderDefinition(tile.wonder)?.name ?? tile.wonder}` : '';
-    showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + tile.improvement : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
+  if (!tile) return;
+
+  const vis = currentCiv()?.visibility;
+  if (!vis) return;
+
+  const visibility = getVisibility(vis, coord);
+
+  if (visibility === 'unexplored') {
+    showNotification('Unexplored territory');
+    return;
   }
+
+  if (visibility === 'fog') {
+    showNotification(`${tile.terrain} (last seen)`);
+    return;
+  }
+
+  const wonderInfo = tile.wonder ? ` · ⭐ ${getWonderDefinition(tile.wonder)?.name ?? tile.wonder}` : '';
+  showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + tile.improvement : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
 }
 
 async function endTurn(): Promise<void> {
