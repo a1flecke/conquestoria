@@ -21,6 +21,7 @@ export function drawUnits(
   units: Record<string, Unit>,
   camera: Camera,
   playerVisibility: VisibilityMap,
+  colorLookup?: Record<string, string>,
 ): void {
   for (const unit of Object.values(units)) {
     // Only draw units visible to the player
@@ -32,7 +33,7 @@ export function drawUnits(
     const size = camera.hexSize * camera.zoom;
 
     // Unit background circle
-    const ownerColor = OWNER_COLORS[unit.owner] ?? '#888';
+    const ownerColor = colorLookup?.[unit.owner] ?? OWNER_COLORS[unit.owner] ?? '#888';
     ctx.beginPath();
     ctx.arc(screen.x, screen.y, size * 0.35, 0, Math.PI * 2);
     ctx.fillStyle = ownerColor;

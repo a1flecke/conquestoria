@@ -84,7 +84,11 @@ export class RenderLoop {
     const currentCiv = this.state.civilizations[this.state.currentPlayer];
     const playerVis = currentCiv?.visibility;
     if (playerVis) {
-      drawUnits(this.ctx, this.state.units, this.camera, playerVis);
+      const colorLookup: Record<string, string> = { barbarian: '#8b4513' };
+      for (const [id, civ] of Object.entries(this.state.civilizations)) {
+        colorLookup[id] = civ.color;
+      }
+      drawUnits(this.ctx, this.state.units, this.camera, playerVis, colorLookup);
     }
 
     // Draw fog of war
