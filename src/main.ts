@@ -370,9 +370,34 @@ function handleHexTap(coord: HexCoord): void {
     ([_, u]) => hexKey(u.position) === key
   );
 
-  if (unitAtHex && unitAtHex[1].owner === gameState.currentPlayer) {
-    selectUnit(unitAtHex[0]);
-    return;
+  if (unitAtHex) {
+    if (unitAtHex[1].owner === gameState.currentPlayer) {
+      selectUnit(unitAtHex[0]);
+      return;
+    }
+    // Show enemy unit info (if no unit selected for attack)
+    if (!selectedUnitId) {
+      const enemyUnit = unitAtHex[1];
+      const def = UNIT_DEFINITIONS[enemyUnit.type];
+      const ownerName = enemyUnit.owner === 'barbarian' ? 'Barbarian' :
+        (gameState.civilizations[enemyUnit.owner]?.name ?? enemyUnit.owner);
+      const panel = document.getElementById('info-panel');
+      if (panel) {
+        panel.style.display = 'block';
+        panel.innerHTML = `
+          <div style="background:rgba(100,0,0,0.85);border-radius:12px;padding:12px 16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <strong>${ownerName} ${def.name}</strong> · HP: ${enemyUnit.health}/100 · Str: ${def.strength}
+              </div>
+              <span id="btn-deselect" style="cursor:pointer;font-size:18px;opacity:0.6;">✕</span>
+            </div>
+          </div>
+        `;
+        document.getElementById('btn-deselect')?.addEventListener('click', deselectUnit);
+      }
+      return;
+    }
   }
 
   // If unit is selected and tapping a movement target
