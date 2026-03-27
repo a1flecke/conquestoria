@@ -257,10 +257,12 @@ function selectUnit(unitId: string): void {
 
   // Calculate movement range
   const unitPositions: Record<string, string> = {};
+  const unitOwners: Record<string, string> = {};
   for (const [id, u] of Object.entries(gameState.units)) {
     unitPositions[hexKey(u.position)] = id;
+    unitOwners[id] = u.owner;
   }
-  movementRange = getMovementRange(unit, gameState.map, unitPositions);
+  movementRange = getMovementRange(unit, gameState.map, unitPositions, unitOwners);
 
   // Show unit info panel
   const panel = document.getElementById('info-panel');

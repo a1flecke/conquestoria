@@ -80,6 +80,7 @@ export function getMovementRange(
   unit: Unit,
   map: GameMap,
   unitPositions: Record<string, string>, // hexKey -> unitId (for blocking)
+  unitOwners?: Record<string, string>, // unitId -> owner (to distinguish friend/foe)
 ): HexCoord[] {
   const reachable: HexCoord[] = [];
   const visited = new Map<string, number>(); // hexKey -> remaining movement
@@ -98,13 +99,24 @@ export function getMovementRange(
       const tile = map.tiles[key];
       if (!tile || !isPassable(tile.terrain)) continue;
 
-      // Check for friendly/enemy units blocking
-      const occupant = unitPositions[key];
-      if (occupant && occupant !== unit.id) continue;
-
       const cost = getMovementCost(tile.terrain);
       const remaining = current.remaining - cost;
       if (remaining < 0) continue;
+
+      // Check for unit blocking
+      const occupant = unitPositions[key];
+      if (occupant && occupant !== unit.id) {
+        const occupantOwner = unitOwners?.[occupant];
+        if (!occupantOwner || occupantOwner === unit.owner) continue; // block friendlies
+        // Enemy tile is reachable (for attack) but can't pathfind through
+        const prevRemaining = visited.get(key) ?? -1;
+        if (remaining > prevRemaining) {
+          visited.set(key, remaining);
+          reachable.push(neighbor);
+          // Don't add to queue — can't move through enemies
+        }
+        continue;
+      }
 
       const prevRemaining = visited.get(key) ?? -1;
       if (remaining > prevRemaining) {

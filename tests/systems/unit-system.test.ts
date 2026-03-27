@@ -38,6 +38,59 @@ describe('getMovementRange', () => {
     expect(range.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('includes enemy-occupied tiles in range for attack', () => {
+    const landTile = Object.values(map.tiles).find(
+      t => t.terrain === 'grassland' || t.terrain === 'plains'
+    )!;
+    const unit = createUnit('warrior', 'p1', landTile.coord);
+    // Find a neighbor tile that's also passable
+    const neighborTiles = Object.values(map.tiles).filter(t =>
+      (t.terrain === 'grassland' || t.terrain === 'plains') &&
+      Math.abs(t.coord.q - landTile.coord.q) + Math.abs(t.coord.r - landTile.coord.r) <= 2
+    );
+    const enemyTile = neighborTiles.find(t => hexKey(t.coord) !== hexKey(landTile.coord));
+    if (!enemyTile) return;
+
+    const enemyKey = hexKey(enemyTile.coord);
+    const unitPositions: Record<string, string> = {
+      [hexKey(landTile.coord)]: unit.id,
+      [enemyKey]: 'enemy1',
+    };
+    const unitOwners: Record<string, string> = {
+      [unit.id]: 'p1',
+      'enemy1': 'barbarian',
+    };
+    const range = getMovementRange(unit, map, unitPositions, unitOwners);
+    const keys = range.map(h => hexKey(h));
+    expect(keys).toContain(enemyKey);
+  });
+
+  it('excludes friendly-occupied tiles from range', () => {
+    const landTile = Object.values(map.tiles).find(
+      t => t.terrain === 'grassland' || t.terrain === 'plains'
+    )!;
+    const unit = createUnit('warrior', 'p1', landTile.coord);
+    const neighborTiles = Object.values(map.tiles).filter(t =>
+      (t.terrain === 'grassland' || t.terrain === 'plains') &&
+      Math.abs(t.coord.q - landTile.coord.q) + Math.abs(t.coord.r - landTile.coord.r) <= 2
+    );
+    const friendlyTile = neighborTiles.find(t => hexKey(t.coord) !== hexKey(landTile.coord));
+    if (!friendlyTile) return;
+
+    const friendlyKey = hexKey(friendlyTile.coord);
+    const unitPositions: Record<string, string> = {
+      [hexKey(landTile.coord)]: unit.id,
+      [friendlyKey]: 'friendly1',
+    };
+    const unitOwners: Record<string, string> = {
+      [unit.id]: 'p1',
+      'friendly1': 'p1',
+    };
+    const range = getMovementRange(unit, map, unitPositions, unitOwners);
+    const keys = range.map(h => hexKey(h));
+    expect(keys).not.toContain(friendlyKey);
+  });
+
   it('does not include impassable tiles', () => {
     const landTile = Object.values(map.tiles).find(
       t => t.terrain === 'grassland'
