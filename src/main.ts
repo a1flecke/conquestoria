@@ -600,6 +600,7 @@ async function endTurn(): Promise<void> {
       renderLoop.setGameState(gameState);
       updateHUD();
 
+      showNotification(`Turn ${gameState.turn}`, 'info');
       advisorSystem.check(gameState);
 
       if (gameState.settings.musicEnabled && gameState.era !== audio.getCurrentEra()) {
