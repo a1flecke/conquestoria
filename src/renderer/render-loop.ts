@@ -3,6 +3,7 @@ import { Camera } from './camera';
 import { drawHexMap, drawRivers } from './hex-renderer';
 import { drawFogOfWar } from './fog-renderer';
 import { drawUnits } from './unit-renderer';
+import { drawCities } from './city-renderer';
 import { AnimationSystem } from './animation-system';
 
 export class RenderLoop {
@@ -75,6 +76,9 @@ export class RenderLoop {
 
     // Draw rivers
     drawRivers(this.ctx, this.state.map, this.camera);
+
+    // Draw cities
+    drawCities(this.ctx, this.state, this.camera, this.state.currentPlayer);
 
     // Draw units
     const currentCiv = this.state.civilizations[this.state.currentPlayer];
