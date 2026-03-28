@@ -8,28 +8,30 @@ import {
 } from '@/systems/tech-system';
 
 describe('TECH_TREE', () => {
-  it('has techs in 5 tracks', () => {
+  it('has techs in 15 tracks', () => {
     const tracks = new Set(TECH_TREE.map(t => t.track));
-    expect(tracks.size).toBe(5);
-    expect(tracks).toContain('military');
-    expect(tracks).toContain('economy');
-    expect(tracks).toContain('science');
-    expect(tracks).toContain('civics');
-    expect(tracks).toContain('exploration');
+    expect(tracks.size).toBe(15);
+    for (const track of [
+      'military', 'economy', 'science', 'civics', 'exploration',
+      'agriculture', 'medicine', 'philosophy', 'arts', 'maritime',
+      'metallurgy', 'construction', 'communication', 'espionage', 'spirituality',
+    ]) {
+      expect(tracks).toContain(track);
+    }
   });
 
-  it('has at least 7 techs per track', () => {
-    for (const track of ['military', 'economy', 'science', 'civics', 'exploration'] as const) {
+  it('has 8 techs per track', () => {
+    const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
+    for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      expect(techs.length).toBeGreaterThanOrEqual(7);
-      expect(techs.length).toBeLessThanOrEqual(9);
+      expect(techs.length, `track ${track} should have 8 techs`).toBe(8);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 40 techs total', () => {
-    expect(TECH_TREE.length).toBe(40);
+  it('has 120 techs total', () => {
+    expect(TECH_TREE.length).toBe(120);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -47,13 +49,13 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('techs span eras 1-5', () => {
+  it('techs span eras 1-4', () => {
     const eras = new Set(TECH_TREE.map(t => t.era));
+    expect(eras.size).toBe(4);
     expect(eras).toContain(1);
     expect(eras).toContain(2);
     expect(eras).toContain(3);
     expect(eras).toContain(4);
-    expect(eras).toContain(5);
   });
 });
 
