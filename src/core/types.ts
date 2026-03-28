@@ -98,7 +98,7 @@ export interface VisibilityMap {
 
 // --- Units ---
 
-export type UnitType = 'settler' | 'worker' | 'scout' | 'warrior';
+export type UnitType = 'settler' | 'worker' | 'scout' | 'warrior' | 'swordsman' | 'pikeman' | 'musketeer';
 
 export interface UnitDefinition {
   type: UnitType;
@@ -161,7 +161,10 @@ export interface City {
 
 // --- Tech ---
 
-export type TechTrack = 'military' | 'economy' | 'science' | 'civics' | 'exploration';
+export type TechTrack =
+  | 'military' | 'economy' | 'science' | 'civics' | 'exploration'
+  | 'agriculture' | 'medicine' | 'philosophy' | 'arts' | 'maritime'
+  | 'metallurgy' | 'construction' | 'communication' | 'espionage' | 'spirituality';
 
 export type TechStatus = 'locked' | 'available' | 'researching' | 'completed';
 
@@ -277,6 +280,65 @@ export interface BarbarianCamp {
   spawnCooldown: number;     // turns until next raider spawns
 }
 
+// --- Minor Civilizations ---
+
+export type MinorCivArchetype = 'militaristic' | 'mercantile' | 'cultural';
+
+export type AllyBonus =
+  | { type: 'free_unit'; unitType: UnitType; everyNTurns: number }
+  | { type: 'gold_per_turn'; amount: number }
+  | { type: 'science_per_turn'; amount: number }
+  | { type: 'production_per_turn'; amount: number };
+
+export interface MinorCivDefinition {
+  id: string;
+  name: string;
+  archetype: MinorCivArchetype;
+  description: string;
+  allyBonus: AllyBonus;
+  color: string;
+}
+
+export type QuestType = 'destroy_camp' | 'gift_gold' | 'defeat_units' | 'trade_route';
+
+export type QuestTarget =
+  | { type: 'destroy_camp'; campId: string }
+  | { type: 'gift_gold'; amount: number }
+  | { type: 'defeat_units'; count: number; nearPosition: HexCoord; radius: number }
+  | { type: 'trade_route'; minorCivId: string };
+
+export interface QuestReward {
+  relationshipBonus: number;
+  gold?: number;
+  science?: number;
+  freeUnit?: UnitType;
+}
+
+export interface Quest {
+  id: string;
+  type: QuestType;
+  description: string;
+  target: QuestTarget;
+  reward: QuestReward;
+  progress: number;
+  status: 'active' | 'completed' | 'expired';
+  turnIssued: number;
+  expiresOnTurn: number | null;
+  chainNext?: string;
+}
+
+export interface MinorCivState {
+  id: string;
+  definitionId: string;
+  cityId: string;
+  units: string[];
+  diplomacy: DiplomacyState;
+  activeQuests: Record<string, Quest>;
+  isDestroyed: boolean;
+  garrisonCooldown: number;
+  lastEraUpgrade: number;
+}
+
 // --- Combat ---
 
 export interface CombatResult {
@@ -379,6 +441,7 @@ export interface GameState {
   units: Record<string, Unit>;
   cities: Record<string, City>;
   barbarianCamps: Record<string, BarbarianCamp>;
+  minorCivs: Record<string, MinorCivState>;
   tutorial: TutorialState;
   currentPlayer: string;     // civ ID whose turn it is
   gameOver: boolean;
@@ -443,4 +506,13 @@ export interface GameEvents {
   'ui:select-unit': { unitId: string };
   'ui:select-city': { cityId: string };
   'ui:deselect': {};
+  'minor-civ:quest-issued': { minorCivId: string; majorCivId: string; quest: Quest };
+  'minor-civ:quest-completed': { minorCivId: string; majorCivId: string; quest: Quest; reward: QuestReward };
+  'minor-civ:evolved': { campId: string; minorCivId: string; position: HexCoord };
+  'minor-civ:destroyed': { minorCivId: string; conquerorId: string };
+  'minor-civ:allied': { minorCivId: string; majorCivId: string };
+  'minor-civ:scuffle': { attackerId: string; defenderId: string; position: HexCoord };
+  'minor-civ:guerrilla': { minorCivId: string; targetCivId: string; position: HexCoord };
+  'minor-civ:era-upgrade': { minorCivId: string; newEra: number };
+  'minor-civ:relationship-threshold': { minorCivId: string; majorCivId: string; newStatus: 'hostile' | 'neutral' | 'friendly' | 'allied' };
 }
