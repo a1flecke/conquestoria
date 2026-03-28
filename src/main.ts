@@ -23,7 +23,7 @@ import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
-import { declareWar, makePeace, proposeTreaty } from '@/systems/diplomacy-system';
+import { declareWar, makePeace, proposeTreaty, modifyRelationship } from '@/systems/diplomacy-system';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
@@ -201,6 +201,43 @@ function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): 
   showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
 }
 
+function handleGiftGold(mcId: string): void {
+  const mc = gameState.minorCivs[mcId];
+  if (!mc) return;
+  const quest = mc.activeQuests[gameState.currentPlayer];
+  const amount = quest?.target.type === 'gift_gold' ? (quest.target as { amount: number }).amount : 25;
+
+  if (currentCiv().gold < amount) {
+    showNotification('Not enough gold!', 'warning');
+    return;
+  }
+
+  currentCiv().gold -= amount;
+  mc.diplomacy = modifyRelationship(mc.diplomacy, gameState.currentPlayer, 10);
+
+  if (quest?.target.type === 'gift_gold') {
+    quest.progress += amount;
+  }
+
+  showNotification(`Gifted ${amount} gold`, 'info');
+  renderLoop.setGameState(gameState);
+  updateHUD();
+}
+
+function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
+  const mc = gameState.minorCivs[mcId];
+  if (!mc) return;
+
+  if (currentlyAtWar) {
+    mc.diplomacy = makePeace(mc.diplomacy, gameState.currentPlayer, gameState.turn);
+    showNotification('Peace with city-state', 'success');
+  } else {
+    mc.diplomacy = declareWar(mc.diplomacy, gameState.currentPlayer, gameState.turn);
+    showNotification('War declared on city-state!', 'warning');
+  }
+  renderLoop.setGameState(gameState);
+}
+
 function togglePanel(panel: string): void {
   // Remove any existing panel
   document.getElementById('tech-panel')?.remove();
@@ -243,6 +280,8 @@ function togglePanel(panel: string): void {
   } else if (panel === 'diplomacy') {
     createDiplomacyPanel(uiLayer, gameState, {
       onAction: handleDiplomaticAction,
+      onGiftGold: handleGiftGold,
+      onMinorCivWarPeace: handleMinorCivWarPeace,
       onClose: () => {},
     });
   } else if (panel === 'marketplace') {

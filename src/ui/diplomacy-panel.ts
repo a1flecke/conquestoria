@@ -1,9 +1,12 @@
 import type { GameState, DiplomaticAction } from '@/core/types';
 import { getRelationship, isAtWar, getAvailableActions } from '@/systems/diplomacy-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
+  onGiftGold?: (mcId: string) => void;
+  onMinorCivWarPeace?: (mcId: string, currentlyAtWar: boolean) => void;
   onClose: () => void;
 }
 
@@ -93,6 +96,39 @@ export function createDiplomacyPanel(
     html += '</div></div>';
   }
 
+  // City-States section
+  const mcEntries = Object.entries(state.minorCivs ?? {}).filter(([, mc]) => !mc.isDestroyed);
+  if (mcEntries.length > 0) {
+    html += `<h3 style="font-size:15px;color:#e8c170;margin:20px 0 10px;">City-States</h3>`;
+    for (const [mcId, mc] of mcEntries) {
+      const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
+      if (!def) continue;
+      const rel = mc.diplomacy.relationships[state.currentPlayer] ?? 0;
+      const status = rel <= -60 ? 'Hostile' : rel >= 60 ? 'Allied' : rel >= 30 ? 'Friendly' : 'Neutral';
+      const archIcon = def.archetype === 'militaristic' ? '⚔️' : def.archetype === 'mercantile' ? '🪙' : '📜';
+      const quest = mc.activeQuests[state.currentPlayer];
+      const statusColor = rel >= 60 ? '#4a9b4a' : rel >= 30 ? '#8ab84a' : rel <= -60 ? '#d94a4a' : '#888';
+
+      html += `<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:8px;">`;
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;">`;
+      html += `<span style="font-size:13px;">${archIcon} <strong style="color:${def.color}">${def.name}</strong></span>`;
+      html += `<span style="font-size:12px;color:${statusColor}">${status} (${rel})</span>`;
+      html += `</div>`;
+      if (quest) {
+        html += `<div style="font-size:11px;opacity:0.7;margin-top:4px;">Quest: ${quest.description}</div>`;
+      }
+      const atWar = mc.diplomacy.atWarWith?.includes(state.currentPlayer) ?? false;
+      html += `<div style="display:flex;gap:6px;margin-top:6px;">`;
+      html += `<button class="mc-gift" data-mc-id="${mcId}" style="padding:4px 10px;background:rgba(232,193,112,0.2);border:1px solid rgba(232,193,112,0.4);border-radius:5px;color:#e8c170;cursor:pointer;font-size:10px;">Gift Gold</button>`;
+      const warLabel = atWar ? 'Make Peace' : 'Declare War';
+      const warBg = atWar ? 'rgba(74,155,74,0.3)' : 'rgba(217,74,74,0.3)';
+      const warBorder = atWar ? '#4a9b4a' : '#d94a4a';
+      html += `<button class="mc-war" data-mc-id="${mcId}" data-at-war="${atWar}" style="padding:4px 10px;background:${warBg};border:1px solid ${warBorder};border-radius:5px;color:white;cursor:pointer;font-size:10px;">${warLabel}</button>`;
+      html += `</div>`;
+      html += `</div>`;
+    }
+  }
+
   panel.innerHTML = html;
   container.appendChild(panel);
 
@@ -106,6 +142,23 @@ export function createDiplomacyPanel(
       const civId = (btn as HTMLElement).dataset.civId!;
       const action = (btn as HTMLElement).dataset.action! as DiplomaticAction;
       callbacks.onAction(civId, action);
+      panel.remove();
+    });
+  });
+
+  panel.querySelectorAll('.mc-gift').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mcId = (btn as HTMLElement).dataset.mcId!;
+      callbacks.onGiftGold?.(mcId);
+      panel.remove();
+    });
+  });
+
+  panel.querySelectorAll('.mc-war').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mcId = (btn as HTMLElement).dataset.mcId!;
+      const atWar = (btn as HTMLElement).dataset.atWar === 'true';
+      callbacks.onMinorCivWarPeace?.(mcId, atWar);
       panel.remove();
     });
   });
