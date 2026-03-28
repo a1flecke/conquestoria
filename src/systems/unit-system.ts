@@ -24,6 +24,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 10, canFoundCity: false,
     canBuildImprovements: false, productionCost: 25,
   },
+  swordsman: {
+    type: 'swordsman', name: 'Swordsman', movementPoints: 2,
+    visionRange: 2, strength: 25, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 50,
+  },
+  pikeman: {
+    type: 'pikeman', name: 'Pikeman', movementPoints: 2,
+    visionRange: 2, strength: 35, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 70,
+  },
+  musketeer: {
+    type: 'musketeer', name: 'Musketeer', movementPoints: 2,
+    visionRange: 2, strength: 50, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 90,
+  },
 };
 
 export function createUnit(type: UnitType, owner: string, position: HexCoord): Unit {

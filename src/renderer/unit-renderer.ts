@@ -8,6 +8,9 @@ const UNIT_ICONS: Record<string, string> = {
   worker: '👷',
   scout: '🔭',
   warrior: '⚔️',
+  swordsman: '🗡️',
+  pikeman: '🔱',
+  musketeer: '🔫',
 };
 
 const OWNER_COLORS: Record<string, string> = {

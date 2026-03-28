@@ -160,3 +160,28 @@ describe('resetUnitTurn', () => {
     expect(reset.hasActed).toBe(false);
   });
 });
+
+describe('new unit types', () => {
+  it('swordsman has correct stats', () => {
+    const unit = createUnit('swordsman', 'player', { q: 0, r: 0 });
+    expect(unit.type).toBe('swordsman');
+    expect(UNIT_DEFINITIONS.swordsman.strength).toBe(25);
+    expect(UNIT_DEFINITIONS.swordsman.movementPoints).toBe(2);
+    expect(UNIT_DEFINITIONS.swordsman.visionRange).toBe(2);
+    expect(UNIT_DEFINITIONS.swordsman.productionCost).toBe(50);
+  });
+
+  it('pikeman has correct stats', () => {
+    const unit = createUnit('pikeman', 'player', { q: 0, r: 0 });
+    expect(unit.type).toBe('pikeman');
+    expect(UNIT_DEFINITIONS.pikeman.strength).toBe(35);
+    expect(UNIT_DEFINITIONS.pikeman.productionCost).toBe(70);
+  });
+
+  it('musketeer has correct stats', () => {
+    const unit = createUnit('musketeer', 'player', { q: 0, r: 0 });
+    expect(unit.type).toBe('musketeer');
+    expect(UNIT_DEFINITIONS.musketeer.strength).toBe(50);
+    expect(UNIT_DEFINITIONS.musketeer.productionCost).toBe(90);
+  });
+});
