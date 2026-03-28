@@ -9,6 +9,7 @@ import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createMarketplaceState } from '@/systems/trade-system';
 import { placeWonders } from '@/systems/wonder-system';
 import { placeVillages } from '@/systems/village-system';
+import { placeMinorCivs } from '@/systems/minor-civ-system';
 
 export const MAP_DIMENSIONS = {
   small: { width: 30, height: 30, maxPlayers: 3 },
@@ -99,7 +100,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     if (camp) barbarianCamps[camp.id] = camp;
   }
 
-  return {
+  const state: GameState = {
     turn: 1,
     era: 1,
     civilizations: { player: playerCiv, 'ai-1': aiCiv },
@@ -126,6 +127,14 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
       advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true },
     },
   };
+
+  // Place minor civilizations
+  const mcResult = placeMinorCivs(state, actualSize, gameSeed);
+  state.minorCivs = mcResult.minorCivs;
+  Object.assign(state.cities, mcResult.cities);
+  Object.assign(state.units, mcResult.units);
+
+  return state;
 }
 
 export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameState {
@@ -181,7 +190,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
     if (camp) barbarianCamps[camp.id] = camp;
   }
 
-  return {
+  const state: GameState = {
     turn: 1,
     era: 1,
     civilizations,
@@ -210,4 +219,12 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
       advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true },
     },
   };
+
+  // Place minor civilizations
+  const mcResult = placeMinorCivs(state, config.mapSize, gameSeed);
+  state.minorCivs = mcResult.minorCivs;
+  Object.assign(state.cities, mcResult.cities);
+  Object.assign(state.units, mcResult.units);
+
+  return state;
 }

@@ -67,6 +67,30 @@ describe('createNewGame', () => {
   });
 });
 
+describe('minor civ integration', () => {
+  it('createNewGame places minor civs on medium map', () => {
+    const state = createNewGame(undefined, 'mc-integration', 'medium');
+    expect(Object.keys(state.minorCivs).length).toBeGreaterThanOrEqual(4);
+    for (const mc of Object.values(state.minorCivs)) {
+      expect(state.cities[mc.cityId]).toBeDefined();
+      expect(state.cities[mc.cityId].owner).toMatch(/^mc-/);
+    }
+  });
+
+  it('createHotSeatGame places minor civs', () => {
+    const config: HotSeatConfig = {
+      playerCount: 2,
+      mapSize: 'medium' as const,
+      players: [
+        { name: 'Alice', slotId: 'slot-0', civType: 'egypt' as any, isHuman: true },
+        { name: 'Bob', slotId: 'slot-1', civType: 'rome' as any, isHuman: true },
+      ],
+    };
+    const state = createHotSeatGame(config, 'mc-hotseat');
+    expect(Object.keys(state.minorCivs).length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('createHotSeatGame', () => {
   const config: HotSeatConfig = {
     playerCount: 3,
