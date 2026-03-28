@@ -6,6 +6,9 @@ import {
 import type { GameMap, BarbarianCamp } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
+import { checkCampEvolution } from '@/systems/minor-civ-system';
+import { createNewGame } from '@/core/game-state';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 
 describe('spawnBarbarianCamp', () => {
   let map: GameMap;
@@ -54,5 +57,79 @@ describe('processBarbarians', () => {
     };
     const result = processBarbarians([camp], generateMap(30, 30, 'barb-proc'), []);
     expect(result.updatedCamps[0].spawnCooldown).toBe(2);
+  });
+});
+
+describe('barbarian camp evolution', () => {
+  it('evolves camp at strength 8+', () => {
+    const state = createNewGame(undefined, 'evolve-test', 'medium');
+    // Clear existing camps so only our test camp is checked
+    state.barbarianCamps = {};
+    state.barbarianCamps['camp-evolve'] = {
+      id: 'camp-evolve',
+      position: { q: 25, r: 25 },
+      strength: 8,
+      spawnCooldown: 0,
+    };
+
+    const result = checkCampEvolution(state, 50);
+    if (result) {
+      expect(result.newMinorCiv).toBeDefined();
+      expect(result.removeCampId).toBe('camp-evolve');
+    }
+  });
+
+  it('does not evolve camp below strength 8', () => {
+    const state = createNewGame(undefined, 'no-evolve', 'medium');
+    // Clear all existing camps so only the weak one is checked
+    state.barbarianCamps = {};
+    state.barbarianCamps['camp-weak'] = {
+      id: 'camp-weak',
+      position: { q: 25, r: 25 },
+      strength: 5,
+      spawnCooldown: 0,
+    };
+
+    const result = checkCampEvolution(state, 10);
+    expect(result).toBeNull();
+  });
+
+  it('does not evolve if too close to existing city', () => {
+    const state = createNewGame(undefined, 'evolve-dist', 'small');
+    // Clear all existing camps
+    state.barbarianCamps = {};
+    const settler = Object.values(state.units).find(u => u.type === 'settler')!;
+    state.barbarianCamps['camp-close'] = {
+      id: 'camp-close',
+      position: settler.position,
+      strength: 10,
+      spawnCooldown: 0,
+    };
+
+    const result = checkCampEvolution(state, 10);
+    expect(result).toBeNull();
+  });
+
+  it('respects max minor civ cap (all 12 defs used)', () => {
+    const state = createNewGame(undefined, 'evolve-cap', 'small');
+    // Fill up all 12 definition slots
+    for (const def of MINOR_CIV_DEFINITIONS) {
+      const fakeId = `mc-${def.id}`;
+      state.minorCivs[fakeId] = {
+        id: fakeId, definitionId: def.id, cityId: '', units: [],
+        diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [] },
+        activeQuests: {}, isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+      } as any;
+    }
+
+    state.barbarianCamps['camp-max'] = {
+      id: 'camp-max',
+      position: { q: 25, r: 25 },
+      strength: 10,
+      spawnCooldown: 0,
+    };
+
+    const result = checkCampEvolution(state, 10);
+    expect(result).toBeNull();
   });
 });

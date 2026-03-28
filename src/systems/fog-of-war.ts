@@ -85,3 +85,39 @@ export function getTerrainVisionBonus(terrain: string): number {
   if (terrain === 'jungle') return -1;
   return 0;
 }
+
+export function revealMinorCivCities(
+  vis: VisibilityMap,
+  mcCityPositions: HexCoord[],
+): void {
+  for (const cityPos of mcCityPositions) {
+    const key = hexKey(cityPos);
+    if (vis.tiles[key] === 'visible') continue;
+
+    const nearby = hexesInRange(cityPos, 2);
+    const anyExplored = nearby.some(h => {
+      const k = hexKey(h);
+      return vis.tiles[k] === 'fog' || vis.tiles[k] === 'visible';
+    });
+
+    if (anyExplored) {
+      vis.tiles[key] = 'visible';
+    }
+  }
+}
+
+export function applySharedVision(
+  vis: VisibilityMap,
+  positions: HexCoord[],
+  map: GameMap,
+): void {
+  for (const pos of positions) {
+    const range = hexesInRange(pos, 2);
+    for (const hex of range) {
+      const key = hexKey(hex);
+      if (map.tiles[key]) {
+        vis.tiles[key] = 'visible';
+      }
+    }
+  }
+}

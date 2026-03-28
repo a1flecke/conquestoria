@@ -312,6 +312,74 @@ function makeRng(seed: number): () => number {
   };
 }
 
+// === Barbarian Camp Evolution ===
+
+interface EvolutionResult {
+  newMinorCiv: MinorCivState;
+  newCity: City;
+  newGarrison: Unit;
+  removeCampId: string;
+  transferUnitIds: string[];
+}
+
+export function checkCampEvolution(
+  state: GameState,
+  _currentTurn: number,
+): EvolutionResult | null {
+  const activeMinorCivs = Object.values(state.minorCivs).filter(mc => !mc.isDestroyed);
+  const usedDefs = new Set(activeMinorCivs.map(mc => mc.definitionId));
+  const unusedDefs = MINOR_CIV_DEFINITIONS.filter(d => !usedDefs.has(d.id));
+  if (unusedDefs.length === 0) return null;
+
+  const allCityPositions = Object.values(state.cities).map(c => c.position);
+  const startPositions = Object.values(state.units)
+    .filter(u => u.type === 'settler')
+    .map(u => u.position);
+
+  for (const camp of Object.values(state.barbarianCamps)) {
+    if (camp.strength < 8) continue;
+    if (allCityPositions.some(c => hexDistance(camp.position, c) < 6)) continue;
+    if (startPositions.some(s => hexDistance(camp.position, s) < 6)) continue;
+
+    const def = unusedDefs[0];
+    const majorCivIds = Object.keys(state.civilizations);
+
+    const city = foundCity(`mc-${def.id}`, camp.position, state.map);
+    city.population = 3;
+
+    const garrison = createUnit('warrior', `mc-${def.id}`, camp.position);
+
+    const transferIds: string[] = [];
+    for (const [uid, unit] of Object.entries(state.units)) {
+      if (unit.owner === 'barbarian' && hexDistance(unit.position, camp.position) <= 3) {
+        transferIds.push(uid);
+      }
+    }
+
+    const mcState: MinorCivState = {
+      id: `mc-${def.id}`,
+      definitionId: def.id,
+      cityId: city.id,
+      units: [garrison.id, ...transferIds],
+      diplomacy: createDiplomacyState(majorCivIds, `mc-${def.id}`, 0),
+      activeQuests: {},
+      isDestroyed: false,
+      garrisonCooldown: 0,
+      lastEraUpgrade: state.era,
+    };
+
+    return {
+      newMinorCiv: mcState,
+      newCity: city,
+      newGarrison: garrison,
+      removeCampId: camp.id,
+      transferUnitIds: transferIds,
+    };
+  }
+
+  return null;
+}
+
 // === Era Advancement ===
 
 const ERA_UNIT_MAP: Record<number, UnitType> = {

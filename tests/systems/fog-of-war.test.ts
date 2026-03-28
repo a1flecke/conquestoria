@@ -1,6 +1,7 @@
-import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus } from '@/systems/fog-of-war';
+import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision } from '@/systems/fog-of-war';
 import type { VisibilityMap, GameMap, Unit } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
+import { hexKey } from '@/systems/hex-utils';
 
 describe('fog-of-war', () => {
   let map: GameMap;
@@ -76,5 +77,41 @@ describe('new terrain vision', () => {
 
   it('swamp has no vision bonus', () => {
     expect(getTerrainVisionBonus('swamp')).toBe(0);
+  });
+});
+
+describe('minor civ visibility', () => {
+  it('reveals minor civ city when nearby tile explored', () => {
+    const vis = createVisibilityMap();
+    const mcCityPos = { q: 10, r: 10 };
+    // Explore a tile within 2 hexes
+    vis.tiles['11,10'] = 'fog';
+
+    revealMinorCivCities(vis, [mcCityPos]);
+    expect(vis.tiles[hexKey(mcCityPos)]).toBe('visible');
+  });
+
+  it('does not reveal distant minor civ city', () => {
+    const vis = createVisibilityMap();
+    const mcCityPos = { q: 10, r: 10 };
+    // Explore tile far away
+    vis.tiles['20,20'] = 'fog';
+
+    revealMinorCivCities(vis, [mcCityPos]);
+    expect(vis.tiles[hexKey(mcCityPos)]).toBeUndefined();
+  });
+
+  it('adds shared vision for friendly minor civ', () => {
+    const vis = createVisibilityMap();
+    const friendlyUnitPositions = [{ q: 15, r: 15 }];
+    const map = { tiles: {}, width: 30, height: 30 } as any;
+    for (let q = 13; q <= 17; q++) {
+      for (let r = 13; r <= 17; r++) {
+        map.tiles[`${q},${r}`] = { coord: { q, r }, terrain: 'grassland' };
+      }
+    }
+
+    applySharedVision(vis, friendlyUnitPositions, map);
+    expect(vis.tiles['15,15']).toBe('visible');
   });
 });
