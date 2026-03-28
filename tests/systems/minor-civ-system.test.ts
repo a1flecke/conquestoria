@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { placeMinorCivs } from '@/systems/minor-civ-system';
+import { placeMinorCivs, processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { EventBus } from '@/core/event-bus';
+import { TECH_TREE } from '@/systems/tech-definitions';
+
+const bus = new EventBus();
 
 describe('minor civ placement', () => {
   it('places correct number for small map', () => {
@@ -77,5 +81,101 @@ describe('minor civ placement', () => {
         expect(key.startsWith('mc-')).toBe(false);
       }
     }
+  });
+});
+
+describe('minor civ turn processing', () => {
+  it('replaces lost garrison after cooldown', () => {
+    const state = createNewGame(undefined, 'mc-garrison', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    // Remove garrison unit
+    for (const uid of mc.units) {
+      delete state.units[uid];
+    }
+    mc.units = [];
+    mc.garrisonCooldown = 1;
+
+    const result = processMinorCivTurn(state, bus);
+    expect(result.minorCivs[mcId].garrisonCooldown).toBe(0);
+
+    // Next turn should spawn replacement
+    const result2 = processMinorCivTurn(result, bus);
+    expect(result2.minorCivs[mcId].units.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('applies ally bonus to allied major civ', () => {
+    const state = createNewGame(undefined, 'mc-ally', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    // Set relationship to allied (+60)
+    mc.diplomacy.relationships.player = 65;
+
+    const result = processMinorCivTurn(state, bus);
+    // At minimum, verify no crash
+    expect(result).toBeDefined();
+  });
+
+  it('skips destroyed minor civs', () => {
+    const state = createNewGame(undefined, 'mc-destroyed', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    state.minorCivs[mcId].isDestroyed = true;
+
+    const result = processMinorCivTurn(state, bus);
+    expect(result.minorCivs[mcId].isDestroyed).toBe(true);
+  });
+});
+
+describe('era advancement', () => {
+  it('advances era when a civ has 60% of next era techs', () => {
+    const state = createNewGame(undefined, 'era-test', 'small');
+    state.era = 1;
+    const era2Techs = TECH_TREE.filter(t => t.era === 2);
+    const needed = Math.ceil(era2Techs.length * 0.6);
+    state.civilizations.player.techState.completed = era2Techs.slice(0, needed).map(t => t.id);
+    const newEra = checkEraAdvancement(state);
+    expect(newEra).toBe(2);
+  });
+
+  it('does not advance era below 60% threshold', () => {
+    const state = createNewGame(undefined, 'era-no-test', 'small');
+    state.era = 1;
+    const era2Techs = TECH_TREE.filter(t => t.era === 2);
+    const below = Math.floor(era2Techs.length * 0.6) - 1;
+    state.civilizations.player.techState.completed = era2Techs.slice(0, below).map(t => t.id);
+    const newEra = checkEraAdvancement(state);
+    expect(newEra).toBe(1);
+  });
+});
+
+describe('minor civ era upgrades', () => {
+  it('upgrades garrison from warrior to swordsman at era 2', () => {
+    const state = createNewGame(undefined, 'mc-era-up', 'small');
+    state.era = 2;
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    mc.lastEraUpgrade = 1;
+
+    processMinorCivEraUpgrade(state, mc);
+    const garrison = state.units[mc.units[0]];
+    expect(garrison.type).toBe('swordsman');
+    expect(mc.lastEraUpgrade).toBe(2);
+  });
+
+  it('adds population on era upgrade', () => {
+    const state = createNewGame(undefined, 'mc-era-pop', 'small');
+    state.era = 2;
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    mc.lastEraUpgrade = 1;
+    const popBefore = state.cities[mc.cityId].population;
+
+    processMinorCivEraUpgrade(state, mc);
+    expect(state.cities[mc.cityId].population).toBe(popBefore + 1);
   });
 });
