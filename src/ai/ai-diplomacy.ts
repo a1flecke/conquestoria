@@ -1,4 +1,4 @@
-import type { PersonalityTraits, DiplomacyState, TreatyType, DiplomaticAction } from '@/core/types';
+import type { PersonalityTraits, DiplomacyState, TreatyType, DiplomaticAction, MinorCivState } from '@/core/types';
 import {
   getRelationship,
   isAtWar,
@@ -46,6 +46,34 @@ export function evaluateDiplomacy(
       } else if (actions.includes('non_aggression_pact') && relationship > 0 && personality.diplomacyFocus > 0.4) {
         decisions.push({ action: 'non_aggression_pact', targetCiv: civId });
       }
+    }
+  }
+
+  return decisions;
+}
+
+export interface MinorCivDecision {
+  mcId: string;
+  action: 'gift_gold' | 'declare_war';
+}
+
+export function evaluateMinorCivDiplomacy(
+  personality: PersonalityTraits,
+  minorCivs: Record<string, MinorCivState>,
+  civId: string,
+  gold: number,
+): MinorCivDecision[] {
+  const decisions: MinorCivDecision[] = [];
+  const GIFT_COST = 25;
+
+  for (const [mcId, mc] of Object.entries(minorCivs)) {
+    if (mc.isDestroyed) continue;
+
+    const rel = mc.diplomacy.relationships[civId] ?? 0;
+
+    // Diplomatic AIs gift gold to improve relations
+    if (personality.diplomacyFocus > 0.4 && rel < 40 && gold >= GIFT_COST) {
+      decisions.push({ mcId, action: 'gift_gold' });
     }
   }
 

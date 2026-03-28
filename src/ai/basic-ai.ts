@@ -8,11 +8,12 @@ import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { chooseTech, chooseProduction } from './ai-strategy';
-import { evaluateDiplomacy } from './ai-diplomacy';
+import { evaluateDiplomacy, evaluateMinorCivDiplomacy } from './ai-diplomacy';
 import {
   declareWar,
   makePeace,
   proposeTreaty,
+  modifyRelationship,
 } from '@/systems/diplomacy-system';
 
 function getPersonality(civType: string): PersonalityTraits {
@@ -205,6 +206,22 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           }
           bus.emit('diplomacy:treaty-accepted', { civA: civId, civB: decision.targetCiv, treaty: decision.action });
           break;
+      }
+    }
+  }
+
+  // --- Minor civ diplomacy ---
+  if (newState.minorCivs) {
+    const mcDecisions = evaluateMinorCivDiplomacy(
+      personality, newState.minorCivs, civId, civ.gold,
+    );
+    for (const d of mcDecisions) {
+      if (d.action === 'gift_gold') {
+        const mc = newState.minorCivs[d.mcId];
+        if (mc && civ.gold >= 25) {
+          newState.civilizations[civId].gold -= 25;
+          mc.diplomacy = modifyRelationship(mc.diplomacy, civId, 10);
+        }
       }
     }
   }
