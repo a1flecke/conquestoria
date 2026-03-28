@@ -7,6 +7,7 @@ import { hexDistance, hexKey, hexNeighbors } from './hex-utils';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { foundCity } from './city-system';
 import { generateQuest, checkQuestCompletion, processQuestExpiry, awardQuestReward } from './quest-system';
+import { resolveCombat } from './combat-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -310,6 +311,104 @@ function makeRng(seed: number): () => number {
     s = (s * 48271) % 2147483647;
     return s / 2147483647;
   };
+}
+
+// === Conquest ===
+
+export function conquestMinorCiv(
+  state: GameState,
+  mcId: string,
+  conquerorId: string,
+  bus: EventBus,
+): void {
+  const mc = state.minorCivs[mcId];
+  if (!mc || mc.isDestroyed) return;
+
+  mc.isDestroyed = true;
+
+  const city = state.cities[mc.cityId];
+  if (city) {
+    city.owner = conquerorId;
+    const civ = state.civilizations[conquerorId];
+    if (civ && !civ.cities.includes(mc.cityId)) {
+      civ.cities.push(mc.cityId);
+    }
+  }
+
+  for (const uid of mc.units) {
+    delete state.units[uid];
+  }
+  mc.units = [];
+
+  for (const [otherId, otherMc] of Object.entries(state.minorCivs)) {
+    if (otherId === mcId || otherMc.isDestroyed) continue;
+    const otherDef = MINOR_CIV_DEFINITIONS.find(d => d.id === otherMc.definitionId);
+    const penalty = otherDef?.archetype === 'militaristic' ? -10 : -20;
+    otherMc.diplomacy = modifyRelationship(otherMc.diplomacy, conquerorId, penalty);
+  }
+
+  bus.emit('minor-civ:destroyed', { minorCivId: mcId, conquerorId });
+}
+
+// === Guerrilla & Scuffles ===
+
+export function processGuerrilla(state: GameState, mc: MinorCivState, bus: EventBus): void {
+  if (mc.isDestroyed) return;
+  if (mc.diplomacy.atWarWith.length === 0) return;
+
+  const guerrillaCount = mc.units.filter(uid => state.units[uid]).length - 1;
+  if (guerrillaCount >= 2) return;
+
+  const city = state.cities[mc.cityId];
+  if (!city) return;
+
+  const guerrilla = createUnit('warrior', mc.id, city.position);
+  state.units[guerrilla.id] = guerrilla;
+  mc.units.push(guerrilla.id);
+
+  bus.emit('minor-civ:guerrilla', {
+    minorCivId: mc.id,
+    targetCivId: mc.diplomacy.atWarWith[0],
+    position: city.position,
+  });
+}
+
+export function processScuffles(state: GameState, bus: EventBus): void {
+  const activeMcs = Object.values(state.minorCivs).filter(mc => !mc.isDestroyed);
+
+  for (const mc of activeMcs) {
+    const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
+    if (!def || def.archetype !== 'militaristic') continue;
+
+    const roll = (state.turn * 16807 + mc.id.charCodeAt(3)) % 100;
+    if (roll >= 10) continue;
+
+    const mcCity = state.cities[mc.cityId];
+    if (!mcCity) continue;
+
+    for (const other of activeMcs) {
+      if (other.id === mc.id) continue;
+      const otherCity = state.cities[other.cityId];
+      if (!otherCity) continue;
+
+      if (hexDistance(mcCity.position, otherCity.position) <= 8) {
+        const attackerUnit = mc.units.map(uid => state.units[uid]).find(u => u);
+        const defenderUnit = other.units.map(uid => state.units[uid]).find(u => u);
+        if (attackerUnit && defenderUnit) {
+          const result = resolveCombat(attackerUnit, defenderUnit, state.map);
+          attackerUnit.health = Math.max(1, attackerUnit.health - result.attackerDamage);
+          defenderUnit.health = Math.max(1, defenderUnit.health - result.defenderDamage);
+        }
+
+        bus.emit('minor-civ:scuffle', {
+          attackerId: mc.id,
+          defenderId: other.id,
+          position: otherCity.position,
+        });
+        break;
+      }
+    }
+  }
 }
 
 // === Barbarian Camp Evolution ===

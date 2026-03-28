@@ -9,6 +9,7 @@ import { updateVisibility } from '@/systems/fog-of-war';
 import { processRelationshipDrift, decayEvents, tickTreaties } from '@/systems/diplomacy-system';
 import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
+import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -139,7 +140,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   }
 
   // --- Process barbarians ---
-  const playerUnits = Object.values(newState.units).filter(u => u.owner !== 'barbarian');
+  const playerUnits = Object.values(newState.units).filter(u => u.owner !== 'barbarian' && !u.owner.startsWith('mc-'));
   const barbResult = processBarbarians(
     Object.values(newState.barbarianCamps),
     newState.map,
@@ -155,6 +156,37 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const raider = createUnit('warrior', 'barbarian', spawn.position);
     newState.units[raider.id] = raider;
     bus.emit('barbarian:spawned', { campId: spawn.campId, unitId: raider.id });
+  }
+
+  // --- Minor civ turn phase ---
+  newState = processMinorCivTurn(newState, bus);
+
+  // --- Barbarian evolution check ---
+  const evolution = checkCampEvolution(newState, newState.turn);
+  if (evolution) {
+    delete newState.barbarianCamps[evolution.removeCampId];
+    newState.cities[evolution.newCity.id] = evolution.newCity;
+    newState.units[evolution.newGarrison.id] = evolution.newGarrison;
+    for (const uid of evolution.transferUnitIds) {
+      if (newState.units[uid]) {
+        newState.units[uid].owner = evolution.newMinorCiv.id;
+      }
+    }
+    newState.minorCivs[evolution.newMinorCiv.id] = evolution.newMinorCiv;
+    bus.emit('minor-civ:evolved', {
+      campId: evolution.removeCampId,
+      minorCivId: evolution.newMinorCiv.id,
+      position: evolution.newCity.position,
+    });
+  }
+
+  // --- Era advancement check ---
+  const newEra = checkEraAdvancement(newState);
+  if (newEra > newState.era) {
+    newState.era = newEra;
+    for (const mc of Object.values(newState.minorCivs)) {
+      processMinorCivEraUpgrade(newState, mc);
+    }
   }
 
   // --- Advance turn ---

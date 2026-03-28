@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeMinorCivs, processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade } from '@/systems/minor-civ-system';
+import { placeMinorCivs, processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, processGuerrilla, processScuffles } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
@@ -177,5 +177,72 @@ describe('minor civ era upgrades', () => {
 
     processMinorCivEraUpgrade(state, mc);
     expect(state.cities[mc.cityId].population).toBe(popBefore + 1);
+  });
+});
+
+describe('conquest mechanics', () => {
+  it('marks minor civ as destroyed on conquest', () => {
+    const state = createNewGame(undefined, 'mc-conquer', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+
+    conquestMinorCiv(state, mcId, 'player', bus);
+    expect(state.minorCivs[mcId].isDestroyed).toBe(true);
+  });
+
+  it('transfers city to conqueror', () => {
+    const state = createNewGame(undefined, 'mc-transfer', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+
+    conquestMinorCiv(state, mcId, 'player', bus);
+    expect(state.cities[mc.cityId].owner).toBe('player');
+    expect(state.civilizations.player.cities).toContain(mc.cityId);
+  });
+
+  it('applies conquest penalty to other minor civs', () => {
+    const state = createNewGame(undefined, 'mc-penalty', 'medium');
+    const mcIds = Object.keys(state.minorCivs);
+    if (mcIds.length < 2) return;
+
+    conquestMinorCiv(state, mcIds[0], 'player', bus);
+
+    for (let i = 1; i < mcIds.length; i++) {
+      const mc = state.minorCivs[mcIds[i]];
+      expect(mc.diplomacy.relationships.player).toBeLessThan(0);
+    }
+  });
+});
+
+describe('guerrilla behavior', () => {
+  it('spawns guerrilla units when at war (max 2)', () => {
+    const state = createNewGame(undefined, 'mc-guerrilla', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    mc.diplomacy.atWarWith.push('player');
+
+    processGuerrilla(state, mc, bus);
+    expect(mc.units.length).toBeLessThanOrEqual(3);
+  });
+
+  it('does not spawn guerrilla when not at war', () => {
+    const state = createNewGame(undefined, 'mc-no-guerrilla', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    const unitsBefore = mc.units.length;
+
+    processGuerrilla(state, mc, bus);
+    expect(mc.units.length).toBe(unitsBefore);
+  });
+});
+
+describe('scuffles between minor civs', () => {
+  it('does not crash on scuffle processing', () => {
+    const state = createNewGame(undefined, 'mc-scuffle', 'medium');
+    processScuffles(state, bus);
+    expect(state).toBeDefined();
   });
 });
