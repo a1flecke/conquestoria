@@ -30,6 +30,8 @@ import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { conquestMinorCiv } from '@/systems/minor-civ-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
 
 // --- App State ---
@@ -438,6 +440,13 @@ function handleHexTap(coord: HexCoord): void {
             advisorSystem.check(gameState);
           }
         }
+
+        // Check if a minor civ city was captured
+        const cityAtTarget = Object.values(gameState.cities).find(c => hexKey(c.position) === key);
+        if (cityAtTarget && cityAtTarget.owner.startsWith('mc-')) {
+          const mcId = cityAtTarget.owner;
+          conquestMinorCiv(gameState, mcId, gameState.currentPlayer, bus);
+        }
       } else {
         gameState.units[unitAtHex[0]].health -= result.defenderDamage;
       }
@@ -688,6 +697,37 @@ bus.on('barbarian:spawned', ({ campId }) => {
   }
 });
 
+bus.on('minor-civ:quest-issued', (data: any) => {
+  if (data.majorCivId === gameState.currentPlayer) {
+    const mc = gameState.minorCivs[data.minorCivId];
+    const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+    showNotification(`${def?.name ?? 'City-state'} asks: ${data.quest.description}`, 'info');
+  }
+});
+
+bus.on('minor-civ:quest-completed', (data: any) => {
+  if (data.majorCivId === gameState.currentPlayer) {
+    const mc = gameState.minorCivs[data.minorCivId];
+    const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+    const rewards: string[] = [];
+    if (data.reward.gold) rewards.push(`+${data.reward.gold} gold`);
+    if (data.reward.science) rewards.push(`+${data.reward.science} science`);
+    showNotification(`${def?.name ?? 'City-state'} is grateful! ${rewards.join(', ')}`, 'success');
+  }
+});
+
+bus.on('minor-civ:evolved', (data: any) => {
+  const mc = gameState.minorCivs[data.minorCivId];
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+  showNotification(`A barbarian tribe formed the city-state of ${def?.name ?? 'Unknown'}!`, 'info');
+});
+
+bus.on('minor-civ:destroyed', (data: any) => {
+  const mc = gameState.minorCivs[data.minorCivId];
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+  showNotification(`${def?.name ?? 'City-state'} has fallen!`, 'warning');
+});
+
 // --- Initialization ---
 async function init(): Promise<void> {
   // Register service worker
@@ -762,6 +802,18 @@ function migrateLegacySave(): void {
   // Add wonder field to tiles if missing
   for (const tile of Object.values(gameState.map.tiles)) {
     if (!('wonder' in tile)) (tile as any).wonder = null;
+  }
+  // M3c migration: minor civs and expanded tech tracks
+  if (!gameState.minorCivs) (gameState as any).minorCivs = {};
+  const allTracks = ['military', 'economy', 'science', 'civics', 'exploration',
+    'agriculture', 'medicine', 'philosophy', 'arts', 'maritime',
+    'metallurgy', 'construction', 'communication', 'espionage', 'spirituality'];
+  for (const civ of Object.values(gameState.civilizations)) {
+    for (const track of allTracks) {
+      if (!(track in civ.techState.trackPriorities)) {
+        (civ.techState.trackPriorities as any)[track] = 'medium';
+      }
+    }
   }
 }
 

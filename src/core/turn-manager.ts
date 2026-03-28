@@ -5,7 +5,8 @@ import { processCity } from '@/systems/city-system';
 import { processResearch } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import { calculateCityYields } from '@/systems/resource-system';
-import { updateVisibility } from '@/systems/fog-of-war';
+import type { HexCoord } from './types';
+import { updateVisibility, revealMinorCivCities, applySharedVision } from '@/systems/fog-of-war';
 import { processRelationshipDrift, decayEvents, tickTreaties } from '@/systems/diplomacy-system';
 import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
@@ -104,6 +105,26 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
     // Update visibility
     updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
+
+    // Reveal minor civ cities near explored tiles
+    const mcCityPositions = Object.values(newState.minorCivs)
+      .filter(mc => !mc.isDestroyed)
+      .map(mc => newState.cities[mc.cityId]?.position)
+      .filter(Boolean) as HexCoord[];
+    revealMinorCivCities(civ.visibility, mcCityPositions);
+
+    // Shared vision for friendly minor civs
+    for (const mc of Object.values(newState.minorCivs)) {
+      if (mc.isDestroyed) continue;
+      const rel = mc.diplomacy.relationships[civId] ?? 0;
+      if (rel >= 30) {
+        const mcPositions = [
+          newState.cities[mc.cityId]?.position,
+          ...mc.units.map(uid => newState.units[uid]?.position),
+        ].filter(Boolean) as HexCoord[];
+        applySharedVision(civ.visibility, mcPositions, newState.map);
+      }
+    }
   }
 
   // --- Process marketplace ---
