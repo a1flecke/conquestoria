@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { placeMinorCivs, processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, processGuerrilla, processScuffles } from '@/systems/minor-civ-system';
+import { placeMinorCivs, processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, processGuerrilla, processScuffles, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 
 const bus = new EventBus();
 
@@ -244,5 +245,48 @@ describe('scuffles between minor civs', () => {
     const state = createNewGame(undefined, 'mc-scuffle', 'medium');
     processScuffles(state, bus);
     expect(state).toBeDefined();
+  });
+});
+
+describe('diplomatic agency', () => {
+  it('improves relationship when nearby barbarian camp destroyed', () => {
+    const state = createNewGame(undefined, 'mc-diplo-react', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    const relBefore = mc.diplomacy.relationships.player ?? 0;
+
+    applyDiplomaticReaction(state, 'camp_destroyed_nearby', 'player', mcId);
+    expect(mc.diplomacy.relationships.player).toBe(relBefore + 10);
+  });
+
+  it('militaristic minor civ respects strength on attacked_neighbor', () => {
+    const state = createNewGame(undefined, 'mc-diplo-mil', 'medium');
+
+    const milEntry = Object.entries(state.minorCivs).find(([, mc]) => {
+      const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
+      return def?.archetype === 'militaristic';
+    });
+    if (!milEntry) return;
+    const [milMcId, milMc] = milEntry;
+    const relBefore = milMc.diplomacy.relationships.player ?? 0;
+
+    applyDiplomaticReaction(state, 'attacked_neighbor', 'player', milMcId);
+    expect(milMc.diplomacy.relationships.player).toBe(relBefore + 5);
+  });
+
+  it('cultural minor civ condemns attacked_neighbor', () => {
+    const state = createNewGame(undefined, 'mc-diplo-cult', 'medium');
+
+    const cultEntry = Object.entries(state.minorCivs).find(([, mc]) => {
+      const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
+      return def?.archetype === 'cultural';
+    });
+    if (!cultEntry) return;
+    const [cultMcId, cultMc] = cultEntry;
+    const relBefore = cultMc.diplomacy.relationships.player ?? 0;
+
+    applyDiplomaticReaction(state, 'attacked_neighbor', 'player', cultMcId);
+    expect(cultMc.diplomacy.relationships.player).toBe(relBefore - 15);
   });
 });

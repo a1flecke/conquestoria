@@ -520,3 +520,30 @@ export function processMinorCivEraUpgrade(state: GameState, mc: MinorCivState): 
 
   mc.lastEraUpgrade = state.era;
 }
+
+export type DiplomaticReaction = 'camp_destroyed_nearby' | 'attacked_neighbor' | 'trade_established' | 'wonder_built';
+
+const REACTION_MODIFIERS: Record<DiplomaticReaction, Record<string, number>> = {
+  camp_destroyed_nearby: { militaristic: 10, mercantile: 10, cultural: 10 },
+  attacked_neighbor: { militaristic: 5, mercantile: -10, cultural: -15 },
+  trade_established: { militaristic: 3, mercantile: 15, cultural: 5 },
+  wonder_built: { militaristic: 0, mercantile: 5, cultural: 15 },
+};
+
+export function applyDiplomaticReaction(
+  state: GameState,
+  reaction: DiplomaticReaction,
+  civId: string,
+  mcId: string,
+): void {
+  const mc = state.minorCivs[mcId];
+  if (!mc || mc.isDestroyed) return;
+
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
+  if (!def) return;
+
+  const modifier = REACTION_MODIFIERS[reaction]?.[def.archetype] ?? 0;
+  if (modifier === 0) return;
+
+  mc.diplomacy = modifyRelationship(mc.diplomacy, civId, modifier);
+}

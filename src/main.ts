@@ -31,7 +31,7 @@ import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cyclin
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { conquestMinorCiv } from '@/systems/minor-civ-system';
+import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
 
 // --- App State ---
@@ -477,6 +477,11 @@ function handleHexTap(coord: HexCoord): void {
             showNotification(`Barbarian camp destroyed! +${reward} gold`, 'success');
             advisorSystem.resetMessage('treasurer_camp_reward');
             advisorSystem.check(gameState);
+
+            // Notify nearby minor civs
+            for (const mcId of Object.keys(gameState.minorCivs)) {
+              applyDiplomaticReaction(gameState, 'camp_destroyed_nearby', gameState.currentPlayer, mcId);
+            }
           }
         }
 
