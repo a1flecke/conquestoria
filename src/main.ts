@@ -30,6 +30,7 @@ import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
+import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
@@ -742,34 +743,58 @@ bus.on('barbarian:spawned', ({ campId }) => {
 });
 
 bus.on('minor-civ:quest-issued', (data: any) => {
+  const mc = gameState.minorCivs[data.minorCivId];
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+  const msg = `${def?.name ?? 'City-state'} asks: ${data.quest.description}`;
+
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest', message: msg, turn: gameState.turn });
+  }
   if (data.majorCivId === gameState.currentPlayer) {
-    const mc = gameState.minorCivs[data.minorCivId];
-    const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-    showNotification(`${def?.name ?? 'City-state'} asks: ${data.quest.description}`, 'info');
+    showNotification(msg, 'info');
   }
 });
 
 bus.on('minor-civ:quest-completed', (data: any) => {
+  const mc = gameState.minorCivs[data.minorCivId];
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+  const rewards: string[] = [];
+  if (data.reward.gold) rewards.push(`+${data.reward.gold} gold`);
+  if (data.reward.science) rewards.push(`+${data.reward.science} science`);
+  const msg = `${def?.name ?? 'City-state'} is grateful! ${rewards.join(', ')}`;
+
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-done', message: msg, turn: gameState.turn });
+  }
   if (data.majorCivId === gameState.currentPlayer) {
-    const mc = gameState.minorCivs[data.minorCivId];
-    const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-    const rewards: string[] = [];
-    if (data.reward.gold) rewards.push(`+${data.reward.gold} gold`);
-    if (data.reward.science) rewards.push(`+${data.reward.science} science`);
-    showNotification(`${def?.name ?? 'City-state'} is grateful! ${rewards.join(', ')}`, 'success');
+    showNotification(msg, 'success');
   }
 });
 
 bus.on('minor-civ:evolved', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  showNotification(`A barbarian tribe formed the city-state of ${def?.name ?? 'Unknown'}!`, 'info');
+  const msg = `A barbarian tribe formed the city-state of ${def?.name ?? 'Unknown'}!`;
+
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    for (const civId of Object.keys(gameState.civilizations)) {
+      collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:evolved', message: msg, turn: gameState.turn });
+    }
+  }
+  showNotification(msg, 'info');
 });
 
 bus.on('minor-civ:destroyed', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  showNotification(`${def?.name ?? 'City-state'} has fallen!`, 'warning');
+  const msg = `${def?.name ?? 'City-state'} has fallen!`;
+
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    for (const civId of Object.keys(gameState.civilizations)) {
+      collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:destroyed', message: msg, turn: gameState.turn });
+    }
+  }
+  showNotification(msg, 'warning');
 });
 
 // --- Initialization ---
