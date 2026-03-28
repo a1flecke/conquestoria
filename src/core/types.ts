@@ -515,4 +515,5 @@ export interface GameEvents {
   'minor-civ:guerrilla': { minorCivId: string; targetCivId: string; position: HexCoord };
   'minor-civ:era-upgrade': { minorCivId: string; newEra: number };
   'minor-civ:relationship-threshold': { minorCivId: string; majorCivId: string; newStatus: 'hostile' | 'neutral' | 'friendly' | 'allied' };
+  'minor-civ:quest-expired': { minorCivId: string; majorCivId: string; quest: Quest };
 }

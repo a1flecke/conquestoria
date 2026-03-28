@@ -161,6 +161,7 @@ function processQuests(state: GameState, mc: MinorCivState, def: { archetype: an
       if (expiredQuest.status === 'expired') {
         delete mc.activeQuests[civId];
         mc.diplomacy = modifyRelationship(mc.diplomacy, civId, -5);
+        bus.emit('minor-civ:quest-expired', { minorCivId: mc.id, majorCivId: civId, quest });
         continue;
       }
 

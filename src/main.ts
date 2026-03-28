@@ -797,6 +797,58 @@ bus.on('minor-civ:destroyed', (data: any) => {
   showNotification(msg, 'warning');
 });
 
+bus.on('minor-civ:allied', (data: any) => {
+  const mc = gameState.minorCivs[data.minorCivId];
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+  const msg = `${def?.name ?? 'City-state'} is now your ally!`;
+
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:allied', message: msg, turn: gameState.turn });
+  }
+  if (data.majorCivId === gameState.currentPlayer) {
+    showNotification(msg, 'success');
+  }
+});
+
+bus.on('minor-civ:relationship-threshold', (data: any) => {
+  const mc = gameState.minorCivs[data.minorCivId];
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+  const msg = `${def?.name ?? 'City-state'} now considers you ${data.newStatus}`;
+
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:status', message: msg, turn: gameState.turn });
+  }
+  if (data.majorCivId === gameState.currentPlayer) {
+    showNotification(msg, 'info');
+  }
+});
+
+bus.on('minor-civ:guerrilla', (data: any) => {
+  const mc = gameState.minorCivs[data.minorCivId];
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+  const msg = `${def?.name ?? 'City-state'} guerrilla fighters attack!`;
+
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    collectEvent(gameState.pendingEvents, data.targetCivId, { type: 'minor-civ:guerrilla', message: msg, turn: gameState.turn });
+  }
+  if (data.targetCivId === gameState.currentPlayer) {
+    showNotification(msg, 'warning');
+  }
+});
+
+bus.on('minor-civ:quest-expired', (data: any) => {
+  const mc = gameState.minorCivs[data.minorCivId];
+  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
+  const msg = `Quest from ${def?.name ?? 'City-state'} has expired`;
+
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-expired', message: msg, turn: gameState.turn });
+  }
+  if (data.majorCivId === gameState.currentPlayer) {
+    showNotification(msg, 'info');
+  }
+});
+
 // --- Initialization ---
 async function init(): Promise<void> {
   // Register service worker
