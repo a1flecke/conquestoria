@@ -254,4 +254,14 @@ describe('AdvisorSystem', () => {
     expect(ids).toContain('treasurer_broke');
     expect(ids).toContain('treasurer_village_gold');
   });
+
+  it('getAdvisorMessageIds includes minor civ messages', () => {
+    const ids = getAdvisorMessageIds();
+    expect(ids).toContain('chancellor_ally_city_state');
+    expect(ids).toContain('chancellor_conquest_warning');
+    expect(ids).toContain('warchief_undefended_city_state');
+    expect(ids).toContain('warchief_guerrilla_harass');
+    expect(ids).toContain('treasurer_mercantile_ally');
+    expect(ids).toContain('scholar_cultural_ally');
+  });
 });

@@ -1,6 +1,7 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { hexToPixel } from '@/systems/hex-utils';
 import { isVisible } from '@/systems/fog-of-war';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { Camera } from './camera';
 
 interface CityRenderInfo {
@@ -42,7 +43,9 @@ export function drawCities(
     const pixel = hexToPixel(city.position, camera.hexSize);
     const screen = camera.worldToScreen(pixel.x, pixel.y);
     const size = camera.hexSize * camera.zoom;
-    const color = state.civilizations[city.owner]?.color ?? OWNER_COLORS[city.owner] ?? '#888';
+    const mcState = city.owner.startsWith('mc-') ? state.minorCivs?.[city.owner] : null;
+    const mcDef = mcState ? MINOR_CIV_DEFINITIONS.find(d => d.id === mcState.definitionId) : null;
+    const color = mcDef?.color ?? state.civilizations[city.owner]?.color ?? OWNER_COLORS[city.owner] ?? '#888';
 
     // City background — larger than unit circle
     ctx.beginPath();
@@ -53,11 +56,21 @@ export function drawCities(
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // City icon
+    // City icon — archetype icon for minor civs
     ctx.font = `${size * 0.45}px system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🏛️', screen.x, screen.y);
+    const isMinorCiv = city.owner.startsWith('mc-');
+    if (isMinorCiv) {
+      const mcState = state.minorCivs?.[city.owner];
+      const def = mcState ? MINOR_CIV_DEFINITIONS.find(d => d.id === mcState.definitionId) : null;
+      const icon = def?.archetype === 'militaristic' ? '⚔️'
+        : def?.archetype === 'mercantile' ? '🪙'
+        : '📜';
+      ctx.fillText(icon, screen.x, screen.y);
+    } else {
+      ctx.fillText('🏛️', screen.x, screen.y);
+    }
 
     // City name + population below
     ctx.font = `bold ${Math.max(9, size * 0.22)}px system-ui`;

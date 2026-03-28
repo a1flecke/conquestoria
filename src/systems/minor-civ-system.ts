@@ -211,8 +211,8 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
       case 'production_per_turn': {
         const firstCityId = civ.cities[0];
         const firstCity = firstCityId ? state.cities[firstCityId] : null;
-        if (firstCity?.productionQueue?.length > 0) {
-          firstCity.productionQueue[0].progress = (firstCity.productionQueue[0].progress ?? 0) + def.allyBonus.amount;
+        if (firstCity && firstCity.productionQueue.length > 0) {
+          firstCity.productionProgress += def.allyBonus.amount;
         }
         break;
       }

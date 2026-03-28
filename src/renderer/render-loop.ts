@@ -1,6 +1,7 @@
 import type { GameState } from '@/core/types';
 import { Camera } from './camera';
-import { drawHexMap, drawRivers } from './hex-renderer';
+import { drawHexMap, drawRivers, drawMinorCivTerritory } from './hex-renderer';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { drawFogOfWar } from './fog-renderer';
 import { drawUnits } from './unit-renderer';
 import { drawCities } from './city-renderer';
@@ -77,6 +78,18 @@ export class RenderLoop {
     // Draw rivers
     drawRivers(this.ctx, this.state.map, this.camera);
 
+    // Draw minor civ territory
+    if (this.state.minorCivs) {
+      for (const mc of Object.values(this.state.minorCivs)) {
+        if (mc.isDestroyed) continue;
+        const city = this.state.cities[mc.cityId];
+        if (!city) continue;
+        const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
+        if (!def) continue;
+        drawMinorCivTerritory(this.ctx, city.position, def.color, this.camera);
+      }
+    }
+
     // Draw cities
     drawCities(this.ctx, this.state, this.camera, this.state.currentPlayer);
 
@@ -87,6 +100,11 @@ export class RenderLoop {
       const colorLookup: Record<string, string> = { barbarian: '#8b4513' };
       for (const [id, civ] of Object.entries(this.state.civilizations)) {
         colorLookup[id] = civ.color;
+      }
+      // Add minor civ colors
+      for (const mc of Object.values(this.state.minorCivs ?? {})) {
+        const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
+        if (def) colorLookup[mc.id] = def.color;
       }
       drawUnits(this.ctx, this.state.units, this.camera, playerVis, colorLookup);
     }

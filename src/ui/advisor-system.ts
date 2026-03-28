@@ -297,6 +297,70 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'The spoils of victory bolster our treasury.',
     trigger: () => false, // Triggered via event
   },
+  // Minor Civ — Chancellor
+  {
+    id: 'chancellor_ally_city_state',
+    advisor: 'chancellor',
+    icon: '🤝',
+    message: 'A nearby city-state could be a valuable ally. Consider their quest.',
+    trigger: (state: GameState) =>
+      Object.values(state.minorCivs ?? {}).some(mc =>
+        !mc.isDestroyed && Object.values(mc.activeQuests).some(q => q.status === 'active')
+      ),
+  },
+  {
+    id: 'chancellor_conquest_warning',
+    advisor: 'chancellor',
+    icon: '⚠️',
+    message: 'Our aggression against city-states is making others wary.',
+    trigger: (state: GameState) =>
+      Object.values(state.minorCivs ?? {}).some(mc =>
+        !mc.isDestroyed && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) < -30
+      ),
+  },
+  // Minor Civ — Warchief
+  {
+    id: 'warchief_undefended_city_state',
+    advisor: 'warchief',
+    icon: '⚔️',
+    message: 'An undefended city-state could be easy pickings...',
+    trigger: (state: GameState) =>
+      Object.values(state.minorCivs ?? {}).some(mc =>
+        !mc.isDestroyed && mc.units.filter(uid => state.units[uid]).length === 0
+      ),
+  },
+  {
+    id: 'warchief_guerrilla_harass',
+    advisor: 'warchief',
+    icon: '🏴',
+    message: 'City-state guerrillas are harassing our borders!',
+    trigger: (state: GameState) =>
+      Object.values(state.minorCivs ?? {}).some(mc =>
+        !mc.isDestroyed && mc.diplomacy.atWarWith.includes(state.currentPlayer) && mc.units.length > 1
+      ),
+  },
+  // Minor Civ — Treasurer
+  {
+    id: 'treasurer_mercantile_ally',
+    advisor: 'treasurer',
+    icon: '💰',
+    message: 'Our mercantile ally is boosting our income.',
+    trigger: (state: GameState) =>
+      Object.values(state.minorCivs ?? {}).some(mc =>
+        !mc.isDestroyed && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
+      ),
+  },
+  // Minor Civ — Scholar
+  {
+    id: 'scholar_cultural_ally',
+    advisor: 'scholar',
+    icon: '📚',
+    message: 'Our cultural ally advances our knowledge.',
+    trigger: (state: GameState) =>
+      Object.values(state.minorCivs ?? {}).some(mc =>
+        !mc.isDestroyed && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
+      ),
+  },
 ];
 
 export class AdvisorSystem {
