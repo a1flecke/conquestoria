@@ -734,6 +734,10 @@ Advisors narrate the guided tutorial, handing off naturally as systems are intro
 - All 8 advisors with disagreements
 - 10+ playable civs
 - Desktop UI enhancements
+- Terrain readability — labels or texture patterns so terrain type is visible without tapping (#2)
+- Combat onboarding — advisor-driven guidance for new players on how combat works (#4)
+- Map icon legend — tooltips or legend for wonder stars, village tents, and other map icons (#5)
+- Auto-explore mode — let scouts and units auto-explore toward fog of war (#10)
 
 ### Milestone 5 — "The Full Experience"
 - All 12 eras, full tech depth
@@ -745,6 +749,8 @@ Advisors narrate the guided tutorial, handing off naturally as systems are intro
 - All surprise/discovery events
 - 4-player hot seat
 - Polish, balance, performance
+- Music quality overhaul — replace/improve procedural generation, especially early era tracks (#3)
+- Zoom-level sprites — render detailed unit/building sprites when zoomed in, emoji at overview (#9)
 
 ### Milestone 6+ — "Feedback-Driven"
 - Priorities from playtester feedback
