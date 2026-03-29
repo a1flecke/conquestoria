@@ -727,27 +727,29 @@ Advisors narrate the guided tutorial, handing off naturally as systems are intro
 - Hot seat (2 player)
 
 ### Milestone 4 — "Deep Strategy"
-- Espionage network (stages 1-3)
-- Full diplomacy (vassals, alliances, betrayal)
-- Breakaway factions, guerrilla groups
-- 40-50 wonders
-- All 8 advisors with disagreements
-- 10+ playable civs
-- Desktop UI enhancements
+- Full espionage network (all 5 stages: scouts → informants → spy rings → shadow ops → digital warfare)
+- Diplomacy expansion (vassals, betrayal reputation, embargoes, defensive leagues)
+- Breakaway factions with guerrilla mechanics (unrest → revolt → full breakaway)
+- 30-40 buildable wonders (simple tier + legendary quest wonders) plus existing 15 natural = 45-55 total
+- All 8 advisors with lobbying memory and disagreements
+- All 29 civs (17 new: 6 historical + 11 fantasy) + custom civ creation
+- Desktop UI enhancements (keyboard shortcuts, right-click, tooltips)
 - Terrain readability — labels or texture patterns so terrain type is visible without tapping (#2)
 - Combat onboarding — advisor-driven guidance for new players on how combat works (#4)
 - Map icon legend — tooltips or legend for wonder stars, village tents, and other map icons (#5)
 - Auto-explore mode — let scouts and units auto-explore toward fog of war (#10)
+- See detailed spec: `docs/superpowers/specs/2026-03-29-milestone4-deep-strategy-design.md`
 
 ### Milestone 5 — "The Full Experience"
 - All 12 eras, full tech depth
-- Digital warfare espionage
 - Underground and deep ocean layers
-- 120+ wonders
-- All 29 civs
+- 120+ wonders (expand beyond M4's buildable set)
 - Full adaptive music system
 - All surprise/discovery events
-- 4-player hot seat
+- 4-player hot seat (expand from 2-player)
+- Marriage alliances, federations, economic unions, World Congress
+- Surrender & absorption mechanics
+- Nuclear warfare (building on Manhattan Project wonder from M4)
 - Polish, balance, performance
 - Music quality overhaul — replace/improve procedural generation, especially early era tracks (#3)
 - Zoom-level sprites — render detailed unit/building sprites when zoomed in, emoji at overview (#9)

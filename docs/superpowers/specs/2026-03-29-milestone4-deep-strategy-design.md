@@ -5,6 +5,8 @@
 **Depends on:** Milestone 3 (complete), M3 bugfix pass (complete)
 **Goal:** Transform Conquestoria from a solid 4X foundation into a game with deep strategic layers — espionage, diplomatic power plays, empire instability, buildable wonders, and a full advisor council with real personality.
 
+**Note:** This spec expands M4's scope beyond the original master spec, which placed espionage stages 1-3 in M4 and stages 4-5 in M5. After design review, all 5 espionage stages are now in M4, delivered incrementally. The master spec's M4 and M5 sections should be updated to reflect this change. M5 can now focus on full tech depth (all 12 eras), underground/ocean layers, 120+ wonders, 4-player hot seat, and polish.
+
 ---
 
 ## 1. Milestone Decomposition
@@ -81,7 +83,7 @@ Remote operations. Some missions no longer require a placed spy.
 |---------|----------|--------|
 | Cyber Attack | 2 turns | Shut down target city's production for 3 turns. Remote — no spy placement needed. |
 | Misinformation Campaign | 3 turns | Reduce target civ's research speed by 20% for 10 turns |
-| Election Interference | 5 turns | Force government change in target civ (Republic/Democracy only) for 15 turns |
+| Election Interference | 5 turns | Force government change in target civ (Republic/Democracy only) for 15 turns. **Note:** requires government system from Civics tech track — if not yet implemented, this mission is deferred or simplified to a stability penalty. |
 | Satellite Surveillance | Passive | Global vision of all surface tiles in target civ's territory (requires Satellites tech) |
 
 ### 2.7 Spy Promotions
@@ -94,7 +96,7 @@ After enough successful missions, spies specialize (permanent choice):
 
 ### 2.8 Double Agents (Stage 5)
 
-A captured enemy spy can be "turned" instead of expelled. The double agent continues reporting to their home civ but feeds false intel — wrong troop counts, fake tech progress, fabricated treaties. The enemy civ makes decisions based on lies. If they run a "verify agent" mission, the double agent is exposed and lost.
+A captured enemy spy can be "turned" instead of expelled. The double agent continues reporting to their home civ but feeds false intel — wrong troop counts, fake tech progress, fabricated treaties. The enemy civ makes decisions based on lies. If they run a "verify agent" mission (3 turns, available from Stage 4+), the double agent is exposed and lost.
 
 ### 2.9 Counter-Intelligence Scaling
 
@@ -153,13 +155,13 @@ Two or more civs can form a defensive league:
 - Attack on any member triggers war with all members
 - Different from bilateral alliance — multilateral
 - Leagues dissolve if members go to war with each other
-- Requires Communication-era tech
+- Requires Writing tech (Communication track) at minimum; stronger leagues available with Printing Press
 
 ---
 
 ## 4. Buildable Wonders
 
-Currently the game has 15 natural wonders (discovered on the map). M4 adds 30-40 player-constructed wonders in two tiers: simple (M4b) and legendary quest wonders (M4d).
+Currently the game has 15 natural wonders (discovered on the map). M4 adds 30-40 player-constructed wonders in two tiers: simple (M4b) and legendary quest wonders (M4d). Combined with the existing 15 natural wonders, this brings the total to 45-55 wonders (meeting the master spec's "40-50" target with room for growth).
 
 ### 4.1 Wonder Race Mechanic
 
@@ -225,6 +227,8 @@ Quest wonders are dramatically more powerful than simple wonders. The effort jus
 
 Empires that grow too fast or neglect happiness face internal collapse. Three escalating stages: unrest → revolt → full breakaway. Zero risk in early game. Delivered across M4c (stages 1-2) and M4d (stage 3).
 
+**Guerrilla groups** (from the master spec's threat system) are folded into this system: rebel units spawned during Stage 2 (Revolt) behave as guerrillas — they use hit-and-run tactics, are hard to pin down (can retreat after attacking), and hide in rough terrain (forests, hills, jungles). This makes revolts more than just "kill the rebels" — you have to hunt them while also addressing the underlying unhappiness.
+
 ### 5.1 Scaling Factors
 
 Breakaway pressure scales with:
@@ -250,7 +254,7 @@ Breakaway pressure scales with:
 ### 5.3 Stage 2 — Revolt (M4c)
 
 - **Trigger:** unrest unaddressed for 5+ turns
-- **Effect:** yields reduced by 50%, production halted, rebel units spawn around the city (strength scales with era)
+- **Effect:** yields reduced by 50%, production halted, guerrilla rebel units spawn around the city (strength scales with era, use hit-and-run tactics, retreat into rough terrain)
 - **City is locked:** cannot train units or construct buildings
 - **Resolution:** defeat rebel units AND address underlying unhappiness. Military alone is insufficient — crush the rebels but ignore the cause and unrest returns in 10 turns.
 - **Escalation:** if unaddressed for 10+ turns, moves to Stage 3
@@ -285,7 +289,7 @@ Currently 6 advisors. M4 adds 2 new advisors and a lobbying/disagreement system 
 - **Suggests:** where to place spies ("Rome is building a large army — we should watch them")
 - **Warns:** about undefended cities ("We have no counter-intelligence in Alexandria")
 - **Reacts:** to mission outcomes ("Our spy in Mongolia was captured — expect diplomatic fallout")
-- **Personality:** paranoid streak — occasionally overestimates threats
+- **Personality:** secretive and cryptic, speaks in implications. Paranoid streak — occasionally overestimates threats, but when he's right, he's very right
 
 ### 6.2 Artisan Advisor (M4d)
 
@@ -325,7 +329,7 @@ Player chooses, and the "losing" advisor remembers.
 | Chancellor | Political, frames everything as leverage |
 | War Chief | Direct, respects strength, impatient with diplomacy |
 | Treasurer | Conservative, worried about cost of everything |
-| Spymaster | Paranoid, sees threats everywhere, occasionally right |
+| Spymaster | Secretive, cryptic, speaks in implications. Paranoid streak — occasionally overestimates threats, but invaluable when right |
 | Artisan | Enthusiastic, values legacy and beauty over efficiency |
 
 ### 6.6 "I Told You So" Moments
@@ -373,7 +377,7 @@ M4 adds 17 new civilizations (6 historical, 11 fantasy) plus custom civilization
 | Narnia | Chronicles of Narnia | Allied kingdoms | Stronger alliance bonuses (extra yields from allied civs) |
 | Atlantis | Mythology | Naval & science | Coastal science bonus, powerful naval units |
 | Wakanda | Marvel/Afrofuturism | Hidden tech | Reduced tech costs, cities hidden from espionage |
-| Avalon | Arthurian Legend | Chivalry & quests | Wonder bonuses doubled |
+| Avalon | Arthurian Legend | Chivalry & quests | Wonders grant additional unique bonuses (each wonder provides a secondary effect unique to Avalon) |
 
 ### 7.4 Custom Civilization (M4e)
 
@@ -386,6 +390,8 @@ Player creates a custom civ:
 ---
 
 ## 8. QoL & UI Improvements
+
+Issue numbers (#2, #4, #5, #10) refer to GitHub issues tracked in the repository.
 
 ### 8.1 Terrain Readability (M4a, #2)
 
@@ -475,3 +481,93 @@ Player creates a custom civ:
 - Breakaway factions reuse existing minor-civ infrastructure where possible
 - Hot seat: espionage panel must respect current player — never show another player's spies
 - All randomness uses seeded RNG — no `Math.random()`
+- Breakaway factions in hot seat: breakaway happens at end of the owning player's turn. The new faction becomes a minor-civ-like entity that other human players can interact with on their next turn. Faction gets processed during the AI phase of each turn cycle.
+
+### 9.5 AI Behavior Guidelines
+
+**Espionage AI:**
+- AI recruits spies when espionage tech is available and treasury can support it
+- Aggressive/Paranoid AIs prioritize espionage earlier; Diplomatic AIs invest later
+- AI assigns spies to civs it has poor relationships with or is at war with
+- AI always stations at least one defensive spy in its capital by Stage 3
+- AI chooses missions based on personality: Aggressive → sabotage/steal, Diplomatic → monitor/gather intel, Treacherous → incite unrest/forge documents
+
+**Vassalage AI:**
+- Proud/Aggressive civs fight to the death (won't offer vassalage until 80%+ losses)
+- Pragmatic/Diplomatic civs offer vassalage at 50% losses
+- Overlord AI accepts vassals unless they're Paranoid (fears rebellion)
+- AI vassals petition for independence when their military rebuilds to 60%+ of overlord's
+
+**Wonder AI:**
+- AI prioritizes wonders that match its personality (military civs → Great Wall, science civs → Great Library)
+- AI abandons wonder races it's clearly losing (opponent is 70%+ done)
+- AI only attempts quest wonders if it meets prerequisites and has surplus production
+
+**Embargo AI:**
+- AI proposes embargoes against civs it's at war with or has very low relationship with
+- AI joins embargoes based on: relationship with proposer > relationship with target
+
+---
+
+## 10. Out of Scope (Deferred)
+
+The following features from the master game design spec are explicitly deferred beyond M4:
+
+| Feature | Deferred To | Reason |
+|---------|-------------|--------|
+| Marriage alliances | M5+ | Needs government/dynasty system not yet built |
+| Proxy wars | M5+ | Requires deeper alliance AI; embargoes and fund-rebels cover similar ground for now |
+| Federations & economic unions | M5+ | Late-era diplomatic structures; defensive leagues cover the M4 need |
+| Surrender & absorption | M5+ | Vassalage covers the "defeated civ" path; full surrender terms add complexity beyond M4 scope |
+| World Congress | M5+ | Information-era feature, needs federation infrastructure |
+| Underground & deep ocean layers | M5 | Per master spec |
+| 4-player hot seat | M5 | Per master spec; 2-player hot seat already works |
+| Pirates as distinct threat type | M5+ | Barbarians and breakaway factions cover maritime threats for now |
+| Nuclear weapons | M5+ | Manhattan Project wonder is in M4d but full nuclear combat is M5 |
+
+---
+
+## 11. Acceptance Criteria
+
+### M4a — "Eyes & Ears"
+- Player can recruit spies and assign them to foreign cities
+- Spies reveal fog of war around assigned city and report troop movements
+- Stage 2 missions (Gather Intel, Identify Resources, Monitor Diplomacy) work with success/failure
+- Spymaster advisor appears and provides contextual guidance
+- 4 new civs (France, Germany, Gondor, Rohan) playable with unique bonuses and AI behavior
+- Terrain labels/patterns visible at default zoom
+
+### M4b — "Power & Influence"
+- Losing civs can offer vassalage; vassal obligations and independence petition work
+- Treaty-breaking triggers reputation consequences visible in diplomacy panel
+- Embargoes and defensive leagues functional
+- 15+ simple wonders buildable with wonder race and consolation mechanic
+- Combat tutorial triggers on first combat encounter
+- 4 new civs (Russia, Ottoman, Shire, Isengard) playable
+
+### M4c — "Shadow Wars"
+- Espionage stages 3-4 missions all functional (steal tech, sabotage, incite unrest, assassinate advisor, forge documents, fund rebels, arms smuggling)
+- Spy promotion system working (Infiltrator/Handler/Sentinel)
+- Cities can enter unrest and escalate to revolt with guerrilla rebel units
+- Espionage panel shows full spy management and threat board
+- Icon legend toggleable from HUD
+- 4 new civs (Spain, Viking, Prydain, Annuvin) playable
+
+### M4d — "Grand Ambitions"
+- Digital warfare missions functional (cyber attack, misinformation, satellite surveillance)
+- Double agent mechanic working
+- 15+ quest wonders with multi-stage construction
+- Revolting cities can fully break away into independent mini-civs
+- Breakaway factions participate in diplomacy
+- Artisan advisor appears and provides wonder/culture guidance
+- 3 new civs (Lothlórien, Narnia, Atlantis) playable
+
+### M4e — "The Council"
+- All 8 advisors have persistent memory of recommendations
+- Advisor disagreements trigger on high-stakes decisions (1-2 per era)
+- "I told you so" callback messages work
+- Auto-explore functional on scouts and military units
+- Custom civ creation UI working
+- Desktop keyboard shortcuts, right-click menus, hover tooltips functional
+- Balance pass complete with documented tuning values
+- 2 new civs (Wakanda, Avalon) + custom civ playable
