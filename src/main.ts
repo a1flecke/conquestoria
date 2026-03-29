@@ -24,6 +24,7 @@ import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import { declareWar, makePeace, proposeTreaty, modifyRelationship } from '@/systems/diplomacy-system';
+import { calculateCityYields } from '@/systems/resource-system';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
@@ -39,6 +40,7 @@ import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
 let gameState: GameState;
 let selectedUnitId: string | null = null;
 let movementRange: HexCoord[] = [];
+let currentCityIndex = 0;
 let inputInitialized = false;
 const bus = new EventBus();
 const audio = new AudioManager();
@@ -123,10 +125,26 @@ function updateHUD(): void {
   if (!hud) return;
   const civ = currentCiv();
   const nameLabel = gameState.hotSeat ? `${civ.name} · ` : '';
+
+  // Sum yields across all cities
+  let totalFood = 0, totalProd = 0, totalGold = 0, totalScience = 0;
+  for (const cityId of civ.cities) {
+    const city = gameState.cities[cityId];
+    if (!city) continue;
+    const y = calculateCityYields(city, gameState.map);
+    totalFood += y.food;
+    totalProd += y.production;
+    totalGold += y.gold;
+    totalScience += y.science;
+  }
+
+  const techName = civ.techState.currentResearch ?? 'None';
   hud.innerHTML = `
-    <div style="display:flex;gap:12px;">
-      <span>💰 ${civ.gold}</span>
-      <span>🔬 ${civ.techState.currentResearch ? '...' : 'None'}</span>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <span>🌾 ${totalFood}</span>
+      <span>⚒️ ${totalProd}</span>
+      <span>💰 ${civ.gold} (+${totalGold})</span>
+      <span>🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})</span>
     </div>
     <div>${nameLabel}Turn ${gameState.turn} · Era ${gameState.era}</div>
   `;
@@ -229,14 +247,18 @@ function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
   const mc = gameState.minorCivs[mcId];
   if (!mc) return;
 
+  const playerCiv = currentCiv();
   if (currentlyAtWar) {
     mc.diplomacy = makePeace(mc.diplomacy, gameState.currentPlayer, gameState.turn);
+    playerCiv.diplomacy = makePeace(playerCiv.diplomacy, mcId, gameState.turn);
     showNotification('Peace with city-state', 'success');
   } else {
     mc.diplomacy = declareWar(mc.diplomacy, gameState.currentPlayer, gameState.turn);
+    playerCiv.diplomacy = declareWar(playerCiv.diplomacy, mcId, gameState.turn);
     showNotification('War declared on city-state!', 'warning');
   }
   renderLoop.setGameState(gameState);
+  updateHUD();
 }
 
 function togglePanel(panel: string): void {
@@ -260,12 +282,16 @@ function togglePanel(panel: string): void {
       onClose: () => {},
     });
   } else if (panel === 'city') {
-    const playerCityId = currentCiv().cities[0];
-    const city = playerCityId ? gameState.cities[playerCityId] : null;
-    if (!city) {
+    const playerCities = currentCiv().cities;
+    if (playerCities.length === 0) {
       showNotification('No cities founded yet!', 'info');
       return;
     }
+    if (currentCityIndex >= playerCities.length) currentCityIndex = 0;
+    const cityId = playerCities[currentCityIndex];
+    const city = gameState.cities[cityId];
+    if (!city) return;
+    currentCityIndex = (currentCityIndex + 1) % playerCities.length;
     createCityPanel(uiLayer, city, gameState, {
       onBuild: (cityId, itemId) => {
         const targetCity = gameState.cities[cityId];
@@ -449,7 +475,8 @@ function handleHexTap(coord: HexCoord): void {
 
     // Check for enemy unit at target (attack)
     if (unitAtHex && unitAtHex[1].owner !== gameState.currentPlayer) {
-      const result = resolveCombat(unit, unitAtHex[1], gameState.map);
+      const seed = gameState.turn * 16807 + unit.id.charCodeAt(0) + unitAtHex[1].id.charCodeAt(0);
+      const result = resolveCombat(unit, unitAtHex[1], gameState.map, seed);
       bus.emit('combat:resolved', { result });
 
       if (!result.attackerSurvived) {

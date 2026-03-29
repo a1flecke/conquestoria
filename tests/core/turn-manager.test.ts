@@ -2,6 +2,8 @@ import { processTurn } from '@/core/turn-manager';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { foundCity } from '@/systems/city-system';
+import { getAvailableTechs } from '@/systems/tech-system';
 
 describe('processTurn', () => {
   it('increments the turn counter', () => {
@@ -59,6 +61,48 @@ describe('processTurn', () => {
 
     const result = processTurn(state, bus);
     expect(Object.keys(result.minorCivs).length).toBeGreaterThan(0);
+  });
+
+  it('advances research progress when a city exists and tech is selected', () => {
+    const state = createNewGame(undefined, 'turn-research', 'small');
+    const bus = new EventBus();
+
+    // Found a city for the player so they produce science
+    const playerCiv = state.civilizations.player;
+    const startPos = state.units[playerCiv.units[0]].position;
+    const city = foundCity('player', startPos, state.map);
+    state.cities[city.id] = city;
+    playerCiv.cities.push(city.id);
+
+    // Select the first available tech
+    const available = getAvailableTechs(playerCiv.techState);
+    playerCiv.techState.currentResearch = available[0].id;
+    playerCiv.techState.researchProgress = 0;
+
+    const newState = processTurn(state, bus);
+    expect(newState.civilizations.player.techState.researchProgress).toBeGreaterThan(0);
+  });
+
+  it('spawns a unit when city completes unit training', () => {
+    const state = createNewGame(undefined, 'unit-spawn-test', 'small');
+    const bus = new EventBus();
+
+    // Found a city for player
+    const startPos = state.units[state.civilizations.player.units[0]].position;
+    const city = foundCity('player', startPos, state.map);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+
+    // Queue a warrior and set progress to nearly complete
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 24; // warrior costs 25, +1 production from city center will complete it
+
+    const unitCountBefore = Object.values(state.units).filter(u => u.owner === 'player').length;
+    const newState = processTurn(state, bus);
+    const unitCountAfter = Object.values(newState.units).filter(u => u.owner === 'player').length;
+
+    expect(unitCountAfter).toBe(unitCountBefore + 1);
+    expect(newState.civilizations.player.units.length).toBe(unitCountBefore + 1);
   });
 
   it('checks era advancement after processing', () => {

@@ -42,8 +42,16 @@ export function createTechPanel(
     }
   }
 
-  const tracks: TechTrack[] = ['military', 'economy', 'science', 'civics', 'exploration'];
-  const trackIcons: Record<string, string> = { military: '⚔️', economy: '💰', science: '🔬', civics: '📜', exploration: '🧭' };
+  const tracks: TechTrack[] = [
+    'military', 'economy', 'science', 'civics', 'exploration',
+    'agriculture', 'medicine', 'philosophy', 'arts', 'maritime',
+    'metallurgy', 'construction', 'communication', 'espionage', 'spirituality',
+  ];
+  const trackIcons: Record<string, string> = {
+    military: '⚔️', economy: '💰', science: '🔬', civics: '📜', exploration: '🧭',
+    agriculture: '🌾', medicine: '🩺', philosophy: '💭', arts: '🎨', maritime: '⚓',
+    metallurgy: '⛏️', construction: '🏗️', communication: '📯', espionage: '🕵️', spirituality: '🙏',
+  };
 
   for (const track of tracks) {
     const trackTechs = TECH_TREE.filter(t => t.track === track);

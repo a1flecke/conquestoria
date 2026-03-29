@@ -50,7 +50,9 @@ export function declareWar(
 ): DiplomacyState {
   let newState = {
     ...state,
-    atWarWith: [...state.atWarWith, targetCivId],
+    atWarWith: state.atWarWith.includes(targetCivId)
+      ? [...state.atWarWith]
+      : [...state.atWarWith, targetCivId],
     events: [...state.events],
   };
   newState = modifyRelationship(newState, targetCivId, -50);

@@ -73,7 +73,7 @@ export class RenderLoop {
     const villagePositions = new Set(
       Object.values(this.state.tribalVillages ?? {}).map(v => `${v.position.q},${v.position.r}`),
     );
-    drawHexMap(this.ctx, this.state.map, this.camera, villagePositions);
+    drawHexMap(this.ctx, this.state.map, this.camera, villagePositions, this.state.currentPlayer);
 
     // Draw rivers
     drawRivers(this.ctx, this.state.map, this.camera);

@@ -27,7 +27,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'builder',
     icon: '🏗️',
     message: 'Excellent! Your city is growing. Now build a Granary to increase food production. Tap your city to see building options.',
-    trigger: (state) => Object.values(state.cities).some(c => c.owner === 'player'),
+    trigger: (state) => Object.values(state.cities).some(c => c.owner === state.currentPlayer),
     tutorialStep: 'found_city',
   },
   {
@@ -35,7 +35,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'builder',
     icon: '🏗️',
     message: "Your Worker can build Farms and Mines on nearby tiles. Select the Worker and choose an improvement to boost your city's output.",
-    trigger: (state) => Object.values(state.units).some(u => u.owner === 'player' && u.type === 'worker'),
+    trigger: (state) => Object.values(state.units).some(u => u.owner === state.currentPlayer && u.type === 'worker'),
     tutorialStep: 'build_improvement',
   },
   {
@@ -44,7 +44,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '🏗️',
     message: 'Your city can train units. Open the city panel and queue up a Warrior to defend your borders.',
     trigger: (state) => {
-      const cities = Object.values(state.cities).filter(c => c.owner === 'player');
+      const cities = Object.values(state.cities).filter(c => c.owner === state.currentPlayer);
       return cities.length > 0 && cities[0].productionQueue.length === 0;
     },
     tutorialStep: 'build_unit',
@@ -56,7 +56,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'explorer',
     icon: '🔭',
     message: 'The world awaits! Select your Scout and send them into the unknown. Who knows what we might find out there?',
-    trigger: (state) => Object.values(state.cities).some(c => c.owner === 'player'),
+    trigger: (state) => Object.values(state.cities).some(c => c.owner === state.currentPlayer),
     tutorialStep: 'explore',
   },
   {
@@ -76,7 +76,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '🔭',
     message: 'Barbarians! Move your Warrior next to them and tap the enemy to attack. Be careful — they fight back!',
     trigger: (state) => {
-      const vis = state.civilizations.player?.visibility;
+      const vis = state.civilizations[state.currentPlayer]?.visibility;
       if (!vis) return false;
       return Object.values(state.units).some(u => u.owner === 'barbarian' && vis.tiles[`${u.position.q},${u.position.r}`] === 'visible');
     },
@@ -98,7 +98,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '🎩',
     message: 'My liege, a neighboring civilization grows hostile. Consider diplomacy before conflict erupts.',
     trigger: (state) => {
-      const playerDip = state.civilizations.player?.diplomacy;
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
       if (!playerDip) return false;
       return Object.entries(playerDip.relationships).some(
         ([civId, score]) => score < -30 && !isAtWar(playerDip, civId),
@@ -111,7 +111,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '🎩',
     message: 'Excellent news! A civilization views us favorably. This could be a good time to propose a treaty.',
     trigger: (state) => {
-      const playerDip = state.civilizations.player?.diplomacy;
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
       if (!playerDip) return false;
       return Object.entries(playerDip.relationships).some(
         ([_, score]) => score > 40 && playerDip.treaties.length === 0,
@@ -124,7 +124,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '🎩',
     message: 'We are at war! Consider seeking peace if our forces are spread thin, or press the attack if we have the advantage.',
     trigger: (state) => {
-      const playerDip = state.civilizations.player?.diplomacy;
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
       if (!playerDip) return false;
       return playerDip.atWarWith.length > 0;
     },
@@ -137,16 +137,16 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '⚔️',
     message: 'Enemy forces spotted near our borders! Station warriors nearby to protect our cities.',
     trigger: (state) => {
-      const playerCities = state.civilizations.player?.cities ?? [];
+      const playerCities = state.civilizations[state.currentPlayer]?.cities ?? [];
       if (playerCities.length === 0) return false;
-      const vis = state.civilizations.player?.visibility;
+      const vis = state.civilizations[state.currentPlayer]?.visibility;
       if (!vis) return false;
 
       for (const cityId of playerCities) {
         const city = state.cities[cityId];
         if (!city) continue;
         for (const unit of Object.values(state.units)) {
-          if (unit.owner === 'player' || unit.owner === 'barbarian') continue;
+          if (unit.owner === state.currentPlayer || unit.owner === 'barbarian') continue;
           if (vis.tiles[`${unit.position.q},${unit.position.r}`] !== 'visible') continue;
           const dq = Math.abs(unit.position.q - city.position.q);
           const dr = Math.abs(unit.position.r - city.position.r);
@@ -162,9 +162,9 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '⚔️',
     message: 'One of our cities has no garrison! Train a warrior or move troops there immediately.',
     trigger: (state) => {
-      const playerCities = state.civilizations.player?.cities ?? [];
+      const playerCities = state.civilizations[state.currentPlayer]?.cities ?? [];
       if (playerCities.length === 0) return false;
-      const playerUnits = Object.values(state.units).filter(u => u.owner === 'player');
+      const playerUnits = Object.values(state.units).filter(u => u.owner === state.currentPlayer);
 
       return playerCities.some(cityId => {
         const city = state.cities[cityId];
@@ -181,7 +181,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '⚔️',
     message: 'A barbarian camp lurks nearby. Destroy it before they grow stronger and raid our lands!',
     trigger: (state) => {
-      const vis = state.civilizations.player?.visibility;
+      const vis = state.civilizations[state.currentPlayer]?.visibility;
       if (!vis) return false;
       return Object.values(state.barbarianCamps).some(
         camp => vis.tiles[`${camp.position.q},${camp.position.r}`] === 'visible',

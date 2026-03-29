@@ -45,11 +45,14 @@ export const BUILDINGS: Record<string, Building> = {
   forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', adjacencyBonuses: [] },
 };
 
-export const TRAINABLE_UNITS: Array<{ type: UnitType; name: string; cost: number }> = [
+export const TRAINABLE_UNITS: Array<{ type: UnitType; name: string; cost: number; techRequired?: string }> = [
   { type: 'warrior', name: 'Warrior', cost: 25 },
   { type: 'scout', name: 'Scout', cost: 20 },
   { type: 'worker', name: 'Worker', cost: 30 },
   { type: 'settler', name: 'Settler', cost: 50 },
+  { type: 'swordsman', name: 'Swordsman', cost: 50, techRequired: 'bronze-working' },
+  { type: 'pikeman', name: 'Pikeman', cost: 70, techRequired: 'fortification' },
+  { type: 'musketeer', name: 'Musketeer', cost: 90, techRequired: 'tactics' },
 ];
 
 export function foundCity(owner: string, position: HexCoord, map: GameMap): City {
@@ -131,6 +134,7 @@ export function processCity(
   map: GameMap,
   foodYield: number,
   productionYield: number = 0,
+  bonusEffect?: CivBonusEffect,
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -166,7 +170,8 @@ export function processCity(
 
     // Check if it's a building
     const building = BUILDINGS[currentItem];
-    if (building && newProgress >= building.productionCost) {
+    const buildingCostMult = building ? applyProductionBonus(currentItem, bonusEffect) : 1;
+    if (building && newProgress >= Math.round(building.productionCost * buildingCostMult)) {
       newBuildings.push(building.id);
       newQueue.shift();
       newProgress = 0;
@@ -175,7 +180,8 @@ export function processCity(
 
     // Check if it's a unit
     const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    if (unitDef && newProgress >= unitDef.cost) {
+    const unitCostMult = unitDef ? applyProductionBonus(currentItem, bonusEffect) : 1;
+    if (unitDef && newProgress >= Math.round(unitDef.cost * unitCostMult)) {
       newQueue.shift();
       newProgress = 0;
       completedUnit = unitDef.type;

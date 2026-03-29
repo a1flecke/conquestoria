@@ -11,6 +11,8 @@ import { processRelationshipDrift, decayEvents, tickTreaties } from '@/systems/d
 import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
+import { getCivDefinition } from '@/systems/civ-definitions';
+import { applyProductionBonus } from '@/systems/city-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -31,7 +33,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       totalScience += yields.science;
       totalGold += yields.gold;
 
-      const result = processCity(city, newState.map, yields.food, yields.production);
+      const civDef = getCivDefinition(civ.civType ?? '');
+      const result = processCity(city, newState.map, yields.food, yields.production, civDef?.bonusEffect);
       newState.cities[cityId] = result.city;
 
       if (result.grew) {
@@ -42,6 +45,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
       if (result.completedUnit) {
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
+        const newUnit = createUnit(result.completedUnit, civId, city.position);
+        newState.units[newUnit.id] = newUnit;
+        newState.civilizations[civId].units.push(newUnit.id);
       }
     }
 

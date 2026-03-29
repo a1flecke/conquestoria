@@ -17,7 +17,14 @@ export function resolveCombat(
   attacker: Unit,
   defender: Unit,
   map: GameMap,
+  seed?: number,
 ): CombatResult {
+  // Seeded RNG for deterministic combat
+  let rngState = seed ?? (Date.now() * 16807);
+  const rng = () => {
+    rngState = (rngState * 48271) % 2147483647;
+    return rngState / 2147483647;
+  };
   const atkDef = UNIT_DEFINITIONS[attacker.type];
   const defDef = UNIT_DEFINITIONS[defender.type];
 
@@ -66,11 +73,11 @@ export function resolveCombat(
   const atkRatio = atkStrength / totalStrength;
 
   // Add randomness (±20%)
-  const randomFactor = 0.8 + Math.random() * 0.4;
+  const randomFactor = 0.8 + rng() * 0.4;
   const adjustedRatio = Math.min(0.95, Math.max(0.05, atkRatio * randomFactor));
 
   // Base damage is 30-50
-  const baseDamage = 30 + Math.random() * 20;
+  const baseDamage = 30 + rng() * 20;
 
   const defenderDamage = Math.round(baseDamage * adjustedRatio);
   const attackerDamage = Math.round(baseDamage * (1 - adjustedRatio));

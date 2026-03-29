@@ -47,6 +47,36 @@ describe('adjacency yields in city calculation', () => {
   });
 });
 
+describe('city center base yields', () => {
+  let map: GameMap;
+
+  beforeAll(() => {
+    map = generateMap(30, 30, 'base-yield-test');
+  });
+
+  it('produces at least 1 gold from city center alone', () => {
+    // Found a city on a non-coastal, non-river tile to isolate base yield
+    const inlandTile = Object.values(map.tiles).find(
+      t => t.terrain === 'grassland' && !t.hasRiver,
+    )!;
+    const city = foundCity('p1', inlandTile.coord, map);
+    // Remove all owned tiles so only city center contributes
+    const isolatedCity = { ...city, ownedTiles: [], population: 0 };
+    const yields = calculateCityYields(isolatedCity, map);
+    expect(yields.gold).toBeGreaterThanOrEqual(1);
+  });
+
+  it('produces at least 1 science from city center alone', () => {
+    const inlandTile = Object.values(map.tiles).find(
+      t => t.terrain === 'grassland' && !t.hasRiver,
+    )!;
+    const city = foundCity('p1', inlandTile.coord, map);
+    const isolatedCity = { ...city, ownedTiles: [], population: 0 };
+    const yields = calculateCityYields(isolatedCity, map);
+    expect(yields.science).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe('new terrain yields', () => {
   it('jungle yields 2 food', () => {
     expect(TERRAIN_YIELDS.jungle.food).toBe(2);

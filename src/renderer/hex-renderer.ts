@@ -32,6 +32,7 @@ export function drawHexMap(
   map: GameMap,
   camera: Camera,
   villagePositions?: Set<string>,
+  currentPlayer?: string,
 ): void {
   const size = camera.hexSize;
 
@@ -43,7 +44,7 @@ export function drawHexMap(
     const scaledSize = size * camera.zoom;
     const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
 
-    drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage);
+    drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer);
   }
 }
 
@@ -91,6 +92,7 @@ function drawHex(
   size: number,
   tile: HexTile,
   isVillage: boolean = false,
+  currentPlayer?: string,
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -144,7 +146,7 @@ function drawHex(
 
   // Draw ownership indicator
   if (tile.owner) {
-    ctx.strokeStyle = tile.owner === 'player' ? 'rgba(74,144,217,0.5)' : 'rgba(217,74,74,0.5)';
+    ctx.strokeStyle = tile.owner === (currentPlayer ?? 'player') ? 'rgba(74,144,217,0.5)' : 'rgba(217,74,74,0.5)';
     ctx.lineWidth = 2;
     ctx.stroke();
   }

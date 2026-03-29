@@ -83,14 +83,24 @@ export function createCityPanel(
 
   for (const b of availableBuildings) {
     const turns = yields.production > 0 ? Math.ceil(b.productionCost / yields.production) : '∞';
+    const yieldParts: string[] = [];
+    if (b.yields.food) yieldParts.push(`+${b.yields.food} 🌾`);
+    if (b.yields.production) yieldParts.push(`+${b.yields.production} ⚒️`);
+    if (b.yields.gold) yieldParts.push(`+${b.yields.gold} 💰`);
+    if (b.yields.science) yieldParts.push(`+${b.yields.science} 🔬`);
+    const yieldStr = yieldParts.length > 0 ? yieldParts.join(' ') + ' · ' : '';
     html += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
       <div style="font-weight:bold;font-size:13px;">🏗️ ${b.name}</div>
-      <div style="font-size:11px;opacity:0.7;">${b.description} · ${turns} turns</div>
+      <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns</div>
+      <div style="font-size:10px;opacity:0.5;">${b.description}</div>
     </div>`;
   }
 
+  const completedTechs = state.civilizations[state.currentPlayer].techState.completed;
+  const availableUnits = TRAINABLE_UNITS.filter(u => !u.techRequired || completedTechs.includes(u.techRequired));
+
   html += '<div style="margin-top:12px;font-size:12px;opacity:0.5;margin-bottom:8px;">Units</div>';
-  for (const u of TRAINABLE_UNITS) {
+  for (const u of availableUnits) {
     const turns = yields.production > 0 ? Math.ceil(u.cost / yields.production) : '∞';
     html += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
       <div style="font-weight:bold;font-size:13px;">⚔️ ${u.name}</div>

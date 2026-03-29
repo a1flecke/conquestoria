@@ -28,6 +28,8 @@ export function calculateCityYields(city: City, map: GameMap): ResourceYield {
   // Base yield from city center
   yields.food += 1;
   yields.production += 1;
+  yields.gold += 1;
+  yields.science += 1;
 
   // Yields from worked tiles (up to population count)
   const workedTiles = city.ownedTiles.slice(0, city.population);
