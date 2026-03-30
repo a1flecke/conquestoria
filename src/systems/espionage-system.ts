@@ -1,10 +1,12 @@
 // src/systems/espionage-system.ts
 import type {
   Spy, SpyMission, SpyMissionType, SpyStatus,
-  EspionageCivState, HexCoord, GameState, Treaty, UnitType,
+  EspionageCivState, EspionageState, HexCoord, GameState,
+  DiplomacyState, Treaty, UnitType,
 } from '../core/types';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
 import { hexDistance } from './hex-utils';
+import { modifyRelationship } from './diplomacy-system';
 
 const SPY_NAMES = [
   'Shadow', 'Whisper', 'Ghost', 'Cipher', 'Raven',
@@ -438,6 +440,61 @@ export function resolveMissionResult(
     default:
       return {};
   }
+}
+
+// --- Diplomatic consequences ---
+
+const EXPULSION_RELATIONSHIP_PENALTY = -15;
+const CAPTURE_RELATIONSHIP_PENALTY = -40;
+
+export function handleSpyExpelled(
+  dipState: DiplomacyState,
+  spyOwnerCivId: string,
+  turn: number,
+): DiplomacyState {
+  let updated = modifyRelationship(dipState, spyOwnerCivId, EXPULSION_RELATIONSHIP_PENALTY);
+  updated = {
+    ...updated,
+    events: [...updated.events, {
+      type: 'spy_expelled',
+      turn,
+      otherCiv: spyOwnerCivId,
+      weight: 1,
+    }],
+  };
+  return updated;
+}
+
+export function handleSpyCaptured(
+  dipState: DiplomacyState,
+  spyOwnerCivId: string,
+  turn: number,
+): DiplomacyState {
+  let updated = modifyRelationship(dipState, spyOwnerCivId, CAPTURE_RELATIONSHIP_PENALTY);
+  updated = {
+    ...updated,
+    events: [...updated.events, {
+      type: 'spy_captured',
+      turn,
+      otherCiv: spyOwnerCivId,
+      weight: 1,
+    }],
+  };
+  return updated;
+}
+
+export function setCounterIntelligence(
+  state: EspionageCivState,
+  cityId: string,
+  score: number,
+): EspionageCivState {
+  return {
+    ...state,
+    counterIntelligence: {
+      ...state.counterIntelligence,
+      [cityId]: Math.max(0, Math.min(100, score)),
+    },
+  };
 }
 
 // Reset the ID counter (for testing)

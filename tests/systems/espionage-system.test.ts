@@ -18,8 +18,12 @@ import {
   startMission,
   processSpyTurn,
   resolveMissionResult,
+  handleSpyExpelled,
+  handleSpyCaptured,
+  setCounterIntelligence,
   _resetSpyIdCounter,
 } from '@/systems/espionage-system';
+import { createDiplomacyState } from '@/systems/diplomacy-system';
 
 describe('espionage types', () => {
   it('Spy has required fields', () => {
@@ -524,5 +528,56 @@ describe('resolveMissionResult', () => {
     expect(result.nearbyUnits).toBeDefined();
     expect(result.nearbyUnits!.length).toBeGreaterThan(0);
     expect(result.nearbyUnits![0].type).toBe('warrior');
+  });
+});
+
+describe('espionage diplomatic consequences', () => {
+  describe('handleSpyExpelled', () => {
+    it('reduces relationship between spy owner and detecting civ', () => {
+      const dipState = createDiplomacyState(['player', 'ai-egypt'], 'ai-egypt');
+      const updated = handleSpyExpelled(dipState, 'player', 10);
+      expect(updated.relationships['player']).toBeLessThan(0);
+    });
+
+    it('adds a diplomatic event for expulsion', () => {
+      const dipState = createDiplomacyState(['player', 'ai-egypt'], 'ai-egypt');
+      const updated = handleSpyExpelled(dipState, 'player', 10);
+      expect(updated.events.length).toBe(1);
+      expect(updated.events[0].type).toBe('spy_expelled');
+    });
+  });
+
+  describe('handleSpyCaptured', () => {
+    it('reduces relationship more severely than expulsion', () => {
+      const dipState = createDiplomacyState(['player', 'ai-egypt'], 'ai-egypt');
+      const expelled = handleSpyExpelled(dipState, 'player', 10);
+      const captured = handleSpyCaptured(
+        createDiplomacyState(['player', 'ai-egypt'], 'ai-egypt'),
+        'player', 10,
+      );
+      expect(captured.relationships['player']).toBeLessThan(expelled.relationships['player']);
+    });
+
+    it('adds a diplomatic event for capture', () => {
+      const dipState = createDiplomacyState(['player', 'ai-egypt'], 'ai-egypt');
+      const updated = handleSpyCaptured(dipState, 'player', 10);
+      expect(updated.events.some(e => e.type === 'spy_captured')).toBe(true);
+    });
+  });
+
+  describe('counter-intelligence', () => {
+    it('setCounterIntelligence updates city CI score', () => {
+      let state = createEspionageCivState();
+      state = setCounterIntelligence(state, 'city-1', 50);
+      expect(state.counterIntelligence['city-1']).toBe(50);
+    });
+
+    it('CI score clamps to 0-100', () => {
+      let state = createEspionageCivState();
+      state = setCounterIntelligence(state, 'city-1', 150);
+      expect(state.counterIntelligence['city-1']).toBe(100);
+      state = setCounterIntelligence(state, 'city-1', -10);
+      expect(state.counterIntelligence['city-1']).toBe(0);
+    });
   });
 });
