@@ -361,6 +361,104 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
         !mc.isDestroyed && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
       ),
   },
+  // --- Spymaster Advisor ---
+  {
+    id: 'spymaster_recruit_first_spy',
+    advisor: 'spymaster',
+    icon: '🕵️',
+    message: 'My liege... I have eyes and ears throughout the realm, but none abroad. Recruit a spy — we must know what our neighbors are planning.',
+    trigger: (state: GameState) => {
+      if (!state.espionage) return false;
+      const playerEsp = state.espionage[state.currentPlayer];
+      if (!playerEsp) return false;
+      const hasEspTech = state.civilizations[state.currentPlayer]?.techState.completed
+        .some(t => t.startsWith('espionage-'));
+      if (!hasEspTech) return false;
+      const activeSpies = Object.values(playerEsp.spies).filter(s => s.status !== 'captured');
+      return activeSpies.length === 0;
+    },
+  },
+  {
+    id: 'spymaster_hostile_no_coverage',
+    advisor: 'spymaster',
+    icon: '🕵️',
+    message: 'A hostile civilization grows bold, and we have no eyes on them. I recommend placing a spy in their capital before it is too late.',
+    trigger: (state: GameState) => {
+      if (!state.espionage) return false;
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
+      const playerEsp = state.espionage[state.currentPlayer];
+      if (!playerDip || !playerEsp) return false;
+      const hasEspTech = state.civilizations[state.currentPlayer]?.techState.completed
+        .some(t => t.startsWith('espionage-'));
+      if (!hasEspTech) return false;
+      for (const [civId, score] of Object.entries(playerDip.relationships)) {
+        if (score < -20) {
+          const hasSpy = Object.values(playerEsp.spies).some(
+            s => s.targetCivId === civId && s.status !== 'captured' && s.status !== 'idle' && s.status !== 'cooldown',
+          );
+          if (!hasSpy) return true;
+        }
+      }
+      return false;
+    },
+  },
+  {
+    id: 'spymaster_no_counter_intel',
+    advisor: 'spymaster',
+    icon: '🕵️',
+    message: 'Our cities lack counter-intelligence. Any foreign spy could walk through our gates unseen. Consider stationing a spy defensively.',
+    trigger: (state: GameState) => {
+      if (!state.espionage) return false;
+      const playerEsp = state.espionage[state.currentPlayer];
+      if (!playerEsp) return false;
+      const playerCiv = state.civilizations[state.currentPlayer];
+      if (!playerCiv || playerCiv.cities.length === 0) return false;
+      const hasEspTech = playerCiv.techState.completed.some(t => t.startsWith('espionage-'));
+      if (!hasEspTech) return false;
+      const hasAnyCi = playerCiv.cities.some(
+        cityId => (playerEsp.counterIntelligence[cityId] ?? 0) > 0,
+      );
+      return !hasAnyCi && Object.values(playerEsp.spies).filter(s => s.status !== 'captured').length > 0;
+    },
+  },
+  {
+    id: 'spymaster_spy_captured_warning',
+    advisor: 'spymaster',
+    icon: '🕵️',
+    message: 'One of our agents has been captured. Expect diplomatic fallout. Perhaps we should let tempers cool before sending another.',
+    trigger: (state: GameState) => {
+      if (!state.espionage) return false;
+      const playerEsp = state.espionage[state.currentPlayer];
+      if (!playerEsp) return false;
+      return Object.values(playerEsp.spies).some(s => s.status === 'captured');
+    },
+  },
+  {
+    id: 'spymaster_spy_expelled_warning',
+    advisor: 'spymaster',
+    icon: '🕵️',
+    message: 'Our spy was discovered and expelled. The mission failed, but the agent survived. They will need time to recover before redeployment.',
+    trigger: (state: GameState) => {
+      if (!state.espionage) return false;
+      const playerEsp = state.espionage[state.currentPlayer];
+      if (!playerEsp) return false;
+      return Object.values(playerEsp.spies).some(s => s.status === 'cooldown');
+    },
+  },
+  {
+    id: 'spymaster_mission_available',
+    advisor: 'spymaster',
+    icon: '🕵️',
+    message: 'Our spy is in position and awaiting orders. Select a mission to begin gathering intelligence.',
+    trigger: (state: GameState) => {
+      if (!state.espionage) return false;
+      const playerEsp = state.espionage[state.currentPlayer];
+      if (!playerEsp) return false;
+      return Object.values(playerEsp.spies).some(
+        s => s.status === 'stationed' && !s.currentMission,
+      );
+    },
+  },
 ];
 
 export class AdvisorSystem {
