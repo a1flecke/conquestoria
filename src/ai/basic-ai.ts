@@ -1,4 +1,4 @@
-import type { GameState, Unit, HexCoord, PersonalityTraits } from '@/core/types';
+import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -15,6 +15,13 @@ import {
   proposeTreaty,
   modifyRelationship,
 } from '@/systems/diplomacy-system';
+import {
+  canRecruitSpy,
+  getAvailableMissions,
+  recruitSpy,
+  assignSpy,
+  startMission,
+} from '@/systems/espionage-system';
 
 function getPersonality(civType: string): PersonalityTraits {
   const def = getCivDefinition(civType);
@@ -230,6 +237,35 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
+  // AI espionage decisions
+  if (shouldAiRecruitSpy(newState, civId)) {
+    const espState = newState.espionage?.[civId];
+    if (espState) {
+      const { state: newEsp, spy } = recruitSpy(espState, civId, `ai-recruit-${newState.turn}-${civId}`);
+      newState.espionage![civId] = newEsp;
+
+      const target = chooseAiSpyTarget(newState, civId);
+      if (target) {
+        newState.espionage![civId] = assignSpy(
+          newState.espionage![civId], spy.id, target.civId, target.cityId, target.position,
+        );
+      }
+    }
+  }
+
+  // Start missions for stationed spies without active missions
+  const espState = newState.espionage?.[civId];
+  if (espState) {
+    for (const spy of Object.values(espState.spies)) {
+      if (spy.status === 'stationed' && !spy.currentMission) {
+        const mission = chooseAiMission(newState, civId);
+        if (mission) {
+          newState.espionage![civId] = startMission(newState.espionage![civId], spy.id, mission);
+        }
+      }
+    }
+  }
+
   // Update AI visibility
   const civUnits = civ.units
     .map(id => newState.units[id])
@@ -240,4 +276,64 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
 
   return newState;
+}
+
+// --- AI Espionage Decision Functions ---
+
+export function shouldAiRecruitSpy(state: GameState, aiCivId: string): boolean {
+  const civ = state.civilizations[aiCivId];
+  if (!civ) return false;
+  const hasEspTech = civ.techState.completed.some(t => t.startsWith('espionage-'));
+  if (!hasEspTech) return false;
+  const espState = state.espionage?.[aiCivId];
+  if (!espState) return false;
+  return canRecruitSpy(espState);
+}
+
+export function chooseAiSpyTarget(
+  state: GameState,
+  aiCivId: string,
+): { civId: string; cityId: string; position: HexCoord } | null {
+  const aiDip = state.civilizations[aiCivId]?.diplomacy;
+  if (!aiDip) return null;
+
+  const targets: Array<{ civId: string; score: number }> = [];
+  for (const [civId, relationship] of Object.entries(aiDip.relationships)) {
+    if (civId === aiCivId) continue;
+    const civ = state.civilizations[civId];
+    if (!civ || civ.cities.length === 0) continue;
+    let score = Math.abs(Math.min(0, relationship));
+    if (aiDip.atWarWith.includes(civId)) score += 100;
+    targets.push({ civId, score });
+  }
+
+  targets.sort((a, b) => b.score - a.score);
+  if (targets.length === 0) return null;
+
+  const bestCivId = targets[0].civId;
+  const targetCiv = state.civilizations[bestCivId];
+  const firstCityId = targetCiv.cities[0];
+  const city = state.cities[firstCityId];
+  if (!city) return null;
+
+  return { civId: bestCivId, cityId: firstCityId, position: city.position };
+}
+
+export function chooseAiMission(
+  state: GameState,
+  aiCivId: string,
+): SpyMissionType | null {
+  const civ = state.civilizations[aiCivId];
+  if (!civ) return null;
+  const available = getAvailableMissions(civ.techState.completed);
+  if (available.length === 0) return null;
+
+  const preferredOrder: SpyMissionType[] = [
+    'gather_intel', 'monitor_troops', 'monitor_diplomacy',
+    'identify_resources', 'scout_area',
+  ];
+  for (const mission of preferredOrder) {
+    if (available.includes(mission)) return mission;
+  }
+  return available[0];
 }
