@@ -208,7 +208,11 @@ export type CivBonusEffect =
   | { type: 'naval_bonus'; visionBonus: number }
   | { type: 'combat_production'; productionBonus: number }
   | { type: 'bushido' }
-  | { type: 'faster_growth'; foodReduction: number };
+  | { type: 'faster_growth'; foodReduction: number }
+  | { type: 'culture_pressure'; radiusBonus: number }
+  | { type: 'industrial_efficiency'; productionBonus: number }
+  | { type: 'fortified_defense'; defenseBonus: number }
+  | { type: 'grassland_cavalry_heal'; healPerTurn: number };
 
 export interface CivDefinition {
   id: string;
@@ -253,6 +257,46 @@ export interface DiplomacyState {
   events: DiplomaticEvent[];
   atWarWith: string[];
 }
+
+// --- Espionage ---
+
+export type SpyStatus = 'idle' | 'traveling' | 'stationed' | 'on_mission' | 'captured' | 'cooldown';
+
+export type SpyMissionType =
+  | 'scout_area'         // Stage 1: reveal fog around target city
+  | 'monitor_troops'     // Stage 1: report unit movements in/out of city
+  | 'gather_intel'       // Stage 2: reveal tech, treasury, treaties
+  | 'identify_resources' // Stage 2: reveal strategic resources in city territory
+  | 'monitor_diplomacy'; // Stage 2: see trade partners and relationship scores
+
+export interface SpyMission {
+  type: SpyMissionType;
+  turnsRemaining: number;
+  turnsTotal: number;
+  targetCivId: string;
+  targetCityId: string;
+}
+
+export interface Spy {
+  id: string;
+  owner: string;
+  name: string;
+  targetCivId: string | null;
+  targetCityId: string | null;
+  position: HexCoord | null;       // null when idle at home
+  status: SpyStatus;
+  experience: number;              // 0-100
+  currentMission: SpyMission | null;
+  cooldownTurns: number;           // turns until spy can act again after expulsion
+}
+
+export interface EspionageCivState {
+  spies: Record<string, Spy>;
+  maxSpies: number;                // scales with espionage tech
+  counterIntelligence: Record<string, number>; // cityId -> detection score (0-100)
+}
+
+export type EspionageState = Record<string, EspionageCivState>;
 
 // --- Civilizations ---
 
@@ -398,7 +442,7 @@ export interface MarketplaceState {
 
 // --- Advisors ---
 
-export type AdvisorType = 'builder' | 'explorer' | 'chancellor' | 'warchief' | 'treasurer' | 'scholar';
+export type AdvisorType = 'builder' | 'explorer' | 'chancellor' | 'warchief' | 'treasurer' | 'scholar' | 'spymaster';
 
 // --- Save Slots ---
 
@@ -453,6 +497,7 @@ export interface GameState {
   tribalVillages: Record<string, TribalVillage>;
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
+  espionage?: EspionageState;
 }
 
 export interface GameSettings {
@@ -516,4 +561,14 @@ export interface GameEvents {
   'minor-civ:era-upgrade': { minorCivId: string; newEra: number };
   'minor-civ:relationship-threshold': { minorCivId: string; majorCivId: string; newStatus: 'hostile' | 'neutral' | 'friendly' | 'allied' };
   'minor-civ:quest-expired': { minorCivId: string; majorCivId: string; quest: Quest };
+  'espionage:spy-recruited': { civId: string; spy: Spy };
+  'espionage:spy-assigned': { civId: string; spyId: string; targetCivId: string; targetCityId: string };
+  'espionage:spy-arrived': { civId: string; spyId: string; targetCityId: string };
+  'espionage:mission-started': { civId: string; spyId: string; missionType: SpyMissionType };
+  'espionage:mission-succeeded': { civId: string; spyId: string; missionType: SpyMissionType; result: Record<string, unknown> };
+  'espionage:mission-failed': { civId: string; spyId: string; missionType: SpyMissionType };
+  'espionage:spy-detected': { detectingCivId: string; spyOwner: string; spyId: string; cityId: string };
+  'espionage:spy-expelled': { civId: string; spyId: string; fromCivId: string };
+  'espionage:spy-captured': { capturingCivId: string; spyOwner: string; spyId: string };
+  'espionage:spy-recalled': { civId: string; spyId: string };
 }

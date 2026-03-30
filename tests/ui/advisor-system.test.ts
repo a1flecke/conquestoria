@@ -53,7 +53,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: true, treasurer: false, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: true, treasurer: false, scholar: false, spymaster: false };
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));
 
@@ -67,7 +67,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false };
     // Set hostile relationship
     state.civilizations.player.diplomacy.relationships['ai-1'] = -40;
 
@@ -85,7 +85,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false };
     state.civilizations.player.diplomacy.relationships['ai-1'] = 50;
     state.civilizations.player.diplomacy.treaties = [];
 
@@ -103,7 +103,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = stateWithCity();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: true, treasurer: false, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: true, treasurer: false, scholar: false, spymaster: false };
 
     // Move all player units away from city
     for (const unit of Object.values(state.units)) {
@@ -126,7 +126,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false };
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
     state.civilizations.player.diplomacy.relationships['ai-1'] = -60;
 
@@ -145,7 +145,7 @@ describe('AdvisorSystem', () => {
     const state = makeState();
     state.tutorial.active = false;
     state.settings.tutorialEnabled = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false };
 
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));
@@ -174,7 +174,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: true };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: true, spymaster: false };
     state.civilizations.player.techState.completed = ['agriculture'];
     state.civilizations.player.techState.currentResearch = null;
     state.turn = 5;
@@ -193,7 +193,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = stateWithCity();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false };
     state.civilizations.player.gold = 5;
     state.turn = 10;
 
@@ -211,7 +211,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = stateWithCity();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false };
     state.civilizations.player.gold = 0;
     state.turn = 1;
 
@@ -227,7 +227,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = stateWithCity();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false };
     state.civilizations.player.gold = 200;
     // Ensure city has empty production queue
     const cityId = state.civilizations.player.cities[0];

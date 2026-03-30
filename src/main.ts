@@ -932,12 +932,16 @@ function migrateLegacySave(): void {
     }
   }
   if (!gameState.settings.advisorsEnabled) {
-    gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true };
+    gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true };
   }
   // Add new advisor types if missing (M3b migration)
   if (gameState.settings.advisorsEnabled && !('treasurer' in gameState.settings.advisorsEnabled)) {
     (gameState.settings.advisorsEnabled as any).treasurer = true;
     (gameState.settings.advisorsEnabled as any).scholar = true;
+  }
+  // Add spymaster advisor if missing (M4a migration)
+  if (gameState.settings.advisorsEnabled && !('spymaster' in gameState.settings.advisorsEnabled)) {
+    (gameState.settings.advisorsEnabled as any).spymaster = true;
   }
   // Ensure pendingEvents exists for hot seat saves
   if (!gameState.pendingEvents) {

@@ -124,7 +124,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
       musicVolume: 0.5,
       sfxVolume: 0.7,
       tutorialEnabled: true,
-      advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true },
+      advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true },
     },
   };
 
@@ -216,7 +216,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
       musicVolume: 0.5,
       sfxVolume: 0.7,
       tutorialEnabled: false,
-      advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true },
+      advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true },
     },
   };
 
