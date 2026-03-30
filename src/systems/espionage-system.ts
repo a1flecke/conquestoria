@@ -4,6 +4,7 @@ import type {
   EspionageCivState, EspionageState, HexCoord, GameState,
   DiplomacyState, Treaty, UnitType,
 } from '../core/types';
+import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
 import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-system';
@@ -495,6 +496,183 @@ export function setCounterIntelligence(
       [cityId]: Math.max(0, Math.min(100, score)),
     },
   };
+}
+
+// --- Top-level turn integration ---
+
+const ESPIONAGE_TECH_MAX_SPIES: Record<string, number> = {
+  'espionage-scouting': 1,
+  'espionage-informants': 2,
+  'spy-networks': 3,
+  'cryptography': 4,
+  'counter-intelligence': 5,
+};
+
+export function initializeEspionage(state: GameState): EspionageState {
+  const espionage: EspionageState = {};
+  for (const civId of Object.keys(state.civilizations)) {
+    const civState = createEspionageCivState();
+    // Calculate max spies based on completed espionage techs
+    let maxSpies = 0;
+    for (const [techId, spyCount] of Object.entries(ESPIONAGE_TECH_MAX_SPIES)) {
+      if (state.civilizations[civId].techState.completed.includes(techId)) {
+        maxSpies = Math.max(maxSpies, spyCount);
+      }
+    }
+    civState.maxSpies = Math.max(1, maxSpies);
+    espionage[civId] = civState;
+  }
+  return espionage;
+}
+
+export function processEspionageTurn(state: GameState, bus: EventBus): GameState {
+  if (!state.espionage) return state;
+
+  let newState = structuredClone(state);
+  const turnSeed = `esp-turn-${state.turn}`;
+
+  for (const civId of Object.keys(newState.espionage!)) {
+    const civEsp = newState.espionage![civId];
+    const { state: updatedEsp, events } = processSpyTurn(
+      civEsp,
+      `${turnSeed}-${civId}`,
+    );
+    newState.espionage![civId] = updatedEsp;
+
+    // Process events — emit bus events and apply diplomatic consequences
+    for (const evt of events) {
+      const spy = updatedEsp.spies[evt.spyId];
+
+      switch (evt.type) {
+        case 'spy_arrived':
+          bus.emit('espionage:spy-arrived', {
+            civId, spyId: evt.spyId, targetCityId: spy?.targetCityId ?? '',
+          });
+          break;
+
+        case 'mission_succeeded': {
+          const result = spy?.targetCivId && spy?.targetCityId
+            ? resolveMissionResult(evt.missionType!, spy.targetCivId, spy.targetCityId, newState)
+            : {};
+
+          bus.emit('espionage:mission-succeeded', {
+            civId, spyId: evt.spyId, missionType: evt.missionType!,
+            result: result as Record<string, unknown>,
+          });
+
+          // Apply scout_area results — reveal tiles for spying civ
+          if (evt.missionType === 'scout_area' && result.tilesToReveal) {
+            for (const coord of result.tilesToReveal) {
+              const key = `${coord.q},${coord.r}`;
+              if (newState.civilizations[civId]?.visibility?.tiles) {
+                newState.civilizations[civId].visibility.tiles[key] = 'visible';
+              }
+            }
+          }
+          break;
+        }
+
+        case 'mission_failed':
+          bus.emit('espionage:mission-failed', {
+            civId, spyId: evt.spyId, missionType: evt.missionType!,
+          });
+          break;
+
+        case 'spy_expelled': {
+          // Note: spy has already been reset by processSpyTurn, so targetCivId is null
+          // We need to look at the mission's targetCivId from the event context
+          // The spy's original target is in the mission that was active before processing
+          const originalSpy = civEsp.spies[evt.spyId]; // pre-update spy
+          const targetCivId = originalSpy?.targetCivId;
+          if (targetCivId && newState.civilizations[targetCivId]) {
+            // Bilateral update: target civ's view of spy owner
+            newState.civilizations[targetCivId].diplomacy = handleSpyExpelled(
+              newState.civilizations[targetCivId].diplomacy, civId, newState.turn,
+            );
+            // Bilateral update: spy owner's view of target civ
+            if (newState.civilizations[civId]) {
+              newState.civilizations[civId].diplomacy = modifyRelationship(
+                newState.civilizations[civId].diplomacy, targetCivId, -5,
+              );
+            }
+          }
+          bus.emit('espionage:spy-expelled', {
+            civId, spyId: evt.spyId, fromCivId: targetCivId ?? '',
+          });
+          break;
+        }
+
+        case 'spy_captured': {
+          const originalSpy = civEsp.spies[evt.spyId]; // pre-update spy
+          const targetCivId = originalSpy?.targetCivId;
+          if (targetCivId && newState.civilizations[targetCivId]) {
+            // Bilateral update: target civ's view of spy owner
+            newState.civilizations[targetCivId].diplomacy = handleSpyCaptured(
+              newState.civilizations[targetCivId].diplomacy, civId, newState.turn,
+            );
+            // Bilateral update: spy owner's view of target civ
+            if (newState.civilizations[civId]) {
+              newState.civilizations[civId].diplomacy = modifyRelationship(
+                newState.civilizations[civId].diplomacy, targetCivId, -10,
+              );
+            }
+          }
+          bus.emit('espionage:spy-captured', {
+            capturingCivId: targetCivId ?? '', spyOwner: civId, spyId: evt.spyId,
+          });
+          break;
+        }
+      }
+    }
+
+    // Passive spy abilities: stationed spies passively reveal fog and report troops
+    for (const spy of Object.values(newState.espionage![civId].spies)) {
+      if (spy.status === 'stationed' && spy.targetCivId && spy.targetCityId) {
+        const targetCity = newState.cities[spy.targetCityId];
+        if (!targetCity) continue;
+
+        // Passive fog reveal around stationed city
+        const revealRadius = 3;
+        for (const key of Object.keys(newState.map.tiles)) {
+          const [q, r] = key.split(',').map(Number);
+          if (hexDistance({ q, r }, targetCity.position) <= revealRadius) {
+            if (newState.civilizations[civId]?.visibility?.tiles) {
+              newState.civilizations[civId].visibility.tiles[key] = 'visible';
+            }
+          }
+        }
+
+        // Passive troop monitoring — emit event with units near city
+        const nearbyUnits: Array<{ type: string; position: HexCoord }> = [];
+        for (const unit of Object.values(newState.units)) {
+          if (unit.owner === spy.targetCivId &&
+              hexDistance(unit.position, targetCity.position) <= 4) {
+            nearbyUnits.push({ type: unit.type, position: unit.position });
+          }
+        }
+        if (nearbyUnits.length > 0) {
+          bus.emit('espionage:mission-succeeded', {
+            civId, spyId: spy.id, missionType: 'monitor_troops' as SpyMissionType,
+            result: { nearbyUnits, passive: true } as Record<string, unknown>,
+          });
+        }
+      }
+    }
+
+    // Update maxSpies based on current tech
+    let maxSpies = 0;
+    const civ = newState.civilizations[civId];
+    if (civ) {
+      for (const [techId, spyCount] of Object.entries(ESPIONAGE_TECH_MAX_SPIES)) {
+        if (civ.techState.completed.includes(techId)) {
+          maxSpies = Math.max(maxSpies, spyCount);
+        }
+      }
+      newState.espionage![civId].maxSpies = Math.max(1, maxSpies);
+    }
+  }
+
+  return newState;
 }
 
 // Reset the ID counter (for testing)
