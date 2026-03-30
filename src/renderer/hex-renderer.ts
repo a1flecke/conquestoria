@@ -1,6 +1,34 @@
-import type { GameMap, HexCoord, HexTile } from '@/core/types';
+import type { GameMap, HexCoord, HexTile, TerrainType } from '@/core/types';
 import { hexToPixel, hexesInRange } from '@/systems/hex-utils';
 import { Camera } from './camera';
+
+// --- Terrain labels ---
+
+const TERRAIN_LABELS: Record<TerrainType, string> = {
+  grassland: 'Grass',
+  plains: 'Plains',
+  desert: 'Desert',
+  tundra: 'Tundra',
+  snow: 'Snow',
+  forest: 'Forest',
+  hills: 'Hills',
+  mountain: 'Mtn',
+  ocean: 'Ocean',
+  coast: 'Coast',
+  jungle: 'Jungle',
+  swamp: 'Swamp',
+  volcanic: 'Volc',
+};
+
+const LABEL_ZOOM_THRESHOLD = 0.5;
+
+export function getTerrainLabel(terrain: TerrainType): string {
+  return TERRAIN_LABELS[terrain] ?? terrain;
+}
+
+export function shouldShowTerrainLabel(zoom: number): boolean {
+  return zoom >= LABEL_ZOOM_THRESHOLD;
+}
 
 const TERRAIN_COLORS: Record<string, string> = {
   grassland: '#5b8c3e',
@@ -45,6 +73,16 @@ export function drawHexMap(
     const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
 
     drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer);
+
+    // Draw terrain label
+    if (shouldShowTerrainLabel(camera.zoom)) {
+      const label = getTerrainLabel(tile.terrain);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.font = `${Math.round(scaledSize * 0.22)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(label, screen.x, screen.y + scaledSize * 0.45);
+    }
   }
 }
 
