@@ -1,6 +1,6 @@
 // src/systems/espionage-system.ts
 import type {
-  Spy, SpyMissionType, SpyStatus,
+  Spy, SpyMission, SpyMissionType, SpyStatus,
   EspionageCivState, HexCoord,
 } from '../core/types';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
@@ -179,6 +179,164 @@ export function recallSpy(
       },
     },
   };
+}
+
+// --- Tech gating ---
+
+const STAGE_1_TECHS = ['espionage-scouting'];
+const STAGE_2_TECHS = ['espionage-informants'];
+
+const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
+const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
+
+export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
+  const missions: SpyMissionType[] = [];
+  if (STAGE_1_TECHS.some(t => completedTechs.includes(t))) {
+    missions.push(...STAGE_1_MISSIONS);
+  }
+  if (STAGE_2_TECHS.some(t => completedTechs.includes(t))) {
+    missions.push(...STAGE_2_MISSIONS);
+  }
+  return missions;
+}
+
+// --- Mission lifecycle ---
+
+export function startMission(
+  state: EspionageCivState,
+  spyId: string,
+  missionType: SpyMissionType,
+): EspionageCivState {
+  const spy = state.spies[spyId];
+  if (!spy) throw new Error(`Spy ${spyId} not found`);
+  if (spy.status !== 'stationed') throw new Error('Spy must be stationed to start a mission');
+
+  const duration = getMissionDuration(missionType);
+  const mission: SpyMission = {
+    type: missionType,
+    turnsRemaining: duration,
+    turnsTotal: duration,
+    targetCivId: spy.targetCivId!,
+    targetCityId: spy.targetCityId!,
+  };
+
+  return {
+    ...state,
+    spies: {
+      ...state.spies,
+      [spyId]: {
+        ...spy,
+        status: 'on_mission',
+        currentMission: mission,
+      },
+    },
+  };
+}
+
+// --- Turn events (returned from processSpyTurn for bus emission) ---
+
+export interface SpyTurnEvent {
+  type: 'mission_succeeded' | 'mission_failed' | 'spy_expelled' | 'spy_captured' | 'spy_arrived';
+  spyId: string;
+  missionType?: SpyMissionType;
+  result?: Record<string, unknown>;
+}
+
+const XP_PER_MISSION: Record<SpyMissionType, number> = {
+  scout_area: 5,
+  monitor_troops: 5,
+  gather_intel: 10,
+  identify_resources: 8,
+  monitor_diplomacy: 10,
+};
+
+const EXPULSION_COOLDOWN = 5;
+
+export function processSpyTurn(
+  state: EspionageCivState,
+  seed: string,
+): { state: EspionageCivState; events: SpyTurnEvent[] } {
+  const rng = createRng(seed);
+  let newState = { ...state, spies: { ...state.spies } };
+  const events: SpyTurnEvent[] = [];
+
+  for (const [spyId, spy] of Object.entries(newState.spies)) {
+    let updated = { ...spy };
+
+    if (updated.status === 'captured') {
+      newState.spies[spyId] = updated;
+      continue;
+    }
+
+    if (updated.status === 'cooldown') {
+      updated.cooldownTurns -= 1;
+      if (updated.cooldownTurns <= 0) {
+        updated.status = 'idle';
+        updated.cooldownTurns = 0;
+      }
+      newState.spies[spyId] = updated;
+      continue;
+    }
+
+    if (updated.status === 'traveling') {
+      updated.status = 'stationed';
+      events.push({ type: 'spy_arrived', spyId });
+      newState.spies[spyId] = updated;
+      continue;
+    }
+
+    if (updated.status === 'on_mission' && updated.currentMission) {
+      const mission = { ...updated.currentMission };
+      mission.turnsRemaining -= 1;
+
+      if (mission.turnsRemaining <= 0) {
+        // Resolve mission
+        const counterIntel = newState.counterIntelligence[mission.targetCityId] ?? 0;
+        const successChance = getSpySuccessChance(updated.experience, counterIntel, mission.type);
+        const roll = rng();
+
+        if (roll < successChance) {
+          // Success
+          updated.experience = Math.min(100, updated.experience + XP_PER_MISSION[mission.type]);
+          updated.status = 'stationed';
+          updated.currentMission = null;
+          events.push({
+            type: 'mission_succeeded',
+            spyId,
+            missionType: mission.type,
+            result: {},
+          });
+        } else {
+          // Failure — determine expulsion vs capture
+          const captureRoll = rng();
+          if (captureRoll < 0.3) {
+            // Captured
+            updated.status = 'captured';
+            updated.currentMission = null;
+            events.push({ type: 'spy_captured', spyId, missionType: mission.type });
+          } else {
+            // Expelled
+            updated.status = 'cooldown';
+            updated.cooldownTurns = EXPULSION_COOLDOWN;
+            updated.targetCivId = null;
+            updated.targetCityId = null;
+            updated.position = null;
+            updated.currentMission = null;
+            events.push({ type: 'spy_expelled', spyId, missionType: mission.type });
+          }
+        }
+      } else {
+        updated.currentMission = mission;
+      }
+
+      newState.spies[spyId] = updated;
+      continue;
+    }
+
+    newState.spies[spyId] = updated;
+  }
+
+  return { state: newState, events };
 }
 
 // Reset the ID counter (for testing)

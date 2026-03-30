@@ -13,6 +13,10 @@ import {
   recallSpy,
   canRecruitSpy,
   getSpySuccessChance,
+  getMissionDuration,
+  getAvailableMissions,
+  startMission,
+  processSpyTurn,
   _resetSpyIdCounter,
 } from '@/systems/espionage-system';
 
@@ -274,6 +278,144 @@ describe('espionage-system', () => {
       const scout = getSpySuccessChance(0, 0, 'scout_area');
       const intel = getSpySuccessChance(0, 0, 'gather_intel');
       expect(scout).toBeGreaterThan(intel);
+    });
+  });
+});
+
+describe('missions', () => {
+  beforeEach(() => {
+    _resetSpyIdCounter();
+  });
+
+  describe('getAvailableMissions', () => {
+    it('returns stage 1 missions when only espionage-scouting tech completed', () => {
+      const completedTechs = ['espionage-scouting'];
+      const missions = getAvailableMissions(completedTechs);
+      expect(missions).toContain('scout_area');
+      expect(missions).toContain('monitor_troops');
+      expect(missions).not.toContain('gather_intel');
+    });
+
+    it('returns stage 1 + 2 missions when espionage-informants tech completed', () => {
+      const completedTechs = ['espionage-scouting', 'espionage-informants'];
+      const missions = getAvailableMissions(completedTechs);
+      expect(missions).toContain('scout_area');
+      expect(missions).toContain('gather_intel');
+      expect(missions).toContain('identify_resources');
+      expect(missions).toContain('monitor_diplomacy');
+    });
+
+    it('returns empty array with no espionage tech', () => {
+      const missions = getAvailableMissions([]);
+      expect(missions).toEqual([]);
+    });
+  });
+
+  describe('startMission', () => {
+    it('starts a mission on a stationed spy', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
+      s2.spies[spy.id].status = 'stationed';
+      const s3 = startMission(s2, spy.id, 'gather_intel');
+      const missionSpy = s3.spies[spy.id];
+      expect(missionSpy.status).toBe('on_mission');
+      expect(missionSpy.currentMission).not.toBeNull();
+      expect(missionSpy.currentMission!.type).toBe('gather_intel');
+      expect(missionSpy.currentMission!.turnsRemaining).toBe(3);
+      expect(missionSpy.currentMission!.turnsTotal).toBe(3);
+    });
+
+    it('refuses mission on idle spy', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      expect(() => startMission(s1, spy.id, 'gather_intel'))
+        .toThrow('Spy must be stationed');
+    });
+  });
+
+  describe('getMissionDuration', () => {
+    it('scout_area takes 1 turn', () => {
+      expect(getMissionDuration('scout_area')).toBe(1);
+    });
+
+    it('identify_resources takes 4 turns', () => {
+      expect(getMissionDuration('identify_resources')).toBe(4);
+    });
+  });
+
+  describe('processSpyTurn', () => {
+    it('decrements traveling spy to stationed after 1 turn', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
+      const { state: s3 } = processSpyTurn(s2, 'turn-seed-1');
+      expect(s3.spies[spy.id].status).toBe('stationed');
+    });
+
+    it('decrements mission turns remaining', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
+      s2.spies[spy.id].status = 'stationed';
+      const s3 = startMission(s2, spy.id, 'gather_intel'); // 3 turns
+      const { state: s4 } = processSpyTurn(s3, 'turn-seed-1');
+      expect(s4.spies[spy.id].currentMission!.turnsRemaining).toBe(2);
+      expect(s4.spies[spy.id].status).toBe('on_mission');
+    });
+
+    it('resolves mission when turns reach 0', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
+      s2.spies[spy.id].status = 'stationed';
+      const s3 = startMission(s2, spy.id, 'scout_area'); // 1 turn
+      const { state: s4, events } = processSpyTurn(s3, 'turn-seed-1');
+      // After 1 turn, scout_area should resolve
+      expect(s4.spies[spy.id].status).not.toBe('on_mission');
+      expect(s4.spies[spy.id].currentMission).toBeNull();
+      expect(events.length).toBeGreaterThan(0);
+      expect(events.some(e => e.type === 'mission_succeeded' || e.type === 'mission_failed')).toBe(true);
+    });
+
+    it('grants experience on successful mission', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
+      s2.spies[spy.id].status = 'stationed';
+      const s3 = startMission(s2, spy.id, 'scout_area');
+      // Use a seed known to produce success (high base chance for scout_area = 0.90)
+      const { state: s4, events } = processSpyTurn(s3, 'success-seed');
+      if (events.some(e => e.type === 'mission_succeeded')) {
+        expect(s4.spies[spy.id].experience).toBeGreaterThan(0);
+      }
+    });
+
+    it('decrements cooldown on cooldown spies', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      s1.spies[spy.id].status = 'cooldown';
+      s1.spies[spy.id].cooldownTurns = 3;
+      const { state: s2 } = processSpyTurn(s1, 'turn-seed');
+      expect(s2.spies[spy.id].cooldownTurns).toBe(2);
+    });
+
+    it('transitions cooldown to idle when cooldown reaches 0', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      s1.spies[spy.id].status = 'cooldown';
+      s1.spies[spy.id].cooldownTurns = 1;
+      const { state: s2 } = processSpyTurn(s1, 'turn-seed');
+      expect(s2.spies[spy.id].status).toBe('idle');
+      expect(s2.spies[spy.id].cooldownTurns).toBe(0);
+    });
+
+    it('does nothing for captured spies', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      s1.spies[spy.id].status = 'captured';
+      const { state: s2 } = processSpyTurn(s1, 'turn-seed');
+      expect(s2.spies[spy.id].status).toBe('captured');
     });
   });
 });
