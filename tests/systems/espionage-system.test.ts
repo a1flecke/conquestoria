@@ -17,6 +17,7 @@ import {
   getAvailableMissions,
   startMission,
   processSpyTurn,
+  resolveMissionResult,
   _resetSpyIdCounter,
 } from '@/systems/espionage-system';
 
@@ -417,5 +418,111 @@ describe('missions', () => {
       const { state: s2 } = processSpyTurn(s1, 'turn-seed');
       expect(s2.spies[spy.id].status).toBe('captured');
     });
+  });
+});
+
+describe('resolveMissionResult', () => {
+  function makeTestGameState(): GameState {
+    return {
+      turn: 10,
+      era: 2,
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+      units: {},
+      cities: {
+        'city-egypt-1': {
+          id: 'city-egypt-1', name: 'Thebes', owner: 'ai-egypt',
+          position: { q: 5, r: 3 }, population: 5, food: 0, foodNeeded: 20,
+          buildings: ['granary'], productionQueue: ['warrior'],
+          productionProgress: 10, ownedTiles: [{ q: 5, r: 3 }, { q: 5, r: 4 }, { q: 6, r: 3 }],
+          grid: [[null]], gridSize: 3,
+        },
+      },
+      civilizations: {
+        'ai-egypt': {
+          id: 'ai-egypt', name: 'Egypt', color: '#c4a94d',
+          isHuman: false, civType: 'egypt',
+          cities: ['city-egypt-1'], units: ['unit-1'],
+          techState: {
+            completed: ['agriculture-farming', 'science-writing'],
+            currentResearch: 'military-bronze-working',
+            researchProgress: 30,
+            trackPriorities: {} as any,
+          },
+          gold: 150,
+          visibility: { tiles: {} },
+          score: 100,
+          diplomacy: {
+            relationships: { player: -10 },
+            treaties: [{ type: 'trade_agreement', civA: 'ai-egypt', civB: 'ai-rome', turnsRemaining: 5 }],
+            events: [],
+            atWarWith: [],
+          },
+        },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+    } as GameState;
+  }
+
+  it('gather_intel reveals tech, gold, and treaties', () => {
+    const gameState = makeTestGameState();
+    const result = resolveMissionResult('gather_intel', 'ai-egypt', 'city-egypt-1', gameState);
+    expect(result.techProgress).toBeDefined();
+    expect(result.techProgress!.completed).toContain('agriculture-farming');
+    expect(result.techProgress!.currentResearch).toBe('military-bronze-working');
+    expect(result.treasury).toBe(150);
+    expect(result.treaties).toHaveLength(1);
+  });
+
+  it('identify_resources reveals resources in city territory', () => {
+    const gameState = makeTestGameState();
+    gameState.map.tiles['5,4'] = {
+      coord: { q: 5, r: 4 }, terrain: 'plains', elevation: 'lowland',
+      resource: 'iron', improvement: 'none', owner: 'ai-egypt',
+      improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    const result = resolveMissionResult('identify_resources', 'ai-egypt', 'city-egypt-1', gameState);
+    expect(result.resources).toBeDefined();
+    expect(result.resources).toContain('iron');
+  });
+
+  it('monitor_diplomacy reveals relationships and trade partners', () => {
+    const gameState = makeTestGameState();
+    const result = resolveMissionResult('monitor_diplomacy', 'ai-egypt', 'city-egypt-1', gameState);
+    expect(result.relationships).toBeDefined();
+    expect(result.relationships!['player']).toBe(-10);
+    expect(result.tradePartners).toBeDefined();
+    expect(result.tradePartners).toContain('ai-rome');
+  });
+
+  it('scout_area returns list of tiles to reveal', () => {
+    const gameState = makeTestGameState();
+    // Add some tiles near city
+    gameState.map.tiles['5,3'] = { coord: { q: 5, r: 3 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-egypt', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    gameState.map.tiles['5,4'] = { coord: { q: 5, r: 4 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-egypt', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    const result = resolveMissionResult('scout_area', 'ai-egypt', 'city-egypt-1', gameState);
+    expect(result.tilesToReveal).toBeDefined();
+    expect(result.tilesToReveal!.length).toBeGreaterThan(0);
+  });
+
+  it('monitor_troops returns units near the city', () => {
+    const gameState = makeTestGameState();
+    gameState.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: 'ai-egypt',
+      position: { q: 5, r: 3 }, movementPointsLeft: 2,
+      health: 100, experience: 0, hasMoved: false, hasActed: false,
+    };
+    const result = resolveMissionResult('monitor_troops', 'ai-egypt', 'city-egypt-1', gameState);
+    expect(result.nearbyUnits).toBeDefined();
+    expect(result.nearbyUnits!.length).toBeGreaterThan(0);
+    expect(result.nearbyUnits![0].type).toBe('warrior');
   });
 });

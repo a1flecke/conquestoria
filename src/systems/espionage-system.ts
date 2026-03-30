@@ -1,9 +1,10 @@
 // src/systems/espionage-system.ts
 import type {
   Spy, SpyMission, SpyMissionType, SpyStatus,
-  EspionageCivState, HexCoord,
+  EspionageCivState, HexCoord, GameState, Treaty, UnitType,
 } from '../core/types';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
+import { hexDistance } from './hex-utils';
 
 const SPY_NAMES = [
   'Shadow', 'Whisper', 'Ghost', 'Cipher', 'Raven',
@@ -337,6 +338,106 @@ export function processSpyTurn(
   }
 
   return { state: newState, events };
+}
+
+// --- Mission result resolution ---
+
+export interface MissionResult {
+  // gather_intel
+  techProgress?: { completed: string[]; currentResearch: string | null; researchProgress: number };
+  treasury?: number;
+  treaties?: Treaty[];
+  // identify_resources
+  resources?: string[];
+  // monitor_diplomacy
+  relationships?: Record<string, number>;
+  tradePartners?: string[];
+  // scout_area
+  tilesToReveal?: HexCoord[];
+  // monitor_troops
+  nearbyUnits?: Array<{ type: UnitType; position: HexCoord; health: number }>;
+}
+
+const SCOUT_VISION_RADIUS = 3;
+const TROOP_MONITOR_RADIUS = 4;
+
+export function resolveMissionResult(
+  missionType: SpyMissionType,
+  targetCivId: string,
+  targetCityId: string,
+  gameState: GameState,
+): MissionResult {
+  const targetCiv = gameState.civilizations[targetCivId];
+  const targetCity = gameState.cities[targetCityId];
+
+  switch (missionType) {
+    case 'gather_intel': {
+      return {
+        techProgress: targetCiv ? {
+          completed: [...targetCiv.techState.completed],
+          currentResearch: targetCiv.techState.currentResearch,
+          researchProgress: targetCiv.techState.researchProgress,
+        } : undefined,
+        treasury: targetCiv?.gold,
+        treaties: targetCiv?.diplomacy.treaties
+          ? [...targetCiv.diplomacy.treaties]
+          : [],
+      };
+    }
+
+    case 'identify_resources': {
+      if (!targetCity) return {};
+      const resources: string[] = [];
+      for (const tileCoord of targetCity.ownedTiles) {
+        const key = `${tileCoord.q},${tileCoord.r}`;
+        const tile = gameState.map.tiles[key];
+        if (tile?.resource && !resources.includes(tile.resource)) {
+          resources.push(tile.resource);
+        }
+      }
+      return { resources };
+    }
+
+    case 'monitor_diplomacy': {
+      if (!targetCiv) return {};
+      const relationships = { ...targetCiv.diplomacy.relationships };
+      const tradePartners = targetCiv.diplomacy.treaties
+        .filter(t => t.type === 'trade_agreement')
+        .map(t => t.civA === targetCivId ? t.civB : t.civA);
+      return { relationships, tradePartners };
+    }
+
+    case 'scout_area': {
+      if (!targetCity) return {};
+      const tilesToReveal: HexCoord[] = [];
+      for (const key of Object.keys(gameState.map.tiles)) {
+        const [q, r] = key.split(',').map(Number);
+        if (hexDistance({ q, r }, targetCity.position) <= SCOUT_VISION_RADIUS) {
+          tilesToReveal.push({ q, r });
+        }
+      }
+      return { tilesToReveal };
+    }
+
+    case 'monitor_troops': {
+      if (!targetCity) return {};
+      const nearbyUnits: Array<{ type: UnitType; position: HexCoord; health: number }> = [];
+      for (const unit of Object.values(gameState.units)) {
+        if (unit.owner === targetCivId &&
+            hexDistance(unit.position, targetCity.position) <= TROOP_MONITOR_RADIUS) {
+          nearbyUnits.push({
+            type: unit.type,
+            position: { ...unit.position },
+            health: unit.health,
+          });
+        }
+      }
+      return { nearbyUnits };
+    }
+
+    default:
+      return {};
+  }
 }
 
 // Reset the ID counter (for testing)
