@@ -3,16 +3,16 @@ import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 
 describe('civ-definitions', () => {
   it('defines exactly 12 civilizations', () => {
-    expect(CIV_DEFINITIONS).toHaveLength(12);
+    expect(CIV_DEFINITIONS).toHaveLength(16);
   });
 
   it('each civ has unique id, name, and color', () => {
     const ids = CIV_DEFINITIONS.map(c => c.id);
     const names = CIV_DEFINITIONS.map(c => c.name);
     const colors = CIV_DEFINITIONS.map(c => c.color);
-    expect(new Set(ids).size).toBe(12);
-    expect(new Set(names).size).toBe(12);
-    expect(new Set(colors).size).toBe(12);
+    expect(new Set(ids).size).toBe(16);
+    expect(new Set(names).size).toBe(16);
+    expect(new Set(colors).size).toBe(16);
   });
 
   it('getCivDefinition returns correct civ by id', () => {
@@ -70,5 +70,49 @@ describe('civ-definitions', () => {
   it('persia has trade_route_bonus', () => {
     const persia = getCivDefinition('persia')!;
     expect(persia.bonusEffect.type).toBe('trade_route_bonus');
+  });
+
+  // M4a new civs
+  it('france has culture_pressure bonus', () => {
+    const france = getCivDefinition('france');
+    expect(france).toBeDefined();
+    expect(france!.name).toBe('France');
+    expect(france!.bonusEffect.type).toBe('culture_pressure');
+    expect(france!.personality.traits).toContain('diplomatic');
+  });
+
+  it('germany has industrial_efficiency bonus', () => {
+    const germany = getCivDefinition('germany');
+    expect(germany).toBeDefined();
+    expect(germany!.name).toBe('Germany');
+    expect(germany!.bonusEffect.type).toBe('industrial_efficiency');
+  });
+
+  it('gondor has fortified_defense bonus', () => {
+    const gondor = getCivDefinition('gondor');
+    expect(gondor).toBeDefined();
+    expect(gondor!.name).toBe('Gondor');
+    expect(gondor!.bonusEffect.type).toBe('fortified_defense');
+    expect(gondor!.personality.traits).toContain('diplomatic');
+  });
+
+  it('rohan has grassland_cavalry_heal bonus', () => {
+    const rohan = getCivDefinition('rohan');
+    expect(rohan).toBeDefined();
+    expect(rohan!.name).toBe('Rohan');
+    expect(rohan!.bonusEffect.type).toBe('grassland_cavalry_heal');
+  });
+
+  it('all civs have valid personality traits', () => {
+    const validTraits = ['aggressive', 'diplomatic', 'expansionist', 'trader'];
+    for (const civ of CIV_DEFINITIONS) {
+      for (const trait of civ.personality.traits) {
+        expect(validTraits).toContain(trait);
+      }
+      expect(civ.personality.warLikelihood).toBeGreaterThanOrEqual(0);
+      expect(civ.personality.warLikelihood).toBeLessThanOrEqual(1);
+      expect(civ.personality.diplomacyFocus).toBeGreaterThanOrEqual(0);
+      expect(civ.personality.diplomacyFocus).toBeLessThanOrEqual(1);
+    }
   });
 });

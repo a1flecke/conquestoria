@@ -169,6 +169,63 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
       expansionDrive: 0.6,
     },
   },
+  // === M4a New Civilizations ===
+  {
+    id: 'france',
+    name: 'France',
+    color: '#1e3a8a',
+    bonusName: 'City of Light',
+    bonusDescription: 'Cities exert cultural pressure on neighboring tiles, expanding borders faster',
+    bonusEffect: { type: 'culture_pressure', radiusBonus: 1 },
+    personality: {
+      traits: ['diplomatic', 'trader'],
+      warLikelihood: 0.3,
+      diplomacyFocus: 0.8,
+      expansionDrive: 0.6,
+    },
+  },
+  {
+    id: 'germany',
+    name: 'Germany',
+    color: '#78716c',
+    bonusName: 'Industrial Powerhouse',
+    bonusDescription: '+15% production in all cities',
+    bonusEffect: { type: 'industrial_efficiency', productionBonus: 0.15 },
+    personality: {
+      traits: ['expansionist', 'aggressive'],
+      warLikelihood: 0.5,
+      diplomacyFocus: 0.4,
+      expansionDrive: 0.8,
+    },
+  },
+  {
+    id: 'gondor',
+    name: 'Gondor',
+    color: '#f5f5f4',
+    bonusName: 'White City',
+    bonusDescription: 'Fortified cities are 25% harder to capture',
+    bonusEffect: { type: 'fortified_defense', defenseBonus: 0.25 },
+    personality: {
+      traits: ['diplomatic', 'aggressive'],
+      warLikelihood: 0.4,
+      diplomacyFocus: 0.7,
+      expansionDrive: 0.5,
+    },
+  },
+  {
+    id: 'rohan',
+    name: 'Rohan',
+    color: '#65a30d',
+    bonusName: 'Riders of the Mark',
+    bonusDescription: 'Cavalry units heal 10 HP per turn on grassland tiles',
+    bonusEffect: { type: 'grassland_cavalry_heal', healPerTurn: 10 },
+    personality: {
+      traits: ['aggressive', 'expansionist'],
+      warLikelihood: 0.6,
+      diplomacyFocus: 0.4,
+      expansionDrive: 0.7,
+    },
+  },
 ];
 
 export function getCivDefinition(id: string): CivDefinition | undefined {
