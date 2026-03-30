@@ -131,13 +131,13 @@ export const TECH_TREE: Tech[] = [
   { id: 'printing', name: 'Printing', track: 'communication', cost: 120, prerequisites: ['courier-networks'], unlocks: ['Newspaper'], era: 4 },
   { id: 'diplomats', name: 'Diplomats', track: 'communication', cost: 130, prerequisites: ['courier-networks', 'ciphers'], unlocks: ['Embassy'], era: 4 },
 
-  // === ESPIONAGE TRACK (8 techs, new) ===
-  { id: 'scouts-tech', name: 'Scouts Tech', track: 'espionage', cost: 20, prerequisites: [], unlocks: ['Scout training'], era: 1 },
-  { id: 'lookouts', name: 'Lookouts', track: 'espionage', cost: 25, prerequisites: ['scouts-tech'], unlocks: ['Lookout tower'], era: 1 },
-  { id: 'informants', name: 'Informants', track: 'espionage', cost: 45, prerequisites: ['lookouts', 'code-of-laws'], unlocks: ['Informant network'], era: 2 },
+  // === ESPIONAGE TRACK (8 techs — M4a stages 1-2, expanded in later milestones) ===
+  { id: 'espionage-scouting', name: 'Scouting Networks', track: 'espionage', cost: 40, prerequisites: [], unlocks: ['Recruit spies', 'Passive city surveillance', 'Scout Area mission', 'Monitor Troops mission'], era: 1 },
+  { id: 'lookouts', name: 'Lookouts', track: 'espionage', cost: 25, prerequisites: ['espionage-scouting'], unlocks: ['Lookout tower'], era: 1 },
+  { id: 'espionage-informants', name: 'Informant Rings', track: 'espionage', cost: 80, prerequisites: ['espionage-scouting'], unlocks: ['Gather Intel mission', 'Identify Resources mission', 'Monitor Diplomacy mission', 'Second spy slot'], era: 2 },
   { id: 'disguise', name: 'Disguise', track: 'espionage', cost: 40, prerequisites: ['lookouts'], unlocks: ['Spy disguise'], era: 2 },
-  { id: 'spy-networks', name: 'Spy Networks', track: 'espionage', cost: 85, prerequisites: ['informants', 'disguise'], unlocks: ['Spy ring'], era: 3 },
-  { id: 'sabotage', name: 'Sabotage', track: 'espionage', cost: 80, prerequisites: ['informants'], unlocks: ['Saboteur'], era: 3 },
+  { id: 'spy-networks', name: 'Spy Networks', track: 'espionage', cost: 85, prerequisites: ['espionage-informants', 'disguise'], unlocks: ['Spy ring'], era: 3 },
+  { id: 'sabotage', name: 'Sabotage', track: 'espionage', cost: 80, prerequisites: ['espionage-informants'], unlocks: ['Saboteur'], era: 3 },
   { id: 'cryptography', name: 'Cryptography', track: 'espionage', cost: 125, prerequisites: ['spy-networks'], unlocks: ['Cipher bureau'], era: 4 },
   { id: 'counter-intelligence', name: 'Counter-Intelligence', track: 'espionage', cost: 130, prerequisites: ['spy-networks', 'sabotage'], unlocks: ['Security agency'], era: 4 },
 
