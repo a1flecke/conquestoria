@@ -13,6 +13,7 @@ import { processWonderEffects } from '@/systems/wonder-system';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { applyProductionBonus } from '@/systems/city-system';
+import { processEspionageTurn } from '@/systems/espionage-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -206,6 +207,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       position: evolution.newCity.position,
     });
   }
+
+  // --- Process espionage ---
+  newState = processEspionageTurn(newState, bus);
 
   // --- Era advancement check ---
   const newEra = checkEraAdvancement(newState);

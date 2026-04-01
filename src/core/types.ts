@@ -570,5 +570,5 @@ export interface GameEvents {
   'espionage:spy-detected': { detectingCivId: string; spyOwner: string; spyId: string; cityId: string };
   'espionage:spy-expelled': { civId: string; spyId: string; fromCivId: string };
   'espionage:spy-captured': { capturingCivId: string; spyOwner: string; spyId: string };
-  'espionage:spy-recalled': { civId: string; spyId: string };
+  'espionage:spy-recalled': { civId: string; spyId: string; reason?: string };
 }

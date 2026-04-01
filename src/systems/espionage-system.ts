@@ -625,11 +625,45 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
       }
     }
 
+    // Clean up spies targeting destroyed cities (traveling or on_mission)
+    for (const spy of Object.values(newState.espionage![civId].spies)) {
+      if ((spy.status === 'traveling' || spy.status === 'on_mission') && spy.targetCityId) {
+        const targetCity = newState.cities[spy.targetCityId];
+        if (!targetCity) {
+          newState.espionage![civId].spies[spy.id] = {
+            ...spy,
+            status: 'idle',
+            targetCivId: null,
+            targetCityId: null,
+            position: null,
+            currentMission: null,
+          };
+          bus.emit('espionage:spy-recalled', {
+            civId, spyId: spy.id, reason: 'city_destroyed',
+          });
+        }
+      }
+    }
+
     // Passive spy abilities: stationed spies passively reveal fog and report troops
     for (const spy of Object.values(newState.espionage![civId].spies)) {
       if (spy.status === 'stationed' && spy.targetCivId && spy.targetCityId) {
         const targetCity = newState.cities[spy.targetCityId];
-        if (!targetCity) continue;
+        if (!targetCity) {
+          // City was destroyed/captured — recall spy to idle
+          newState.espionage![civId].spies[spy.id] = {
+            ...spy,
+            status: 'idle',
+            targetCivId: null,
+            targetCityId: null,
+            position: null,
+            currentMission: null,
+          };
+          bus.emit('espionage:spy-recalled', {
+            civId, spyId: spy.id, reason: 'city_destroyed',
+          });
+          continue;
+        }
 
         // Passive fog reveal around stationed city
         const revealRadius = 3;

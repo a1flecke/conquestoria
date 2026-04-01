@@ -10,6 +10,7 @@ import { createMarketplaceState } from '@/systems/trade-system';
 import { placeWonders } from '@/systems/wonder-system';
 import { placeVillages } from '@/systems/village-system';
 import { placeMinorCivs } from '@/systems/minor-civ-system';
+import { initializeEspionage } from '@/systems/espionage-system';
 
 export const MAP_DIMENSIONS = {
   small: { width: 30, height: 30, maxPlayers: 3 },
@@ -134,6 +135,9 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
 
+  // Initialize espionage state for all civs
+  state.espionage = initializeEspionage(state);
+
   return state;
 }
 
@@ -225,6 +229,9 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
   state.minorCivs = mcResult.minorCivs;
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
+
+  // Initialize espionage state for all civs
+  state.espionage = initializeEspionage(state);
 
   return state;
 }

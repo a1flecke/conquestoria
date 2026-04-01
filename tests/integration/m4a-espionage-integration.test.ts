@@ -12,6 +12,8 @@ import {
 } from '@/systems/espionage-system';
 import type { GameState, EspionageState } from '@/core/types';
 import { getCivDefinition } from '@/systems/civ-definitions';
+import { createNewGame, createHotSeatGame } from '@/core/game-state';
+import { processTurn } from '@/core/turn-manager';
 
 function makeTestGameState(): GameState {
   return {
@@ -412,9 +414,37 @@ describe('M4a full integration', () => {
     // Remove the target city (simulating capture/destruction)
     delete state.cities['city-egypt-1'];
 
-    // Should not crash — spy should be gracefully handled
+    // Should recall spy to idle when target city is destroyed
+    const recallEvents: any[] = [];
+    bus.on('espionage:spy-recalled', (d) => recallEvents.push(d));
     const newState = processEspionageTurn(state, bus);
     expect(newState).toBeDefined();
+    const updatedSpy = newState.espionage!['player'].spies[spy.id];
+    expect(updatedSpy.status).toBe('idle');
+    expect(updatedSpy.targetCivId).toBeNull();
+    expect(updatedSpy.targetCityId).toBeNull();
+    expect(recallEvents.length).toBeGreaterThan(0);
+    expect(recallEvents[0].reason).toBe('city_destroyed');
+  });
+
+  it('recalls traveling spy when target city is destroyed mid-transit', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+
+    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'transit-seed');
+    state.espionage!['player'] = esp1;
+    state.espionage!['player'] = assignSpy(
+      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+    );
+    expect(state.espionage!['player'].spies[spy.id].status).toBe('traveling');
+
+    // Destroy city while spy is traveling
+    delete state.cities['city-egypt-1'];
+
+    const newState = processEspionageTurn(state, bus);
+    const updatedSpy = newState.espionage!['player'].spies[spy.id];
+    expect(updatedSpy.status).toBe('idle');
+    expect(updatedSpy.targetCivId).toBeNull();
   });
 
   it('new civ definitions are selectable and functional', () => {
@@ -477,5 +507,49 @@ describe('M4a full integration', () => {
     processEspionageTurn(makeScenario(), bus2);
 
     expect(results1).toEqual(results2);
+  });
+});
+
+describe('game creation espionage initialization', () => {
+  it('createNewGame initializes espionage state for all civs', () => {
+    const state = createNewGame('egypt', 'test-seed', 'small');
+    expect(state.espionage).toBeDefined();
+    expect(state.espionage!['player']).toBeDefined();
+    expect(state.espionage!['ai-1']).toBeDefined();
+    expect(state.espionage!['player'].spies).toBeDefined();
+    expect(state.espionage!['player'].maxSpies).toBeGreaterThanOrEqual(1);
+  });
+
+  it('createHotSeatGame initializes espionage state for all players', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'hotseat-seed');
+    expect(state.espionage).toBeDefined();
+    expect(state.espionage!['player-1']).toBeDefined();
+    expect(state.espionage!['player-2']).toBeDefined();
+  });
+});
+
+describe('turn manager espionage integration', () => {
+  it('processTurn calls processEspionageTurn and updates spy state', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'tm-seed');
+    state.espionage!['player'] = esp1;
+    state.espionage!['player'] = assignSpy(
+      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+    );
+    expect(state.espionage!['player'].spies[spy.id].status).toBe('traveling');
+
+    const bus = new EventBus();
+    const newState = processTurn(state, bus);
+
+    // Spy should have transitioned from traveling to stationed
+    expect(newState.espionage!['player'].spies[spy.id].status).toBe('stationed');
   });
 });
