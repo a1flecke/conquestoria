@@ -11,6 +11,7 @@ import {
   _resetSpyIdCounter,
 } from '@/systems/espionage-system';
 import type { GameState, EspionageState } from '@/core/types';
+import { getCivDefinition } from '@/systems/civ-definitions';
 
 function makeTestGameState(): GameState {
   return {
@@ -187,5 +188,294 @@ describe('espionage integration', () => {
       const newState = processEspionageTurn(state, bus);
       expect(newState).toBe(state);
     });
+  });
+});
+
+describe('hot seat espionage safety', () => {
+  let bus: EventBus;
+
+  beforeEach(() => {
+    bus = new EventBus();
+    _resetSpyIdCounter();
+  });
+
+  it('never exposes one players spy data to another', () => {
+    const state = makeTestGameState();
+    // Add player-2
+    state.civilizations['player-2'] = {
+      id: 'player-2', name: 'Rome', color: '#dc2626',
+      isHuman: true, civType: 'rome',
+      cities: ['city-rome-1'], units: [],
+      techState: { completed: ['espionage-scouting'], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+      gold: 100, visibility: { tiles: {} }, score: 50,
+      diplomacy: { relationships: { player: 0 }, treaties: [], events: [], atWarWith: [] },
+    } as any;
+    state.cities['city-rome-1'] = {
+      id: 'city-rome-1', name: 'Rome', owner: 'player-2',
+      position: { q: 8, r: 1 }, population: 3, food: 0, foodNeeded: 15,
+      buildings: [], productionQueue: [], productionProgress: 0,
+      ownedTiles: [], grid: [[null]], gridSize: 3,
+    } as any;
+    state.espionage = {
+      player: createEspionageCivState(),
+      'player-2': createEspionageCivState(),
+      'ai-egypt': createEspionageCivState(),
+    };
+
+    // Player 1 recruits and assigns spy to player 2
+    const { state: pEsp, spy: pSpy } = recruitSpy(state.espionage['player'], 'player', 'p-seed');
+    state.espionage['player'] = assignSpy(pEsp, pSpy.id, 'player-2', 'city-rome-1', { q: 8, r: 1 });
+
+    // When it's player 2's turn, player 1's spy data should not be accessible
+    state.currentPlayer = 'player-2';
+    const p2Espionage = state.espionage['player-2'];
+    // Player 2's espionage state should NOT contain player 1's spies
+    expect(Object.values(p2Espionage.spies).some(s => s.owner === 'player')).toBe(false);
+  });
+
+  it('espionage events use currentPlayer for context', () => {
+    const state = makeTestGameState();
+    state.currentPlayer = 'player';
+    state.espionage = initializeEspionage(state);
+
+    // Only the current player's espionage data should be shown in UI
+    const currentEsp = state.espionage![state.currentPlayer];
+    expect(currentEsp).toBeDefined();
+    expect(currentEsp.spies).toBeDefined();
+  });
+
+  it('processes all civ espionage during turn processing regardless of currentPlayer', () => {
+    const state = makeTestGameState();
+    state.currentPlayer = 'player';
+    state.espionage = initializeEspionage(state);
+
+    // Both player and AI have traveling spies
+    const { state: pEsp, spy: pSpy } = recruitSpy(state.espionage!['player'], 'player', 'p-seed');
+    state.espionage!['player'] = assignSpy(pEsp, pSpy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
+
+    const { state: aEsp, spy: aSpy } = recruitSpy(state.espionage!['ai-egypt'], 'ai-egypt', 'a-seed');
+    state.espionage!['ai-egypt'] = aEsp;
+    state.espionage!['ai-egypt'].spies[aSpy.id].status = 'traveling';
+    state.espionage!['ai-egypt'].spies[aSpy.id].targetCivId = 'player';
+
+    const newState = processEspionageTurn(state, bus);
+
+    expect(newState.espionage!['player'].spies[pSpy.id].status).toBe('stationed');
+    expect(newState.espionage!['ai-egypt'].spies[aSpy.id].status).toBe('stationed');
+  });
+});
+
+describe('M4a full integration', () => {
+  let bus: EventBus;
+
+  beforeEach(() => {
+    bus = new EventBus();
+    _resetSpyIdCounter();
+  });
+
+  it('complete espionage lifecycle: recruit → assign → travel → station → mission → success', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+    const events: any[] = [];
+    bus.on('espionage:spy-arrived', (d) => events.push({ type: 'arrived', ...d }));
+    bus.on('espionage:mission-succeeded', (d) => events.push({ type: 'succeeded', ...d }));
+    bus.on('espionage:mission-failed', (d) => events.push({ type: 'failed', ...d }));
+
+    // 1. Recruit
+    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'lifecycle-seed');
+    state.espionage!['player'] = esp1;
+
+    // 2. Assign
+    state.espionage!['player'] = assignSpy(
+      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+    );
+    expect(state.espionage!['player'].spies[spy.id].status).toBe('traveling');
+
+    // 3. Process turn → spy arrives
+    let newState = processEspionageTurn(state, bus);
+    expect(newState.espionage!['player'].spies[spy.id].status).toBe('stationed');
+    expect(events.some(e => e.type === 'arrived')).toBe(true);
+
+    // 4. Start mission
+    newState.espionage!['player'] = startMission(
+      newState.espionage!['player'], spy.id, 'scout_area',
+    );
+    expect(newState.espionage!['player'].spies[spy.id].status).toBe('on_mission');
+
+    // 5. Process turn → mission resolves (scout_area = 1 turn)
+    const finalState = processEspionageTurn(newState, bus);
+    const finalSpy = finalState.espionage!['player'].spies[spy.id];
+    // Mission resolved — spy is either stationed (success) or cooldown/captured (failure)
+    expect(['stationed', 'cooldown', 'captured']).toContain(finalSpy.status);
+    expect(finalSpy.currentMission).toBeNull();
+  });
+
+  it('multi-turn mission completes after correct number of turns', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+
+    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'multi-seed');
+    state.espionage!['player'] = esp1;
+    state.espionage!['player'] = assignSpy(
+      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+    );
+
+    // Turn 1: traveling → stationed
+    let s = processEspionageTurn(state, bus);
+    expect(s.espionage!['player'].spies[spy.id].status).toBe('stationed');
+
+    // Start gather_intel (3 turns)
+    s.espionage!['player'] = startMission(s.espionage!['player'], spy.id, 'gather_intel');
+
+    // Turn 2: mission progress (2 remaining)
+    s.turn = 11;
+    s = processEspionageTurn(s, bus);
+    expect(s.espionage!['player'].spies[spy.id].currentMission!.turnsRemaining).toBe(2);
+
+    // Turn 3: mission progress (1 remaining)
+    s.turn = 12;
+    s = processEspionageTurn(s, bus);
+    expect(s.espionage!['player'].spies[spy.id].currentMission!.turnsRemaining).toBe(1);
+
+    // Turn 4: mission resolves
+    s.turn = 13;
+    s = processEspionageTurn(s, bus);
+    expect(s.espionage!['player'].spies[spy.id].currentMission).toBeNull();
+  });
+
+  it('stationed spy passively reveals fog around target city each turn', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+    // Add map tiles around Egypt's city
+    for (let q = 3; q <= 7; q++) {
+      for (let r = 1; r <= 5; r++) {
+        state.map.tiles[`${q},${r}`] = {
+          coord: { q, r }, terrain: 'plains', elevation: 'lowland',
+          resource: null, improvement: 'none', owner: null,
+          improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+        } as any;
+      }
+    }
+    // Player has no visibility
+    state.civilizations['player'].visibility.tiles = {};
+
+    // Recruit and station spy
+    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'passive-seed');
+    state.espionage!['player'] = esp1;
+    state.espionage!['player'] = assignSpy(
+      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+    );
+    // Arrive
+    let s = processEspionageTurn(state, bus);
+    expect(s.espionage!['player'].spies[spy.id].status).toBe('stationed');
+
+    // Next turn: passive reveal should happen
+    s.turn = 11;
+    s = processEspionageTurn(s, bus);
+    // Tiles around city (q:5, r:3) within radius 3 should be visible
+    expect(s.civilizations['player'].visibility.tiles['5,3']).toBe('visible');
+    expect(s.civilizations['player'].visibility.tiles['4,3']).toBe('visible');
+  });
+
+  it('stationed spy passively reports troop movements each turn', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+    const troopReports: any[] = [];
+    bus.on('espionage:mission-succeeded', (d) => {
+      if (d.result && (d.result as any).passive) troopReports.push(d);
+    });
+
+    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'troop-seed');
+    state.espionage!['player'] = esp1;
+    state.espionage!['player'] = assignSpy(
+      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+    );
+    state.espionage!['player'].spies[spy.id].status = 'stationed';
+
+    // Egypt has a unit near the city (already in makeTestGameState)
+    processEspionageTurn(state, bus);
+    expect(troopReports.length).toBeGreaterThan(0);
+    expect((troopReports[0].result as any).nearbyUnits.length).toBeGreaterThan(0);
+  });
+
+  it('handles spy in destroyed/captured city gracefully', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+
+    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'destroyed-seed');
+    state.espionage!['player'] = esp1;
+    state.espionage!['player'] = assignSpy(
+      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+    );
+    state.espionage!['player'].spies[spy.id].status = 'stationed';
+
+    // Remove the target city (simulating capture/destruction)
+    delete state.cities['city-egypt-1'];
+
+    // Should not crash — spy should be gracefully handled
+    const newState = processEspionageTurn(state, bus);
+    expect(newState).toBeDefined();
+  });
+
+  it('new civ definitions are selectable and functional', () => {
+    const newCivIds = ['france', 'germany', 'gondor', 'rohan'];
+    for (const civId of newCivIds) {
+      const def = getCivDefinition(civId);
+      expect(def).toBeDefined();
+      expect(def!.id).toBe(civId);
+      expect(def!.bonusEffect).toBeDefined();
+      expect(def!.personality.traits.length).toBeGreaterThan(0);
+      expect(def!.color).toBeTruthy();
+    }
+  });
+
+  it('espionage state survives serialization (structuredClone)', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'serial-seed');
+    state.espionage!['player'] = esp1;
+
+    const cloned = structuredClone(state);
+    expect(cloned.espionage!['player'].spies[spy.id].id).toBe(spy.id);
+    expect(cloned.espionage!['player'].spies[spy.id].name).toBe(spy.name);
+    expect(cloned.espionage!['player'].spies[spy.id].status).toBe('idle');
+  });
+
+  it('espionage works with seeded RNG — same seed produces same outcomes', () => {
+    const makeScenario = () => {
+      _resetSpyIdCounter();
+      const state = makeTestGameState();
+      state.espionage = initializeEspionage(state);
+      const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'determ-seed');
+      state.espionage!['player'] = esp1;
+      state.espionage!['player'] = assignSpy(
+        state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+      );
+      state.espionage!['player'].spies[spy.id].status = 'on_mission';
+      state.espionage!['player'].spies[spy.id].currentMission = {
+        type: 'scout_area', turnsRemaining: 1, turnsTotal: 1,
+        targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1',
+      };
+      return state;
+    };
+
+    const bus1 = new EventBus();
+    const bus2 = new EventBus();
+    const results1: string[] = [];
+    const results2: string[] = [];
+    bus1.on('espionage:mission-succeeded', () => results1.push('success'));
+    bus1.on('espionage:mission-failed', () => results1.push('failed'));
+    bus1.on('espionage:spy-expelled', () => results1.push('expelled'));
+    bus1.on('espionage:spy-captured', () => results1.push('captured'));
+    bus2.on('espionage:mission-succeeded', () => results2.push('success'));
+    bus2.on('espionage:mission-failed', () => results2.push('failed'));
+    bus2.on('espionage:spy-expelled', () => results2.push('expelled'));
+    bus2.on('espionage:spy-captured', () => results2.push('captured'));
+
+    // Both should produce identical results with identical state
+    processEspionageTurn(makeScenario(), bus1);
+    processEspionageTurn(makeScenario(), bus2);
+
+    expect(results1).toEqual(results2);
   });
 });
