@@ -8,7 +8,12 @@
 
 A civ that has lost 50%+ of its peak cities or military units can offer vassalage to a stronger neighbor. Vassalage creates a binding overlord/vassal relationship with real obligations on both sides.
 
-**Eligibility:** A civ qualifies to offer vassalage when its current city count or military unit count drops below 50% of its peak count during the game. Peak counts are tracked on DiplomacyState.
+**Eligibility:** A civ qualifies to offer vassalage when ALL of the following are met:
+- Era ≥ 2 (no vassalage in the founding era)
+- Peak cities ≥ 2 (a civ that never expanded past one city isn't a vassal — it's just losing)
+- Current city count or military unit count has dropped below 50% of its peak count during the game
+
+Peak counts are tracked on DiplomacyState.
 
 **Bilateral update rule:** All vassalage operations (`offerVassalage`, `acceptVassalage`, `endVassalage`) MUST update both the vassal's and overlord's `DiplomacyState.vassalage` atomically, following the project's bilateral diplomacy convention.
 
@@ -332,6 +337,8 @@ Every new system must be:
 - Propose embargo against an ally → blocked
 - Join a second defensive league → blocked
 - Offer vassalage when above 50% peak strength → blocked
+- Offer vassalage in era 1 → blocked
+- Offer vassalage with peak cities < 2 → blocked
 - Propose embargo without Currency tech / era 2 → blocked
 - Propose league without Writing tech → blocked
 
@@ -350,7 +357,7 @@ Every new system must be:
 
 ## 8. Acceptance Criteria
 
-- [ ] Losing civ (below 50% peak) can offer vassalage; tribute, war obligations, and independence petition all work
+- [ ] Losing civ (below 50% peak, era ≥ 2, peak cities ≥ 2) can offer vassalage; tribute, war obligations, and independence petition all work
 - [ ] Overlord protection score tracks defensive commitment with per-attacker timers; poor protection accelerates breakaway; auto-breakaway at ≤20
 - [ ] Overlord elimination frees all vassals automatically
 - [ ] Vassals cannot act independently (war, treaties, embargoes, leagues all blocked)
