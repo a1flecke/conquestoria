@@ -33,6 +33,220 @@
 
 ---
 
+## Task 0: Pre-fix Gameplay Bugs (from user testing)
+
+These bugs were found during playtesting and must be fixed before new features. Each references a GitHub issue.
+
+**Files:**
+- Modify: `src/core/types.ts`
+- Modify: `src/systems/unit-system.ts`
+- Modify: `src/systems/city-system.ts`
+- Modify: `src/systems/tech-definitions.ts`
+- Modify: `src/main.ts`
+- Modify: `src/ui/advisor-system.ts`
+- Modify: `src/systems/minor-civ-system.ts`
+- Modify: `src/renderer/hex-renderer.ts` (or equivalent renderer file)
+- Create: `tests/systems/bugfix-playtest.test.ts`
+
+### 0a: Add archer unit type (fixes #34)
+
+- [ ] **Step 1: Add `archer` to UnitType**
+
+In `src/core/types.ts`, line 101, add `archer` to the union:
+```typescript
+export type UnitType = 'settler' | 'worker' | 'scout' | 'warrior' | 'archer' | 'swordsman' | 'pikeman' | 'musketeer';
+```
+
+- [ ] **Step 2: Add archer to UNIT_DEFINITIONS**
+
+In `src/systems/unit-system.ts`, after `warrior`:
+```typescript
+  archer: {
+    type: 'archer', name: 'Archer', movementPoints: 2,
+    visionRange: 2, strength: 15, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 35,
+  },
+```
+
+- [ ] **Step 3: Add archer to TRAINABLE_UNITS**
+
+In `src/systems/city-system.ts`, after warrior entry:
+```typescript
+  { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery' },
+```
+
+- [ ] **Step 4: Run tests, commit**
+
+Run: `yarn test && yarn build`
+```bash
+git commit -m "fix: add archer unit type gated by archery tech (fixes #34)"
+```
+
+### 0b: Fix movement cost hardcoded to 1 (fixes #27)
+
+- [ ] **Step 1: Pass actual terrain cost to moveUnit**
+
+In `src/main.ts`, line 530, replace:
+```typescript
+gameState.units[selectedUnitId] = moveUnit(unit, coord, 1);
+```
+with:
+```typescript
+const targetTile = gameState.map.tiles[key];
+const terrainCost = targetTile ? getMovementCost(targetTile.terrain) : 1;
+gameState.units[selectedUnitId] = moveUnit(unit, coord, terrainCost);
+```
+
+Note: `getMovementCost` is not exported from unit-system.ts. Either export it, or import and use it. If it's private, extract it to a shared utility or export it.
+
+- [ ] **Step 2: Export getMovementCost from unit-system.ts**
+
+Change `function getMovementCost` (line 80) to `export function getMovementCost`.
+
+- [ ] **Step 3: Run tests, commit**
+
+```bash
+git commit -m "fix: use actual terrain movement cost instead of hardcoded 1 (fixes #27)"
+```
+
+### 0c: Add major civ city capture (fixes #29, #30)
+
+- [ ] **Step 1: Add city capture logic in main.ts**
+
+In `src/main.ts`, after the minor civ capture check (line 521), add major civ city capture:
+
+```typescript
+        // Check if a major civ city was captured
+        if (cityAtTarget && !cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
+          const previousOwner = cityAtTarget.owner;
+          cityAtTarget.owner = gameState.currentPlayer;
+          // Transfer city from old owner's cities list to new owner
+          if (gameState.civilizations[previousOwner]) {
+            gameState.civilizations[previousOwner].cities = gameState.civilizations[previousOwner].cities.filter(id => id !== cityAtTarget.id);
+          }
+          if (!currentCiv().cities.includes(cityAtTarget.id)) {
+            currentCiv().cities.push(cityAtTarget.id);
+          }
+          showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
+          bus.emit('city:captured', { cityId: cityAtTarget.id, newOwner: gameState.currentPlayer, previousOwner });
+        }
+```
+
+- [ ] **Step 2: Add `city:captured` event to GameEvents in types.ts**
+
+```typescript
+  'city:captured': { cityId: string; newOwner: string; previousOwner: string };
+```
+
+- [ ] **Step 3: Run tests, commit**
+
+```bash
+git commit -m "fix: add major civ city capture on combat victory (fixes #29, #30)"
+```
+
+### 0d: Gate granary behind granary-design tech (fixes #19)
+
+- [ ] **Step 1: Update granary building definition**
+
+In `src/systems/city-system.ts`, line 16, change:
+```typescript
+granary: { ..., techRequired: null, ... }
+```
+to:
+```typescript
+granary: { ..., techRequired: 'granary-design', ... }
+```
+
+- [ ] **Step 2: Update tutorial to not suggest granary immediately**
+
+In `src/ui/tutorial.ts`, line 21, change the `found_city` message to suggest Shrine (no tech) instead:
+```typescript
+message: 'Excellent! Your city is growing. Build a Shrine to start generating science, or train a Warrior to defend your borders. Tap your city to see options.',
+```
+
+- [ ] **Step 3: Run tests, commit**
+
+```bash
+git commit -m "fix: gate granary behind granary-design tech, update tutorial (fixes #19)"
+```
+
+### 0e: Filter minor civ quests by discovery status (fixes #22, #32)
+
+- [ ] **Step 1: Add discovery check to minor civ quest/advisor display**
+
+In `src/ui/advisor-system.ts` and any quest notification code, filter minor civ references:
+```typescript
+// Only show minor civ info if the player has discovered them
+const playerVis = state.civilizations[state.currentPlayer]?.visibility;
+const mcPosition = state.minorCivs[mcId]?.position;
+if (!playerVis || !mcPosition) return; // skip
+const mcKey = `${mcPosition.q},${mcPosition.r}`;
+if (playerVis.tiles[mcKey] !== 'visible' && playerVis.tiles[mcKey] !== 'explored') return; // not discovered
+```
+
+Apply this filter wherever minor civ names/quests are displayed to the player.
+
+- [ ] **Step 2: Run tests, commit**
+
+```bash
+git commit -m "fix: filter minor civ quests by discovery status (fixes #22, #32)"
+```
+
+### 0f: Fix tile improvement rendering (fixes #23, #24)
+
+- [ ] **Step 1: Verify improvement rendering in renderer**
+
+Check the hex renderer code to ensure improvements are drawn on tiles when `improvementTurnsLeft === 0`. Look for the tile rendering function and add improvement icons (farm=🌾, mine=⛏, road=gray line) if missing.
+
+- [ ] **Step 2: Add "building..." indicator for in-progress improvements**
+
+When `improvement !== 'none' && improvementTurnsLeft > 0`, render a subtle construction indicator on the tile (e.g., small hammer icon or progress dots).
+
+- [ ] **Step 3: Run tests, commit**
+
+```bash
+git commit -m "fix: render tile improvements on map, add progress indicator (fixes #23, #24)"
+```
+
+### 0g: Write regression tests for all fixes
+
+- [ ] **Step 1: Create regression test file**
+
+```typescript
+// tests/systems/bugfix-playtest.test.ts
+import { describe, it, expect } from 'vitest';
+import { UNIT_DEFINITIONS, getMovementCost, moveUnit, createUnit } from '@/systems/unit-system';
+import { BUILDING_DEFINITIONS, TRAINABLE_UNITS } from '@/systems/city-system';
+
+describe('playtest bugfixes', () => {
+  it('archer unit exists and is gated by archery tech (#34)', () => {
+    expect(UNIT_DEFINITIONS.archer).toBeDefined();
+    expect(UNIT_DEFINITIONS.archer.strength).toBeGreaterThan(0);
+    const trainable = TRAINABLE_UNITS.find(u => u.type === 'archer');
+    expect(trainable).toBeDefined();
+    expect(trainable!.techRequired).toBe('archery');
+  });
+
+  it('movement deducts correct terrain cost (#27)', () => {
+    const unit = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const moved = moveUnit(unit, { q: 1, r: 0 }, 2); // forest cost
+    expect(moved.movementPointsLeft).toBe(0); // 2 - 2 = 0
+  });
+
+  it('granary requires granary-design tech (#19)', () => {
+    expect(BUILDING_DEFINITIONS.granary.techRequired).toBe('granary-design');
+  });
+});
+```
+
+- [ ] **Step 2: Run tests, commit**
+
+```bash
+git commit -m "test: regression tests for playtest bugfixes (#19, #27, #34)"
+```
+
+---
+
 ## Task 1: Type Definitions
 
 **Files:**
