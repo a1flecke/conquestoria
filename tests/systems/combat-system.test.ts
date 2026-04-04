@@ -30,26 +30,21 @@ describe('resolveCombat', () => {
     expect(result.defenderDamage).toBeGreaterThanOrEqual(0);
   });
 
-  it('defender on hills takes less damage on average', () => {
+  it('defender on hills takes less damage than on plains (same seed)', () => {
     const hillsTile = Object.values(map.tiles).find(t => t.terrain === 'hills');
-    if (!hillsTile) return;
+    const plainsTile = Object.values(map.tiles).find(t => t.terrain === 'plains');
+    if (!hillsTile || !plainsTile) return;
 
-    const attacker = createUnit('warrior', 'p1', { q: hillsTile.coord.q - 1, r: hillsTile.coord.r });
-    const defender = createUnit('warrior', 'p2', hillsTile.coord);
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
+    const hillsDefender = createUnit('warrior', 'p2', hillsTile.coord);
+    const plainsDefender = createUnit('warrior', 'p2', plainsTile.coord);
 
-    let totalDefenderDamage = 0;
-    let totalAttackerDamage = 0;
-    for (let i = 0; i < 100; i++) {
-      const result = resolveCombat(
-        { ...attacker, health: 100 },
-        { ...defender, health: 100 },
-        map,
-      );
-      totalDefenderDamage += result.defenderDamage;
-      totalAttackerDamage += result.attackerDamage;
-    }
-    // Defender on hills should take less damage than attacker on average
-    expect(totalDefenderDamage).toBeLessThan(totalAttackerDamage);
+    // Same seed → deterministic. Hills gives +25% defense so defender takes less damage.
+    const seed = 42;
+    const hillsResult = resolveCombat({ ...attacker, health: 100 }, { ...hillsDefender, health: 100 }, map, seed);
+    const plainsResult = resolveCombat({ ...attacker, health: 100 }, { ...plainsDefender, health: 100 }, map, seed);
+
+    expect(hillsResult.defenderDamage).toBeLessThan(plainsResult.defenderDamage);
   });
 
   it('marks units as destroyed when health reaches 0', () => {
