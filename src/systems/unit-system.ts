@@ -24,6 +24,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 10, canFoundCity: false,
     canBuildImprovements: false, productionCost: 25,
   },
+  archer: {
+    type: 'archer', name: 'Archer', movementPoints: 2,
+    visionRange: 2, strength: 15, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 35,
+  },
   swordsman: {
     type: 'swordsman', name: 'Swordsman', movementPoints: 2,
     visionRange: 2, strength: 25, canFoundCity: false,
@@ -77,7 +82,7 @@ export function resetUnitTurn(unit: Unit): Unit {
   };
 }
 
-function getMovementCost(terrain: string): number {
+export function getMovementCost(terrain: string): number {
   const costs: Record<string, number> = {
     grassland: 1, plains: 1, desert: 1, tundra: 1,
     forest: 2, hills: 2, snow: 2,

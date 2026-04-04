@@ -161,6 +161,18 @@ function drawHex(
     ctx.fillText(icon, cx, cy);
   }
 
+  // Draw construction progress indicator
+  if (tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = `${size * 0.35}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🔨', cx, cy - size * 0.15);
+    ctx.font = `bold ${size * 0.22}px sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillText(`${tile.improvementTurnsLeft}t`, cx, cy + size * 0.25);
+  }
+
   // Draw wonder indicator
   if (tile.wonder) {
     ctx.font = `bold ${size * 0.55}px system-ui`;

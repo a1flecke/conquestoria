@@ -98,7 +98,7 @@ export interface VisibilityMap {
 
 // --- Units ---
 
-export type UnitType = 'settler' | 'worker' | 'scout' | 'warrior' | 'swordsman' | 'pikeman' | 'musketeer';
+export type UnitType = 'settler' | 'worker' | 'scout' | 'warrior' | 'archer' | 'swordsman' | 'pikeman' | 'musketeer';
 
 export interface UnitDefinition {
   type: UnitType;
@@ -519,6 +519,7 @@ export interface GameEvents {
   'unit:created': { unit: Unit };
   'unit:destroyed': { unitId: string; position: HexCoord };
   'city:founded': { city: City };
+  'city:captured': { cityId: string; newOwner: string; previousOwner: string };
   'city:building-complete': { cityId: string; buildingId: string };
   'city:unit-trained': { cityId: string; unitType: UnitType };
   'city:grew': { cityId: string; newPopulation: number };
