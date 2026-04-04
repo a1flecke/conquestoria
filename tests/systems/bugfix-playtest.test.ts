@@ -12,7 +12,7 @@ describe('playtest bugfixes', () => {
   });
 
   it('movement deducts correct terrain cost (#27)', () => {
-    const unit = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const unit = createUnit('warrior', 'civ-a', { q: 0, r: 0 });
     const moved = moveUnit(unit, { q: 1, r: 0 }, 2); // forest cost
     expect(moved.movementPointsLeft).toBe(0); // 2 - 2 = 0
   });

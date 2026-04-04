@@ -528,8 +528,9 @@ function handleHexTap(coord: HexCoord): void {
           if (gameState.civilizations[previousOwner]) {
             gameState.civilizations[previousOwner].cities = gameState.civilizations[previousOwner].cities.filter(id => id !== cityAtTarget.id);
           }
-          if (!currentCiv().cities.includes(cityAtTarget.id)) {
-            currentCiv().cities.push(cityAtTarget.id);
+          const capturingCiv = currentCiv();
+          if (capturingCiv && !capturingCiv.cities.includes(cityAtTarget.id)) {
+            capturingCiv.cities.push(cityAtTarget.id);
           }
           showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
           bus.emit('city:captured', { cityId: cityAtTarget.id, newOwner: gameState.currentPlayer, previousOwner });
