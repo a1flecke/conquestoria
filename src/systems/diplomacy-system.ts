@@ -57,22 +57,41 @@ export function declareWar(
   state: DiplomacyState,
   targetCivId: string,
   turn: number,
+  isVoluntary: boolean = true,
 ): DiplomacyState {
-  let newState = {
+  let updated = {
     ...state,
     atWarWith: state.atWarWith.includes(targetCivId)
       ? [...state.atWarWith]
       : [...state.atWarWith, targetCivId],
     events: [...state.events],
   };
-  newState = modifyRelationship(newState, targetCivId, -50);
-  newState.events.push({
+  updated = modifyRelationship(updated, targetCivId, -50);
+  updated.events.push({
     type: 'war_declared',
     turn,
     otherCiv: targetCivId,
     weight: 1,
   });
-  return newState;
+  // If voluntary, apply treachery for each broken treaty (excluding vassalage)
+  if (isVoluntary) {
+    const brokenTreaties = state.treaties.filter(t =>
+      (t.civA === targetCivId || t.civB === targetCivId) && t.type !== 'vassalage'
+    );
+    for (const treaty of brokenTreaties) {
+      updated = applyTreachery(updated, treaty.type);
+    }
+  }
+  return updated;
+}
+
+// Vassal auto-joins overlord's wars — no treachery
+export function vassalAutoWar(
+  vassalDip: DiplomacyState,
+  targetCivId: string,
+  turn: number,
+): DiplomacyState {
+  return declareWar(vassalDip, targetCivId, turn, false);
 }
 
 export function makePeace(
@@ -230,6 +249,23 @@ export function getAvailableActions(
         actions.push('alliance');
       }
     }
+
+    // Vassalage (only when weakened, era >= 2, not already a vassal)
+    if (era >= 2 && !state.vassalage?.overlord) {
+      actions.push('offer_vassalage');
+    }
+
+    // Embargo (requires currency tech or era >= 2, not vassal)
+    const hasEmbargoTech = completedTechs.some(t => ['currency', 'foreign-trade', 'banking'].includes(t));
+    if ((era >= 2 || hasEmbargoTech) && !state.vassalage?.overlord) {
+      actions.push('propose_embargo');
+    }
+
+    // League (requires writing tech, not in a league, not vassal)
+    const hasWritingTech = completedTechs.some(t => ['science-writing', 'communication-writing', 'writing'].includes(t));
+    if (hasWritingTech && !state.vassalage?.overlord) {
+      actions.push('propose_league');
+    }
   }
 
   return actions;
@@ -240,9 +276,55 @@ export function getAvailableActions(
 function getLeagueForCiv(_leagues: DefensiveLeague[], _civId: string): null { return null; }
 function leaveLeague(leagues: DefensiveLeague[], _id: string, _civ: string): { leagues: DefensiveLeague[] } { return { leagues }; }
 
-// Stub — full implementation in Task 4
-function applyTreachery(state: DiplomacyState, _action: string): DiplomacyState {
-  return { ...state, treacheryScore: Math.min(100, state.treacheryScore + 20) };
+// --- Betrayal & Treachery ---
+
+const TREACHERY_AMOUNTS: Record<string, number> = {
+  non_aggression_pact: 20,
+  trade_agreement: 15,
+  alliance: 30,
+  vassalage: 40,
+  vassalage_independence: 20,
+  leave_embargo: 5,
+  leave_league: 10,
+};
+
+export function applyTreachery(
+  state: DiplomacyState,
+  action: string,
+): DiplomacyState {
+  const amount = TREACHERY_AMOUNTS[action] ?? 0;
+  return {
+    ...state,
+    treacheryScore: Math.min(100, state.treacheryScore + amount),
+  };
+}
+
+export function broadcastTreacheryPenalty(
+  allDipStates: Record<string, DiplomacyState>,
+  betrayerCivId: string,
+): Record<string, DiplomacyState> {
+  const betrayer = allDipStates[betrayerCivId];
+  if (!betrayer) return allDipStates;
+
+  const penalty = -Math.floor(betrayer.treacheryScore / 4);
+  const result = { ...allDipStates };
+
+  for (const [civId, dip] of Object.entries(result)) {
+    if (civId === betrayerCivId) continue;
+    if (dip.relationships[betrayerCivId] !== undefined) {
+      result[civId] = modifyRelationship(dip, betrayerCivId, penalty);
+    }
+  }
+
+  return result;
+}
+
+export function decayTreachery(state: DiplomacyState, turn: number): DiplomacyState {
+  if (turn % 5 !== 0 || state.treacheryScore <= 0) return state;
+  return {
+    ...state,
+    treacheryScore: Math.max(0, state.treacheryScore - 1),
+  };
 }
 
 // --- Vassalage ---
