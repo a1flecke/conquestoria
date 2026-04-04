@@ -212,7 +212,11 @@ export type CivBonusEffect =
   | { type: 'culture_pressure'; radiusBonus: number }
   | { type: 'industrial_efficiency'; productionBonus: number }
   | { type: 'fortified_defense'; defenseBonus: number }
-  | { type: 'grassland_cavalry_heal'; healPerTurn: number };
+  | { type: 'grassland_cavalry_heal'; healPerTurn: number }
+  | { type: 'tundra_bonus'; foodBonus: number; productionBonus: number }
+  | { type: 'siege_bonus'; damageMultiplier: number }
+  | { type: 'peaceful_growth'; foodBonus: number; militaryPenalty: number }
+  | { type: 'forest_industry'; productionBurst: number };
 
 export interface CivDefinition {
   id: string;
@@ -232,9 +236,18 @@ export type DiplomaticAction =
   | 'non_aggression_pact'
   | 'trade_agreement'
   | 'open_borders'
-  | 'alliance';
+  | 'alliance'
+  | 'offer_vassalage'
+  | 'petition_independence'
+  | 'propose_embargo'
+  | 'join_embargo'
+  | 'leave_embargo'
+  | 'propose_league'
+  | 'invite_to_league'
+  | 'petition_league'
+  | 'leave_league';
 
-export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance';
+export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage';
 
 export interface Treaty {
   type: TreatyType;
@@ -251,11 +264,38 @@ export interface DiplomaticEvent {
   weight: number;             // decays over time
 }
 
+export interface VassalageState {
+  overlord: string | null;
+  vassals: string[];
+  protectionScore: number;
+  protectionTimers: Array<{
+    attackerCivId: string;
+    turnsRemaining: number;
+  }>;
+  peakCities: number;
+  peakMilitary: number;
+}
+
 export interface DiplomacyState {
   relationships: Record<string, number>;    // civId -> score (-100 to +100)
   treaties: Treaty[];
   events: DiplomaticEvent[];
   atWarWith: string[];
+  treacheryScore: number;
+  vassalage: VassalageState;
+}
+
+export interface Embargo {
+  id: string;
+  targetCivId: string;
+  participants: string[];
+  proposedTurn: number;
+}
+
+export interface DefensiveLeague {
+  id: string;
+  members: string[];
+  formedTurn: number;
 }
 
 // --- Espionage ---
@@ -498,6 +538,8 @@ export interface GameState {
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   espionage?: EspionageState;
+  embargoes?: Embargo[];
+  defensiveLeagues?: DefensiveLeague[];
 }
 
 export interface GameSettings {
@@ -520,6 +562,20 @@ export interface GameEvents {
   'unit:destroyed': { unitId: string; position: HexCoord };
   'city:founded': { city: City };
   'city:captured': { cityId: string; newOwner: string; previousOwner: string };
+  'diplomacy:vassalage-offered': { fromCivId: string; toCivId: string };
+  'diplomacy:vassalage-accepted': { vassalId: string; overlordId: string };
+  'diplomacy:vassalage-ended': { vassalId: string; overlordId: string; reason: 'independence' | 'war' | 'auto_breakaway' | 'overlord_eliminated' };
+  'diplomacy:independence-petition': { vassalId: string; overlordId: string; accepted: boolean };
+  'diplomacy:protection-failed': { overlordId: string; vassalId: string; attackerId: string };
+  'diplomacy:vassal-auto-war': { vassalId: string; overlordId: string; targetCivId: string };
+  'diplomacy:treachery': { civId: string; action: string; newScore: number };
+  'diplomacy:embargo-proposed': { proposerId: string; targetCivId: string; embargoId: string };
+  'diplomacy:embargo-joined': { civId: string; embargoId: string };
+  'diplomacy:embargo-left': { civId: string; embargoId: string };
+  'diplomacy:league-formed': { leagueId: string; members: string[] };
+  'diplomacy:league-joined': { civId: string; leagueId: string };
+  'diplomacy:league-dissolved': { leagueId: string; reason: string };
+  'diplomacy:league-triggered': { leagueId: string; attackerId: string; defenderId: string };
   'city:building-complete': { cityId: string; buildingId: string };
   'city:unit-trained': { cityId: string; unitType: UnitType };
   'city:grew': { cityId: string; newPopulation: number };
