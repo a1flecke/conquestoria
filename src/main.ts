@@ -519,6 +519,21 @@ function handleHexTap(coord: HexCoord): void {
           const mcId = cityAtTarget.owner;
           conquestMinorCiv(gameState, mcId, gameState.currentPlayer, bus);
         }
+
+        // Check if a major civ city was captured
+        if (cityAtTarget && !cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
+          const previousOwner = cityAtTarget.owner;
+          cityAtTarget.owner = gameState.currentPlayer;
+          // Transfer city from old owner's cities list to new owner
+          if (gameState.civilizations[previousOwner]) {
+            gameState.civilizations[previousOwner].cities = gameState.civilizations[previousOwner].cities.filter(id => id !== cityAtTarget.id);
+          }
+          if (!currentCiv().cities.includes(cityAtTarget.id)) {
+            currentCiv().cities.push(cityAtTarget.id);
+          }
+          showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
+          bus.emit('city:captured', { cityId: cityAtTarget.id, newOwner: gameState.currentPlayer, previousOwner });
+        }
       } else {
         gameState.units[unitAtHex[0]].health -= result.defenderDamage;
       }
