@@ -463,6 +463,8 @@ describe('resolveMissionResult', () => {
             treaties: [{ type: 'trade_agreement', civA: 'ai-egypt', civB: 'ai-rome', turnsRemaining: 5 }],
             events: [],
             atWarWith: [],
+            treacheryScore: 0,
+            vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
           },
         },
       },
@@ -473,6 +475,8 @@ describe('resolveMissionResult', () => {
       tribalVillages: {},
       discoveredWonders: {},
       wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
     } as GameState;
   }
 
