@@ -109,10 +109,10 @@ export interface DefensiveLeague {
 }
 ```
 
-Add to `GameState` interface (after `espionage`):
+Add to `GameState` interface (after `espionage`). Use `?` optional initially so the build stays clean between Task 1 and Task 2. Task 2 will remove the `?` once initialization is added to both createNewGame and createHotSeatGame:
 ```typescript
-  embargoes: Embargo[];
-  defensiveLeagues: DefensiveLeague[];
+  embargoes?: Embargo[];
+  defensiveLeagues?: DefensiveLeague[];
 ```
 
 - [ ] **Step 4: Add 4 new CivBonusEffect variants**
@@ -199,9 +199,11 @@ export function createDiplomacyState(
 }
 ```
 
-- [ ] **Step 2: Add embargoes and defensiveLeagues to createNewGame**
+- [ ] **Step 2: Add embargoes and defensiveLeagues to createNewGame + make fields required**
 
-In `src/core/game-state.ts`, add to the GameState literal in `createNewGame()` (around line 104):
+First, in `src/core/types.ts`, remove the `?` from `embargoes` and `defensiveLeagues` on `GameState` (making them required now that initialization follows).
+
+Then in `src/core/game-state.ts`, add to the GameState literal in `createNewGame()` (around line 104):
 ```typescript
   embargoes: [],
   defensiveLeagues: [],
@@ -400,23 +402,32 @@ describe('vassalage', () => {
       expect(result.relationshipChange).toBe(10);
     });
 
-    it('returns war declaration when overlord refuses', () => {
+    it('returns war declaration with treachery when overlord refuses', () => {
       const vassal = makeDipState({ vassalage: { overlord: 'overlord-id', vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 3, peakMilitary: 5 } });
       const overlord = makeDipState({ vassalage: { overlord: null, vassals: ['vassal-id'], protectionScore: 100, protectionTimers: [], peakCities: 3, peakMilitary: 5 } });
       const result = petitionIndependence(vassal, overlord, 'vassal-id', 'overlord-id', false);
       expect(result.vassalState.vassalage.overlord).toBeNull();
       expect(result.vassalState.atWarWith).toContain('overlord-id');
+      expect(result.vassalState.treacheryScore).toBe(20); // vassalage_independence
       expect(result.relationshipChange).toBe(-50);
     });
   });
 
   describe('onVassalAttacked', () => {
-    it('starts protection timer and triggers overlord auto-war', () => {
+    it('starts protection timer without auto-declaring war', () => {
       const overlord = makeDipState({ vassalage: { overlord: null, vassals: ['vassal-id'], protectionScore: 100, protectionTimers: [], peakCities: 3, peakMilitary: 5 } });
-      const result = onVassalAttacked(overlord, 'attacker-id', 10);
+      const result = onVassalAttacked(overlord, 'attacker-id');
       expect(result.vassalage.protectionTimers).toHaveLength(1);
       expect(result.vassalage.protectionTimers[0].attackerCivId).toBe('attacker-id');
-      expect(result.atWarWith).toContain('attacker-id');
+      expect(result.vassalage.protectionTimers[0].turnsRemaining).toBe(3);
+      // Does NOT auto-declare war — overlord decides on their turn
+      expect(result.atWarWith).not.toContain('attacker-id');
+    });
+
+    it('does not duplicate timer for same attacker', () => {
+      const overlord = makeDipState({ vassalage: { overlord: null, vassals: ['vassal-id'], protectionScore: 100, protectionTimers: [{ attackerCivId: 'attacker-id', turnsRemaining: 2 }], peakCities: 3, peakMilitary: 5 } });
+      const result = onVassalAttacked(overlord, 'attacker-id');
+      expect(result.vassalage.protectionTimers).toHaveLength(1);
     });
   });
 
@@ -505,7 +516,8 @@ export function acceptVassalage(
   if (leagues) {
     const vassalLeague = getLeagueForCiv(leagues, vassalId);
     if (vassalLeague) {
-      leagueUpdates = leaveLeague(leagues, vassalLeague.id, vassalId);
+      const leaveResult = leaveLeague(leagues, vassalLeague.id, vassalId);
+      leagueUpdates = leaveResult.leagues;
     }
   }
 
@@ -600,11 +612,12 @@ export function petitionIndependence(
       relationshipChange: 10,
     };
   }
-  // Overlord refuses — vassal declares war
-  const vassalAtWar: DiplomacyState = {
+  // Overlord refuses — vassal declares war (+20 treachery for breaking vassalage)
+  let vassalAtWar: DiplomacyState = {
     ...baseVassal,
     atWarWith: [...new Set([...baseVassal.atWarWith, overlordId])],
   };
+  vassalAtWar = applyTreachery(vassalAtWar, 'vassalage_independence');
   const overlordAtWar: DiplomacyState = {
     ...baseOverlord,
     atWarWith: [...new Set([...baseOverlord.atWarWith, vassalId])],
@@ -616,21 +629,23 @@ export function petitionIndependence(
   };
 }
 
-// --- Vassal attacked: protection timer + overlord auto-war ---
+// --- Vassal attacked: start protection timer (overlord gets 3 turns to respond) ---
+// The overlord is NOT auto-declared war here. AI overlords declare war in their turn;
+// human overlords get a chancellor advisor prompt. If the timer expires without
+// overlord action, protectionScore drops -20 per spec.
 
 export function onVassalAttacked(
   overlordDip: DiplomacyState,
   attackerId: string,
-  turn: number,
 ): DiplomacyState {
   const alreadyTracked = overlordDip.vassalage.protectionTimers.some(t => t.attackerCivId === attackerId);
-  const timers = alreadyTracked
-    ? overlordDip.vassalage.protectionTimers
-    : [...overlordDip.vassalage.protectionTimers, { attackerCivId: attackerId, turnsRemaining: 3 }];
+  if (alreadyTracked) return overlordDip;
   return {
     ...overlordDip,
-    vassalage: { ...overlordDip.vassalage, protectionTimers: timers },
-    atWarWith: [...new Set([...overlordDip.atWarWith, attackerId])],
+    vassalage: {
+      ...overlordDip.vassalage,
+      protectionTimers: [...overlordDip.vassalage.protectionTimers, { attackerCivId: attackerId, turnsRemaining: 3 }],
+    },
   };
 }
 
@@ -841,18 +856,19 @@ export function declareWar(
   turn: number,
   isVoluntary: boolean = true,
 ): DiplomacyState {
-  // --- Existing logic (preserve exactly) ---
-  // Dedup atWarWith
+  // --- Existing logic (preserve relationship penalty + dedup) ---
   if (state.atWarWith.includes(targetCivId)) return state;
   let updated: DiplomacyState = {
     ...state,
     atWarWith: [...state.atWarWith, targetCivId],
-    // Remove all treaties with target
+    // Remove all non-vassalage treaties with target
     treaties: state.treaties.filter(t =>
       !((t.civA === targetCivId || t.civB === targetCivId) && t.type !== 'vassalage'),
     ),
     events: [...state.events, { type: 'war_declared', turn, otherCiv: targetCivId, weight: 1 }],
   };
+  // Preserve existing -50 relationship penalty
+  updated = modifyRelationship(updated, targetCivId, -50);
 
   // --- NEW: If voluntary, apply treachery for each broken treaty ---
   if (isVoluntary) {
@@ -875,6 +891,30 @@ export function vassalAutoWar(
 ): DiplomacyState {
   return declareWar(vassalDip, targetCivId, turn, false); // isVoluntary=false → no treachery
 }
+```
+
+- [ ] **Step 5b: Update getAvailableActions to include new diplomatic actions**
+
+In `src/systems/diplomacy-system.ts`, update `getAvailableActions()` (line 184) to include the new actions. Add after the existing alliance check, before the closing `}`:
+
+```typescript
+    // Vassalage (only when weakened, era >= 2, not already a vassal)
+    // Actual canOfferVassalage check happens at call site with peak data
+    if (era >= 2 && !state.vassalage?.overlord) {
+      actions.push('offer_vassalage');
+    }
+
+    // Embargo (requires currency tech or era >= 2, not vassal)
+    const hasEmbargoTech = completedTechs.some(t => ['currency', 'foreign-trade', 'banking'].includes(t));
+    if ((era >= 2 || hasEmbargoTech) && !state.vassalage?.overlord) {
+      actions.push('propose_embargo');
+    }
+
+    // League (requires writing tech, not in a league, not vassal)
+    const hasWritingTech = completedTechs.some(t => ['science-writing', 'communication-writing', 'writing'].includes(t));
+    if (hasWritingTech && !state.vassalage?.overlord) {
+      actions.push('propose_league');
+    }
 ```
 
 - [ ] **Step 6: Run all diplomacy tests**
@@ -1043,10 +1083,8 @@ export function canProposeEmbargo(
   return !isAllied;
 }
 
-export interface TradeRoute {
-  fromCityId: string;
-  foreignCivId: string;
-}
+// Import TradeRoute from @/core/types — do NOT redefine locally.
+// TradeRoute.foreignCivId is optional (domestic routes have none).
 
 export function enforceEmbargoes(
   embargoes: Embargo[],
@@ -1054,6 +1092,7 @@ export function enforceEmbargoes(
   cityOwners: Record<string, string>,
 ): TradeRoute[] {
   return tradeRoutes.filter(route => {
+    if (!route.foreignCivId) return true; // domestic routes unaffected
     const routeOwner = cityOwners[route.fromCityId];
     if (!routeOwner) return true;
     for (const embargo of embargoes) {
@@ -1065,8 +1104,6 @@ export function enforceEmbargoes(
     return true;
   });
 }
-
-let nextEmbargoId = 1;
 
 export function proposeEmbargo(
   embargoes: Embargo[],
@@ -1083,9 +1120,11 @@ export function proposeEmbargo(
         : e,
     );
   }
+  // Deterministic ID from turn + embargo count (survives save/load)
+  const id = `embargo-${turn}-${embargoes.length}`;
   return [
     ...embargoes,
-    { id: `embargo-${nextEmbargoId++}`, targetCivId, participants: [proposerId], proposedTurn: turn },
+    { id, targetCivId, participants: [proposerId], proposedTurn: turn },
   ];
 }
 
@@ -1109,8 +1148,19 @@ export function cleanupEmbargoes(embargoes: Embargo[]): Embargo[] {
   return embargoes.filter(e => e.participants.length > 0);
 }
 
-export function _resetEmbargoIdCounter(): void {
-  nextEmbargoId = 1;
+// Treachery condition: leaving embargo is only treacherous if target is at war with remaining participants
+export function shouldApplyLeaveEmbargoTreachery(
+  embargo: Embargo,
+  leavingCivId: string,
+  warPairs: Array<{ civA: string; civB: string }>,
+): boolean {
+  const remaining = embargo.participants.filter(p => p !== leavingCivId);
+  return remaining.some(p =>
+    warPairs.some(w =>
+      (w.civA === embargo.targetCivId && w.civB === p) ||
+      (w.civB === embargo.targetCivId && w.civA === p),
+    ),
+  );
 }
 ```
 
@@ -1144,6 +1194,7 @@ import {
   proposeLeague,
   inviteToLeague,
   petitionLeague,
+  votePetition,
   leaveLeague,
   checkLeagueDissolution,
   getLeagueForCiv,
@@ -1200,13 +1251,32 @@ describe('defensive leagues', () => {
     });
   });
 
+  describe('votePetition', () => {
+    it('approves when majority has relationship > 10', () => {
+      expect(votePetition({ 'civ-a': 15, 'civ-b': 20, 'civ-c': 5 })).toBe(true);
+    });
+
+    it('rejects when majority has relationship <= 10', () => {
+      expect(votePetition({ 'civ-a': 5, 'civ-b': 8, 'civ-c': 15 })).toBe(false);
+    });
+  });
+
   describe('leaveLeague', () => {
     it('removes member from league', () => {
       const leagues: DefensiveLeague[] = [
         { id: 'l-1', members: ['civ-a', 'civ-b', 'civ-c'], formedTurn: 5 },
       ];
-      const result = leaveLeague(leagues, 'l-1', 'civ-b');
+      const { leagues: result } = leaveLeague(leagues, 'l-1', 'civ-b');
       expect(result[0].members).not.toContain('civ-b');
+    });
+
+    it('dissolves league when < 2 members remain and reports dissolved ID', () => {
+      const leagues: DefensiveLeague[] = [
+        { id: 'l-1', members: ['civ-a', 'civ-b'], formedTurn: 5 },
+      ];
+      const { leagues: result, dissolvedLeagueIds } = leaveLeague(leagues, 'l-1', 'civ-b');
+      expect(result).toHaveLength(0);
+      expect(dissolvedLeagueIds).toContain('l-1');
     });
   });
 
@@ -1277,17 +1347,22 @@ import type { DefensiveLeague } from '../core/types';
 
 const WRITING_TECHS = ['science-writing', 'communication-writing', 'writing'];
 
-let nextLeagueId = 1;
+// No module-level counter — IDs derived from turn + array index for save/load safety
 
 export function canProposeLeague(
   completedTechs: string[],
   leagues: DefensiveLeague[],
   currentLeague: DefensiveLeague | null,
   isVassal: boolean = false,
+  relationships?: Record<string, number>,
+  targetCivId?: string,
 ): boolean {
   if (isVassal) return false;
   if (currentLeague) return false;
-  return completedTechs.some(t => WRITING_TECHS.includes(t));
+  if (!completedTechs.some(t => WRITING_TECHS.includes(t))) return false;
+  // When proposing with a specific target, require positive relationship
+  if (targetCivId && relationships && (relationships[targetCivId] ?? 0) <= 0) return false;
+  return true;
 }
 
 export function proposeLeague(
@@ -1298,7 +1373,7 @@ export function proposeLeague(
 ): DefensiveLeague[] {
   return [
     ...leagues,
-    { id: `league-${nextLeagueId++}`, members: [civA, civB], formedTurn: turn },
+    { id: `league-${turn}-${leagues.length}`, members: [civA, civB], formedTurn: turn },
   ];
 }
 
@@ -1314,11 +1389,20 @@ export function inviteToLeague(
   );
 }
 
+// Majority vote helper: each member votes yes if relationship > 10 with petitioner
+export function votePetition(
+  memberRelationships: Record<string, number>, // memberId -> relationship with petitioner
+): boolean {
+  const votes = Object.values(memberRelationships);
+  const yesVotes = votes.filter(r => r > 10).length;
+  return yesVotes > votes.length / 2;
+}
+
 export function petitionLeague(
   leagues: DefensiveLeague[],
   leagueId: string,
   civId: string,
-  accepted: boolean,
+  accepted: boolean, // caller computes via votePetition()
 ): DefensiveLeague[] {
   if (!accepted) return leagues;
   return inviteToLeague(leagues, leagueId, civId);
@@ -1328,12 +1412,26 @@ export function leaveLeague(
   leagues: DefensiveLeague[],
   leagueId: string,
   civId: string,
-): DefensiveLeague[] {
-  return leagues.map(l =>
+): { leagues: DefensiveLeague[]; dissolvedLeagueIds: string[] } {
+  const updated = leagues.map(l =>
     l.id === leagueId
       ? { ...l, members: l.members.filter(m => m !== civId) }
       : l,
-  ).filter(l => l.members.length >= 2);
+  );
+  const dissolvedLeagueIds = updated.filter(l => l.members.length < 2).map(l => l.id);
+  return { leagues: updated.filter(l => l.members.length >= 2), dissolvedLeagueIds };
+}
+
+// Treachery condition: leaving league is only treacherous if any member is under active attack
+export function shouldApplyLeaveLeagueTreachery(
+  league: DefensiveLeague,
+  leavingCivId: string,
+  warPairs: Array<{ civA: string; civB: string }>,
+): boolean {
+  const remaining = league.members.filter(m => m !== leavingCivId);
+  return remaining.some(member =>
+    warPairs.some(w => w.civA === member || w.civB === member),
+  );
 }
 
 export function checkLeagueDissolution(
@@ -1367,9 +1465,7 @@ export function triggerLeagueDefense(
   return league.members.filter(m => m !== defenderId && m !== attackerId);
 }
 
-export function _resetLeagueIdCounter(): void {
-  nextLeagueId = 1;
-}
+// No counter reset needed — IDs are derived from turn + array index
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -1525,8 +1621,9 @@ function makeCity(overrides?: Partial<City>): City {
     id: 'city-1', name: 'Test City', owner: 'p1',
     position: { q: 0, r: 0 }, population: 3,
     ownedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
-    buildings: [], buildQueue: [], productionProgress: 0,
-    foodProgress: 0, foodRequired: 15,
+    buildings: [], productionQueue: [], productionProgress: 0,
+    food: 0, foodNeeded: 15,
+    grid: [[null]], gridSize: 3,
     ...overrides,
   } as City;
 }
@@ -1605,10 +1702,11 @@ export function calculateCityYields(
 ): ResourceYield {
   // ... existing logic ...
 
-  // Apply Russia tundra bonus
+  // Apply Russia tundra bonus (only on workedTiles, consistent with other yield calcs)
+  // Insert AFTER the workedTiles loop, using the same `workedTiles` variable:
   if (bonusEffect?.type === 'tundra_bonus') {
-    for (const coord of city.ownedTiles) {
-      const tile = map.tiles[`${coord.q},${coord.r}`];
+    for (const coord of workedTiles) {
+      const tile = map.tiles[hexKey(coord)];
       if (tile && (tile.terrain === 'tundra' || tile.terrain === 'snow')) {
         yields.food += bonusEffect.foodBonus;
         yields.production += bonusEffect.productionBonus;
@@ -1638,7 +1736,7 @@ const yields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
 
 - [ ] **Step 3: Add siege bonus context to resolveCombat**
 
-In `src/systems/combat-system.ts`, update `resolveCombat()` signature:
+In `src/systems/combat-system.ts`, add a `CombatContext` interface and update `resolveCombat()` signature. The existing function calculates `defenderDamage` at line 82. Insert the siege bonus multiplier there:
 
 ```typescript
 export interface CombatContext {
@@ -1653,40 +1751,41 @@ export function resolveCombat(
   seed?: number,
   context?: CombatContext,
 ): CombatResult {
-  // ... existing logic ...
+  // ... all existing logic through line 82 ...
 
-  // Apply Ottoman siege bonus
-  let attackModifier = 1;
+  // Ottoman siege bonus: multiply damage dealt TO defender when attacking fortified city
+  let siegeMultiplier = 1;
   if (context?.attackerBonus?.type === 'siege_bonus' && context?.defenderInFortifiedCity) {
-    attackModifier = context.attackerBonus.damageMultiplier;
+    siegeMultiplier = context.attackerBonus.damageMultiplier;
   }
+  const defenderDamage = Math.round(baseDamage * adjustedRatio * siegeMultiplier);
+  const attackerDamage = Math.round(baseDamage * (1 - adjustedRatio));
 
-  // Apply modifier to attacker damage
-  // (multiply attackerDamage by attackModifier)
+  // ... rest unchanged ...
 }
+```
+
+To determine `defenderInFortifiedCity`, the caller (turn-manager or combat handler) checks:
+```typescript
+const defenderCity = Object.values(state.cities).find(c =>
+  c.position.q === defender.position.q && c.position.r === defender.position.r,
+);
+const defenderInFortifiedCity = defenderCity !== undefined && defenderCity.buildings.includes('walls');
+```
 ```
 
 - [ ] **Step 4: Add Shire military production penalty to city-system**
 
-In `src/systems/city-system.ts`, update `applyProductionBonus()`:
+In `src/systems/city-system.ts`, update `applyProductionBonus()`. Note: this function returns a **multiplier** (e.g. 1 = normal, 0.7 = 30% faster, 1.25 = 25% slower). Add after the existing `faster_military` check, before the final `return 1`:
 
 ```typescript
-export function applyProductionBonus(
-  itemId: string,
-  bonusEffect: CivBonusEffect | undefined,
-): number {
-  // ... existing bonuses ...
-
-  // Shire: military units cost 25% more (applied last)
+  // Shire: military units cost 25% more (returns multiplier > 1)
   if (bonusEffect?.type === 'peaceful_growth') {
     const militaryTypes = ['warrior', 'swordsman', 'pikeman', 'musketeer', 'scout'];
     if (militaryTypes.includes(itemId)) {
-      cost = Math.ceil(cost * (1 + bonusEffect.militaryPenalty));
+      return 1 + bonusEffect.militaryPenalty; // e.g. 1.25 for 25% slower
     }
   }
-
-  return cost;
-}
 ```
 
 - [ ] **Step 5: Add Isengard forest raze function**
@@ -1839,7 +1938,8 @@ After the auto-breakaway block, still inside the vassalage loop:
 
 ```typescript
     // Independence petition: vassal meets threshold → AI decides accept/refuse
-    const vassalMilitary = currentCiv.units.map(id => newState.units[id]).filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
+    const vassalCiv = newState.civilizations[civId];
+    const vassalMilitary = vassalCiv.units.map(id => newState.units[id]).filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
     const overlordMilitary = overlord.units.map(id => newState.units[id]).filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
     if (checkIndependenceThreshold(vassalMilitary, overlordMilitary, vassalDip.vassalage.protectionScore)) {
       // AI overlord decides: accept if diplomatic, refuse if aggressive
@@ -2152,6 +2252,7 @@ import {
   triggerLeagueDefense,
   declareWar,
 } from '@/systems/diplomacy-system';
+import { getCivDefinition } from '@/systems/civ-definitions';
 import type { GameState } from '@/core/types';
 
 describe('M4b-1 integration', () => {
@@ -2211,6 +2312,24 @@ describe('M4b-1 integration', () => {
     expect(defenders).toContain('civ-c');
   });
 
+  it('embargo enforcement removes embargoed trade routes in turn processing', () => {
+    const state = createNewGame('egypt', 'embargo-turn-test', 'small');
+    const aiIds = Object.keys(state.civilizations).filter(id => id !== 'player');
+    if (aiIds.length < 1) return;
+    // Set up an embargo and a trade route
+    state.embargoes = proposeEmbargo([], 'player', aiIds[0], state.turn);
+    if (state.marketplace) {
+      state.marketplace.tradeRoutes = [
+        { fromCityId: Object.keys(state.cities)[0], toCityId: 'fake', goldPerTurn: 5, foreignCivId: aiIds[0] },
+      ];
+    }
+    const newState = processTurn(state, bus);
+    // Trade route with embargoed civ should be removed
+    const routes = newState.marketplace?.tradeRoutes ?? [];
+    const embargoedRoutes = routes.filter(r => r.foreignCivId === aiIds[0]);
+    expect(embargoedRoutes).toHaveLength(0);
+  });
+
   it('embargo + vassalage: vassal auto-joins overlord embargo', () => {
     // This is a constraint that must be enforced in the AI/UI layer
     // Verifying the design expectation
@@ -2219,8 +2338,31 @@ describe('M4b-1 integration', () => {
     // Vassal joining is handled in turn processing / AI layer
   });
 
+  it('overlord elimination frees all vassals', () => {
+    const state = createNewGame('egypt', 'elim-test', 'small');
+    // Set up overlord with vassal
+    const aiIds = Object.keys(state.civilizations).filter(id => id !== 'player');
+    const overlordId = aiIds[0];
+    const vassalId = aiIds[1];
+    if (!overlordId || !vassalId) return; // skip if not enough AI civs
+
+    const { vassalState, overlordState } = acceptVassalage(
+      state.civilizations[vassalId].diplomacy,
+      state.civilizations[overlordId].diplomacy,
+      vassalId, overlordId, 1,
+    );
+    state.civilizations[vassalId].diplomacy = vassalState;
+    state.civilizations[overlordId].diplomacy = overlordState;
+
+    // Eliminate overlord (remove from civilizations)
+    delete state.civilizations[overlordId];
+
+    const newState = processTurn(state, bus);
+    expect(newState.civilizations[vassalId].diplomacy.vassalage.overlord).toBeNull();
+  });
+
   it('all 20 civs are defined and selectable', () => {
-    const { getCivDefinition } = require('@/systems/civ-definitions');
+    // getCivDefinition imported at top of file (add to imports above)
     const newCivs = ['russia', 'ottoman', 'shire', 'isengard'];
     for (const id of newCivs) {
       const def = getCivDefinition(id);
