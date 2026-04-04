@@ -6,7 +6,7 @@ import { RenderLoop } from '@/renderer/render-loop';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { hexKey } from '@/systems/hex-utils';
-import { getMovementRange, moveUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
 import { startResearch } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
@@ -527,7 +527,9 @@ function handleHexTap(coord: HexCoord): void {
       deselectUnit();
     } else {
       // Move unit
-      gameState.units[selectedUnitId] = moveUnit(unit, coord, 1);
+      const targetTile = gameState.map.tiles[key];
+      const terrainCost = targetTile ? getMovementCost(targetTile.terrain) : 1;
+      gameState.units[selectedUnitId] = moveUnit(unit, coord, terrainCost);
       SFX.tap();
 
       // Check for tribal village at destination

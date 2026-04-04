@@ -82,7 +82,7 @@ export function resetUnitTurn(unit: Unit): Unit {
   };
 }
 
-function getMovementCost(terrain: string): number {
+export function getMovementCost(terrain: string): number {
   const costs: Record<string, number> = {
     grassland: 1, plains: 1, desert: 1, tundra: 1,
     forest: 2, hills: 2, snow: 2,
