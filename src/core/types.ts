@@ -538,8 +538,8 @@ export interface GameState {
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   espionage?: EspionageState;
-  embargoes?: Embargo[];
-  defensiveLeagues?: DefensiveLeague[];
+  embargoes: Embargo[];
+  defensiveLeagues: DefensiveLeague[];
 }
 
 export interface GameSettings {

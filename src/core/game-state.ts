@@ -118,6 +118,8 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     tribalVillages,
     discoveredWonders: {},
     wonderDiscoverers: {},
+    embargoes: [],
+    defensiveLeagues: [],
     settings: {
       mapSize: actualSize,
       soundEnabled: true,
@@ -213,6 +215,8 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
     tribalVillages,
     discoveredWonders: {},
     wonderDiscoverers: {},
+    embargoes: [],
+    defensiveLeagues: [],
     settings: {
       mapSize: config.mapSize,
       soundEnabled: true,

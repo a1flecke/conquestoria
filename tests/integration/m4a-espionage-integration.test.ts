@@ -55,6 +55,8 @@ function makeTestGameState(): GameState {
         diplomacy: {
           relationships: { 'ai-egypt': 0 },
           treaties: [], events: [], atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
         },
       },
       'ai-egypt': {
@@ -72,6 +74,8 @@ function makeTestGameState(): GameState {
         diplomacy: {
           relationships: { player: 0 },
           treaties: [], events: [], atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
         },
       },
     },
@@ -82,6 +86,8 @@ function makeTestGameState(): GameState {
     tribalVillages: {},
     discoveredWonders: {},
     wonderDiscoverers: {},
+    embargoes: [],
+    defensiveLeagues: [],
   } as GameState;
 }
 

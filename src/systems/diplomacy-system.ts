@@ -21,6 +21,15 @@ export function createDiplomacyState(
     treaties: [],
     events: [],
     atWarWith: [],
+    treacheryScore: 0,
+    vassalage: {
+      overlord: null,
+      vassals: [],
+      protectionScore: 100,
+      protectionTimers: [],
+      peakCities: 0,
+      peakMilitary: 0,
+    },
   };
 }
 
