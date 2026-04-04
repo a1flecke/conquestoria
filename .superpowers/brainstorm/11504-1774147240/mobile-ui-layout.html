@@ -1,0 +1,205 @@
+<h2>Conquestoria — Mobile UI Layout</h2>
+<p class="subtitle">iPhone-first design, touch-optimized</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Main Game View (iPhone)</div>
+    <div class="mockup-body" style="background: #1a1a2e; color: white; font-family: system-ui; position: relative; height: 500px; overflow: hidden;">
+
+      <!-- Top HUD -->
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.6); font-size: 11px;">
+        <div style="display: flex; gap: 12px;">
+          <span>🌾 42</span>
+          <span>⚒️ 28</span>
+          <span>💰 156</span>
+          <span>🔬 12</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <span>Turn 47</span>
+          <span>Bronze Age</span>
+        </div>
+      </div>
+
+      <!-- Map Area -->
+      <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px;">
+        <div style="position: relative; width: 100%;">
+          <!-- Hex grid mockup -->
+          <svg viewBox="0 0 300 200" style="width: 100%;">
+            <!-- Row 1 -->
+            <polygon points="60,20 80,10 100,20 100,40 80,50 60,40" fill="#4a7c59" stroke="#2d5a3f" stroke-width="1"/>
+            <polygon points="100,20 120,10 140,20 140,40 120,50 100,40" fill="#4a7c59" stroke="#2d5a3f" stroke-width="1"/>
+            <polygon points="140,20 160,10 180,20 180,40 160,50 140,40" fill="#8fbc8f" stroke="#6b9b6b" stroke-width="1"/>
+            <polygon points="180,20 200,10 220,20 220,40 200,50 180,40" fill="#c2b280" stroke="#a09060" stroke-width="1"/>
+            <polygon points="220,20 240,10 260,20 260,40 240,50 220,40" fill="#c2b280" stroke="#a09060" stroke-width="1"/>
+            <!-- Row 2 -->
+            <polygon points="40,50 60,40 80,50 80,70 60,80 40,70" fill="#3d6b4e" stroke="#2d5a3f" stroke-width="1"/>
+            <polygon points="80,50 100,40 120,50 120,70 100,80 80,70" fill="#4a7c59" stroke="#2d5a3f" stroke-width="1"/>
+            <polygon points="120,50 140,40 160,50 160,70 140,80 120,70" fill="#5b8a6b" stroke="#4a7c59" stroke-width="1"/>
+            <polygon points="160,50 180,40 200,50 200,70 180,80 160,70" fill="#6b9b7b" stroke="#5b8a6b" stroke-width="1"/>
+            <polygon points="200,50 220,40 240,50 240,70 220,80 200,70" fill="#4682b4" stroke="#36648b" stroke-width="1"/>
+            <polygon points="240,50 260,40 280,50 280,70 260,80 240,70" fill="#4682b4" stroke="#36648b" stroke-width="1"/>
+            <!-- Row 3 -->
+            <polygon points="60,80 80,70 100,80 100,100 80,110 60,100" fill="#4a7c59" stroke="#2d5a3f" stroke-width="1"/>
+            <polygon points="100,80 120,70 140,80 140,100 120,110 100,100" fill="#8B7355" stroke="#6b5a45" stroke-width="1"/>
+            <polygon points="140,80 160,70 180,80 180,100 160,110 140,100" fill="#8fbc8f" stroke="#6b9b6b" stroke-width="1"/>
+            <polygon points="180,80 200,70 220,80 220,100 200,110 180,100" fill="#4682b4" stroke="#36648b" stroke-width="1"/>
+            <polygon points="220,80 240,70 260,80 260,100 240,110 220,100" fill="#36648b" stroke="#2a4f6e" stroke-width="1"/>
+            <!-- Row 4 -->
+            <polygon points="40,110 60,100 80,110 80,130 60,140 40,130" fill="#3d6b4e" stroke="#2d5a3f" stroke-width="1"/>
+            <polygon points="80,110 100,100 120,110 120,130 100,140 80,130" fill="#4a7c59" stroke="#2d5a3f" stroke-width="1"/>
+            <polygon points="120,110 140,100 160,110 160,130 140,140 120,130" fill="#4a7c59" stroke="#2d5a3f" stroke-width="1"/>
+            <polygon points="160,110 180,100 200,110 200,130 180,140 160,130" fill="#4682b4" stroke="#36648b" stroke-width="1"/>
+            <polygon points="200,110 220,100 240,110 240,130 220,140 200,130" fill="#36648b" stroke="#2a4f6e" stroke-width="1"/>
+            <!-- City marker -->
+            <circle cx="120" cy="60" r="8" fill="#e8c170" stroke="#b8963e" stroke-width="2"/>
+            <text x="120" y="64" text-anchor="middle" font-size="8" fill="#5a4020">⛪</text>
+            <!-- Unit marker -->
+            <circle cx="80" cy="90" r="6" fill="#e06060" stroke="#b04040" stroke-width="1.5"/>
+            <text x="80" y="93" text-anchor="middle" font-size="7" fill="white">⚔</text>
+            <!-- Fog of war -->
+            <polygon points="20,20 40,10 60,20 60,40 40,50 20,40" fill="#2a2a3e" stroke="#1a1a2e" stroke-width="1" opacity="0.9"/>
+            <polygon points="20,50 40,40 60,50 40,60 20,60" fill="#2a2a3e" stroke="#1a1a2e" stroke-width="1" opacity="0.9"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Advisor notification -->
+      <div style="position: absolute; top: 40px; left: 12px; right: 12px; background: rgba(232,193,112,0.95); color: #3a2a10; padding: 10px 14px; border-radius: 10px; font-size: 12px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 18px;">🏗️</span>
+        <div>
+          <div style="font-weight: bold; font-size: 11px;">Builder</div>
+          <div>A Granary would help this city grow faster.</div>
+        </div>
+        <span style="opacity: 0.5; font-size: 16px;">✕</span>
+      </div>
+
+      <!-- Bottom action bar -->
+      <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); padding: 8px 12px 24px 12px;">
+        <!-- Context actions -->
+        <div style="display: flex; justify-content: space-around; margin-bottom: 8px;">
+          <div style="text-align: center; font-size: 10px;">
+            <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin: 0 auto 2px;">🗺️</div>
+            Map
+          </div>
+          <div style="text-align: center; font-size: 10px;">
+            <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin: 0 auto 2px;">🔬</div>
+            Tech
+          </div>
+          <div style="text-align: center; font-size: 10px;">
+            <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin: 0 auto 2px;">🏛️</div>
+            City
+          </div>
+          <div style="text-align: center; font-size: 10px;">
+            <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin: 0 auto 2px;">💬</div>
+            Diplo
+          </div>
+          <div style="text-align: center; font-size: 10px;">
+            <div style="width: 40px; height: 40px; background: rgba(232,193,112,0.9); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin: 0 auto 2px; color: #3a2a10;">⏭️</div>
+            <span style="color: #e8c170;">End Turn</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">City Interior View (iPhone)</div>
+    <div class="mockup-body" style="background: #f5e6c8; color: #3a2a10; font-family: system-ui; position: relative; height: 500px; overflow: hidden;">
+
+      <!-- City header -->
+      <div style="background: rgba(0,0,0,0.1); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: bold; font-size: 15px;">Alexandria</div>
+          <div style="font-size: 11px; opacity: 0.7;">Pop: 12 · Bronze Age</div>
+        </div>
+        <div style="font-size: 12px; text-align: right;">
+          <div>🌾 +8  ⚒️ +5  💰 +3</div>
+        </div>
+      </div>
+
+      <!-- Building grid -->
+      <div style="padding: 12px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6;">City Buildings</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+          <div style="background: #e8d5a8; border: 2px solid #c4a872; border-radius: 8px; padding: 8px; text-align: center; font-size: 10px;">
+            <div style="font-size: 20px; margin-bottom: 2px;">🏠</div>
+            Granary
+          </div>
+          <div style="background: #e8d5a8; border: 2px solid #c4a872; border-radius: 8px; padding: 8px; text-align: center; font-size: 10px;">
+            <div style="font-size: 20px; margin-bottom: 2px;">⚒️</div>
+            Workshop
+          </div>
+          <div style="background: #e8d5a8; border: 2px solid #c4a872; border-radius: 8px; padding: 8px; text-align: center; font-size: 10px;">
+            <div style="font-size: 20px; margin-bottom: 2px;">📚</div>
+            Library
+          </div>
+          <div style="background: #e8d5a8; border: 2px solid #c4a872; border-radius: 8px; padding: 8px; text-align: center; font-size: 10px;">
+            <div style="font-size: 20px; margin-bottom: 2px;">⛪</div>
+            Temple
+          </div>
+          <div style="background: #e8d5a8; border: 2px solid #c4a872; border-radius: 8px; padding: 8px; text-align: center; font-size: 10px;">
+            <div style="font-size: 20px; margin-bottom: 2px;">🏪</div>
+            Market
+          </div>
+          <div style="background: #e8d5a8; border: 2px solid #c4a872; border-radius: 8px; padding: 8px; text-align: center; font-size: 10px;">
+            <div style="font-size: 20px; margin-bottom: 2px;">🛡️</div>
+            Barracks
+          </div>
+          <div style="background: rgba(255,255,255,0.4); border: 2px dashed #c4a872; border-radius: 8px; padding: 8px; text-align: center; font-size: 10px; opacity: 0.6;">
+            <div style="font-size: 20px; margin-bottom: 2px;">➕</div>
+            Empty
+          </div>
+          <div style="background: rgba(255,255,255,0.4); border: 2px dashed #c4a872; border-radius: 8px; padding: 8px; text-align: center; font-size: 10px; opacity: 0.3;">
+            <div style="font-size: 20px; margin-bottom: 2px;">🔒</div>
+            Pop: 15
+          </div>
+        </div>
+      </div>
+
+      <!-- Production queue -->
+      <div style="padding: 0 12px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6;">Building</div>
+        <div style="background: #e8d5a8; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">🏥</span>
+          <div style="flex: 1;">
+            <div style="font-weight: bold; font-size: 13px;">Herbalist</div>
+            <div style="font-size: 11px; opacity: 0.7;">+Health · 3 turns remaining</div>
+            <div style="background: rgba(0,0,0,0.1); border-radius: 4px; height: 6px; margin-top: 4px;">
+              <div style="background: #6b9b4b; border-radius: 4px; height: 6px; width: 60%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Adjacency hint -->
+      <div style="margin: 10px 12px; background: rgba(107,155,75,0.2); border-radius: 8px; padding: 8px 12px; font-size: 11px; display: flex; align-items: center; gap: 6px;">
+        <span>💡</span>
+        <span><strong>Builder:</strong> Place the Herbalist next to the Temple for a +15% health bonus</span>
+      </div>
+
+      <!-- Bottom nav -->
+      <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(58,42,16,0.9); padding: 8px 12px 24px 12px;">
+        <div style="display: flex; justify-content: space-around;">
+          <div style="text-align: center; font-size: 10px; color: #e8c170;">
+            <div style="font-size: 16px;">📋</div>
+            Queue
+          </div>
+          <div style="text-align: center; font-size: 10px; color: #e8c170;">
+            <div style="font-size: 16px;">🏗️</div>
+            Build
+          </div>
+          <div style="text-align: center; font-size: 10px; color: #e8c170;">
+            <div style="font-size: 16px;">👥</div>
+            Citizens
+          </div>
+          <div style="text-align: center; font-size: 10px; color: #e8c170;">
+            <div style="font-size: 16px;">↩️</div>
+            Back
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top: 16px; color: #666; font-size: 14px;">Left: main game map view. Right: city interior (SimCity layer). Both designed for one-thumb iPhone use.</p>

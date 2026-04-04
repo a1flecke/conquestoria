@@ -1,0 +1,70 @@
+<h2>Conquestoria — Architecture Overview</h2>
+<p class="subtitle">Vanilla TypeScript + Canvas, hosted on GitHub Pages</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">System Architecture</div>
+    <div class="mockup-body" style="padding: 24px; font-family: system-ui;">
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+
+        <!-- Presentation Layer -->
+        <div style="border: 2px solid #6c8ebf; border-radius: 8px; padding: 16px; background: #dae8fc;">
+          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">🎨 Presentation Layer</div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Canvas Renderer</strong><br/>Hex map, units, fog of war, animations</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>DOM UI Layer</strong><br/>Menus, panels, tech tree, city view, HUD</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Audio Engine</strong><br/>Web Audio API + HTML5 Audio</div>
+          </div>
+        </div>
+
+        <!-- Input Layer -->
+        <div style="border: 2px solid #82b366; border-radius: 8px; padding: 16px; background: #d5e8d4;">
+          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">👆 Input Layer</div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Touch Handler</strong><br/>Tap, pinch-zoom, pan, long-press</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Mouse/Keyboard</strong><br/>Click, hover, shortcuts, scroll</div>
+          </div>
+        </div>
+
+        <!-- Game Engine -->
+        <div style="border: 2px solid #d6ab5e; border-radius: 8px; padding: 16px; background: #fff2cc;">
+          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">⚙️ Game Engine</div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Turn Manager</strong><br/>Turn flow, phase resolution</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Map System</strong><br/>Hex grid, terrain, resources, fog</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>City System</strong><br/>Buildings, production, growth</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Unit System</strong><br/>Movement, combat, commands</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Tech System</strong><br/>Multi-track trees, research</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Economy</strong><br/>Resources, trade, markets</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Diplomacy</strong><br/>Treaties, vassals, reputation</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Espionage</strong><br/>Spy network, missions</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Wonder System</strong><br/>Build, quests, bonuses</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Threat System</strong><br/>Barbarians, pirates, rebels</div>
+          </div>
+        </div>
+
+        <!-- AI Layer -->
+        <div style="border: 2px solid #b85450; border-radius: 8px; padding: 16px; background: #f8cecc;">
+          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">🤖 AI Layer</div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Civ AI</strong><br/>Strategy, expansion, diplomacy decisions</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Threat AI</strong><br/>Barbarian/pirate behavior, tribal evolution</div>
+          </div>
+        </div>
+
+        <!-- Persistence Layer -->
+        <div style="border: 2px solid #9673a6; border-radius: 8px; padding: 16px; background: #e1d5e7;">
+          <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">💾 Persistence Layer</div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>IndexedDB</strong><br/>Game state, save data</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>Service Worker</strong><br/>Offline caching, asset management</div>
+            <div style="background: white; padding: 8px 12px; border-radius: 6px; font-size: 13px;"><strong>State Serializer</strong><br/>Save/load, auto-save per turn</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top: 16px; color: #666; font-size: 14px;">This is the high-level system architecture. Each colored layer is independent and communicates through well-defined interfaces. Review in terminal for details.</p>

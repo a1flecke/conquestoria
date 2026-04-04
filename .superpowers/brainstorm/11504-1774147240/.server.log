@@ -1,0 +1,5 @@
+{"type":"server-started","port":60460,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:60460","screen_dir":"/Users/aaronfleckenstein/development/github/conquestoria/.superpowers/brainstorm/11504-1774147240"}
+{"type":"screen-added","file":"/Users/aaronfleckenstein/development/github/conquestoria/.superpowers/brainstorm/11504-1774147240/architecture-overview.html"}
+{"type":"screen-added","file":"/Users/aaronfleckenstein/development/github/conquestoria/.superpowers/brainstorm/11504-1774147240/mobile-ui-layout.html"}
+{"type":"screen-added","file":"/Users/aaronfleckenstein/development/github/conquestoria/.superpowers/brainstorm/11504-1774147240/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}
