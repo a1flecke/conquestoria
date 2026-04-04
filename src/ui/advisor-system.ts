@@ -11,7 +11,7 @@ function isMinorCivDiscovered(state: GameState, mc: { cityId: string; isDestroye
   if (!city) return false;
   const key = `${city.position.q},${city.position.r}`;
   const visState = playerVis.tiles[key];
-  return visState === 'visible' || visState === 'explored';
+  return visState === 'visible' || visState === 'fog'; // fog = previously seen (explored)
 }
 
 interface AdvisorMessage {
