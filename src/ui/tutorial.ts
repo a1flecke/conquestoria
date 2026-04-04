@@ -18,7 +18,7 @@ const TUTORIAL_MESSAGES: TutorialMessage[] = [
   {
     step: 'found_city',
     advisor: 'builder',
-    message: 'Excellent! Your city is growing. Now build a Granary to increase food production. Tap your city to see building options.',
+    message: 'Excellent! Your city is growing. Build a Shrine to start generating science, or train a Warrior to defend your borders. Tap your city to see options.',
     trigger: (state) => Object.values(state.cities).some(c => c.owner === 'player'),
   },
   {

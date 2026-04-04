@@ -26,7 +26,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     id: 'found_city',
     advisor: 'builder',
     icon: '🏗️',
-    message: 'Excellent! Your city is growing. Now build a Granary to increase food production. Tap your city to see building options.',
+    message: 'Excellent! Your city is growing. Build a Shrine to start generating science, or train a Warrior to defend your borders. Tap your city to see options.',
     trigger: (state) => Object.values(state.cities).some(c => c.owner === state.currentPlayer),
     tutorialStep: 'found_city',
   },
