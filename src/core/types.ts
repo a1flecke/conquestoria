@@ -98,7 +98,7 @@ export interface VisibilityMap {
 
 // --- Units ---
 
-export type UnitType = 'settler' | 'worker' | 'scout' | 'warrior' | 'swordsman' | 'pikeman' | 'musketeer';
+export type UnitType = 'settler' | 'worker' | 'scout' | 'warrior' | 'archer' | 'swordsman' | 'pikeman' | 'musketeer';
 
 export interface UnitDefinition {
   type: UnitType;

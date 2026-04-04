@@ -47,6 +47,7 @@ export const BUILDINGS: Record<string, Building> = {
 
 export const TRAINABLE_UNITS: Array<{ type: UnitType; name: string; cost: number; techRequired?: string }> = [
   { type: 'warrior', name: 'Warrior', cost: 25 },
+  { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery' },
   { type: 'scout', name: 'Scout', cost: 20 },
   { type: 'worker', name: 'Worker', cost: 30 },
   { type: 'settler', name: 'Settler', cost: 50 },
