@@ -140,7 +140,7 @@ describe('Wonder Effects', () => {
     unit.position = forestTile.coord;
     unit.health = 70;
 
-    processWonderEffects(state);
+    processWonderEffects(state, () => 0.5);
     expect(unit.health).toBe(80);
   });
 
@@ -153,7 +153,7 @@ describe('Wonder Effects', () => {
     unit.position = forestTile.coord;
     unit.health = 95;
 
-    processWonderEffects(state);
+    processWonderEffects(state, () => 0.5);
     expect(unit.health).toBe(100);
   });
 

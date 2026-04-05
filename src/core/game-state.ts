@@ -1,5 +1,5 @@
 import type { GameState, Civilization, Unit, HotSeatConfig } from './types';
-import { generateMap, findStartPositions } from '@/systems/map-generator';
+import { generateMap, findStartPositions, createRng } from '@/systems/map-generator';
 import { createUnit } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
@@ -39,7 +39,8 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
 
   const playerCivDef = getCivDefinition(civType ?? '');
   const aiCivDefs = CIV_DEFINITIONS.filter(c => c.id !== (civType ?? ''));
-  const aiCivDef = aiCivDefs[Math.floor(Math.random() * aiCivDefs.length)] ?? CIV_DEFINITIONS[0];
+  const civSelectRng = createRng(gameSeed + '-civ-select');
+  const aiCivDef = aiCivDefs[Math.floor(civSelectRng() * aiCivDefs.length)] ?? CIV_DEFINITIONS[0];
 
   const allCivIds = ['player', 'ai-1'];
 

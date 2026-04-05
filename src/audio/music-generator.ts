@@ -1,5 +1,12 @@
 // Procedural music generation using Web Audio API
 // Each era has a distinct palette of sounds
+import { createRng } from '@/systems/map-generator';
+
+let musicRng = createRng('music-default');
+
+export function seedMusicRng(seed: string): void {
+  musicRng = createRng(`music-${seed}`);
+}
 
 interface EraConfig {
   bpm: number;
@@ -135,8 +142,8 @@ export class MusicGenerator {
     const playNote = () => {
       if (!this.ctx || !this.gainNode) return;
 
-      const scaleIdx = Math.floor(Math.random() * config.scale.length);
-      const octave = Math.random() > 0.7 ? 2 : 1;
+      const scaleIdx = Math.floor(musicRng() * config.scale.length);
+      const octave = musicRng() > 0.7 ? 2 : 1;
       const freq = config.baseNote * octave * Math.pow(2, config.scale[scaleIdx] / 12);
 
       const osc = this.ctx.createOscillator();
@@ -161,7 +168,7 @@ export class MusicGenerator {
 
     // Play a note every 2-4 beats (sparse melody)
     const id = setInterval(() => {
-      if (Math.random() > 0.4) { // 60% chance to play each beat
+      if (musicRng() > 0.4) { // 60% chance to play each beat
         playNote();
       }
     }, beatMs * 2) as unknown as number;
