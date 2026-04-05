@@ -44,6 +44,16 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 50, canFoundCity: false,
     canBuildImprovements: false, productionCost: 90,
   },
+  galley: {
+    type: 'galley', name: 'Galley', movementPoints: 3,
+    visionRange: 3, strength: 12, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 40,
+  },
+  trireme: {
+    type: 'trireme', name: 'Trireme', movementPoints: 4,
+    visionRange: 3, strength: 25, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 70,
+  },
 };
 
 export function createUnit(type: UnitType, owner: string, position: HexCoord): Unit {

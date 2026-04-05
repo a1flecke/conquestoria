@@ -54,6 +54,8 @@ export const TRAINABLE_UNITS: Array<{ type: UnitType; name: string; cost: number
   { type: 'swordsman', name: 'Swordsman', cost: 50, techRequired: 'bronze-working' },
   { type: 'pikeman', name: 'Pikeman', cost: 70, techRequired: 'fortification' },
   { type: 'musketeer', name: 'Musketeer', cost: 90, techRequired: 'tactics' },
+  { type: 'galley', name: 'Galley', cost: 40, techRequired: 'galleys' },
+  { type: 'trireme', name: 'Trireme', cost: 70, techRequired: 'triremes' },
 ];
 
 export function foundCity(owner: string, position: HexCoord, map: GameMap): City {

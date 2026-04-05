@@ -77,6 +77,15 @@ export function isTechCompleted(state: TechState, techId: string): boolean {
   return state.completed.includes(techId);
 }
 
+/**
+ * Apply a bonus science amount to the tech state, handling completion if the
+ * progress meets or exceeds the tech cost. Use this instead of directly
+ * mutating `researchProgress` to avoid the "100% but not completed" display bug.
+ */
+export function applyResearchBonus(state: TechState, scienceBonus: number): ResearchResult {
+  return processResearch(state, scienceBonus);
+}
+
 export function getTechById(id: string): Tech | undefined {
   return TECH_TREE.find(t => t.id === id);
 }

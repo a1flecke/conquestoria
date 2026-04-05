@@ -2,6 +2,7 @@ import type { GameMap, HexCoord, GameState, ResourceYield } from '@/core/types';
 import { WONDER_DEFINITIONS, getWonderDefinition } from './wonder-definitions';
 import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
 import { createRng } from './map-generator';
+import { applyResearchBonus } from './tech-system';
 
 const WONDER_COUNTS = { small: 5, medium: 8, large: 15 } as const;
 
@@ -92,7 +93,8 @@ export function processWonderDiscovery(
           break;
         case 'science':
           if (civ.techState.currentResearch) {
-            civ.techState.researchProgress += wonder.discoveryBonus.amount;
+            const bonusResult = applyResearchBonus(civ.techState, wonder.discoveryBonus.amount);
+            civ.techState = bonusResult.state;
           } else {
             // Fallback: convert to gold if no active research
             civ.gold += wonder.discoveryBonus.amount;

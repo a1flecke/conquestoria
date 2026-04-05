@@ -3,6 +3,7 @@ import type { EventBus } from '@/core/event-bus';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { TECH_TREE } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
+import { applyResearchBonus } from './tech-system';
 import { hexDistance, hexKey, hexNeighbors } from './hex-utils';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { foundCity } from './city-system';
@@ -173,7 +174,8 @@ function processQuests(state: GameState, mc: MinorCivState, def: { archetype: an
           state.civilizations[civId].gold += reward.gold;
         }
         if (reward.science && state.civilizations[civId]?.techState.currentResearch) {
-          state.civilizations[civId].techState.researchProgress += reward.science;
+          const bonusResult = applyResearchBonus(state.civilizations[civId].techState, reward.science);
+          state.civilizations[civId].techState = bonusResult.state;
         }
         bus.emit('minor-civ:quest-completed', { minorCivId: mc.id, majorCivId: civId, quest, reward });
         delete mc.activeQuests[civId];
@@ -206,7 +208,8 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
         break;
       case 'science_per_turn':
         if (civ.techState.currentResearch) {
-          civ.techState.researchProgress += def.allyBonus.amount;
+          const bonusResult = applyResearchBonus(civ.techState, def.allyBonus.amount);
+          civ.techState = bonusResult.state;
         }
         break;
       case 'production_per_turn': {
