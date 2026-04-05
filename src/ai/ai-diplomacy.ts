@@ -152,6 +152,7 @@ export function evaluateLeagueResponse(
   relationships: Record<string, number>,
   leagueMembers: string[],
 ): boolean {
+  if (leagueMembers.length === 0) return false;
   const avgRel = leagueMembers.reduce((sum, m) => sum + (relationships[m] ?? 0), 0) / leagueMembers.length;
   return avgRel > 10;
 }
