@@ -4,6 +4,8 @@ import { resetUnitTurn, createUnit } from '@/systems/unit-system';
 import { processCity } from '@/systems/city-system';
 import { processResearch } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
+import { resolveCombat } from '@/systems/combat-system';
+import { moveUnit } from '@/systems/unit-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision } from '@/systems/fog-of-war';
@@ -168,10 +170,14 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // --- Process barbarians ---
   const playerUnits = Object.values(newState.units).filter(u => u.owner !== 'barbarian' && !u.owner.startsWith('mc-'));
+  const barbarianUnits = Object.values(newState.units).filter(u => u.owner === 'barbarian');
+  const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
   const barbResult = processBarbarians(
     Object.values(newState.barbarianCamps),
     newState.map,
     playerUnits,
+    barbSeed,
+    barbarianUnits,
   );
   newState.barbarianCamps = {};
   for (const camp of barbResult.updatedCamps) {
@@ -183,6 +189,40 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const raider = createUnit('warrior', 'barbarian', spawn.position);
     newState.units[raider.id] = raider;
     bus.emit('barbarian:spawned', { campId: spawn.campId, unitId: raider.id });
+  }
+
+  // Move barbarian units
+  for (const order of barbResult.moveOrders) {
+    const unit = newState.units[order.unitId];
+    if (unit) {
+      const tile = newState.map.tiles[`${order.toCoord.q},${order.toCoord.r}`];
+      const cost = tile?.terrain === 'hills' || tile?.terrain === 'forest' ? 2 : 1;
+      newState.units[order.unitId] = moveUnit(unit, order.toCoord, cost);
+    }
+  }
+
+  // Barbarian attacks
+  for (const attack of barbResult.attackOrders) {
+    const attacker = newState.units[attack.attackerUnitId];
+    const defender = newState.units[attack.defenderUnitId];
+    if (!attacker || !defender) continue;
+    const combatSeed = barbSeed ^ attack.attackerUnitId.charCodeAt(0);
+    const result = resolveCombat(attacker, defender, newState.map, combatSeed);
+    bus.emit('combat:resolved', { result });
+    if (!result.attackerSurvived) {
+      delete newState.units[attacker.id];
+    } else {
+      newState.units[attacker.id] = { ...attacker, health: attacker.health - result.attackerDamage, movementPointsLeft: 0 };
+    }
+    if (!result.defenderSurvived) {
+      delete newState.units[defender.id];
+      // Remove from owning civ's unit list
+      for (const civ of Object.values(newState.civilizations)) {
+        civ.units = civ.units.filter(id => id !== defender.id);
+      }
+    } else {
+      newState.units[defender.id] = { ...defender, health: defender.health - result.defenderDamage };
+    }
   }
 
   // --- Minor civ turn phase ---
