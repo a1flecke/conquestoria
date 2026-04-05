@@ -1,7 +1,7 @@
 import type { GameMap, HexCoord, GameState, Unit, TribalVillage, VillageOutcomeType } from '@/core/types';
 import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
-import { TECH_TREE } from './tech-system';
+import { TECH_TREE, applyResearchBonus } from './tech-system';
 import { createRng } from './map-generator';
 
 const VILLAGE_COUNTS = { small: 8, medium: 12, large: 20 } as const;
@@ -112,7 +112,8 @@ export function visitVillage(
     case 'science': {
       const amount = 10 + Math.floor(rng() * 16); // 10-25
       if (civ?.techState.currentResearch) {
-        civ.techState.researchProgress += amount;
+        const bonusResult = applyResearchBonus(civ.techState, amount);
+        civ.techState = bonusResult.state;
         message = `The villagers share ancient knowledge! +${amount} research.`;
       } else {
         // Fallback: gold

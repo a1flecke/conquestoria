@@ -9,7 +9,25 @@ import { moveUnit } from '@/systems/unit-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision } from '@/systems/fog-of-war';
-import { processRelationshipDrift, decayEvents, tickTreaties } from '@/systems/diplomacy-system';
+import {
+  processRelationshipDrift,
+  decayEvents,
+  tickTreaties,
+  processVassalageTribute,
+  processProtectionTimers,
+  checkIndependenceThreshold,
+  petitionIndependence,
+  endVassalage,
+  endVassalageUnilateral,
+  declareWar,
+  decayTreachery,
+  enforceEmbargoes,
+  joinEmbargo,
+  cleanupEmbargoes,
+  checkLeagueDissolution,
+  triggerLeagueDefense,
+  getLeagueForCiv,
+} from '@/systems/diplomacy-system';
 import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
@@ -63,6 +81,31 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     // Update gold
     newState.civilizations[civId].gold += totalGold;
 
+    // Vassalage tribute (25% of gold income flows to overlord)
+    if (civ.diplomacy?.vassalage.overlord) {
+      const tribute = processVassalageTribute(totalGold);
+      newState.civilizations[civId].gold -= tribute.tributeAmount;
+      const overlordId = civ.diplomacy.vassalage.overlord;
+      if (newState.civilizations[overlordId]) {
+        newState.civilizations[overlordId].gold += tribute.tributeAmount;
+      }
+    }
+
+    // Update peak counts (read from newState to pick up earlier mutations in this loop)
+    const currentCivState = newState.civilizations[civId];
+    if (currentCivState.diplomacy) {
+      const cityCount = currentCivState.cities.length;
+      const milCount = currentCivState.units
+        .map(id => newState.units[id])
+        .filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
+      if (cityCount > currentCivState.diplomacy.vassalage.peakCities) {
+        newState.civilizations[civId].diplomacy.vassalage.peakCities = cityCount;
+      }
+      if (milCount > currentCivState.diplomacy.vassalage.peakMilitary) {
+        newState.civilizations[civId].diplomacy.vassalage.peakMilitary = milCount;
+      }
+    }
+
     // Reset unit movement
     for (const unitId of civ.units) {
       const unit = newState.units[unitId];
@@ -100,6 +143,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       let dipState = processRelationshipDrift(civ.diplomacy, unitsNearBorder);
       dipState = decayEvents(dipState, newState.turn);
       dipState = tickTreaties(dipState);
+
+      // Treachery decay
+      dipState = decayTreachery(dipState, newState.turn);
 
       // Trade agreement gold income
       for (const treaty of dipState.treaties) {
@@ -169,6 +215,12 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   }
 
   // --- Process barbarians ---
+  // Reset barbarian unit movement each turn (they are not in any civ's units array)
+  for (const [unitId, unit] of Object.entries(newState.units)) {
+    if (unit.owner === 'barbarian') {
+      newState.units[unitId] = resetUnitTurn(unit);
+    }
+  }
   const playerUnits = Object.values(newState.units).filter(u => u.owner !== 'barbarian' && !u.owner.startsWith('mc-'));
   const barbarianUnits = Object.values(newState.units).filter(u => u.owner === 'barbarian');
   const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
@@ -249,6 +301,99 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);
+
+  // --- Vassalage protection & independence ---
+  for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    if (!civ.diplomacy?.vassalage.overlord) continue;
+
+    // Process protection timers
+    newState.civilizations[civId].diplomacy = processProtectionTimers(civ.diplomacy);
+
+    // Check auto-breakaway
+    const vassalDip = newState.civilizations[civId].diplomacy;
+    const overlordId = vassalDip.vassalage.overlord!;
+    const overlord = newState.civilizations[overlordId];
+
+    if (!overlord) {
+      // Overlord eliminated — free vassal unilaterally
+      newState.civilizations[civId].diplomacy = endVassalageUnilateral(vassalDip, civId, overlordId);
+      bus.emit('diplomacy:vassalage-ended', { vassalId: civId, overlordId, reason: 'overlord_eliminated' });
+      continue;
+    }
+
+    if (vassalDip.vassalage.protectionScore <= 20) {
+      const { vassalState, overlordState } = endVassalage(vassalDip, overlord.diplomacy, civId, overlordId);
+      newState.civilizations[civId].diplomacy = vassalState;
+      newState.civilizations[overlordId].diplomacy = overlordState;
+      bus.emit('diplomacy:vassalage-ended', { vassalId: civId, overlordId, reason: 'auto_breakaway' });
+      continue;
+    }
+
+    // Independence petition: check if vassal has grown strong enough
+    const vassalCiv = newState.civilizations[civId];
+    const vassalMilitary = vassalCiv.units
+      .map(id => newState.units[id])
+      .filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
+    const overlordMilitary = overlord.units
+      .map(id => newState.units[id])
+      .filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
+    if (checkIndependenceThreshold(vassalMilitary, overlordMilitary, vassalDip.vassalage.protectionScore)) {
+      const overlordDef = getCivDefinition(overlord.civType ?? '');
+      const accepts = (overlordDef?.personality.diplomacyFocus ?? 0.5) > 0.5;
+      const { vassalState, overlordState } = petitionIndependence(
+        vassalDip, overlord.diplomacy, civId, overlordId, accepts,
+      );
+      newState.civilizations[civId].diplomacy = vassalState;
+      newState.civilizations[overlordId].diplomacy = overlordState;
+      bus.emit('diplomacy:independence-petition', { vassalId: civId, overlordId, accepted: accepts });
+      bus.emit('diplomacy:vassalage-ended', { vassalId: civId, overlordId, reason: accepts ? 'independence' : 'war' });
+    }
+  }
+
+  // --- Vassal auto-joins overlord's embargoes ---
+  if (newState.embargoes) {
+    for (const [civId, civ] of Object.entries(newState.civilizations)) {
+      const overlordId = civ.diplomacy?.vassalage.overlord;
+      if (!overlordId) continue;
+      for (const embargo of newState.embargoes) {
+        if (embargo.participants.includes(overlordId) && !embargo.participants.includes(civId)) {
+          newState.embargoes = joinEmbargo(newState.embargoes, embargo.id, civId);
+        }
+      }
+    }
+  }
+
+  // --- Enforce embargoes ---
+  if (newState.embargoes && newState.marketplace) {
+    const cityOwners: Record<string, string> = {};
+    for (const [cityId, city] of Object.entries(newState.cities)) {
+      cityOwners[cityId] = city.owner;
+    }
+    newState.marketplace.tradeRoutes = enforceEmbargoes(
+      newState.embargoes, newState.marketplace.tradeRoutes, cityOwners,
+    );
+    newState.embargoes = cleanupEmbargoes(newState.embargoes);
+  }
+
+  // --- League dissolution check ---
+  if (newState.defensiveLeagues) {
+    const warPairs: Array<{ civA: string; civB: string }> = [];
+    for (const civ of Object.values(newState.civilizations)) {
+      for (const enemyId of civ.diplomacy?.atWarWith ?? []) {
+        warPairs.push({ civA: civ.id, civB: enemyId });
+      }
+    }
+    const dissolved = newState.defensiveLeagues.filter(l => {
+      for (const pair of warPairs) {
+        if (l.members.includes(pair.civA) && l.members.includes(pair.civB)) return true;
+      }
+      return false;
+    });
+    for (const league of dissolved) {
+      bus.emit('diplomacy:league-dissolved', { leagueId: league.id, reason: 'members_at_war' });
+    }
+    newState.defensiveLeagues = checkLeagueDissolution(newState.defensiveLeagues, warPairs);
+  }
 
   // --- Era advancement check ---
   const newEra = checkEraAdvancement(newState);

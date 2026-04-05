@@ -475,6 +475,20 @@ function handleHexTap(coord: HexCoord): void {
 
     // Check for enemy unit at target (attack)
     if (unitAtHex && unitAtHex[1].owner !== gameState.currentPlayer) {
+      const defOwnerCiv = unitAtHex[1].owner;
+      const isBarbarian = defOwnerCiv === 'barbarian' || defOwnerCiv.startsWith('mc-');
+      // Auto-declare war when attacking a major civ unit we're not already at war with
+      if (!isBarbarian && gameState.civilizations[defOwnerCiv]) {
+        const cp = gameState.currentPlayer;
+        const alreadyAtWar = currentCiv().diplomacy?.atWarWith.includes(defOwnerCiv) ?? false;
+        if (!alreadyAtWar) {
+          currentCiv().diplomacy = declareWar(currentCiv().diplomacy, defOwnerCiv, gameState.turn);
+          gameState.civilizations[defOwnerCiv].diplomacy = declareWar(
+            gameState.civilizations[defOwnerCiv].diplomacy, cp, gameState.turn,
+          );
+          bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: defOwnerCiv });
+        }
+      }
       const seed = gameState.turn * 16807 + unit.id.charCodeAt(0) + unitAtHex[1].id.charCodeAt(0);
       const result = resolveCombat(unit, unitAtHex[1], gameState.map, seed);
       bus.emit('combat:resolved', { result });
@@ -759,7 +773,13 @@ bus.on('city:building-complete', ({ cityId, buildingId }) => {
 bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
   if (defenderId === gameState.currentPlayer) {
     const attacker = gameState.civilizations[attackerId];
-    showNotification(`${attacker?.name ?? 'Unknown'} has declared war!`, 'warning');
+    const attackerName = attacker?.name ?? 'Unknown';
+    const rel = gameState.civilizations[gameState.currentPlayer]?.diplomacy?.relationships[attackerId] ?? 0;
+    let reason = 'rising tensions';
+    if (rel <= -50) reason = 'deep hostility';
+    else if (rel <= -20) reason = 'deteriorating relations';
+    else if (rel < 0) reason = 'territorial disputes';
+    showNotification(`${attackerName} has declared war! (Reason: ${reason})`, 'warning');
   }
 });
 
