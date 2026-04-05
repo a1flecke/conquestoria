@@ -18,7 +18,7 @@ describe('spawnBarbarianCamp', () => {
   });
 
   it('creates a camp on a valid land tile', () => {
-    const camp = spawnBarbarianCamp(map, [], []);
+    const camp = spawnBarbarianCamp(map, [], [], 42);
     expect(camp).not.toBeNull();
     if (camp) {
       const tile = map.tiles[hexKey(camp.position)];
@@ -30,7 +30,7 @@ describe('spawnBarbarianCamp', () => {
 
   it('avoids spawning near cities', () => {
     const cityPositions = [{ q: 15, r: 15 }];
-    const camp = spawnBarbarianCamp(map, cityPositions, []);
+    const camp = spawnBarbarianCamp(map, cityPositions, [], 99);
     if (camp) {
       const dist = hexDistance(camp.position, { q: 15, r: 15 });
       expect(dist).toBeGreaterThan(5);
@@ -55,7 +55,7 @@ describe('processBarbarians', () => {
       id: 'camp-1', position: { q: 10, r: 10 },
       strength: 5, spawnCooldown: 3,
     };
-    const result = processBarbarians([camp], generateMap(30, 30, 'barb-proc'), []);
+    const result = processBarbarians([camp], generateMap(30, 30, 'barb-proc'), [], 123);
     expect(result.updatedCamps[0].spawnCooldown).toBe(2);
   });
 });

@@ -4,6 +4,14 @@ import { createUnit } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
 import { spawnBarbarianCamp } from '@/systems/barbarian-system';
+
+function hashSeed(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+  }
+  return Math.abs(h) || 1;
+}
 import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createMarketplaceState } from '@/systems/trade-system';
@@ -96,8 +104,9 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   // Spawn initial barbarian camps
   const barbarianCamps: Record<string, any> = {};
   const cityPositions = startPositions;
+  const barbSeedBase = hashSeed(gameSeed);
   for (let i = 0; i < 3; i++) {
-    const camp = spawnBarbarianCamp(map, cityPositions, Object.values(barbarianCamps));
+    const camp = spawnBarbarianCamp(map, cityPositions, Object.values(barbarianCamps), barbSeedBase + i);
     if (camp) barbarianCamps[camp.id] = camp;
   }
 
@@ -191,8 +200,9 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
 
   const barbarianCamps: Record<string, any> = {};
   const campCount = config.mapSize === 'large' ? 8 : config.mapSize === 'medium' ? 5 : 3;
+  const hotSeatBarbSeed = hashSeed(gameSeed);
   for (let i = 0; i < campCount; i++) {
-    const camp = spawnBarbarianCamp(map, startPositions, Object.values(barbarianCamps));
+    const camp = spawnBarbarianCamp(map, startPositions, Object.values(barbarianCamps), hotSeatBarbSeed + i);
     if (camp) barbarianCamps[camp.id] = camp;
   }
 

@@ -776,14 +776,18 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
   showNotification(`${icon} ${message}`, 'info');
 });
 
-bus.on('barbarian:spawned', ({ campId }) => {
-  // Only notify if visible
-  const camp = gameState.barbarianCamps[campId];
-  if (camp) {
-    const vis = currentCiv()?.visibility;
-    if (vis && isVisible(vis, camp.position)) {
-      showNotification('Barbarian raiders spotted!', 'warning');
-    }
+// Track which camps have already triggered a "spotted" notification this session
+const notifiedBarbarianCamps = new Set<string>();
+
+bus.on('barbarian:spawned', ({ campId, unitId }) => {
+  // Only notify the first time we see a raider from this camp
+  if (notifiedBarbarianCamps.has(campId)) return;
+  const unit = gameState.units[unitId];
+  if (!unit) return;
+  const vis = currentCiv()?.visibility;
+  if (vis && isVisible(vis, unit.position)) {
+    notifiedBarbarianCamps.add(campId);
+    showNotification('Barbarian raiders spotted!', 'warning');
   }
 });
 

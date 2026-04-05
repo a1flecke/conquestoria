@@ -1,5 +1,14 @@
 import type { BarbarianCamp, GameMap, HexCoord, Unit } from '@/core/types';
-import { hexKey, hexDistance } from './hex-utils';
+import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
+
+// Seeded LCG — avoids Math.random() per project rules
+function lcg(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 48271) % 2147483647;
+    return s / 2147483647;
+  };
+}
 
 let nextCampId = 1;
 
@@ -7,7 +16,9 @@ export function spawnBarbarianCamp(
   map: GameMap,
   cityPositions: HexCoord[],
   existingCamps: BarbarianCamp[],
+  seed: number,
 ): BarbarianCamp | null {
+  const rng = lcg(seed);
   const existingPositions = new Set(existingCamps.map(c => hexKey(c.position)));
 
   const candidates = Object.values(map.tiles).filter(tile => {
@@ -30,12 +41,12 @@ export function spawnBarbarianCamp(
 
   if (candidates.length === 0) return null;
 
-  const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+  const chosen = candidates[Math.floor(rng() * candidates.length)];
 
   return {
     id: `camp-${nextCampId++}`,
     position: { ...chosen.coord },
-    strength: 5 + Math.floor(Math.random() * 5),
+    strength: 5 + Math.floor(rng() * 5),
     spawnCooldown: 5,
   };
 }
@@ -45,32 +56,50 @@ export function resetCampId(): void {
 }
 
 export function destroyCamp(camp: BarbarianCamp): number {
-  // Gold reward based on camp strength
   return 15 + camp.strength * 2;
+}
+
+export interface BarbarianMoveOrder {
+  unitId: string;
+  toCoord: HexCoord;
+}
+
+export interface BarbarianAttackOrder {
+  attackerUnitId: string;
+  defenderUnitId: string;
 }
 
 export interface BarbarianProcessResult {
   updatedCamps: BarbarianCamp[];
   spawnedUnits: Array<{ campId: string; position: HexCoord }>;
+  moveOrders: BarbarianMoveOrder[];
+  attackOrders: BarbarianAttackOrder[];
 }
+
+const BARBARIAN_CHASE_RANGE = 5;
 
 export function processBarbarians(
   camps: BarbarianCamp[],
   map: GameMap,
   playerUnits: Unit[],
+  seed: number,
+  barbarianUnits?: Unit[],
 ): BarbarianProcessResult {
+  const rng = lcg(seed ^ 0xdeadbeef);
   const updatedCamps: BarbarianCamp[] = [];
   const spawnedUnits: Array<{ campId: string; position: HexCoord }> = [];
+  const moveOrders: BarbarianMoveOrder[] = [];
+  const attackOrders: BarbarianAttackOrder[] = [];
 
+  // --- Camp processing: cooldowns and spawning ---
   for (const camp of camps) {
     const newCooldown = camp.spawnCooldown - 1;
 
     if (newCooldown <= 0) {
-      // Spawn a raider near the camp
       spawnedUnits.push({ campId: camp.id, position: { ...camp.position } });
       updatedCamps.push({
         ...camp,
-        spawnCooldown: 4 + Math.floor(Math.random() * 3),
+        spawnCooldown: 4 + Math.floor(rng() * 3),
         strength: camp.strength + 1,
       });
     } else {
@@ -78,5 +107,78 @@ export function processBarbarians(
     }
   }
 
-  return { updatedCamps, spawnedUnits };
+  // --- Barbarian unit movement and attack ---
+  if (!barbarianUnits || barbarianUnits.length === 0) {
+    return { updatedCamps, spawnedUnits, moveOrders, attackOrders };
+  }
+
+  // Build a set of all occupied positions (for collision avoidance)
+  const occupiedByUnit: Map<string, string> = new Map(); // hexKey → unitId
+  for (const u of barbarianUnits) {
+    occupiedByUnit.set(hexKey(u.position), u.id);
+  }
+  for (const u of playerUnits) {
+    occupiedByUnit.set(hexKey(u.position), u.id);
+  }
+
+  for (const barbUnit of barbarianUnits) {
+    if (barbUnit.movementPointsLeft <= 0) continue;
+
+    // Find the nearest player unit within chase range
+    let nearestTarget: Unit | null = null;
+    let nearestDist = BARBARIAN_CHASE_RANGE + 1;
+    for (const playerUnit of playerUnits) {
+      const dist = hexDistance(barbUnit.position, playerUnit.position);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestTarget = playerUnit;
+      }
+    }
+
+    if (!nearestTarget) continue;
+
+    // If adjacent to target, issue an attack order
+    if (nearestDist === 1) {
+      attackOrders.push({ attackerUnitId: barbUnit.id, defenderUnitId: nearestTarget.id });
+      continue;
+    }
+
+    // Otherwise, move one step toward the target
+    const neighbors = hexNeighbors(barbUnit.position);
+    // Filter to passable, unoccupied tiles
+    const passable = neighbors.filter(coord => {
+      const tile = map.tiles[hexKey(coord)];
+      if (!tile) return false;
+      if (tile.terrain === 'ocean' || tile.terrain === 'coast' || tile.terrain === 'mountain') return false;
+      const key = hexKey(coord);
+      // Allow moving onto player unit tiles (will become an attack next turn)
+      const occupant = occupiedByUnit.get(key);
+      return !occupant || occupant === nearestTarget.id;
+    });
+
+    if (passable.length === 0) continue;
+
+    // Pick the neighbor closest to the target
+    let bestCoord = passable[0];
+    let bestDist = hexDistance(passable[0], nearestTarget.position);
+    for (const coord of passable) {
+      const d = hexDistance(coord, nearestTarget.position);
+      if (d < bestDist) {
+        bestDist = d;
+        bestCoord = coord;
+      }
+    }
+
+    // If the best step is onto the target tile, issue attack instead
+    if (hexKey(bestCoord) === hexKey(nearestTarget.position)) {
+      attackOrders.push({ attackerUnitId: barbUnit.id, defenderUnitId: nearestTarget.id });
+    } else {
+      moveOrders.push({ unitId: barbUnit.id, toCoord: bestCoord });
+      // Update occupancy map so later units in this loop don't collide
+      occupiedByUnit.delete(hexKey(barbUnit.position));
+      occupiedByUnit.set(hexKey(bestCoord), barbUnit.id);
+    }
+  }
+
+  return { updatedCamps, spawnedUnits, moveOrders, attackOrders };
 }
