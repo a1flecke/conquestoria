@@ -3,6 +3,7 @@ import {
   getRelationship,
   isAtWar,
   getAvailableActions,
+  canOfferVassalage,
 } from '@/systems/diplomacy-system';
 import { shouldDeclareWar } from './ai-personality';
 
@@ -100,4 +101,57 @@ export function evaluateProposal(
     default:
       return false;
   }
+}
+
+export function evaluateVassalage(
+  personality: PersonalityTraits,
+  diplomacy: DiplomacyState,
+  era: number,
+  selfStrength: number,
+  currentCities: number,
+  currentMilitary: number,
+  otherStrengths: Record<string, number>,
+): DiplomaticDecision | null {
+  if (!canOfferVassalage(
+    currentCities, diplomacy.vassalage.peakCities,
+    currentMilitary, diplomacy.vassalage.peakMilitary, era,
+  )) return null;
+
+  // Find strongest non-enemy civ
+  let bestTarget: string | null = null;
+  let bestStrength = 0;
+  for (const [civId, strength] of Object.entries(otherStrengths)) {
+    if (diplomacy.atWarWith.includes(civId)) continue;
+    if (strength > bestStrength) {
+      bestStrength = strength;
+      bestTarget = civId;
+    }
+  }
+
+  if (bestTarget && selfStrength < bestStrength * 0.4) {
+    return { action: 'offer_vassalage', targetCiv: bestTarget };
+  }
+  return null;
+}
+
+export function evaluateEmbargoResponse(
+  personality: PersonalityTraits,
+  relationships: Record<string, number>,
+  proposerId: string,
+  targetCivId: string,
+): boolean {
+  const relWithProposer = relationships[proposerId] ?? 0;
+  const relWithTarget = relationships[targetCivId] ?? 0;
+  const threshold = personality.traits.includes('aggressive') ? 10 :
+                    personality.traits.includes('diplomatic') ? 30 : 20;
+  return relWithProposer > relWithTarget + threshold;
+}
+
+export function evaluateLeagueResponse(
+  personality: PersonalityTraits,
+  relationships: Record<string, number>,
+  leagueMembers: string[],
+): boolean {
+  const avgRel = leagueMembers.reduce((sum, m) => sum + (relationships[m] ?? 0), 0) / leagueMembers.length;
+  return avgRel > 10;
 }

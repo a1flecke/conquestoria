@@ -8,12 +8,15 @@ import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { chooseTech, chooseProduction } from './ai-strategy';
-import { evaluateDiplomacy, evaluateMinorCivDiplomacy } from './ai-diplomacy';
+import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import {
   declareWar,
   makePeace,
   proposeTreaty,
   modifyRelationship,
+  offerVassalage,
+  joinEmbargo,
+  inviteToLeague,
 } from '@/systems/diplomacy-system';
 import {
   canRecruitSpy,
@@ -217,6 +220,52 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           }
           bus.emit('diplomacy:treaty-accepted', { civA: civId, civB: decision.targetCiv, treaty: decision.action });
           break;
+      }
+    }
+
+    // AI vassalage: offer vassalage if very weak
+    const currentCities = civ.cities.length;
+    const currentMilitary = militaryUnits.length;
+    const vassalageDecision = evaluateVassalage(
+      personality, civ.diplomacy, newState.era, selfStrength,
+      currentCities, currentMilitary, otherStrengths,
+    );
+    if (vassalageDecision && vassalageDecision.action === 'offer_vassalage') {
+      const overlordId = vassalageDecision.targetCiv;
+      if (newState.civilizations[overlordId]?.diplomacy) {
+        newState.civilizations[civId].diplomacy = offerVassalage(
+          civ.diplomacy, civId, overlordId,
+        );
+        bus.emit('diplomacy:vassalage-offered', { vassalId: civId, overlordId });
+      }
+    }
+
+    // AI embargo: join embargoes proposed by allied civs
+    if (newState.embargoes) {
+      for (const embargo of newState.embargoes) {
+        if (embargo.participants.includes(civId)) continue;
+        const proposerId = embargo.participants[0];
+        if (!proposerId) continue;
+        const shouldJoin = evaluateEmbargoResponse(
+          personality, civ.diplomacy.relationships, proposerId, embargo.targetCivId,
+        );
+        if (shouldJoin) {
+          newState.embargoes = joinEmbargo(newState.embargoes, embargo.id, civId);
+        }
+      }
+    }
+
+    // AI league: accept league invitations
+    if (newState.defensiveLeagues) {
+      for (const league of newState.defensiveLeagues) {
+        if (league.members.includes(civId)) continue;
+        const shouldJoin = evaluateLeagueResponse(
+          personality, civ.diplomacy.relationships, league.members,
+        );
+        if (shouldJoin) {
+          newState.defensiveLeagues = inviteToLeague(newState.defensiveLeagues, league.id, civId);
+          bus.emit('diplomacy:league-joined', { leagueId: league.id, civId });
+        }
       }
     }
   }
