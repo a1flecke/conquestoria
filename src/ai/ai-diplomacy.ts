@@ -154,5 +154,7 @@ export function evaluateLeagueResponse(
 ): boolean {
   if (leagueMembers.length === 0) return false;
   const avgRel = leagueMembers.reduce((sum, m) => sum + (relationships[m] ?? 0), 0) / leagueMembers.length;
-  return avgRel > 10;
+  const threshold = personality.traits.includes('aggressive') ? 30 :
+                    personality.traits.includes('diplomatic') ? 5 : 10;
+  return avgRel > threshold;
 }
