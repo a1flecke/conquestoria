@@ -142,10 +142,15 @@ export function showHotSeatSetup(
       panel.innerHTML = `
         <div style="text-align:center;margin-top:60px;">
           <h2 style="font-size:20px;color:#e8c170;margin-bottom:8px;">Pass the device to</h2>
-          <h1 style="font-size:28px;color:white;margin-bottom:24px;">${players[playerIdx].name}</h1>
-          <button id="hs-civ-ready" style="padding:14px 32px;border-radius:10px;background:#e8c170;border:none;color:#1a1a2e;font-weight:bold;font-size:16px;cursor:pointer;">I'm ${players[playerIdx].name}</button>
+          <h1 style="font-size:28px;color:white;margin-bottom:24px;" data-text="hs-pass-name"></h1>
+          <button id="hs-civ-ready" style="padding:14px 32px;border-radius:10px;background:#e8c170;border:none;color:#1a1a2e;font-weight:bold;font-size:16px;cursor:pointer;" data-text="hs-pass-btn"></button>
         </div>
       `;
+      // Inject player name via textContent (user-entered, XSS risk)
+      const passNameEl = panel.querySelector('[data-text="hs-pass-name"]');
+      if (passNameEl) passNameEl.textContent = players[playerIdx].name;
+      const passBtnEl = panel.querySelector('[data-text="hs-pass-btn"]');
+      if (passBtnEl) passBtnEl.textContent = `I'm ${players[playerIdx].name}`;
 
       panel.querySelector('#hs-civ-ready')?.addEventListener('click', () => {
         showCivSelector(playerIdx);
