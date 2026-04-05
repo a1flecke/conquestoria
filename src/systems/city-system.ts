@@ -224,5 +224,31 @@ export function applyProductionBonus(
     if (isMilitary) return bonusEffect.speedMultiplier;
   }
 
+  // Shire: military units cost 25% more
+  if (bonusEffect.type === 'peaceful_growth') {
+    const militaryTypes = ['warrior', 'swordsman', 'pikeman', 'musketeer', 'scout', 'archer'];
+    if (militaryTypes.includes(itemId)) {
+      return 1 + bonusEffect.militaryPenalty; // e.g. 1.25
+    }
+  }
+
   return 1;
+}
+
+export function razeForestForProduction(
+  city: City,
+  map: GameMap,
+  tileCoord: HexCoord,
+): { city: City; map: GameMap } | null {
+  const key = `${tileCoord.q},${tileCoord.r}`;
+  const tile = map.tiles[key];
+  if (!tile || tile.terrain !== 'forest') return null;
+
+  const isOwned = city.ownedTiles.some(t => t.q === tileCoord.q && t.r === tileCoord.r);
+  if (!isOwned) return null;
+
+  const newTile = { ...tile, terrain: 'plains' as const, improvement: 'none' as const, improvementTurnsLeft: 0 };
+  const newMap = { ...map, tiles: { ...map.tiles, [key]: newTile } };
+  const newCity = { ...city, productionProgress: city.productionProgress + 30 };
+  return { city: newCity, map: newMap };
 }

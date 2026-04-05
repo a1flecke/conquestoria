@@ -1,4 +1,4 @@
-import type { City, GameMap, ResourceYield } from '@/core/types';
+import type { City, GameMap, ResourceYield, CivBonusEffect } from '@/core/types';
 import { hexKey, hexNeighbors } from './hex-utils';
 import { getImprovementYieldBonus } from './improvement-system';
 import { BUILDINGS } from './city-system';
@@ -22,7 +22,7 @@ export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   volcanic:   { food: 0, production: 0, gold: 0, science: 0 },
 };
 
-export function calculateCityYields(city: City, map: GameMap): ResourceYield {
+export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivBonusEffect): ResourceYield {
   const yields: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
 
   // Base yield from city center
@@ -84,6 +84,22 @@ export function calculateCityYields(city: City, map: GameMap): ResourceYield {
         }
       }
     }
+  }
+
+  // Russia tundra bonus
+  if (bonusEffect?.type === 'tundra_bonus') {
+    for (const coord of workedTiles) {
+      const tile = map.tiles[hexKey(coord)];
+      if (tile && (tile.terrain === 'tundra' || tile.terrain === 'snow')) {
+        yields.food += bonusEffect.foodBonus;
+        yields.production += bonusEffect.productionBonus;
+      }
+    }
+  }
+
+  // Shire food bonus
+  if (bonusEffect?.type === 'peaceful_growth') {
+    yields.food += bonusEffect.foodBonus;
   }
 
   // Building yields

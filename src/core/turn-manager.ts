@@ -30,11 +30,10 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const city = newState.cities[cityId];
       if (!city) continue;
 
-      const yields = calculateCityYields(city, newState.map);
+      const civDef = getCivDefinition(civ.civType ?? '');
+      const yields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
       totalScience += yields.science;
       totalGold += yields.gold;
-
-      const civDef = getCivDefinition(civ.civType ?? '');
       const result = processCity(city, newState.map, yields.food, yields.production, civDef?.bonusEffect);
       newState.cities[cityId] = result.city;
 
