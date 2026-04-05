@@ -127,7 +127,8 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         coord => civ.visibility.tiles[hexKey(coord)] !== 'visible',
       );
       const candidates = unexplored.length > 0 ? unexplored : range;
-      const target = candidates[Math.floor(Math.random() * candidates.length)];
+      const moveSeed = newState.turn * 16807 + unit.id.charCodeAt(0);
+      const target = candidates[moveSeed % candidates.length];
       newState.units[unit.id] = moveUnit(unit, target, 1);
       delete unitPositions[hexKey(unit.position)];
       unitPositions[hexKey(target)] = unit.id;
