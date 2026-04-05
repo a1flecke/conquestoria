@@ -30,6 +30,7 @@ import {
 } from '@/systems/diplomacy-system';
 import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
+import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { applyProductionBonus } from '@/systems/city-system';
@@ -219,7 +220,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   }
 
   // --- Process wonder effects (after city processing) ---
-  const eruptions = processWonderEffects(newState);
+  const wonderRng = createRng(`wonder-${newState.turn}`);
+  const eruptions = processWonderEffects(newState, wonderRng);
   for (const eruption of eruptions) {
     bus.emit('wonder:eruption', {
       wonderId: eruption.wonderId,

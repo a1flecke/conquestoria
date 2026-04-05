@@ -128,9 +128,9 @@ interface EruptionResult {
   tilesAffected: HexCoord[];
 }
 
-export function processWonderEffects(state: GameState, rng?: () => number): EruptionResult[] {
+export function processWonderEffects(state: GameState, rng: () => number): EruptionResult[] {
   const eruptions: EruptionResult[] = [];
-  const effectRng = rng ?? (() => Math.random());
+  const effectRng = rng;
 
   for (const tile of Object.values(state.map.tiles)) {
     if (!tile.wonder) continue;

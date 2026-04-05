@@ -1,4 +1,5 @@
 import { CIV_DEFINITIONS } from '@/systems/civ-definitions';
+import { createRng } from '@/systems/map-generator';
 
 export interface CivSelectCallbacks {
   onSelect: (civId: string) => void;
@@ -74,7 +75,8 @@ export function createCivSelectPanel(
   panel.querySelector('#civ-random')?.addEventListener('click', () => {
     const available = CIV_DEFINITIONS.filter(c => !disabledCivs.includes(c.id));
     if (available.length === 0) return;
-    const randomIdx = Math.floor(Math.random() * available.length);
+    const pickRng = createRng(`civ-pick-${Date.now()}`);
+    const randomIdx = Math.floor(pickRng() * available.length);
     selectedCiv = available[randomIdx].id;
 
     cards.forEach(c => {
