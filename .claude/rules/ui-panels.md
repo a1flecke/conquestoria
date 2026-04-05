@@ -23,6 +23,17 @@ paths:
 - Show gold as `currentGold (+perTurn)` format
 - Show current research name, not just "..."
 
+## Unit Info Panels
+- ALL game entities (units, cities, buildings) must be identifiable on tap — show name, owner, description
+- Enemy units must show: owner civ name, civ color (as border/accent), unit description, diplomatic relationship (At War / Neutral / Allied)
+- Friendly units must show: description, HP, moves remaining, and available actions
+- Use `textContent` / `createTextNode()` for dynamic text — never `innerHTML` with game-generated strings (XSS risk)
+
+## Notifications
+- Notifications must queue — never overwrite one notification with another
+- Maintain a persistent notification log (last 50 entries) accessible via a log button
+- Log entries must include the turn number for context
+
 ## Tech Panel
 - Must list ALL tech tracks from the `TechTrack` type union — never hardcode a subset
 - Derive track list from the type definition or `TECH_TREE` data

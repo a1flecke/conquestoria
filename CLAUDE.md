@@ -39,3 +39,7 @@ Civilization-building strategy game. TypeScript + Canvas 2D + Vite.
 - City panels must cycle through all cities, not just `cities[0]`
 - HUD should show per-turn yield rates (food, production, gold, science), not just totals
 - Building yields must be displayed in city panel build queue
+- If you compute data (movement range, attack targets, etc.), it MUST be rendered — dead computed data is a bug
+- Map wrapping must be applied in BOTH rendering (ghost tiles at edges) AND input (coordinate normalization in handleHexTap)
+- All UI elements must be self-explanatory — add help text, descriptions, and inline info where users make choices
+- Use `textContent`/`createTextNode()` for dynamic text in DOM — never `innerHTML` with game-generated strings
