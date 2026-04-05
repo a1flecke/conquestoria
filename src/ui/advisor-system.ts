@@ -182,11 +182,10 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     trigger: (state) => {
       const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
       if (!playerDip || playerDip.atWarWith.length === 0) return false;
-      if (!state.marketplace?.tradeRoutes) return false;
+      const tradeRoutes = state.marketplace?.tradeRoutes;
+      if (!tradeRoutes) return false;
       return playerDip.atWarWith.some(enemyId => {
-        const hasRoute = state.marketplace.tradeRoutes.some(
-          r => r.fromCivId === enemyId || r.toCivId === enemyId,
-        );
+        const hasRoute = tradeRoutes.some(r => r.foreignCivId === enemyId);
         if (!hasRoute) return false;
         const alreadyEmbargoed = (state.embargoes ?? []).some(
           e => e.targetCivId === enemyId && e.participants.includes(state.currentPlayer),
@@ -220,7 +219,9 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
       if (!playerDip) return false;
       if (playerDip.treaties.length === 0) return false;
-      const treatyPartners = playerDip.treaties.map(t => t.withCiv);
+      const treatyPartners = playerDip.treaties.map(t =>
+        t.civA === state.currentPlayer ? t.civB : t.civA,
+      );
       return treatyPartners.some(partnerId => (playerDip.relationships[partnerId] ?? 0) < -10);
     },
   },
