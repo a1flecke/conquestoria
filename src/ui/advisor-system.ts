@@ -77,7 +77,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '📚',
     message: 'Knowledge is power! Open the Tech panel and choose something to research. Each discovery unlocks new possibilities.',
     trigger: (state) => {
-      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      const civ = state.civilizations[state.currentPlayer];
       return civ?.techState.currentResearch === null && state.turn >= 2;
     },
     tutorialStep: 'research_tech',
@@ -299,7 +299,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '📚',
     message: 'Our scholars are idle! Choose a tech to research.',
     trigger: (state) => {
-      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      const civ = state.civilizations[state.currentPlayer];
       if (!civ) return false;
       if (civ.techState.completed.length === 0) return false;
       return civ.techState.currentResearch === null && state.turn >= 2;
@@ -332,7 +332,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '📚',
     message: "We're making strides. Continue researching to reach a new era.",
     trigger: (state) => {
-      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      const civ = state.civilizations[state.currentPlayer];
       if (!civ || civ.techState.completed.length === 0) return false;
       return state.turn > 0 && state.turn % 20 === 0;
     },
@@ -345,7 +345,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '💎',
     message: "We're sitting on a fortune! Invest in buildings or units.",
     trigger: (state) => {
-      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      const civ = state.civilizations[state.currentPlayer];
       if (!civ || civ.gold <= 100) return false;
       return civ.cities.every(cityId => {
         const city = state.cities[cityId];
@@ -359,7 +359,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     icon: '💎',
     message: 'Our coffers are nearly empty. We need gold-producing tiles or trade.',
     trigger: (state) => {
-      const civ = state.civilizations.player ?? state.civilizations[state.currentPlayer];
+      const civ = state.civilizations[state.currentPlayer];
       if (!civ) return false;
       if (civ.cities.length === 0 || state.turn < 5) return false;
       return civ.gold < 10;

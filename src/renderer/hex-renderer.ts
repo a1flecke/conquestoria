@@ -258,8 +258,8 @@ function drawHex(
   }
 
   // Draw ownership indicator
-  if (tile.owner) {
-    ctx.strokeStyle = tile.owner === (currentPlayer ?? 'player') ? 'rgba(74,144,217,0.5)' : 'rgba(217,74,74,0.5)';
+  if (tile.owner && currentPlayer) {
+    ctx.strokeStyle = tile.owner === currentPlayer ? 'rgba(74,144,217,0.5)' : 'rgba(217,74,74,0.5)';
     ctx.lineWidth = 2;
     ctx.stroke();
   }
