@@ -441,6 +441,13 @@ Issue numbers (#2, #4, #5, #10) refer to GitHub issues tracked in the repository
 - Advisor disagreement frequency
 - New civ bonus strengths (especially fantasy civs with wilder abilities)
 - Vassal tribute rates
+- Victory conditions / win-state guidance (#33)
+
+### 8.7 UX Clarity Pass (M4e)
+
+- Building/unit cost explanations — tooltips showing what "cost" means and why to build things (#28)
+- General gameplay guidance — advisor suggestions for what to do next (#21)
+- Music quality — reduce low-frequency hum in Stone Age track, improve procedural generation (#3)
 
 ---
 
