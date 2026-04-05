@@ -19,32 +19,32 @@ const TUTORIAL_MESSAGES: TutorialMessage[] = [
     step: 'found_city',
     advisor: 'builder',
     message: 'Excellent! Your city is growing. Build a Shrine to start generating science, or train a Warrior to defend your borders. Tap your city to see options.',
-    trigger: (state) => Object.values(state.cities).some(c => c.owner === 'player'),
+    trigger: (state) => Object.values(state.cities).some(c => c.owner === state.currentPlayer),
   },
   {
     step: 'explore',
     advisor: 'explorer',
     message: 'The world awaits! Select your Scout and send them into the unknown. Who knows what we might find out there?',
-    trigger: (state) => Object.values(state.cities).some(c => c.owner === 'player'),
+    trigger: (state) => Object.values(state.cities).some(c => c.owner === state.currentPlayer),
   },
   {
     step: 'build_improvement',
     advisor: 'builder',
     message: 'Your Worker can build Farms and Mines on nearby tiles. Select the Worker and choose an improvement to boost your city\'s output.',
-    trigger: (state) => Object.values(state.units).some(u => u.owner === 'player' && u.type === 'worker'),
+    trigger: (state) => Object.values(state.units).some(u => u.owner === state.currentPlayer && u.type === 'worker'),
   },
   {
     step: 'research_tech',
     advisor: 'explorer',
     message: 'Knowledge is power! Open the Tech panel and choose something to research. Each discovery unlocks new possibilities.',
-    trigger: (state) => state.civilizations.player?.techState.currentResearch === null && state.turn >= 2,
+    trigger: (state) => state.civilizations[state.currentPlayer]?.techState.currentResearch === null && state.turn >= 2,
   },
   {
     step: 'build_unit',
     advisor: 'builder',
     message: 'Your city can train units. Open the city panel and queue up a Warrior to defend your borders.',
     trigger: (state) => {
-      const cities = Object.values(state.cities).filter(c => c.owner === 'player');
+      const cities = Object.values(state.cities).filter(c => c.owner === state.currentPlayer);
       return cities.length > 0 && cities[0].productionQueue.length === 0;
     },
   },
@@ -54,7 +54,7 @@ const TUTORIAL_MESSAGES: TutorialMessage[] = [
     message: 'Barbarians! Move your Warrior next to them and tap the enemy to attack. Be careful — they fight back!',
     trigger: (state) => {
       // Trigger when barbarian is visible
-      const vis = state.civilizations.player?.visibility;
+      const vis = state.civilizations[state.currentPlayer]?.visibility;
       if (!vis) return false;
       return Object.values(state.units).some(u => u.owner === 'barbarian' && vis.tiles[`${u.position.q},${u.position.r}`] === 'visible');
     },
