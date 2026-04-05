@@ -1,4 +1,4 @@
-import { MusicGenerator } from './music-generator';
+import { MusicGenerator, seedMusicRng } from './music-generator';
 
 export class AudioManager {
   private musicElement: HTMLAudioElement | null = null;
@@ -39,6 +39,7 @@ export class AudioManager {
     }
 
     this.currentEra = era;
+    seedMusicRng(`era-${era}`);
     this.musicGenerator.start(era, this.musicVolume);
   }
 
