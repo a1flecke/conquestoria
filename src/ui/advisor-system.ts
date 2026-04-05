@@ -142,6 +142,89 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     },
   },
 
+  {
+    id: 'chancellor_vassalage_available',
+    advisor: 'chancellor',
+    icon: '🎩',
+    message: 'A rival civ is weakened. They may offer vassalage — consider accepting for tribute income.',
+    trigger: (state) => {
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
+      if (!playerDip) return false;
+      if ((state.civilizations[state.currentPlayer]?.cities.length ?? 0) === 0) return false;
+      if (state.era < 2) return false;
+      return Object.entries(state.civilizations).some(([civId, civ]) => {
+        if (civId === state.currentPlayer) return false;
+        const rel = playerDip.relationships[civId] ?? 0;
+        return rel > 10 && civ.cities.length >= 1 && civ.cities.length < 2;
+      });
+    },
+  },
+  {
+    id: 'chancellor_under_threat_vassalage',
+    advisor: 'chancellor',
+    icon: '🎩',
+    message: "We're losing badly. Consider offering vassalage to a stronger neighbor for protection.",
+    trigger: (state) => {
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
+      if (!playerDip) return false;
+      if (state.era < 2) return false;
+      const peakCities = playerDip.vassalage?.peakCities ?? 0;
+      if (peakCities < 2) return false;
+      const currentCities = state.civilizations[state.currentPlayer]?.cities.length ?? 0;
+      return currentCities < peakCities * 0.5;
+    },
+  },
+  {
+    id: 'chancellor_embargo_opportunity',
+    advisor: 'chancellor',
+    icon: '🎩',
+    message: "An enemy's trade network is a vulnerability. Consider proposing an embargo.",
+    trigger: (state) => {
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
+      if (!playerDip || playerDip.atWarWith.length === 0) return false;
+      if (!state.marketplace?.tradeRoutes) return false;
+      return playerDip.atWarWith.some(enemyId => {
+        const hasRoute = state.marketplace.tradeRoutes.some(
+          r => r.fromCivId === enemyId || r.toCivId === enemyId,
+        );
+        if (!hasRoute) return false;
+        const alreadyEmbargoed = (state.embargoes ?? []).some(
+          e => e.targetCivId === enemyId && e.participants.includes(state.currentPlayer),
+        );
+        return !alreadyEmbargoed;
+      });
+    },
+  },
+  {
+    id: 'chancellor_league_suggestion',
+    advisor: 'chancellor',
+    icon: '🎩',
+    message: 'Multiple hostile neighbors threaten us. Consider forming a defensive league with a friendly civ.',
+    trigger: (state) => {
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
+      if (!playerDip) return false;
+      const hostile = Object.values(playerDip.relationships).filter(r => r < -20).length;
+      if (hostile < 2) return false;
+      const hasFriendly = Object.values(playerDip.relationships).some(r => r > 20);
+      if (!hasFriendly) return false;
+      const inLeague = (state.defensiveLeagues ?? []).some(l => l.members.includes(state.currentPlayer));
+      return !inLeague;
+    },
+  },
+  {
+    id: 'chancellor_treachery_warning',
+    advisor: 'chancellor',
+    icon: '🎩',
+    message: 'Breaking this treaty will damage our reputation with all civilizations.',
+    trigger: (state) => {
+      const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
+      if (!playerDip) return false;
+      if (playerDip.treaties.length === 0) return false;
+      const treatyPartners = playerDip.treaties.map(t => t.withCiv);
+      return treatyPartners.some(partnerId => (playerDip.relationships[partnerId] ?? 0) < -10);
+    },
+  },
+
   // --- War Chief ---
   {
     id: 'warchief_enemy_near_border',
