@@ -39,9 +39,9 @@ export function showHotSeatSetup(
       <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
         ${sizes.map(s => `
           <div class="map-size-card" data-size="${s.key}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:20px;cursor:pointer;text-align:center;min-width:100px;transition:border-color 0.2s;">
-            <div style="font-weight:bold;font-size:16px;color:#e8c170;">${s.label}</div>
-            <div style="font-size:12px;opacity:0.6;margin-top:4px;">${s.desc}</div>
-            <div style="font-size:11px;opacity:0.5;margin-top:4px;">Up to ${s.max} players</div>
+            <div style="font-weight:bold;font-size:16px;color:#e8c170;" data-label="${s.key}"></div>
+            <div style="font-size:12px;opacity:0.6;margin-top:4px;" data-desc="${s.key}"></div>
+            <div style="font-size:11px;opacity:0.5;margin-top:4px;" data-max="${s.key}"></div>
           </div>
         `).join('')}
       </div>
@@ -49,6 +49,16 @@ export function showHotSeatSetup(
         <button id="hs-cancel" style="padding:10px 20px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;cursor:pointer;font-size:13px;">Cancel</button>
       </div>
     `;
+
+    // Fill in map size card text safely
+    for (const s of sizes) {
+      const labelEl = panel.querySelector(`[data-label="${s.key}"]`);
+      if (labelEl) labelEl.textContent = s.label;
+      const descEl = panel.querySelector(`[data-desc="${s.key}"]`);
+      if (descEl) descEl.textContent = s.desc;
+      const maxEl = panel.querySelector(`[data-max="${s.key}"]`);
+      if (maxEl) maxEl.textContent = `Up to ${s.max} players`;
+    }
 
     container.appendChild(panel);
 
@@ -68,13 +78,15 @@ export function showHotSeatSetup(
   function showPlayerCountStage() {
     const max = MAP_DIMENSIONS[selectedMapSize!].maxPlayers;
 
+    const counts = Array.from({ length: max - 1 }, (_, i) => i + 2);
+
     panel.innerHTML = `
       <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;">How Many Players?</h1>
       <p style="font-size:13px;opacity:0.6;margin-bottom:16px;text-align:center;">Human players (AI opponents will fill remaining slots)</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-        ${Array.from({ length: max - 1 }, (_, i) => i + 2).map(n => `
+        ${counts.map(n => `
           <div class="count-card" data-count="${n}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:16px 24px;cursor:pointer;text-align:center;transition:border-color 0.2s;">
-            <div style="font-weight:bold;font-size:20px;color:#e8c170;">${n}</div>
+            <div style="font-weight:bold;font-size:20px;color:#e8c170;" data-count-num="${n}"></div>
             <div style="font-size:11px;opacity:0.5;margin-top:4px;">players</div>
           </div>
         `).join('')}
@@ -83,6 +95,12 @@ export function showHotSeatSetup(
         <button id="hs-back-size" style="padding:10px 20px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;cursor:pointer;font-size:13px;">Back</button>
       </div>
     `;
+
+    // Fill in player count numbers safely
+    for (const n of counts) {
+      const numEl = panel.querySelector(`[data-count-num="${n}"]`);
+      if (numEl) numEl.textContent = String(n);
+    }
 
     panel.querySelectorAll('.count-card').forEach(card => {
       card.addEventListener('click', () => {
@@ -103,8 +121,8 @@ export function showHotSeatSetup(
       <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;">Player Names</h1>
       <p style="font-size:13px;opacity:0.6;margin-bottom:16px;text-align:center;">Enter names for each player</p>
       <div style="max-width:300px;width:100%;display:flex;flex-direction:column;gap:10px;">
-        ${defaultNames.map((name, i) => `
-          <input class="player-name-input" data-idx="${i}" type="text" placeholder="${name}" value="${name}"
+        ${defaultNames.map((_name, i) => `
+          <input class="player-name-input" data-idx="${i}" type="text"
             style="padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;font-size:14px;" />
         `).join('')}
       </div>
@@ -113,6 +131,13 @@ export function showHotSeatSetup(
         <button id="hs-names-next" style="padding:10px 24px;background:rgba(232,193,112,0.3);border:2px solid #e8c170;border-radius:8px;color:#e8c170;cursor:pointer;font-size:14px;font-weight:bold;">Next</button>
       </div>
     `;
+
+    // Set placeholder and value via DOM properties (not attributes) to avoid XSS
+    const inputs = panel.querySelectorAll('.player-name-input') as NodeListOf<HTMLInputElement>;
+    inputs.forEach((input, i) => {
+      input.placeholder = defaultNames[i];
+      input.value = defaultNames[i];
+    });
 
     panel.querySelector('#hs-names-next')?.addEventListener('click', () => {
       const inputs = panel.querySelectorAll('.player-name-input') as NodeListOf<HTMLInputElement>;

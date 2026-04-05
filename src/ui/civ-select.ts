@@ -24,7 +24,7 @@ export function createCivSelectPanel(
   let selectedCiv: string | null = null;
 
   let html = `
-    <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;">${headerText}</h1>
+    <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;" data-text="header"></h1>
     <p style="font-size:13px;opacity:0.6;margin-bottom:24px;text-align:center;">Each civilization has a unique bonus that shapes your strategy.</p>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:400px;width:100%;">
   `;
@@ -35,10 +35,10 @@ export function createCivSelectPanel(
     html += `
       <div class="civ-card" data-civ-id="${civ.id}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:14px;cursor:pointer;transition:border-color 0.2s;${disabledStyle}">
         <div style="width:100%;height:4px;background:${civ.color};border-radius:2px;margin-bottom:10px;"></div>
-        <div style="font-weight:bold;font-size:15px;color:${civ.color};">${civ.name}</div>
-        <div style="font-size:12px;color:#e8c170;margin-top:4px;">${civ.bonusName}</div>
-        <div style="font-size:11px;opacity:0.7;margin-top:4px;">${civ.bonusDescription}</div>
-        <div style="font-size:10px;opacity:0.4;margin-top:6px;">${civ.personality.traits.join(', ')}</div>
+        <div style="font-weight:bold;font-size:15px;color:${civ.color};" data-civ-name="${civ.id}"></div>
+        <div style="font-size:12px;color:#e8c170;margin-top:4px;" data-civ-bonus-name="${civ.id}"></div>
+        <div style="font-size:11px;opacity:0.7;margin-top:4px;" data-civ-bonus-desc="${civ.id}"></div>
+        <div style="font-size:10px;opacity:0.4;margin-top:6px;" data-civ-traits="${civ.id}"></div>
       </div>
     `;
   }
@@ -52,6 +52,21 @@ export function createCivSelectPanel(
   `;
 
   panel.innerHTML = html;
+
+  // Safely inject text content to avoid XSS
+  const headerEl = panel.querySelector('[data-text="header"]');
+  if (headerEl) headerEl.textContent = headerText;
+
+  for (const civ of CIV_DEFINITIONS) {
+    const nameEl = panel.querySelector(`[data-civ-name="${civ.id}"]`);
+    if (nameEl) nameEl.textContent = civ.name;
+    const bonusNameEl = panel.querySelector(`[data-civ-bonus-name="${civ.id}"]`);
+    if (bonusNameEl) bonusNameEl.textContent = civ.bonusName;
+    const bonusDescEl = panel.querySelector(`[data-civ-bonus-desc="${civ.id}"]`);
+    if (bonusDescEl) bonusDescEl.textContent = civ.bonusDescription;
+    const traitsEl = panel.querySelector(`[data-civ-traits="${civ.id}"]`);
+    if (traitsEl) traitsEl.textContent = civ.personality.traits.join(', ');
+  }
   container.appendChild(panel);
 
   const cards = panel.querySelectorAll('.civ-card');
