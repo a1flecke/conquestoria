@@ -526,7 +526,7 @@ describe('resolveMissionResult', () => {
     gameState.units['unit-1'] = {
       id: 'unit-1', type: 'warrior', owner: 'ai-egypt',
       position: { q: 5, r: 3 }, movementPointsLeft: 2,
-      health: 100, experience: 0, hasMoved: false, hasActed: false,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
     const result = resolveMissionResult('monitor_troops', 'ai-egypt', 'city-egypt-1', gameState);
     expect(result.nearbyUnits).toBeDefined();

@@ -2,7 +2,21 @@ const DB_NAME = 'conquestoria';
 const DB_VERSION = 1;
 const STORE_NAME = 'saves';
 
+let persistRequested = false;
+
+function requestPersistentStorage(): void {
+  if (persistRequested) return;
+  persistRequested = true;
+  // Fire-and-forget — don't block DB operations
+  if (navigator.storage?.persist) {
+    navigator.storage.persist().then(granted => {
+      console.log(granted ? '[save] Persistent storage granted' : '[save] Persistent storage denied — saves may be evicted');
+    }).catch(() => { /* not supported */ });
+  }
+}
+
 function openDB(): Promise<IDBDatabase> {
+  requestPersistentStorage();
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {

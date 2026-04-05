@@ -55,6 +55,26 @@ const HEX_CORNERS_POINTY = (function () {
   return corners;
 })();
 
+function drawTileAtScreen(
+  ctx: CanvasRenderingContext2D,
+  screen: { x: number; y: number },
+  scaledSize: number,
+  tile: HexTile,
+  isVillage: boolean,
+  currentPlayer: string | undefined,
+  zoom: number,
+): void {
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer);
+  if (shouldShowTerrainLabel(zoom)) {
+    const label = getTerrainLabel(tile.terrain);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.font = `${Math.round(scaledSize * 0.22)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(label, screen.x, screen.y + scaledSize * 0.45);
+  }
+}
+
 export function drawHexMap(
   ctx: CanvasRenderingContext2D,
   map: GameMap,
@@ -72,18 +92,67 @@ export function drawHexMap(
     const scaledSize = size * camera.zoom;
     const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
 
-    drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer);
+    drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, camera.zoom);
+  }
 
-    // Draw terrain label
-    if (shouldShowTerrainLabel(camera.zoom)) {
-      const label = getTerrainLabel(tile.terrain);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      ctx.font = `${Math.round(scaledSize * 0.22)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(label, screen.x, screen.y + scaledSize * 0.45);
+  // Render wrap-around ghost tiles for seamless horizontal wrapping
+  if (map.wrapsHorizontally) {
+    const edgeMargin = 3; // Only check tiles within 3 columns of edge
+    for (const tile of Object.values(map.tiles)) {
+      const q = tile.coord.q;
+      const isNearLeftEdge = q < edgeMargin;
+      const isNearRightEdge = q >= map.width - edgeMargin;
+
+      if (isNearLeftEdge) {
+        const ghostCoord: HexCoord = { q: q + map.width, r: tile.coord.r };
+        if (camera.isHexVisible(ghostCoord)) {
+          const pixel = hexToPixel(ghostCoord, size);
+          const screen = camera.worldToScreen(pixel.x, pixel.y);
+          const scaledSize = size * camera.zoom;
+          const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
+          drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, camera.zoom);
+        }
+      }
+
+      if (isNearRightEdge) {
+        const ghostCoord: HexCoord = { q: q - map.width, r: tile.coord.r };
+        if (camera.isHexVisible(ghostCoord)) {
+          const pixel = hexToPixel(ghostCoord, size);
+          const screen = camera.worldToScreen(pixel.x, pixel.y);
+          const scaledSize = size * camera.zoom;
+          const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
+          drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, camera.zoom);
+        }
+      }
     }
   }
+}
+
+function drawRiverSegment(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  from: HexCoord,
+  to: HexCoord,
+): void {
+  const fromPixel = hexToPixel(from, camera.hexSize);
+  const toPixel = hexToPixel(to, camera.hexSize);
+  const fromScreen = camera.worldToScreen(fromPixel.x, fromPixel.y);
+  const toScreen = camera.worldToScreen(toPixel.x, toPixel.y);
+
+  const midX = (fromScreen.x + toScreen.x) / 2;
+  const midY = (fromScreen.y + toScreen.y) / 2;
+  const dx = toScreen.x - fromScreen.x;
+  const dy = toScreen.y - fromScreen.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return;
+
+  const perpX = (-dy / len) * camera.hexSize * camera.zoom * 0.3;
+  const perpY = (dx / len) * camera.hexSize * camera.zoom * 0.3;
+
+  ctx.beginPath();
+  ctx.moveTo(midX - perpX, midY - perpY);
+  ctx.lineTo(midX + perpX, midY + perpY);
+  ctx.stroke();
 }
 
 export function drawRivers(
@@ -97,29 +166,23 @@ export function drawRivers(
 
   for (const river of map.rivers) {
     if (!camera.isHexVisible(river.from) && !camera.isHexVisible(river.to)) continue;
+    drawRiverSegment(ctx, camera, river.from, river.to);
+  }
 
-    const fromPixel = hexToPixel(river.from, camera.hexSize);
-    const toPixel = hexToPixel(river.to, camera.hexSize);
-    const fromScreen = camera.worldToScreen(fromPixel.x, fromPixel.y);
-    const toScreen = camera.worldToScreen(toPixel.x, toPixel.y);
-
-    // Draw river along the edge between hexes
-    const midX = (fromScreen.x + toScreen.x) / 2;
-    const midY = (fromScreen.y + toScreen.y) / 2;
-
-    // Perpendicular to edge for visual width
-    const dx = toScreen.x - fromScreen.x;
-    const dy = toScreen.y - fromScreen.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0) continue;
-
-    const perpX = (-dy / len) * camera.hexSize * camera.zoom * 0.3;
-    const perpY = (dx / len) * camera.hexSize * camera.zoom * 0.3;
-
-    ctx.beginPath();
-    ctx.moveTo(midX - perpX, midY - perpY);
-    ctx.lineTo(midX + perpX, midY + perpY);
-    ctx.stroke();
+  // Ghost rivers at wrap edges
+  if (map.wrapsHorizontally) {
+    for (const river of map.rivers) {
+      const fq = river.from.q;
+      const tq = river.to.q;
+      if (fq >= map.width - 3 || fq < 3 || tq >= map.width - 3 || tq < 3) {
+        for (const offset of [map.width, -map.width]) {
+          const ghostFrom: HexCoord = { q: river.from.q + offset, r: river.from.r };
+          const ghostTo: HexCoord = { q: river.to.q + offset, r: river.to.r };
+          if (!camera.isHexVisible(ghostFrom) && !camera.isHexVisible(ghostTo)) continue;
+          drawRiverSegment(ctx, camera, ghostFrom, ghostTo);
+        }
+      }
+    }
   }
 }
 

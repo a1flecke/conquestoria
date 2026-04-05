@@ -1,6 +1,6 @@
 import type { GameState } from './types';
 import { EventBus } from './event-bus';
-import { resetUnitTurn, createUnit } from '@/systems/unit-system';
+import { resetUnitTurn, createUnit, healUnit } from '@/systems/unit-system';
 import { processCity } from '@/systems/city-system';
 import { processResearch } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
@@ -104,6 +104,20 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       if (milCount > currentCivState.diplomacy.vassalage.peakMilitary) {
         newState.civilizations[civId].diplomacy.vassalage.peakMilitary = milCount;
       }
+    }
+
+    // Heal units BEFORE resetting hasMoved/hasActed (healing checks those flags)
+    const cityPositionsSet = new Set(
+      civ.cities.map(id => newState.cities[id]).filter(Boolean).map(c => `${c!.position.q},${c!.position.r}`),
+    );
+    for (const unitId of civ.units) {
+      const unit = newState.units[unitId];
+      if (!unit || unit.health >= 100) continue;
+      const posKey = `${unit.position.q},${unit.position.r}`;
+      const tile = newState.map.tiles[posKey];
+      const inFriendlyCity = cityPositionsSet.has(posKey) && (tile?.owner === civId);
+      const inFriendlyTerritory = !inFriendlyCity && (tile?.owner === civId);
+      newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory);
     }
 
     // Reset unit movement
@@ -259,7 +273,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const defender = newState.units[attack.defenderUnitId];
     if (!attacker || !defender) continue;
     const combatSeed = barbSeed ^ attack.attackerUnitId.charCodeAt(0);
-    const result = resolveCombat(attacker, defender, newState.map, combatSeed);
+    const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
     bus.emit('combat:resolved', { result });
     if (!result.attackerSurvived) {
       delete newState.units[attacker.id];

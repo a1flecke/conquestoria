@@ -5,24 +5,42 @@ const SAVE_PREFIX = 'save:';
 const META_PREFIX = 'meta:';
 const AUTO_SAVE_KEY = 'autosave';
 const SETTINGS_KEY = 'settings';
+const LOCALSTORAGE_AUTOSAVE_KEY = 'conquestoria-autosave';
 
 // --- Auto-save (backward compatible) ---
 
 export async function autoSave(state: GameState): Promise<void> {
   await dbPut(AUTO_SAVE_KEY, state);
+  // Backup to localStorage (survives IndexedDB eviction on iOS Safari)
+  try {
+    localStorage.setItem(LOCALSTORAGE_AUTOSAVE_KEY, JSON.stringify(state));
+  } catch {
+    console.warn('[save] localStorage backup failed (quota exceeded?)');
+  }
 }
 
 export async function loadAutoSave(): Promise<GameState | undefined> {
-  return dbGet<GameState>(AUTO_SAVE_KEY);
+  const idbSave = await dbGet<GameState>(AUTO_SAVE_KEY);
+  if (idbSave) return idbSave;
+  // Fall back to localStorage if IndexedDB was evicted
+  try {
+    const raw = localStorage.getItem(LOCALSTORAGE_AUTOSAVE_KEY);
+    if (raw) return JSON.parse(raw) as GameState;
+  } catch {
+    console.warn('[save] localStorage fallback parse failed');
+  }
+  return undefined;
 }
 
 export async function hasAutoSave(): Promise<boolean> {
-  const save = await dbGet(AUTO_SAVE_KEY);
-  return save !== undefined;
+  const idbSave = await dbGet(AUTO_SAVE_KEY);
+  if (idbSave !== undefined) return true;
+  return localStorage.getItem(LOCALSTORAGE_AUTOSAVE_KEY) !== null;
 }
 
 export async function deleteAutoSave(): Promise<void> {
   await dbDelete(AUTO_SAVE_KEY);
+  localStorage.removeItem(LOCALSTORAGE_AUTOSAVE_KEY);
 }
 
 // --- Settings ---

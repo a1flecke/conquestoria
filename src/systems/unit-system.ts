@@ -67,6 +67,7 @@ export function createUnit(type: UnitType, owner: string, position: HexCoord): U
     experience: 0,
     hasMoved: false,
     hasActed: false,
+    isResting: false,
   };
 }
 
@@ -89,7 +90,72 @@ export function resetUnitTurn(unit: Unit): Unit {
     movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints,
     hasMoved: false,
     hasActed: false,
+    isResting: false,
   };
+}
+
+// --- Healing constants ---
+export const HEAL_PASSIVE = 5;    // HP/turn when idle (didn't move or act)
+export const HEAL_RESTING = 15;   // HP/turn when player explicitly rests
+export const HEAL_IN_CITY = 20;   // HP/turn when in a friendly city
+export const HEAL_IN_TERRITORY = 10; // HP/turn when in friendly territory
+
+export function canHeal(unit: Unit): boolean {
+  return unit.health < 100;
+}
+
+export function healUnit(
+  unit: Unit,
+  inFriendlyCity: boolean,
+  inFriendlyTerritory: boolean,
+): Unit {
+  if (unit.health >= 100) return unit;
+
+  let healAmount: number;
+  if (inFriendlyCity) {
+    healAmount = HEAL_IN_CITY;
+  } else if (unit.isResting) {
+    healAmount = HEAL_RESTING;
+  } else if (inFriendlyTerritory) {
+    healAmount = HEAL_IN_TERRITORY;
+  } else if (!unit.hasMoved && !unit.hasActed) {
+    healAmount = HEAL_PASSIVE;
+  } else {
+    return unit; // moved or acted without resting — no heal
+  }
+
+  return { ...unit, health: Math.min(100, unit.health + healAmount) };
+}
+
+export function restUnit(unit: Unit): Unit {
+  return {
+    ...unit,
+    isResting: true,
+    hasActed: true,   // resting uses the action for the turn
+    movementPointsLeft: 0,
+  };
+}
+
+export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
+  settler: 'Civilian unit that can found new cities',
+  worker: 'Civilian unit that builds tile improvements',
+  scout: 'Fast exploration unit with extended vision',
+  warrior: 'Basic melee fighter — your first line of defense',
+  archer: 'Ranged unit that attacks from a distance',
+  swordsman: 'Stronger melee fighter, requires Bronze Working',
+  pikeman: 'Anti-cavalry specialist, requires Fortification',
+  musketeer: 'Gunpowder infantry, requires Tactics',
+  galley: 'Coastal vessel for transport and exploration',
+  trireme: 'Warship with strong naval combat capabilities',
+};
+
+export function getUnmovedUnits(
+  units: Record<string, Unit>,
+  civId: string,
+): Unit[] {
+  return Object.values(units).filter(
+    u => u.owner === civId && !u.hasMoved && !u.hasActed,
+  );
 }
 
 export function getMovementCost(terrain: string): number {

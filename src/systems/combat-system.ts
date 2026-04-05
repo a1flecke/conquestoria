@@ -24,6 +24,7 @@ export function resolveCombat(
   map: GameMap,
   seed?: number,
   context?: CombatContext,
+  era?: number,
 ): CombatResult {
   // Seeded RNG for deterministic combat
   let rngState = seed ?? (Date.now() * 16807);
@@ -82,8 +83,10 @@ export function resolveCombat(
   const randomFactor = 0.8 + rng() * 0.4;
   const adjustedRatio = Math.min(0.95, Math.max(0.05, atkRatio * randomFactor));
 
-  // Base damage is 30-50
-  const baseDamage = 30 + rng() * 20;
+  // Era-scaled base damage: early eras deal more for faster combat
+  // Era 0-1 (Stone/Tribal): 45-70, Era 2 (Bronze): 36-60, Era 3+ (Iron+): 30-50
+  const eraScale = era !== undefined && era <= 1 ? 1.5 : era === 2 ? 1.2 : 1.0;
+  const baseDamage = (30 + rng() * 20) * eraScale;
 
   // Ottoman siege bonus
   let siegeMultiplier = 1;

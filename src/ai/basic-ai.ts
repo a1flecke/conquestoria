@@ -94,7 +94,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           const atWar = civ.diplomacy?.atWarWith.includes(occupant.owner) ?? false;
           if (!isBarbarian && !atWar) continue;
           const seed = newState.turn * 16807 + unit.id.charCodeAt(0);
-          const result = resolveCombat(unit, occupant, newState.map, seed);
+          const result = resolveCombat(unit, occupant, newState.map, seed, undefined, newState.era);
           if (!result.attackerSurvived) {
             delete newState.units[unit.id];
             civ.units = civ.units.filter(id => id !== unit.id);

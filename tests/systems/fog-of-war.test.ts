@@ -21,7 +21,7 @@ describe('fog-of-war', () => {
     const unit: Unit = {
       id: 'u1', type: 'scout', owner: 'p1',
       position: { q: 15, r: 15 }, movementPointsLeft: 3,
-      health: 100, experience: 0, hasMoved: false, hasActed: false,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
 
     const revealed = updateVisibility(vis, [unit], map);
@@ -33,12 +33,12 @@ describe('fog-of-war', () => {
     const scout: Unit = {
       id: 'u1', type: 'scout', owner: 'p1',
       position: { q: 15, r: 15 }, movementPointsLeft: 3,
-      health: 100, experience: 0, hasMoved: false, hasActed: false,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
     const warrior: Unit = {
       id: 'u2', type: 'warrior', owner: 'p1',
       position: { q: 15, r: 15 }, movementPointsLeft: 2,
-      health: 100, experience: 0, hasMoved: false, hasActed: false,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
 
     const visScout = createVisibilityMap();
@@ -54,7 +54,7 @@ describe('fog-of-war', () => {
     const unit: Unit = {
       id: 'u1', type: 'scout', owner: 'p1',
       position: { q: 15, r: 15 }, movementPointsLeft: 3,
-      health: 100, experience: 0, hasMoved: false, hasActed: false,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
 
     updateVisibility(vis, [unit], map);

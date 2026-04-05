@@ -1,11 +1,17 @@
-import type { GameState } from '@/core/types';
+import type { GameState, HexCoord } from '@/core/types';
 import { Camera } from './camera';
-import { drawHexMap, drawRivers, drawMinorCivTerritory } from './hex-renderer';
+import { drawHexMap, drawRivers, drawMinorCivTerritory, drawHexHighlight } from './hex-renderer';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { drawFogOfWar } from './fog-renderer';
 import { drawUnits } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem } from './animation-system';
+import { hexToPixel } from '@/systems/hex-utils';
+
+export interface HexHighlight {
+  coord: HexCoord;
+  type: 'move' | 'attack';
+}
 
 export class RenderLoop {
   private ctx: CanvasRenderingContext2D;
@@ -15,6 +21,15 @@ export class RenderLoop {
   private state: GameState | null = null;
   private running = false;
   private animFrameId = 0;
+  private highlights: HexHighlight[] = [];
+
+  setHighlights(highlights: HexHighlight[]): void {
+    this.highlights = highlights;
+  }
+
+  clearHighlights(): void {
+    this.highlights = [];
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -88,6 +103,16 @@ export class RenderLoop {
         if (!def) continue;
         drawMinorCivTerritory(this.ctx, city.position, def.color, this.camera);
       }
+    }
+
+    // Draw movement/attack highlights (behind units and cities)
+    for (const highlight of this.highlights) {
+      if (!this.camera.isHexVisible(highlight.coord)) continue;
+      const pixel = hexToPixel(highlight.coord, this.camera.hexSize);
+      const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+      const scaledSize = this.camera.hexSize * this.camera.zoom;
+      const color = highlight.type === 'move' ? 'rgba(74, 144, 217, 0.35)' : 'rgba(217, 74, 74, 0.45)';
+      drawHexHighlight(this.ctx, screen.x, screen.y, scaledSize, color);
     }
 
     // Draw cities

@@ -2,16 +2,16 @@ import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import { processAITurn } from '@/ai/basic-ai';
-import { RenderLoop } from '@/renderer/render-loop';
+import { RenderLoop, type HexHighlight } from '@/renderer/render-loop';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
-import { hexKey } from '@/systems/hex-utils';
-import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
+import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
 import { startResearch } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
-import { resolveCombat } from '@/systems/combat-system';
+import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { updateVisibility, isVisible, getVisibility } from '@/systems/fog-of-war';
 import { destroyCamp } from '@/systems/barbarian-system';
@@ -34,7 +34,7 @@ import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
-import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
+import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
 // --- App State ---
 let gameState: GameState;
@@ -77,10 +77,28 @@ function createUI(): void {
   bottomBar.appendChild(endTurnBtn);
   uiLayer.appendChild(bottomBar);
 
+  // Next Unit button (top-right)
+  const nextUnitBtn = document.createElement('button');
+  nextUnitBtn.id = 'btn-next-unit';
+  nextUnitBtn.textContent = '⏩';
+  nextUnitBtn.title = 'Select next unmoved unit';
+  nextUnitBtn.style.cssText = 'position:absolute;top:44px;right:12px;z-index:21;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:16px;padding:4px 10px;cursor:pointer;display:none;';
+  uiLayer.appendChild(nextUnitBtn);
+  nextUnitBtn.addEventListener('click', () => selectNextUnit());
+
+  // Notification log button
+  const logBtn = document.createElement('button');
+  logBtn.id = 'btn-notif-log';
+  logBtn.textContent = '📜';
+  logBtn.title = 'View message log';
+  logBtn.style.cssText = 'position:absolute;top:44px;right:52px;z-index:21;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
+  uiLayer.appendChild(logBtn);
+  logBtn.addEventListener('click', () => toggleNotificationLog());
+
   // Notification area
   const notifArea = document.createElement('div');
   notifArea.id = 'notifications';
-  notifArea.style.cssText = 'position:absolute;top:40px;left:12px;right:12px;z-index:20;display:flex;flex-direction:column;gap:8px;';
+  notifArea.style.cssText = 'position:absolute;top:40px;left:12px;right:80px;z-index:20;display:flex;flex-direction:column;gap:8px;';
   uiLayer.appendChild(notifArea);
 
   // Info panel (for selected unit/city)
@@ -148,31 +166,131 @@ function updateHUD(): void {
     </div>
     <div>${nameLabel}Turn ${gameState.turn} · Era ${gameState.era}</div>
   `;
+
+  // Show "Next Unit" button when there are unmoved units
+  const nextUnitBtn = document.getElementById('btn-next-unit');
+  if (nextUnitBtn) {
+    const unmovedCount = getUnmovedUnits(gameState.units, gameState.currentPlayer).length;
+    nextUnitBtn.style.display = unmovedCount > 0 ? 'block' : 'none';
+    if (unmovedCount > 0) {
+      nextUnitBtn.textContent = `⏩ ${unmovedCount}`;
+    }
+  }
 }
 
+// --- Notification queue ---
+const notificationQueue: Array<{ message: string; type: 'info' | 'success' | 'warning' }> = [];
+const notificationLog: NotificationEntry[] = [];
+let isShowingNotification = false;
+let currentDismissTimer: ReturnType<typeof setTimeout> | null = null;
+
 function showNotification(message: string, type: 'info' | 'success' | 'warning' = 'info'): void {
+  notificationQueue.push({ message, type });
+  notificationLog.push({ message, type, turn: gameState?.turn ?? 0 });
+  if (notificationLog.length > 50) notificationLog.shift();
+  if (!isShowingNotification) displayNextNotification();
+}
+
+function displayNextNotification(): void {
   const area = document.getElementById('notifications');
   if (!area) return;
 
+  const next = notificationQueue.shift();
+  if (!next) {
+    isShowingNotification = false;
+    return;
+  }
+
+  isShowingNotification = true;
   const colors = { info: '#e8c170', success: '#6b9b4b', warning: '#d94a4a' };
   const notif = document.createElement('div');
-  notif.style.cssText = `background:${colors[type]}ee;color:#1a1a2e;padding:10px 14px;border-radius:10px;font-size:12px;cursor:pointer;transition:opacity 0.3s;`;
-  notif.textContent = message;
-  notif.addEventListener('click', () => {
+  notif.style.cssText = `background:${colors[next.type]}ee;color:#1a1a2e;padding:10px 14px;border-radius:10px;font-size:12px;cursor:pointer;transition:opacity 0.3s;max-width:90%;`;
+  notif.textContent = next.message;
+
+  if (notificationQueue.length > 0) {
+    const badge = document.createElement('span');
+    badge.style.cssText = 'margin-left:8px;font-size:10px;opacity:0.7;';
+    badge.textContent = `(${notificationQueue.length} more)`;
+    notif.appendChild(badge);
+  }
+
+  const dismiss = () => {
+    if (currentDismissTimer) clearTimeout(currentDismissTimer);
+    currentDismissTimer = null;
     notif.style.opacity = '0';
-    setTimeout(() => notif.remove(), 300);
-  });
+    setTimeout(() => {
+      notif.remove();
+      displayNextNotification();
+    }, 200);
+  };
+
+  notif.addEventListener('click', dismiss);
+  area.innerHTML = '';
   area.appendChild(notif);
 
-  // Auto-dismiss after 4 seconds
-  setTimeout(() => {
-    if (notif.parentNode) {
-      notif.style.opacity = '0';
-      setTimeout(() => notif.remove(), 300);
-    }
-  }, 4000);
+  currentDismissTimer = setTimeout(() => {
+    if (notif.parentNode) dismiss();
+  }, 6000);
 
   SFX.notification();
+}
+
+function toggleNotificationLog(): void {
+  const existing = document.getElementById('notification-log');
+  if (existing) { existing.remove(); return; }
+
+  const ul = document.getElementById('ui-layer');
+  if (!ul) return;
+
+  const panel = document.createElement('div');
+  panel.id = 'notification-log';
+  panel.style.cssText = 'position:absolute;top:70px;right:12px;width:280px;max-height:300px;overflow-y:auto;background:rgba(10,10,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:25;padding:12px;';
+
+  const colors = { info: '#e8c170', success: '#6b9b4b', warning: '#d94a4a' };
+
+  const header = document.createElement('div');
+  header.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:8px;display:flex;justify-content:space-between;';
+  const headerTitle = document.createElement('span');
+  headerTitle.textContent = 'Message Log';
+  const closeBtn = document.createElement('span');
+  closeBtn.id = 'close-log';
+  closeBtn.style.cssText = 'cursor:pointer;opacity:0.6;';
+  closeBtn.textContent = '✕';
+  header.appendChild(headerTitle);
+  header.appendChild(closeBtn);
+  panel.appendChild(header);
+
+  if (notificationLog.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:11px;opacity:0.5;text-align:center;';
+    empty.textContent = 'No messages yet';
+    panel.appendChild(empty);
+  } else {
+    for (let i = notificationLog.length - 1; i >= 0; i--) {
+      const entry = notificationLog[i];
+      const row = document.createElement('div');
+      row.style.cssText = 'font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);';
+      const turnSpan = document.createElement('span');
+      turnSpan.style.cssText = `color:${colors[entry.type]};opacity:0.7;margin-right:4px;`;
+      turnSpan.textContent = `T${entry.turn}`;
+      row.appendChild(turnSpan);
+      row.appendChild(document.createTextNode(entry.message));
+      panel.appendChild(row);
+    }
+  }
+
+  ul.appendChild(panel);
+  closeBtn.addEventListener('click', () => panel.remove());
+
+  setTimeout(() => {
+    const handler = (e: Event) => {
+      if (!panel.contains(e.target as Node)) {
+        panel.remove();
+        document.removeEventListener('click', handler);
+      }
+    };
+    document.addEventListener('click', handler);
+  }, 100);
 }
 
 function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
@@ -332,6 +450,17 @@ function selectUnit(unitId: string): void {
   }
   movementRange = getMovementRange(unit, gameState.map, unitPositions, unitOwners);
 
+  // Classify hexes as move or attack and send to renderer
+  const highlights: HexHighlight[] = movementRange.map(coord => {
+    const k = hexKey(coord);
+    const occupantId = unitPositions[k];
+    if (occupantId && unitOwners[occupantId] !== gameState.currentPlayer) {
+      return { coord, type: 'attack' as const };
+    }
+    return { coord, type: 'move' as const };
+  });
+  renderLoop.setHighlights(highlights);
+
   // Show unit info panel
   const panel = document.getElementById('info-panel');
   if (panel) {
@@ -343,17 +472,22 @@ function selectUnit(unitId: string): void {
       if (tile && canBuildImprovement(tile, 'farm')) actions += '<button id="btn-build-farm" style="padding:8px 16px;border-radius:8px;background:#6b9b4b;border:none;color:white;cursor:pointer;">Build Farm</button> ';
       if (tile && canBuildImprovement(tile, 'mine')) actions += '<button id="btn-build-mine" style="padding:8px 16px;border-radius:8px;background:#8b7355;border:none;color:white;cursor:pointer;">Build Mine</button> ';
     }
+    if (canHeal(unit) && !unit.hasActed) {
+      actions += '<button id="btn-rest" style="padding:8px 16px;border-radius:8px;background:#4a90d9;border:none;color:white;cursor:pointer;">Rest (+15 HP)</button> ';
+    }
 
+    const civColor = currentCiv()?.color ?? '#e8c170';
     panel.style.display = 'block';
     panel.innerHTML = `
-      <div style="background:rgba(0,0,0,0.85);border-radius:12px;padding:12px 16px;">
+      <div style="background:rgba(0,0,0,0.85);border-radius:12px;padding:12px 16px;border-left:4px solid ${civColor};">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <strong>${def.name}</strong> · HP: ${unit.health}/100 · Moves: ${unit.movementPointsLeft}/${def.movementPoints}
           </div>
           <span id="btn-deselect" style="cursor:pointer;font-size:18px;opacity:0.6;">✕</span>
         </div>
-        <div style="margin-top:8px;display:flex;gap:8px;">${actions}</div>
+        <div style="font-size:10px;opacity:0.6;margin-top:2px;">${UNIT_DESCRIPTIONS[unit.type] ?? ''}</div>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">${actions}</div>
       </div>
     `;
 
@@ -361,6 +495,7 @@ function selectUnit(unitId: string): void {
     document.getElementById('btn-found-city')?.addEventListener('click', () => foundCityAction());
     document.getElementById('btn-build-farm')?.addEventListener('click', () => buildImprovementAction('farm'));
     document.getElementById('btn-build-mine')?.addEventListener('click', () => buildImprovementAction('mine'));
+    document.getElementById('btn-rest')?.addEventListener('click', () => restAction());
   }
 
   SFX.select();
@@ -369,8 +504,23 @@ function selectUnit(unitId: string): void {
 function deselectUnit(): void {
   selectedUnitId = null;
   movementRange = [];
+  renderLoop.clearHighlights();
   const panel = document.getElementById('info-panel');
   if (panel) panel.style.display = 'none';
+}
+
+function selectNextUnit(): void {
+  const unmoved = getUnmovedUnits(gameState.units, gameState.currentPlayer);
+  if (unmoved.length === 0) {
+    // All units have moved — silently deselect
+    deselectUnit();
+    return;
+  }
+  // Skip current unit if it's in the list
+  const filtered = unmoved.filter(u => u.id !== selectedUnitId);
+  const next = filtered.length > 0 ? filtered[0] : unmoved[0];
+  selectUnit(next.id);
+  renderLoop.camera.centerOn(next.position);
 }
 
 function foundCityAction(): void {
@@ -430,7 +580,104 @@ function buildImprovementAction(type: 'farm' | 'mine'): void {
   renderLoop.setGameState(gameState);
 }
 
-function handleHexTap(coord: HexCoord): void {
+function executeAttack(attackerId: string, defenderId: string, defender: Unit, targetKey: string): void {
+  const attacker = gameState.units[attackerId];
+  if (!attacker) return;
+
+  const defOwnerCiv = defender.owner;
+  const isBarbarian = defOwnerCiv === 'barbarian' || defOwnerCiv.startsWith('mc-');
+  if (!isBarbarian && gameState.civilizations[defOwnerCiv]) {
+    const cp = gameState.currentPlayer;
+    const alreadyAtWar = currentCiv().diplomacy?.atWarWith.includes(defOwnerCiv) ?? false;
+    if (!alreadyAtWar) {
+      currentCiv().diplomacy = declareWar(currentCiv().diplomacy, defOwnerCiv, gameState.turn);
+      gameState.civilizations[defOwnerCiv].diplomacy = declareWar(
+        gameState.civilizations[defOwnerCiv].diplomacy, cp, gameState.turn,
+      );
+      bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: defOwnerCiv });
+    }
+  }
+
+  const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
+  const result = resolveCombat(attacker, gameState.units[defenderId] ?? defender, gameState.map, seed, undefined, gameState.era);
+  bus.emit('combat:resolved', { result });
+
+  if (!result.attackerSurvived) {
+    delete gameState.units[attackerId];
+    currentCiv().units = currentCiv().units.filter(id => id !== attackerId);
+    showNotification('Our unit was destroyed!', 'warning');
+  } else {
+    gameState.units[attackerId].health -= result.attackerDamage;
+    gameState.units[attackerId].movementPointsLeft = 0;
+    gameState.units[attackerId].hasMoved = true;
+  }
+
+  if (!result.defenderSurvived) {
+    const defOwner = defender.owner;
+    delete gameState.units[defenderId];
+    if (gameState.civilizations[defOwner]) {
+      gameState.civilizations[defOwner].units = gameState.civilizations[defOwner].units.filter(id => id !== defenderId);
+    }
+    showNotification('Enemy unit destroyed!', 'success');
+
+    for (const [campId, camp] of Object.entries(gameState.barbarianCamps)) {
+      if (hexKey(camp.position) === targetKey) {
+        const reward = destroyCamp(camp);
+        delete gameState.barbarianCamps[campId];
+        currentCiv().gold += reward;
+        showNotification(`Barbarian camp destroyed! +${reward} gold`, 'success');
+        advisorSystem.resetMessage('treasurer_camp_reward');
+        advisorSystem.check(gameState);
+        for (const mcId of Object.keys(gameState.minorCivs)) {
+          applyDiplomaticReaction(gameState, 'camp_destroyed_nearby', gameState.currentPlayer, mcId);
+        }
+      }
+    }
+
+    const cityAtTarget = Object.values(gameState.cities).find(c => hexKey(c.position) === targetKey);
+    if (cityAtTarget && cityAtTarget.owner.startsWith('mc-')) {
+      conquestMinorCiv(gameState, cityAtTarget.owner, gameState.currentPlayer, bus);
+    }
+    if (cityAtTarget && !cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
+      const previousOwner = cityAtTarget.owner;
+      cityAtTarget.owner = gameState.currentPlayer;
+      if (gameState.civilizations[previousOwner]) {
+        gameState.civilizations[previousOwner].cities = gameState.civilizations[previousOwner].cities.filter(id => id !== cityAtTarget.id);
+      }
+      const capturingCiv = currentCiv();
+      if (capturingCiv && !capturingCiv.cities.includes(cityAtTarget.id)) {
+        capturingCiv.cities.push(cityAtTarget.id);
+      }
+      showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
+      bus.emit('city:captured', { cityId: cityAtTarget.id, newOwner: gameState.currentPlayer, previousOwner });
+    }
+  } else {
+    if (gameState.units[defenderId]) {
+      gameState.units[defenderId].health -= result.defenderDamage;
+    }
+  }
+
+  SFX.combat();
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  selectNextUnit();
+}
+
+function restAction(): void {
+  if (!selectedUnitId) return;
+  const unit = gameState.units[selectedUnitId];
+  if (!unit || !canHeal(unit)) return;
+
+  gameState.units[selectedUnitId] = restUnit(unit);
+  showNotification(`${UNIT_DEFINITIONS[unit.type].name} is resting and will heal +15 HP next turn`, 'info');
+  deselectUnit();
+  renderLoop.setGameState(gameState);
+}
+
+function handleHexTap(rawCoord: HexCoord): void {
+  const coord = gameState.map.wrapsHorizontally
+    ? wrapHexCoord(rawCoord, gameState.map.width)
+    : rawCoord;
   const key = hexKey(coord);
 
   // Check if tapping a unit
@@ -447,22 +694,75 @@ function handleHexTap(coord: HexCoord): void {
     if (!selectedUnitId) {
       const enemyUnit = unitAtHex[1];
       const def = UNIT_DEFINITIONS[enemyUnit.type];
-      const ownerName = enemyUnit.owner === 'barbarian' ? 'Barbarian' :
-        (gameState.civilizations[enemyUnit.owner]?.name ?? enemyUnit.owner);
+      const desc = UNIT_DESCRIPTIONS[enemyUnit.type] ?? '';
+      const isBarbarian = enemyUnit.owner === 'barbarian';
+      const isMinorCiv = enemyUnit.owner.startsWith('mc-');
+      let ownerName: string;
+      let ownerColor: string;
+
+      if (isBarbarian) {
+        ownerName = 'Barbarian';
+        ownerColor = '#8b4513';
+      } else if (isMinorCiv) {
+        const mc = Object.values(gameState.minorCivs ?? {}).find(m => m.id === enemyUnit.owner);
+        const mcDef = mc ? MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId) : undefined;
+        ownerName = mcDef?.name ?? 'City-State';
+        ownerColor = mcDef?.color ?? '#888';
+      } else {
+        const civ = gameState.civilizations[enemyUnit.owner];
+        ownerName = civ?.name ?? enemyUnit.owner;
+        ownerColor = civ?.color ?? '#888';
+      }
+
+      const atWar = !isBarbarian && !isMinorCiv && (currentCiv()?.diplomacy?.atWarWith.includes(enemyUnit.owner) ?? false);
+      const relationshipTag = isBarbarian ? 'Hostile' : atWar ? 'At War' : 'Neutral';
+      const relColor = isBarbarian || atWar ? '#d94a4a' : '#e8c170';
+
       const panel = document.getElementById('info-panel');
       if (panel) {
         panel.style.display = 'block';
-        panel.innerHTML = `
-          <div style="background:rgba(100,0,0,0.85);border-radius:12px;padding:12px 16px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div>
-                <strong>${ownerName} ${def.name}</strong> · HP: ${enemyUnit.health}/100 · Str: ${def.strength}
-              </div>
-              <span id="btn-deselect" style="cursor:pointer;font-size:18px;opacity:0.6;">✕</span>
-            </div>
-          </div>
-        `;
-        document.getElementById('btn-deselect')?.addEventListener('click', deselectUnit);
+        panel.innerHTML = '';
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = `background:rgba(40,20,20,0.92);border-radius:12px;padding:12px 16px;border-left:4px solid ${ownerColor};`;
+
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+
+        const info = document.createElement('div');
+        const ownerLine = document.createElement('div');
+        ownerLine.style.cssText = `font-size:10px;color:${ownerColor};`;
+        const ownerSpan = document.createTextNode(ownerName + ' ');
+        const relSpan = document.createElement('span');
+        relSpan.style.cssText = `color:${relColor};font-size:9px;`;
+        relSpan.textContent = `(${relationshipTag})`;
+        ownerLine.appendChild(ownerSpan);
+        ownerLine.appendChild(relSpan);
+
+        const unitLine = document.createElement('div');
+        const boldName = document.createElement('strong');
+        boldName.textContent = def.name;
+        unitLine.appendChild(boldName);
+        unitLine.appendChild(document.createTextNode(` · HP: ${enemyUnit.health}/100 · Str: ${def.strength}`));
+
+        info.appendChild(ownerLine);
+        info.appendChild(unitLine);
+
+        const closeBtn = document.createElement('span');
+        closeBtn.id = 'btn-deselect';
+        closeBtn.style.cssText = 'cursor:pointer;font-size:18px;opacity:0.6;';
+        closeBtn.textContent = '✕';
+
+        header.appendChild(info);
+        header.appendChild(closeBtn);
+        wrapper.appendChild(header);
+
+        const descDiv = document.createElement('div');
+        descDiv.style.cssText = 'font-size:10px;opacity:0.6;margin-top:4px;';
+        descDiv.textContent = desc;
+        wrapper.appendChild(descDiv);
+
+        panel.appendChild(wrapper);
+        closeBtn.addEventListener('click', deselectUnit);
       }
       return;
     }
@@ -473,88 +773,85 @@ function handleHexTap(coord: HexCoord): void {
     const unit = gameState.units[selectedUnitId];
     if (!unit) return;
 
-    // Check for enemy unit at target (attack)
+    // Check for enemy unit at target — show combat preview
     if (unitAtHex && unitAtHex[1].owner !== gameState.currentPlayer) {
-      const defOwnerCiv = unitAtHex[1].owner;
-      const isBarbarian = defOwnerCiv === 'barbarian' || defOwnerCiv.startsWith('mc-');
-      // Auto-declare war when attacking a major civ unit we're not already at war with
-      if (!isBarbarian && gameState.civilizations[defOwnerCiv]) {
-        const cp = gameState.currentPlayer;
-        const alreadyAtWar = currentCiv().diplomacy?.atWarWith.includes(defOwnerCiv) ?? false;
-        if (!alreadyAtWar) {
-          currentCiv().diplomacy = declareWar(currentCiv().diplomacy, defOwnerCiv, gameState.turn);
-          gameState.civilizations[defOwnerCiv].diplomacy = declareWar(
-            gameState.civilizations[defOwnerCiv].diplomacy, cp, gameState.turn,
-          );
-          bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: defOwnerCiv });
-        }
-      }
-      const seed = gameState.turn * 16807 + unit.id.charCodeAt(0) + unitAtHex[1].id.charCodeAt(0);
-      const result = resolveCombat(unit, unitAtHex[1], gameState.map, seed);
-      bus.emit('combat:resolved', { result });
+      const defender = unitAtHex[1];
+      const atkDef = UNIT_DEFINITIONS[unit.type];
+      const defDef = UNIT_DEFINITIONS[defender.type];
+      const atkStr = Math.round(atkDef.strength * (unit.health / 100));
+      const defTile = gameState.map.tiles[hexKey(defender.position)];
+      const terrainBonus = defTile ? getTerrainDefenseBonus(defTile.terrain) : 0;
+      const defStr = Math.round(defDef.strength * (defender.health / 100) * (1 + terrainBonus));
 
-      if (!result.attackerSurvived) {
-        delete gameState.units[selectedUnitId];
-        currentCiv().units = currentCiv().units.filter(id => id !== selectedUnitId);
-        showNotification('Our unit was destroyed!', 'warning');
+      const isBarbarian = defender.owner === 'barbarian';
+      const isMinorCiv = defender.owner.startsWith('mc-');
+      let ownerName: string;
+      if (isBarbarian) {
+        ownerName = 'Barbarian';
+      } else if (isMinorCiv) {
+        const mc = Object.values(gameState.minorCivs ?? {}).find(m => m.id === defender.owner);
+        const mcDef = mc ? MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId) : undefined;
+        ownerName = mcDef?.name ?? 'City-State';
       } else {
-        gameState.units[selectedUnitId].health -= result.attackerDamage;
-        gameState.units[selectedUnitId].movementPointsLeft = 0;
+        ownerName = gameState.civilizations[defender.owner]?.name ?? defender.owner;
       }
 
-      if (!result.defenderSurvived) {
-        const defOwner = unitAtHex[1].owner;
-        delete gameState.units[unitAtHex[0]];
-        if (gameState.civilizations[defOwner]) {
-          gameState.civilizations[defOwner].units = gameState.civilizations[defOwner].units.filter(id => id !== unitAtHex[0]);
-        }
-        showNotification('Enemy unit destroyed!', 'success');
+      const odds = atkStr > defStr ? 'Favorable' : atkStr === defStr ? 'Even' : 'Risky';
+      const oddsColor = atkStr > defStr ? '#6b9b4b' : atkStr === defStr ? '#e8c170' : '#d94a4a';
 
-        // Check barbarian camp
-        for (const [campId, camp] of Object.entries(gameState.barbarianCamps)) {
-          if (hexKey(camp.position) === key) {
-            const reward = destroyCamp(camp);
-            delete gameState.barbarianCamps[campId];
-            currentCiv().gold += reward;
-            showNotification(`Barbarian camp destroyed! +${reward} gold`, 'success');
-            advisorSystem.resetMessage('treasurer_camp_reward');
-            advisorSystem.check(gameState);
+      const panel = document.getElementById('info-panel');
+      if (panel) {
+        panel.style.display = 'block';
+        const previewDiv = document.createElement('div');
+        previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
 
-            // Notify nearby minor civs
-            for (const mcId of Object.keys(gameState.minorCivs)) {
-              applyDiplomaticReaction(gameState, 'camp_destroyed_nearby', gameState.currentPlayer, mcId);
-            }
-          }
-        }
+        const title = document.createElement('div');
+        title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
+        title.textContent = 'Combat Preview';
+        previewDiv.appendChild(title);
 
-        // Check if a minor civ city was captured
-        const cityAtTarget = Object.values(gameState.cities).find(c => hexKey(c.position) === key);
-        if (cityAtTarget && cityAtTarget.owner.startsWith('mc-')) {
-          const mcId = cityAtTarget.owner;
-          conquestMinorCiv(gameState, mcId, gameState.currentPlayer, bus);
-        }
+        const stats = document.createElement('div');
+        stats.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
+        const atkSpan = document.createElement('span');
+        atkSpan.textContent = `${atkDef.name} (${atkStr})`;
+        const oddsSpan = document.createElement('span');
+        oddsSpan.style.cssText = `color:${oddsColor};font-weight:bold;`;
+        oddsSpan.textContent = odds;
+        const defSpan = document.createElement('span');
+        defSpan.textContent = `${defDef.name} (${defStr})`;
+        stats.appendChild(atkSpan);
+        stats.appendChild(oddsSpan);
+        stats.appendChild(defSpan);
+        previewDiv.appendChild(stats);
 
-        // Check if a major civ city was captured
-        if (cityAtTarget && !cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
-          const previousOwner = cityAtTarget.owner;
-          cityAtTarget.owner = gameState.currentPlayer;
-          // Transfer city from old owner's cities list to new owner
-          if (gameState.civilizations[previousOwner]) {
-            gameState.civilizations[previousOwner].cities = gameState.civilizations[previousOwner].cities.filter(id => id !== cityAtTarget.id);
-          }
-          const capturingCiv = currentCiv();
-          if (capturingCiv && !capturingCiv.cities.includes(cityAtTarget.id)) {
-            capturingCiv.cities.push(cityAtTarget.id);
-          }
-          showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
-          bus.emit('city:captured', { cityId: cityAtTarget.id, newOwner: gameState.currentPlayer, previousOwner });
-        }
-      } else {
-        gameState.units[unitAtHex[0]].health -= result.defenderDamage;
+        const info = document.createElement('div');
+        info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
+        info.textContent = `${ownerName} · HP: ${defender.health}/100${terrainBonus > 0 ? ` · +${Math.round(terrainBonus * 100)}% terrain` : ''}`;
+        previewDiv.appendChild(info);
+
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:8px;';
+        const attackBtn = document.createElement('button');
+        attackBtn.id = 'btn-attack-confirm';
+        attackBtn.textContent = 'Attack';
+        attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.id = 'btn-cancel-attack';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
+        btnRow.appendChild(attackBtn);
+        btnRow.appendChild(cancelBtn);
+        previewDiv.appendChild(btnRow);
+
+        panel.innerHTML = '';
+        panel.appendChild(previewDiv);
+
+        cancelBtn.addEventListener('click', deselectUnit);
+        attackBtn.addEventListener('click', () => {
+          executeAttack(selectedUnitId!, unitAtHex[0], defender, key);
+        });
+        return; // Wait for button press
       }
-
-      SFX.combat();
-      deselectUnit();
     } else {
       // Move unit
       const targetTile = gameState.map.tiles[key];
@@ -623,11 +920,11 @@ function handleHexTap(coord: HexCoord): void {
         }
       }
 
-      // Re-select to update movement range
-      if (gameState.units[selectedUnitId].movementPointsLeft > 0) {
+      // Re-select to update movement range, or advance to next unit
+      if (gameState.units[selectedUnitId]?.movementPointsLeft > 0) {
         selectUnit(selectedUnitId);
       } else {
-        deselectUnit();
+        selectNextUnit();
       }
     }
 
@@ -641,7 +938,10 @@ function handleHexTap(coord: HexCoord): void {
   SFX.tap();
 }
 
-function handleHexLongPress(coord: HexCoord): void {
+function handleHexLongPress(rawCoord: HexCoord): void {
+  const coord = gameState.map.wrapsHorizontally
+    ? wrapHexCoord(rawCoord, gameState.map.width)
+    : rawCoord;
   const tile = gameState.map.tiles[hexKey(coord)];
   if (!tile) return;
 
@@ -954,6 +1254,12 @@ async function init(): Promise<void> {
         showNotification(`Game loaded! Turn ${gameState.turn}`, 'info');
       }
     },
+    onImportSave: (state) => {
+      gameState = state;
+      migrateLegacySave();
+      startGame();
+      showNotification(`Save imported! Turn ${gameState.turn}`, 'info');
+    },
   });
 }
 
@@ -996,6 +1302,10 @@ function migrateLegacySave(): void {
   // Add wonder field to tiles if missing
   for (const tile of Object.values(gameState.map.tiles)) {
     if (!('wonder' in tile)) (tile as any).wonder = null;
+  }
+  // M4-playtest migration: add isResting to existing units
+  for (const unit of Object.values(gameState.units)) {
+    if (!('isResting' in unit)) (unit as any).isResting = false;
   }
   // M3c migration: minor civs and expanded tech tracks
   if (!gameState.minorCivs) (gameState as any).minorCivs = {};
@@ -1065,6 +1375,9 @@ function startGame(): void {
 
   renderLoop.setGameState(gameState);
   updateHUD();
+
+  // Auto-save immediately so closing before turn 1 doesn't lose the game
+  autoSave(gameState).catch(() => {});
 
   // Input (only set up once)
   if (!inputInitialized) {

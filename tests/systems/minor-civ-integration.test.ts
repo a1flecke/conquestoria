@@ -26,6 +26,7 @@ describe('minor civ integration', () => {
       experience: 0,
       hasMoved: false,
       hasActed: false,
+      isResting: false,
     };
 
     const result = resolveCombat(playerUnit, mcUnit, state.map);

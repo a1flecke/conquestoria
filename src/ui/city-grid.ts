@@ -73,7 +73,12 @@ export function createCityGrid(
     }
   }
 
-  let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;max-width:380px;margin:0 auto;">';
+  let html = `
+  <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:10px;padding:0 4px;line-height:1.4;">
+    <strong style="color:#e8c170;">City Layout</strong> — Tap empty slots to place buildings. Adjacent buildings can boost each other. Edge slots show the terrain they sit on.
+    ${suggestedBuilding ? `<div style="color:#e8c170;margin-top:4px;">Suggested: <strong>${suggestedBuilding}</strong></div>` : ''}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;max-width:380px;margin:0 auto;">`;
 
   const edgeSlots: Record<string, number> = {
     '0,1': 0, '0,2': 1, '0,3': 2,
@@ -115,7 +120,7 @@ export function createCityGrid(
         }
         const bgColor = building === 'city-center' ? 'rgba(232,193,112,0.3)' : 'rgba(107,155,75,0.2)';
         const borderColor = building === 'city-center' ? '#e8c170' : 'rgba(107,155,75,0.5)';
-        html += `<div style="aspect-ratio:1;background:${bgColor};border:2px solid ${borderColor};border-radius:6px;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:10px;">
+        html += `<div class="grid-building" data-building="${building}" style="aspect-ratio:1;background:${bgColor};border:2px solid ${borderColor};border-radius:6px;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:10px;cursor:pointer;">
           <span style="font-size:18px;">${icon}</span>
           <span style="font-size:7px;margin-top:1px;">${name}</span>
           ${bonusText}
@@ -156,10 +161,35 @@ export function createCityGrid(
   }
 
   html += '</div>';
+  html += '<div id="grid-detail" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.6);min-height:24px;padding:0 4px;"></div>';
   html += '<style>@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }</style>';
 
   panel.innerHTML = html;
   container.appendChild(panel);
+
+  // Click handlers for occupied building slots — show info inline
+  panel.querySelectorAll('.grid-building').forEach(el => {
+    el.addEventListener('click', () => {
+      const buildingId = (el as HTMLElement).dataset.building!;
+      const bDef = BUILDINGS[buildingId];
+      if (!bDef) return;
+      const yields: string[] = [];
+      if (bDef.yields.food > 0) yields.push(`+${bDef.yields.food} food`);
+      if (bDef.yields.production > 0) yields.push(`+${bDef.yields.production} production`);
+      if (bDef.yields.gold > 0) yields.push(`+${bDef.yields.gold} gold`);
+      if (bDef.yields.science > 0) yields.push(`+${bDef.yields.science} science`);
+      const yieldText = yields.length > 0 ? yields.join(', ') : 'no direct yields';
+      const detailEl = panel.querySelector('#grid-detail');
+      if (detailEl) {
+        detailEl.textContent = '';
+        const strong = document.createElement('strong');
+        strong.style.color = '#e8c170';
+        strong.textContent = bDef.name;
+        detailEl.appendChild(strong);
+        detailEl.appendChild(document.createTextNode(`: ${bDef.description} — ${yieldText}`));
+      }
+    });
+  });
 
   // Click handlers for empty slots
   panel.querySelectorAll('.grid-slot').forEach(el => {

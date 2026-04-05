@@ -121,6 +121,13 @@ export interface Unit {
   experience: number;
   hasMoved: boolean;
   hasActed: boolean;         // used action this turn (build, found, etc.)
+  isResting: boolean;        // player explicitly chose to rest/heal this turn
+}
+
+export interface NotificationEntry {
+  message: string;
+  type: 'info' | 'success' | 'warning';
+  turn: number;
 }
 
 // --- Cities ---

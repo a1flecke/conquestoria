@@ -27,7 +27,7 @@ function makeTestGameState(): GameState {
       'unit-eg-1': {
         id: 'unit-eg-1', type: 'warrior', owner: 'ai-egypt',
         position: { q: 5, r: 3 }, movementPointsLeft: 2,
-        health: 100, experience: 0, hasMoved: false, hasActed: false,
+        health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
       },
     },
     cities: {
