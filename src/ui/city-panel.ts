@@ -21,67 +21,21 @@ export function createCityPanel(
   const yields = calculateCityYields(city, state.map);
   const availableBuildings = getAvailableBuildings(city, state.civilizations[state.currentPlayer].techState.completed);
 
-  let html = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div>
-        <h2 style="font-size:18px;color:#e8c170;margin:0;">${city.name}</h2>
-        <div style="font-size:12px;opacity:0.7;">Population: ${city.population}</div>
-      </div>
-      <span id="city-close" style="cursor:pointer;font-size:24px;opacity:0.6;">✕</span>
-    </div>
-
-    <div style="display:flex;gap:16px;margin-bottom:16px;font-size:13px;">
-      <span>🌾 +${yields.food}</span>
-      <span>⚒️ +${yields.production}</span>
-      <span>💰 +${yields.gold}</span>
-      <span>🔬 +${yields.science}</span>
-    </div>
-
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">List</div>
-      <div id="tab-grid" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Grid</div>
-    </div>
-    <div id="city-list-view">
-  `;
-
-  // Current production
-  if (city.productionQueue.length > 0) {
-    const currentItem = city.productionQueue[0];
-    const building = BUILDINGS[currentItem];
-    const unit = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    const totalCost = building?.productionCost ?? unit?.cost ?? 0;
-    const progress = totalCost > 0 ? Math.round((city.productionProgress / totalCost) * 100) : 0;
-    const turnsLeft = yields.production > 0 ? Math.ceil((totalCost - city.productionProgress) / yields.production) : '∞';
-
-    html += `
-      <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
-        <div style="font-weight:bold;color:#e8c170;">Building: ${building?.name ?? currentItem}</div>
-        <div style="font-size:12px;opacity:0.7;">${turnsLeft} turns remaining</div>
-        <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
-          <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
-        </div>
-      </div>
-    `;
-  }
-
-  // Existing buildings
-  if (city.buildings.length > 0) {
-    html += '<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>';
-    for (const bid of city.buildings) {
-      const b = BUILDINGS[bid];
-      if (b) {
-        html += `<div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:4px;font-size:12px;">
-          <strong>${b.name}</strong> — ${b.description}
-        </div>`;
-      }
+  // Build placeholders for dynamic data; style attributes with pure numbers (progress%) are safe
+  let buildingPlaceholders = '';
+  for (let idx = 0; idx < city.buildings.length; idx++) {
+    const bid = city.buildings[idx];
+    const b = BUILDINGS[bid];
+    if (b) {
+      buildingPlaceholders += `<div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:4px;font-size:12px;">
+        <strong data-text="bldg-name-${idx}"></strong> — <span data-text="bldg-desc-${idx}"></span>
+      </div>`;
     }
-    html += '</div>';
   }
 
-  // Available to build
-  html += '<div><h3 style="font-size:14px;margin:0 0 8px;">Build</h3>';
-
-  for (const b of availableBuildings) {
+  let buildItemPlaceholders = '';
+  for (let idx = 0; idx < availableBuildings.length; idx++) {
+    const b = availableBuildings[idx];
     const turns = yields.production > 0 ? Math.ceil(b.productionCost / yields.production) : '∞';
     const yieldParts: string[] = [];
     if (b.yields.food) yieldParts.push(`+${b.yields.food} 🌾`);
@@ -89,29 +43,122 @@ export function createCityPanel(
     if (b.yields.gold) yieldParts.push(`+${b.yields.gold} 💰`);
     if (b.yields.science) yieldParts.push(`+${b.yields.science} 🔬`);
     const yieldStr = yieldParts.length > 0 ? yieldParts.join(' ') + ' · ' : '';
-    html += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-weight:bold;font-size:13px;">🏗️ ${b.name}</div>
+    buildItemPlaceholders += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+      <div style="font-weight:bold;font-size:13px;">🏗️ <span data-text="build-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns</div>
-      <div style="font-size:10px;opacity:0.5;">${b.description}</div>
+      <div style="font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></div>
     </div>`;
   }
 
   const completedTechs = state.civilizations[state.currentPlayer].techState.completed;
   const availableUnits = TRAINABLE_UNITS.filter(u => !u.techRequired || completedTechs.includes(u.techRequired));
 
-  html += '<div style="margin-top:12px;font-size:12px;opacity:0.5;margin-bottom:8px;">Units</div>';
-  for (const u of availableUnits) {
+  let unitPlaceholders = '';
+  for (let idx = 0; idx < availableUnits.length; idx++) {
+    const u = availableUnits[idx];
     const turns = yields.production > 0 ? Math.ceil(u.cost / yields.production) : '∞';
-    html += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-weight:bold;font-size:13px;">⚔️ ${u.name}</div>
+    unitPlaceholders += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+      <div style="font-weight:bold;font-size:13px;">⚔️ <span data-text="unit-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">Cost: ${u.cost} · ${turns} turns</div>
     </div>`;
   }
-  html += '</div>'; // close build section
-  html += '</div>'; // close city-list-view
-  html += '<div id="city-grid-view" style="display:none;"></div>';
+
+  // Current production placeholders
+  let currentProductionHtml = '';
+  if (city.productionQueue.length > 0) {
+    const currentItem = city.productionQueue[0];
+    const building = BUILDINGS[currentItem];
+    const unit = TRAINABLE_UNITS.find(u => u.type === currentItem);
+    const totalCost = building?.productionCost ?? unit?.cost ?? 0;
+    const progress = totalCost > 0 ? Math.round((city.productionProgress / totalCost) * 100) : 0;
+
+    currentProductionHtml = `
+      <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
+        <div style="font-weight:bold;color:#e8c170;">Building: <span data-text="prod-name"></span></div>
+        <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining</div>
+        <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
+          <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  const html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <h2 style="font-size:18px;color:#e8c170;margin:0;"><span data-text="city-name"></span></h2>
+        <div style="font-size:12px;opacity:0.7;">Population: <span data-text="city-pop"></span></div>
+      </div>
+      <span id="city-close" style="cursor:pointer;font-size:24px;opacity:0.6;">✕</span>
+    </div>
+
+    <div style="display:flex;gap:16px;margin-bottom:16px;font-size:13px;">
+      <span>🌾 +<span data-text="yield-food"></span></span>
+      <span>⚒️ +<span data-text="yield-prod"></span></span>
+      <span>💰 +<span data-text="yield-gold"></span></span>
+      <span>🔬 +<span data-text="yield-science"></span></span>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">List</div>
+      <div id="tab-grid" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Grid</div>
+    </div>
+    <div id="city-list-view">
+      ${currentProductionHtml}
+      ${city.buildings.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>${buildingPlaceholders}</div>` : ''}
+      <div><h3 style="font-size:14px;margin:0 0 8px;">Build</h3>
+        ${buildItemPlaceholders}
+        <div style="margin-top:12px;font-size:12px;opacity:0.5;margin-bottom:8px;">Units</div>
+        ${unitPlaceholders}
+      </div>
+    </div>
+    <div id="city-grid-view" style="display:none;"></div>
+  `;
 
   panel.innerHTML = html;
+
+  // Inject dynamic text via textContent (safe)
+  const setText = (sel: string, text: string) => {
+    const el = panel.querySelector(`[data-text="${sel}"]`);
+    if (el) el.textContent = text;
+  };
+
+  setText('city-name', city.name);
+  setText('city-pop', String(city.population));
+  setText('yield-food', String(yields.food));
+  setText('yield-prod', String(yields.production));
+  setText('yield-gold', String(yields.gold));
+  setText('yield-science', String(yields.science));
+
+  if (city.productionQueue.length > 0) {
+    const currentItem = city.productionQueue[0];
+    const building = BUILDINGS[currentItem];
+    const unit = TRAINABLE_UNITS.find(u => u.type === currentItem);
+    const totalCost = building?.productionCost ?? unit?.cost ?? 0;
+    const turnsLeft = yields.production > 0 ? Math.ceil((totalCost - city.productionProgress) / yields.production) : '∞';
+    setText('prod-name', building?.name ?? currentItem);
+    setText('prod-turns', String(turnsLeft));
+  }
+
+  let bldgIdx = 0;
+  for (const bid of city.buildings) {
+    const b = BUILDINGS[bid];
+    if (b) {
+      setText(`bldg-name-${bldgIdx}`, b.name);
+      setText(`bldg-desc-${bldgIdx}`, b.description);
+      bldgIdx++;
+    }
+  }
+
+  availableBuildings.forEach((b, i) => {
+    setText(`build-name-${i}`, b.name);
+    setText(`build-desc-${i}`, b.description);
+  });
+
+  availableUnits.forEach((u, i) => {
+    setText(`unit-name-${i}`, u.name);
+  });
+
   container.appendChild(panel);
 
   panel.querySelector('#city-close')?.addEventListener('click', () => {
@@ -147,7 +194,7 @@ export function createCityPanel(
     listTab.style.background = 'rgba(255,255,255,0.05)';
     if (!gridView.hasChildNodes()) {
       createCityGrid(gridView, city, state.map, {
-        onSlotTap: (row, col) => {
+        onSlotTap: (_row, _col) => {
           callbacks.onClose();
         },
         onBuyExpansion: () => {
