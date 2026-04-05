@@ -226,6 +226,63 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
       expansionDrive: 0.7,
     },
   },
+  // === M4b1 New Civilizations ===
+  {
+    id: 'russia',
+    name: 'Russia',
+    color: '#1e3a5f',
+    bonusName: 'Tundra Settlers',
+    bonusDescription: 'Expansion & endurance — bonus yields from tundra and snow tiles',
+    bonusEffect: { type: 'tundra_bonus', foodBonus: 1, productionBonus: 1 },
+    personality: {
+      traits: ['expansionist', 'aggressive'],
+      warLikelihood: 0.6,
+      diplomacyFocus: 0.3,
+      expansionDrive: 0.8,
+    },
+  },
+  {
+    id: 'ottoman',
+    name: 'Ottoman Empire',
+    color: '#b91c1c',
+    bonusName: 'Great Bombard',
+    bonusDescription: 'Siege warfare — bonus damage against fortified cities',
+    bonusEffect: { type: 'siege_bonus', damageMultiplier: 1.5 },
+    personality: {
+      traits: ['aggressive', 'expansionist'],
+      warLikelihood: 0.7,
+      diplomacyFocus: 0.3,
+      expansionDrive: 0.7,
+    },
+  },
+  {
+    id: 'shire',
+    name: 'The Shire',
+    color: '#86efac',
+    bonusName: 'Simple Folk',
+    bonusDescription: 'Peaceful prosperity — bonus food but weaker military production',
+    bonusEffect: { type: 'peaceful_growth', foodBonus: 2, militaryPenalty: 0.25 },
+    personality: {
+      traits: ['diplomatic', 'trader'],
+      warLikelihood: 0.1,
+      diplomacyFocus: 0.9,
+      expansionDrive: 0.3,
+    },
+  },
+  {
+    id: 'isengard',
+    name: 'Isengard',
+    color: '#374151',
+    bonusName: 'Industry of War',
+    bonusDescription: 'Industry & war — raze forests for burst production',
+    bonusEffect: { type: 'forest_industry', productionBurst: 30 },
+    personality: {
+      traits: ['aggressive', 'expansionist'],
+      warLikelihood: 0.8,
+      diplomacyFocus: 0.2,
+      expansionDrive: 0.7,
+    },
+  },
 ];
 
 export function getCivDefinition(id: string): CivDefinition | undefined {

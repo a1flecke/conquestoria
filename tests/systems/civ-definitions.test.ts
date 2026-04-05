@@ -2,17 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 
 describe('civ-definitions', () => {
-  it('defines exactly 12 civilizations', () => {
-    expect(CIV_DEFINITIONS).toHaveLength(16);
+  it('defines exactly 20 civilizations', () => {
+    expect(CIV_DEFINITIONS).toHaveLength(20);
   });
 
   it('each civ has unique id, name, and color', () => {
     const ids = CIV_DEFINITIONS.map(c => c.id);
     const names = CIV_DEFINITIONS.map(c => c.name);
     const colors = CIV_DEFINITIONS.map(c => c.color);
-    expect(new Set(ids).size).toBe(16);
-    expect(new Set(names).size).toBe(16);
-    expect(new Set(colors).size).toBe(16);
+    expect(new Set(ids).size).toBe(20);
+    expect(new Set(names).size).toBe(20);
+    expect(new Set(colors).size).toBe(20);
   });
 
   it('getCivDefinition returns correct civ by id', () => {
@@ -101,6 +101,32 @@ describe('civ-definitions', () => {
     expect(rohan).toBeDefined();
     expect(rohan!.name).toBe('Rohan');
     expect(rohan!.bonusEffect.type).toBe('grassland_cavalry_heal');
+  });
+
+  // M4b1 new civs
+  it('has russia with tundra_bonus', () => {
+    const russia = getCivDefinition('russia');
+    expect(russia).toBeDefined();
+    expect(russia!.name).toBe('Russia');
+    expect(russia!.bonusEffect.type).toBe('tundra_bonus');
+  });
+
+  it('has ottoman with siege_bonus', () => {
+    const ottoman = getCivDefinition('ottoman');
+    expect(ottoman).toBeDefined();
+    expect(ottoman!.bonusEffect.type).toBe('siege_bonus');
+  });
+
+  it('has shire with peaceful_growth', () => {
+    const shire = getCivDefinition('shire');
+    expect(shire).toBeDefined();
+    expect(shire!.bonusEffect.type).toBe('peaceful_growth');
+  });
+
+  it('has isengard with forest_industry', () => {
+    const isengard = getCivDefinition('isengard');
+    expect(isengard).toBeDefined();
+    expect(isengard!.bonusEffect.type).toBe('forest_industry');
   });
 
   it('all civs have valid personality traits', () => {
