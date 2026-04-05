@@ -234,10 +234,8 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     if (vassalageDecision && vassalageDecision.action === 'offer_vassalage') {
       const overlordId = vassalageDecision.targetCiv;
       if (newState.civilizations[overlordId]?.diplomacy) {
-        newState.civilizations[civId].diplomacy = offerVassalage(
-          civ.diplomacy, civId, overlordId,
-        );
-        bus.emit('diplomacy:vassalage-offered', { vassalId: civId, overlordId });
+        offerVassalage(civId, overlordId); // notification only — state mutation happens on accept
+        bus.emit('diplomacy:vassalage-offered', { fromCivId: civId, toCivId: overlordId });
       }
     }
 
