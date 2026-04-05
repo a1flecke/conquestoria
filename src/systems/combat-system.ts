@@ -1,4 +1,4 @@
-import type { Unit, CombatResult, GameMap } from '@/core/types';
+import type { Unit, CombatResult, GameMap, CivBonusEffect } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderCombatBonus } from './wonder-system';
@@ -13,11 +13,17 @@ export function getTerrainDefenseBonus(terrain: string): number {
   return bonuses[terrain] ?? 0;
 }
 
+export interface CombatContext {
+  attackerBonus?: CivBonusEffect;
+  defenderInFortifiedCity?: boolean;
+}
+
 export function resolveCombat(
   attacker: Unit,
   defender: Unit,
   map: GameMap,
   seed?: number,
+  context?: CombatContext,
 ): CombatResult {
   // Seeded RNG for deterministic combat
   let rngState = seed ?? (Date.now() * 16807);
@@ -79,7 +85,13 @@ export function resolveCombat(
   // Base damage is 30-50
   const baseDamage = 30 + rng() * 20;
 
-  const defenderDamage = Math.round(baseDamage * adjustedRatio);
+  // Ottoman siege bonus
+  let siegeMultiplier = 1;
+  if (context?.attackerBonus?.type === 'siege_bonus' && context?.defenderInFortifiedCity) {
+    siegeMultiplier = context.attackerBonus.damageMultiplier;
+  }
+
+  const defenderDamage = Math.round(baseDamage * adjustedRatio * siegeMultiplier);
   const attackerDamage = Math.round(baseDamage * (1 - adjustedRatio));
 
   const attackerHealthAfter = attacker.health - attackerDamage;
