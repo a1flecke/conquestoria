@@ -101,6 +101,17 @@ function hexRound(qf: number, rf: number): HexCoord {
   return { q, r };
 }
 
+// --- Pointy-top hex corners ---
+
+export const HEX_CORNERS_POINTY = (function () {
+  const corners: Array<{ dx: number; dy: number }> = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 180) * (60 * i - 30);
+    corners.push({ dx: Math.cos(angle), dy: Math.sin(angle) });
+  }
+  return corners;
+})();
+
 // --- Wrapping ---
 
 export function wrapHexCoord(coord: HexCoord, mapWidth: number): HexCoord {
