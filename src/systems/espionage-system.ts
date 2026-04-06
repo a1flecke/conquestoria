@@ -528,16 +528,14 @@ export function initializeEspionage(state: GameState): EspionageState {
 export function processEspionageTurn(state: GameState, bus: EventBus): GameState {
   if (!state.espionage) return state;
 
-  let newState = structuredClone(state);
   const turnSeed = `esp-turn-${state.turn}`;
 
-  for (const civId of Object.keys(newState.espionage!)) {
-    const civEsp = newState.espionage![civId];
-    const { state: updatedEsp, events } = processSpyTurn(
-      civEsp,
-      `${turnSeed}-${civId}`,
-    );
-    newState.espionage![civId] = updatedEsp;
+  for (const civId of Object.keys(state.espionage!)) {
+    const civEspBefore: EspionageCivState = state.espionage![civId];
+    const spyTurnResult = processSpyTurn(civEspBefore, `${turnSeed}-${civId}`);
+    const updatedEsp = spyTurnResult.state;
+    const events = spyTurnResult.events;
+    state.espionage![civId] = updatedEsp;
 
     // Process events — emit bus events and apply diplomatic consequences
     for (const evt of events) {
@@ -552,7 +550,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
 
         case 'mission_succeeded': {
           const result = spy?.targetCivId && spy?.targetCityId
-            ? resolveMissionResult(evt.missionType!, spy.targetCivId, spy.targetCityId, newState)
+            ? resolveMissionResult(evt.missionType!, spy.targetCivId, spy.targetCityId, state)
             : {};
 
           bus.emit('espionage:mission-succeeded', {
@@ -564,8 +562,8 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
           if (evt.missionType === 'scout_area' && result.tilesToReveal) {
             for (const coord of result.tilesToReveal) {
               const key = `${coord.q},${coord.r}`;
-              if (newState.civilizations[civId]?.visibility?.tiles) {
-                newState.civilizations[civId].visibility.tiles[key] = 'visible';
+              if (state.civilizations[civId]?.visibility?.tiles) {
+                state.civilizations[civId].visibility.tiles[key] = 'visible';
               }
             }
           }
@@ -582,17 +580,17 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
           // Note: spy has already been reset by processSpyTurn, so targetCivId is null
           // We need to look at the mission's targetCivId from the event context
           // The spy's original target is in the mission that was active before processing
-          const originalSpy = civEsp.spies[evt.spyId]; // pre-update spy
+          const originalSpy = civEspBefore.spies[evt.spyId]; // pre-update spy
           const targetCivId = originalSpy?.targetCivId;
-          if (targetCivId && newState.civilizations[targetCivId]) {
+          if (targetCivId && state.civilizations[targetCivId]) {
             // Bilateral update: target civ's view of spy owner
-            newState.civilizations[targetCivId].diplomacy = handleSpyExpelled(
-              newState.civilizations[targetCivId].diplomacy, civId, newState.turn,
+            state.civilizations[targetCivId].diplomacy = handleSpyExpelled(
+              state.civilizations[targetCivId].diplomacy, civId, state.turn,
             );
             // Bilateral update: spy owner's view of target civ
-            if (newState.civilizations[civId]) {
-              newState.civilizations[civId].diplomacy = modifyRelationship(
-                newState.civilizations[civId].diplomacy, targetCivId, -5,
+            if (state.civilizations[civId]) {
+              state.civilizations[civId].diplomacy = modifyRelationship(
+                state.civilizations[civId].diplomacy, targetCivId, -5,
               );
             }
           }
@@ -603,17 +601,17 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
         }
 
         case 'spy_captured': {
-          const originalSpy = civEsp.spies[evt.spyId]; // pre-update spy
+          const originalSpy = civEspBefore.spies[evt.spyId]; // pre-update spy
           const targetCivId = originalSpy?.targetCivId;
-          if (targetCivId && newState.civilizations[targetCivId]) {
+          if (targetCivId && state.civilizations[targetCivId]) {
             // Bilateral update: target civ's view of spy owner
-            newState.civilizations[targetCivId].diplomacy = handleSpyCaptured(
-              newState.civilizations[targetCivId].diplomacy, civId, newState.turn,
+            state.civilizations[targetCivId].diplomacy = handleSpyCaptured(
+              state.civilizations[targetCivId].diplomacy, civId, state.turn,
             );
             // Bilateral update: spy owner's view of target civ
-            if (newState.civilizations[civId]) {
-              newState.civilizations[civId].diplomacy = modifyRelationship(
-                newState.civilizations[civId].diplomacy, targetCivId, -10,
+            if (state.civilizations[civId]) {
+              state.civilizations[civId].diplomacy = modifyRelationship(
+                state.civilizations[civId].diplomacy, targetCivId, -10,
               );
             }
           }
@@ -626,11 +624,11 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
     }
 
     // Clean up spies targeting destroyed cities (traveling or on_mission)
-    for (const spy of Object.values(newState.espionage![civId].spies)) {
+    for (const spy of Object.values(state.espionage![civId].spies)) {
       if ((spy.status === 'traveling' || spy.status === 'on_mission') && spy.targetCityId) {
-        const targetCity = newState.cities[spy.targetCityId];
+        const targetCity = state.cities[spy.targetCityId];
         if (!targetCity) {
-          newState.espionage![civId].spies[spy.id] = {
+          state.espionage![civId].spies[spy.id] = {
             ...spy,
             status: 'idle',
             targetCivId: null,
@@ -646,12 +644,12 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
     }
 
     // Passive spy abilities: stationed spies passively reveal fog and report troops
-    for (const spy of Object.values(newState.espionage![civId].spies)) {
+    for (const spy of Object.values(state.espionage![civId].spies)) {
       if (spy.status === 'stationed' && spy.targetCivId && spy.targetCityId) {
-        const targetCity = newState.cities[spy.targetCityId];
+        const targetCity = state.cities[spy.targetCityId];
         if (!targetCity) {
           // City was destroyed/captured — recall spy to idle
-          newState.espionage![civId].spies[spy.id] = {
+          state.espionage![civId].spies[spy.id] = {
             ...spy,
             status: 'idle',
             targetCivId: null,
@@ -667,18 +665,18 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
 
         // Passive fog reveal around stationed city
         const revealRadius = 3;
-        for (const key of Object.keys(newState.map.tiles)) {
+        for (const key of Object.keys(state.map.tiles)) {
           const [q, r] = key.split(',').map(Number);
           if (hexDistance({ q, r }, targetCity.position) <= revealRadius) {
-            if (newState.civilizations[civId]?.visibility?.tiles) {
-              newState.civilizations[civId].visibility.tiles[key] = 'visible';
+            if (state.civilizations[civId]?.visibility?.tiles) {
+              state.civilizations[civId].visibility.tiles[key] = 'visible';
             }
           }
         }
 
         // Passive troop monitoring — emit event with units near city
         const nearbyUnits: Array<{ type: string; position: HexCoord }> = [];
-        for (const unit of Object.values(newState.units)) {
+        for (const unit of Object.values(state.units)) {
           if (unit.owner === spy.targetCivId &&
               hexDistance(unit.position, targetCity.position) <= 4) {
             nearbyUnits.push({ type: unit.type, position: unit.position });
@@ -695,18 +693,18 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
 
     // Update maxSpies based on current tech
     let maxSpies = 0;
-    const civ = newState.civilizations[civId];
+    const civ = state.civilizations[civId];
     if (civ) {
       for (const [techId, spyCount] of Object.entries(ESPIONAGE_TECH_MAX_SPIES)) {
         if (civ.techState.completed.includes(techId)) {
           maxSpies = Math.max(maxSpies, spyCount);
         }
       }
-      newState.espionage![civId].maxSpies = Math.max(1, maxSpies);
+      state.espionage![civId].maxSpies = Math.max(1, maxSpies);
     }
   }
 
-  return newState;
+  return state;
 }
 
 // Reset the ID counter (for testing)
