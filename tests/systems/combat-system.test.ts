@@ -13,7 +13,7 @@ describe('resolveCombat', () => {
   it('produces a combat result with damage to both sides', () => {
     const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
     const defender = createUnit('warrior', 'p2', { q: 11, r: 10 });
-    const result = resolveCombat(attacker, defender, map);
+    const result = resolveCombat(attacker, defender, map, 42);
 
     expect(result.attackerId).toBe(attacker.id);
     expect(result.defenderId).toBe(defender.id);
@@ -25,7 +25,7 @@ describe('resolveCombat', () => {
     const warrior = createUnit('warrior', 'p1', { q: 10, r: 10 });
     const scout = createUnit('scout', 'p2', { q: 11, r: 10 });
 
-    const result = resolveCombat(warrior, scout, map);
+    const result = resolveCombat(warrior, scout, map, 42);
     expect(result.attackerDamage).toBeGreaterThanOrEqual(0);
     expect(result.defenderDamage).toBeGreaterThanOrEqual(0);
   });
@@ -52,7 +52,7 @@ describe('resolveCombat', () => {
     attacker.health = 10;
     const defender = createUnit('warrior', 'p2', { q: 11, r: 10 });
 
-    const result = resolveCombat(attacker, defender, map);
+    const result = resolveCombat(attacker, defender, map, 42);
     expect(typeof result.attackerSurvived).toBe('boolean');
     expect(typeof result.defenderSurvived).toBe('boolean');
   });
@@ -61,7 +61,7 @@ describe('resolveCombat', () => {
     const warrior = createUnit('warrior', 'p1', { q: 10, r: 10 });
     const settler = createUnit('settler', 'p2', { q: 11, r: 10 });
 
-    const result = resolveCombat(warrior, settler, map);
+    const result = resolveCombat(warrior, settler, map, 42);
     expect(result.defenderSurvived).toBe(false);
   });
 });

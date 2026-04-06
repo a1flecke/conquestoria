@@ -399,7 +399,8 @@ export function processScuffles(state: GameState, bus: EventBus): void {
         const attackerUnit = mc.units.map(uid => state.units[uid]).find(u => u);
         const defenderUnit = other.units.map(uid => state.units[uid]).find(u => u);
         if (attackerUnit && defenderUnit) {
-          const result = resolveCombat(attackerUnit, defenderUnit, state.map);
+          const seed = state.turn * 16807 + attackerUnit.id.charCodeAt(0);
+          const result = resolveCombat(attackerUnit, defenderUnit, state.map, seed, undefined, state.era);
           attackerUnit.health = Math.max(1, attackerUnit.health - result.attackerDamage);
           defenderUnit.health = Math.max(1, defenderUnit.health - result.defenderDamage);
         }

@@ -22,12 +22,12 @@ export function resolveCombat(
   attacker: Unit,
   defender: Unit,
   map: GameMap,
-  seed?: number,
+  seed: number,
   context?: CombatContext,
   era?: number,
 ): CombatResult {
   // Seeded RNG for deterministic combat
-  let rngState = seed ?? (Date.now() * 16807);
+  let rngState = seed;
   const rng = () => {
     rngState = (rngState * 48271) % 2147483647;
     return rngState / 2147483647;

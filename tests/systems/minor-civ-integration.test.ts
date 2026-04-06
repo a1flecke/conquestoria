@@ -29,7 +29,7 @@ describe('minor civ integration', () => {
       isResting: false,
     };
 
-    const result = resolveCombat(playerUnit, mcUnit, state.map);
+    const result = resolveCombat(playerUnit, mcUnit, state.map, 42);
     expect(result.attackerDamage).toBeGreaterThanOrEqual(0);
     expect(result.defenderDamage).toBeGreaterThanOrEqual(0);
     expect(typeof result.attackerSurvived).toBe('boolean');
