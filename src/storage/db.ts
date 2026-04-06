@@ -4,6 +4,7 @@ const STORE_NAME = 'saves';
 
 let persistRequested = false;
 let cachedDb: IDBDatabase | null = null;
+let openingPromise: Promise<IDBDatabase> | null = null;
 
 function requestPersistentStorage(): void {
   if (persistRequested) return;
@@ -17,13 +18,17 @@ function requestPersistentStorage(): void {
 }
 
 function openDB(): Promise<IDBDatabase> {
-  requestPersistentStorage();
-
   if (cachedDb) {
     return Promise.resolve(cachedDb);
   }
 
-  return new Promise((resolve, reject) => {
+  if (openingPromise) {
+    return openingPromise;
+  }
+
+  requestPersistentStorage();
+
+  openingPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -33,13 +38,18 @@ function openDB(): Promise<IDBDatabase> {
     };
     request.onsuccess = () => {
       cachedDb = request.result;
+      openingPromise = null;
       // Clear cache if connection is closed unexpectedly
       cachedDb.onclose = () => { cachedDb = null; };
-      cachedDb.onerror = () => { cachedDb = null; };
       resolve(cachedDb);
     };
-    request.onerror = () => reject(request.error);
+    request.onerror = () => {
+      openingPromise = null;
+      reject(request.error);
+    };
   });
+
+  return openingPromise;
 }
 
 export async function dbGet<T>(key: string): Promise<T | undefined> {
