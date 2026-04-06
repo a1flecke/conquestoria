@@ -164,6 +164,10 @@ export interface City {
   ownedTiles: HexCoord[];    // tiles this city works
   grid: (string | null)[][];  // 5x5 city interior grid
   gridSize: number;           // unlocked grid size (3, 4, or 5)
+  unrestLevel: 0 | 1 | 2;     // 0=stable, 1=unrest, 2=revolt
+  unrestTurns: number;         // turns spent at current unrest level (>= 1)
+  conquestTurn?: number;       // turn this city was captured; cleared after 15 turns
+  spyUnrestBonus: number;      // bonus pressure injected by enemy espionage; decays 5/turn
 }
 
 // --- Tech ---
@@ -310,11 +314,23 @@ export interface DefensiveLeague {
 export type SpyStatus = 'idle' | 'traveling' | 'stationed' | 'on_mission' | 'captured' | 'cooldown';
 
 export type SpyMissionType =
-  | 'scout_area'         // Stage 1: reveal fog around target city
-  | 'monitor_troops'     // Stage 1: report unit movements in/out of city
-  | 'gather_intel'       // Stage 2: reveal tech, treasury, treaties
-  | 'identify_resources' // Stage 2: reveal strategic resources in city territory
-  | 'monitor_diplomacy'; // Stage 2: see trade partners and relationship scores
+  // Stage 1 (espionage-scouting tech)
+  | 'scout_area'          // reveal fog around target city
+  | 'monitor_troops'      // report unit movements near city
+  // Stage 2 (espionage-informants tech)
+  | 'gather_intel'        // reveal tech progress, treasury, treaties
+  | 'identify_resources'  // reveal strategic resources in city territory
+  | 'monitor_diplomacy'   // see trade partners and relationships
+  // Stage 3 (spy-networks or sabotage tech)
+  | 'steal_tech'          // copy one tech target has that you don't
+  | 'sabotage_production' // target city loses 3-5 turns of production progress
+  | 'incite_unrest'       // increase spyUnrestBonus in target city
+  | 'counter_espionage'   // passive defensive assignment (increases CI score)
+  // Stage 4 (cryptography or counter-intelligence tech)
+  | 'assassinate_advisor' // disable one advisor for 10 turns
+  | 'forge_documents'     // diplomatic relationship penalty between two other civs
+  | 'fund_rebels'         // escalate unrest in already-unrest city
+  | 'arms_smuggling';     // spawn hostile units near target city
 
 export interface SpyMission {
   type: SpyMissionType;
@@ -335,6 +351,8 @@ export interface Spy {
   experience: number;              // 0-100
   currentMission: SpyMission | null;
   cooldownTurns: number;           // turns until spy can act again after expulsion
+  promotion?: SpyPromotion;          // set once, permanent
+  promotionAvailable: boolean;       // true when XP >= 60 and no promotion yet (unused for now, for future UI)
 }
 
 export interface EspionageCivState {
@@ -344,6 +362,11 @@ export interface EspionageCivState {
 }
 
 export type EspionageState = Record<string, EspionageCivState>;
+
+export type SpyPromotion = 'infiltrator' | 'handler' | 'sentinel';
+// infiltrator: bonus to direct-effect missions (steal, sabotage, assassinate, arms)
+// handler:     bonus to influence missions (incite, forge, fund_rebels, counter_esp)
+// sentinel:    bonus to counter-intelligence and detection avoidance
 
 // --- Civilizations ---
 
@@ -360,6 +383,7 @@ export interface Civilization {
   visibility: VisibilityMap;
   score: number;
   diplomacy: DiplomacyState;
+  advisorDisabledUntil?: Partial<Record<AdvisorType, number>>; // turn number until re-enabled
 }
 
 // --- Barbarians ---
@@ -635,4 +659,10 @@ export interface GameEvents {
   'espionage:spy-expelled': { civId: string; spyId: string; fromCivId: string };
   'espionage:spy-captured': { capturingCivId: string; spyOwner: string; spyId: string };
   'espionage:spy-recalled': { civId: string; spyId: string; reason?: string };
+  'faction:unrest-started': { cityId: string; owner: string };
+  'faction:revolt-started': { cityId: string; owner: string };
+  'faction:unrest-resolved': { cityId: string; owner: string };
+  'espionage:spy-promoted': { civId: string; spyId: string; promotion: SpyPromotion };
+  'espionage:advisor-assassinated': { targetCivId: string; advisorType: AdvisorType; disabledUntilTurn: number };
+  'espionage:documents-forged': { civA: string; civB: string; relationshipPenalty: number };
 }
