@@ -1,6 +1,6 @@
 // src/systems/espionage-system.ts
 import type {
-  Spy, SpyMission, SpyMissionType, SpyStatus,
+  Spy, SpyMission, SpyMissionType, SpyStatus, SpyPromotion,
   EspionageCivState, EspionageState, HexCoord, GameState,
   DiplomacyState, Treaty, UnitType, AdvisorType,
 } from '../core/types';
@@ -75,11 +75,22 @@ export function getSpySuccessChance(
   spyExperience: number,
   counterIntel: number,
   missionType: SpyMissionType,
+  promotion?: SpyPromotion,
 ): number {
-  const base = MISSION_BASE_SUCCESS[missionType];
+  const base = MISSION_BASE_SUCCESS[missionType as keyof typeof MISSION_BASE_SUCCESS] ?? 0.5;
   const expBonus = spyExperience * 0.003;     // +0.3% per XP point, max +30%
   const ciPenalty = counterIntel * 0.004;      // -0.4% per CI point, max -40%
-  return Math.max(0.05, Math.min(0.98, base + expBonus - ciPenalty));
+
+  let promotionBonus = 0;
+  if (promotion === 'infiltrator' && INFILTRATOR_MISSIONS.has(missionType)) {
+    promotionBonus = 0.10;
+  } else if (promotion === 'handler' && HANDLER_MISSIONS.has(missionType)) {
+    promotionBonus = 0.10;
+  } else if (promotion === 'sentinel') {
+    promotionBonus = 0.05;
+  }
+
+  return Math.max(0.05, Math.min(0.98, base + expBonus + promotionBonus - ciPenalty));
 }
 
 export function getMissionDuration(missionType: SpyMissionType): number {
@@ -260,11 +271,23 @@ export function startMission(
 // --- Turn events (returned from processSpyTurn for bus emission) ---
 
 export interface SpyTurnEvent {
-  type: 'mission_succeeded' | 'mission_failed' | 'spy_expelled' | 'spy_captured' | 'spy_arrived';
+  type: 'mission_succeeded' | 'mission_failed' | 'spy_expelled' | 'spy_captured' | 'spy_arrived' | 'spy_promoted';
   spyId: string;
   missionType?: SpyMissionType;
+  promotion?: SpyPromotion;
   result?: Record<string, unknown>;
 }
+
+const PROMOTION_XP_THRESHOLD = 60;
+
+// Mission categories for auto-promotion
+const INFILTRATOR_MISSIONS = new Set<SpyMissionType>([
+  'steal_tech', 'sabotage_production', 'assassinate_advisor', 'arms_smuggling',
+]);
+const HANDLER_MISSIONS = new Set<SpyMissionType>([
+  'incite_unrest', 'forge_documents', 'fund_rebels', 'monitor_diplomacy',
+]);
+// Sentinel: everything else (intel, scouting, defensive)
 
 const XP_PER_MISSION = {
   scout_area: 5,
@@ -282,6 +305,25 @@ const XP_PER_MISSION = {
 } as Record<SpyMissionType, number>;
 
 const EXPULSION_COOLDOWN = 5;
+
+export function checkAndApplyPromotion(
+  spy: Spy,
+  lastMissionType: SpyMissionType,
+): Spy {
+  if (spy.promotion !== undefined) return spy;          // already promoted
+  if (spy.experience < PROMOTION_XP_THRESHOLD) return spy;
+
+  let promotion: SpyPromotion;
+  if (INFILTRATOR_MISSIONS.has(lastMissionType)) {
+    promotion = 'infiltrator';
+  } else if (HANDLER_MISSIONS.has(lastMissionType)) {
+    promotion = 'handler';
+  } else {
+    promotion = 'sentinel';
+  }
+
+  return { ...spy, promotion, promotionAvailable: false };
+}
 
 export function processSpyTurn(
   state: EspionageCivState,
@@ -323,7 +365,7 @@ export function processSpyTurn(
       if (mission.turnsRemaining <= 0) {
         // Resolve mission
         const counterIntel = newState.counterIntelligence[mission.targetCityId] ?? 0;
-        const successChance = getSpySuccessChance(updated.experience, counterIntel, mission.type);
+        const successChance = getSpySuccessChance(updated.experience, counterIntel, mission.type, updated.promotion);
         const roll = rng();
 
         if (roll < successChance) {
@@ -337,6 +379,11 @@ export function processSpyTurn(
             missionType: mission.type,
             result: {},
           });
+          const afterPromo = checkAndApplyPromotion(updated, mission.type);
+          if (afterPromo.promotion && !updated.promotion) {
+            updated = afterPromo;
+            events.push({ type: 'spy_promoted', spyId, promotion: afterPromo.promotion });
+          }
         } else {
           // Failure — determine expulsion vs capture
           const captureRoll = rng();
@@ -799,6 +846,12 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
           });
           break;
         }
+
+        case 'spy_promoted':
+          bus.emit('espionage:spy-promoted', {
+            civId, spyId: evt.spyId, promotion: evt.promotion!,
+          });
+          break;
 
         case 'spy_captured': {
           const originalSpy = civEspBefore.spies[evt.spyId]; // pre-update spy
