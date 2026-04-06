@@ -135,22 +135,20 @@ function hashSeed(seed: string): number {
 // === Turn Processing ===
 
 export function processMinorCivTurn(state: GameState, bus: EventBus): GameState {
-  const newState = structuredClone(state);
-
-  for (const [_mcId, mc] of Object.entries(newState.minorCivs)) {
+  for (const [_mcId, mc] of Object.entries(state.minorCivs)) {
     if (mc.isDestroyed) continue;
 
     const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
     if (!def) continue;
 
-    processMovement(newState, mc);
-    processQuests(newState, mc, def, bus);
-    applyAllyBonuses(newState, mc, def, bus);
-    processGarrison(newState, mc);
-    emitRelationshipThresholds(newState, mc, bus);
+    processMovement(state, mc);
+    processQuests(state, mc, def, bus);
+    applyAllyBonuses(state, mc, def, bus);
+    processGarrison(state, mc);
+    emitRelationshipThresholds(state, mc, bus);
   }
 
-  return newState;
+  return state;
 }
 
 function processQuests(state: GameState, mc: MinorCivState, def: { archetype: any }, bus: EventBus): void {
