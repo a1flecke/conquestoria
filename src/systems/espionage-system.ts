@@ -21,7 +21,8 @@ let nextSpyId = 1;
 
 // --- Mission difficulty config ---
 
-const MISSION_BASE_SUCCESS: Record<SpyMissionType, number> = {
+// counter_espionage is passive (assignSpyDefensive) and not a startable mission
+const MISSION_BASE_SUCCESS = {
   scout_area: 0.90,
   monitor_troops: 0.85,
   gather_intel: 0.70,
@@ -30,14 +31,13 @@ const MISSION_BASE_SUCCESS: Record<SpyMissionType, number> = {
   steal_tech: 0.50,
   sabotage_production: 0.60,
   incite_unrest: 0.55,
-  counter_espionage: 0.80,
   assassinate_advisor: 0.45,
   forge_documents: 0.55,
   fund_rebels: 0.60,
   arms_smuggling: 0.50,
-};
+} as Record<SpyMissionType, number>;
 
-const MISSION_DURATIONS: Record<SpyMissionType, number> = {
+const MISSION_DURATIONS = {
   scout_area: 1,
   monitor_troops: 2,
   gather_intel: 3,
@@ -46,12 +46,11 @@ const MISSION_DURATIONS: Record<SpyMissionType, number> = {
   steal_tech: 6,
   sabotage_production: 4,
   incite_unrest: 5,
-  counter_espionage: 0,   // passive — no turn timer
   assassinate_advisor: 6,
   forge_documents: 5,
   fund_rebels: 6,
   arms_smuggling: 4,
-};
+} as Record<SpyMissionType, number>;
 
 // --- State creation ---
 
@@ -213,7 +212,7 @@ const STAGE_4_TECHS = ['cryptography', 'counter-intelligence']; // either unlock
 
 const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
 const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
-const STAGE_3_MISSIONS: SpyMissionType[] = ['steal_tech', 'sabotage_production', 'incite_unrest', 'counter_espionage'];
+const STAGE_3_MISSIONS: SpyMissionType[] = ['steal_tech', 'sabotage_production', 'incite_unrest'];
 const STAGE_4_MISSIONS: SpyMissionType[] = ['assassinate_advisor', 'forge_documents', 'fund_rebels', 'arms_smuggling'];
 
 export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
@@ -267,7 +266,7 @@ export interface SpyTurnEvent {
   result?: Record<string, unknown>;
 }
 
-const XP_PER_MISSION: Record<SpyMissionType, number> = {
+const XP_PER_MISSION = {
   scout_area: 5,
   monitor_troops: 5,
   gather_intel: 10,
@@ -276,12 +275,11 @@ const XP_PER_MISSION: Record<SpyMissionType, number> = {
   steal_tech: 15,
   sabotage_production: 12,
   incite_unrest: 12,
-  counter_espionage: 5,
   assassinate_advisor: 18,
   forge_documents: 15,
   fund_rebels: 12,
   arms_smuggling: 12,
-};
+} as Record<SpyMissionType, number>;
 
 const EXPULSION_COOLDOWN = 5;
 
@@ -413,6 +411,8 @@ export function resolveMissionResult(
   targetCivId: string,
   targetCityId: string,
   gameState: GameState,
+  spyingCivId: string,
+  spyId: string,
 ): MissionResult {
   const targetCiv = gameState.civilizations[targetCivId];
   const targetCity = gameState.cities[targetCityId];
@@ -484,14 +484,13 @@ export function resolveMissionResult(
 
     case 'steal_tech': {
       const targetCiv = gameState.civilizations[targetCivId];
-      const spyingCivId = gameState.currentPlayer;
       const myCiv = gameState.civilizations[spyingCivId];
       if (!targetCiv || !myCiv) return {};
       const theyHave = targetCiv.techState.completed;
       const iHave = new Set(myCiv.techState.completed);
       const stealable = theyHave.filter(t => !iHave.has(t));
       if (stealable.length === 0) return {};
-      const rng = createRng(`steal-${targetCivId}-${targetCityId}-${gameState.turn}`);
+      const rng = createRng(`steal-${spyId}-${targetCivId}-${targetCityId}-${gameState.turn}`);
       const idx = Math.floor(rng() * stealable.length);
       return { stolenTechId: stealable[idx] };
     }
@@ -499,7 +498,7 @@ export function resolveMissionResult(
     case 'sabotage_production': {
       const targetCity = gameState.cities[targetCityId];
       if (!targetCity || targetCity.productionQueue.length === 0) return {};
-      const rng = createRng(`sab-${targetCityId}-${gameState.turn}`);
+      const rng = createRng(`sab-${spyId}-${targetCityId}-${gameState.turn}`);
       const lostTurns = 3 + Math.floor(rng() * 3); // 3-5 turns
       const lostProgress = lostTurns * 5; // ~5 production/turn
       return { productionLost: lostProgress };
@@ -510,8 +509,7 @@ export function resolveMissionResult(
     }
 
     case 'fund_rebels': {
-      const targetCity = gameState.cities[targetCityId];
-      if (!targetCity || targetCity.unrestLevel === 0) return {};
+      // Always injects unrest pressure, even in stable cities
       return { unrestInjected: 35 };
     }
 
@@ -521,7 +519,7 @@ export function resolveMissionResult(
 
     case 'assassinate_advisor': {
       const advisorTypes: AdvisorType[] = ['builder', 'explorer', 'chancellor', 'warchief', 'treasurer', 'scholar', 'spymaster'];
-      const rng = createRng(`assassin-${targetCivId}-${gameState.turn}`);
+      const rng = createRng(`assassin-${spyId}-${targetCivId}-${gameState.turn}`);
       const idx = Math.floor(rng() * advisorTypes.length);
       const assassinatedAdvisor = advisorTypes[idx];
       const disabledUntilTurn = gameState.turn + 10;
@@ -530,10 +528,10 @@ export function resolveMissionResult(
 
     case 'forge_documents': {
       const allCivIds = Object.keys(gameState.civilizations).filter(
-        id => id !== targetCivId && id !== gameState.currentPlayer,
+        id => id !== targetCivId && id !== spyingCivId,
       );
       if (allCivIds.length < 1) return {};
-      const rng = createRng(`forge-${targetCivId}-${gameState.turn}`);
+      const rng = createRng(`forge-${spyId}-${targetCivId}-${gameState.turn}`);
       const idx = Math.floor(rng() * allCivIds.length);
       return { forgeCivA: targetCivId, forgeCivB: allCivIds[idx], forgeRelationshipPenalty: -25 };
     }
@@ -541,7 +539,7 @@ export function resolveMissionResult(
     case 'arms_smuggling': {
       const targetCity = gameState.cities[targetCityId];
       if (!targetCity) return {};
-      const rng = createRng(`arms-${targetCityId}-${gameState.turn}`);
+      const rng = createRng(`arms-${spyId}-${targetCityId}-${gameState.turn}`);
       const offsets = [
         { q: 1, r: 0 }, { q: -1, r: 0 }, { q: 0, r: 1 },
         { q: 0, r: -1 }, { q: 1, r: -1 }, { q: -1, r: 1 },
@@ -666,7 +664,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
 
         case 'mission_succeeded': {
           const result = spy?.targetCivId && spy?.targetCityId
-            ? resolveMissionResult(evt.missionType!, spy.targetCivId, spy.targetCityId, state)
+            ? resolveMissionResult(evt.missionType!, spy.targetCivId, spy.targetCityId, state, civId, evt.spyId)
             : {};
 
           bus.emit('espionage:mission-succeeded', {
