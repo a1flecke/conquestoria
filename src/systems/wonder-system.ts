@@ -101,11 +101,31 @@ export function processWonderDiscovery(
           }
           break;
         case 'production': {
-          // Add to first city's production progress
-          const firstCityId = civ.cities[0];
-          const firstCity = firstCityId ? state.cities[firstCityId] : null;
-          if (firstCity) {
-            firstCity.productionProgress += wonder.discoveryBonus.amount;
+          // Find the wonder's position on the map
+          let wonderPosition: HexCoord | null = null;
+          for (const tile of Object.values(state.map.tiles)) {
+            if (tile.wonder === wonderId) {
+              wonderPosition = tile.coord;
+              break;
+            }
+          }
+
+          // Find nearest city to the wonder
+          let nearestCity = null;
+          let nearestDist = Infinity;
+          for (const cityId of civ.cities) {
+            const city = state.cities[cityId];
+            if (!city) continue;
+            if (!wonderPosition) continue;
+            const dist = hexDistance(wonderPosition, city.position);
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              nearestCity = city;
+            }
+          }
+
+          if (nearestCity) {
+            nearestCity.productionProgress += wonder.discoveryBonus.amount;
           }
           break;
         }
