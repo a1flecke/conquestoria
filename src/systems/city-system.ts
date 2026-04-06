@@ -89,6 +89,9 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap): City
     ownedTiles,
     grid,
     gridSize: 3,
+    unrestLevel: 0,
+    unrestTurns: 0,
+    spyUnrestBonus: 0,
   };
 }
 

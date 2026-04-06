@@ -92,6 +92,8 @@ export function recruitSpy(
     experience: 0,
     currentMission: null,
     cooldownTurns: 0,
+    promotion: undefined,
+    promotionAvailable: false,
   };
 
   return {
