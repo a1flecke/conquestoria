@@ -346,12 +346,12 @@ function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): 
     case 'open_borders':
     case 'alliance':
       currentCiv().diplomacy = proposeTreaty(
-        currentCiv().diplomacy, targetCivId, action,
+        currentCiv().diplomacy, cp, targetCivId, action,
         action === 'non_aggression_pact' ? 10 : -1, gameState.turn,
       );
       if (gameState.civilizations[targetCivId]?.diplomacy) {
         gameState.civilizations[targetCivId].diplomacy = proposeTreaty(
-          gameState.civilizations[targetCivId].diplomacy, cp, action,
+          gameState.civilizations[targetCivId].diplomacy, targetCivId, cp, action,
           action === 'non_aggression_pact' ? 10 : -1, gameState.turn,
         );
       }

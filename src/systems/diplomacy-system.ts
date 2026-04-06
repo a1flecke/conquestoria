@@ -118,6 +118,7 @@ export function makePeace(
 
 export function proposeTreaty(
   state: DiplomacyState,
+  selfId: string,
   otherCivId: string,
   type: TreatyType,
   turnsRemaining: number,
@@ -125,7 +126,7 @@ export function proposeTreaty(
 ): DiplomacyState {
   const treaty: Treaty = {
     type,
-    civA: 'self',
+    civA: selfId,
     civB: otherCivId,
     turnsRemaining,
   };

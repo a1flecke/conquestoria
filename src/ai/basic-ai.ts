@@ -210,12 +210,12 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         case 'open_borders':
         case 'alliance':
           newState.civilizations[civId].diplomacy = proposeTreaty(
-            civ.diplomacy, decision.targetCiv, decision.action,
+            civ.diplomacy, civId, decision.targetCiv, decision.action,
             decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
           );
           if (newState.civilizations[decision.targetCiv]?.diplomacy) {
             newState.civilizations[decision.targetCiv].diplomacy = proposeTreaty(
-              newState.civilizations[decision.targetCiv].diplomacy, civId, decision.action,
+              newState.civilizations[decision.targetCiv].diplomacy, decision.targetCiv, civId, decision.action,
               decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
             );
           }
