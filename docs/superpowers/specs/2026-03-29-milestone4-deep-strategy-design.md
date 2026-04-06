@@ -445,8 +445,9 @@ Issue numbers (#2, #4, #5, #10) refer to GitHub issues tracked in the repository
 
 ### 8.7 UX Clarity Pass (M4e)
 
-- Building/unit cost explanations — tooltips showing what "cost" means and why to build things (#28)
+- Building/unit cost explanations — tooltips showing what "cost" means and why to build things (#28) ✅ closed
 - General gameplay guidance — advisor suggestions for what to do next (#21)
+- Grid view explanation — help text or label explaining what the grid/hex overlay toggle does (#31)
 - Music quality — reduce low-frequency hum in Stone Age track, improve procedural generation (#3)
 
 ---
