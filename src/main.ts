@@ -142,7 +142,6 @@ function updateHUD(): void {
   const hud = document.getElementById('hud');
   if (!hud) return;
   const civ = currentCiv();
-  const nameLabel = gameState.hotSeat ? `${civ.name} · ` : '';
 
   // Sum yields across all cities
   let totalFood = 0, totalProd = 0, totalGold = 0, totalScience = 0;
