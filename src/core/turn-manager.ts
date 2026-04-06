@@ -221,7 +221,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const supply: Record<string, number> = {};
     const demand: Record<string, number> = {};
     for (const city of Object.values(newState.cities)) {
-      // Each city pop unit generates demand for all traded resources
+      // Count resource-bearing tiles in the city's territory for supply
       for (const coord of city.ownedTiles) {
         const tile = newState.map.tiles[`${coord.q},${coord.r}`];
         if (tile?.resource) {
