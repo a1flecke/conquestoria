@@ -157,15 +157,39 @@ function updateHUD(): void {
   }
 
   const techName = civ.techState.currentResearch ?? 'None';
-  hud.innerHTML = `
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <span>🌾 ${totalFood}</span>
-      <span>⚒️ ${totalProd}</span>
-      <span>💰 ${civ.gold} (+${totalGold})</span>
-      <span>🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})</span>
-    </div>
-    <div>${nameLabel}Turn ${gameState.turn} · Era ${gameState.era}</div>
-  `;
+  hud.textContent = '';
+
+  const yieldsRow = document.createElement('div');
+  yieldsRow.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
+
+  const yieldSpan = document.createElement('span');
+  yieldSpan.textContent = `🌾 ${totalFood}`;
+  yieldsRow.appendChild(yieldSpan);
+
+  const prodSpan = document.createElement('span');
+  prodSpan.textContent = `⚒️ ${totalProd}`;
+  yieldsRow.appendChild(prodSpan);
+
+  const goldSpan = document.createElement('span');
+  goldSpan.textContent = `💰 ${civ.gold} (+${totalGold})`;
+  yieldsRow.appendChild(goldSpan);
+
+  const sciSpan = document.createElement('span');
+  sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
+  yieldsRow.appendChild(sciSpan);
+
+  const infoRow = document.createElement('div');
+  if (gameState.hotSeat && civ.name) {
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = `${civ.name} · `;
+    infoRow.appendChild(nameSpan);
+  }
+  const turnSpan = document.createElement('span');
+  turnSpan.textContent = `Turn ${gameState.turn} · Era ${gameState.era}`;
+  infoRow.appendChild(turnSpan);
+
+  hud.appendChild(yieldsRow);
+  hud.appendChild(infoRow);
 
   // Show "Next Unit" button when there are unmoved units
   const nextUnitBtn = document.getElementById('btn-next-unit');
@@ -478,24 +502,47 @@ function selectUnit(unitId: string): void {
 
     const civColor = currentCiv()?.color ?? '#e8c170';
     panel.style.display = 'block';
-    panel.innerHTML = `
-      <div style="background:rgba(0,0,0,0.85);border-radius:12px;padding:12px 16px;border-left:4px solid ${civColor};">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <strong>${def.name}</strong> · HP: ${unit.health}/100 · Moves: ${unit.movementPointsLeft}/${def.movementPoints}
-          </div>
-          <span id="btn-deselect" style="cursor:pointer;font-size:18px;opacity:0.6;">✕</span>
-        </div>
-        <div style="font-size:10px;opacity:0.6;margin-top:2px;">${UNIT_DESCRIPTIONS[unit.type] ?? ''}</div>
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">${actions}</div>
-      </div>
-    `;
+    panel.textContent = '';
 
-    document.getElementById('btn-deselect')?.addEventListener('click', deselectUnit);
-    document.getElementById('btn-found-city')?.addEventListener('click', () => foundCityAction());
-    document.getElementById('btn-build-farm')?.addEventListener('click', () => buildImprovementAction('farm'));
-    document.getElementById('btn-build-mine')?.addEventListener('click', () => buildImprovementAction('mine'));
-    document.getElementById('btn-rest')?.addEventListener('click', () => restAction());
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `background:rgba(0,0,0,0.85);border-radius:12px;padding:12px 16px;border-left:4px solid ${civColor};`;
+
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+
+    const infoDiv = document.createElement('div');
+    const strong = document.createElement('strong');
+    strong.textContent = def.name;
+    infoDiv.appendChild(strong);
+    infoDiv.appendChild(document.createTextNode(` · HP: ${unit.health}/100 · Moves: ${unit.movementPointsLeft}/${def.movementPoints}`));
+
+    const closeBtn = document.createElement('span');
+    closeBtn.id = 'btn-deselect';
+    closeBtn.style.cssText = 'cursor:pointer;font-size:18px;opacity:0.6;';
+    closeBtn.textContent = '✕';
+
+    topRow.appendChild(infoDiv);
+    topRow.appendChild(closeBtn);
+
+    const descDiv = document.createElement('div');
+    descDiv.style.cssText = 'font-size:10px;opacity:0.6;margin-top:2px;';
+    descDiv.textContent = UNIT_DESCRIPTIONS[unit.type] ?? '';
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;';
+    // actions contains only hardcoded button HTML (no game-generated strings)
+    actionsDiv.innerHTML = actions;
+
+    wrapper.appendChild(topRow);
+    wrapper.appendChild(descDiv);
+    wrapper.appendChild(actionsDiv);
+    panel.appendChild(wrapper);
+
+    closeBtn.addEventListener('click', deselectUnit);
+    actionsDiv.querySelector('#btn-found-city')?.addEventListener('click', () => foundCityAction());
+    actionsDiv.querySelector('#btn-build-farm')?.addEventListener('click', () => buildImprovementAction('farm'));
+    actionsDiv.querySelector('#btn-build-mine')?.addEventListener('click', () => buildImprovementAction('mine'));
+    actionsDiv.querySelector('#btn-rest')?.addEventListener('click', () => restAction());
   }
 
   SFX.select();
