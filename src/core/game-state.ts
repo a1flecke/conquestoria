@@ -1,9 +1,11 @@
 import type { GameState, Civilization, Unit, HotSeatConfig } from './types';
 import { generateMap, findStartPositions, createRng } from '@/systems/map-generator';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, resetUnitId } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
-import { spawnBarbarianCamp } from '@/systems/barbarian-system';
+import { spawnBarbarianCamp, resetCampId } from '@/systems/barbarian-system';
+import { resetCityId } from '@/systems/city-system';
+import { _resetSpyIdCounter } from '@/systems/espionage-system';
 
 function hashSeed(s: string): number {
   let h = 0;
@@ -27,6 +29,12 @@ export const MAP_DIMENSIONS = {
 } as const;
 
 export function createNewGame(civType?: string, seed?: string, mapSize?: 'small' | 'medium' | 'large'): GameState {
+  // Reset all ID counters before creating new game
+  resetUnitId();
+  resetCityId();
+  resetCampId();
+  _resetSpyIdCounter();
+
   const gameSeed = seed ?? `game-${Date.now()}`;
   const dims = MAP_DIMENSIONS[mapSize ?? 'small'];
   const actualSize = mapSize ?? 'small';
@@ -154,6 +162,12 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
 }
 
 export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameState {
+  // Reset all ID counters before creating new game
+  resetUnitId();
+  resetCityId();
+  resetCampId();
+  _resetSpyIdCounter();
+
   const gameSeed = seed ?? `hotseat-${Date.now()}`;
   const dims = MAP_DIMENSIONS[config.mapSize];
   const map = generateMap(dims.width, dims.height, gameSeed);
