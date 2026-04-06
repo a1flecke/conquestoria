@@ -695,6 +695,13 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
         capturingCiv.cities.push(cityAtTarget.id);
       }
       showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
+      gameState.cities[cityAtTarget.id] = {
+        ...gameState.cities[cityAtTarget.id],
+        conquestTurn: gameState.turn,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      };
       bus.emit('city:captured', { cityId: cityAtTarget.id, newOwner: gameState.currentPlayer, previousOwner });
     }
   } else {
