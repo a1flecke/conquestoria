@@ -216,7 +216,25 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       return rngState / 2147483647;
     };
     newState.marketplace = processFashionCycle(newState.marketplace, simpleRng);
-    newState.marketplace = updatePrices(newState.marketplace, {}, {});
+
+    // Compute supply (resource tiles in city territory) and demand (population)
+    const supply: Record<string, number> = {};
+    const demand: Record<string, number> = {};
+    for (const city of Object.values(newState.cities)) {
+      // Each city pop unit generates demand for all traded resources
+      for (const coord of city.ownedTiles) {
+        const tile = newState.map.tiles[`${coord.q},${coord.r}`];
+        if (tile?.resource) {
+          supply[tile.resource] = (supply[tile.resource] ?? 0) + 1;
+        }
+      }
+      // Population drives demand for all resources
+      const pop = city.population;
+      for (const r of Object.keys(newState.marketplace.prices)) {
+        demand[r] = (demand[r] ?? 0) + pop;
+      }
+    }
+    newState.marketplace = updatePrices(newState.marketplace, supply, demand);
   }
 
   // --- Process wonder effects (after city processing) ---
