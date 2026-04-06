@@ -2,12 +2,13 @@
 import type {
   Spy, SpyMission, SpyMissionType, SpyStatus,
   EspionageCivState, EspionageState, HexCoord, GameState,
-  DiplomacyState, Treaty, UnitType,
+  DiplomacyState, Treaty, UnitType, AdvisorType,
 } from '../core/types';
 import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
 import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-system';
+import { createUnit } from './unit-system';
 
 const SPY_NAMES = [
   'Shadow', 'Whisper', 'Ghost', 'Cipher', 'Raven',
@@ -26,6 +27,14 @@ const MISSION_BASE_SUCCESS: Record<SpyMissionType, number> = {
   gather_intel: 0.70,
   identify_resources: 0.75,
   monitor_diplomacy: 0.70,
+  steal_tech: 0.50,
+  sabotage_production: 0.60,
+  incite_unrest: 0.55,
+  counter_espionage: 0.80,
+  assassinate_advisor: 0.45,
+  forge_documents: 0.55,
+  fund_rebels: 0.60,
+  arms_smuggling: 0.50,
 };
 
 const MISSION_DURATIONS: Record<SpyMissionType, number> = {
@@ -34,6 +43,14 @@ const MISSION_DURATIONS: Record<SpyMissionType, number> = {
   gather_intel: 3,
   identify_resources: 4,
   monitor_diplomacy: 3,
+  steal_tech: 6,
+  sabotage_production: 4,
+  incite_unrest: 5,
+  counter_espionage: 0,   // passive — no turn timer
+  assassinate_advisor: 6,
+  forge_documents: 5,
+  fund_rebels: 6,
+  arms_smuggling: 4,
 };
 
 // --- State creation ---
@@ -191,18 +208,20 @@ export function recallSpy(
 
 const STAGE_1_TECHS = ['espionage-scouting'];
 const STAGE_2_TECHS = ['espionage-informants'];
+const STAGE_3_TECHS = ['spy-networks', 'sabotage'];      // either unlocks stage 3
+const STAGE_4_TECHS = ['cryptography', 'counter-intelligence']; // either unlocks stage 4
 
 const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
 const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
+const STAGE_3_MISSIONS: SpyMissionType[] = ['steal_tech', 'sabotage_production', 'incite_unrest', 'counter_espionage'];
+const STAGE_4_MISSIONS: SpyMissionType[] = ['assassinate_advisor', 'forge_documents', 'fund_rebels', 'arms_smuggling'];
 
 export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
   const missions: SpyMissionType[] = [];
-  if (STAGE_1_TECHS.some(t => completedTechs.includes(t))) {
-    missions.push(...STAGE_1_MISSIONS);
-  }
-  if (STAGE_2_TECHS.some(t => completedTechs.includes(t))) {
-    missions.push(...STAGE_2_MISSIONS);
-  }
+  if (STAGE_1_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_1_MISSIONS);
+  if (STAGE_2_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_2_MISSIONS);
+  if (STAGE_3_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_3_MISSIONS);
+  if (STAGE_4_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_4_MISSIONS);
   return missions;
 }
 
@@ -254,6 +273,14 @@ const XP_PER_MISSION: Record<SpyMissionType, number> = {
   gather_intel: 10,
   identify_resources: 8,
   monitor_diplomacy: 10,
+  steal_tech: 15,
+  sabotage_production: 12,
+  incite_unrest: 12,
+  counter_espionage: 5,
+  assassinate_advisor: 18,
+  forge_documents: 15,
+  fund_rebels: 12,
+  arms_smuggling: 12,
 };
 
 const EXPULSION_COOLDOWN = 5;
@@ -361,6 +388,21 @@ export interface MissionResult {
   tilesToReveal?: HexCoord[];
   // monitor_troops
   nearbyUnits?: Array<{ type: UnitType; position: HexCoord; health: number }>;
+  // steal_tech
+  stolenTechId?: string;
+  // sabotage_production
+  productionLost?: number;       // production progress points destroyed
+  // incite_unrest / fund_rebels
+  unrestInjected?: number;       // spyUnrestBonus amount added
+  // assassinate_advisor
+  assassinatedAdvisor?: AdvisorType;
+  disabledUntilTurn?: number;
+  // forge_documents
+  forgeCivA?: string;
+  forgeCivB?: string;
+  forgeRelationshipPenalty?: number;
+  // arms_smuggling
+  spawnPosition?: HexCoord;
 }
 
 const SCOUT_VISION_RADIUS = 3;
@@ -438,6 +480,78 @@ export function resolveMissionResult(
         }
       }
       return { nearbyUnits };
+    }
+
+    case 'steal_tech': {
+      const targetCiv = gameState.civilizations[targetCivId];
+      const spyingCivId = gameState.currentPlayer;
+      const myCiv = gameState.civilizations[spyingCivId];
+      if (!targetCiv || !myCiv) return {};
+      const theyHave = targetCiv.techState.completed;
+      const iHave = new Set(myCiv.techState.completed);
+      const stealable = theyHave.filter(t => !iHave.has(t));
+      if (stealable.length === 0) return {};
+      const rng = createRng(`steal-${targetCivId}-${targetCityId}-${gameState.turn}`);
+      const idx = Math.floor(rng() * stealable.length);
+      return { stolenTechId: stealable[idx] };
+    }
+
+    case 'sabotage_production': {
+      const targetCity = gameState.cities[targetCityId];
+      if (!targetCity || targetCity.productionQueue.length === 0) return {};
+      const rng = createRng(`sab-${targetCityId}-${gameState.turn}`);
+      const lostTurns = 3 + Math.floor(rng() * 3); // 3-5 turns
+      const lostProgress = lostTurns * 5; // ~5 production/turn
+      return { productionLost: lostProgress };
+    }
+
+    case 'incite_unrest': {
+      return { unrestInjected: 25 };
+    }
+
+    case 'fund_rebels': {
+      const targetCity = gameState.cities[targetCityId];
+      if (!targetCity || targetCity.unrestLevel === 0) return {};
+      return { unrestInjected: 35 };
+    }
+
+    case 'counter_espionage': {
+      return {}; // passive — handled by assignSpyDefensive
+    }
+
+    case 'assassinate_advisor': {
+      const advisorTypes: AdvisorType[] = ['builder', 'explorer', 'chancellor', 'warchief', 'treasurer', 'scholar', 'spymaster'];
+      const rng = createRng(`assassin-${targetCivId}-${gameState.turn}`);
+      const idx = Math.floor(rng() * advisorTypes.length);
+      const assassinatedAdvisor = advisorTypes[idx];
+      const disabledUntilTurn = gameState.turn + 10;
+      return { assassinatedAdvisor, disabledUntilTurn };
+    }
+
+    case 'forge_documents': {
+      const allCivIds = Object.keys(gameState.civilizations).filter(
+        id => id !== targetCivId && id !== gameState.currentPlayer,
+      );
+      if (allCivIds.length < 1) return {};
+      const rng = createRng(`forge-${targetCivId}-${gameState.turn}`);
+      const idx = Math.floor(rng() * allCivIds.length);
+      return { forgeCivA: targetCivId, forgeCivB: allCivIds[idx], forgeRelationshipPenalty: -25 };
+    }
+
+    case 'arms_smuggling': {
+      const targetCity = gameState.cities[targetCityId];
+      if (!targetCity) return {};
+      const rng = createRng(`arms-${targetCityId}-${gameState.turn}`);
+      const offsets = [
+        { q: 1, r: 0 }, { q: -1, r: 0 }, { q: 0, r: 1 },
+        { q: 0, r: -1 }, { q: 1, r: -1 }, { q: -1, r: 1 },
+      ];
+      const offset = offsets[Math.floor(rng() * offsets.length)];
+      const spawnPosition: HexCoord = {
+        q: targetCity.position.q + offset.q,
+        r: targetCity.position.r + offset.r,
+      };
+      return { spawnPosition };
     }
 
     default:
@@ -569,6 +683,92 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
               }
             }
           }
+
+          // steal_tech: add the tech to the spying civ
+          if (evt.missionType === 'steal_tech' && result.stolenTechId) {
+            const stolenId = result.stolenTechId as string;
+            if (!state.civilizations[civId].techState.completed.includes(stolenId)) {
+              state.civilizations[civId].techState.completed.push(stolenId);
+              bus.emit('tech:completed', { civId, techId: stolenId });
+            }
+          }
+
+          // sabotage_production: reduce target city's production progress
+          if (evt.missionType === 'sabotage_production' && result.productionLost) {
+            const spyTarget = updatedEsp.spies[evt.spyId];
+            if (spyTarget?.targetCityId) {
+              const tc = state.cities[spyTarget.targetCityId];
+              if (tc) {
+                state.cities[spyTarget.targetCityId] = {
+                  ...tc,
+                  productionProgress: Math.max(0, tc.productionProgress - (result.productionLost as number)),
+                };
+              }
+            }
+          }
+
+          // incite_unrest / fund_rebels: inject spyUnrestBonus
+          if ((evt.missionType === 'incite_unrest' || evt.missionType === 'fund_rebels') && result.unrestInjected) {
+            const spyTarget = updatedEsp.spies[evt.spyId];
+            if (spyTarget?.targetCityId) {
+              const tc = state.cities[spyTarget.targetCityId];
+              if (tc) {
+                state.cities[spyTarget.targetCityId] = {
+                  ...tc,
+                  spyUnrestBonus: Math.min(50, tc.spyUnrestBonus + (result.unrestInjected as number)),
+                };
+              }
+            }
+          }
+
+          // assassinate_advisor: disable an advisor on the target civ
+          if (evt.missionType === 'assassinate_advisor' && result.assassinatedAdvisor && result.disabledUntilTurn) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCiv = state.civilizations[originalSpy?.targetCivId ?? ''];
+            if (targetCiv) {
+              targetCiv.advisorDisabledUntil = {
+                ...targetCiv.advisorDisabledUntil,
+                [result.assassinatedAdvisor as AdvisorType]: result.disabledUntilTurn as number,
+              };
+              bus.emit('espionage:advisor-assassinated', {
+                targetCivId: originalSpy?.targetCivId ?? '',
+                advisorType: result.assassinatedAdvisor as AdvisorType,
+                disabledUntilTurn: result.disabledUntilTurn as number,
+              });
+            }
+          }
+
+          // forge_documents: apply relationship penalty between two civs
+          if (evt.missionType === 'forge_documents' && result.forgeCivA && result.forgeCivB) {
+            const penalty = (result.forgeRelationshipPenalty as number) ?? -25;
+            const civA = result.forgeCivA as string;
+            const civB = result.forgeCivB as string;
+            if (state.civilizations[civA]) {
+              state.civilizations[civA].diplomacy = modifyRelationship(
+                state.civilizations[civA].diplomacy, civB, penalty,
+              );
+            }
+            if (state.civilizations[civB]) {
+              state.civilizations[civB].diplomacy = modifyRelationship(
+                state.civilizations[civB].diplomacy, civA, penalty,
+              );
+            }
+            bus.emit('espionage:documents-forged', {
+              civA, civB, relationshipPenalty: penalty,
+            });
+          }
+
+          // arms_smuggling: spawn a hostile 'rebels' unit near the target city
+          if (evt.missionType === 'arms_smuggling' && result.spawnPosition) {
+            const pos = result.spawnPosition as HexCoord;
+            const key = `${pos.q},${pos.r}`;
+            if (state.map.tiles[key]) {
+              const hostileUnit = createUnit('warrior', 'rebels', pos);
+              state.units[hostileUnit.id] = hostileUnit;
+              bus.emit('unit:created', { unit: hostileUnit });
+            }
+          }
+
           break;
         }
 
@@ -703,6 +903,14 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
         }
       }
       state.espionage![civId].maxSpies = Math.max(1, maxSpies);
+    }
+  }
+
+  // Decay spy unrest bonus 5 per turn
+  for (const cityId of Object.keys(state.cities)) {
+    const city = state.cities[cityId];
+    if (city.spyUnrestBonus > 0) {
+      state.cities[cityId] = { ...city, spyUnrestBonus: Math.max(0, city.spyUnrestBonus - 5) };
     }
   }
 
