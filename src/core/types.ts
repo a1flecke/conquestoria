@@ -165,7 +165,7 @@ export interface City {
   grid: (string | null)[][];  // 5x5 city interior grid
   gridSize: number;           // unlocked grid size (3, 4, or 5)
   unrestLevel: 0 | 1 | 2;     // 0=stable, 1=unrest, 2=revolt
-  unrestTurns: number;         // turns spent at current unrest level (>= 1)
+  unrestTurns: number;         // turns spent at current unrest level (>= 1 when unrestLevel > 0)
   conquestTurn?: number;       // turn this city was captured; cleared after 15 turns
   spyUnrestBonus: number;      // bonus pressure injected by enemy espionage; decays 5/turn
 }
@@ -340,6 +340,11 @@ export interface SpyMission {
   targetCityId: string;
 }
 
+export type SpyPromotion = 'infiltrator' | 'handler' | 'sentinel';
+// infiltrator: bonus to direct-effect missions (steal, sabotage, assassinate, arms)
+// handler:     bonus to influence missions (incite, forge, fund_rebels, counter_esp)
+// sentinel:    bonus to counter-intelligence and detection avoidance
+
 export interface Spy {
   id: string;
   owner: string;
@@ -362,11 +367,6 @@ export interface EspionageCivState {
 }
 
 export type EspionageState = Record<string, EspionageCivState>;
-
-export type SpyPromotion = 'infiltrator' | 'handler' | 'sentinel';
-// infiltrator: bonus to direct-effect missions (steal, sabotage, assassinate, arms)
-// handler:     bonus to influence missions (incite, forge, fund_rebels, counter_esp)
-// sentinel:    bonus to counter-intelligence and detection avoidance
 
 // --- Civilizations ---
 
