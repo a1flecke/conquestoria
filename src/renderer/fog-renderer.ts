@@ -1,16 +1,7 @@
 import type { VisibilityMap } from '@/core/types';
-import { hexToPixel } from '@/systems/hex-utils';
+import { hexToPixel, HEX_CORNERS_POINTY } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { Camera } from './camera';
-
-const HEX_CORNERS_POINTY = (function () {
-  const corners: Array<{ dx: number; dy: number }> = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 180) * (60 * i - 30);
-    corners.push({ dx: Math.cos(angle), dy: Math.sin(angle) });
-  }
-  return corners;
-})();
 
 export function drawFogOfWar(
   ctx: CanvasRenderingContext2D,

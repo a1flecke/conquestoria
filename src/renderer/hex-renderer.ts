@@ -1,5 +1,5 @@
 import type { GameMap, HexCoord, HexTile, TerrainType } from '@/core/types';
-import { hexToPixel, hexesInRange } from '@/systems/hex-utils';
+import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY } from '@/systems/hex-utils';
 import { Camera } from './camera';
 
 // --- Terrain labels ---
@@ -45,15 +45,6 @@ const TERRAIN_COLORS: Record<string, string> = {
   swamp: '#4a6b4a',
   volcanic: '#5a3a3a',
 };
-
-const HEX_CORNERS_POINTY = (function () {
-  const corners: Array<{ dx: number; dy: number }> = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 180) * (60 * i - 30);
-    corners.push({ dx: Math.cos(angle), dy: Math.sin(angle) });
-  }
-  return corners;
-})();
 
 function drawTileAtScreen(
   ctx: CanvasRenderingContext2D,
