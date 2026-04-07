@@ -23,6 +23,7 @@ import {
   getAvailableMissions,
   recruitSpy,
   assignSpy,
+  assignSpyDefensive,
   startMission,
 } from '@/systems/espionage-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
@@ -35,6 +36,20 @@ function getPersonality(civType: string): PersonalityTraits {
     diplomacyFocus: 0.5,
     expansionDrive: 0.5,
   };
+}
+
+function shouldAiStationDefensiveSpy(state: GameState, civId: string): boolean {
+  const civ = state.civilizations[civId];
+  const espState = state.espionage?.[civId];
+  if (!civ || !espState) return false;
+
+  const hasStage3Espionage = civ.techState.completed.includes('spy-networks') || civ.techState.completed.includes('sabotage');
+  if (!hasStage3Espionage) return false;
+
+  const capitalId = civ.cities[0];
+  if (!capitalId || !state.cities[capitalId]) return false;
+
+  return (espState.counterIntelligence[capitalId] ?? 0) === 0;
 }
 
 export function processAITurn(state: GameState, civId: string, bus: EventBus): GameState {
@@ -319,12 +334,38 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       const { state: newEsp, spy } = recruitSpy(espState, civId, `ai-recruit-${newState.turn}-${civId}`);
       newState.espionage![civId] = newEsp;
 
-      const target = chooseAiSpyTarget(newState, civId);
-      if (target) {
-        newState.espionage![civId] = assignSpy(
-          newState.espionage![civId], spy.id, target.civId, target.cityId, target.position,
+      const capitalId = civ.cities[0];
+      const capital = capitalId ? newState.cities[capitalId] : undefined;
+      if (capital && shouldAiStationDefensiveSpy(newState, civId)) {
+        newState.espionage![civId] = assignSpyDefensive(
+          newState.espionage![civId],
+          spy.id,
+          capital.id,
+          capital.position,
         );
+      } else {
+        const target = chooseAiSpyTarget(newState, civId);
+        if (target) {
+          newState.espionage![civId] = assignSpy(
+            newState.espionage![civId], spy.id, target.civId, target.cityId, target.position,
+          );
+        }
       }
+    }
+  }
+
+  if (shouldAiStationDefensiveSpy(newState, civId)) {
+    const capitalId = civ.cities[0];
+    const capital = capitalId ? newState.cities[capitalId] : undefined;
+    const espState = newState.espionage?.[civId];
+    const idleSpy = espState ? Object.values(espState.spies).find(spy => spy.status === 'idle') : undefined;
+    if (capital && idleSpy) {
+      newState.espionage![civId] = assignSpyDefensive(
+        newState.espionage![civId],
+        idleSpy.id,
+        capital.id,
+        capital.position,
+      );
     }
   }
 
@@ -332,7 +373,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   const espState = newState.espionage?.[civId];
   if (espState) {
     for (const spy of Object.values(espState.spies)) {
-      if (spy.status === 'stationed' && !spy.currentMission) {
+      if (spy.status === 'stationed' && spy.targetCivId && !spy.currentMission) {
         const mission = chooseAiMission(newState, civId);
         if (mission) {
           newState.espionage![civId] = startMission(
