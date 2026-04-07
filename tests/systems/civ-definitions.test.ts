@@ -2,17 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 
 describe('civ-definitions', () => {
-  it('defines exactly 20 civilizations', () => {
-    expect(CIV_DEFINITIONS).toHaveLength(20);
+  it('defines exactly 24 civilizations', () => {
+    expect(CIV_DEFINITIONS).toHaveLength(24);
   });
 
   it('each civ has unique id, name, and color', () => {
     const ids = CIV_DEFINITIONS.map(c => c.id);
     const names = CIV_DEFINITIONS.map(c => c.name);
     const colors = CIV_DEFINITIONS.map(c => c.color);
-    expect(new Set(ids).size).toBe(20);
-    expect(new Set(names).size).toBe(20);
-    expect(new Set(colors).size).toBe(20);
+    expect(new Set(ids).size).toBe(24);
+    expect(new Set(names).size).toBe(24);
+    expect(new Set(colors).size).toBe(24);
   });
 
   it('getCivDefinition returns correct civ by id', () => {
@@ -127,6 +127,30 @@ describe('civ-definitions', () => {
     const isengard = getCivDefinition('isengard');
     expect(isengard).toBeDefined();
     expect(isengard!.bonusEffect.type).toBe('forest_industry');
+  });
+
+  it('has spain with wonder_rewards', () => {
+    const spain = getCivDefinition('spain');
+    expect(spain).toBeDefined();
+    expect(spain!.bonusEffect.type).toBe('wonder_rewards');
+  });
+
+  it('has viking with naval_raiding', () => {
+    const viking = getCivDefinition('viking');
+    expect(viking).toBeDefined();
+    expect(viking!.bonusEffect.type).toBe('naval_raiding');
+  });
+
+  it('has prydain with homeland_defense', () => {
+    const prydain = getCivDefinition('prydain');
+    expect(prydain).toBeDefined();
+    expect(prydain!.bonusEffect.type).toBe('homeland_defense');
+  });
+
+  it('has annuvin with espionage_growth', () => {
+    const annuvin = getCivDefinition('annuvin');
+    expect(annuvin).toBeDefined();
+    expect(annuvin!.bonusEffect.type).toBe('espionage_growth');
   });
 
   it('all civs have valid personality traits', () => {

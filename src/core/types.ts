@@ -227,7 +227,11 @@ export type CivBonusEffect =
   | { type: 'tundra_bonus'; foodBonus: number; productionBonus: number }
   | { type: 'siege_bonus'; damageMultiplier: number }
   | { type: 'peaceful_growth'; foodBonus: number; militaryPenalty: number }
-  | { type: 'forest_industry'; productionBurst: number };
+  | { type: 'forest_industry'; productionBurst: number }
+  | { type: 'wonder_rewards'; rewardMultiplier: number }
+  | { type: 'naval_raiding'; movementBonus: number; coastalVisionBonus: number }
+  | { type: 'homeland_defense'; defenseBonus: number }
+  | { type: 'espionage_growth'; experienceBonus: number };
 
 export interface CivDefinition {
   id: string;

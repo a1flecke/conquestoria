@@ -37,6 +37,7 @@ function makeTestGameState(): GameState {
         buildings: ['granary'], productionQueue: ['warrior'],
         productionProgress: 10, ownedTiles: [{ q: 5, r: 3 }],
         grid: [[null]], gridSize: 3,
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
       },
     },
     civilizations: {

@@ -35,11 +35,15 @@ import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, ch
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { applyProductionBonus } from '@/systems/city-system';
 import { processEspionageTurn } from '@/systems/espionage-system';
+import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
 
   bus.emit('turn:end', { turn: newState.turn, playerId: newState.currentPlayer });
+
+  // Resolve unrest and revolts before city yields so instability impacts the current turn.
+  newState = processFactionTurn(newState, bus);
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
@@ -52,10 +56,18 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       if (!city) continue;
 
       const civDef = getCivDefinition(civ.civType ?? '');
-      const yields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
+      const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
+      const unrestMultiplier = getUnrestYieldMultiplier(city);
+      const yields = {
+        food: Math.floor(baseYields.food * unrestMultiplier),
+        production: Math.floor(baseYields.production * unrestMultiplier),
+        gold: Math.floor(baseYields.gold * unrestMultiplier),
+        science: Math.floor(baseYields.science * unrestMultiplier),
+      };
       totalScience += yields.science;
       totalGold += yields.gold;
-      const result = processCity(city, newState.map, yields.food, yields.production, civDef?.bonusEffect);
+      const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
+      const result = processCity(city, newState.map, yields.food, effectiveProduction, civDef?.bonusEffect);
       newState.cities[cityId] = result.city;
 
       if (result.grew) {

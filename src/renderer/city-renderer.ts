@@ -10,6 +10,7 @@ interface CityRenderInfo {
   population: number;
   owner: string;
   color: string;
+  unrestLevel: 0 | 1 | 2;
 }
 
 const OWNER_COLORS: Record<string, string> = {
@@ -24,6 +25,7 @@ export function getCityRenderData(state: GameState): CityRenderInfo[] {
     population: city.population,
     owner: city.owner,
     color: state.civilizations[city.owner]?.color ?? OWNER_COLORS[city.owner] ?? '#888',
+    unrestLevel: city.unrestLevel,
   }));
 }
 
@@ -78,5 +80,12 @@ export function drawCities(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(`${city.name} (${city.population})`, screen.x, screen.y + size * 0.5);
+
+    if (city.unrestLevel > 0) {
+      ctx.font = `${size * 0.28}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(city.unrestLevel === 2 ? '🔥' : '⚠️', screen.x + size * 0.45, screen.y - size * 0.45);
+    }
   }
 }

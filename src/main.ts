@@ -34,6 +34,7 @@ import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
+import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
 import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
 // --- App State ---
@@ -94,6 +95,16 @@ function createUI(): void {
   logBtn.style.cssText = 'position:absolute;top:44px;right:52px;z-index:21;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
   uiLayer.appendChild(logBtn);
   logBtn.addEventListener('click', () => toggleNotificationLog());
+
+  const legendBtn = document.createElement('button');
+  legendBtn.id = 'btn-icon-legend';
+  legendBtn.textContent = '🗺️';
+  legendBtn.title = 'Toggle icon legend';
+  legendBtn.style.cssText = 'position:absolute;top:44px;right:92px;z-index:21;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
+  uiLayer.appendChild(legendBtn);
+  legendBtn.addEventListener('click', () => toggleIconLegend());
+
+  uiLayer.appendChild(createIconLegendOverlay());
 
   // Notification area
   const notifArea = document.createElement('div');
