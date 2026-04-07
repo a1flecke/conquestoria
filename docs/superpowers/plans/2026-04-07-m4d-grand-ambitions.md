@@ -53,6 +53,8 @@ Standard commands:
 | `src/ui/diplomacy-panel.ts` | Show breakaway actors, countdown, and reabsorption affordance |
 | `src/renderer/city-renderer.ts` | Render secession/establishment overlays and countdown badges |
 | `src/ai/basic-ai.ts` | Teach AI to recover, tolerate, or exploit breakaways |
+| `tests/systems/helpers/breakaway-fixture.ts` | NEW - shared deterministic state builders for Slice 1 system tests |
+| `tests/ui/helpers/diplomacy-fixture.ts` | NEW - shared DOM/state builders for breakaway diplomacy UI tests |
 | `tests/systems/faction-system.test.ts` | Keep unrest/revolt regressions green |
 | `tests/systems/breakaway-system.test.ts` | NEW - secession, maturation, reconquest, reabsorption |
 | `tests/ui/diplomacy-panel.test.ts` | NEW - breakaway UI and current-player safety |
@@ -71,8 +73,12 @@ Standard commands:
 | `src/core/turn-manager.ts` | Tick wonder quests, race progress, and completion events |
 | `src/ui/city-panel.ts` | Add legendary wonder entry point and city-specific build state |
 | `src/ui/wonder-panel.ts` | NEW - explain eligibility, quest steps, race status, and loss compensation |
+| `src/main.ts` | Wire wonder-panel open/close flow from the city panel into the running game UI |
 | `src/ai/basic-ai.ts` | Decide which wonders to pursue and when to abandon races |
+| `tests/systems/helpers/legendary-wonder-fixture.ts` | NEW - shared deterministic state builders for Slice 2 system tests |
+| `tests/ui/helpers/wonder-panel-fixture.ts` | NEW - shared DOM/state builders for wonder UI tests |
 | `tests/systems/legendary-wonder-system.test.ts` | NEW - system rules and race compensation |
+| `tests/ui/city-panel.test.ts` | NEW - city-panel wonder-entry and carryover rendering coverage |
 | `tests/ui/wonder-panel.test.ts` | NEW - panel messaging and hot-seat filtering |
 | `tests/core/turn-manager.test.ts` | Add wonder tick integration coverage |
 | `tests/ai/basic-ai.test.ts` | Add AI wonder pursuit/abandonment coverage |
@@ -86,6 +92,7 @@ Standard commands:
 | `src/core/game-state.ts` | Initialize `artisan` in advisor settings safely |
 | `src/systems/tech-definitions.ts` | Add Stage 5 espionage tech unlocks |
 | `src/systems/espionage-system.ts` | Implement Stage 5 effect plumbing, double agents, remote-capable missions, and simplified election interference |
+| `src/core/turn-manager.ts` | Apply Stage 5 production/research penalties and clear temporary effects deterministically |
 | `src/systems/fog-of-war.ts` | Support satellite-surveillance visibility overrides without breaking normal vision rules |
 | `src/ui/espionage-panel.ts` | Show Stage 5 missions, remote-vs-placed rules, mission success preview, and threat-board messaging |
 | `src/ui/advisor-system.ts` | Add Artisan advisor triggers and wonder-focused UX copy |
@@ -98,6 +105,7 @@ Standard commands:
 | `tests/systems/espionage-system.test.ts` | Add Stage 5 mission logic coverage |
 | `tests/systems/fog-of-war.test.ts` | Add satellite-surveillance visibility coverage |
 | `tests/ui/espionage-panel.test.ts` | Add Stage 5 UI and current-player safety coverage |
+| `tests/core/turn-manager.test.ts` | Add Stage 5 effect-duration and decay coverage |
 | `tests/ui/advisor-system.test.ts` | Add Artisan message coverage |
 | `tests/ui/advisor-spymaster.test.ts` | Add threat-board and warning coverage for late-game espionage |
 | `tests/systems/civ-definitions.test.ts` | Add M4d civ definition coverage |
@@ -112,11 +120,17 @@ Standard commands:
 ### Task 1: Add Breakaway Data Model And Failing Tests
 
 **Files:**
+- Create: `tests/systems/helpers/breakaway-fixture.ts`
 - Create: `tests/systems/breakaway-system.test.ts`
+- Create: `tests/ui/helpers/diplomacy-fixture.ts`
 - Create: `tests/ui/diplomacy-panel.test.ts`
 - Modify: `src/core/types.ts`
 
-- [ ] **Step 1: Write failing system tests for secession and 50-turn establishment**
+- [ ] **Step 1: Create shared deterministic breakaway fixtures**
+
+Create `tests/systems/helpers/breakaway-fixture.ts` and `tests/ui/helpers/diplomacy-fixture.ts` with minimal exported builders used by the new tests. Keep these helpers local to M4d tests so the new state shape does not leak into unrelated suites.
+
+- [ ] **Step 2: Write failing system tests for secession and 50-turn establishment**
 
 Create `tests/systems/breakaway-system.test.ts`:
 
@@ -155,7 +169,7 @@ describe('breakaway-system', () => {
 });
 ```
 
-- [ ] **Step 2: Write failing UI test for breakaway countdown and reabsorption action**
+- [ ] **Step 3: Write failing UI test for breakaway countdown and reabsorption action**
 
 Create `tests/ui/diplomacy-panel.test.ts`:
 
@@ -180,7 +194,7 @@ describe('diplomacy-panel breakaway rows', () => {
 });
 ```
 
-- [ ] **Step 3: Run targeted tests to verify they fail**
+- [ ] **Step 4: Run targeted tests to verify they fail**
 
 Run:
 
@@ -190,7 +204,7 @@ eval "$(mise activate bash)" && yarn test --run tests/systems/breakaway-system.t
 
 Expected: FAIL with missing `breakaway-system` exports and missing UI handling.
 
-- [ ] **Step 4: Add concrete breakaway types and events**
+- [ ] **Step 5: Add concrete breakaway types and events**
 
 In `src/core/types.ts`, add:
 
@@ -221,20 +235,16 @@ export type DiplomaticAction =
   | 'leave_league'
   | 'reabsorb_breakaway';
 
-export interface Civilization {
-  // existing fields...
-  breakaway?: BreakawayMetadata;
-}
+// Add to Civilization
+breakaway?: BreakawayMetadata;
 
-export interface GameEvents {
-  // existing fields...
-  'faction:breakaway-started': { cityId: string; oldOwner: string; breakawayId: string };
-  'faction:breakaway-established': { civId: string; originOwnerId: string };
-  'faction:breakaway-reabsorbed': { civId: string; ownerId: string; cityId: string };
-}
+// Add to GameEvents
+'faction:breakaway-started': { cityId: string; oldOwner: string; breakawayId: string };
+'faction:breakaway-established': { civId: string; originOwnerId: string };
+'faction:breakaway-reabsorbed': { civId: string; ownerId: string; cityId: string };
 ```
 
-- [ ] **Step 5: Run tests to confirm the new shapes compile**
+- [ ] **Step 6: Run tests to confirm the new shapes compile**
 
 Run:
 
@@ -432,6 +442,18 @@ eval "$(mise activate bash)" && yarn test --run tests/ui/diplomacy-panel.test.ts
 
 Expected: PASS and no current-player leaks.
 
+- [ ] **Step 6: Add a reconquest regression proving brute-force recapture is not a permanent fix**
+
+Append to `tests/systems/breakaway-system.test.ts`:
+
+```typescript
+it('reapplies instability pressure after reconquest instead of restoring a fully stable city', () => {
+  const { state, breakawayId } = makeBreakawayFixture({ established: false });
+  const result = reconquerBreakawayCity(state, 'player', breakawayId, 'city-border');
+  expect(result.cities['city-border'].unrestLevel).toBeGreaterThan(0);
+});
+```
+
 ### Task 4: Finish Slice 1 AI And Save/Load Coverage
 
 **Files:**
@@ -535,7 +557,7 @@ git checkout -b feature/m4d-slice1-breakaway
 Run:
 
 ```bash
-git add src/core/types.ts src/core/turn-manager.ts src/systems/faction-system.ts src/systems/breakaway-system.ts src/systems/diplomacy-system.ts src/ui/diplomacy-panel.ts src/renderer/city-renderer.ts src/ai/basic-ai.ts tests/systems/faction-system.test.ts tests/systems/breakaway-system.test.ts tests/ui/diplomacy-panel.test.ts tests/renderer/city-renderer.test.ts tests/ai/basic-ai.test.ts tests/storage/save-persistence.test.ts
+git add src/core/types.ts src/core/turn-manager.ts src/systems/faction-system.ts src/systems/breakaway-system.ts src/systems/diplomacy-system.ts src/ui/diplomacy-panel.ts src/renderer/city-renderer.ts src/ai/basic-ai.ts tests/systems/helpers/breakaway-fixture.ts tests/ui/helpers/diplomacy-fixture.ts tests/systems/faction-system.test.ts tests/systems/breakaway-system.test.ts tests/ui/diplomacy-panel.test.ts tests/renderer/city-renderer.test.ts tests/ai/basic-ai.test.ts tests/storage/save-persistence.test.ts
 git commit -m "feat(m4d): ship full breakaway slice"
 ```
 
@@ -566,10 +588,15 @@ git pull --ff-only origin main
 
 **Files:**
 - Modify: `src/core/types.ts`
+- Create: `tests/systems/helpers/legendary-wonder-fixture.ts`
 - Create: `src/systems/legendary-wonder-definitions.ts`
 - Create: `tests/systems/legendary-wonder-system.test.ts`
 
-- [ ] **Step 1: Write failing tests for eligibility, quest steps, and 25/25/50 compensation**
+- [ ] **Step 1: Create shared deterministic legendary-wonder fixtures**
+
+Create `tests/systems/helpers/legendary-wonder-fixture.ts` with builders for wonder eligibility, quest progress, and race-loss states so the Slice 2 tests use the same assumptions.
+
+- [ ] **Step 2: Write failing tests for eligibility, quest steps, and 25/25/50 compensation**
 
 Create `tests/systems/legendary-wonder-system.test.ts`:
 
@@ -604,7 +631,7 @@ describe('legendary-wonder-system', () => {
 });
 ```
 
-- [ ] **Step 2: Run the failing test**
+- [ ] **Step 3: Run the failing test**
 
 Run:
 
@@ -614,7 +641,7 @@ eval "$(mise activate bash)" && yarn test --run tests/systems/legendary-wonder-s
 
 Expected: FAIL with missing module/types.
 
-- [ ] **Step 3: Add explicit legendary wonder state to `src/core/types.ts`**
+- [ ] **Step 4: Add explicit legendary wonder state to `src/core/types.ts`**
 
 Add:
 
@@ -645,13 +672,11 @@ export interface LegendaryWonderProject {
   questSteps: LegendaryWonderStep[];
 }
 
-export interface GameState {
-  // existing fields...
-  legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
-}
+// Add to GameState
+legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
 ```
 
-- [ ] **Step 4: Define the first four wonders concretely within the current M4d tech envelope**
+- [ ] **Step 5: Define the first four wonders concretely within the current M4d tech envelope**
 
 Create `src/systems/legendary-wonder-definitions.ts`:
 
@@ -666,7 +691,7 @@ export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = [
 
 `Manhattan Project`, `Internet`, and other wonders that require the late-era tech tree expansion move to `M4e` and must not be added to the initial M4d flagship set.
 
-- [ ] **Step 5: Run the test again**
+- [ ] **Step 6: Run the test again**
 
 Run:
 
@@ -768,9 +793,16 @@ Expected: PASS.
 **Files:**
 - Create: `src/ui/wonder-panel.ts`
 - Modify: `src/ui/city-panel.ts`
+- Modify: `src/main.ts`
+- Create: `tests/ui/helpers/wonder-panel-fixture.ts`
+- Create: `tests/ui/city-panel.test.ts`
 - Create: `tests/ui/wonder-panel.test.ts`
 
-- [ ] **Step 1: Write failing UI tests for three-phase clarity and loss messaging**
+- [ ] **Step 1: Create shared UI fixtures for the wonder panel and city panel**
+
+Create `tests/ui/helpers/wonder-panel-fixture.ts` with a deterministic container/state builder used by both wonder-panel and city-panel tests.
+
+- [ ] **Step 2: Write failing UI tests for three-phase clarity and loss messaging**
 
 Create `tests/ui/wonder-panel.test.ts`:
 
@@ -793,7 +825,7 @@ describe('wonder-panel', () => {
 });
 ```
 
-- [ ] **Step 2: Create a dedicated wonder panel instead of overloading the city panel**
+- [ ] **Step 3: Create a dedicated wonder panel instead of overloading the city panel**
 
 Create `src/ui/wonder-panel.ts` using DOM APIs:
 
@@ -814,11 +846,17 @@ appendSection('Quest', 'Complete every step before construction unlocks.');
 appendSection('Construction Race', 'Losing returns 25% coins and 25% city carryover.');
 ```
 
-- [ ] **Step 3: Add a wonder entry point in the city panel**
+- [ ] **Step 4: Add a wonder entry point in the city panel**
 
 In `src/ui/city-panel.ts`, add a `"Legendary Wonders"` launch button next to current tabs:
 
 ```typescript
+export interface CityPanelCallbacks {
+  onBuild: (cityId: string, itemId: string) => void;
+  onOpenWonderPanel: (cityId: string) => void;
+  onClose: () => void;
+}
+
 const wondersButton = document.createElement('button');
 wondersButton.textContent = 'Legendary Wonders';
 wondersButton.addEventListener('click', () => callbacks.onOpenWonderPanel(city.id));
@@ -831,12 +869,32 @@ const carryoverEl = document.createElement('div');
 carryoverEl.textContent = `Wonder carryover: ${project.transferableProduction}`;
 ```
 
-- [ ] **Step 4: Run the UI tests**
+- [ ] **Step 5: Wire the panel through `src/main.ts` and test the city-panel affordance**
+
+In `src/main.ts`, add the callback path that opens `createWonderPanel(...)` from the city panel and closes it cleanly when the player starts a build or dismisses the panel.
+
+Create `tests/ui/city-panel.test.ts` with:
+
+```typescript
+it('renders a Legendary Wonders entry point and shows carryover in the active city', () => {
+  const { container, city, state } = makeWonderPanelFixture();
+  const panel = createCityPanel(container, city, state, {
+    onBuild: () => {},
+    onOpenWonderPanel: () => {},
+    onClose: () => {},
+  });
+
+  expect(panel.textContent).toContain('Legendary Wonders');
+  expect(panel.textContent).toContain('Wonder carryover');
+});
+```
+
+- [ ] **Step 6: Run the UI tests**
 
 Run:
 
 ```bash
-eval "$(mise activate bash)" && yarn test --run tests/ui/wonder-panel.test.ts
+eval "$(mise activate bash)" && yarn test --run tests/ui/wonder-panel.test.ts tests/ui/city-panel.test.ts
 ```
 
 Expected: PASS.
@@ -846,6 +904,7 @@ Expected: PASS.
 **Files:**
 - Modify: `src/ai/basic-ai.ts`
 - Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `src/systems/espionage-system.ts`
 - Modify: `tests/ai/basic-ai.test.ts`
 - Modify: `tests/storage/save-persistence.test.ts`
 
@@ -877,7 +936,19 @@ for (const [observerId, esp] of Object.entries(state.espionage ?? {})) {
 }
 ```
 
-- [ ] **Step 3: Teach AI to pursue realistic wonders only**
+- [ ] **Step 3: Add a regression proving espionage sabotage interacts correctly with legendary wonder builds**
+
+Append to `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('reduces legendary wonder progress when sabotage production succeeds', () => {
+  const state = makeLegendaryWonderFixture({ buildingWonder: true, investedProduction: 120 });
+  const result = applyLegendaryWonderSabotage(state, 'city-river', 40);
+  expect(result.legendaryWonderProjects!['grand-canal'].investedProduction).toBe(80);
+});
+```
+
+- [ ] **Step 4: Teach AI to pursue realistic wonders only**
 
 In `src/ai/basic-ai.ts`:
 
@@ -894,7 +965,7 @@ if (project.phase === 'building' && rivalProgress >= project.investedProduction 
 }
 ```
 
-- [ ] **Step 4: Add save regression for legendary wonder state**
+- [ ] **Step 5: Add save regression for legendary wonder state**
 
 Append to `tests/storage/save-persistence.test.ts`:
 
@@ -918,12 +989,12 @@ it('round-trips legendary wonder projects and carryover through JSON serializati
 });
 ```
 
-- [ ] **Step 5: Run Slice 2 targeted verification**
+- [ ] **Step 6: Run Slice 2 targeted verification**
 
 Run:
 
 ```bash
-eval "$(mise activate bash)" && yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/core/turn-manager.test.ts tests/ai/basic-ai.test.ts tests/storage/save-persistence.test.ts
+eval "$(mise activate bash)" && yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/ui/city-panel.test.ts tests/core/turn-manager.test.ts tests/ai/basic-ai.test.ts tests/storage/save-persistence.test.ts
 ```
 
 Expected: PASS.
@@ -958,7 +1029,7 @@ git checkout -b feature/m4d-slice2-legendary-wonders
 Run:
 
 ```bash
-git add src/core/types.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts src/systems/city-system.ts src/core/turn-manager.ts src/ui/city-panel.ts src/ui/wonder-panel.ts src/ai/basic-ai.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/core/turn-manager.test.ts tests/ai/basic-ai.test.ts tests/storage/save-persistence.test.ts
+git add src/core/types.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts src/systems/city-system.ts src/core/turn-manager.ts src/ui/city-panel.ts src/ui/wonder-panel.ts src/main.ts src/ai/basic-ai.ts tests/systems/helpers/legendary-wonder-fixture.ts tests/ui/helpers/wonder-panel-fixture.ts tests/systems/legendary-wonder-system.test.ts tests/ui/city-panel.test.ts tests/ui/wonder-panel.test.ts tests/core/turn-manager.test.ts tests/ai/basic-ai.test.ts tests/storage/save-persistence.test.ts
 git commit -m "feat(m4d): ship legendary quest wonders slice"
 ```
 
@@ -1073,8 +1144,12 @@ Expected: FAIL on missing mission logic.
 
 **Files:**
 - Modify: `src/systems/espionage-system.ts`
+- Modify: `src/core/turn-manager.ts`
+- Modify: `src/systems/fog-of-war.ts`
 - Modify: `src/ui/espionage-panel.ts`
 - Modify: `tests/systems/espionage-system.test.ts`
+- Modify: `tests/core/turn-manager.test.ts`
+- Modify: `tests/systems/fog-of-war.test.ts`
 - Modify: `tests/ui/espionage-panel.test.ts`
 
 - [ ] **Step 1: Implement Stage 5 missions with the allowed simplification**
@@ -1138,17 +1213,33 @@ case 'satellite_surveillance':
 Add double-agent support:
 
 ```typescript
-export interface Spy {
-  // existing fields...
-  turnedBy?: string;
-  feedsFalseIntel?: boolean;
-}
+// Add to Spy
+turnedBy?: string;
+feedsFalseIntel?: boolean;
 
 export function turnCapturedSpy(state: EspionageState, captorId: string, spyOwner: string, spyId: string): EspionageState;
 export function verifyAgent(state: EspionageCivState, spyId: string): EspionageCivState;
 ```
 
-- [ ] **Step 4: Update the panel to explain remote vs placed operations and show confidence/threat data**
+- [ ] **Step 4: Apply Stage 5 temporary effects during turn processing**
+
+In `src/core/turn-manager.ts`, add explicit handling for:
+
+```typescript
+productionDisabledTurns
+researchPenaltyTurns
+researchPenaltyMultiplier
+```
+
+Rules:
+
+- `cyber_attack` must shut down target-city production for exactly 3 turns
+- `misinformation_campaign` must reduce research gains for exactly 10 turns
+- penalties must decay deterministically at end of each affected civ turn
+
+Add a failing regression in `tests/core/turn-manager.test.ts` proving the effect expires on schedule.
+
+- [ ] **Step 5: Update the panel to explain remote vs placed operations and show confidence/threat data**
 
 In `src/ui/espionage-panel.ts`, render badges:
 
@@ -1171,7 +1262,7 @@ Threat board requirements:
 appendSectionHeader(threatBlock, 'Threat Board', 'Detected foreign spy activity in your cities.');
 ```
 
-- [ ] **Step 5: Add targeted Stage 5 tests**
+- [ ] **Step 6: Add targeted Stage 5 tests**
 
 Add to `tests/ui/espionage-panel.test.ts`:
 
@@ -1213,7 +1304,7 @@ it('handles double-agent deception and verify-agent exposure deterministically',
 Run:
 
 ```bash
-eval "$(mise activate bash)" && yarn test --run tests/systems/espionage-system.test.ts tests/systems/fog-of-war.test.ts tests/ui/espionage-panel.test.ts tests/integration/m4a-espionage-integration.test.ts
+eval "$(mise activate bash)" && yarn test --run tests/systems/espionage-system.test.ts tests/core/turn-manager.test.ts tests/systems/fog-of-war.test.ts tests/ui/espionage-panel.test.ts tests/integration/m4a-espionage-integration.test.ts
 ```
 
 Expected: PASS.
@@ -1326,6 +1417,29 @@ eval "$(mise activate bash)" && yarn test --run tests/ui/advisor-system.test.ts
 ```
 
 Expected: PASS.
+
+- [ ] **Step 5: Add a hot-seat regression proving Artisan only comments on the current player’s wonder state**
+
+Append to `tests/ui/advisor-system.test.ts`:
+
+```typescript
+it('does not surface another human players wonder state in hot seat', () => {
+  const bus = new EventBus();
+  const advisor = new AdvisorSystem(bus);
+  const state = makeState() as any;
+  state.currentPlayer = 'player-2';
+  state.legendaryWonderProjects = {
+    'oracle-of-delphi': { wonderId: 'oracle-of-delphi', ownerId: 'player', cityId: 'city-1', phase: 'ready_to_build', investedProduction: 0, transferableProduction: 0, questSteps: [] },
+  };
+  state.settings.advisorsEnabled.artisan = true;
+
+  const messages: any[] = [];
+  bus.on('advisor:message', msg => messages.push(msg));
+  advisor.check(state);
+
+  expect(messages).toHaveLength(0);
+});
+```
 
 ### Task 14: Add M4d Civs, Bonus Wiring, And Final AI Coverage
 
@@ -1510,7 +1624,7 @@ git checkout -b feature/m4d-slice3-digital-espionage
 Run:
 
 ```bash
-git add src/core/types.ts src/core/game-state.ts src/systems/tech-definitions.ts src/systems/espionage-system.ts src/ui/espionage-panel.ts src/ui/advisor-system.ts src/systems/civ-definitions.ts src/systems/resource-system.ts src/systems/combat-system.ts src/ai/basic-ai.ts tests/systems/tech-definitions.test.ts tests/systems/espionage-system.test.ts tests/ui/espionage-panel.test.ts tests/ui/advisor-system.test.ts tests/systems/civ-definitions.test.ts tests/ai/basic-ai.test.ts tests/storage/save-persistence.test.ts
+git add src/core/types.ts src/core/game-state.ts src/core/turn-manager.ts src/systems/tech-definitions.ts src/systems/espionage-system.ts src/systems/fog-of-war.ts src/systems/civ-definitions.ts src/systems/resource-system.ts src/systems/combat-system.ts src/systems/unit-system.ts src/ui/espionage-panel.ts src/ui/advisor-system.ts src/ai/basic-ai.ts tests/systems/tech-definitions.test.ts tests/systems/espionage-system.test.ts tests/systems/fog-of-war.test.ts tests/core/turn-manager.test.ts tests/ui/espionage-panel.test.ts tests/ui/advisor-system.test.ts tests/ui/advisor-spymaster.test.ts tests/systems/civ-definitions.test.ts tests/ai/basic-ai.test.ts tests/integration/m4a-espionage-integration.test.ts tests/storage/save-persistence.test.ts
 git commit -m "feat(m4d): ship digital espionage and artisan slice"
 ```
 
