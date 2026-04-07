@@ -1,11 +1,64 @@
 // tests/ui/espionage-panel.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  createEspionagePanel,
   getEspionagePanelData,
+  getEspionagePanelViewModel,
   getSpyActions,
 } from '@/ui/espionage-panel';
 import { createEspionageCivState, recruitSpy, assignSpy, _resetSpyIdCounter } from '@/systems/espionage-system';
 import type { GameState } from '@/core/types';
+
+class MockElement {
+  tagName: string;
+  children: MockElement[] = [];
+  style = { cssText: '' };
+  dataset: Record<string, string> = {};
+  id = '';
+  textContent = '';
+
+  constructor(tagName: string) {
+    this.tagName = tagName.toUpperCase();
+  }
+
+  appendChild(child: MockElement): MockElement {
+    this.children.push(child);
+    return child;
+  }
+}
+
+class MockDocument {
+  createElement(tag: string): MockElement {
+    return new MockElement(tag);
+  }
+}
+
+function installMockDocument(): void {
+  (globalThis as typeof globalThis & { document?: Document }).document = new MockDocument() as unknown as Document;
+}
+
+function restoreMockDocument(): void {
+  (globalThis as any).document = undefined;
+}
+
+function collectText(node: unknown): string {
+  const current = node as { textContent?: string; children?: unknown[] };
+  const childText = (current.children ?? []).map(collectText);
+  return [current.textContent, ...childText].filter(Boolean).join(' ');
+}
+
+function findAll(
+  node: unknown,
+  predicate: (el: { dataset?: Record<string, string> }) => boolean,
+  results: unknown[] = [],
+): unknown[] {
+  const current = node as { dataset?: Record<string, string>; children?: unknown[] };
+  if (predicate(current)) results.push(current);
+  for (const child of current.children ?? []) {
+    findAll(child, predicate, results);
+  }
+  return results;
+}
 
 function makeEspUiState(): GameState {
   return {
@@ -65,6 +118,11 @@ function makeEspUiState(): GameState {
 describe('espionage-panel', () => {
   beforeEach(() => {
     _resetSpyIdCounter();
+    installMockDocument();
+  });
+
+  afterEach(() => {
+    restoreMockDocument();
   });
 
   describe('getEspionagePanelData', () => {
@@ -126,6 +184,19 @@ describe('espionage-panel', () => {
       expect(data.disabledAdvisors).not.toContain('spymaster');
     });
 
+    it('creates a view model with grouped missions', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = [
+        'espionage-scouting',
+        'espionage-informants',
+        'spy-networks',
+        'cryptography',
+      ];
+      const view = getEspionagePanelViewModel(state);
+      expect(view.missionStages).toHaveLength(4);
+      expect(view.missionStages[2].missions.some(m => m.id === 'steal_tech')).toBe(true);
+    });
+
     it('never exposes other players spy data', () => {
       const state = makeEspUiState();
       const { state: esp } = recruitSpy(state.espionage!['ai-egypt'], 'ai-egypt', 'ai-seed');
@@ -163,6 +234,45 @@ describe('espionage-panel', () => {
       state.espionage!['player'].spies[spy.id].status = 'captured';
       const actions = getSpyActions(state, spy.id);
       expect(actions).toHaveLength(0);
+    });
+  });
+
+  describe('createEspionagePanel', () => {
+    it('renders stage-grouped missions, spy summaries, and coverage sections', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = [
+        'espionage-scouting',
+        'espionage-informants',
+        'spy-networks',
+        'cryptography',
+      ];
+      state.civilizations.player.advisorDisabledUntil = { chancellor: 12 };
+
+      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
+      state.espionage!['player'] = esp;
+      state.espionage!['player'].spies[spy.id].status = 'stationed';
+      state.espionage!['player'].spies[spy.id].targetCityId = 'city-player-1';
+      state.espionage!['player'].spies[spy.id].targetCivId = null;
+      state.espionage!['player'].spies[spy.id].experience = 61;
+      state.espionage!['player'].spies[spy.id].promotionAvailable = true;
+
+      const panel = createEspionagePanel(state) as unknown;
+      expect((panel as { id?: string }).id).toBe('espionage-panel');
+
+      const stages = findAll(panel, el => el.dataset?.stage !== undefined);
+      expect(stages.map(stage => (stage as { dataset: Record<string, string> }).dataset.stage)).toEqual(['1', '2', '3', '4']);
+      expect(collectText(stages[2])).toContain('Steal Tech');
+      expect(collectText(stages[3])).toContain('Assassinate Advisor');
+
+      const spyCards = findAll(panel, el => el.dataset?.spyId !== undefined);
+      expect(spyCards).toHaveLength(1);
+      expect(collectText(spyCards[0])).toContain('promotion ready');
+
+      const defense = findAll(panel, el => el.dataset?.section === 'defense')[0];
+      expect(collectText(defense)).toContain('city-player-1');
+
+      const disabled = findAll(panel, el => el.dataset?.section === 'disabled-advisors')[0];
+      expect(collectText(disabled)).toContain('chancellor');
     });
   });
 });

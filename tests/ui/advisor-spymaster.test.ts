@@ -172,4 +172,48 @@ describe('spymaster advisor', () => {
     advisor.check(state);
     expect(messages.find(m => m.advisor === 'spymaster')).toBeDefined();
   });
+
+  it('warns about unrest when the chancellor advisor is enabled', () => {
+    const state = makeSpymasterTestState();
+    state.settings.advisorsEnabled = {
+      builder: false,
+      explorer: false,
+      chancellor: true,
+      warchief: false,
+      treasurer: false,
+      scholar: false,
+      spymaster: false,
+    };
+    state.cities['city-player-1'].unrestLevel = 1;
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (data) => messages.push(data));
+
+    advisor.check(state);
+    const chancellorMsg = messages.find(m => m.advisor === 'chancellor');
+    expect(chancellorMsg).toBeDefined();
+    expect(chancellorMsg!.message).toMatch(/unrest/i);
+  });
+
+  it('warns about revolt when the chancellor advisor is enabled', () => {
+    const state = makeSpymasterTestState();
+    state.settings.advisorsEnabled = {
+      builder: false,
+      explorer: false,
+      chancellor: true,
+      warchief: false,
+      treasurer: false,
+      scholar: false,
+      spymaster: false,
+    };
+    state.cities['city-player-1'].unrestLevel = 2;
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (data) => messages.push(data));
+
+    advisor.check(state);
+    const chancellorMsg = messages.find(m => m.advisor === 'chancellor');
+    expect(chancellorMsg).toBeDefined();
+    expect(chancellorMsg!.message).toMatch(/revolt/i);
+  });
 });
