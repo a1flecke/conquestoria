@@ -283,6 +283,63 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
       expansionDrive: 0.7,
     },
   },
+  // === M4c New Civilizations ===
+  {
+    id: 'spain',
+    name: 'Spain',
+    color: '#c2410c',
+    bonusName: 'Golden Crossroads',
+    bonusDescription: 'Bonus rewards from natural wonders and tribal discoveries',
+    bonusEffect: { type: 'wonder_rewards', rewardMultiplier: 1.25 },
+    personality: {
+      traits: ['trader', 'expansionist'],
+      warLikelihood: 0.35,
+      diplomacyFocus: 0.5,
+      expansionDrive: 0.8,
+    },
+  },
+  {
+    id: 'viking',
+    name: 'Viking',
+    color: '#0f766e',
+    bonusName: 'Sea Wolves',
+    bonusDescription: 'Raiding fleets move faster and see farther along coasts',
+    bonusEffect: { type: 'naval_raiding', movementBonus: 1, coastalVisionBonus: 1 },
+    personality: {
+      traits: ['aggressive', 'expansionist'],
+      warLikelihood: 0.75,
+      diplomacyFocus: 0.2,
+      expansionDrive: 0.75,
+    },
+  },
+  {
+    id: 'prydain',
+    name: 'Prydain',
+    color: '#7c3aed',
+    bonusName: 'Stand of the Free',
+    bonusDescription: 'Units defending home territory fight with added resolve',
+    bonusEffect: { type: 'homeland_defense', defenseBonus: 0.2 },
+    personality: {
+      traits: ['diplomatic', 'aggressive'],
+      warLikelihood: 0.45,
+      diplomacyFocus: 0.7,
+      expansionDrive: 0.45,
+    },
+  },
+  {
+    id: 'annuvin',
+    name: 'Annuvin',
+    color: '#111827',
+    bonusName: 'Court of Shadows',
+    bonusDescription: 'Spy networks mature faster and agents gain experience more quickly',
+    bonusEffect: { type: 'espionage_growth', experienceBonus: 0.2 },
+    personality: {
+      traits: ['aggressive', 'trader'],
+      warLikelihood: 0.6,
+      diplomacyFocus: 0.3,
+      expansionDrive: 0.55,
+    },
+  },
 ];
 
 export function getCivDefinition(id: string): CivDefinition | undefined {

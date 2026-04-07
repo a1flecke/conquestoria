@@ -38,6 +38,8 @@ describe('espionage types', () => {
       currentMission: null,
       cooldownTurns: 0,
       name: 'Agent Shadow',
+      promotion: undefined,
+      promotionAvailable: false,
     };
     expect(spy.id).toBe('spy-1');
     expect(spy.status).toBe('idle');
@@ -442,6 +444,7 @@ describe('resolveMissionResult', () => {
           buildings: ['granary'], productionQueue: ['warrior'],
           productionProgress: 10, ownedTiles: [{ q: 5, r: 3 }, { q: 5, r: 4 }, { q: 6, r: 3 }],
           grid: [[null]], gridSize: 3,
+          unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
         },
       },
       civilizations: {
@@ -482,7 +485,7 @@ describe('resolveMissionResult', () => {
 
   it('gather_intel reveals tech, gold, and treaties', () => {
     const gameState = makeTestGameState();
-    const result = resolveMissionResult('gather_intel', 'ai-egypt', 'city-egypt-1', gameState);
+    const result = resolveMissionResult('gather_intel', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
     expect(result.techProgress).toBeDefined();
     expect(result.techProgress!.completed).toContain('agriculture-farming');
     expect(result.techProgress!.currentResearch).toBe('military-bronze-working');
@@ -497,14 +500,14 @@ describe('resolveMissionResult', () => {
       resource: 'iron', improvement: 'none', owner: 'ai-egypt',
       improvementTurnsLeft: 0, hasRiver: false, wonder: null,
     };
-    const result = resolveMissionResult('identify_resources', 'ai-egypt', 'city-egypt-1', gameState);
+    const result = resolveMissionResult('identify_resources', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
     expect(result.resources).toBeDefined();
     expect(result.resources).toContain('iron');
   });
 
   it('monitor_diplomacy reveals relationships and trade partners', () => {
     const gameState = makeTestGameState();
-    const result = resolveMissionResult('monitor_diplomacy', 'ai-egypt', 'city-egypt-1', gameState);
+    const result = resolveMissionResult('monitor_diplomacy', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
     expect(result.relationships).toBeDefined();
     expect(result.relationships!['player']).toBe(-10);
     expect(result.tradePartners).toBeDefined();
@@ -516,7 +519,7 @@ describe('resolveMissionResult', () => {
     // Add some tiles near city
     gameState.map.tiles['5,3'] = { coord: { q: 5, r: 3 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-egypt', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
     gameState.map.tiles['5,4'] = { coord: { q: 5, r: 4 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-egypt', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
-    const result = resolveMissionResult('scout_area', 'ai-egypt', 'city-egypt-1', gameState);
+    const result = resolveMissionResult('scout_area', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
     expect(result.tilesToReveal).toBeDefined();
     expect(result.tilesToReveal!.length).toBeGreaterThan(0);
   });
@@ -528,7 +531,7 @@ describe('resolveMissionResult', () => {
       position: { q: 5, r: 3 }, movementPointsLeft: 2,
       health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
-    const result = resolveMissionResult('monitor_troops', 'ai-egypt', 'city-egypt-1', gameState);
+    const result = resolveMissionResult('monitor_troops', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
     expect(result.nearbyUnits).toBeDefined();
     expect(result.nearbyUnits!.length).toBeGreaterThan(0);
     expect(result.nearbyUnits![0].type).toBe('warrior');

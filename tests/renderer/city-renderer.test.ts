@@ -28,6 +28,7 @@ describe('city renderer', () => {
     expect(playerCity!.name).toBe(city.name);
     expect(playerCity!.position).toEqual(city.position);
     expect(playerCity!.population).toBe(city.population);
+    expect(playerCity!.unrestLevel).toBe(0);
   });
 
   it('includes cities from multiple owners', () => {
@@ -46,5 +47,18 @@ describe('city renderer', () => {
     const owners = data.map(d => d.owner);
     expect(owners).toContain('player');
     expect(owners).toContain('ai-1');
+  });
+
+  it('exposes unrest state for overlay rendering', () => {
+    const state = createNewGame(undefined, 'city-render-test');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map);
+    city.unrestLevel = 2;
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+
+    const data = getCityRenderData(state);
+    const playerCity = data.find(d => d.owner === 'player');
+    expect(playerCity?.unrestLevel).toBe(2);
   });
 });

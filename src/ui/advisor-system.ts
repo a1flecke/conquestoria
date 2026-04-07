@@ -141,6 +141,24 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       return playerDip.atWarWith.length > 0;
     },
   },
+  {
+    id: 'chancellor_unrest_warning',
+    advisor: 'chancellor',
+    icon: '🎩',
+    message: 'Discontent is spreading through one of our cities. Garrison it, end the war, or reduce pressure before unrest hardens into revolt.',
+    trigger: (state) => Object.values(state.cities).some(
+      c => c.owner === state.currentPlayer && c.unrestLevel === 1,
+    ),
+  },
+  {
+    id: 'chancellor_revolt_warning',
+    advisor: 'chancellor',
+    icon: '🎩',
+    message: 'A city is in open revolt. Production is collapsing until rebel pressure is broken and order is restored.',
+    trigger: (state) => Object.values(state.cities).some(
+      c => c.owner === state.currentPlayer && c.unrestLevel === 2,
+    ),
+  },
 
   {
     id: 'chancellor_vassalage_available',
@@ -582,6 +600,8 @@ export class AdvisorSystem {
 
       // Skip non-tutorial messages if that advisor is disabled
       if (!msg.tutorialStep && !state.settings.advisorsEnabled[msg.advisor]) continue;
+      const disabledUntil = state.civilizations[state.currentPlayer]?.advisorDisabledUntil?.[msg.advisor];
+      if (!msg.tutorialStep && disabledUntil !== undefined && disabledUntil >= state.turn) continue;
 
       if (msg.trigger(state)) {
         this.shownIds.add(msg.id);

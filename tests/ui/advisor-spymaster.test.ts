@@ -20,12 +20,14 @@ function makeSpymasterTestState(): GameState {
         position: { q: 0, r: 0 }, population: 5, food: 0, foodNeeded: 20,
         buildings: [], productionQueue: [], productionProgress: 0,
         ownedTiles: [], grid: [[null]], gridSize: 3,
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
       },
       'city-egypt-1': {
         id: 'city-egypt-1', name: 'Thebes', owner: 'ai-egypt',
         position: { q: 5, r: 3 }, population: 5, food: 0, foodNeeded: 20,
         buildings: [], productionQueue: [], productionProgress: 0,
         ownedTiles: [], grid: [[null]], gridSize: 3,
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
       },
     },
     civilizations: {
@@ -42,6 +44,8 @@ function makeSpymasterTestState(): GameState {
         diplomacy: {
           relationships: { 'ai-egypt': -30 }, treaties: [],
           events: [], atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 },
         },
       },
       'ai-egypt': {
@@ -50,7 +54,11 @@ function makeSpymasterTestState(): GameState {
         cities: ['city-egypt-1'], units: [],
         techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
         gold: 150, visibility: { tiles: {} }, score: 100,
-        diplomacy: { relationships: { player: -30 }, treaties: [], events: [], atWarWith: [] },
+        diplomacy: {
+          relationships: { player: -30 }, treaties: [], events: [], atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 },
+        },
       },
     },
     barbarianCamps: {},
@@ -143,5 +151,25 @@ describe('spymaster advisor', () => {
     advisor.check(state);
     const spyMsg = messages.find(m => m.advisor === 'spymaster');
     expect(spyMsg).toBeUndefined();
+  });
+
+  it('suppresses a disabled advisor until the assassination timer expires', () => {
+    const state = makeSpymasterTestState();
+    state.espionage = {
+      player: createEspionageCivState(),
+      'ai-egypt': createEspionageCivState(),
+    };
+    state.civilizations.player.advisorDisabledUntil = { spymaster: 12 };
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (data) => messages.push(data));
+
+    advisor.check(state);
+    expect(messages.find(m => m.advisor === 'spymaster')).toBeUndefined();
+
+    state.turn = 13;
+    advisor.resetMessage('spymaster_recruit_first_spy');
+    advisor.check(state);
+    expect(messages.find(m => m.advisor === 'spymaster')).toBeDefined();
   });
 });
