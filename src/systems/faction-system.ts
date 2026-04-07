@@ -4,6 +4,7 @@ import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator';
 import { createUnit } from './unit-system';
 import { hexDistance } from './hex-utils';
+import { createBreakawayFromCity } from './breakaway-system';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
@@ -152,6 +153,12 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
         updated = { ...updated, unrestLevel: 0, unrestTurns: 0 };
         state.cities[cityId] = updated;
         bus.emit('faction:unrest-resolved', { cityId, owner: city.owner });
+      } else {
+        updated = { ...updated, unrestTurns: updated.unrestTurns + 1 };
+        state.cities[cityId] = updated;
+        if (updated.unrestTurns >= 10) {
+          state = createBreakawayFromCity(state, cityId, bus);
+        }
       }
     }
   }

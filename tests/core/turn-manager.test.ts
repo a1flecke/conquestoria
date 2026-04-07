@@ -4,6 +4,7 @@ import { EventBus } from '@/core/event-bus';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
+import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 
 describe('processTurn', () => {
   it('increments the turn counter', () => {
@@ -116,5 +117,14 @@ describe('processTurn', () => {
 
     const result = processTurn(state, bus);
     expect(result.era).toBe(2);
+  });
+
+  it('matures breakaway secessions during normal turn processing', () => {
+    const { state, breakawayId } = makeBreakawayFixture({ breakawayStartedTurn: 12, turn: 62 });
+    const bus = new EventBus();
+
+    const result = processTurn(state, bus);
+
+    expect(result.civilizations[breakawayId].breakaway?.status).toBe('established');
   });
 });

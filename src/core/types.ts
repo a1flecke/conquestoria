@@ -261,7 +261,8 @@ export type DiplomaticAction =
   | 'propose_league'
   | 'invite_to_league'
   | 'petition_league'
-  | 'leave_league';
+  | 'leave_league'
+  | 'reabsorb_breakaway';
 
 export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage';
 
@@ -389,6 +390,15 @@ export interface Civilization {
   score: number;
   diplomacy: DiplomacyState;
   advisorDisabledUntil?: Partial<Record<AdvisorType, number>>; // turn number until re-enabled
+  breakaway?: BreakawayMetadata;
+}
+
+export interface BreakawayMetadata {
+  originOwnerId: string;
+  originCityId: string;
+  startedTurn: number;
+  establishesOnTurn: number;
+  status: 'secession' | 'established';
 }
 
 // --- Barbarians ---
@@ -667,6 +677,9 @@ export interface GameEvents {
   'faction:unrest-started': { cityId: string; owner: string };
   'faction:revolt-started': { cityId: string; owner: string };
   'faction:unrest-resolved': { cityId: string; owner: string };
+  'faction:breakaway-started': { cityId: string; oldOwner: string; breakawayId: string };
+  'faction:breakaway-established': { civId: string; originOwnerId: string };
+  'faction:breakaway-reabsorbed': { civId: string; ownerId: string; cityId: string };
   'espionage:spy-promoted': { civId: string; spyId: string; promotion: SpyPromotion };
   'espionage:advisor-assassinated': { targetCivId: string; advisorType: AdvisorType; disabledUntilTurn: number };
   'espionage:documents-forged': { civA: string; civB: string; relationshipPenalty: number };

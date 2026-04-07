@@ -268,6 +268,145 @@ function makeAiDefenseSpyState(): GameState {
   } as GameState;
 }
 
+function makeAiBreakawayState(): GameState {
+  return {
+    turn: 25,
+    era: 4,
+    currentPlayer: 'ai-1',
+    gameOver: false,
+    winner: null,
+    map: {
+      width: 8,
+      height: 8,
+      tiles: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: 'ai-1',
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: null,
+        },
+        '4,0': {
+          coord: { q: 4, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: 'breakaway-city-border',
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: null,
+        },
+      },
+      wrapsHorizontally: false,
+      rivers: [],
+    },
+    units: {},
+    cities: {
+      'city-ai': {
+        id: 'city-ai',
+        name: 'Capital',
+        owner: 'ai-1',
+        position: { q: 0, r: 0 },
+        population: 5,
+        food: 0,
+        foodNeeded: 20,
+        buildings: [],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 0, r: 0 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+      'city-border': {
+        id: 'city-border',
+        name: 'Free Border',
+        owner: 'breakaway-city-border',
+        position: { q: 4, r: 0 },
+        population: 5,
+        food: 0,
+        foodNeeded: 20,
+        buildings: [],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 4, r: 0 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+    },
+    civilizations: {
+      'ai-1': {
+        id: 'ai-1',
+        name: 'AI',
+        color: '#d94a4a',
+        isHuman: false,
+        civType: 'rome',
+        cities: ['city-ai'],
+        units: [],
+        techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+        gold: 100,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: {
+          relationships: { 'breakaway-city-border': 20 },
+          treaties: [],
+          events: [],
+          atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 },
+        },
+      },
+      'breakaway-city-border': {
+        id: 'breakaway-city-border',
+        name: 'Free Border',
+        color: '#c2410c',
+        isHuman: false,
+        civType: 'generic',
+        cities: ['city-border'],
+        units: [],
+        techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+        gold: 0,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: {
+          relationships: { 'ai-1': 20 },
+          treaties: [],
+          events: [],
+          atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 },
+        },
+        breakaway: {
+          originOwnerId: 'ai-1',
+          originCityId: 'city-border',
+          startedTurn: 5,
+          establishesOnTurn: 55,
+          status: 'secession',
+        },
+      },
+    },
+    barbarianCamps: {},
+    minorCivs: {},
+    tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+    settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any },
+    tribalVillages: {},
+    discoveredWonders: {},
+    wonderDiscoverers: {},
+    embargoes: [],
+    defensiveLeagues: [],
+  } as GameState;
+}
+
 describe('processAITurn', () => {
   it('does not throw on a fresh game', () => {
     const state = createNewGame(undefined, 'ai-test');
@@ -314,5 +453,15 @@ describe('processAITurn', () => {
     expect(spies[0].targetCivId).toBeNull();
     expect(spies[0].targetCityId).toBe('city-ai');
     expect(newState.espionage!['ai-1'].counterIntelligence['city-ai']).toBeGreaterThan(0);
+  });
+
+  it('AI declares war on its own secession state instead of treating it like normal diplomacy', () => {
+    const state = makeAiBreakawayState();
+    const bus = new EventBus();
+
+    const newState = processAITurn(state, 'ai-1', bus);
+
+    expect(newState.civilizations['ai-1'].diplomacy.atWarWith).toContain('breakaway-city-border');
+    expect(newState.civilizations['breakaway-city-border'].diplomacy.atWarWith).toContain('ai-1');
   });
 });
