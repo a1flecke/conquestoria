@@ -58,6 +58,27 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   if (!civ) return newState;
 
   const personality = getPersonality(civ.civType ?? 'generic');
+  const ownedBreakaway = Object.values(newState.civilizations).find(other =>
+    other.breakaway?.originOwnerId === civId
+    && other.breakaway.status === 'secession'
+    && !civ.diplomacy.atWarWith.includes(other.id)
+  );
+
+  if (ownedBreakaway) {
+    newState.civilizations[civId].diplomacy = declareWar(
+      civ.diplomacy,
+      ownedBreakaway.id,
+      newState.turn,
+      false,
+    );
+    newState.civilizations[ownedBreakaway.id].diplomacy = declareWar(
+      ownedBreakaway.diplomacy,
+      civId,
+      newState.turn,
+      false,
+    );
+    bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: ownedBreakaway.id });
+  }
 
   // --- Handle settlers: found cities ---
   const settlers = civ.units

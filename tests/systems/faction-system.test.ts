@@ -323,6 +323,19 @@ describe('faction-system', () => {
     expect(result.cities['city-1'].unrestLevel).toBe(2);
   });
 
+  it('hands an unresolved revolt to breakaway creation instead of leaving it permanent', () => {
+    const state = makeState({
+      cityCount: 14,
+      unrestLevel: 2,
+      unrestTurns: 10,
+      cityPosition: { q: 6, r: 6 },
+    });
+
+    const result = processFactionTurn(state, bus);
+
+    expect(result.cities['city-1'].owner).not.toBe('player');
+  });
+
   it('clears conquestTurn after the unrest window expires', () => {
     const state = makeState({
       conquestTurn: 0,

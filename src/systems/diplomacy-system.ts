@@ -1,4 +1,5 @@
 import type {
+  GameState,
   DiplomacyState,
   DiplomaticAction,
   Treaty,
@@ -7,6 +8,12 @@ import type {
   Embargo,
   TradeRoute,
 } from '@/core/types';
+import type { EventBus } from '@/core/event-bus';
+import {
+  REABSORB_GOLD_COST,
+  REABSORB_RELATIONSHIP_MINIMUM,
+  tryReabsorbBreakaway,
+} from '@/systems/breakaway-system';
 
 export function createDiplomacyState(
   allCivIds: string[],
@@ -272,6 +279,120 @@ export function getAvailableActions(
   }
 
   return actions;
+}
+
+export function canReabsorbBreakaway(
+  state: GameState,
+  ownerId: string,
+  breakawayId: string,
+): boolean {
+  const owner = state.civilizations[ownerId];
+  const breakaway = state.civilizations[breakawayId];
+  if (!owner || !breakaway?.breakaway) {
+    return false;
+  }
+  if (breakaway.breakaway.originOwnerId !== ownerId) {
+    return false;
+  }
+
+  const relationship = getRelationship(owner.diplomacy, breakawayId);
+  return relationship >= REABSORB_RELATIONSHIP_MINIMUM && owner.gold >= REABSORB_GOLD_COST;
+}
+
+export function applyDiplomaticAction(
+  state: GameState,
+  actorId: string,
+  targetCivId: string,
+  action: DiplomaticAction,
+  bus: EventBus,
+): GameState {
+  const actor = state.civilizations[actorId];
+  const target = state.civilizations[targetCivId];
+  if (!actor || !target) {
+    return state;
+  }
+
+  switch (action) {
+    case 'declare_war':
+      bus.emit('diplomacy:war-declared', { attackerId: actorId, defenderId: targetCivId });
+      return {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          [actorId]: {
+            ...actor,
+            diplomacy: declareWar(actor.diplomacy, targetCivId, state.turn),
+          },
+          [targetCivId]: {
+            ...target,
+            diplomacy: declareWar(target.diplomacy, actorId, state.turn),
+          },
+        },
+      };
+    case 'request_peace':
+      bus.emit('diplomacy:peace-made', { civA: actorId, civB: targetCivId });
+      return {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          [actorId]: {
+            ...actor,
+            diplomacy: makePeace(actor.diplomacy, targetCivId, state.turn),
+          },
+          [targetCivId]: {
+            ...target,
+            diplomacy: makePeace(target.diplomacy, actorId, state.turn),
+          },
+        },
+      };
+    case 'non_aggression_pact':
+    case 'trade_agreement':
+    case 'open_borders':
+    case 'alliance':
+      bus.emit('diplomacy:treaty-accepted', { civA: actorId, civB: targetCivId, treaty: action });
+      return {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          [actorId]: {
+            ...actor,
+            diplomacy: proposeTreaty(
+              actor.diplomacy,
+              actorId,
+              targetCivId,
+              action,
+              action === 'non_aggression_pact' ? 10 : -1,
+              state.turn,
+            ),
+          },
+          [targetCivId]: {
+            ...target,
+            diplomacy: proposeTreaty(
+              target.diplomacy,
+              targetCivId,
+              actorId,
+              action,
+              action === 'non_aggression_pact' ? 10 : -1,
+              state.turn,
+            ),
+          },
+        },
+      };
+    case 'reabsorb_breakaway': {
+      const cityId = target.breakaway?.originCityId;
+      const nextState = tryReabsorbBreakaway(state, actorId, targetCivId);
+      if (cityId) {
+        bus.emit('faction:breakaway-reabsorbed', {
+          civId: targetCivId,
+          ownerId: actorId,
+          cityId,
+        });
+      }
+      return nextState;
+    }
+    default:
+      return state;
+  }
 }
 
 // --- Defensive Leagues (real implementations in league section below) ---

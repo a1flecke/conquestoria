@@ -36,6 +36,7 @@ import { getCivDefinition } from '@/systems/civ-definitions';
 import { applyProductionBonus } from '@/systems/city-system';
 import { processEspionageTurn } from '@/systems/espionage-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
+import { processBreakawayTurn } from '@/systems/breakaway-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -44,6 +45,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // Resolve unrest and revolts before city yields so instability impacts the current turn.
   newState = processFactionTurn(newState, bus);
+  newState = processBreakawayTurn(newState, bus);
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {

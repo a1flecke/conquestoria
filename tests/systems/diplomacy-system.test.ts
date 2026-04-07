@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyDiplomaticAction,
   createDiplomacyState,
   getRelationship,
   modifyRelationship,
@@ -12,6 +13,8 @@ import {
   getAvailableActions,
   isAtWar,
 } from '@/systems/diplomacy-system';
+import { EventBus } from '@/core/event-bus';
+import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 
 describe('diplomacy-system', () => {
   const civIds = ['player', 'ai-egypt', 'ai-rome'];
@@ -152,6 +155,23 @@ describe('diplomacy-system', () => {
       state = modifyRelationship(state, 'ai-egypt', 10);
       const actions = getAvailableActions(state, 'ai-egypt', ['trade-routes'], 1);
       expect(actions).toContain('trade_agreement');
+    });
+  });
+
+  describe('applyDiplomaticAction', () => {
+    it('reabsorbs an eligible breakaway state instead of leaving the action as a no-op', () => {
+      const { state, breakawayId, cityId } = makeBreakawayFixture({
+        breakawayStartedTurn: 12,
+        relationship: 70,
+        gold: 250,
+      });
+      const bus = new EventBus();
+
+      const result = applyDiplomaticAction(state, 'player', breakawayId, 'reabsorb_breakaway', bus);
+
+      expect(result.cities[cityId].owner).toBe('player');
+      expect(result.civilizations[breakawayId]).toBeUndefined();
+      expect(result.civilizations.player.gold).toBe(50);
     });
   });
 });

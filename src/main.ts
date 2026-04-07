@@ -24,7 +24,7 @@ import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
-import { declareWar, makePeace, proposeTreaty, modifyRelationship } from '@/systems/diplomacy-system';
+import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
@@ -37,6 +37,7 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
+import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
 // --- App State ---
@@ -332,46 +333,7 @@ function toggleNotificationLog(): void {
 
 function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
   const cp = gameState.currentPlayer;
-  switch (action) {
-    case 'declare_war':
-      currentCiv().diplomacy = declareWar(
-        currentCiv().diplomacy, targetCivId, gameState.turn,
-      );
-      if (gameState.civilizations[targetCivId]?.diplomacy) {
-        gameState.civilizations[targetCivId].diplomacy = declareWar(
-          gameState.civilizations[targetCivId].diplomacy, cp, gameState.turn,
-        );
-      }
-      bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId });
-      break;
-    case 'request_peace':
-      currentCiv().diplomacy = makePeace(
-        currentCiv().diplomacy, targetCivId, gameState.turn,
-      );
-      if (gameState.civilizations[targetCivId]?.diplomacy) {
-        gameState.civilizations[targetCivId].diplomacy = makePeace(
-          gameState.civilizations[targetCivId].diplomacy, cp, gameState.turn,
-        );
-      }
-      bus.emit('diplomacy:peace-made', { civA: cp, civB: targetCivId });
-      break;
-    case 'non_aggression_pact':
-    case 'trade_agreement':
-    case 'open_borders':
-    case 'alliance':
-      currentCiv().diplomacy = proposeTreaty(
-        currentCiv().diplomacy, cp, targetCivId, action,
-        action === 'non_aggression_pact' ? 10 : -1, gameState.turn,
-      );
-      if (gameState.civilizations[targetCivId]?.diplomacy) {
-        gameState.civilizations[targetCivId].diplomacy = proposeTreaty(
-          gameState.civilizations[targetCivId].diplomacy, targetCivId, cp, action,
-          action === 'non_aggression_pact' ? 10 : -1, gameState.turn,
-        );
-      }
-      bus.emit('diplomacy:treaty-accepted', { civA: cp, civB: targetCivId, treaty: action });
-      break;
-  }
+  gameState = applyDiplomaticAction(gameState, cp, targetCivId, action, bus);
   showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
 }
 
@@ -712,10 +674,7 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
     }
     if (cityAtTarget && !cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
       const previousOwner = cityAtTarget.owner;
-      cityAtTarget.owner = gameState.currentPlayer;
-      if (gameState.civilizations[previousOwner]) {
-        gameState.civilizations[previousOwner].cities = gameState.civilizations[previousOwner].cities.filter(id => id !== cityAtTarget.id);
-      }
+      gameState = transferCapturedCityOwnership(gameState, cityAtTarget.id, gameState.currentPlayer, gameState.turn);
       const capturingCiv = currentCiv();
       if (capturingCiv && !capturingCiv.cities.includes(cityAtTarget.id)) {
         capturingCiv.cities.push(cityAtTarget.id);
@@ -725,13 +684,6 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
         showNotification('Viking raid spoils! +30 gold', 'success');
       }
       showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
-      gameState.cities[cityAtTarget.id] = {
-        ...gameState.cities[cityAtTarget.id],
-        conquestTurn: gameState.turn,
-        unrestLevel: 0,
-        unrestTurns: 0,
-        spyUnrestBonus: 0,
-      };
       bus.emit('city:captured', { cityId: cityAtTarget.id, newOwner: gameState.currentPlayer, previousOwner });
     }
   } else {

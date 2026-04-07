@@ -11,6 +11,8 @@ interface CityRenderInfo {
   owner: string;
   color: string;
   unrestLevel: 0 | 1 | 2;
+  breakawayStatus?: 'secession' | 'established';
+  breakawayTurnsLeft?: number;
 }
 
 const OWNER_COLORS: Record<string, string> = {
@@ -19,14 +21,21 @@ const OWNER_COLORS: Record<string, string> = {
 };
 
 export function getCityRenderData(state: GameState): CityRenderInfo[] {
-  return Object.values(state.cities).map(city => ({
-    name: city.name,
-    position: city.position,
-    population: city.population,
-    owner: city.owner,
-    color: state.civilizations[city.owner]?.color ?? OWNER_COLORS[city.owner] ?? '#888',
-    unrestLevel: city.unrestLevel,
-  }));
+  return Object.values(state.cities).map(city => {
+    const owner = state.civilizations[city.owner];
+    return {
+      name: city.name,
+      position: city.position,
+      population: city.population,
+      owner: city.owner,
+      color: owner?.color ?? OWNER_COLORS[city.owner] ?? '#888',
+      unrestLevel: city.unrestLevel,
+      breakawayStatus: owner?.breakaway?.status,
+      breakawayTurnsLeft: owner?.breakaway
+        ? Math.max(0, owner.breakaway.establishesOnTurn - state.turn)
+        : undefined,
+    };
+  });
 }
 
 export function drawCities(
@@ -48,6 +57,7 @@ export function drawCities(
     const mcState = city.owner.startsWith('mc-') ? state.minorCivs?.[city.owner] : null;
     const mcDef = mcState ? MINOR_CIV_DEFINITIONS.find(d => d.id === mcState.definitionId) : null;
     const color = mcDef?.color ?? state.civilizations[city.owner]?.color ?? OWNER_COLORS[city.owner] ?? '#888';
+    const breakaway = state.civilizations[city.owner]?.breakaway;
 
     // City background — larger than unit circle
     ctx.beginPath();
@@ -81,7 +91,12 @@ export function drawCities(
     ctx.textBaseline = 'top';
     ctx.fillText(`${city.name} (${city.population})`, screen.x, screen.y + size * 0.5);
 
-    if (city.unrestLevel > 0) {
+    if (breakaway) {
+      ctx.font = `${size * 0.28}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(breakaway.status === 'secession' ? '⛓' : '👑', screen.x + size * 0.45, screen.y - size * 0.45);
+    } else if (city.unrestLevel > 0) {
       ctx.font = `${size * 0.28}px system-ui`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

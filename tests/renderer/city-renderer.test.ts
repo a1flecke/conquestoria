@@ -3,6 +3,7 @@ import type { Camera } from '@/renderer/camera';
 import { drawCities, getCityRenderData } from '@/renderer/city-renderer';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 
 class MockCanvasContext {
   fillTextCalls: Array<{ text: string; x: number; y: number }> = [];
@@ -111,5 +112,33 @@ describe('city renderer', () => {
     const overlayTexts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
     expect(overlayTexts).toContain('⚡');
     expect(overlayTexts).toContain('🔥');
+  });
+
+  it('exposes breakaway status and establishment countdown for seceded cities', () => {
+    const { state, cityId } = makeBreakawayFixture({ turn: 45, breakawayStartedTurn: 12 });
+
+    const data = getCityRenderData(state);
+    const breakawayCity = data.find(city => city.name === cityId);
+
+    expect(breakawayCity?.breakawayStatus).toBe('secession');
+    expect(breakawayCity?.breakawayTurnsLeft).toBe(17);
+  });
+
+  it('renders a distinct badge for seceded cities', () => {
+    const { state } = makeBreakawayFixture({ turn: 45, breakawayStartedTurn: 12 });
+    state.civilizations.player.visibility.tiles['4,0'] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const camera = {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    drawCities(ctx, state, camera, 'player');
+
+    const overlayTexts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(overlayTexts).toContain('⛓');
   });
 });

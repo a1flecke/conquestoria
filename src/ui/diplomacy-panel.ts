@@ -1,5 +1,5 @@
 import type { GameState, DiplomaticAction } from '@/core/types';
-import { getRelationship, isAtWar, getAvailableActions } from '@/systems/diplomacy-system';
+import { canReabsorbBreakaway, getRelationship, isAtWar, getAvailableActions } from '@/systems/diplomacy-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 
@@ -70,11 +70,27 @@ export function createDiplomacyPanel(
     else if (relationship > -60) barColor = '#d9944a';
     else barColor = '#d94a4a';
 
-    const statusText = atWar ? '⚔️ At War'
+    let statusText = atWar ? '⚔️ At War'
       : relationship > 30 ? '😊 Friendly'
       : relationship > 0 ? '🤝 Neutral'
       : relationship > -30 ? '😐 Cautious'
       : '😠 Hostile';
+
+    const rowActions = [...actions];
+    if (civ.breakaway) {
+      const turnsLeft = Math.max(0, civ.breakaway.establishesOnTurn - state.turn);
+      statusText = civ.breakaway.status === 'secession'
+        ? `Breakaway · ${turnsLeft} turns to establishment`
+        : 'Established breakaway civ';
+
+      if (
+        civ.breakaway.originOwnerId === state.currentPlayer
+        && canReabsorbBreakaway(state, state.currentPlayer, civId)
+        && !rowActions.includes('reabsorb_breakaway')
+      ) {
+        rowActions.push('reabsorb_breakaway');
+      }
+    }
 
     const treaties = playerDiplomacy.treaties
       .filter(t => t.civB === civId || t.civA === civId)
@@ -91,7 +107,7 @@ export function createDiplomacyPanel(
       barColor,
       statusText,
       treaties,
-      actions: actions.map(action => ({ action, isHostile: action === 'declare_war' })),
+      actions: rowActions.map(action => ({ action, isHostile: action === 'declare_war' })),
     });
     civIdx++;
   }

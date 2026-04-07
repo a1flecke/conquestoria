@@ -59,4 +59,25 @@ describe('save persistence (#38)', () => {
     const loaded = raw ? JSON.parse(raw) : undefined;
     expect(loaded).toBeUndefined();
   });
+
+  it('round-trips breakaway metadata through JSON serialization', () => {
+    const state = {
+      turn: 61,
+      civilizations: {
+        'breakaway-city-1': {
+          breakaway: {
+            originOwnerId: 'player',
+            originCityId: 'city-1',
+            startedTurn: 11,
+            establishesOnTurn: 61,
+            status: 'established',
+          },
+        },
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.civilizations['breakaway-city-1'].breakaway.status).toBe('established');
+  });
 });
