@@ -15,6 +15,7 @@ export function getTerrainDefenseBonus(terrain: string): number {
 
 export interface CombatContext {
   attackerBonus?: CivBonusEffect;
+  defenderBonus?: CivBonusEffect;
   defenderInFortifiedCity?: boolean;
 }
 
@@ -45,6 +46,9 @@ export function resolveCombat(
     // Wonder defense bonus
     if (defTile.wonder) {
       defStrength *= (1 + getWonderCombatBonus(defTile.wonder));
+    }
+    if (context?.defenderBonus?.type === 'homeland_defense' && defTile.owner === defender.owner) {
+      defStrength *= (1 + context.defenderBonus.defenseBonus);
     }
   }
 

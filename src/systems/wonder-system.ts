@@ -87,17 +87,19 @@ export function processWonderDiscovery(
     // Grant discovery bonus
     const civ = state.civilizations[civId];
     if (civ) {
+      const rewardMultiplier = civ.civType === 'spain' ? 1.25 : 1;
+      const scaledAmount = Math.round(wonder.discoveryBonus.amount * rewardMultiplier);
       switch (wonder.discoveryBonus.type) {
         case 'gold':
-          civ.gold += wonder.discoveryBonus.amount;
+          civ.gold += scaledAmount;
           break;
         case 'science':
           if (civ.techState.currentResearch) {
-            const bonusResult = applyResearchBonus(civ.techState, wonder.discoveryBonus.amount);
+            const bonusResult = applyResearchBonus(civ.techState, scaledAmount);
             civ.techState = bonusResult.state;
           } else {
             // Fallback: convert to gold if no active research
-            civ.gold += wonder.discoveryBonus.amount;
+            civ.gold += scaledAmount;
           }
           break;
         case 'production': {
@@ -125,7 +127,7 @@ export function processWonderDiscovery(
           }
 
           if (nearestCity) {
-            nearestCity.productionProgress += wonder.discoveryBonus.amount;
+            nearestCity.productionProgress += scaledAmount;
           }
           break;
         }

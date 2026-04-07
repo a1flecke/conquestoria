@@ -1,4 +1,4 @@
-import type { GameState } from './types';
+import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { resetUnitTurn, createUnit, healUnit } from '@/systems/unit-system';
 import { processCity } from '@/systems/city-system';
@@ -78,7 +78,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
       if (result.completedUnit) {
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
-        const newUnit = createUnit(result.completedUnit, civId, city.position);
+        const newUnit = createUnit(result.completedUnit, civId, city.position, civDef?.bonusEffect);
         newState.units[newUnit.id] = newUnit;
         newState.civilizations[civId].units.push(newUnit.id);
       }
@@ -205,6 +205,18 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         ].filter(Boolean) as HexCoord[];
         applySharedVision(civ.visibility, mcPositions, newState.map);
       }
+    }
+
+    // Clear expired advisor disable timers after all start-of-turn effects are processed.
+    if (currentCivState.advisorDisabledUntil) {
+      const stillDisabled: Partial<Record<AdvisorType, number>> = {};
+      for (const [advisor, untilTurn] of Object.entries(currentCivState.advisorDisabledUntil)) {
+        if ((untilTurn as number) > newState.turn) {
+          stillDisabled[advisor as AdvisorType] = untilTurn as number;
+        }
+      }
+      newState.civilizations[civId].advisorDisabledUntil =
+        Object.keys(stillDisabled).length > 0 ? stillDisabled : undefined;
     }
   }
 

@@ -19,6 +19,17 @@ describe('createUnit', () => {
     expect(unit.movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints);
     expect(unit.health).toBe(100);
   });
+
+  it('applies a persistent viking movement bonus', () => {
+    const unit = createUnit(
+      'warrior',
+      'p1',
+      { q: 5, r: 5 },
+      { type: 'naval_raiding', movementBonus: 1, coastalVisionBonus: 1 },
+    );
+    expect(unit.movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints + 1);
+    expect(resetUnitTurn(unit).movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints + 1);
+  });
 });
 
 describe('getMovementRange', () => {

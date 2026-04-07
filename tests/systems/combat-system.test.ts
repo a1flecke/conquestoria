@@ -47,6 +47,26 @@ describe('resolveCombat', () => {
     expect(hillsResult.defenderDamage).toBeLessThan(plainsResult.defenderDamage);
   });
 
+  it('prydain homeland defense reduces damage on owned tiles', () => {
+    const plainsTile = Object.values(map.tiles).find(t => t.terrain === 'plains');
+    if (!plainsTile) return;
+
+    plainsTile.owner = 'p2';
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
+    const defender = createUnit('warrior', 'p2', plainsTile.coord);
+
+    const normal = resolveCombat({ ...attacker, health: 100 }, { ...defender, health: 100 }, map, 42);
+    const homeland = resolveCombat(
+      { ...attacker, health: 100 },
+      { ...defender, health: 100 },
+      map,
+      42,
+      { defenderBonus: { type: 'homeland_defense', defenseBonus: 0.2 } },
+    );
+
+    expect(homeland.defenderDamage).toBeLessThan(normal.defenderDamage);
+  });
+
   it('marks units as destroyed when health reaches 0', () => {
     const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
     attacker.health = 10;

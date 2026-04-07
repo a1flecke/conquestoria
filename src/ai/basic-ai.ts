@@ -25,6 +25,7 @@ import {
   assignSpy,
   startMission,
 } from '@/systems/espionage-system';
+import { getCityAppeaseCost } from '@/systems/faction-system';
 
 function getPersonality(civType: string): PersonalityTraits {
   const def = getCivDefinition(civType);
@@ -91,10 +92,20 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         const occupant = newState.units[occupantId];
         if (occupant && occupant.owner !== civId) {
           const isBarbarian = occupant.owner === 'barbarian';
+          const isRebel = occupant.owner === 'rebels';
           const atWar = civ.diplomacy?.atWarWith.includes(occupant.owner) ?? false;
-          if (!isBarbarian && !atWar) continue;
+          if (!isBarbarian && !isRebel && !atWar) continue;
           const seed = newState.turn * 16807 + unit.id.charCodeAt(0);
-          const result = resolveCombat(unit, occupant, newState.map, seed, undefined, newState.era);
+          const attackerBonus = getCivDefinition(civ.civType ?? '')?.bonusEffect;
+          const defenderBonus = getCivDefinition(newState.civilizations[occupant.owner]?.civType ?? '')?.bonusEffect;
+          const result = resolveCombat(
+            unit,
+            occupant,
+            newState.map,
+            seed,
+            { attackerBonus, defenderBonus },
+            newState.era,
+          );
           if (!result.attackerSurvived) {
             delete newState.units[unit.id];
             civ.units = civ.units.filter(id => id !== unit.id);
@@ -147,6 +158,22 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
   // --- Handle city production (personality-driven) ---
   const isUnderThreat = militaryUnits.length < civ.cities.length;
+  for (const cityId of civ.cities) {
+    const city = newState.cities[cityId];
+    if (!city || city.unrestLevel === 0) continue;
+
+    const appeaseCost = getCityAppeaseCost(city);
+    if (newState.civilizations[civId].gold >= appeaseCost) {
+      newState.civilizations[civId].gold -= appeaseCost;
+      newState.cities[cityId] = {
+        ...city,
+        spyUnrestBonus: 0,
+        unrestTurns: Math.max(0, city.unrestTurns - 2),
+        unrestLevel: city.unrestLevel === 2 ? 1 : city.unrestLevel,
+      };
+    }
+  }
+
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
     if (city && city.productionQueue.length === 0) {
@@ -308,7 +335,12 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       if (spy.status === 'stationed' && !spy.currentMission) {
         const mission = chooseAiMission(newState, civId);
         if (mission) {
-          newState.espionage![civId] = startMission(newState.espionage![civId], spy.id, mission);
+          newState.espionage![civId] = startMission(
+            newState.espionage![civId],
+            spy.id,
+            mission,
+            getCivDefinition(civ.civType ?? '')?.bonusEffect,
+          );
         }
       }
     }
@@ -376,10 +408,30 @@ export function chooseAiMission(
   const available = getAvailableMissions(civ.techState.completed);
   if (available.length === 0) return null;
 
-  const preferredOrder: SpyMissionType[] = [
-    'gather_intel', 'monitor_troops', 'monitor_diplomacy',
-    'identify_resources', 'scout_area',
-  ];
+  const personality = getPersonality(civ.civType ?? 'generic');
+  const traits = new Set(personality.traits);
+
+  let preferredOrder: SpyMissionType[];
+  if (traits.has('aggressive')) {
+    preferredOrder = [
+      'steal_tech', 'sabotage_production', 'arms_smuggling',
+      'incite_unrest', 'gather_intel', 'monitor_troops',
+      'monitor_diplomacy', 'identify_resources', 'scout_area',
+    ];
+  } else if (traits.has('diplomatic') || traits.has('trader')) {
+    preferredOrder = [
+      'forge_documents', 'incite_unrest', 'fund_rebels',
+      'gather_intel', 'monitor_diplomacy', 'identify_resources',
+      'monitor_troops', 'scout_area', 'steal_tech',
+    ];
+  } else {
+    preferredOrder = [
+      'gather_intel', 'monitor_diplomacy', 'identify_resources',
+      'monitor_troops', 'scout_area', 'steal_tech',
+      'sabotage_production', 'incite_unrest',
+    ];
+  }
+
   for (const mission of preferredOrder) {
     if (available.includes(mission)) return mission;
   }

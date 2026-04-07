@@ -117,6 +117,7 @@ export interface Unit {
   owner: string;             // civilization ID
   position: HexCoord;
   movementPointsLeft: number;
+  movementBonus?: number;    // civ-specific persistent bonus applied on turn reset
   health: number;            // 0-100
   experience: number;
   hasMoved: boolean;

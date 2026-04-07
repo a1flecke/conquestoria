@@ -3,12 +3,14 @@ import type {
   Spy, SpyMission, SpyMissionType, SpyStatus, SpyPromotion,
   EspionageCivState, EspionageState, HexCoord, GameState,
   DiplomacyState, Treaty, UnitType, AdvisorType,
+  CivBonusEffect,
 } from '../core/types';
 import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
 import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-system';
 import { createUnit } from './unit-system';
+import { getCivDefinition } from './civ-definitions';
 
 const SPY_NAMES = [
   'Shadow', 'Whisper', 'Ghost', 'Cipher', 'Raven',
@@ -241,12 +243,16 @@ export function startMission(
   state: EspionageCivState,
   spyId: string,
   missionType: SpyMissionType,
+  civBonusEffect?: CivBonusEffect,
 ): EspionageCivState {
   const spy = state.spies[spyId];
   if (!spy) throw new Error(`Spy ${spyId} not found`);
   if (spy.status !== 'stationed') throw new Error('Spy must be stationed to start a mission');
 
-  const duration = getMissionDuration(missionType);
+  let duration = getMissionDuration(missionType);
+  if (civBonusEffect?.type === 'espionage_growth') {
+    duration = Math.max(1, duration - 1);
+  }
   const mission: SpyMission = {
     type: missionType,
     turnsRemaining: duration,
@@ -328,6 +334,7 @@ export function checkAndApplyPromotion(
 export function processSpyTurn(
   state: EspionageCivState,
   seed: string,
+  xpMultiplier: number = 1,
 ): { state: EspionageCivState; events: SpyTurnEvent[] } {
   const rng = createRng(seed);
   let newState = { ...state, spies: { ...state.spies } };
@@ -370,7 +377,7 @@ export function processSpyTurn(
 
         if (roll < successChance) {
           // Success
-          updated.experience = Math.min(100, updated.experience + XP_PER_MISSION[mission.type]);
+          updated.experience = Math.min(100, updated.experience + Math.round(XP_PER_MISSION[mission.type] * xpMultiplier));
           updated.status = 'stationed';
           updated.currentMission = null;
           events.push({
@@ -556,7 +563,8 @@ export function resolveMissionResult(
     }
 
     case 'fund_rebels': {
-      // Always injects unrest pressure, even in stable cities
+      const targetCity = gameState.cities[targetCityId];
+      if (!targetCity || targetCity.unrestLevel === 0) return {};
       return { unrestInjected: 35 };
     }
 
@@ -693,7 +701,9 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
 
   for (const civId of Object.keys(state.espionage!)) {
     const civEspBefore: EspionageCivState = state.espionage![civId];
-    const spyTurnResult = processSpyTurn(civEspBefore, `${turnSeed}-${civId}`);
+    const civBonus = getCivDefinition(state.civilizations[civId]?.civType ?? '')?.bonusEffect;
+    const xpMultiplier = civBonus?.type === 'espionage_growth' ? 1 + civBonus.experienceBonus : 1;
+    const spyTurnResult = processSpyTurn(civEspBefore, `${turnSeed}-${civId}`, xpMultiplier);
     const updatedEsp = spyTurnResult.state;
     const events = spyTurnResult.events;
     state.espionage![civId] = updatedEsp;

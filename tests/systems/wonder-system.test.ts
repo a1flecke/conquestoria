@@ -112,6 +112,13 @@ describe('processWonderDiscovery', () => {
     processWonderDiscovery(state, 'player', 'aurora_fields'); // +40 science -> gold fallback
     expect(state.civilizations.player.gold).toBe(40);
   });
+
+  it('spain receives increased wonder discovery rewards', () => {
+    const state = makeGameState();
+    state.civilizations.player.civType = 'spain';
+    processWonderDiscovery(state, 'player', 'crystal_caverns');
+    expect(state.civilizations.player.gold).toBe(63);
+  });
 });
 
 describe('Wonder yields in calculateCityYields', () => {

@@ -289,27 +289,14 @@ describe('faction-system', () => {
     }
   });
 
-  it('resolves revolt once rebel pressure is gone and the city is garrisoned', () => {
+  it('resolves revolt once rebel pressure is gone and the city pressure drops', () => {
     const state = makeState({
-      cityCount: 21,
+      cityCount: 2,
       cityPosition: { q: 3, r: 3 },
       unrestLevel: 2,
       unrestTurns: 0,
       spyUnrestBonus: 0,
-      unitPositions: [{ q: 3, r: 3 }],
     });
-
-    state.map.tiles[hexKey({ q: 3, r: 3 })] = {
-      coord: { q: 3, r: 3 },
-      terrain: 'plains',
-      elevation: 'lowland',
-      resource: null,
-      improvement: 'none',
-      owner: 'player',
-      improvementTurnsLeft: 0,
-      hasRiver: false,
-      wonder: null,
-    };
 
     const events: string[] = [];
     bus.on('faction:unrest-resolved', payload => events.push(payload.cityId));
@@ -318,6 +305,22 @@ describe('faction-system', () => {
 
     expect(result.cities['city-1'].unrestLevel).toBe(0);
     expect(events).toEqual(['city-1']);
+  });
+
+  it('does not resolve revolt from a garrison alone while pressure remains high', () => {
+    const state = makeState({
+      cityCount: 21,
+      cityPosition: { q: 3, r: 3 },
+      unrestLevel: 2,
+      unrestTurns: 0,
+      spyUnrestBonus: 20,
+      atWarCount: 2,
+      unitPositions: [{ q: 3, r: 3 }],
+    });
+
+    const result = processFactionTurn(state, bus);
+
+    expect(result.cities['city-1'].unrestLevel).toBe(2);
   });
 
   it('clears conquestTurn after the unrest window expires', () => {

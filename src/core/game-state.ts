@@ -94,14 +94,14 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   // Create starting units
   const units: Record<string, Unit> = {};
 
-  const playerSettler = createUnit('settler', 'player', startPositions[0]);
-  const playerWarrior = createUnit('warrior', 'player', startPositions[0]);
+  const playerSettler = createUnit('settler', 'player', startPositions[0], playerCivDef?.bonusEffect);
+  const playerWarrior = createUnit('warrior', 'player', startPositions[0], playerCivDef?.bonusEffect);
   units[playerSettler.id] = playerSettler;
   units[playerWarrior.id] = playerWarrior;
   playerCiv.units = [playerSettler.id, playerWarrior.id];
 
-  const aiSettler = createUnit('settler', 'ai-1', startPositions[1]);
-  const aiWarrior = createUnit('warrior', 'ai-1', startPositions[1]);
+  const aiSettler = createUnit('settler', 'ai-1', startPositions[1], aiCivDef?.bonusEffect);
+  const aiWarrior = createUnit('warrior', 'ai-1', startPositions[1], aiCivDef?.bonusEffect);
   units[aiSettler.id] = aiSettler;
   units[aiWarrior.id] = aiWarrior;
   aiCiv.units = [aiSettler.id, aiWarrior.id];
@@ -204,8 +204,8 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
       diplomacy: createDiplomacyState(allSlotIds, player.slotId, startBonus),
     };
 
-    const settler = createUnit('settler', player.slotId, startPositions[i]);
-    const warrior = createUnit('warrior', player.slotId, startPositions[i]);
+    const settler = createUnit('settler', player.slotId, startPositions[i], civDef?.bonusEffect);
+    const warrior = createUnit('warrior', player.slotId, startPositions[i], civDef?.bonusEffect);
     units[settler.id] = settler;
     units[warrior.id] = warrior;
     civ.units = [settler.id, warrior.id];

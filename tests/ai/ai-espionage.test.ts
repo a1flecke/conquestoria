@@ -21,12 +21,14 @@ function makeAiTestState(): GameState {
         position: { q: 0, r: 0 }, population: 5, food: 0, foodNeeded: 20,
         buildings: [], productionQueue: [], productionProgress: 0,
         ownedTiles: [], grid: [[null]], gridSize: 3,
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
       },
       'city-egypt-1': {
         id: 'city-egypt-1', name: 'Thebes', owner: 'ai-egypt',
         position: { q: 5, r: 3 }, population: 5, food: 0, foodNeeded: 20,
         buildings: [], productionQueue: [], productionProgress: 0,
         ownedTiles: [], grid: [[null]], gridSize: 3,
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
       },
     },
     civilizations: {
@@ -36,7 +38,11 @@ function makeAiTestState(): GameState {
         cities: ['city-player-1'], units: [],
         techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
         gold: 100, visibility: { tiles: {} }, score: 50,
-        diplomacy: { relationships: { 'ai-egypt': -10 }, treaties: [], events: [], atWarWith: [] },
+        diplomacy: {
+          relationships: { 'ai-egypt': -10 }, treaties: [], events: [], atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 },
+        },
       },
       'ai-egypt': {
         id: 'ai-egypt', name: 'Egypt', color: '#c4a94d',
@@ -47,7 +53,11 @@ function makeAiTestState(): GameState {
           currentResearch: null, researchProgress: 0, trackPriorities: {} as any,
         },
         gold: 150, visibility: { tiles: {} }, score: 100,
-        diplomacy: { relationships: { player: -40 }, treaties: [], events: [], atWarWith: [] },
+        diplomacy: {
+          relationships: { player: -40 }, treaties: [], events: [], atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 },
+        },
       },
     },
     barbarianCamps: {},
@@ -126,6 +136,32 @@ describe('AI espionage decisions', () => {
       const state = makeAiTestState();
       const mission = chooseAiMission(state, 'ai-egypt');
       expect(mission).toBe('gather_intel');
+    });
+
+    it('aggressive civs prefer disruptive stage 3-4 missions', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin';
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting',
+        'espionage-informants',
+        'spy-networks',
+        'cryptography',
+      ];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(['steal_tech', 'sabotage_production', 'arms_smuggling']).toContain(mission);
+    });
+
+    it('diplomatic civs prefer influence and information missions', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'greece';
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting',
+        'espionage-informants',
+        'spy-networks',
+        'cryptography',
+      ];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(['forge_documents', 'incite_unrest', 'fund_rebels', 'monitor_diplomacy']).toContain(mission);
     });
 
     it('returns null with no espionage tech', () => {

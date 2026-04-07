@@ -148,8 +148,7 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
       const nearbyRebels = Object.values(state.units).filter(
         u => u.owner === 'rebels' && hexDistance(u.position, city.position) <= 3,
       );
-      const garrisoned = canGarrisonCity(cityId, state);
-      if (nearbyRebels.length === 0 && (pressure <= UNREST_TRIGGER_PRESSURE || garrisoned)) {
+      if (nearbyRebels.length === 0 && pressure <= UNREST_TRIGGER_PRESSURE) {
         updated = { ...updated, unrestLevel: 0, unrestTurns: 0 };
         state.cities[cityId] = updated;
         bus.emit('faction:unrest-resolved', { cityId, owner: city.owner });
