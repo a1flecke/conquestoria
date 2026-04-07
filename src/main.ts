@@ -34,6 +34,7 @@ import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
+import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
 import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
@@ -656,7 +657,16 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
   }
 
   const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
-  const result = resolveCombat(attacker, gameState.units[defenderId] ?? defender, gameState.map, seed, undefined, gameState.era);
+  const attackerBonus = getCivDefinition(currentCiv().civType ?? '')?.bonusEffect;
+  const defenderBonus = getCivDefinition(gameState.civilizations[defender.owner]?.civType ?? '')?.bonusEffect;
+  const result = resolveCombat(
+    attacker,
+    gameState.units[defenderId] ?? defender,
+    gameState.map,
+    seed,
+    { attackerBonus, defenderBonus },
+    gameState.era,
+  );
   bus.emit('combat:resolved', { result });
 
   if (!result.attackerSurvived) {
@@ -704,6 +714,10 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
       const capturingCiv = currentCiv();
       if (capturingCiv && !capturingCiv.cities.includes(cityAtTarget.id)) {
         capturingCiv.cities.push(cityAtTarget.id);
+      }
+      if (capturingCiv && attackerBonus?.type === 'naval_raiding') {
+        capturingCiv.gold += 30;
+        showNotification('Viking raid spoils! +30 gold', 'success');
       }
       showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
       gameState.cities[cityAtTarget.id] = {

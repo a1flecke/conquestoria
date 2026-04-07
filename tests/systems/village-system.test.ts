@@ -104,6 +104,20 @@ describe('visitVillage', () => {
     expect(state.civilizations.player.gold).toBeGreaterThan(goldBefore);
   });
 
+  it('spain receives increased village gold rewards', () => {
+    const state = makeGameState();
+    state.civilizations.player.civType = 'spain';
+    state.tribalVillages = {
+      'v1': { id: 'v1', position: { q: 5, r: 5 } },
+    };
+    const unit = Object.values(state.units).find(u => u.owner === 'player')!;
+    unit.position = { q: 5, r: 5 };
+    const goldBefore = state.civilizations.player.gold;
+
+    visitVillage(state, 'v1', unit, () => 0.1);
+    expect(state.civilizations.player.gold - goldBefore).toBeGreaterThan(25);
+  });
+
   it('illness outcome reduces unit HP (min 1)', () => {
     const state = makeGameState();
     state.tribalVillages = {

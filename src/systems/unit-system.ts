@@ -1,4 +1,4 @@
-import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap } from '@/core/types';
+import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, CivBonusEffect } from '@/core/types';
 import { hexKey, hexNeighbors, hexDistance } from './hex-utils';
 
 let nextUnitId = 1;
@@ -56,13 +56,25 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 };
 
-export function createUnit(type: UnitType, owner: string, position: HexCoord): Unit {
+const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
+
+export function createUnit(
+  type: UnitType,
+  owner: string,
+  position: HexCoord,
+  bonusEffect?: CivBonusEffect,
+): Unit {
+  const movementBonus =
+    bonusEffect?.type === 'naval_raiding' && VIKING_MOBILITY_UNITS.has(type)
+      ? bonusEffect.movementBonus
+      : 0;
   return {
     id: `unit-${nextUnitId++}`,
     type,
     owner,
     position: { ...position },
-    movementPointsLeft: UNIT_DEFINITIONS[type].movementPoints,
+    movementPointsLeft: UNIT_DEFINITIONS[type].movementPoints + movementBonus,
+    movementBonus: movementBonus || undefined,
     health: 100,
     experience: 0,
     hasMoved: false,
@@ -87,7 +99,7 @@ export function moveUnit(unit: Unit, to: HexCoord, cost: number): Unit {
 export function resetUnitTurn(unit: Unit): Unit {
   return {
     ...unit,
-    movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints,
+    movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0),
     hasMoved: false,
     hasActed: false,
     isResting: false,

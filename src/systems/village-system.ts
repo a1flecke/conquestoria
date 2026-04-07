@@ -74,17 +74,18 @@ export function visitVillage(
 
   const outcome = rollVillageOutcome(rng());
   const civ = state.civilizations[unit.owner];
+  const rewardMultiplier = civ?.civType === 'spain' ? 1.25 : 1;
   let message = '';
 
   switch (outcome) {
     case 'gold': {
-      const amount = 25 + Math.floor(rng() * 26); // 25-50
+      const amount = Math.round((25 + Math.floor(rng() * 26)) * rewardMultiplier); // 25-50
       if (civ) civ.gold += amount;
       message = `The villagers share their wealth! +${amount} gold.`;
       break;
     }
     case 'food': {
-      const amount = 15 + Math.floor(rng() * 16); // 15-30
+      const amount = Math.round((15 + Math.floor(rng() * 16)) * rewardMultiplier); // 15-30
       const citiesOwned = civ?.cities ?? [];
       let nearestCity = citiesOwned.length > 0 ? state.cities[citiesOwned[0]] : null;
       let nearestDist = Infinity;
@@ -103,22 +104,23 @@ export function visitVillage(
         message = `The villagers share food with ${nearestCity.name}! +${amount} food.`;
       } else {
         // Fallback: gold
-        const goldAmount = 25 + Math.floor(rng() * 26);
+        const goldAmount = Math.round((25 + Math.floor(rng() * 26)) * rewardMultiplier);
         if (civ) civ.gold += goldAmount;
         message = `The villagers share their wealth! +${goldAmount} gold.`;
       }
       break;
     }
     case 'science': {
-      const amount = 10 + Math.floor(rng() * 16); // 10-25
+      const amount = Math.round((10 + Math.floor(rng() * 16)) * rewardMultiplier); // 10-25
       if (civ?.techState.currentResearch) {
         const bonusResult = applyResearchBonus(civ.techState, amount);
         civ.techState = bonusResult.state;
         message = `The villagers share ancient knowledge! +${amount} research.`;
       } else {
         // Fallback: gold
-        if (civ) civ.gold += 25;
-        message = `The villagers share their wealth! +25 gold.`;
+        const fallbackGold = Math.round(25 * rewardMultiplier);
+        if (civ) civ.gold += fallbackGold;
+        message = `The villagers share their wealth! +${fallbackGold} gold.`;
       }
       break;
     }
@@ -146,8 +148,9 @@ export function visitVillage(
         message = `The villagers taught us ${tech.name}!`;
       } else {
         // Fallback: gold
-        civ.gold += 50;
-        message = `The villagers share their wealth! +50 gold.`;
+        const fallbackGold = Math.round(50 * rewardMultiplier);
+        civ.gold += fallbackGold;
+        message = `The villagers share their wealth! +${fallbackGold} gold.`;
       }
       break;
     }
