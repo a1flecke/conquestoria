@@ -5,7 +5,7 @@
 **Depends on:** Milestone 3 (complete), M3 bugfix pass (complete)
 **Goal:** Transform Conquestoria from a solid 4X foundation into a game with deep strategic layers — espionage, diplomatic power plays, empire instability, buildable wonders, and a full advisor council with real personality.
 
-**Note:** This spec expands M4's scope beyond the original master spec, which placed espionage stages 1-3 in M4 and stages 4-5 in M5. After design review, all 5 espionage stages are now in M4, delivered incrementally. The master spec's M4 and M5 sections should be updated to reflect this change. M5 can now focus on full tech depth (all 12 eras), underground/ocean layers, 120+ wonders, 4-player hot seat, and polish.
+**Note:** This spec expands M4's scope beyond the original master spec, which placed espionage stages 1-3 in M4 and stages 4-5 in M5. After design review, all 5 espionage stages are now in M4, delivered incrementally. The master spec's M4 and M5 sections should be updated to reflect this change. M4e now also absorbs the late-era tech tree expansion and the remaining legendary quest-wonder expansion needed to support the rest of M4's late-game content. M5 can now focus on underground/ocean layers, 120+ wonders beyond the M4 buildable set, 4-player hot seat, and broader full-experience polish.
 
 ---
 
@@ -18,8 +18,8 @@ M4 is delivered as five sub-milestones. Each is independently playable — no st
 | **4a** | Eyes & Ears | Espionage stages 1-2, Spymaster advisor | France, Germany, Gondor, Rohan | Terrain readability |
 | **4b** | Power & Influence | Vassalage/betrayal/embargoes, simple wonders (15-20) | Russia, Ottoman, Shire, Isengard | Combat tutorial |
 | **4c** | Shadow Wars | Espionage stages 3-4, breakaway factions (unrest + revolt) | Spain, Viking, Prydain, Annuvin | Icon legend |
-| **4d** | Grand Ambitions | Espionage stage 5, quest wonders (15-20), full breakaway, Artisan advisor | Lothlórien, Narnia, Atlantis | — |
-| **4e** | The Council | Advisor lobbying/disagreements, auto-explore, custom civs, desktop UI | Wakanda, Avalon, custom civ | Desktop UI, balance pass |
+| **4d** | Grand Ambitions | Espionage stage 5, 4 flagship quest wonders, full breakaway, Artisan advisor | Lothlórien, Narnia, Atlantis | — |
+| **4e** | The Council | Remaining quest-wonder expansion, late-era tech tree expansion, advisor lobbying/disagreements, auto-explore, custom civs, desktop UI | Wakanda, Avalon, custom civ | Desktop UI, balance pass |
 
 ---
 
@@ -562,15 +562,18 @@ The following features from the master game design spec are explicitly deferred 
 - 4 new civs (Spain, Viking, Prydain, Annuvin) playable
 
 ### M4d — "Grand Ambitions"
-- Digital warfare missions functional (cyber attack, misinformation, satellite surveillance)
-- Double agent mechanic working
-- 15+ quest wonders with multi-stage construction
+- Digital warfare missions functional (cyber attack, misinformation, election-interference stability penalty, satellite surveillance)
+- Double agent and verify-agent mechanics working
+- Espionage panel shows mission success preview and a threat board for detected foreign spy activity
+- 4 flagship quest wonders with full multi-stage construction
 - Revolting cities can fully break away into independent mini-civs
 - Breakaway factions participate in diplomacy
 - Artisan advisor appears and provides wonder/culture guidance
 - 3 new civs (Lothlórien, Narnia, Atlantis) playable
 
 ### M4e — "The Council"
+- Late-era tech tree expansion is complete for the remaining M4 late-game systems and wonder catalog
+- Remaining legendary quest wonders from the M4 catalog are playable
 - All 8 advisors have persistent memory of recommendations
 - Advisor disagreements trigger on high-stakes decisions (1-2 per era)
 - "I told you so" callback messages work

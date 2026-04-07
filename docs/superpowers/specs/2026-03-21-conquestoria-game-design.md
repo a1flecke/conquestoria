@@ -727,21 +727,15 @@ Advisors narrate the guided tutorial, handing off naturally as systems are intro
 - Hot seat (2 player)
 
 ### Milestone 4 — "Deep Strategy"
-- Full espionage network (all 5 stages: scouts → informants → spy rings → shadow ops → digital warfare)
-- Diplomacy expansion (vassals, betrayal reputation, embargoes, defensive leagues)
-- Breakaway factions with guerrilla mechanics (unrest → revolt → full breakaway)
-- 30-40 buildable wonders (simple tier + legendary quest wonders) plus existing 15 natural = 45-55 total
-- All 8 advisors with lobbying memory and disagreements
-- All 29 civs (17 new: 6 historical + 11 fantasy) + custom civ creation
-- Desktop UI enhancements (keyboard shortcuts, right-click, tooltips)
-- Terrain readability — labels or texture patterns so terrain type is visible without tapping (#2)
-- Combat onboarding — advisor-driven guidance for new players on how combat works (#4)
-- Map icon legend — tooltips or legend for wonder stars, village tents, and other map icons (#5)
-- Auto-explore mode — let scouts and units auto-explore toward fog of war (#10)
+- M4 is split into five explicit sub-milestones:
+- `M4a — Eyes & Ears`: espionage stages 1-2, Spymaster advisor, terrain readability
+- `M4b — Power & Influence`: diplomacy expansion, simple wonders, combat onboarding
+- `M4c — Shadow Wars`: espionage stages 3-4, unrest/revolt, icon legend
+- `M4d — Grand Ambitions`: full breakaway, 4 flagship legendary quest wonders, Stage 5 espionage, Artisan advisor, Lothlorien/Narnia/Atlantis
+- `M4e — The Council`: remaining legendary quest wonder expansion, late-era tech tree expansion needed for the remaining late-game content, advisor lobbying/disagreements, auto-explore, custom civs, desktop UI, balance/UX pass, Wakanda/Avalon
 - See detailed spec: `docs/superpowers/specs/2026-03-29-milestone4-deep-strategy-design.md`
 
 ### Milestone 5 — "The Full Experience"
-- All 12 eras, full tech depth
 - Underground and deep ocean layers
 - 120+ wonders (expand beyond M4's buildable set)
 - Full adaptive music system
