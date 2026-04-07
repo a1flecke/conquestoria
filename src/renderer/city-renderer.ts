@@ -85,7 +85,7 @@ export function drawCities(
       ctx.font = `${size * 0.28}px system-ui`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(city.unrestLevel === 2 ? '🔥' : '⚠️', screen.x + size * 0.45, screen.y - size * 0.45);
+      ctx.fillText(city.unrestLevel === 2 ? '🔥' : '⚡', screen.x + size * 0.45, screen.y - size * 0.45);
     }
   }
 }

@@ -1,7 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { getCityRenderData } from '@/renderer/city-renderer';
+import type { Camera } from '@/renderer/camera';
+import { drawCities, getCityRenderData } from '@/renderer/city-renderer';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+
+class MockCanvasContext {
+  fillTextCalls: Array<{ text: string; x: number; y: number }> = [];
+  fillStyle = '';
+  strokeStyle = '';
+  lineWidth = 0;
+  font = '';
+  textAlign: CanvasTextAlign = 'start';
+  textBaseline: CanvasTextBaseline = 'alphabetic';
+
+  beginPath(): void {}
+  arc(): void {}
+  fill(): void {}
+  stroke(): void {}
+  fillText(text: string, x: number, y: number): void {
+    this.fillTextCalls.push({ text, x, y });
+  }
+}
 
 describe('city renderer', () => {
   it('returns only minor civ cities on fresh game', () => {
@@ -60,5 +79,37 @@ describe('city renderer', () => {
     const data = getCityRenderData(state);
     const playerCity = data.find(d => d.owner === 'player');
     expect(playerCity?.unrestLevel).toBe(2);
+  });
+
+  it('renders a lightning icon for unrest and fire for revolt', () => {
+    const state = createNewGame(undefined, 'city-render-test');
+    const vis = state.civilizations.player.visibility.tiles;
+    const playerSettler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const playerCity = foundCity('player', playerSettler.position, state.map);
+    playerCity.unrestLevel = 1;
+    state.cities[playerCity.id] = playerCity;
+    state.civilizations.player.cities.push(playerCity.id);
+    vis[`${playerCity.position.q},${playerCity.position.r}`] = 'visible';
+
+    const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
+    const revoltCity = foundCity('ai-1', aiSettler.position, state.map);
+    revoltCity.unrestLevel = 2;
+    state.cities[revoltCity.id] = revoltCity;
+    state.civilizations['ai-1'].cities.push(revoltCity.id);
+    vis[`${revoltCity.position.q},${revoltCity.position.r}`] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const camera = {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    drawCities(ctx, state, camera, 'player');
+
+    const overlayTexts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(overlayTexts).toContain('⚡');
+    expect(overlayTexts).toContain('🔥');
   });
 });

@@ -21,6 +21,7 @@ import { SFX } from '@/audio/sfx';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
+import { createEspionagePanel } from '@/ui/espionage-panel';
 import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import { declareWar, makePeace, proposeTreaty, modifyRelationship } from '@/systems/diplomacy-system';
@@ -74,6 +75,7 @@ function createUI(): void {
 
   bottomBar.appendChild(createButton('Tech', '🔬', () => togglePanel('tech')));
   bottomBar.appendChild(createButton('City', '🏛️', () => togglePanel('city')));
+  bottomBar.appendChild(createButton('Intel', '🕵️', () => togglePanel('espionage')));
   bottomBar.appendChild(createButton('Diplo', '🤝', () => togglePanel('diplomacy')));
   bottomBar.appendChild(createButton('Trade', '💰', () => togglePanel('marketplace')));
   bottomBar.appendChild(endTurnBtn);
@@ -418,6 +420,7 @@ function togglePanel(panel: string): void {
   // Remove any existing panel
   document.getElementById('tech-panel')?.remove();
   document.getElementById('city-panel')?.remove();
+  document.getElementById('espionage-panel')?.remove();
   document.getElementById('diplomacy-panel')?.remove();
   document.getElementById('marketplace-panel')?.remove();
 
@@ -457,6 +460,8 @@ function togglePanel(panel: string): void {
       },
       onClose: () => {},
     });
+  } else if (panel === 'espionage') {
+    uiLayer.appendChild(createEspionagePanel(gameState));
   } else if (panel === 'diplomacy') {
     createDiplomacyPanel(uiLayer, gameState, {
       onAction: handleDiplomaticAction,
