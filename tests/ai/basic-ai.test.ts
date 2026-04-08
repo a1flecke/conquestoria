@@ -407,6 +407,180 @@ function makeAiBreakawayState(): GameState {
   } as GameState;
 }
 
+function makeLegendaryWonderAiFixture(): GameState {
+  return {
+    turn: 40,
+    era: 4,
+    currentPlayer: 'ai-1',
+    gameOver: false,
+    winner: null,
+    map: {
+      width: 8,
+      height: 8,
+      tiles: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: 'ai-1',
+          improvementTurnsLeft: 0,
+          hasRiver: true,
+          wonder: null,
+        },
+        '4,0': {
+          coord: { q: 4, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: 'player',
+          improvementTurnsLeft: 0,
+          hasRiver: true,
+          wonder: null,
+        },
+      },
+      wrapsHorizontally: false,
+      rivers: [],
+    },
+    units: {},
+    cities: {
+      'city-ai': {
+        id: 'city-ai',
+        name: 'Capital',
+        owner: 'ai-1',
+        position: { q: 0, r: 0 },
+        population: 5,
+        food: 0,
+        foodNeeded: 20,
+        buildings: [],
+        productionQueue: ['legendary:grand-canal'],
+        productionProgress: 40,
+        ownedTiles: [{ q: 0, r: 0 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+      'city-player': {
+        id: 'city-player',
+        name: 'Rival',
+        owner: 'player',
+        position: { q: 4, r: 0 },
+        population: 5,
+        food: 0,
+        foodNeeded: 20,
+        buildings: [],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 4, r: 0 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+    },
+    civilizations: {
+      'ai-1': {
+        id: 'ai-1',
+        name: 'AI',
+        color: '#d94a4a',
+        isHuman: false,
+        civType: 'rome',
+        cities: ['city-ai'],
+        units: [],
+        techState: { completed: ['city-planning', 'printing'], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+        gold: 100,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: {
+          relationships: { player: -10 },
+          treaties: [],
+          events: [],
+          atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 },
+        },
+      },
+      player: {
+        id: 'player',
+        name: 'Player',
+        color: '#4a90d9',
+        isHuman: true,
+        civType: 'egypt',
+        cities: ['city-player'],
+        units: [],
+        techState: { completed: ['city-planning', 'printing'], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+        gold: 100,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: {
+          relationships: { 'ai-1': -10 },
+          treaties: [],
+          events: [],
+          atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 },
+        },
+      },
+    },
+    barbarianCamps: {},
+    minorCivs: {},
+    tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+    settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any },
+    tribalVillages: {},
+    discoveredWonders: {},
+    wonderDiscoverers: {},
+    embargoes: [],
+    defensiveLeagues: [],
+    espionage: {
+      'ai-1': {
+        spies: {
+          'spy-ai-1': {
+            id: 'spy-ai-1',
+            owner: 'ai-1',
+            name: 'Agent Cipher',
+            targetCivId: 'player',
+            targetCityId: 'city-player',
+            position: { q: 4, r: 0 },
+            status: 'stationed',
+            experience: 0,
+            currentMission: null,
+            cooldownTurns: 0,
+            promotionAvailable: false,
+          },
+        },
+        maxSpies: 1,
+        counterIntelligence: {},
+      },
+      player: createEspionageCivState(),
+    },
+    legendaryWonderProjects: {
+      'grand-canal': {
+        wonderId: 'grand-canal',
+        ownerId: 'ai-1',
+        cityId: 'city-ai',
+        phase: 'building',
+        investedProduction: 40,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+      'grand-canal-rival': {
+        wonderId: 'grand-canal',
+        ownerId: 'player',
+        cityId: 'city-player',
+        phase: 'building',
+        investedProduction: 180,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    },
+  } as GameState;
+}
+
 describe('processAITurn', () => {
   it('does not throw on a fresh game', () => {
     const state = createNewGame(undefined, 'ai-test');
@@ -463,5 +637,16 @@ describe('processAITurn', () => {
 
     expect(newState.civilizations['ai-1'].diplomacy.atWarWith).toContain('breakaway-city-border');
     expect(newState.civilizations['breakaway-city-border'].diplomacy.atWarWith).toContain('ai-1');
+  });
+
+  it('abandons a legendary wonder race when a rival is far ahead and reuses the carryover in the same city', () => {
+    const state = makeLegendaryWonderAiFixture();
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.legendaryWonderProjects!['grand-canal'].phase).toBe('lost_race');
+    expect(result.cities['city-ai'].productionQueue[0]).toBe('granary');
+    expect(result.cities['city-ai'].productionProgress).toBeGreaterThan(0);
   });
 });

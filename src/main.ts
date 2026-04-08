@@ -11,6 +11,7 @@ import { foundCity } from '@/systems/city-system';
 import { startResearch } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
+import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { updateVisibility, isVisible, getVisibility } from '@/systems/fog-of-war';
@@ -38,6 +39,7 @@ import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-s
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import { startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
 // --- App State ---
@@ -419,6 +421,21 @@ function togglePanel(panel: string): void {
           renderLoop.setGameState(gameState);
           showNotification(`${targetCity.name}: building ${itemId}`, 'info');
         }
+      },
+      onOpenWonderPanel: (selectedCityId) => {
+        createWonderPanel(uiLayer, gameState, selectedCityId, {
+          onStartBuild: (buildCityId, wonderId) => {
+            const targetCity = gameState.cities[buildCityId];
+            if (targetCity) {
+              gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId);
+              targetCity.productionQueue = [`legendary:${wonderId}`];
+              targetCity.productionProgress = 0;
+              renderLoop.setGameState(gameState);
+              showNotification(`${targetCity.name}: preparing ${wonderId}`, 'info');
+            }
+          },
+          onClose: () => {},
+        });
       },
       onClose: () => {},
     });

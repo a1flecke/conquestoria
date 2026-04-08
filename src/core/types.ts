@@ -55,6 +55,36 @@ export interface WonderDefinition {
   validTerrain: TerrainType[];
 }
 
+export interface LegendaryWonderStep {
+  id: string;
+  description: string;
+  completed: boolean;
+}
+
+export interface LegendaryWonderDefinition {
+  id: string;
+  name: string;
+  era: number;
+  productionCost: number;
+  requiredTechs: string[];
+  requiredResources: string[];
+  cityRequirement: 'river' | 'coastal' | 'any';
+  questSteps: Array<{
+    id: string;
+    type: 'discover_wonder' | 'trade_route' | 'research_count' | 'defeat_stronghold';
+  }>;
+}
+
+export interface LegendaryWonderProject {
+  wonderId: string;
+  ownerId: string;
+  cityId: string;
+  phase: 'locked' | 'questing' | 'ready_to_build' | 'building' | 'completed' | 'lost_race';
+  investedProduction: number;
+  transferableProduction: number;
+  questSteps: LegendaryWonderStep[];
+}
+
 // --- Tribal Villages ---
 
 export type VillageOutcomeType = 'gold' | 'food' | 'science' | 'free_unit' | 'free_tech' | 'ambush' | 'illness';
@@ -583,6 +613,7 @@ export interface GameState {
   tribalVillages: Record<string, TribalVillage>;
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
+  legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
   espionage?: EspionageState;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];

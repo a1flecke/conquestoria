@@ -5,6 +5,7 @@ import { createCityGrid } from './city-grid';
 
 export interface CityPanelCallbacks {
   onBuild: (cityId: string, itemId: string) => void;
+  onOpenWonderPanel: (cityId: string) => void;
   onClose: () => void;
 }
 
@@ -20,6 +21,7 @@ export function createCityPanel(
 
   const yields = calculateCityYields(city, state.map);
   const availableBuildings = getAvailableBuildings(city, state.civilizations[state.currentPlayer].techState.completed);
+  const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
 
   // Build placeholders for dynamic data; style attributes with pure numbers (progress%) are safe
   let buildingPlaceholders = '';
@@ -102,9 +104,11 @@ export function createCityPanel(
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">List</div>
       <div id="tab-grid" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Grid</div>
+      <div id="tab-wonders" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Legendary Wonders</div>
     </div>
     <div id="city-list-view">
       ${currentProductionHtml}
+      ${cityWonderProject ? `<div style="margin-bottom:12px;font-size:12px;opacity:0.75;">Wonder carryover: ${cityWonderProject.transferableProduction}</div>` : ''}
       ${city.buildings.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>${buildingPlaceholders}</div>` : ''}
       <div><h3 style="font-size:14px;margin:0 0 8px;">Build</h3>
         ${buildItemPlaceholders}
@@ -177,6 +181,7 @@ export function createCityPanel(
   // Tab switching
   const listTab = panel.querySelector('#tab-list') as HTMLElement;
   const gridTab = panel.querySelector('#tab-grid') as HTMLElement;
+  const wondersTab = panel.querySelector('#tab-wonders') as HTMLElement;
   const listView = panel.querySelector('#city-list-view') as HTMLElement;
   const gridView = panel.querySelector('#city-grid-view') as HTMLElement;
 
@@ -203,6 +208,11 @@ export function createCityPanel(
         onClose: callbacks.onClose,
       });
     }
+  });
+
+  wondersTab?.addEventListener('click', () => {
+    callbacks.onOpenWonderPanel(city.id);
+    panel.remove();
   });
 
   return panel;
