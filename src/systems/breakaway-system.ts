@@ -34,8 +34,14 @@ export function createBreakawayFromCity(
     status: 'secession',
   };
 
-  const transferredUnitIds = previousOwner.units.filter(unitId => state.units[unitId]?.position.q === city.position.q
-    && state.units[unitId]?.position.r === city.position.r);
+  const cityTerritory = new Set(city.ownedTiles.map(coord => `${coord.q},${coord.r}`));
+  const transferredUnitIds = previousOwner.units.filter(unitId => {
+    const unit = state.units[unitId];
+    if (!unit) {
+      return false;
+    }
+    return cityTerritory.has(`${unit.position.q},${unit.position.r}`);
+  });
 
   const updatedUnits = { ...state.units };
   for (const unitId of transferredUnitIds) {
@@ -51,6 +57,18 @@ export function createBreakawayFromCity(
     unrestLevel: 0 as const,
     unrestTurns: 0,
   };
+
+  const updatedMapTiles = { ...state.map.tiles };
+  for (const coord of city.ownedTiles) {
+    const key = `${coord.q},${coord.r}`;
+    const tile = updatedMapTiles[key];
+    if (tile) {
+      updatedMapTiles[key] = {
+        ...tile,
+        owner: breakawayId,
+      };
+    }
+  }
 
   const newCivIds = [...Object.keys(state.civilizations), breakawayId];
   const breakawayCiv: Civilization = {
@@ -93,6 +111,10 @@ export function createBreakawayFromCity(
   const nextState: GameState = {
     ...state,
     units: updatedUnits,
+    map: {
+      ...state.map,
+      tiles: updatedMapTiles,
+    },
     cities: {
       ...state.cities,
       [cityId]: updatedCity,
@@ -155,6 +177,9 @@ export function tryReabsorbBreakaway(
   if (!owner || !breakaway?.breakaway) {
     throw new Error('Breakaway civilization not found');
   }
+  if (breakaway.breakaway.originOwnerId !== ownerId) {
+    throw new Error('Only the origin owner can reabsorb this breakaway');
+  }
 
   const relationship = owner.diplomacy.relationships[breakawayId] ?? 0;
   if (relationship < REABSORB_RELATIONSHIP_MINIMUM) {
@@ -172,10 +197,12 @@ export function tryReabsorbBreakaway(
 
   const updatedCivilizations = { ...state.civilizations };
   delete updatedCivilizations[breakawayId];
+  const transferredUnitIds = breakaway.units.filter(unitId => state.units[unitId] !== undefined);
   updatedCivilizations[ownerId] = {
     ...owner,
     gold: owner.gold - REABSORB_GOLD_COST,
     cities: owner.cities.includes(cityId) ? owner.cities : [...owner.cities, cityId],
+    units: [...owner.units, ...transferredUnitIds.filter(unitId => !owner.units.includes(unitId))],
     diplomacy: {
       ...owner.diplomacy,
       relationships: {
@@ -198,8 +225,33 @@ export function tryReabsorbBreakaway(
     }
   }
 
+  const updatedUnits = { ...state.units };
+  for (const unitId of transferredUnitIds) {
+    updatedUnits[unitId] = {
+      ...updatedUnits[unitId],
+      owner: ownerId,
+    };
+  }
+
+  const updatedMapTiles = { ...state.map.tiles };
+  for (const coord of city.ownedTiles) {
+    const key = `${coord.q},${coord.r}`;
+    const tile = updatedMapTiles[key];
+    if (tile) {
+      updatedMapTiles[key] = {
+        ...tile,
+        owner: ownerId,
+      };
+    }
+  }
+
   return {
     ...state,
+    units: updatedUnits,
+    map: {
+      ...state.map,
+      tiles: updatedMapTiles,
+    },
     cities: {
       ...state.cities,
       [cityId]: {
@@ -233,8 +285,24 @@ export function reconquerBreakawayCity(
     unrestTurns: 0,
   };
 
+  const updatedMapTiles = { ...state.map.tiles };
+  for (const coord of city.ownedTiles) {
+    const key = `${coord.q},${coord.r}`;
+    const tile = updatedMapTiles[key];
+    if (tile) {
+      updatedMapTiles[key] = {
+        ...tile,
+        owner: ownerId,
+      };
+    }
+  }
+
   return {
     ...state,
+    map: {
+      ...state.map,
+      tiles: updatedMapTiles,
+    },
     cities: {
       ...state.cities,
       [cityId]: updatedCity,

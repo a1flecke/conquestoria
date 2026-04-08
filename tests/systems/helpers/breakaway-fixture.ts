@@ -60,6 +60,7 @@ export function makeBreakawayFixture({
   gold = 250,
   breakawayStartedTurn,
   established = false,
+  includeThirdCiv = false,
 }: {
   turn?: number;
   unrestLevel?: 0 | 1 | 2;
@@ -68,19 +69,23 @@ export function makeBreakawayFixture({
   gold?: number;
   breakawayStartedTurn?: number;
   established?: boolean;
+  includeThirdCiv?: boolean;
 } = {}): { state: GameState; breakawayId: string; cityId: string } {
   const playerId = 'player';
   const breakawayId = 'breakaway-city-border';
   const cityId = 'city-border';
   const capitalId = 'city-capital';
+  const outsiderId = 'outsider';
 
   const capital = makeCity(capitalId, playerId, { q: 0, r: 0 });
   const city = makeCity(cityId, breakawayStartedTurn === undefined ? playerId : breakawayId, { q: 4, r: 0 }, {
+    ownedTiles: [{ q: 4, r: 0 }, { q: 4, r: 1 }],
     unrestLevel,
     unrestTurns,
   });
 
-  const playerUnit = makeUnit('unit-player', playerId, { q: 3, r: 0 });
+  const playerUnit = makeUnit('unit-player', playerId, { q: 4, r: 1 });
+  const playerCapitalUnit = makeUnit('unit-player-capital', playerId, { q: 3, r: 0 });
   const breakawayUnit = makeUnit('unit-breakaway', breakawayId, { q: 4, r: 1 });
 
   const state: GameState = {
@@ -103,6 +108,7 @@ export function makeBreakawayFixture({
     },
     units: {
       [playerUnit.id]: playerUnit,
+      [playerCapitalUnit.id]: playerCapitalUnit,
       ...(breakawayStartedTurn !== undefined ? { [breakawayUnit.id]: breakawayUnit } : {}),
     },
     cities: {
@@ -117,7 +123,7 @@ export function makeBreakawayFixture({
         isHuman: true,
         civType: 'egypt',
         cities: [capitalId],
-        units: [playerUnit.id],
+        units: [playerUnit.id, playerCapitalUnit.id],
         techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
         gold,
         visibility: { tiles: {} },
@@ -147,6 +153,22 @@ export function makeBreakawayFixture({
           },
         },
       } : {}),
+      ...(includeThirdCiv ? {
+        [outsiderId]: {
+          id: outsiderId,
+          name: 'Outsider',
+          color: '#22c55e',
+          isHuman: false,
+          civType: 'rome',
+          cities: [],
+          units: [],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+          gold: 500,
+          visibility: { tiles: {} },
+          score: 0,
+          diplomacy: createDiplomacyState([playerId, breakawayId, outsiderId], outsiderId),
+        },
+      } : {}),
     },
     barbarianCamps: {},
     minorCivs: {},
@@ -170,6 +192,12 @@ export function makeBreakawayFixture({
   state.civilizations[playerId].diplomacy.relationships[breakawayId] = relationship;
   if (state.civilizations[breakawayId]) {
     state.civilizations[breakawayId].diplomacy.relationships[playerId] = relationship;
+  }
+  if (includeThirdCiv) {
+    state.civilizations[outsiderId].diplomacy.relationships[breakawayId] = relationship;
+    if (state.civilizations[breakawayId]) {
+      state.civilizations[breakawayId].diplomacy.relationships[outsiderId] = relationship;
+    }
   }
 
   return { state, breakawayId, cityId };

@@ -173,5 +173,18 @@ describe('diplomacy-system', () => {
       expect(result.civilizations[breakawayId]).toBeUndefined();
       expect(result.civilizations.player.gold).toBe(50);
     });
+
+    it('rejects direct reabsorb actions from non-origin owners', () => {
+      const { state, breakawayId } = makeBreakawayFixture({
+        breakawayStartedTurn: 12,
+        relationship: 70,
+        gold: 250,
+        includeThirdCiv: true,
+      });
+      const bus = new EventBus();
+
+      expect(() => applyDiplomaticAction(state, 'outsider', breakawayId, 'reabsorb_breakaway', bus))
+        .toThrow(/origin owner/i);
+    });
   });
 });
