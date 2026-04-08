@@ -256,6 +256,39 @@ Slice 1 must make quest origin legible:
 - own-city and city-state quest affordances must not blur together
 - if a quest is invalid, impossible, or misattributed, the system should not present it
 
+### 4.10 Council Privacy Model
+
+The Council must never act as an information leak.
+
+This is a hard milestone rule:
+
+- The Council may only speak from information the current player is legitimately allowed to know
+- It must not reveal unmet civilizations
+- It must not reveal undiscovered cities
+- It must not reveal hidden city-state names before discovery
+- It must not reveal espionage, map, or strategic information the player has not actually earned
+
+Allowed guidance examples:
+
+- `A foreign civilization has been encountered` if the civ is legitimately met but city details remain unknown
+- `A nearby foreign city may be worth watching` only if that city has actually been discovered
+- `Your western frontier looks vulnerable` if that conclusion can be drawn from player-visible state
+
+Forbidden guidance examples:
+
+- naming Rome before Rome is discovered
+- naming a city-state before its city tile is discovered
+- recommending action against a civ the player has not met
+- citing exact spy activity, city names, yields, or diplomatic facts the player has not learned
+
+When the Council needs to guide the player through uncertainty, it must do so honestly:
+
+- use generic labels such as `foreign city`, `unknown civilization`, or `city-state`
+- speak in uncertainty terms when appropriate
+- prefer omission over leaking hidden specifics
+
+The Council should feel clever, not psychic.
+
 ---
 
 ## 5. Slice 2 - Smoother Turns
@@ -460,7 +493,9 @@ M4e must preserve these standards across all slices:
    If the game recommends something, it should explain why.
 5. **No privacy regressions**
    Discovery, contact, and city-state privacy rules from the hotfix milestone remain authoritative.
-6. **Playable slices only**
+6. **Council is not omniscient**
+   The Council must obey the same information boundaries as the current player and current hot-seat viewer.
+7. **Playable slices only**
    No “future slice required to make this usable” UI promises.
 
 ---
@@ -482,6 +517,14 @@ M4e also requires stronger acceptance-style coverage than earlier milestones in 
    The Council and related UX systems need tests that prove the player sees actionable information, not just that strings exist.
 2. **No-friction regressions**
    Auto-explore, setup flow, tech-tree redesign, and desktop affordances need tests that reflect actual user flows rather than only helper-level behavior.
+
+It also requires explicit privacy regression coverage for the Council:
+
+- unmet-civ recommendations do not reveal civ identity
+- undiscovered-city recommendations do not reveal city names
+- undiscovered city-state recommendations use generic labels
+- hot-seat Council output is formatted from `state.currentPlayer`, not another player’s knowledge
+- advisor memory and callbacks never “remember” facts the current player was not allowed to know
 
 The milestone plan must explicitly call out file ownership, UI test realism, regression risk areas, and vertical-slice release gates.
 
@@ -541,3 +584,4 @@ M4e is complete only when all of the following are true:
 10. Naming integrity is fixed across fantasy, major, and minor civilization city naming.
 11. All explicitly assigned M4e issues are resolved.
 12. Every slice lands as a complete, mergeable, playable value drop.
+13. The Council never leaks hidden cities, unmet civilizations, undiscovered city-states, or any other player-invisible information.
