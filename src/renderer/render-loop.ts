@@ -116,7 +116,7 @@ export class RenderLoop {
     // Draw movement/attack highlights (behind units and cities)
     for (const highlight of this.highlights) {
       const renderCoords = this.state.map.wrapsHorizontally
-        ? getHorizontalWrapRenderCoords(highlight.coord, this.state.map.width)
+        ? getHorizontalWrapRenderCoords(highlight.coord, this.state.map.width, this.camera)
         : [highlight.coord];
 
       for (const renderCoord of renderCoords) {

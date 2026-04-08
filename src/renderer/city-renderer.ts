@@ -56,7 +56,7 @@ export function drawCities(
     const breakaway = state.civilizations[city.owner]?.breakaway;
 
     const renderCoords = state.map.wrapsHorizontally
-      ? getHorizontalWrapRenderCoords(city.position, state.map.width)
+      ? getHorizontalWrapRenderCoords(city.position, state.map.width, camera)
       : [city.position];
 
     for (const renderCoord of renderCoords) {

@@ -36,7 +36,7 @@ export function drawUnits(
     const ownerColor = colorLookup?.[unit.owner] ?? OWNER_COLORS[unit.owner] ?? '#888';
 
     const renderCoords = state.map.wrapsHorizontally
-      ? getHorizontalWrapRenderCoords(unit.position, state.map.width)
+      ? getHorizontalWrapRenderCoords(unit.position, state.map.width, camera)
       : [unit.position];
 
     for (const renderCoord of renderCoords) {

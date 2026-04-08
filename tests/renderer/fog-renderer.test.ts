@@ -64,4 +64,18 @@ describe('drawFogOfWar', () => {
     expect(ctx.fill).toHaveBeenCalled();
     expect((ctx.moveTo as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(6);
   });
+
+  it('renders multiple wrapped fog copies when a wide low-zoom viewport spans repeated map columns', () => {
+    const map = createWrappedMap(5, 3);
+    const visibility = createVisibility(map);
+    const ctx = createContext();
+    const camera = new Camera();
+    camera.setViewport(1200, 240);
+    camera.zoom = 0.3;
+    camera.centerOn({ q: 5, r: 1 });
+
+    drawFogOfWar(ctx, visibility, map.width, map.height, camera, map.wrapsHorizontally);
+
+    expect((ctx.fill as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(map.width * map.height);
+  });
 });

@@ -21,7 +21,7 @@ export function drawFogOfWar(
       if (vis === 'visible') continue; // No overlay needed
 
       const renderCoords = wrapsHorizontally
-        ? getHorizontalWrapRenderCoords(coord, mapWidth)
+        ? getHorizontalWrapRenderCoords(coord, mapWidth, camera)
         : [coord];
 
       for (const renderCoord of renderCoords) {

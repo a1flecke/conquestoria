@@ -78,7 +78,7 @@ export function drawHexMap(
 
   for (const tile of Object.values(map.tiles)) {
     const renderCoords = map.wrapsHorizontally
-      ? getHorizontalWrapRenderCoords(tile.coord, map.width)
+      ? getHorizontalWrapRenderCoords(tile.coord, map.width, camera)
       : [tile.coord];
     const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
 
@@ -281,7 +281,7 @@ export function drawMinorCivTerritory(
   const hexes = hexesInRange(center, 2);
   for (const hex of hexes) {
     const renderCoords = wrapsHorizontally && mapWidth
-      ? getHorizontalWrapRenderCoords(hex, mapWidth)
+      ? getHorizontalWrapRenderCoords(hex, mapWidth, camera)
       : [hex];
 
     for (const renderCoord of renderCoords) {
