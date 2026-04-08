@@ -28,7 +28,11 @@ export const MAP_DIMENSIONS = {
   large: { width: 80, height: 80, maxPlayers: 8 },
 } as const;
 
-export function createNewGame(civType?: string, seed?: string, mapSize?: 'small' | 'medium' | 'large'): GameState {
+function createGameId(seed: string): string {
+  return `game-${hashSeed(seed)}-${Date.now()}`;
+}
+
+export function createNewGame(civType?: string, seed?: string, mapSize?: 'small' | 'medium' | 'large', gameTitle?: string): GameState {
   // Reset all ID counters before creating new game
   resetUnitId();
   resetCityId();
@@ -36,6 +40,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   _resetSpyIdCounter();
 
   const gameSeed = seed ?? `game-${Date.now()}`;
+  const resolvedGameTitle = gameTitle?.trim() || 'Solo Campaign';
   const dims = MAP_DIMENSIONS[mapSize ?? 'small'];
   const actualSize = mapSize ?? 'small';
   const map = generateMap(dims.width, dims.height, gameSeed);
@@ -124,6 +129,8 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   const state: GameState = {
     turn: 1,
     era: 1,
+    gameId: createGameId(gameSeed),
+    gameTitle: resolvedGameTitle,
     civilizations: { player: playerCiv, 'ai-1': aiCiv },
     map,
     units,
@@ -163,7 +170,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   return state;
 }
 
-export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameState {
+export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitle?: string): GameState {
   // Reset all ID counters before creating new game
   resetUnitId();
   resetCityId();
@@ -171,6 +178,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
   _resetSpyIdCounter();
 
   const gameSeed = seed ?? `hotseat-${Date.now()}`;
+  const resolvedGameTitle = gameTitle?.trim() || 'Hot Seat Campaign';
   const dims = MAP_DIMENSIONS[config.mapSize];
   const map = generateMap(dims.width, dims.height, gameSeed);
   const startPositions = findStartPositions(map, config.players.length);
@@ -227,6 +235,8 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
   const state: GameState = {
     turn: 1,
     era: 1,
+    gameId: createGameId(gameSeed),
+    gameTitle: resolvedGameTitle,
     civilizations,
     map,
     units,

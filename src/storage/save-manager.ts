@@ -37,11 +37,17 @@ function buildSaveMeta(slotId: string, name: string, state: GameState, kind: 'ma
 }
 
 function compareSaveMeta(a: SaveSlotMeta, b: SaveSlotMeta): number {
+  const turnDelta = b.turn - a.turn;
+  if (turnDelta !== 0) {
+    return turnDelta;
+  }
+
   const timeDelta = Date.parse(b.lastPlayed) - Date.parse(a.lastPlayed);
-  if (timeDelta !== 0 && !Number.isNaN(timeDelta)) {
+  if (!Number.isNaN(timeDelta) && timeDelta !== 0) {
     return timeDelta;
   }
-  return b.turn - a.turn;
+
+  return a.name.localeCompare(b.name);
 }
 
 function getSaveStorageKey(id: string, kind: 'manual' | 'autosave'): string {

@@ -1,5 +1,5 @@
 import type { SaveSlotMeta, GameState } from '@/core/types';
-import { listSaves, deleteGame, renameSave, hasAutoSave, loadAutoSave } from '@/storage/save-manager';
+import { listSaves, deleteSaveEntry, hasAutoSave, loadAutoSave } from '@/storage/save-manager';
 
 interface SavePanelCallbacks {
   onNewGame: () => void;
@@ -104,9 +104,10 @@ export async function createSavePanel(
 
   // Slot buttons
   for (const save of displaySaves) {
+    const saveKind = save.kind === 'autosave' ? 'autosave' : 'manual';
     document.getElementById(`load-${save.id}`)?.addEventListener('click', () => {
       panel.remove();
-      if (save.kind === 'autosave') {
+      if (saveKind === 'autosave') {
         callbacks.onContinue();
         return;
       }
@@ -117,7 +118,7 @@ export async function createSavePanel(
       callbacks.onSaveToSlot?.(save.id, save.name);
     });
     document.getElementById(`delete-${save.id}`)?.addEventListener('click', async () => {
-      await deleteGame(save.id);
+      await deleteSaveEntry(save.id, saveKind);
       panel.remove();
       createSavePanel(container, callbacks, mode);
     });
@@ -157,11 +158,15 @@ function renderNewSlotInput(): string {
 function renderSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): string {
   const date = new Date(save.lastPlayed);
   const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const titleLine = save.gameTitle
+    ? `<div style="font-size:11px;color:#e8c170;opacity:0.9;">${save.gameTitle}</div>`
+    : '';
 
   return `
     <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:bold;">${save.name}</div>
+        ${titleLine}
         <div style="font-size:11px;opacity:0.5;">Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType} · ${dateStr}</div>
       </div>
       <div style="display:flex;gap:6px;">

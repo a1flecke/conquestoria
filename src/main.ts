@@ -1601,6 +1601,9 @@ function showGameModeSelection(): void {
   modePanel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.98);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;';
   modePanel.innerHTML = `
     <h1 style="font-size:22px;color:#e8c170;margin-bottom:24px;">New Game</h1>
+    <div style="width:100%;max-width:320px;margin-bottom:20px;">
+      <input id="new-game-title" type="text" placeholder="Campaign title" value="New Campaign" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;font-size:14px;" />
+    </div>
     <div style="display:flex;gap:16px;">
       <div id="mode-solo" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:24px;cursor:pointer;text-align:center;min-width:140px;transition:border-color 0.2s;">
         <div style="font-size:28px;margin-bottom:8px;">&#x1f3ae;</div>
@@ -1617,11 +1620,23 @@ function showGameModeSelection(): void {
 
   uiLayer.appendChild(modePanel);
 
+  const getRequestedTitle = (): string | null => {
+    const input = document.getElementById('new-game-title') as HTMLInputElement | null;
+    const title = input?.value.trim() ?? '';
+    if (!title) {
+      showNotification('Campaign title is required', 'warning');
+      return null;
+    }
+    return title;
+  };
+
   document.getElementById('mode-solo')?.addEventListener('click', () => {
+    const title = getRequestedTitle();
+    if (!title) return;
     modePanel.remove();
     createCivSelectPanel(uiLayer, {
       onSelect: (civId) => {
-        gameState = createNewGame(civId);
+        gameState = createNewGame(civId, undefined, undefined, title);
         startGame();
         showNotification('Your tribe has settled near a river...', 'info');
       },
@@ -1629,10 +1644,12 @@ function showGameModeSelection(): void {
   });
 
   document.getElementById('mode-hotseat')?.addEventListener('click', () => {
+    const title = getRequestedTitle();
+    if (!title) return;
     modePanel.remove();
     showHotSeatSetup(uiLayer, {
       onComplete: (config) => {
-        gameState = createHotSeatGame(config);
+        gameState = createHotSeatGame(config, undefined, title);
         startGame();
         showNotification(`Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`, 'info');
       },

@@ -122,6 +122,19 @@ describe('save persistence (#38)', () => {
     expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].turnCompleted).toBe(40);
   });
 
+  it('round-trips campaign identity through JSON serialization', () => {
+    const state = {
+      gameId: 'game-123',
+      gameTitle: 'Rise of the Nile',
+      turn: 12,
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.gameId).toBe('game-123');
+    expect(roundTrip.gameTitle).toBe('Rise of the Nile');
+  });
+
   it('round-trips artisan settings and Stage 5 espionage state through JSON serialization', () => {
     const state = {
       settings: {
