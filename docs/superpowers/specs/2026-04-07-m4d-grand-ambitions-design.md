@@ -140,6 +140,8 @@ Slice 1 needs enough UI to make the system understandable:
 
 Slice 2 adds the first complete implementation of legendary quest wonders. It ships the full system but only a curated set of initial wonders. The rest of the legendary-wonder content expansion moves to M4e.
 
+Slice 2 must also include the complete reward-and-effect framework needed by those initial wonders. That means the milestone does not stop at eligibility, questing, and race resolution. Each of the four flagship wonders must apply its finished gameplay payoff through reusable wonder-effect plumbing when construction completes, and the construction race must resolve globally so only one civilization can claim a given legendary wonder.
+
 ### 4.2 Three-Phase Commitment
 
 Every legendary quest wonder follows this structure:
@@ -197,7 +199,20 @@ The player must be able to understand:
 
 This should be explained through city and wonder UI, not hidden behind trial and error.
 
-### 4.6 AI Requirements
+### 4.6 Reward And Effect Requirements
+
+Slice 2 must ship the reusable state and turn-processing hooks needed to support completed legendary wonder rewards for the initial four wonders.
+
+That framework must support all of the following inside M4d:
+
+- Per-wonder completion rewards, not just generic notifications
+- Persistent state showing that a wonder was claimed and by whom
+- Global race resolution so rival projects lose immediately when a winner is determined
+- Same-city compensation handling for every losing rival project
+
+The framework only needs to cover the reward/effect patterns required by the initial four wonders, but those patterns must be implemented completely inside Slice 2 rather than deferred.
+
+### 4.7 AI Requirements
 
 AI should:
 

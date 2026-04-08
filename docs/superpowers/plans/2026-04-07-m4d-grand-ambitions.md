@@ -4,7 +4,7 @@
 
 **Goal:** Ship M4d as three independently mergeable vertical slices: full breakaway, legendary quest wonders, and Stage 5 espionage with the Artisan advisor and the M4d civilization roster.
 
-**Architecture:** Preserve the current event-driven game loop and serializable `GameState`, but add focused state and system modules for each slice instead of bloating the existing M4c files. Slice 1 adds a breakaway lifecycle on top of the unrest/revolt system. Slice 2 adds a data-driven legendary wonder framework with explicit quest and construction phases. Slice 3 extends the espionage stack to late-game digital operations, introduces the Artisan advisor as the wonder UX layer, and adds three civ bonuses that hook into existing production, diplomacy, and map systems.
+**Architecture:** Preserve the current event-driven game loop and serializable `GameState`, but add focused state and system modules for each slice instead of bloating the existing M4c files. Slice 1 adds a breakaway lifecycle on top of the unrest/revolt system. Slice 2 adds a data-driven legendary wonder framework with explicit quest and construction phases plus the reusable reward/effect plumbing required by the four flagship wonders. Slice 3 extends the espionage stack to late-game digital operations, introduces the Artisan advisor as the wonder UX layer, and adds three civ bonuses that hook into existing production, diplomacy, and map systems.
 
 **Tech Stack:** TypeScript, Vitest, Canvas 2D, DOM panels, EventBus, IndexedDB/localStorage save serialization
 
@@ -66,9 +66,9 @@ Standard commands:
 
 | File | Responsibility |
 |------|----------------|
-| `src/core/types.ts` | Add legendary wonder definitions, project state, quest steps, and production carryover |
+| `src/core/types.ts` | Add legendary wonder definitions, project state, quest steps, production carryover, and completed-wonder reward/effect state |
 | `src/systems/legendary-wonder-definitions.ts` | NEW - define the first four legendary wonders and their quest chains |
-| `src/systems/legendary-wonder-system.ts` | NEW - eligibility, quest progress, construction race, compensation, completion |
+| `src/systems/legendary-wonder-system.ts` | NEW - eligibility, quest progress, construction race, compensation, global race resolution, reward/effect completion |
 | `src/systems/city-system.ts` | Support wonder build queue entries and production transfer |
 | `src/core/turn-manager.ts` | Tick wonder quests, race progress, and completion events |
 | `src/ui/city-panel.ts` | Add legendary wonder entry point and city-specific build state |
@@ -743,6 +743,13 @@ export function loseLegendaryWonderRace(investedProduction: number): {
 };
 ```
 
+The core system must also resolve the global race when a wonder completes:
+
+```typescript
+// when one project completes, all rival projects for that wonderId immediately become lost_race
+// and receive the 25/25/50 compensation in their own city
+```
+
 Compensation must be exact:
 
 ```typescript
@@ -782,12 +789,71 @@ bus.emit('wonder:legendary-ready', { civId, cityId, wonderId });
 bus.emit('wonder:legendary-lost', { civId, cityId, wonderId, goldRefund, transferableProduction });
 ```
 
+Also apply the reusable reward/effect plumbing for completed wonders:
+
+```typescript
+bus.emit('wonder:legendary-completed', { civId, cityId, wonderId });
+// apply wonder-specific reward/effect state here
+```
+
 - [ ] **Step 5: Run system and turn-manager tests**
 
 Run:
 
 ```bash
 eval "$(mise activate bash)" && yarn test --run tests/systems/legendary-wonder-system.test.ts tests/core/turn-manager.test.ts
+```
+
+Expected: PASS.
+
+### Task 7a: Add Complete Wonder Reward And Effect Plumbing
+
+**Files:**
+- Modify: `src/core/types.ts`
+- Modify: `src/systems/legendary-wonder-definitions.ts`
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/core/turn-manager.test.ts`
+- Modify: `tests/storage/save-persistence.test.ts`
+
+- [ ] **Step 1: Add failing tests for global race resolution and completion rewards**
+
+Add regressions proving:
+
+- only one civ can complete a given legendary wonder
+- rival in-progress projects for that wonder immediately become `lost_race`
+- the 25/25/50 compensation is applied to each losing city
+- the winning civ receives the wonder-specific reward/effect
+
+- [ ] **Step 2: Extend wonder definitions with explicit reward/effect metadata**
+
+Each of the four flagship wonders must define the reward/effect it applies on completion. The framework only needs to support the effect patterns required by those four wonders, but it must do so completely.
+
+- [ ] **Step 3: Persist completed-wonder ownership and applied effects in serializable game state**
+
+Add explicit state for:
+
+- completed legendary wonders
+- owner civ
+- completion city
+- any ongoing reward/effect data needed by turn processing or UI
+
+- [ ] **Step 4: Apply rewards/effects and global race resolution inside the completion path**
+
+When a wonder completes:
+
+- mark the winning project `completed`
+- mark all rival projects for that `wonderId` as `lost_race`
+- convert each losing rival's investment using the 25/25/50 rule
+- apply the winning wonder's reward/effect immediately
+- emit completion/loss events for the affected civs
+
+- [ ] **Step 5: Run targeted reward/effect verification**
+
+Run:
+
+```bash
+eval "$(mise activate bash)" && yarn test --run tests/systems/legendary-wonder-system.test.ts tests/core/turn-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 Expected: PASS.
@@ -849,6 +915,13 @@ appendSection('Eligibility', 'Required techs, resources, and city conditions.');
 appendSection('Quest', 'Complete every step before construction unlocks.');
 appendSection('Construction Race', 'Losing returns 25% coins and 25% city carryover.');
 ```
+
+The panel must also surface:
+
+- concrete eligibility failures for the selected city
+- explicit quest-step progress
+- visible race status for the selected project
+- completed reward/effect summary once a wonder is claimed
 
 - [ ] **Step 4: Add a wonder entry point in the city panel**
 
@@ -968,6 +1041,14 @@ if (project.phase === 'building' && rivalProgress >= project.investedProduction 
   // lose race intentionally, take carryover, switch city queue
 }
 ```
+
+When abandoning, the AI must choose the next building by highest city need rather than a hardcoded fallback. Priority order:
+
+- defense if the city lacks core protection
+- food/growth if the city is starving or no longer growing
+- production if output is weak
+- military if threat pressure is high
+- otherwise the best weighted normal building choice
 
 - [ ] **Step 5: Add save regression for legendary wonder state**
 
@@ -1664,7 +1745,7 @@ git pull --ff-only origin main
 Run this review before implementation begins and again after any major plan edits:
 
 - [ ] Spec coverage check: Slice 1 covers secession, 50-turn establishment, reconquest, reabsorption, AI, UI, and save/load.
-- [ ] Spec coverage check: Slice 2 covers three-phase commitment, four flagship wonders, 25/25/50 loss rule, AI, UI, and save/load.
+- [ ] Spec coverage check: Slice 2 covers three-phase commitment, four flagship wonders, complete reward/effect plumbing, global race resolution, 25/25/50 loss rule, AI, UI, and save/load.
 - [ ] Spec coverage check: Slice 3 covers Stage 5 espionage, Artisan advisor, M4d civs, Stage 5 tech unlocks, AI, UI, and save/load.
 - [ ] UI/UX check: Every slice includes visible countdowns, risk/explanation text, and no hidden state changes.
 - [ ] Test check: Every conjunctive rule has a negative test proving that partial conditions are insufficient.
