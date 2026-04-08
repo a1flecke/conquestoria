@@ -37,6 +37,7 @@ import { applyProductionBonus } from '@/systems/city-system';
 import { processEspionageTurn } from '@/systems/espionage-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
+import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -221,6 +222,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         Object.keys(stillDisabled).length > 0 ? stillDisabled : undefined;
     }
   }
+
+  newState = tickLegendaryWonderProjects(newState, bus);
 
   // --- Process marketplace ---
   if (newState.marketplace) {

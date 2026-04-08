@@ -4,7 +4,9 @@ import { EventBus } from '@/core/event-bus';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
+import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
+import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 
 describe('processTurn', () => {
   it('increments the turn counter', () => {
@@ -126,5 +128,34 @@ describe('processTurn', () => {
     const result = processTurn(state, bus);
 
     expect(result.civilizations[breakawayId].breakaway?.status).toBe('established');
+  });
+
+  it('moves a legendary wonder project from questing to ready_to_build once all steps complete', () => {
+    const state = makeLegendaryWonderFixture();
+    const bus = new EventBus();
+
+    state.legendaryWonderProjects!['oracle-of-delphi'].questSteps.forEach(step => {
+      step.completed = true;
+    });
+
+    const result = processTurn(state, bus);
+
+    expect(result.legendaryWonderProjects!['oracle-of-delphi'].phase).toBe('ready_to_build');
+  });
+
+  it('completes a legendary wonder and clears the city queue once enough production is invested', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const bus = new EventBus();
+    const oracle = getLegendaryWonderDefinition('oracle-of-delphi');
+
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = (oracle?.productionCost ?? 0) - 1;
+
+    const result = processTurn(state, bus);
+
+    expect(result.legendaryWonderProjects!['oracle-of-delphi'].phase).toBe('completed');
+    expect(result.cities['city-river'].productionQueue).toEqual([]);
+    expect(result.cities['city-river'].productionProgress).toBe(0);
   });
 });

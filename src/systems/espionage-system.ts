@@ -754,10 +754,27 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             if (spyTarget?.targetCityId) {
               const tc = state.cities[spyTarget.targetCityId];
               if (tc) {
+                const productionProgress = Math.max(0, tc.productionProgress - (result.productionLost as number));
+                const activeLegendaryWonder = tc.productionQueue[0]?.startsWith('legendary:')
+                  ? tc.productionQueue[0].slice('legendary:'.length)
+                  : null;
+                const updatedProjects = activeLegendaryWonder && state.legendaryWonderProjects
+                  ? Object.fromEntries(
+                    Object.entries(state.legendaryWonderProjects).map(([projectId, project]) => [
+                      projectId,
+                      project.cityId === tc.id && project.wonderId === activeLegendaryWonder
+                        ? { ...project, investedProduction: productionProgress }
+                        : project,
+                    ]),
+                  )
+                  : state.legendaryWonderProjects;
                 state.cities[spyTarget.targetCityId] = {
                   ...tc,
-                  productionProgress: Math.max(0, tc.productionProgress - (result.productionLost as number)),
+                  productionProgress,
                 };
+                if (updatedProjects) {
+                  state.legendaryWonderProjects = updatedProjects;
+                }
               }
             }
           }

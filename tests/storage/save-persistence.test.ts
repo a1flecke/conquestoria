@@ -80,4 +80,28 @@ describe('save persistence (#38)', () => {
 
     expect(roundTrip.civilizations['breakaway-city-1'].breakaway.status).toBe('established');
   });
+
+  it('round-trips legendary wonder projects through JSON serialization', () => {
+    const state = {
+      legendaryWonderProjects: {
+        'oracle-of-delphi': {
+          wonderId: 'oracle-of-delphi',
+          ownerId: 'player',
+          cityId: 'city-1',
+          phase: 'ready_to_build',
+          investedProduction: 120,
+          transferableProduction: 30,
+          questSteps: [
+            { id: 'discover-natural-wonder', description: 'Discover a natural wonder', completed: true },
+            { id: 'complete-pilgrimage-route', description: 'Complete a pilgrimage route', completed: true },
+          ],
+        },
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderProjects['oracle-of-delphi'].phase).toBe('ready_to_build');
+    expect(roundTrip.legendaryWonderProjects['oracle-of-delphi'].transferableProduction).toBe(30);
+  });
 });

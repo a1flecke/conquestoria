@@ -27,6 +27,7 @@ import {
   startMission,
 } from '@/systems/espionage-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
+import { loseLegendaryWonderRace } from '@/systems/legendary-wonder-system';
 
 function getPersonality(civType: string): PersonalityTraits {
   const def = getCivDefinition(civType);
@@ -50,6 +51,78 @@ function shouldAiStationDefensiveSpy(state: GameState, civId: string): boolean {
   if (!capitalId || !state.cities[capitalId]) return false;
 
   return (espState.counterIntelligence[capitalId] ?? 0) === 0;
+}
+
+function hasStationedSpyIntel(state: GameState, civId: string, targetCivId: string, targetCityId: string): boolean {
+  const espionageState = state.espionage?.[civId];
+  if (!espionageState) {
+    return false;
+  }
+
+  return Object.values(espionageState.spies).some(spy =>
+    spy.status === 'stationed'
+    && spy.targetCivId === targetCivId
+    && spy.targetCityId === targetCityId,
+  );
+}
+
+function abandonLostLegendaryWonderRace(state: GameState, civId: string): GameState {
+  if (!state.legendaryWonderProjects) {
+    return state;
+  }
+
+  for (const [projectKey, project] of Object.entries(state.legendaryWonderProjects)) {
+    if (project.ownerId !== civId || project.phase !== 'building') {
+      continue;
+    }
+
+    const rivalProjects = Object.entries(state.legendaryWonderProjects).filter(([, rivalProject]) =>
+      rivalProject.wonderId === project.wonderId
+      && rivalProject.ownerId !== civId
+      && rivalProject.phase === 'building'
+      && hasStationedSpyIntel(state, civId, rivalProject.ownerId, rivalProject.cityId),
+    );
+
+    const rivalLeader = rivalProjects
+      .map(([, rivalProject]) => rivalProject)
+      .sort((left, right) => right.investedProduction - left.investedProduction)[0];
+    if (!rivalLeader || rivalLeader.investedProduction < project.investedProduction + 100) {
+      continue;
+    }
+
+    const city = state.cities[project.cityId];
+    const currentQueue = city?.productionQueue ?? [];
+    const compensation = loseLegendaryWonderRace(project.investedProduction);
+
+    return {
+      ...state,
+      cities: city ? {
+        ...state.cities,
+        [city.id]: {
+          ...city,
+          productionQueue: ['granary', ...currentQueue.filter(item => item !== `legendary:${project.wonderId}`)],
+          productionProgress: compensation.transferableProduction,
+        },
+      } : state.cities,
+      civilizations: {
+        ...state.civilizations,
+        [civId]: {
+          ...state.civilizations[civId],
+          gold: state.civilizations[civId].gold + compensation.goldRefund,
+        },
+      },
+      legendaryWonderProjects: {
+        ...state.legendaryWonderProjects,
+        [projectKey]: {
+          ...project,
+          phase: 'lost_race',
+          transferableProduction: compensation.transferableProduction,
+        },
+      },
+    };
+  }
+
+  return state;
 }
 
 export function processAITurn(state: GameState, civId: string, bus: EventBus): GameState {
@@ -79,6 +152,8 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     );
     bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: ownedBreakaway.id });
   }
+
+  newState = abandonLostLegendaryWonderRace(newState, civId);
 
   // --- Handle settlers: found cities ---
   const settlers = civ.units
