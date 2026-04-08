@@ -681,6 +681,10 @@ export interface GameEvents {
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };
   'wonder:eruption': { wonderId: string; position: HexCoord; tilesAffected: HexCoord[] };
+  'wonder:legendary-ready': { civId: string; cityId: string; wonderId: string };
+  'wonder:legendary-completed': { civId: string; cityId: string; wonderId: string };
+  'wonder:legendary-lost': { civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number };
+  'wonder:legendary-race-revealed': { observerId: string; civId: string; cityId: string; wonderId: string };
   'village:visited': { civId: string; position: HexCoord; outcome: VillageOutcomeType; message: string };
   'ui:select-unit': { unitId: string };
   'ui:select-city': { cityId: string };

@@ -96,6 +96,11 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
     const definition = getLegendaryWonderDefinition(project.wonderId);
 
     if (project.phase === 'questing' && project.questSteps.every(step => step.completed)) {
+      _bus.emit('wonder:legendary-ready', {
+        civId: project.ownerId,
+        cityId: project.cityId,
+        wonderId: project.wonderId,
+      });
       updatedProjects[projectId] = {
         ...project,
         phase: 'ready_to_build',
@@ -107,6 +112,11 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
     if (project.phase === 'building' && city?.productionQueue[0] === `legendary:${project.wonderId}`) {
       const investedProduction = city.productionProgress;
       if (definition && investedProduction >= definition.productionCost) {
+        _bus.emit('wonder:legendary-completed', {
+          civId: project.ownerId,
+          cityId: project.cityId,
+          wonderId: project.wonderId,
+        });
         updatedProjects[projectId] = {
           ...project,
           phase: 'completed',
@@ -155,6 +165,7 @@ export function startLegendaryWonderBuild(
   civId: string,
   cityId: string,
   wonderId: string,
+  bus?: EventBus,
 ): GameState {
   const project = state.legendaryWonderProjects?.[wonderId];
   if (!project || project.ownerId !== civId || project.cityId !== cityId || project.phase !== 'ready_to_build') {
@@ -190,6 +201,12 @@ export function startLegendaryWonderBuild(
         turn: state.turn,
       },
     ];
+    bus?.emit('wonder:legendary-race-revealed', {
+      observerId,
+      civId,
+      cityId,
+      wonderId: project.wonderId,
+    });
   }
 
   return {
