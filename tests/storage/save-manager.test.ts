@@ -9,7 +9,7 @@ vi.mock('@/storage/db', () => ({
   dbGetAllKeys: vi.fn(async () => Array.from(dbState.keys())),
 }));
 
-import { autoSave, listSaves, saveGame } from '@/storage/save-manager';
+import { autoSave, deleteSaveEntry, listSaves, loadMostRecentAutoSave, saveGame } from '@/storage/save-manager';
 
 function makeLocalStorageMock() {
   const store: Record<string, string> = {};
@@ -52,7 +52,7 @@ describe('save-manager autosave listing', () => {
 
     const saves = await listSaves({ includeAutoSave: true });
 
-    expect(saves[0].name).toBe('Autosave');
+    expect(saves[0].name).toBe('Autosave Turn 9');
     expect(saves[0].kind).toBe('autosave');
   });
 
@@ -69,5 +69,113 @@ describe('save-manager autosave listing', () => {
     const saves = await listSaves();
 
     expect(saves.find(save => save.kind === 'autosave')).toBeUndefined();
+  });
+
+  it('keeps only the latest five autosaves for one game id', async () => {
+    for (const turn of [8, 9, 10, 11, 12, 13]) {
+      await autoSave({
+        turn,
+        currentPlayer: 'player',
+        gameId: 'game-a',
+        gameTitle: 'Game A',
+        civilizations: {
+          player: { civType: 'egypt' },
+        },
+        hotSeat: undefined,
+      } as any);
+    }
+
+    const saves = await listSaves({ includeAutoSave: true });
+    const autosaves = saves.filter(save => save.kind === 'autosave' && save.gameId === 'game-a');
+
+    expect(autosaves.map(save => save.turn)).toEqual([13, 12, 11, 10, 9]);
+  });
+
+  it('retains autosaves separately per game id', async () => {
+    await autoSave({
+      turn: 7,
+      currentPlayer: 'player',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    } as any);
+    await autoSave({
+      turn: 14,
+      currentPlayer: 'player',
+      gameId: 'game-b',
+      gameTitle: 'Game B',
+      civilizations: {
+        player: { civType: 'rome' },
+      },
+      hotSeat: undefined,
+    } as any);
+
+    const saves = await listSaves({ includeAutoSave: true });
+    const gameA = saves.filter(save => save.kind === 'autosave' && save.gameId === 'game-a');
+    const gameB = saves.filter(save => save.kind === 'autosave' && save.gameId === 'game-b');
+
+    expect(gameA).toHaveLength(1);
+    expect(gameB).toHaveLength(1);
+    expect(gameA[0].gameTitle).toBe('Game A');
+    expect(gameB[0].gameTitle).toBe('Game B');
+  });
+
+  it('deletes a single autosave entry by id without leaving it in the list', async () => {
+    await autoSave({
+      turn: 9,
+      currentPlayer: 'player',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    } as any);
+    await autoSave({
+      turn: 10,
+      currentPlayer: 'player',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    } as any);
+
+    await deleteSaveEntry('autosave:game-a:10', 'autosave');
+    const saves = await listSaves({ includeAutoSave: true });
+
+    expect(saves.find(save => save.id === 'autosave:game-a:10')).toBeUndefined();
+    expect(saves.find(save => save.id === 'autosave:game-a:9')).toBeDefined();
+  });
+
+  it('loads the newest autosave overall for continue', async () => {
+    await autoSave({
+      turn: 12,
+      currentPlayer: 'player',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    } as any);
+    await autoSave({
+      turn: 42,
+      currentPlayer: 'player',
+      gameId: 'game-b',
+      gameTitle: 'Game B',
+      civilizations: {
+        player: { civType: 'rome' },
+      },
+      hotSeat: undefined,
+    } as any);
+
+    const save = await loadMostRecentAutoSave();
+    expect(save?.turn).toBe(42);
+    expect(save?.gameId).toBe('game-b');
   });
 });

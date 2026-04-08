@@ -617,6 +617,8 @@ export interface SaveSlotMeta {
   gameMode?: GameMode;
   playerCount?: number;
   playerNames?: string[];
+  gameId?: string;
+  gameTitle?: string;
 }
 
 // --- Tutorial ---
@@ -642,6 +644,8 @@ export interface TutorialState {
 export interface GameState {
   turn: number;
   era: number;
+  gameId?: string;
+  gameTitle?: string;
   civilizations: Record<string, Civilization>;
   map: GameMap;
   units: Record<string, Unit>;
