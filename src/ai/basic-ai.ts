@@ -28,6 +28,8 @@ import {
 } from '@/systems/espionage-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
 import { loseLegendaryWonderRace } from '@/systems/legendary-wonder-system';
+import { BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
+import { calculateCityYields } from '@/systems/resource-system';
 
 function getPersonality(civType: string): PersonalityTraits {
   const def = getCivDefinition(civType);
@@ -93,6 +95,7 @@ function abandonLostLegendaryWonderRace(state: GameState, civId: string): GameSt
     const city = state.cities[project.cityId];
     const currentQueue = city?.productionQueue ?? [];
     const compensation = loseLegendaryWonderRace(project.investedProduction);
+    const fallbackBuild = city ? chooseLegendaryWonderFallback(state, civId, city.id, personalitySafe(state, civId)) : 'warrior';
 
     return {
       ...state,
@@ -100,7 +103,7 @@ function abandonLostLegendaryWonderRace(state: GameState, civId: string): GameSt
         ...state.cities,
         [city.id]: {
           ...city,
-          productionQueue: ['granary', ...currentQueue.filter(item => item !== `legendary:${project.wonderId}`)],
+          productionQueue: [fallbackBuild, ...currentQueue.filter(item => item !== `legendary:${project.wonderId}`)],
           productionProgress: compensation.transferableProduction,
         },
       } : state.cities,
@@ -123,6 +126,65 @@ function abandonLostLegendaryWonderRace(state: GameState, civId: string): GameSt
   }
 
   return state;
+}
+
+function personalitySafe(state: GameState, civId: string): PersonalityTraits {
+  return getPersonality(state.civilizations[civId]?.civType ?? 'generic');
+}
+
+function chooseLegendaryWonderFallback(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  personality: PersonalityTraits,
+): string {
+  const civilization = state.civilizations[civId];
+  const city = state.cities[cityId];
+  if (!civilization || !city) {
+    return 'warrior';
+  }
+
+  if (!city.buildings.includes('walls')) {
+    return 'walls';
+  }
+
+  const civDef = getCivDefinition(civilization.civType ?? '');
+  const yields = calculateCityYields(city, state.map, civDef?.bonusEffect);
+  const availableBuildings = getAvailableBuildings(city, civilization.techState.completed).map(building => building.id);
+  const atWar = civilization.diplomacy.atWarWith.length > 0;
+
+  if (yields.food <= city.population) {
+    const foodChoice = ['granary', 'herbalist', 'aqueduct'].find(buildingId =>
+      !city.buildings.includes(buildingId) && (availableBuildings.includes(buildingId) || buildingId === 'granary' || buildingId === 'herbalist'),
+    );
+    if (foodChoice) {
+      return foodChoice;
+    }
+  }
+
+  if (yields.production < 3) {
+    const productionChoice = ['workshop', 'lumbermill', 'quarry-building', 'forge'].find(buildingId =>
+      !city.buildings.includes(buildingId) && availableBuildings.includes(buildingId),
+    );
+    if (productionChoice) {
+      return productionChoice;
+    }
+  }
+
+  if (atWar) {
+    const militaryChoice = ['barracks', 'stable'].find(buildingId =>
+      !city.buildings.includes(buildingId) && (availableBuildings.includes(buildingId) || buildingId === 'barracks'),
+    );
+    if (militaryChoice) {
+      return militaryChoice;
+    }
+  }
+
+  if (availableBuildings.length > 0) {
+    return chooseProduction(personality, availableBuildings, atWar, civilization.cities.length);
+  }
+
+  return Object.keys(BUILDINGS).find(buildingId => !city.buildings.includes(buildingId)) ?? 'warrior';
 }
 
 export function processAITurn(state: GameState, civId: string, bus: EventBus): GameState {

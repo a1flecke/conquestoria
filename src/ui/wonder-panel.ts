@@ -49,6 +49,8 @@ export function createWonderPanel(
 
   for (const project of cityProjects) {
     const definition = getLegendaryWonderDefinition(project.wonderId);
+    const city = state.cities[project.cityId];
+    const civ = state.civilizations[project.ownerId];
     const section = document.createElement('section');
 
     const header = document.createElement('h3');
@@ -65,11 +67,68 @@ export function createWonderPanel(
       : 'Wonder requirements unavailable.';
     section.appendChild(requirements);
 
+    const eligibility = document.createElement('p');
+    if (definition && city && civ) {
+      const missingTechs = definition.requiredTechs.filter(tech => !civ.techState.completed.includes(tech));
+      const ownedResources = new Set(
+        city.ownedTiles
+          .map(coord => state.map.tiles[`${coord.q},${coord.r}`]?.resource)
+          .filter((resource): resource is string => resource !== null),
+      );
+      const missingResources = definition.requiredResources.filter(resource => !ownedResources.has(resource));
+      const missingConditions = [
+        ...missingTechs.map(tech => `tech ${tech}`),
+        ...missingResources.map(resource => `resource ${resource}`),
+      ];
+
+      if (definition.cityRequirement === 'river'
+        && !city.ownedTiles.some(coord => state.map.tiles[`${coord.q},${coord.r}`]?.hasRiver)) {
+        missingConditions.push('river city');
+      }
+
+      if (definition.cityRequirement === 'coastal'
+        && !city.ownedTiles.some(coord => {
+          const tile = state.map.tiles[`${coord.q},${coord.r}`];
+          return tile?.terrain === 'coast' || tile?.terrain === 'ocean';
+        })) {
+        missingConditions.push('coastal city');
+      }
+
+      eligibility.textContent = missingConditions.length > 0
+        ? `Missing: ${missingConditions.join(', ')}.`
+        : 'Missing: none.';
+    } else {
+      eligibility.textContent = 'Missing: requirements unavailable.';
+    }
+    section.appendChild(eligibility);
+
     const progress = document.createElement('p');
     progress.textContent = project.questSteps.length > 0
       ? `Quest steps: ${project.questSteps.filter(step => step.completed).length}/${project.questSteps.length} complete.`
       : 'Quest steps complete.';
     section.appendChild(progress);
+
+    for (const step of project.questSteps) {
+      const stepLine = document.createElement('p');
+      stepLine.textContent = `${step.completed ? 'Done' : 'Pending'}: ${step.description}`;
+      section.appendChild(stepLine);
+    }
+
+    const reward = document.createElement('p');
+    reward.textContent = `Reward: ${definition?.reward.summary ?? 'Unavailable.'}`;
+    section.appendChild(reward);
+
+    const race = document.createElement('p');
+    if (project.phase === 'building') {
+      race.textContent = `Race status: ${project.investedProduction}/${definition?.productionCost ?? 0} production invested.`;
+    } else if (project.phase === 'completed') {
+      race.textContent = 'Race status: won.';
+    } else if (project.phase === 'lost_race') {
+      race.textContent = `Race status: lost. ${project.transferableProduction} carryover remains in this city.`;
+    } else {
+      race.textContent = 'Race status: not yet in construction.';
+    }
+    section.appendChild(race);
 
     if (project.phase === 'ready_to_build') {
       const startBuild = document.createElement('button');

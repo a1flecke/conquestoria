@@ -1,4 +1,4 @@
-import type { GameState, LegendaryWonderProject } from '@/core/types';
+import type { GameState, LegendaryWonderProject, ResourceYield } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 
@@ -89,10 +89,16 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
 
   const updatedProjects: Record<string, LegendaryWonderProject> = {};
   const updatedCities = { ...state.cities };
+  const updatedCivilizations = structuredClone(state.civilizations);
+  const completedLegendaryWonders = { ...(state.completedLegendaryWonders ?? {}) };
   let changed = false;
 
   for (const [projectId, project] of Object.entries(state.legendaryWonderProjects)) {
-    const city = state.cities[project.cityId];
+    if (updatedProjects[projectId]) {
+      continue;
+    }
+
+    const city = updatedCities[project.cityId];
     const definition = getLegendaryWonderDefinition(project.wonderId);
 
     if (project.phase === 'questing' && project.questSteps.every(step => step.completed)) {
@@ -112,6 +118,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
     if (project.phase === 'building' && city?.productionQueue[0] === `legendary:${project.wonderId}`) {
       const investedProduction = city.productionProgress;
       if (definition && investedProduction >= definition.productionCost) {
+        applyLegendaryWonderReward(updatedCivilizations, project.ownerId, definition.reward);
         _bus.emit('wonder:legendary-completed', {
           civId: project.ownerId,
           cityId: project.cityId,
@@ -121,12 +128,59 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
           ...project,
           phase: 'completed',
           investedProduction: definition.productionCost,
+          transferableProduction: 0,
+        };
+        completedLegendaryWonders[project.wonderId] = {
+          ownerId: project.ownerId,
+          cityId: project.cityId,
+          turnCompleted: state.turn,
         };
         updatedCities[city.id] = {
           ...city,
           productionQueue: city.productionQueue.slice(1),
           productionProgress: 0,
         };
+
+        for (const [rivalProjectId, rivalProject] of Object.entries(state.legendaryWonderProjects)) {
+          if (rivalProjectId === projectId || rivalProject.wonderId !== project.wonderId || rivalProject.phase === 'completed') {
+            continue;
+          }
+
+          const compensation = loseLegendaryWonderRace(rivalProject.investedProduction);
+          const rivalCity = updatedCities[rivalProject.cityId];
+          const rivalCivilization = updatedCivilizations[rivalProject.ownerId];
+
+          updatedProjects[rivalProjectId] = {
+            ...rivalProject,
+            phase: 'lost_race',
+            transferableProduction: compensation.transferableProduction,
+          };
+
+          if (rivalCivilization) {
+            rivalCivilization.gold += compensation.goldRefund;
+          }
+
+          if (rivalCity) {
+            const wasActivelyBuilding = rivalCity.productionQueue[0] === `legendary:${rivalProject.wonderId}`;
+            updatedCities[rivalCity.id] = {
+              ...rivalCity,
+              productionQueue: wasActivelyBuilding
+                ? rivalCity.productionQueue.filter(item => item !== `legendary:${rivalProject.wonderId}`)
+                : rivalCity.productionQueue,
+              productionProgress: wasActivelyBuilding ? 0 : rivalCity.productionProgress,
+            };
+          }
+
+          if (rivalProject.investedProduction > 0) {
+            _bus.emit('wonder:legendary-lost', {
+              civId: rivalProject.ownerId,
+              cityId: rivalProject.cityId,
+              wonderId: rivalProject.wonderId,
+              goldRefund: compensation.goldRefund,
+              transferableProduction: compensation.transferableProduction,
+            });
+          }
+        }
       } else {
         updatedProjects[projectId] = {
           ...project,
@@ -156,7 +210,9 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
   return {
     ...state,
     cities: updatedCities,
+    civilizations: updatedCivilizations,
     legendaryWonderProjects: updatedProjects,
+    completedLegendaryWonders,
   };
 }
 
@@ -176,6 +232,7 @@ export function startLegendaryWonderBuild(
   const city = state.cities[cityId];
   const civilization = state.civilizations[civId];
   const pendingEvents = { ...(state.pendingEvents ?? {}) };
+  const carriedProduction = city?.productionProgress ?? 0;
 
   for (const [observerId, espionageState] of Object.entries(state.espionage ?? {})) {
     if (observerId === civId) {
@@ -212,11 +269,21 @@ export function startLegendaryWonderBuild(
   return {
     ...state,
     pendingEvents,
+    cities: city ? {
+      ...state.cities,
+      [cityId]: {
+        ...city,
+        productionQueue: [`legendary:${wonderId}`],
+        productionProgress: carriedProduction,
+      },
+    } : state.cities,
     legendaryWonderProjects: {
       ...state.legendaryWonderProjects,
       [wonderId]: {
         ...project,
         phase: 'building',
+        investedProduction: carriedProduction,
+        transferableProduction: 0,
       },
     },
   };
@@ -228,4 +295,69 @@ export function getLegendaryWonderProjectDefinition(state: GameState, wonderId: 
     return undefined;
   }
   return getLegendaryWonderDefinition(project.wonderId);
+}
+
+function applyLegendaryWonderReward(
+  civilizations: GameState['civilizations'],
+  ownerId: string,
+  reward: NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>['reward'],
+): void {
+  const civilization = civilizations[ownerId];
+  if (!civilization) {
+    return;
+  }
+
+  if (reward.instantResearch) {
+    civilization.techState = {
+      ...civilization.techState,
+      researchProgress: civilization.techState.researchProgress + reward.instantResearch,
+    };
+  }
+}
+
+function addYieldTotals(target: Partial<ResourceYield>, source?: Partial<ResourceYield>): Partial<ResourceYield> {
+  if (!source) {
+    return target;
+  }
+
+  return {
+    food: (target.food ?? 0) + (source.food ?? 0),
+    production: (target.production ?? 0) + (source.production ?? 0),
+    gold: (target.gold ?? 0) + (source.gold ?? 0),
+    science: (target.science ?? 0) + (source.science ?? 0),
+  };
+}
+
+export function getLegendaryWonderCivYieldBonus(state: GameState, civId: string): Partial<ResourceYield> {
+  let totals: Partial<ResourceYield> = {};
+
+  for (const [wonderId, completion] of Object.entries(state.completedLegendaryWonders ?? {})) {
+    if (completion.ownerId !== civId) {
+      continue;
+    }
+
+    const definition = getLegendaryWonderDefinition(wonderId);
+    totals = addYieldTotals(totals, definition?.reward.civYieldBonus);
+  }
+
+  return totals;
+}
+
+export function getLegendaryWonderCityYieldBonus(
+  state: GameState,
+  civId: string,
+  cityId: string,
+): Partial<ResourceYield> {
+  let totals: Partial<ResourceYield> = {};
+
+  for (const [wonderId, completion] of Object.entries(state.completedLegendaryWonders ?? {})) {
+    if (completion.ownerId !== civId || completion.cityId !== cityId) {
+      continue;
+    }
+
+    const definition = getLegendaryWonderDefinition(wonderId);
+    totals = addYieldTotals(totals, definition?.reward.cityYieldBonus);
+  }
+
+  return totals;
 }

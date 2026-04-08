@@ -73,6 +73,7 @@ export interface LegendaryWonderDefinition {
     id: string;
     type: 'discover_wonder' | 'trade_route' | 'research_count' | 'defeat_stronghold';
   }>;
+  reward: LegendaryWonderReward;
 }
 
 export interface LegendaryWonderProject {
@@ -83,6 +84,19 @@ export interface LegendaryWonderProject {
   investedProduction: number;
   transferableProduction: number;
   questSteps: LegendaryWonderStep[];
+}
+
+export interface LegendaryWonderReward {
+  summary: string;
+  instantResearch?: number;
+  civYieldBonus?: Partial<ResourceYield>;
+  cityYieldBonus?: Partial<ResourceYield>;
+}
+
+export interface CompletedLegendaryWonder {
+  ownerId: string;
+  cityId: string;
+  turnCompleted: number;
 }
 
 // --- Tribal Villages ---
@@ -614,6 +628,7 @@ export interface GameState {
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
+  completedLegendaryWonders?: Record<string, CompletedLegendaryWonder>;
   espionage?: EspionageState;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];

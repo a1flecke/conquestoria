@@ -17,6 +17,7 @@ describe('wonder-panel', () => {
     expect(rendered).toContain('Construction Race');
     expect(rendered).toContain('25% coins');
     expect(rendered).toContain('25% carryover');
+    expect(rendered).toContain('Discover a natural wonder');
   });
 
   it('shows only the current players selected-city projects in hot seat', () => {
@@ -54,5 +55,21 @@ describe('wonder-panel', () => {
     const rendered = collectText(panel);
     expect(rendered).toContain('World Archive');
     expect(rendered).not.toContain('Oracle of Delphi');
+  });
+
+  it('shows concrete eligibility failures and reward summary for the selected project', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['philosophy'];
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'completed';
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Missing');
+    expect(rendered).toContain('pilgrimages');
+    expect(rendered).toContain('Reward');
   });
 });

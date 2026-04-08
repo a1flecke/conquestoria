@@ -37,7 +37,11 @@ import { applyProductionBonus } from '@/systems/city-system';
 import { processEspionageTurn } from '@/systems/espionage-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
-import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
+import {
+  getLegendaryWonderCityYieldBonus,
+  getLegendaryWonderCivYieldBonus,
+  tickLegendaryWonderProjects,
+} from '@/systems/legendary-wonder-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = structuredClone(state);
@@ -60,12 +64,13 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
       const civDef = getCivDefinition(civ.civType ?? '');
       const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
+      const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
       const unrestMultiplier = getUnrestYieldMultiplier(city);
       const yields = {
-        food: Math.floor(baseYields.food * unrestMultiplier),
-        production: Math.floor(baseYields.production * unrestMultiplier),
-        gold: Math.floor(baseYields.gold * unrestMultiplier),
-        science: Math.floor(baseYields.science * unrestMultiplier),
+        food: Math.floor((baseYields.food + (wonderCityBonuses.food ?? 0)) * unrestMultiplier),
+        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0)) * unrestMultiplier),
+        gold: Math.floor((baseYields.gold + (wonderCityBonuses.gold ?? 0)) * unrestMultiplier),
+        science: Math.floor((baseYields.science + (wonderCityBonuses.science ?? 0)) * unrestMultiplier),
       };
       totalScience += yields.science;
       totalGold += yields.gold;
@@ -88,6 +93,10 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     }
 
     // Process research
+    const wonderCivBonuses = getLegendaryWonderCivYieldBonus(newState, civId);
+    totalScience += wonderCivBonuses.science ?? 0;
+    totalGold += wonderCivBonuses.gold ?? 0;
+
     const researchResult = processResearch(civ.techState, totalScience);
     newState.civilizations[civId].techState = researchResult.state;
     if (researchResult.completedTech) {

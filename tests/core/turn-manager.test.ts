@@ -176,4 +176,22 @@ describe('processTurn', () => {
       { civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi' },
     ]);
   });
+
+  it('persists completed legendary wonder ownership through turn processing', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const bus = new EventBus();
+    const oracle = getLegendaryWonderDefinition('oracle-of-delphi');
+
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = oracle!.productionCost;
+
+    const result = processTurn(state, bus);
+
+    expect(result.completedLegendaryWonders?.['oracle-of-delphi']).toEqual({
+      ownerId: 'player',
+      cityId: 'city-river',
+      turnCompleted: 40,
+    });
+  });
 });

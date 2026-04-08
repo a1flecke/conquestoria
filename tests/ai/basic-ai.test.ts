@@ -648,7 +648,7 @@ describe('processAITurn', () => {
     const result = processAITurn(state, 'ai-1', bus);
 
     expect(result.legendaryWonderProjects!['grand-canal'].phase).toBe('lost_race');
-    expect(result.cities['city-ai'].productionQueue[0]).toBe('granary');
+    expect(result.cities['city-ai'].productionQueue[0]).toBe('walls');
     expect(result.cities['city-ai'].productionProgress).toBeGreaterThan(0);
     expect(lostEvents).toEqual([
       { civId: 'ai-1', cityId: 'city-ai', wonderId: 'grand-canal', goldRefund: 10, transferableProduction: 10 },

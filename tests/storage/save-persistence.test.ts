@@ -104,4 +104,21 @@ describe('save persistence (#38)', () => {
     expect(roundTrip.legendaryWonderProjects['oracle-of-delphi'].phase).toBe('ready_to_build');
     expect(roundTrip.legendaryWonderProjects['oracle-of-delphi'].transferableProduction).toBe(30);
   });
+
+  it('round-trips completed legendary wonder state through JSON serialization', () => {
+    const state = {
+      completedLegendaryWonders: {
+        'oracle-of-delphi': {
+          ownerId: 'player',
+          cityId: 'city-1',
+          turnCompleted: 40,
+        },
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].ownerId).toBe('player');
+    expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].turnCompleted).toBe(40);
+  });
 });

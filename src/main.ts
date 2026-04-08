@@ -40,6 +40,7 @@ import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
+import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
 // --- App State ---
@@ -425,11 +426,9 @@ function togglePanel(panel: string): void {
       onOpenWonderPanel: (selectedCityId) => {
         createWonderPanel(uiLayer, gameState, selectedCityId, {
           onStartBuild: (buildCityId, wonderId) => {
+            gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
             const targetCity = gameState.cities[buildCityId];
             if (targetCity) {
-              gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
-              targetCity.productionQueue = [`legendary:${wonderId}`];
-              targetCity.productionProgress = 0;
               renderLoop.setGameState(gameState);
               showNotification(`${targetCity.name}: preparing ${wonderId}`, 'info');
             }
@@ -1119,6 +1118,57 @@ bus.on('city:building-complete', ({ cityId, buildingId }) => {
   const city = gameState.cities[cityId];
   if (city && city.owner === gameState.currentPlayer) {
     showNotification(`${city.name}: ${buildingId} completed!`, 'success');
+  }
+});
+
+bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
+  const notification = getLegendaryWonderNotification(gameState, gameState.currentPlayer, {
+    type: 'wonder:legendary-ready',
+    civId,
+    cityId,
+    wonderId,
+  });
+  if (notification) {
+    showNotification(notification.message, notification.type);
+  }
+});
+
+bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId }) => {
+  const notification = getLegendaryWonderNotification(gameState, gameState.currentPlayer, {
+    type: 'wonder:legendary-completed',
+    civId,
+    cityId,
+    wonderId,
+  });
+  if (notification) {
+    showNotification(notification.message, notification.type);
+  }
+});
+
+bus.on('wonder:legendary-lost', ({ civId, cityId, wonderId, goldRefund, transferableProduction }) => {
+  const notification = getLegendaryWonderNotification(gameState, gameState.currentPlayer, {
+    type: 'wonder:legendary-lost',
+    civId,
+    cityId,
+    wonderId,
+    goldRefund,
+    transferableProduction,
+  });
+  if (notification) {
+    showNotification(notification.message, notification.type);
+  }
+});
+
+bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId }) => {
+  const notification = getLegendaryWonderNotification(gameState, gameState.currentPlayer, {
+    type: 'wonder:legendary-race-revealed',
+    observerId,
+    civId,
+    cityId,
+    wonderId,
+  });
+  if (notification) {
+    showNotification(notification.message, notification.type);
   }
 });
 
