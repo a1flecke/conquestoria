@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
+import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { makeDiplomacyFixture } from './helpers/diplomacy-fixture';
 
 describe('diplomacy-panel breakaway rows', () => {
@@ -179,5 +180,42 @@ describe('diplomacy-panel breakaway rows', () => {
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
     expect(rendered).toContain('Outsider');
     expect(rendered).not.toContain('Unknown Civilization');
+  });
+
+  it('uses the shared presentation helper for discovered city-state names', () => {
+    const { container, state } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeBreakaway: true,
+    });
+    state.minorCivs = {
+      'mc-sparta': {
+        id: 'mc-sparta',
+        definitionId: 'sparta',
+        cityId: 'mc-city',
+        units: [],
+        diplomacy: state.civilizations.player.diplomacy,
+        activeQuests: {},
+        isDestroyed: false,
+        garrisonCooldown: 0,
+        lastEraUpgrade: 0,
+      },
+    };
+    state.cities['mc-city'] = {
+      ...state.cities['city-border'],
+      id: 'mc-city',
+      owner: 'mc-sparta',
+      position: { q: 6, r: 0 },
+      ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+
+    const presentation = getMinorCivPresentationForPlayer(state, 'player', 'mc-sparta');
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).toContain(presentation.name);
   });
 });

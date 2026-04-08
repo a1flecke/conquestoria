@@ -3,6 +3,7 @@ import { canReabsorbBreakaway, getRelationship, isAtWar, getAvailableActions } f
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv, hasMetCivilization } from '@/systems/discovery-system';
+import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getQuestDescriptionForPlayer } from '@/systems/quest-system';
 
 export interface DiplomacyPanelCallbacks {
@@ -124,6 +125,7 @@ export function createDiplomacyPanel(
     if (!hasDiscoveredMinorCiv(state, state.currentPlayer, mcId)) return;
     const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
     if (!def) return;
+    const presentation = getMinorCivPresentationForPlayer(state, state.currentPlayer, mcId, 'City-State');
     const rel = mc.diplomacy.relationships[state.currentPlayer] ?? 0;
     const status = rel <= -60 ? 'Hostile' : rel >= 60 ? 'Allied' : rel >= 30 ? 'Friendly' : 'Neutral';
     const archIcon = def.archetype === 'militaristic' ? '⚔️' : def.archetype === 'mercantile' ? '🪙' : '📜';
@@ -134,8 +136,8 @@ export function createDiplomacyPanel(
     minorCivRows.push({
       mcId,
       mcIdx,
-      defName: def.name,
-      defColor: def.color,
+      defName: presentation.name,
+      defColor: presentation.color,
       archIcon,
       statusColor,
       statusText: `${status} (${rel})`,

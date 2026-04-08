@@ -36,6 +36,7 @@ import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv, refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { formatMinorCivEventMessageForPlayer, getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
@@ -910,10 +911,9 @@ function handleHexTap(rawCoord: HexCoord): void {
         ownerName = 'Barbarian';
         ownerColor = '#8b4513';
       } else if (isMinorCiv) {
-        const mc = Object.values(gameState.minorCivs ?? {}).find(m => m.id === enemyUnit.owner);
-        const mcDef = mc ? MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId) : undefined;
-        ownerName = mcDef?.name ?? 'City-State';
-        ownerColor = mcDef?.color ?? '#888';
+        const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, enemyUnit.owner, 'City-State');
+        ownerName = presentation.name;
+        ownerColor = presentation.color;
       } else {
         const civ = gameState.civilizations[enemyUnit.owner];
         ownerName = civ?.name ?? enemyUnit.owner;
@@ -995,9 +995,8 @@ function handleHexTap(rawCoord: HexCoord): void {
       if (isBarbarian) {
         ownerName = 'Barbarian';
       } else if (isMinorCiv) {
-        const mc = Object.values(gameState.minorCivs ?? {}).find(m => m.id === defender.owner);
-        const mcDef = mc ? MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId) : undefined;
-        ownerName = mcDef?.name ?? 'City-State';
+        const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, defender.owner, 'City-State');
+        ownerName = presentation.name;
       } else {
         ownerName = gameState.civilizations[defender.owner]?.name ?? defender.owner;
       }
@@ -1410,29 +1409,25 @@ bus.on('minor-civ:quest-completed', (data: any) => {
 });
 
 bus.on('minor-civ:evolved', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `A barbarian tribe formed the city-state of ${def?.name ?? 'Unknown'}!`;
-
   if (gameState.hotSeat && gameState.pendingEvents) {
     for (const civId of Object.keys(gameState.civilizations)) {
+      const msg = formatMinorCivEventMessageForPlayer(gameState, civId, data.minorCivId, 'evolved');
       collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:evolved', message: msg, turn: gameState.turn });
     }
   }
-  showNotification(msg, 'info');
+  const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'evolved');
+  showNotification(currentMsg, 'info');
 });
 
 bus.on('minor-civ:destroyed', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `${def?.name ?? 'City-state'} has fallen!`;
-
   if (gameState.hotSeat && gameState.pendingEvents) {
     for (const civId of Object.keys(gameState.civilizations)) {
+      const msg = formatMinorCivEventMessageForPlayer(gameState, civId, data.minorCivId, 'destroyed');
       collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:destroyed', message: msg, turn: gameState.turn });
     }
   }
-  showNotification(msg, 'warning');
+  const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'destroyed');
+  showNotification(currentMsg, 'warning');
 });
 
 bus.on('minor-civ:allied', (data: any) => {
@@ -1468,15 +1463,13 @@ bus.on('minor-civ:relationship-threshold', (data: any) => {
 });
 
 bus.on('minor-civ:guerrilla', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `${def?.name ?? 'City-state'} guerrilla fighters attack!`;
-
   if (gameState.hotSeat && gameState.pendingEvents) {
+    const msg = formatMinorCivEventMessageForPlayer(gameState, data.targetCivId, data.minorCivId, 'guerrilla');
     collectEvent(gameState.pendingEvents, data.targetCivId, { type: 'minor-civ:guerrilla', message: msg, turn: gameState.turn });
   }
   if (data.targetCivId === gameState.currentPlayer) {
-    showNotification(msg, 'warning');
+    const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'guerrilla');
+    showNotification(currentMsg, 'warning');
   }
 });
 
