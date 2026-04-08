@@ -57,6 +57,7 @@ Implementation branch / worktree cadence:
 | `src/core/types.ts` | Add M4e settings, Council state, custom civ metadata, and any new events |
 | `src/core/game-state.ts` | Initialize new state/settings defaults and new-game setup flow inputs |
 | `src/main.ts` | Wire new panels, Council events, input systems, and per-slice feature entry points |
+| `src/core/hotseat-events.ts` | Queue Council and M4e notifications for the correct hot-seat viewer |
 | `src/storage/save-manager.ts` | Persist M4e state and campaign/custom-civ metadata safely |
 | `tests/storage/save-persistence.test.ts` | Round-trip new slice state |
 
@@ -73,6 +74,7 @@ Implementation branch / worktree cadence:
 | `src/ui/tech-panel.ts` | Redesign the tech tree for readability and “what unlocks what” |
 | `src/ui/advisor-system.ts` | Integrate proactive Council interruption flow without leaking secrets |
 | `src/ui/city-grid.ts` | Improve grid-view explanation and contextual help |
+| `tests/core/hotseat-events.test.ts` | Extend with Council interrupt queuing coverage |
 | `tests/systems/council-system.test.ts` | NEW - Council ranking, privacy, naming-trust, and actionability |
 | `tests/systems/victory-progress.test.ts` | NEW - domination framing and progress summaries |
 | `tests/systems/quest-system.test.ts` | Extend with quest-origin correctness regressions |
@@ -94,6 +96,7 @@ Implementation branch / worktree cadence:
 | `src/core/turn-manager.ts` | Tick auto-explore and integrate unit cancellation rules |
 | `src/renderer/render-loop.ts` | Preserve privacy during turn transitions and integrate hover hints |
 | `src/ui/turn-handoff.ts` | Keep handoff/turn transitions from leaking hidden information |
+| `src/main.ts` | Show auto-explore state in selected-unit info and route cancel actions |
 | `tests/systems/helpers/auto-explore-fixture.ts` | NEW - deterministic pathing/risk states for auto-explore tests |
 | `tests/ui/helpers/desktop-controls-fixture.ts` | NEW - jsdom fixtures for shortcuts, context menus, and tooltips |
 | `tests/systems/auto-explore-system.test.ts` | NEW - pathing, cancellation, wrap, and safety coverage |
@@ -136,12 +139,15 @@ Implementation branch / worktree cadence:
 | `src/systems/custom-civ-system.ts` | NEW - validate and normalize medium-depth custom civ definitions |
 | `src/ui/custom-civ-panel.ts` | NEW - create/edit custom civilizations |
 | `src/systems/city-name-system.ts` | NEW - enforce naming policy and uniqueness rules |
+| `src/core/game-state.ts` | Load custom civ definitions into new solo/hot-seat campaigns |
+| `src/storage/save-manager.ts` | Persist custom civ registries in app settings and save slots |
 | `src/systems/civ-definitions.ts` | Add Wakanda, Avalon, and plug in custom-civ support |
 | `src/ui/civ-select.ts` | Surface Wakanda/Avalon and custom civs in setup/selection |
 | `tests/systems/council-memory.test.ts` | NEW - memory recall, privacy, and disagreement cadence |
 | `tests/ui/custom-civ-panel.test.ts` | NEW - creator UX, validation, and trait-budget coverage |
 | `tests/systems/city-name-system.test.ts` | NEW - fantasy naming correctness and uniqueness |
 | `tests/systems/civ-definitions.test.ts` | Extend with Wakanda/Avalon/custom-civ coverage |
+| `tests/storage/save-manager.test.ts` | Add custom civ settings persistence and migration coverage |
 | `tests/integration/m4e-acceptance.test.ts` | NEW - final milestone-wide acceptance coverage |
 
 ---
@@ -235,11 +241,17 @@ export interface CouncilState {
 }
 ```
 
-Initialize defaults in new games and hot-seat games:
+Extend the existing settings shape in both game-state constructors:
 
 ```typescript
 settings: {
-  ...,
+  mapSize: actualSize,
+  soundEnabled: true,
+  musicEnabled: true,
+  musicVolume: 0.5,
+  sfxVolume: 0.7,
+  tutorialEnabled: true,
+  advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true, artisan: true },
   councilTalkLevel: 'normal',
 }
 ```
@@ -293,8 +305,10 @@ git commit -m "feat(m4e): add council agenda foundations"
 - Create: `src/ui/council-panel.ts`
 - Modify: `src/ui/advisor-system.ts`
 - Modify: `src/main.ts`
+- Modify: `src/core/hotseat-events.ts`
 - Create: `tests/ui/council-panel.test.ts`
 - Modify: `tests/ui/advisor-system.test.ts`
+- Modify: `tests/core/hotseat-events.test.ts`
 
 - [ ] **Step 1: Add failing real-DOM panel tests**
 
@@ -322,6 +336,12 @@ it('does not reveal undiscovered city names in the panel or interruptions', () =
   const panel = createCouncilPanel(container, state, { onClose: () => {}, onTalkLevelChange: () => {} });
   expect(panel.textContent).not.toContain('Rome');
 });
+
+it('queues council interruptions for the right hot-seat viewer instead of broadcasting them immediately', () => {
+  const { state } = makeCouncilFixture({ hotSeat: true, currentPlayer: 'player-2' });
+  const interrupt = getCouncilInterrupt(state, 'player-2', 'normal');
+  expect(interrupt?.civId).toBe('player-2');
+});
 ```
 
 - [ ] **Step 2: Run focused tests to confirm red state**
@@ -329,7 +349,7 @@ it('does not reveal undiscovered city names in the panel or interruptions', () =
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts
 ```
 
 Expected: FAIL with missing panel / missing Council interrupt flow.
@@ -372,17 +392,22 @@ And in `main.ts`:
 
 ```typescript
 bus.on('council:interrupt', data => {
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    collectEvent(gameState.pendingEvents, data.civId, { type: 'council:interrupt', message: data.summary, turn: gameState.turn });
+  }
   if (data.civId !== gameState.currentPlayer) return;
   showNotification(data.summary, 'info');
 });
 ```
+
+Add a hot-seat regression in `tests/core/hotseat-events.test.ts` that proves a `player-2` Council interruption is queued for `player-2` and not shown during `player-1`’s live view.
 
 - [ ] **Step 5: Re-run focused tests until green**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts tests/systems/council-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts tests/systems/council-system.test.ts
 ```
 
 Expected: PASS.
@@ -390,7 +415,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit the Council UI**
 
 ```bash
-git add src/ui/council-panel.ts src/ui/advisor-system.ts src/main.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts
+git add src/ui/council-panel.ts src/ui/advisor-system.ts src/main.ts src/core/hotseat-events.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts
 git commit -m "feat(m4e): add council panel and interruptions"
 ```
 
@@ -400,6 +425,7 @@ git commit -m "feat(m4e): add council panel and interruptions"
 - Create: `src/ui/campaign-setup.ts`
 - Modify: `src/main.ts`
 - Modify: `src/core/game-state.ts`
+- Modify: `src/core/types.ts`
 - Create: `tests/ui/campaign-setup.test.ts`
 - Modify: `tests/core/game-state.test.ts`
 - Modify: `tests/storage/save-manager.test.ts`
@@ -421,9 +447,16 @@ it('requires map size, civ selection, opponent count, and campaign title before 
 });
 
 it('passes the chosen title into createNewGame', () => {
-  const state = createNewGame('rome', 'seed-1', 'medium', 'Wife Test Campaign');
+  const state = createNewGame({
+    civType: 'rome',
+    seed: 'seed-1',
+    mapSize: 'medium',
+    opponentCount: 3,
+    gameTitle: 'Wife Test Campaign',
+  });
   expect(state.gameTitle).toBe('Wife Test Campaign');
   expect(state.settings.mapSize).toBe('medium');
+  expect(Object.keys(state.civilizations)).toHaveLength(4);
 });
 ```
 
@@ -437,7 +470,7 @@ Expected: FAIL because solo setup still uses `showGameModeSelection()`.
 
 - [ ] **Step 3: Implement a dedicated campaign setup panel**
 
-Create `src/ui/campaign-setup.ts`:
+Add the shared setup contract to `src/core/types.ts` and import it into `src/ui/campaign-setup.ts`:
 
 ```typescript
 export interface SoloSetupConfig {
@@ -445,26 +478,61 @@ export interface SoloSetupConfig {
   mapSize: 'small' | 'medium' | 'large';
   opponentCount: number;
   gameTitle: string;
+  seed?: string;
 }
 ```
 
-Render map-size cards, opponent count, civ picker launch, and a required title field using DOM nodes instead of a raw `innerHTML` form.
+Then implement `src/ui/campaign-setup.ts` around that shared type. Render map-size cards, opponent count, civ picker launch, and a required title field using DOM nodes instead of a raw `innerHTML` form.
 
 - [ ] **Step 4: Wire `main.ts` and `createNewGame` to the new flow**
 
-Replace the existing solo branch in `showGameModeSelection()`:
+Replace the current solo branch in `showGameModeSelection()` and refactor `createNewGame` to accept a real config object instead of four positional optionals:
 
 ```typescript
 showCampaignSetup(uiLayer, {
   onStartSolo: (config) => {
-    gameState = createNewGame(config.civId, undefined, config.mapSize, config.gameTitle);
+    gameState = createNewGame({
+      civType: config.civId,
+      mapSize: config.mapSize,
+      opponentCount: config.opponentCount,
+      gameTitle: config.gameTitle,
+    });
     startGame();
   },
-  onCancel: () => createSavePanel(...),
+  onCancel: () => showGameModeSelection(),
 });
 ```
 
-Keep hot-seat flow separate and unchanged except for any shared title validation helper.
+In `src/core/game-state.ts`, replace the current fixed-2-civ solo setup with:
+
+```typescript
+export function createNewGame(config: SoloSetupConfig): GameState
+
+const playerCount = 1 + config.opponentCount;
+const startPositions = findStartPositions(map, playerCount);
+const civSelectRng = createRng((config.seed ?? gameSeed) + '-civ-select');
+const aiCivPool = [...CIV_DEFINITIONS.filter(c => c.id !== config.civId)];
+for (let i = aiCivPool.length - 1; i > 0; i--) {
+  const j = Math.floor(civSelectRng() * (i + 1));
+  [aiCivPool[i], aiCivPool[j]] = [aiCivPool[j], aiCivPool[i]];
+}
+const aiCivDefs = aiCivPool.slice(0, config.opponentCount);
+```
+
+Then create `ai-1`, `ai-2`, and so on for the requested count, bounded by `MAP_DIMENSIONS[config.mapSize].maxPlayers - 1`.
+
+Extract title validation into one concrete helper in `main.ts`:
+
+```typescript
+function requireCampaignTitle(input: HTMLInputElement): string | null {
+  const title = input.value.trim();
+  if (!title) {
+    showNotification('Campaign title is required', 'warning');
+    return null;
+  }
+  return title;
+}
+```
 
 - [ ] **Step 5: Re-run focused tests**
 
@@ -477,7 +545,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit the setup flow**
 
 ```bash
-git add src/ui/campaign-setup.ts src/main.ts src/core/game-state.ts tests/ui/campaign-setup.test.ts tests/core/game-state.test.ts tests/storage/save-manager.test.ts
+git add src/ui/campaign-setup.ts src/main.ts src/core/types.ts src/core/game-state.ts tests/ui/campaign-setup.test.ts tests/core/game-state.test.ts tests/storage/save-manager.test.ts
 git commit -m "feat(m4e): add solo campaign setup flow"
 ```
 
@@ -587,7 +655,7 @@ expect(isQuestVisibleToPlayer(state, quest, 'player')).toBe(false);
 - [ ] **Step 2: Run the Slice 1 focused suite**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/systems/quest-system.test.ts tests/ui/council-panel.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/integration/m4e-council-guidance.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/systems/quest-system.test.ts tests/ui/council-panel.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/integration/m4e-council-guidance.test.ts tests/storage/save-persistence.test.ts
 ```
 
 Expected: FAIL until quest-origin and grid-help wiring is complete.
@@ -599,7 +667,13 @@ Add `src/systems/quest-presentation.ts`:
 ```typescript
 export function getQuestOriginLabel(state: GameState, quest: Quest, viewerId: string): string {
   if (quest.issuerType === 'minor-civ') return 'city-state';
-  if (quest.issuerType === 'city' && quest.cityId) return formatCityReference(...);
+  if (quest.issuerType === 'city' && quest.cityId) {
+    const city = state.cities[quest.cityId];
+    if (!city) return 'unknown source';
+    const duplicateCount = Object.values(state.cities).filter(other => other.name === city.name).length;
+    const ownerName = state.civilizations[city.owner]?.name;
+    return formatCityReference(city.name, { ownerName, duplicateCount });
+  }
   return 'unknown source';
 }
 ```
@@ -664,6 +738,12 @@ it('supports wrapped maps without oscillating between seam columns', () => {
   expect(order).toBeDefined();
   expect(order?.reason).not.toContain('oscillation');
 });
+
+it('clears auto-explore when the player cancels or no safe path remains', () => {
+  const { state, unitId } = makeAutoExploreFixture({ trappedByVisibleHostiles: true });
+  applyAutoExploreOrder(state, unitId);
+  expect(state.units[unitId].automation).toBeUndefined();
+});
 ```
 
 - [ ] **Step 2: Run focused tests to confirm failure**
@@ -678,13 +758,13 @@ Expected: FAIL with missing auto-explore module / state.
 
 In `src/core/types.ts`:
 
+Extend the existing `Unit` interface with:
+
 ```typescript
-export interface Unit {
-  ...,
-  automation?: {
-    mode: 'auto-explore';
-    lastTargets: string[];
-  };
+automation?: {
+  mode: 'auto-explore';
+  lastTargets: string[];
+  startedTurn: number;
 }
 ```
 
@@ -756,6 +836,14 @@ it('opens a right-click menu for a selected unit and exposes auto-explore', () =
   expect(menu.textContent).toContain('Auto-explore');
 });
 
+it('shows auto-explore status in selected-unit UI and offers a cancel action', () => {
+  const { state, container, unitId } = makeDesktopControlFixture({ autoExploreActive: true });
+  renderSelectedUnitInfo(container, state, unitId);
+  expect(container.textContent).toContain('Auto-exploring');
+  const menu = createContextMenu(container, state, { unitId });
+  expect(menu.textContent).toContain('Cancel auto-explore');
+});
+
 it('shows hover tooltips for yields and grid view without using innerHTML injection', () => {
   const layer = createTooltipLayer(document.body);
   layer.show({ title: 'Forest', body: '+1 Food, +1 Production' }, { x: 10, y: 10 });
@@ -811,6 +899,21 @@ installKeyboardShortcuts(document, {
 ```
 
 And right-click support in `MouseHandler` that is a no-op on touch-only devices.
+
+Extract the existing selected-unit info-panel logic in `main.ts` into:
+
+```typescript
+function renderSelectedUnitInfo(container: HTMLElement, state: GameState, unitId: string): void
+```
+
+Also add a small selected-unit status row in `main.ts`:
+
+```typescript
+if (unit.automation?.mode === 'auto-explore') {
+  statusRow.textContent = `Auto-exploring since turn ${unit.automation.startedTurn}`;
+  cancelButton.textContent = 'Cancel auto-explore';
+}
+```
 
 - [ ] **Step 5: Re-run focused tests**
 
@@ -868,16 +971,15 @@ Expected: FAIL until render privacy and tuning are complete.
 
 - [ ] **Step 3: Implement render privacy fixes and bounded tuning**
 
-Keep tuning bounded to friction-reduction goals only:
+Keep tuning bounded to three concrete buckets only:
 
 ```typescript
-// Examples of allowed changes:
-// - clearer estimated turns in city outputs
-// - less punitive early growth stalls
-// - no accidental reveal during turn transitions
+// 1. turn-transition privacy: hidden cities/units never render during AI animation
+// 2. city feedback: selected-city and Council surfaces expose turns-to-growth / starvation clearly
+// 3. pacing: if the failing tests still show early deadlocks, change one targeted threshold at a time
 ```
 
-Do not introduce a giant balance refactor. Limit changes to targeted constants / helpers that the above tests justify.
+Do not introduce a giant balance refactor. If a pacing constant changes, record the old value and new value in the implementation commit so the tuning remains auditable.
 
 - [ ] **Step 4: Run full Slice 2 verification**
 
@@ -997,7 +1099,7 @@ it('keeps remaining wonder prerequisites inside the new late-era tech envelope',
 
 - [ ] **Step 3: Implement panel grouping and dependency wiring**
 
-Add era markers and “late-era payoff” copy in `tech-panel.ts`, and replace any M4d stopgap prerequisites in `legendary-wonder-definitions.ts` with real late-era dependencies.
+Add era markers and “late-era payoff” copy in `tech-panel.ts`, and replace the temporary late-era prerequisite fallbacks for `manhattan-project`, `internet`, and any other remaining late-era wonder with real tech dependencies from Task 9.
 
 - [ ] **Step 4: Re-run focused tests**
 
@@ -1057,11 +1159,11 @@ After merge, confirm ancestry and remove the worktree/branch.
 Extend `tests/systems/legendary-wonder-system.test.ts`:
 
 ```typescript
-it('exposes the full M4e legendary wonder catalog without duplicate ids', () => {
-  const ids = getLegendaryWonderDefinitions().map(w => w.id);
-  expect(new Set(ids).size).toBe(ids.length);
-  expect(ids).toContain('internet');
-  expect(ids).toContain('silk-road-exchange');
+it('matches the full approved M4 legendary wonder roster exactly', () => {
+  const ids = getLegendaryWonderDefinitions().map(w => w.id).sort();
+  expect(ids).toEqual(M4_LEGENDARY_WONDER_ROSTER.map(w => w.id).sort());
+  expect(M4_LEGENDARY_WONDER_ROSTER.length).toBeGreaterThanOrEqual(15);
+  expect(M4_LEGENDARY_WONDER_ROSTER.map(w => w.id)).toEqual(expect.arrayContaining(['manhattan-project', 'internet']));
 });
 
 it('supports at least one additional quest pattern beyond the original four', () => {
@@ -1076,18 +1178,17 @@ it('supports at least one additional quest pattern beyond the original four', ()
 ./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts
 ```
 
-- [ ] **Step 3: Add the remaining wonders in curated groups**
+- [ ] **Step 3: Add the remaining wonders from an explicit authoritative roster**
 
-Implement in `legendary-wonder-definitions.ts` in themed batches:
+At the top of `legendary-wonder-definitions.ts`, create one source of truth:
 
 ```typescript
-// communication / modernity
-// trade / infrastructure
-// science / existential projects
-// mythic / civic identity
+export const M4_LEGENDARY_WONDER_ROSTER = [
+  // every approved M4 legendary quest wonder, including the four already shipped in M4d
+] as const;
 ```
 
-Keep the catalog data-driven and avoid one-off branching in the system.
+Then add a full definition for every entry in that roster. Do not treat “themed batches” as a stopping rule; the task is complete only when the exact-equality test above passes and no approved M4 legendary wonder is absent.
 
 - [ ] **Step 4: Add any missing quest-step evaluators**
 
@@ -1283,10 +1384,15 @@ git commit -m "feat(m4e): add council memory and disagreements"
 **Files:**
 - Create: `src/systems/custom-civ-system.ts`
 - Create: `src/ui/custom-civ-panel.ts`
+- Modify: `src/core/types.ts`
+- Modify: `src/core/game-state.ts`
+- Modify: `src/main.ts`
+- Modify: `src/storage/save-manager.ts`
 - Modify: `src/systems/civ-definitions.ts`
 - Modify: `src/ui/civ-select.ts`
 - Create: `tests/ui/custom-civ-panel.test.ts`
 - Modify: `tests/systems/civ-definitions.test.ts`
+- Modify: `tests/storage/save-manager.test.ts`
 - Modify: `tests/storage/save-persistence.test.ts`
 
 - [ ] **Step 1: Add failing civ-creator and civ-definition tests**
@@ -1310,10 +1416,39 @@ it('includes Wakanda and Avalon with distinct themed bonuses', () => {
 });
 ```
 
+Extend `tests/storage/save-manager.test.ts`:
+
+```typescript
+const customCiv: CustomCivDefinition = {
+  id: 'custom-sunfolk',
+  name: 'Sunfolk',
+  color: '#d9a441',
+  leaderName: 'Aurelia',
+  cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+  traits: ['scholarly', 'wonder-craft'],
+};
+
+it('persists custom civilization definitions through settings save/load', async () => {
+  const baseSettings = await loadSettings() ?? {
+    mapSize: 'small',
+    soundEnabled: true,
+    musicEnabled: true,
+    musicVolume: 0.5,
+    sfxVolume: 0.7,
+    tutorialEnabled: true,
+    advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true, artisan: true },
+    councilTalkLevel: 'normal',
+  };
+  await saveSettings({ ...baseSettings, customCivilizations: [customCiv] });
+  const loaded = await loadSettings();
+  expect(loaded?.customCivilizations?.[0].name).toBe(customCiv.name);
+});
+```
+
 - [ ] **Step 2: Run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 3: Implement custom-civ validation and UI**
@@ -1337,6 +1472,9 @@ export interface CustomCivDefinition {
   cityNames: string[];
   traits: CustomCivTraitId[];
 }
+
+// Extend the existing GameSettings type with:
+customCivilizations?: CustomCivDefinition[];
 ```
 
 Validate:
@@ -1346,20 +1484,43 @@ if (traits.length < 2 || traits.length > 3) throw new Error('Custom civs require
 if (cityNames.length < 6) throw new Error('Custom civs need a real city-name pool');
 ```
 
+Persist custom civs in two places on purpose:
+
+```typescript
+const nextSettings = {
+  ...state.settings,
+  customCivilizations,
+};
+
+// app-level persistence for future new games
+await saveSettings(nextSettings);
+
+// in-save persistence so a running campaign keeps its custom civ definitions after load
+state.settings = nextSettings;
+```
+
+In `src/core/game-state.ts`, extend solo and hot-seat creation paths so `createNewGame(...)` / `createHotSeatGame(...)` accept an optional `customCivilizations` array in their config and resolve civ definitions from that array before falling back to built-in civ definitions.
+
 - [ ] **Step 4: Add Wakanda/Avalon and selection wiring**
 
-Update `civ-definitions.ts` and `civ-select.ts` so those civs and saved custom civs appear in the normal setup flow.
+Update `main.ts`, `civ-definitions.ts`, and `civ-select.ts` so:
+
+- `loadSettings()` is called before opening civ selection
+- saved `customCivilizations` are passed into the civ picker and custom-civ editor
+- the chosen custom civ registry is passed into `createNewGame(...)` / `createHotSeatGame(...)`
+
+Also update `save-persistence.test.ts` so a loaded campaign can still resolve a selected custom civ by ID after round-trip.
 
 - [ ] **Step 5: Re-run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 6: Commit the identity systems**
 
 ```bash
-git add src/systems/custom-civ-system.ts src/ui/custom-civ-panel.ts src/systems/civ-definitions.ts src/ui/civ-select.ts tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/storage/save-persistence.test.ts
+git add src/systems/custom-civ-system.ts src/ui/custom-civ-panel.ts src/core/types.ts src/core/game-state.ts src/main.ts src/storage/save-manager.ts src/systems/civ-definitions.ts src/ui/civ-select.ts tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 git commit -m "feat(m4e): add custom civs and final civ roster"
 ```
 
@@ -1454,7 +1615,7 @@ git commit -m "feat(m4e): finish naming integrity and final tuning"
 - [ ] **Step 1: Run the final targeted suite**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/ui/council-panel.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/systems/auto-explore-system.test.ts tests/ui/desktop-controls.test.ts tests/ui/fog-leak.test.ts tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/systems/council-memory.test.ts tests/ui/custom-civ-panel.test.ts tests/systems/city-name-system.test.ts tests/integration/m4e-council-guidance.test.ts tests/integration/m4e-acceptance.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/ui/council-panel.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/systems/auto-explore-system.test.ts tests/ui/desktop-controls.test.ts tests/ui/fog-leak.test.ts tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/systems/council-memory.test.ts tests/ui/custom-civ-panel.test.ts tests/systems/city-name-system.test.ts tests/integration/m4e-council-guidance.test.ts tests/integration/m4e-acceptance.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 2: Run the full suite and build**
