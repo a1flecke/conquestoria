@@ -4,6 +4,7 @@ import {
   checkQuestCompletion,
   processQuestExpiry,
   awardQuestReward,
+  isQuestTargetKnownToPlayer,
 } from '@/systems/quest-system';
 import type { Quest } from '@/core/types';
 
@@ -233,6 +234,41 @@ describe('quest system', () => {
       const result = awardQuestReward(reward);
       expect(result.relationshipBonus).toBe(25);
       expect(result.gold).toBe(50);
+    });
+  });
+
+  describe('quest target visibility', () => {
+    it('treats a city-targeted quest as unknown when the city has not been discovered', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: {} },
+            knownCivilizations: ['outsider'],
+          },
+        },
+      } as any;
+
+      expect(isQuestTargetKnownToPlayer(state, 'player', quest)).toBe(false);
     });
   });
 });

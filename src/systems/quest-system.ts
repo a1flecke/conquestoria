@@ -1,5 +1,6 @@
 import type { MinorCivArchetype, Quest, QuestReward, QuestTarget, QuestType, GameState } from '@/core/types';
 import { hexDistance } from './hex-utils';
+import { hasDiscoveredCity, hasDiscoveredMinorCiv } from './discovery-system';
 
 let questIdCounter = 0;
 
@@ -147,4 +148,22 @@ export function processQuestExpiry(quest: Quest, currentTurn: number): Quest {
 
 export function awardQuestReward(reward: QuestReward): QuestReward {
   return reward;
+}
+
+export function isQuestTargetKnownToPlayer(
+  state: Pick<GameState, 'cities' | 'civilizations' | 'minorCivs'>,
+  playerId: string,
+  quest: Quest,
+): boolean {
+  const target = quest.target as QuestTarget & { cityId?: string };
+
+  if ('cityId' in target && target.cityId) {
+    return hasDiscoveredCity(state as GameState, playerId, target.cityId);
+  }
+
+  if (target.type === 'trade_route') {
+    return hasDiscoveredMinorCiv(state as GameState, playerId, target.minorCivId);
+  }
+
+  return true;
 }
