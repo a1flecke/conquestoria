@@ -121,6 +121,28 @@ async function getMostRecentAutosaveMeta(): Promise<SaveSlotMeta | undefined> {
   return metas.sort((a, b) => b.turn - a.turn || compareSaveMeta(a, b))[0];
 }
 
+async function loadMostRecentPersistedAutosave(): Promise<GameState | undefined> {
+  const newestMeta = await getMostRecentAutosaveMeta();
+  if (!newestMeta) {
+    return undefined;
+  }
+
+  const state = await dbGet<GameState>(getSaveStorageKey(newestMeta.id, 'autosave'));
+  return state ? ensureGameIdentity(state) : undefined;
+}
+
+async function retireLegacyAutosaveIfRealAutosavesExist(): Promise<boolean> {
+  const metas = await listPersistedMetas();
+  const hasRealAutosave = metas.some(meta => meta.kind === 'autosave');
+  if (!hasRealAutosave) {
+    return false;
+  }
+
+  await dbDelete(LEGACY_AUTO_SAVE_KEY);
+  await syncLocalStorageBackup(undefined);
+  return true;
+}
+
 // --- Auto-save ---
 
 export async function autoSave(state: GameState): Promise<void> {
@@ -131,16 +153,19 @@ export async function autoSave(state: GameState): Promise<void> {
   await dbPut(getSaveStorageKey(entryId, 'autosave'), resolved);
   await dbPut(getMetaStorageKey(entryId), meta);
   await pruneAutosavesForGame(resolved.gameId!);
+  await retireLegacyAutosaveIfRealAutosavesExist();
   await syncLocalStorageBackup(resolved);
 }
 
 export async function loadMostRecentAutoSave(): Promise<GameState | undefined> {
-  const newestMeta = await getMostRecentAutosaveMeta();
-  if (newestMeta) {
-    const state = await dbGet<GameState>(getSaveStorageKey(newestMeta.id, 'autosave'));
-    if (state) {
-      return ensureGameIdentity(state);
-    }
+  const retiredLegacy = await retireLegacyAutosaveIfRealAutosavesExist();
+  const persistedAutoSave = await loadMostRecentPersistedAutosave();
+  if (persistedAutoSave) {
+    return persistedAutoSave;
+  }
+
+  if (retiredLegacy) {
+    return undefined;
   }
 
   return loadLegacyAutoSave();
@@ -207,7 +232,7 @@ export async function deleteSaveEntry(entryId: string, kind: 'manual' | 'autosav
   await dbDelete(getMetaStorageKey(entryId));
 
   if (kind === 'autosave') {
-    await syncLocalStorageBackup(await loadMostRecentAutoSave());
+    await syncLocalStorageBackup(await loadMostRecentPersistedAutosave());
   }
 }
 
@@ -226,6 +251,11 @@ export async function listSaves(options: { includeAutoSave?: boolean } = {}): Pr
   }
 
   if (visible.some(meta => meta.kind === 'autosave')) {
+    return visible;
+  }
+
+  const retiredLegacy = await retireLegacyAutosaveIfRealAutosavesExist();
+  if (retiredLegacy) {
     return visible;
   }
 

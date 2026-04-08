@@ -178,4 +178,61 @@ describe('save-manager autosave listing', () => {
     expect(save?.turn).toBe(42);
     expect(save?.gameId).toBe('game-b');
   });
+
+  it('ignores the legacy autosave fallback once a real autosave exists', async () => {
+    dbState.set('autosave', {
+      turn: 3,
+      currentPlayer: 'player',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    });
+
+    await autoSave({
+      turn: 9,
+      currentPlayer: 'player',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    } as any);
+
+    const saves = await listSaves({ includeAutoSave: true });
+
+    expect(saves.find(save => save.id === 'autosave')).toBeUndefined();
+    expect(dbState.has('autosave')).toBe(false);
+  });
+
+  it('does not resurrect the legacy autosave after deleting the last real autosave', async () => {
+    dbState.set('autosave', {
+      turn: 3,
+      currentPlayer: 'player',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    });
+
+    await autoSave({
+      turn: 9,
+      currentPlayer: 'player',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    } as any);
+
+    await deleteSaveEntry('autosave:game-a:9', 'autosave');
+
+    const saves = await listSaves({ includeAutoSave: true });
+    const mostRecent = await loadMostRecentAutoSave();
+
+    expect(saves.find(save => save.id === 'autosave')).toBeUndefined();
+    expect(mostRecent).toBeUndefined();
+  });
 });
