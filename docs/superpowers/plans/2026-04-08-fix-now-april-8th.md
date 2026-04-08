@@ -46,6 +46,9 @@ This follow-up plan replaces the parts of that implementation that were shown in
 - per-game autosave history, retaining the last `5` autosaves by turn
 - user-supplied game title for new campaigns
 - full wrap rendering parity for cities, units, highlights, and minor-civ territory
+- city-targeted quest text staying private until the city itself is discovered
+- save-panel rendering staying DOM-safe for user-controlled save names, campaign titles, and hot-seat player names
+- legacy autosave retirement validating a loadable real autosave payload, not just orphaned autosave metadata
 
 **Out of scope**
 - broad campaign browser redesign
@@ -75,6 +78,9 @@ The milestone is complete only when all of the following are true:
 11. First contact persists immediately when contact happens during live play, not only after end-turn processing or load migration.
 12. Once real per-game autosaves exist, legacy singleton autosave data cannot resurface in the UI or `Continue` flow unless it is the only remaining autosave source.
 13. Horizontal wrap rendering stays correct at any zoom level and viewport width supported by the game, including cases where more than one wrapped copy may be visible.
+14. City-targeted quest text never reveals an undiscovered city name in diplomacy rows, notifications, or hot-seat pending events.
+15. Save-panel user-controlled text is rendered through DOM nodes and `textContent`, not interpolated into `innerHTML`.
+16. Orphaned autosave metadata does not suppress or delete a valid legacy autosave fallback; legacy retirement happens only after at least one loadable real autosave exists.
 
 ---
 
@@ -90,6 +96,9 @@ The milestone is complete only when all of the following are true:
 | First contact still regresses after brief scouting | Contact is only persisted in `processTurn(...)` / migration, not at the moment visibility changes during movement, combat, or setup | Persist contact from a shared post-visibility sync helper invoked anywhere visibility is recalculated |
 | Deleted autosaves can come back from legacy storage | Legacy singleton autosave fallback remains readable even after real autosaves have been created and deleted | Make legacy autosave fallback one-way: migrate or retire it once real autosaves exist |
 | Wrap seam can still break at low zoom or wide viewport | The ghost helper uses a fixed `EDGE_MARGIN = 3` instead of viewport-aware duplication based on what the camera can actually see | Replace edge-margin duplication with offset enumeration derived from camera viewport and world wrap span |
+| Quest privacy fix is helper-only | `isQuestTargetKnownToPlayer(...)` exists, but the real UI/notification surfaces still print raw `quest.description` | Centralize player-facing quest copy in a formatter that gates city names before display |
+| Save-panel hotfix breaks DOM safety | User-controlled `save.name`, `gameTitle`, and `playerNames` are interpolated into `innerHTML` | Rebuild dynamic save rows with DOM nodes and `textContent`, keeping user content out of markup strings |
+| Legacy autosave retirement is too eager | Any autosave meta is treated as proof of a real autosave, even if its payload is missing | Treat only loadable autosave meta+payload pairs as real, and prune orphaned metas before retire/list/continue decisions |
 
 ---
 
@@ -1249,6 +1258,506 @@ git commit -m "docs(hotfix): update april 8 follow-up plan"
 
 ---
 
+## Third Formal Review Follow-Up
+
+This section supersedes the earlier assumption that the hotfix branch was functionally complete after the viewport-wrap work. The latest formal review found three remaining correctness/design gaps:
+
+1. Quest privacy is only implemented as a helper and is not wired through the real diplomacy and notification surfaces.
+2. The save panel now works better functionally, but it still violates the repository DOM safety rule by interpolating user-controlled text into `innerHTML`.
+3. Legacy autosave retirement is still driven by autosave metadata alone, so an orphaned meta row can hide or delete the only loadable fallback autosave.
+
+The tasks below fix those root causes instead of layering more special cases on top of the current branch.
+
+### Corrective Design: Player-Facing Quest Copy
+
+- Add one canonical formatter in `src/systems/quest-system.ts` for player-facing quest copy:
+
+```ts
+export function getQuestDescriptionForPlayer(
+  state: Pick<GameState, 'cities' | 'civilizations' | 'minorCivs'>,
+  playerId: string,
+  quest: Quest,
+): string
+```
+
+- This formatter must never trust raw `quest.description` when the target can leak a city identity.
+- Required behavior:
+  - `destroy_camp`: generic safe text, no city leakage risk
+  - `gift_gold`: generic safe text
+  - `defeat_units` with `cityId` and discovered city: include the real city name
+  - `defeat_units` with `cityId` and undiscovered city: replace the city name with a generic phrase such as `a foreign city`
+  - `trade_route` targeting an undiscovered city-state: generic phrase such as `a discovered city-state`
+  - unknown/legacy quest shapes: fall back to a generic safe sentence, not the raw stored description
+- Every player-facing quest surface must call this formatter:
+  - city-state quest line in `src/ui/diplomacy-panel.ts`
+  - `minor-civ:quest-issued` notification text in `src/main.ts`
+  - any hot-seat pending-event message assembled from the same notification path
+- Prefer adding a second helper for notification copy so `main.ts` does not rebuild strings ad hoc:
+
+```ts
+export function getQuestIssuedMessageForPlayer(
+  state: Pick<GameState, 'cities' | 'civilizations' | 'minorCivs'>,
+  playerId: string,
+  minorCivName: string,
+  quest: Quest,
+): string
+```
+
+### Corrective Design: DOM-Safe Save Panel
+
+- Replace save row HTML string interpolation with DOM node creation.
+- Static shell/layout markup may stay string-based only if it contains no user-derived content. Prefer DOM creation for the whole panel to keep the implementation consistent with repository standards.
+- The following values must only flow through `textContent`:
+  - `save.name`
+  - `save.gameTitle`
+  - `save.playerNames`
+- Button ids may keep using internal slot ids, but user-controlled labels must never become part of markup strings.
+- Update the save-panel test fixture so it can verify DOM-built rows without relying on `innerHTML` parsing as the primary source of truth.
+
+### Corrective Design: Loadable Autosave Validation
+
+- Introduce an internal helper in `src/storage/save-manager.ts` that enumerates only loadable autosaves:
+
+```ts
+async function listLoadableAutosaveMetas(pruneInvalid: boolean = true): Promise<SaveSlotMeta[]>
+```
+
+- Required behavior:
+  - read autosave metas
+  - confirm the autosave payload exists for each meta
+  - prune orphaned autosave metas when `pruneInvalid` is `true`
+  - sort the returned metas using the same newest-first semantics as the current list/continue flow
+- All autosave decisions must then use loadable autosaves, not raw metadata:
+  - `getMostRecentAutosaveMeta()`
+  - `loadMostRecentPersistedAutosave()`
+  - `listSaves({ includeAutoSave: true })`
+  - `retireLegacyAutosaveIfRealAutosavesExist()`
+- Legacy autosave retirement becomes:
+  - retire only if at least one loadable real autosave exists
+  - otherwise preserve the legacy fallback
+  - if orphaned autosave metas exist, clean them up instead of treating them as real saves
+
+### Task 7: Wire Quest Privacy Through Real UI And Notification Surfaces
+
+**Files:**
+- Modify: `src/systems/quest-system.ts`
+- Modify: `src/ui/diplomacy-panel.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/systems/quest-system.test.ts`
+- Modify: `tests/ui/diplomacy-panel.test.ts`
+
+- [ ] **Step 1: Add red tests for discovered and undiscovered quest copy**
+
+Extend `tests/systems/quest-system.test.ts` with player-facing copy coverage:
+
+```ts
+it('returns a generic city-targeted description when the target city is undiscovered', () => {
+  expect(getQuestDescriptionForPlayer(state, 'player', quest)).toBe('Clear 2 units near a foreign city');
+});
+
+it('returns the named city-targeted description once the city is discovered', () => {
+  state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+  expect(getQuestDescriptionForPlayer(state, 'player', quest)).toBe('Clear 2 units from Rome');
+});
+
+it('builds a quest-issued notification without leaking an undiscovered city name', () => {
+  expect(getQuestIssuedMessageForPlayer(state, 'player', 'Sparta', quest)).toBe('Sparta asks: Clear 2 units near a foreign city');
+});
+```
+
+Extend `tests/ui/diplomacy-panel.test.ts` with:
+
+```ts
+it('does not leak an undiscovered city name through a city-state quest row', () => {
+  expect(rendered).toContain('foreign city');
+  expect(rendered).not.toContain('Rome');
+});
+```
+
+- [ ] **Step 2: Run the focused quest privacy tests and confirm failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/quest-system.test.ts tests/ui/diplomacy-panel.test.ts
+```
+
+Expected: FAIL because the branch still renders raw `quest.description`.
+
+- [ ] **Step 3: Centralize player-facing quest copy**
+
+In `src/systems/quest-system.ts`, add:
+
+```ts
+export function getQuestDescriptionForPlayer(
+  state: Pick<GameState, 'cities' | 'civilizations' | 'minorCivs'>,
+  playerId: string,
+  quest: Quest,
+): string {
+  switch (quest.target.type) {
+    case 'destroy_camp':
+      return 'Destroy a nearby barbarian camp';
+    case 'gift_gold':
+      return `Gift ${quest.target.amount} gold`;
+    case 'defeat_units':
+      if ('cityId' in quest.target && quest.target.cityId && hasDiscoveredCity(state as GameState, playerId, quest.target.cityId)) {
+        const city = (state as GameState).cities[quest.target.cityId];
+        return `Clear ${quest.target.count} units from ${city?.name ?? 'the target city'}`;
+      }
+      return `Clear ${quest.target.count} units near a foreign city`;
+    case 'trade_route':
+      return hasDiscoveredMinorCiv(state as GameState, playerId, quest.target.minorCivId)
+        ? quest.description
+        : 'Establish a trade route to a discovered city-state';
+    default:
+      return 'Complete the assigned task';
+  }
+}
+
+export function getQuestIssuedMessageForPlayer(
+  state: Pick<GameState, 'cities' | 'civilizations' | 'minorCivs'>,
+  playerId: string,
+  minorCivName: string,
+  quest: Quest,
+): string {
+  return `${minorCivName} asks: ${getQuestDescriptionForPlayer(state, playerId, quest)}`;
+}
+```
+
+`quest.description` is no longer the default UI source for city-bearing quests. Use structural formatting by quest type/target so legacy or imported quest descriptions cannot leak city names accidentally.
+
+- [ ] **Step 4: Route every quest-copy surface through the helper**
+
+Required rewires:
+
+```ts
+const questDescription = quest ? getQuestDescriptionForPlayer(state, state.currentPlayer, quest) : null;
+```
+
+in `src/ui/diplomacy-panel.ts`, and:
+
+```ts
+const msg = getQuestIssuedMessageForPlayer(
+  gameState,
+  data.majorCivId,
+  def?.name ?? 'City-state',
+  data.quest,
+);
+```
+
+in `src/main.ts`.
+
+Do not leave any direct `quest.description` interpolation on player-facing quest surfaces after this task.
+
+- [ ] **Step 5: Re-run the focused quest tests**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/quest-system.test.ts tests/ui/diplomacy-panel.test.ts tests/systems/discovery-system.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/systems/quest-system.ts src/ui/diplomacy-panel.ts src/main.ts tests/systems/quest-system.test.ts tests/ui/diplomacy-panel.test.ts
+git commit -m "fix(hotfix): gate quest city names by discovery"
+```
+
+---
+
+### Task 8: Rebuild The Save Panel With DOM-Safe User Text Handling
+
+**Files:**
+- Modify: `src/ui/save-panel.ts`
+- Modify: `tests/ui/helpers/save-panel-fixture.ts`
+- Modify: `tests/ui/save-panel.test.ts`
+
+- [ ] **Step 1: Add red tests for save-name/title markup injection**
+
+Extend `tests/ui/save-panel.test.ts` with:
+
+```ts
+it('does not register ids embedded inside a save name', async () => {
+  mocks.listSaves.mockResolvedValue([
+    {
+      id: 'slot-1',
+      name: '<span id=\"evil-save\">Owned</span>',
+      gameTitle: '<span id=\"evil-title\">Injected</span>',
+      civType: 'egypt',
+      turn: 9,
+      lastPlayed: '2026-04-08T12:00:00.000Z',
+      kind: 'manual',
+      gameMode: 'solo',
+    },
+  ]);
+
+  await createSavePanel(container, callbacks);
+
+  expect(document.getElementById('evil-save')).toBeNull();
+  expect(document.getElementById('evil-title')).toBeNull();
+});
+```
+
+Also add a hot-seat label test:
+
+```ts
+it('renders hot-seat player names as plain text instead of markup', async () => {
+  expect(document.getElementById('evil-player')).toBeNull();
+});
+```
+
+- [ ] **Step 2: Run the save-panel tests and confirm failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/save-panel.test.ts
+```
+
+Expected: FAIL because the current implementation injects user-controlled values into `innerHTML`.
+
+- [ ] **Step 3: Replace dynamic row interpolation with DOM builders**
+
+In `src/ui/save-panel.ts`, build the panel with DOM APIs:
+
+```ts
+function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement {
+  const card = document.createElement('div');
+  const name = document.createElement('div');
+  name.textContent = save.name;
+  const title = document.createElement('div');
+  title.textContent = save.gameTitle ?? '';
+  const meta = document.createElement('div');
+  meta.textContent = `Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType}`;
+  // Append buttons and return card
+  return card;
+}
+```
+
+The finished implementation must keep all user-derived strings out of markup templates.
+
+- [ ] **Step 4: Strengthen the save-panel test fixture for DOM-built rows**
+
+Update `tests/ui/helpers/save-panel-fixture.ts` so it can:
+- track created children via `appendChild(...)`
+- return created elements by id
+- preserve `textContent`
+- still support button clicks on dynamically created elements
+
+If needed, add a small text-tree serializer for assertions:
+
+```ts
+export function collectRenderedText(root: MockElement): string {
+  return [root.textContent, ...root.children.map(collectRenderedText)].join(' ');
+}
+```
+
+- [ ] **Step 5: Re-run the save-panel tests**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/save-panel.test.ts tests/storage/save-manager.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/ui/save-panel.ts tests/ui/helpers/save-panel-fixture.ts tests/ui/save-panel.test.ts
+git commit -m "fix(hotfix): render save rows with safe dom text"
+```
+
+---
+
+### Task 9: Validate Loadable Autosaves Before Retiring The Legacy Fallback
+
+**Files:**
+- Modify: `src/storage/save-manager.ts`
+- Modify: `tests/storage/save-manager.test.ts`
+
+- [ ] **Step 1: Add red tests for orphaned autosave metadata**
+
+Extend `tests/storage/save-manager.test.ts` with:
+
+```ts
+it('keeps the legacy autosave visible when autosave metadata exists without a real payload', async () => {
+  dbState.set('meta:autosave:game-a:9', {
+    id: 'autosave:game-a:9',
+    kind: 'autosave',
+    gameId: 'game-a',
+    gameTitle: 'Game A',
+    turn: 9,
+    lastPlayed: '2026-04-08T12:00:00.000Z',
+  });
+  dbState.set('autosave', legacyState);
+
+  const saves = await listSaves({ includeAutoSave: true });
+  const continued = await loadMostRecentAutoSave();
+
+  expect(saves.find(save => save.id === 'autosave')).toBeDefined();
+  expect(continued?.turn).toBe(legacyState.turn);
+});
+
+it('retires the legacy autosave only after a loadable real autosave exists', async () => {
+  // store both meta and payload for a real autosave, plus legacy
+  expect(await loadMostRecentAutoSave()).toMatchObject({ gameId: 'game-a', turn: 9 });
+  expect(dbState.has('autosave')).toBe(false);
+});
+```
+
+Also assert that orphaned autosave metas are removed during validation:
+
+```ts
+expect(dbState.has('meta:autosave:game-a:9')).toBe(false);
+```
+
+- [ ] **Step 2: Run the save-manager tests and confirm failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts
+```
+
+Expected: FAIL because the branch currently treats orphaned autosave metadata as proof of a real autosave.
+
+- [ ] **Step 3: Introduce loadable-autosave enumeration**
+
+In `src/storage/save-manager.ts`, add:
+
+```ts
+async function listLoadableAutosaveMetas(pruneInvalid: boolean = true): Promise<SaveSlotMeta[]> {
+  const metas = (await listPersistedMetas()).filter(meta => meta.kind === 'autosave');
+  const valid: SaveSlotMeta[] = [];
+
+  for (const meta of metas) {
+    const payload = await dbGet<GameState>(getSaveStorageKey(meta.id, 'autosave'));
+    if (payload) {
+      valid.push(meta);
+      continue;
+    }
+    if (pruneInvalid) {
+      await dbDelete(getMetaStorageKey(meta.id));
+    }
+  }
+
+  return valid.sort((a, b) => b.turn - a.turn || compareSaveMeta(a, b));
+}
+```
+
+- [ ] **Step 4: Rewire every autosave decision to use loadable autosaves**
+
+Update:
+- `getMostRecentAutosaveMeta()`
+- `loadMostRecentPersistedAutosave()`
+- `retireLegacyAutosaveIfRealAutosavesExist()`
+- `listSaves({ includeAutoSave: true })`
+
+The required rule is:
+
+```ts
+const loadableAutosaves = await listLoadableAutosaveMetas();
+if (loadableAutosaves.length > 0) {
+  await dbDelete(LEGACY_AUTO_SAVE_KEY);
+  await syncLocalStorageBackup(undefined);
+}
+```
+
+Do not retire legacy state when only orphaned metadata exists.
+
+- [ ] **Step 5: Re-run the autosave tests**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts tests/ui/save-panel.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/storage/save-manager.ts tests/storage/save-manager.test.ts tests/ui/save-panel.test.ts
+git commit -m "fix(hotfix): validate autosave payloads before legacy retirement"
+```
+
+---
+
+### Task 10: Final Verification And Re-Review For The Remaining Hotfix Gaps
+
+**Files:**
+- Modify: this plan only if implementation deviates from the locked design
+
+- [ ] **Step 1: Run focused quest privacy verification**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/quest-system.test.ts tests/ui/diplomacy-panel.test.ts tests/systems/discovery-system.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 2: Run focused save-panel and autosave verification**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/save-panel.test.ts tests/storage/save-manager.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 3: Run full regression and build**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
+
+- [ ] **Step 4: Perform a new formal review on `origin/main...HEAD`**
+
+Review:
+
+```bash
+git diff origin/main...HEAD
+git diff
+```
+
+Look specifically for:
+- undiscovered city names still leaking through quest UI or notifications
+- any user-controlled text still interpolated into `innerHTML`
+- any autosave decision path that still assumes metadata implies a real payload
+- hot-seat regressions from the quest-copy or save-panel rewires
+
+- [ ] **Step 5: Comment on PR `#67` with the resolved findings**
+
+Comment on the PR with:
+- the three findings that were fixed
+- the focused tests added
+- the full-suite/build evidence
+
+Do not close issues here. The issues stay open until the PR merges.
+
+- [ ] **Step 6: Commit any final plan-only edits if needed**
+
+```bash
+git add docs/superpowers/plans/2026-04-08-fix-now-april-8th.md
+git commit -m "docs(hotfix): extend april 8 review follow-up plan"
+```
+
+---
+
 ## Spec Coverage Checklist
 
 - Persistent contact memory: `Task 1`
@@ -1258,6 +1767,10 @@ git commit -m "docs(hotfix): update april 8 follow-up plan"
 - Correct autosave deletion and continue behavior: `Task 3` and `Task 4`
 - Full wrap-render parity for all visible layers: `Task 5`
 - Release-gate discipline and “do not close before merge”: `Task 6`
+- Player-facing quest city privacy on real surfaces: `Task 7`
+- DOM-safe save-panel rendering for user-controlled text: `Task 8`
+- Loadable autosave validation before legacy retirement: `Task 9`
+- Final re-review of the remaining hotfix gaps: `Task 10`
 
 No review finding or April 8 clarification is left without an explicit task.
 
@@ -1281,7 +1794,19 @@ No review finding or April 8 clarification is left without an explicit task.
   - per-game retention at `5`
   - autosave deletion
   - legacy singleton migration
+  - orphaned autosave metadata
+  - retirement only after a loadable real autosave exists
   - save-mode exclusion
+- Quest privacy scenarios covered:
+  - discovered city keeps its real name
+  - undiscovered city stays generic in the diplomacy panel
+  - undiscovered city stays generic in quest-issued notifications
+  - legacy/unsupported quest shapes still fall back to safe copy
+- DOM safety scenarios covered:
+  - save names rendered as text
+  - campaign titles rendered as text
+  - hot-seat player names rendered as text
+  - regression tests detect injected ids in user-controlled labels
 - Wrapping scenarios covered:
   - terrain
   - fog
