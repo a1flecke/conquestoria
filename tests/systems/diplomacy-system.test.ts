@@ -159,6 +159,30 @@ describe('diplomacy-system', () => {
   });
 
   describe('applyDiplomaticAction', () => {
+    it('applies Narnias treaty relationship bonus symmetrically when a treaty is signed', () => {
+      const bus = new EventBus();
+      const state = {
+        turn: 12,
+        civilizations: {
+          player: {
+            id: 'player',
+            civType: 'narnia',
+            diplomacy: createDiplomacyState(['player', 'ai-egypt'], 'player'),
+          },
+          'ai-egypt': {
+            id: 'ai-egypt',
+            civType: 'egypt',
+            diplomacy: createDiplomacyState(['player', 'ai-egypt'], 'ai-egypt'),
+          },
+        },
+      } as any;
+
+      const result = applyDiplomaticAction(state, 'player', 'ai-egypt', 'alliance', bus);
+
+      expect(getRelationship(result.civilizations.player.diplomacy, 'ai-egypt')).toBe(15);
+      expect(getRelationship(result.civilizations['ai-egypt'].diplomacy, 'player')).toBe(15);
+    });
+
     it('reabsorbs an eligible breakaway state instead of leaving the action as a no-op', () => {
       const { state, breakawayId, cityId } = makeBreakawayFixture({
         breakawayStartedTurn: 12,

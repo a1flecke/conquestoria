@@ -194,4 +194,99 @@ describe('processTurn', () => {
       turnCompleted: 40,
     });
   });
+
+  it('shuts down city production for exactly 3 turns after a cyber attack', () => {
+    const state = createNewGame(undefined, 'cyber-turn-test', 'small');
+    const bus = new EventBus();
+    const playerCiv = state.civilizations.player;
+    const startPos = state.units[playerCiv.units[0]].position;
+    const city = foundCity('player', startPos, state.map);
+    city.buildings = ['workshop'];
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 20;
+    state.cities[city.id] = city;
+    playerCiv.cities.push(city.id);
+    state.cities[city.id].productionDisabledTurns = 3;
+
+    const turn1 = processTurn(state, bus);
+    expect(turn1.cities[city.id].productionProgress).toBe(20);
+    expect(turn1.cities[city.id].productionDisabledTurns).toBe(2);
+
+    const turn2 = processTurn(turn1, bus);
+    expect(turn2.cities[city.id].productionProgress).toBe(20);
+    expect(turn2.cities[city.id].productionDisabledTurns).toBe(1);
+
+    const turn3 = processTurn(turn2, bus);
+    expect(turn3.cities[city.id].productionDisabledTurns).toBe(0);
+    expect(turn3.cities[city.id].productionProgress).toBe(20);
+
+    const turn4 = processTurn(turn3, bus);
+    expect(turn4.cities[city.id].productionProgress).toBeGreaterThan(20);
+  });
+
+  it('applies misinformation research penalties for exactly 10 turns', () => {
+    const state = createNewGame(undefined, 'misinfo-turn-test', 'small');
+    const bus = new EventBus();
+    const playerCiv = state.civilizations.player;
+    const startPos = state.units[playerCiv.units[0]].position;
+    const city = foundCity('player', startPos, state.map);
+    city.buildings = ['library'];
+    state.cities[city.id] = city;
+    playerCiv.cities.push(city.id);
+
+    playerCiv.techState.currentResearch = 'cyber-warfare';
+    playerCiv.techState.researchProgress = 0;
+    playerCiv.researchPenaltyTurns = 10;
+    playerCiv.researchPenaltyMultiplier = 0.2;
+
+    const controlState = structuredClone(state);
+    controlState.civilizations.player.researchPenaltyTurns = 0;
+    controlState.civilizations.player.researchPenaltyMultiplier = 0;
+
+    let next = processTurn(state, bus);
+    const control = processTurn(controlState, new EventBus());
+    expect(next.civilizations.player.techState.researchProgress).toBeGreaterThan(0);
+    expect(control.civilizations.player.techState.researchProgress).toBeGreaterThan(
+      next.civilizations.player.techState.researchProgress,
+    );
+    expect(next.civilizations.player.researchPenaltyTurns).toBe(9);
+
+    for (let i = 0; i < 8; i++) {
+      next = processTurn(next, bus);
+    }
+
+    expect(next.civilizations.player.researchPenaltyTurns).toBe(1);
+
+    next = processTurn(next, bus);
+    expect(next.civilizations.player.researchPenaltyTurns).toBe(0);
+    expect(next.civilizations.player.researchPenaltyMultiplier).toBe(0);
+  });
+
+  it('grants Narnia alliance yield bonuses during turn processing', () => {
+    const state = createNewGame(undefined, 'narnia-alliance-test', 'small');
+    const bus = new EventBus();
+    const playerCiv = state.civilizations.player;
+    playerCiv.civType = 'narnia';
+    playerCiv.gold = 0;
+    playerCiv.techState.currentResearch = 'cyber-warfare';
+    playerCiv.techState.researchProgress = 0;
+    playerCiv.diplomacy.treaties.push({
+      type: 'alliance',
+      civA: 'player',
+      civB: 'ai-1',
+      turnsRemaining: -1,
+    });
+
+    const controlState = structuredClone(state);
+    controlState.civilizations.player.civType = 'egypt';
+    controlState.civilizations.player.diplomacy.treaties = [];
+
+    const result = processTurn(state, bus);
+    const control = processTurn(controlState, new EventBus());
+
+    expect(result.civilizations.player.gold).toBeGreaterThan(control.civilizations.player.gold);
+    expect(result.civilizations.player.techState.researchProgress).toBeGreaterThan(
+      control.civilizations.player.techState.researchProgress,
+    );
+  });
 });

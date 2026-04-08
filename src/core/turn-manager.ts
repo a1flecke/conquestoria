@@ -8,7 +8,7 @@ import { resolveCombat } from '@/systems/combat-system';
 import { moveUnit } from '@/systems/unit-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import type { HexCoord } from './types';
-import { updateVisibility, revealMinorCivCities, applySharedVision } from '@/systems/fog-of-war';
+import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance } from '@/systems/fog-of-war';
 import {
   processRelationshipDrift,
   decayEvents,
@@ -54,6 +54,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    const currentCivState = newState.civilizations[civId];
+    const civDef = getCivDefinition(civ.civType ?? '');
     // Process cities: food, growth, production
     let totalScience = 0;
     let totalGold = 0;
@@ -62,7 +64,6 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const city = newState.cities[cityId];
       if (!city) continue;
 
-      const civDef = getCivDefinition(civ.civType ?? '');
       const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
       const unrestMultiplier = getUnrestYieldMultiplier(city);
@@ -96,8 +97,17 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const wonderCivBonuses = getLegendaryWonderCivYieldBonus(newState, civId);
     totalScience += wonderCivBonuses.science ?? 0;
     totalGold += wonderCivBonuses.gold ?? 0;
+    if (civDef?.bonusEffect.type === 'allied_kingdoms') {
+      const allianceCount = civ.diplomacy.treaties.filter(t => t.type === 'alliance').length;
+      totalScience += allianceCount * civDef.bonusEffect.allianceYieldBonus;
+      totalGold += allianceCount * civDef.bonusEffect.allianceYieldBonus;
+    }
 
-    const researchResult = processResearch(civ.techState, totalScience);
+    const researchPenaltyMultiplier = currentCivState.researchPenaltyTurns && currentCivState.researchPenaltyTurns > 0
+      ? currentCivState.researchPenaltyMultiplier ?? 0
+      : 0;
+    const effectiveScience = Math.max(0, Math.floor(totalScience * (1 - researchPenaltyMultiplier)));
+    const researchResult = processResearch(civ.techState, effectiveScience);
     newState.civilizations[civId].techState = researchResult.state;
     if (researchResult.completedTech) {
       bus.emit('tech:completed', { civId, techId: researchResult.completedTech });
@@ -117,7 +127,6 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     }
 
     // Update peak counts (read from newState to pick up earlier mutations in this loop)
-    const currentCivState = newState.civilizations[civId];
     if (currentCivState.diplomacy) {
       const cityCount = currentCivState.cities.length;
       const milCount = currentCivState.units
@@ -199,6 +208,12 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     // Update visibility
     updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
 
+    for (const [targetCivId, turnsRemaining] of Object.entries(currentCivState.satelliteSurveillanceTargets ?? {})) {
+      if (turnsRemaining > 0) {
+        newState = applySatelliteSurveillance(newState, civId, targetCivId);
+      }
+    }
+
     // Reveal minor civ cities near explored tiles
     const mcCityPositions = Object.values(newState.minorCivs)
       .filter(mc => !mc.isDestroyed)
@@ -229,6 +244,29 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
       newState.civilizations[civId].advisorDisabledUntil =
         Object.keys(stillDisabled).length > 0 ? stillDisabled : undefined;
+    }
+
+    if ((currentCivState.researchPenaltyTurns ?? 0) > 0) {
+      newState.civilizations[civId].researchPenaltyTurns = Math.max(0, (currentCivState.researchPenaltyTurns ?? 0) - 1);
+      if ((newState.civilizations[civId].researchPenaltyTurns ?? 0) === 0) {
+        newState.civilizations[civId].researchPenaltyMultiplier = 0;
+      }
+    }
+
+    const updatedTargets: Record<string, number> = {};
+    for (const [targetCivId, turnsRemaining] of Object.entries(currentCivState.satelliteSurveillanceTargets ?? {})) {
+      const nextTurns = Math.max(0, turnsRemaining - 1);
+      if (nextTurns > 0) {
+        updatedTargets[targetCivId] = nextTurns;
+      }
+    }
+    newState.civilizations[civId].satelliteSurveillanceTargets =
+      Object.keys(updatedTargets).length > 0 ? updatedTargets : undefined;
+  }
+
+  for (const city of Object.values(newState.cities)) {
+    if ((city.productionDisabledTurns ?? 0) > 0) {
+      city.productionDisabledTurns = Math.max(0, (city.productionDisabledTurns ?? 0) - 1);
     }
   }
 

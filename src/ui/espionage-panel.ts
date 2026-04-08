@@ -1,11 +1,12 @@
 // src/ui/espionage-panel.ts
 import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion } from '../core/types';
-import { canRecruitSpy, getAvailableMissions } from '../systems/espionage-system';
+import { canRecruitSpy, getAvailableMissions, missionRequiresPlacedSpy } from '../systems/espionage-system';
 
 export interface MissionCatalogEntry {
   id: SpyMissionType;
   label: string;
-  stage: 1 | 2 | 3 | 4;
+  stage: 1 | 2 | 3 | 4 | 5;
+  accessLabel: string;
 }
 
 export interface SpySummary {
@@ -30,10 +31,11 @@ export interface EspionagePanelData {
   missionCatalog: MissionCatalogEntry[];
   defendingCityIds: string[];
   disabledAdvisors: AdvisorType[];
+  threatBoard: Array<{ cityId: string; foreignCivId: string; confidence: 'detected' }>;
 }
 
 export interface MissionStageGroup {
-  stage: 1 | 2 | 3 | 4;
+  stage: 1 | 2 | 3 | 4 | 5;
   title: string;
   description: string;
   missions: MissionCatalogEntry[];
@@ -43,7 +45,17 @@ export interface EspionagePanelViewModel extends EspionagePanelData {
   missionStages: MissionStageGroup[];
 }
 
-export type SpyAction = 'assign' | 'assign_defensive' | 'start_mission' | 'recall';
+export type SpyAction = 'assign' | 'assign_defensive' | 'start_mission' | 'recall' | 'verify_agent';
+
+export interface EspionagePanelCallbacks {
+  onClose: () => void;
+  onRecruit?: () => void;
+  onAssign?: (spyId: string) => void;
+  onAssignDefensive?: (spyId: string) => void;
+  onStartMission?: (spyId: string) => void;
+  onRecall?: (spyId: string) => void;
+  onVerifyAgent?: (spyId: string) => void;
+}
 
 const MISSION_LABELS: Record<SpyMissionType, string> = {
   scout_area: 'Scout Area',
@@ -59,9 +71,13 @@ const MISSION_LABELS: Record<SpyMissionType, string> = {
   forge_documents: 'Forge Documents',
   fund_rebels: 'Fund Rebels',
   arms_smuggling: 'Arms Smuggling',
+  cyber_attack: 'Cyber Attack',
+  misinformation_campaign: 'Misinformation Campaign',
+  election_interference: 'Election Interference',
+  satellite_surveillance: 'Satellite Surveillance',
 };
 
-const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4> = {
+const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
   scout_area: 1,
   monitor_troops: 1,
   gather_intel: 2,
@@ -75,6 +91,10 @@ const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4> = {
   forge_documents: 4,
   fund_rebels: 4,
   arms_smuggling: 4,
+  cyber_attack: 5,
+  misinformation_campaign: 5,
+  election_interference: 5,
+  satellite_surveillance: 5,
 };
 
 function toMissionCatalog(missions: SpyMissionType[]): MissionCatalogEntry[] {
@@ -82,22 +102,24 @@ function toMissionCatalog(missions: SpyMissionType[]): MissionCatalogEntry[] {
     id: mission,
     label: MISSION_LABELS[mission],
     stage: MISSION_STAGE[mission],
+    accessLabel: missionRequiresPlacedSpy(mission) ? 'Requires placed spy' : 'Remote-capable',
   }));
 }
 
 function buildMissionStageGroups(missionCatalog: MissionCatalogEntry[]): MissionStageGroup[] {
-  const stages: Record<1 | 2 | 3 | 4, { title: string; description: string; missions: MissionCatalogEntry[] }> = {
+  const stages: Record<1 | 2 | 3 | 4 | 5, { title: string; description: string; missions: MissionCatalogEntry[] }> = {
     1: { title: 'Stage 1: Scouts', description: 'Passive intelligence and city perimeter awareness.', missions: [] },
     2: { title: 'Stage 2: Informants', description: 'Active reconnaissance and diplomatic spying.', missions: [] },
     3: { title: 'Stage 3: Spy Rings', description: 'Disruption, theft, and covert pressure.', missions: [] },
     4: { title: 'Stage 4: Shadow Operations', description: 'High-risk operations that shape empires.', missions: [] },
+    5: { title: 'Stage 5: Digital Warfare', description: 'Remote disruption and global surveillance. Higher stakes, higher diplomatic fallout.', missions: [] },
   };
 
   for (const mission of missionCatalog) {
     stages[mission.stage].missions.push(mission);
   }
 
-  const stageOrder: Array<1 | 2 | 3 | 4> = [1, 2, 3, 4];
+  const stageOrder: Array<1 | 2 | 3 | 4 | 5> = [1, 2, 3, 4, 5];
   return stageOrder.map(stage => ({
     stage,
     title: stages[stage].title,
@@ -144,6 +166,19 @@ function appendSectionHeader(parent: HTMLElement, title: string, subtitle: strin
   parent.appendChild(header);
 }
 
+function appendActionButton(
+  parent: HTMLElement,
+  label: string,
+  action: string,
+  onClick: () => void,
+): void {
+  const button = createEl('button', label);
+  button.dataset.action = action;
+  button.style.cssText = 'padding:6px 10px;border:1px solid rgba(255,255,255,0.16);border-radius:8px;background:rgba(255,255,255,0.06);color:#f5f7fb;font-size:11px;cursor:pointer;';
+  button.addEventListener('click', onClick);
+  parent.appendChild(button);
+}
+
 function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void {
   const section = createEl('section');
   section.dataset.stage = String(group.stage);
@@ -152,8 +187,9 @@ function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void
   appendSectionHeader(section, group.title, group.description);
 
   if (group.missions.length === 0) {
-    section.appendChild(createEl('div', 'No missions unlocked.'));
-    (section.lastChild as HTMLElement).style.cssText = 'font-size:11px;opacity:0.55;';
+    const empty = createEl('div', 'No missions unlocked.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    section.appendChild(empty);
   } else {
     const list = createEl('div');
     list.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
@@ -165,6 +201,9 @@ function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void
       const stageTag = createEl('span', `S${mission.stage}`);
       stageTag.style.cssText = 'color:#e8c170;font-size:10px;font-weight:700;';
       item.appendChild(stageTag);
+      const accessTag = createEl('span', mission.accessLabel);
+      accessTag.style.cssText = 'color:#9dd1ff;font-size:10px;';
+      item.appendChild(accessTag);
       list.appendChild(item);
     }
     section.appendChild(list);
@@ -173,7 +212,12 @@ function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void
   parent.appendChild(section);
 }
 
-function appendSpyCard(parent: HTMLElement, state: GameState, spy: SpySummary): void {
+function appendSpyCard(
+  parent: HTMLElement,
+  state: GameState,
+  spy: SpySummary,
+  callbacks: EspionagePanelCallbacks,
+): void {
   const card = createEl('article');
   card.dataset.spyId = spy.id;
   card.style.cssText = 'padding:10px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:8px;';
@@ -206,7 +250,20 @@ function appendSpyCard(parent: HTMLElement, state: GameState, spy: SpySummary): 
     const actionRow = createEl('div');
     actionRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
     for (const action of actions) {
-      appendChip(actionRow, action.replace(/_/g, ' '));
+      const actionLabel = action.replace(/_/g, ' ');
+      if (action === 'assign' && callbacks.onAssign) {
+        appendActionButton(actionRow, actionLabel, action, () => callbacks.onAssign?.(spy.id));
+      } else if (action === 'assign_defensive' && callbacks.onAssignDefensive) {
+        appendActionButton(actionRow, actionLabel, action, () => callbacks.onAssignDefensive?.(spy.id));
+      } else if (action === 'start_mission' && callbacks.onStartMission) {
+        appendActionButton(actionRow, actionLabel, action, () => callbacks.onStartMission?.(spy.id));
+      } else if (action === 'recall' && callbacks.onRecall) {
+        appendActionButton(actionRow, action, action, () => callbacks.onRecall?.(spy.id));
+      } else if (action === 'verify_agent' && callbacks.onVerifyAgent) {
+        appendActionButton(actionRow, 'verify agent', action, () => callbacks.onVerifyAgent?.(spy.id));
+      } else {
+        appendChip(actionRow, actionLabel);
+      }
     }
     card.appendChild(actionRow);
   }
@@ -228,18 +285,59 @@ function appendBulletList(parent: HTMLElement, items: string[], emptyText: strin
   parent.appendChild(list);
 }
 
-export function createEspionagePanel(state: GameState): HTMLDivElement {
+function appendThreatBoard(
+  parent: HTMLElement,
+  threats: Array<{ cityId: string; foreignCivId: string; confidence: 'detected' }>,
+): void {
+  const threatBlock = createEl('section');
+  threatBlock.dataset.section = 'threat-board';
+  appendSectionHeader(threatBlock, 'Threat Board', 'Detected foreign spy activity in your cities.');
+
+  if (threats.length === 0) {
+    const empty = createEl('div', 'No foreign spy activity detected.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    threatBlock.appendChild(empty);
+    parent.appendChild(threatBlock);
+    return;
+  }
+
+  for (const threat of threats) {
+    const row = createEl('div', `${threat.cityId} · ${threat.foreignCivId} · ${threat.confidence}`);
+    row.style.cssText = 'font-size:11px;opacity:0.8;padding:4px 0;';
+    threatBlock.appendChild(row);
+  }
+
+  parent.appendChild(threatBlock);
+}
+
+export function createEspionagePanel(
+  state: GameState,
+  callbacks: EspionagePanelCallbacks = { onClose: () => {} },
+): HTMLDivElement {
   const data = getEspionagePanelViewModel(state);
   const panel = createEl('div');
   panel.id = 'espionage-panel';
   panel.style.cssText = 'display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:14px;background:rgba(12,16,28,0.96);color:#f5f7fb;';
   panel.dataset.panel = 'espionage';
 
+  const headerRow = createEl('div');
+  headerRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;';
+  const titleWrap = createEl('div');
+  titleWrap.style.cssText = 'flex:1;';
   appendSectionHeader(
-    panel,
+    titleWrap,
     'Espionage',
     `Spies ${data.activeSpyCount}/${data.maxSpies} · ${data.canRecruit ? 'Recruitment available' : 'No recruitment available'}`,
   );
+  headerRow.appendChild(titleWrap);
+  const headerActions = createEl('div');
+  headerActions.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  if (data.canRecruit && callbacks.onRecruit) {
+    appendActionButton(headerActions, 'Recruit', 'recruit-spy', () => callbacks.onRecruit?.());
+  }
+  appendActionButton(headerActions, 'Close', 'close-panel', () => callbacks.onClose());
+  headerRow.appendChild(headerActions);
+  panel.appendChild(headerRow);
 
   const missionBlock = createEl('section');
   missionBlock.dataset.section = 'missions';
@@ -255,7 +353,7 @@ export function createEspionagePanel(state: GameState): HTMLDivElement {
     empty.style.cssText = 'font-size:11px;opacity:0.55;';
     spiesBlock.appendChild(empty);
   } else {
-    for (const spy of data.spySummaries) appendSpyCard(spiesBlock, state, spy);
+    for (const spy of data.spySummaries) appendSpyCard(spiesBlock, state, spy, callbacks);
   }
   panel.appendChild(spiesBlock);
 
@@ -270,6 +368,8 @@ export function createEspionagePanel(state: GameState): HTMLDivElement {
   appendSectionHeader(advisorBlock, 'Disabled Advisors', 'Advisor systems currently shut down by sabotage.');
   appendBulletList(advisorBlock, data.disabledAdvisors, 'No advisors are disabled.');
   panel.appendChild(advisorBlock);
+
+  appendThreatBoard(panel, data.threatBoard);
 
   return panel;
 }
@@ -287,6 +387,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
       missionCatalog: [],
       defendingCityIds: [],
       disabledAdvisors: [],
+      threatBoard: [],
     };
   }
 
@@ -303,6 +404,17 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     .filter(s => s.status === 'stationed' && s.targetCivId === null && s.targetCityId !== null)
     .map(s => s.targetCityId!)
     .sort();
+  const playerTechs = state.civilizations[state.currentPlayer]?.techState.completed ?? [];
+  const canDetectThreats = playerTechs.includes('digital-surveillance') || playerTechs.includes('counter-intelligence');
+  const threatBoard = canDetectThreats
+    ? Object.values(civEsp.detectedThreats ?? {})
+      .filter(threat => threat.expiresOnTurn >= state.turn)
+      .map(threat => ({
+        cityId: threat.cityId,
+        foreignCivId: threat.foreignCivId,
+        confidence: 'detected' as const,
+      }))
+    : [];
   const spySummaries = spies.map((spy) => ({
     id: spy.id,
     name: spy.name,
@@ -325,6 +437,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     missionCatalog: toMissionCatalog(availableMissions),
     defendingCityIds,
     disabledAdvisors,
+    threatBoard,
   };
 }
 
@@ -335,13 +448,21 @@ export function getSpyActions(state: GameState, spyId: string): SpyAction[] {
   if (!spy) return [];
 
   const actions: SpyAction[] = [];
+  const completedTechs = state.civilizations[state.currentPlayer]?.techState.completed ?? [];
+  const hasRemoteMission = getAvailableMissions(completedTechs).some(mission => !missionRequiresPlacedSpy(mission));
 
   switch (spy.status) {
     case 'idle':
       actions.push('assign', 'assign_defensive');
+      if (hasRemoteMission) {
+        actions.push('start_mission');
+      }
       break;
     case 'stationed':
-      if (!spy.currentMission && spy.targetCivId) {
+      if (spy.turnedBy) {
+        actions.push('verify_agent');
+      }
+      if (!spy.currentMission && (spy.targetCivId || hasRemoteMission)) {
         actions.push('start_mission');
       }
       actions.push('recall');

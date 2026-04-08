@@ -1,7 +1,8 @@
-import type { VisibilityMap, VisibilityState, HexCoord, Unit, GameMap } from '@/core/types';
-import { hexKey, hexesInRange } from './hex-utils';
+import type { VisibilityMap, VisibilityState, HexCoord, Unit, GameMap, GameState } from '@/core/types';
+import { hexKey, hexesInRange, hexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderVisionBonus } from './wonder-system';
+import { getCivDefinition } from './civ-definitions';
 
 export function createVisibilityMap(): VisibilityMap {
   return { tiles: {} };
@@ -120,4 +121,61 @@ export function applySharedVision(
       }
     }
   }
+}
+
+export function applySatelliteSurveillance(
+  state: GameState,
+  viewerCivId: string,
+  targetCivId: string,
+): GameState {
+  const nextState = structuredClone(state);
+  const visibility = nextState.civilizations[viewerCivId]?.visibility;
+  if (!visibility) return nextState;
+
+  for (const [key, tile] of Object.entries(nextState.map.tiles)) {
+    if (tile.owner === targetCivId) {
+      visibility.tiles[key] = 'visible';
+    }
+  }
+
+  return nextState;
+}
+
+export function isForestConcealedUnit(
+  state: GameState,
+  viewerCivId: string,
+  unit: Unit,
+): boolean {
+  if (unit.owner === viewerCivId) {
+    return false;
+  }
+
+  const ownerBonus = getCivDefinition(state.civilizations[unit.owner]?.civType ?? '')?.bonusEffect;
+  if (ownerBonus?.type !== 'forest_guardians' || !ownerBonus.concealmentInForest) {
+    return false;
+  }
+
+  const tile = state.map.tiles[hexKey(unit.position)];
+  if (tile?.terrain !== 'forest') {
+    return false;
+  }
+
+  const viewer = state.civilizations[viewerCivId];
+  if (!viewer) {
+    return false;
+  }
+
+  const hasAdjacentUnit = viewer.units
+    .map(unitId => state.units[unitId])
+    .filter(Boolean)
+    .some(viewerUnit => hexDistance(viewerUnit!.position, unit.position) <= 1);
+  if (hasAdjacentUnit) {
+    return false;
+  }
+
+  const hasAdjacentCity = viewer.cities
+    .map(cityId => state.cities[cityId])
+    .filter(Boolean)
+    .some(city => hexDistance(city!.position, unit.position) <= 1);
+  return !hasAdjacentCity;
 }

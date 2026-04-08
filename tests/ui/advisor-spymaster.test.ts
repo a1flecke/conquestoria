@@ -69,7 +69,7 @@ function makeSpymasterTestState(): GameState {
       musicVolume: 0, sfxVolume: 0, tutorialEnabled: false,
       advisorsEnabled: {
         builder: false, explorer: false, chancellor: false,
-        warchief: false, treasurer: false, scholar: false, spymaster: true,
+        warchief: false, treasurer: false, scholar: false, spymaster: true, artisan: false,
       },
     },
     tribalVillages: {},
@@ -183,6 +183,7 @@ describe('spymaster advisor', () => {
       treasurer: false,
       scholar: false,
       spymaster: false,
+      artisan: false,
     };
     state.cities['city-player-1'].unrestLevel = 1;
 
@@ -205,6 +206,7 @@ describe('spymaster advisor', () => {
       treasurer: false,
       scholar: false,
       spymaster: false,
+      artisan: false,
     };
     state.cities['city-player-1'].unrestLevel = 2;
 

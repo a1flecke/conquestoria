@@ -140,6 +140,8 @@ export const TECH_TREE: Tech[] = [
   { id: 'sabotage', name: 'Sabotage', track: 'espionage', cost: 80, prerequisites: ['espionage-informants'], unlocks: ['Saboteur'], era: 3 },
   { id: 'cryptography', name: 'Cryptography', track: 'espionage', cost: 125, prerequisites: ['spy-networks'], unlocks: ['Cipher bureau'], era: 4 },
   { id: 'counter-intelligence', name: 'Counter-Intelligence', track: 'espionage', cost: 130, prerequisites: ['spy-networks', 'sabotage'], unlocks: ['Security agency'], era: 4 },
+  { id: 'digital-surveillance', name: 'Digital Surveillance', track: 'espionage', cost: 175, prerequisites: ['cryptography', 'counter-intelligence'], unlocks: ['Satellite Surveillance', 'Misinformation Campaign'], era: 5 },
+  { id: 'cyber-warfare', name: 'Cyber Warfare', track: 'espionage', cost: 185, prerequisites: ['digital-surveillance'], unlocks: ['Cyber Attack', 'Election Interference'], era: 5 },
 
   // === SPIRITUALITY TRACK (8 techs, new) ===
   { id: 'animism', name: 'Animism', track: 'spirituality', cost: 20, prerequisites: [], unlocks: ['Spirit shrine'], era: 1 },

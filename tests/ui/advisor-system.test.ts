@@ -53,7 +53,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: true, treasurer: false, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: true, treasurer: false, scholar: false, spymaster: false, artisan: false };
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));
 
@@ -67,7 +67,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
     // Set hostile relationship
     state.civilizations.player.diplomacy.relationships['ai-1'] = -40;
 
@@ -85,7 +85,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
     state.civilizations.player.diplomacy.relationships['ai-1'] = 50;
     state.civilizations.player.diplomacy.treaties = [];
 
@@ -103,7 +103,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = stateWithCity();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: true, treasurer: false, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: true, treasurer: false, scholar: false, spymaster: false, artisan: false };
 
     // Move all player units away from city
     for (const unit of Object.values(state.units)) {
@@ -126,7 +126,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
     state.civilizations.player.diplomacy.relationships['ai-1'] = -60;
 
@@ -145,7 +145,7 @@ describe('AdvisorSystem', () => {
     const state = makeState();
     state.tutorial.active = false;
     state.settings.tutorialEnabled = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
 
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));
@@ -174,7 +174,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: true, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: true, spymaster: false, artisan: false };
     state.civilizations.player.techState.completed = ['agriculture'];
     state.civilizations.player.techState.currentResearch = null;
     state.turn = 5;
@@ -193,7 +193,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = stateWithCity();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false, artisan: false };
     state.civilizations.player.gold = 5;
     state.turn = 10;
 
@@ -211,7 +211,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = stateWithCity();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false, artisan: false };
     state.civilizations.player.gold = 0;
     state.turn = 1;
 
@@ -227,7 +227,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = stateWithCity();
     state.tutorial.active = false;
-    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false };
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false, artisan: false };
     state.civilizations.player.gold = 200;
     // Ensure city has empty production queue
     const cityId = state.civilizations.player.cities[0];
@@ -263,5 +263,150 @@ describe('AdvisorSystem', () => {
     expect(ids).toContain('warchief_guerrilla_harass');
     expect(ids).toContain('treasurer_mercantile_ally');
     expect(ids).toContain('scholar_cultural_ally');
+  });
+
+  it('shows Artisan guidance when a legendary wonder is eligible but not started', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity() as any;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: true };
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: state.civilizations.player.cities[0],
+        phase: 'ready_to_build',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const messages: any[] = [];
+    bus.on('advisor:message', msg => messages.push(msg));
+    advisor.check(state);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].advisor).toBe('artisan');
+    expect(messages[0].message).toMatch(/wonder/i);
+  });
+
+  it('warns when a current-player wonder race is underway', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity() as any;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: true };
+    state.legendaryWonderProjects = {
+      'great-library': {
+        wonderId: 'great-library',
+        ownerId: 'player',
+        cityId: state.civilizations.player.cities[0],
+        phase: 'building',
+        investedProduction: 40,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const messages: any[] = [];
+    bus.on('advisor:message', msg => messages.push(msg));
+    advisor.check(state);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].advisor).toBe('artisan');
+    expect(messages[0].message).toMatch(/delay|legacy|wonder/i);
+  });
+
+  it('celebrates a completed wonder for the current player', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity() as any;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: true };
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: state.civilizations.player.cities[0],
+        phase: 'completed',
+        investedProduction: 120,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const messages: any[] = [];
+    bus.on('advisor:message', msg => messages.push(msg));
+    advisor.check(state);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].advisor).toBe('artisan');
+    expect(messages[0].message).toMatch(/complete|legacy/i);
+  });
+
+  it('reacts when the current player loses a wonder race', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity() as any;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: true };
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: state.civilizations.player.cities[0],
+        phase: 'lost_race',
+        investedProduction: 90,
+        transferableProduction: 25,
+        questSteps: [],
+      },
+    };
+
+    const messages: any[] = [];
+    bus.on('advisor:message', msg => messages.push(msg));
+    advisor.check(state);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].advisor).toBe('artisan');
+    expect(messages[0].message).toMatch(/rival|glory|wonder/i);
+  });
+
+  it('does not surface another human players wonder state in hot seat', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity() as any;
+    state.currentPlayer = 'player-2';
+    state.civilizations['player-2'] = {
+      ...state.civilizations.player,
+      id: 'player-2',
+      isHuman: true,
+      cities: ['city-player-2'],
+    };
+    state.cities['city-player-2'] = {
+      ...state.cities[state.civilizations.player.cities[0]],
+      id: 'city-player-2',
+      owner: 'player-2',
+    };
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: true };
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: state.civilizations.player.cities[0],
+        phase: 'ready_to_build',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const messages: any[] = [];
+    bus.on('advisor:message', msg => messages.push(msg));
+    advisor.check(state);
+
+    expect(messages).toHaveLength(0);
   });
 });

@@ -1,5 +1,5 @@
-import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision } from '@/systems/fog-of-war';
-import type { VisibilityMap, GameMap, Unit } from '@/core/types';
+import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, isForestConcealedUnit } from '@/systems/fog-of-war';
+import type { VisibilityMap, GameMap, Unit, GameState } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -113,5 +113,125 @@ describe('minor civ visibility', () => {
 
     applySharedVision(vis, friendlyUnitPositions, map);
     expect(vis.tiles['15,15']).toBe('visible');
+  });
+});
+
+describe('satellite surveillance', () => {
+  function makeSatelliteVisionFixture(): GameState {
+    return {
+      turn: 20,
+      era: 5,
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      map: {
+        width: 12,
+        height: 12,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '5,5': { coord: { q: 5, r: 5 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '5,6': { coord: { q: 5, r: 6 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: {},
+      cities: {},
+      civilizations: {
+        player: {
+          id: 'player',
+          name: 'Player',
+          color: '#4a90d9',
+          isHuman: true,
+          civType: 'generic',
+          cities: [],
+          units: [],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+          gold: 0,
+          visibility: createVisibilityMap(),
+          score: 0,
+          diplomacy: {} as any,
+        },
+        'ai-1': {
+          id: 'ai-1',
+          name: 'AI',
+          color: '#c4a94d',
+          isHuman: false,
+          civType: 'generic',
+          cities: [],
+          units: [],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+          gold: 0,
+          visibility: createVisibilityMap(),
+          score: 0,
+          diplomacy: {} as any,
+        },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
+    } as GameState;
+  }
+
+  it('satellite surveillance grants territory vision without permanently mutating base visibility rules', () => {
+    const state = makeSatelliteVisionFixture();
+    const result = applySatelliteSurveillance(state, 'player', 'ai-1');
+    expect(result.civilizations.player.visibility.tiles['5,5']).toBe('visible');
+    expect(result.civilizations.player.visibility.tiles['5,6']).toBe('visible');
+
+    const freshVisibility = createVisibilityMap();
+    expect(freshVisibility.tiles['5,5']).toBeUndefined();
+  });
+});
+
+describe('forest concealment', () => {
+  it('conceals Lothlorien units in forest unless the viewer has adjacent contact', () => {
+    const state = {
+      turn: 1,
+      era: 1,
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      map: {
+        width: 10,
+        height: 10,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '4,4': { coord: { q: 4, r: 4 }, terrain: 'forest', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '2,2': { coord: { q: 2, r: 2 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '4,5': { coord: { q: 4, r: 5 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: {
+        hidden: { id: 'hidden', type: 'warrior', owner: 'ai-1', position: { q: 4, r: 4 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+        scout: { id: 'scout', type: 'scout', owner: 'player', position: { q: 2, r: 2 }, movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+      },
+      cities: {},
+      civilizations: {
+        player: { id: 'player', civType: 'egypt', units: ['scout'], cities: [], visibility: createVisibilityMap(), techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any }, gold: 0, score: 0, isHuman: true, name: 'Player', color: '#4a90d9', diplomacy: {} as any },
+        'ai-1': { id: 'ai-1', civType: 'lothlorien', units: ['hidden'], cities: [], visibility: createVisibilityMap(), techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any }, gold: 0, score: 0, isHuman: false, name: 'Lothlorien', color: '#4d7c0f', diplomacy: {} as any },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
+    } as GameState;
+
+    expect(isForestConcealedUnit(state, 'player', state.units.hidden)).toBe(true);
+
+    state.units.scout.position = { q: 4, r: 5 };
+    expect(isForestConcealedUnit(state, 'player', state.units.hidden)).toBe(false);
   });
 });

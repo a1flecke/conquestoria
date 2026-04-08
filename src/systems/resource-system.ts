@@ -97,6 +97,24 @@ export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivB
     }
   }
 
+  if (bonusEffect?.type === 'coastal_science') {
+    for (const coord of workedTiles) {
+      const tile = map.tiles[hexKey(coord)];
+      if (tile?.terrain === 'coast') {
+        yields.science += bonusEffect.coastalScienceBonus;
+      }
+    }
+  }
+
+  if (bonusEffect?.type === 'forest_guardians') {
+    for (const coord of workedTiles) {
+      const tile = map.tiles[hexKey(coord)];
+      if (tile?.terrain === 'forest') {
+        yields.food += bonusEffect.forestYieldBonus;
+      }
+    }
+  }
+
   // Shire food bonus
   if (bonusEffect?.type === 'peaceful_growth') {
     yields.food += bonusEffect.foodBonus;

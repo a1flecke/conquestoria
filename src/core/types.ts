@@ -213,6 +213,7 @@ export interface City {
   unrestTurns: number;         // turns spent at current unrest level (>= 1 when unrestLevel > 0)
   conquestTurn?: number;       // turn this city was captured; cleared after 15 turns
   spyUnrestBonus: number;      // bonus pressure injected by enemy espionage; decays 5/turn
+  productionDisabledTurns?: number; // late-game sabotage/cyber effect timer
 }
 
 // --- Tech ---
@@ -276,7 +277,10 @@ export type CivBonusEffect =
   | { type: 'wonder_rewards'; rewardMultiplier: number }
   | { type: 'naval_raiding'; movementBonus: number; coastalVisionBonus: number }
   | { type: 'homeland_defense'; defenseBonus: number }
-  | { type: 'espionage_growth'; experienceBonus: number };
+  | { type: 'espionage_growth'; experienceBonus: number }
+  | { type: 'forest_guardians'; defenseBonus: number; visionBonus: number; concealmentInForest: boolean; forestYieldBonus: number }
+  | { type: 'allied_kingdoms'; treatyRelationshipBonus: number; allianceYieldBonus: number }
+  | { type: 'coastal_science'; coastalScienceBonus: number; navalProductionBonus: number; navalCombatBonus: number };
 
 export interface CivDefinition {
   id: string;
@@ -380,7 +384,12 @@ export type SpyMissionType =
   | 'assassinate_advisor' // disable one advisor for 10 turns
   | 'forge_documents'     // diplomatic relationship penalty between two other civs
   | 'fund_rebels'         // escalate unrest in already-unrest city
-  | 'arms_smuggling';     // spawn hostile units near target city
+  | 'arms_smuggling'      // spawn hostile units near target city
+  // Stage 5 (digital-surveillance and cyber-warfare tech)
+  | 'cyber_attack'
+  | 'misinformation_campaign'
+  | 'election_interference'
+  | 'satellite_surveillance';
 
 export interface SpyMission {
   type: SpyMissionType;
@@ -408,12 +417,22 @@ export interface Spy {
   cooldownTurns: number;           // turns until spy can act again after expulsion
   promotion?: SpyPromotion;          // set once, permanent
   promotionAvailable: boolean;       // true when XP >= 60 and no promotion yet (unused for now, for future UI)
+  turnedBy?: string;
+  feedsFalseIntel?: boolean;
+}
+
+export interface DetectedSpyThreat {
+  cityId: string;
+  foreignCivId: string;
+  detectedTurn: number;
+  expiresOnTurn: number;
 }
 
 export interface EspionageCivState {
   spies: Record<string, Spy>;
   maxSpies: number;                // scales with espionage tech
   counterIntelligence: Record<string, number>; // cityId -> detection score (0-100)
+  detectedThreats?: Record<string, DetectedSpyThreat>;
 }
 
 export type EspionageState = Record<string, EspionageCivState>;
@@ -434,6 +453,9 @@ export interface Civilization {
   score: number;
   diplomacy: DiplomacyState;
   advisorDisabledUntil?: Partial<Record<AdvisorType, number>>; // turn number until re-enabled
+  researchPenaltyTurns?: number;
+  researchPenaltyMultiplier?: number;
+  satelliteSurveillanceTargets?: Record<string, number>;
   breakaway?: BreakawayMetadata;
 }
 
@@ -572,7 +594,15 @@ export interface MarketplaceState {
 
 // --- Advisors ---
 
-export type AdvisorType = 'builder' | 'explorer' | 'chancellor' | 'warchief' | 'treasurer' | 'scholar' | 'spymaster';
+export type AdvisorType =
+  | 'builder'
+  | 'explorer'
+  | 'chancellor'
+  | 'warchief'
+  | 'treasurer'
+  | 'scholar'
+  | 'spymaster'
+  | 'artisan';
 
 // --- Save Slots ---
 

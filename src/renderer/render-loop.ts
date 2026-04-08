@@ -131,7 +131,7 @@ export class RenderLoop {
         const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
         if (def) colorLookup[mc.id] = def.color;
       }
-      drawUnits(this.ctx, this.state.units, this.camera, playerVis, colorLookup);
+      drawUnits(this.ctx, this.state.units, this.camera, playerVis, this.state, this.state.currentPlayer, colorLookup);
     }
 
     // Draw fog of war

@@ -20,18 +20,19 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('has 8 techs per track', () => {
+  it('keeps the legacy 8-tech structure for most tracks and extends espionage to 10 techs', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      expect(techs.length, `track ${track} should have 8 techs`).toBe(8);
+      const expectedCount = track === 'espionage' ? 10 : 8;
+      expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 120 techs total', () => {
-    expect(TECH_TREE.length).toBe(120);
+  it('has 122 techs total after adding Stage 5 espionage', () => {
+    expect(TECH_TREE.length).toBe(122);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -49,13 +50,14 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('techs span eras 1-4', () => {
+  it('techs span eras 1-5', () => {
     const eras = new Set(TECH_TREE.map(t => t.era));
-    expect(eras.size).toBe(4);
+    expect(eras.size).toBe(5);
     expect(eras).toContain(1);
     expect(eras).toContain(2);
     expect(eras).toContain(3);
     expect(eras).toContain(4);
+    expect(eras).toContain(5);
   });
 });
 

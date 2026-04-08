@@ -121,4 +121,32 @@ describe('save persistence (#38)', () => {
     expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].ownerId).toBe('player');
     expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].turnCompleted).toBe(40);
   });
+
+  it('round-trips artisan settings and Stage 5 espionage state through JSON serialization', () => {
+    const state = {
+      settings: {
+        advisorsEnabled: {
+          artisan: true,
+        },
+      },
+      espionage: {
+        player: {
+          spies: {
+            'spy-1': {
+              id: 'spy-1',
+              owner: 'player',
+              name: 'Agent Echo',
+              status: 'idle',
+              feedsFalseIntel: false,
+            },
+          },
+        },
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.settings.advisorsEnabled.artisan).toBe(true);
+    expect(roundTrip.espionage.player.spies['spy-1'].name).toBe('Agent Echo');
+  });
 });
