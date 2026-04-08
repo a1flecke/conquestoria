@@ -31,6 +31,7 @@ export interface EspionagePanelData {
   missionCatalog: MissionCatalogEntry[];
   defendingCityIds: string[];
   disabledAdvisors: AdvisorType[];
+  threatBoard: Array<{ cityId: string; foreignCivId: string; confidence: 'detected' }>;
 }
 
 export interface MissionStageGroup {
@@ -243,6 +244,31 @@ function appendBulletList(parent: HTMLElement, items: string[], emptyText: strin
   parent.appendChild(list);
 }
 
+function appendThreatBoard(
+  parent: HTMLElement,
+  threats: Array<{ cityId: string; foreignCivId: string; confidence: 'detected' }>,
+): void {
+  const threatBlock = createEl('section');
+  threatBlock.dataset.section = 'threat-board';
+  appendSectionHeader(threatBlock, 'Threat Board', 'Detected foreign spy activity in your cities.');
+
+  if (threats.length === 0) {
+    const empty = createEl('div', 'No foreign spy activity detected.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    threatBlock.appendChild(empty);
+    parent.appendChild(threatBlock);
+    return;
+  }
+
+  for (const threat of threats) {
+    const row = createEl('div', `${threat.cityId} · ${threat.foreignCivId} · ${threat.confidence}`);
+    row.style.cssText = 'font-size:11px;opacity:0.8;padding:4px 0;';
+    threatBlock.appendChild(row);
+  }
+
+  parent.appendChild(threatBlock);
+}
+
 export function createEspionagePanel(state: GameState): HTMLDivElement {
   const data = getEspionagePanelViewModel(state);
   const panel = createEl('div');
@@ -286,6 +312,8 @@ export function createEspionagePanel(state: GameState): HTMLDivElement {
   appendBulletList(advisorBlock, data.disabledAdvisors, 'No advisors are disabled.');
   panel.appendChild(advisorBlock);
 
+  appendThreatBoard(panel, data.threatBoard);
+
   return panel;
 }
 
@@ -302,6 +330,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
       missionCatalog: [],
       defendingCityIds: [],
       disabledAdvisors: [],
+      threatBoard: [],
     };
   }
 
@@ -318,6 +347,23 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     .filter(s => s.status === 'stationed' && s.targetCivId === null && s.targetCityId !== null)
     .map(s => s.targetCityId!)
     .sort();
+  const playerTechs = state.civilizations[state.currentPlayer]?.techState.completed ?? [];
+  const canDetectThreats = playerTechs.includes('digital-surveillance') || playerTechs.includes('counter-intelligence');
+  const threatBoard = canDetectThreats
+    ? Object.values(state.espionage ?? {})
+      .flatMap(civEsp => Object.values(civEsp.spies))
+      .filter(spy =>
+        spy.owner !== state.currentPlayer &&
+        spy.targetCivId === state.currentPlayer &&
+        spy.targetCityId !== null &&
+        (spy.status === 'stationed' || spy.status === 'on_mission'),
+      )
+      .map(spy => ({
+        cityId: spy.targetCityId!,
+        foreignCivId: spy.owner,
+        confidence: 'detected' as const,
+      }))
+    : [];
   const spySummaries = spies.map((spy) => ({
     id: spy.id,
     name: spy.name,
@@ -340,6 +386,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     missionCatalog: toMissionCatalog(availableMissions),
     defendingCityIds,
     disabledAdvisors,
+    threatBoard,
   };
 }
 

@@ -2,17 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 
 describe('civ-definitions', () => {
-  it('defines exactly 24 civilizations', () => {
-    expect(CIV_DEFINITIONS).toHaveLength(24);
+  it('defines exactly 27 civilizations', () => {
+    expect(CIV_DEFINITIONS).toHaveLength(27);
   });
 
   it('each civ has unique id, name, and color', () => {
     const ids = CIV_DEFINITIONS.map(c => c.id);
     const names = CIV_DEFINITIONS.map(c => c.name);
     const colors = CIV_DEFINITIONS.map(c => c.color);
-    expect(new Set(ids).size).toBe(24);
-    expect(new Set(names).size).toBe(24);
-    expect(new Set(colors).size).toBe(24);
+    expect(new Set(ids).size).toBe(27);
+    expect(new Set(names).size).toBe(27);
+    expect(new Set(colors).size).toBe(27);
   });
 
   it('getCivDefinition returns correct civ by id', () => {
@@ -23,7 +23,7 @@ describe('civ-definitions', () => {
   });
 
   it('getCivDefinition returns undefined for unknown id', () => {
-    expect(getCivDefinition('atlantis')).toBeUndefined();
+    expect(getCivDefinition('unknown-civ')).toBeUndefined();
   });
 
   it('each civ has at least one personality trait', () => {
@@ -151,6 +151,17 @@ describe('civ-definitions', () => {
     const annuvin = getCivDefinition('annuvin');
     expect(annuvin).toBeDefined();
     expect(annuvin!.bonusEffect.type).toBe('espionage_growth');
+  });
+
+  it('includes the three M4d civilizations', () => {
+    expect(getCivDefinition('lothlorien')).toBeDefined();
+    expect(getCivDefinition('narnia')).toBeDefined();
+    expect(getCivDefinition('atlantis')).toBeDefined();
+  });
+
+  it('keeps Lothlorien forest concealment and Atlantis naval power in the M4d roster', () => {
+    expect(getCivDefinition('lothlorien')!.bonusDescription).toMatch(/forest/i);
+    expect(getCivDefinition('atlantis')!.bonusDescription).toMatch(/naval/i);
   });
 
   it('all civs have valid personality traits', () => {

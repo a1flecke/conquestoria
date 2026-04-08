@@ -411,6 +411,43 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'The spoils of victory bolster our treasury.',
     trigger: () => false, // Triggered via event
   },
+  // --- Artisan ---
+  {
+    id: 'artisan_legendary_ready',
+    advisor: 'artisan',
+    icon: '🎨',
+    message: 'A legendary wonder now lies within our grasp. Choose the city carefully. Greatness needs the right stage.',
+    trigger: (state: GameState) => Object.values(state.legendaryWonderProjects ?? {}).some(
+      project => project.ownerId === state.currentPlayer && project.phase === 'ready_to_build',
+    ),
+  },
+  {
+    id: 'artisan_race_warning',
+    advisor: 'artisan',
+    icon: '🎨',
+    message: 'Another civilization is closing in on a wonder we covet. If we delay, our legacy will belong to someone else.',
+    trigger: (state: GameState) => Object.values(state.legendaryWonderProjects ?? {}).some(
+      project => project.ownerId === state.currentPlayer && project.phase === 'building' && project.investedProduction > 0,
+    ),
+  },
+  {
+    id: 'artisan_wonder_complete',
+    advisor: 'artisan',
+    icon: '🎨',
+    message: 'Magnificent. Our wonder is complete, and our legacy now has a shape the world can see.',
+    trigger: (state: GameState) => Object.values(state.legendaryWonderProjects ?? {}).some(
+      project => project.ownerId === state.currentPlayer && project.phase === 'completed',
+    ),
+  },
+  {
+    id: 'artisan_wonder_lost',
+    advisor: 'artisan',
+    icon: '🎨',
+    message: 'A rival has claimed the wonder we sought. We salvaged part of the effort, but the glory is theirs.',
+    trigger: (state: GameState) => Object.values(state.legendaryWonderProjects ?? {}).some(
+      project => project.ownerId === state.currentPlayer && project.phase === 'lost_race',
+    ),
+  },
   // Minor Civ — Chancellor
   {
     id: 'chancellor_ally_city_state',

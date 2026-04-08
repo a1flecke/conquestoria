@@ -81,7 +81,7 @@ export function getUnrestYieldMultiplier(city: City): number {
 }
 
 export function isCityProductionLocked(city: City): boolean {
-  return city.unrestLevel === 2;
+  return city.unrestLevel === 2 || (city.productionDisabledTurns ?? 0) > 0;
 }
 
 // --- Rebel spawning ---

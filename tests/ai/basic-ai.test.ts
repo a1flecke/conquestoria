@@ -654,4 +654,40 @@ describe('processAITurn', () => {
       { civId: 'ai-1', cityId: 'city-ai', wonderId: 'grand-canal', goldRefund: 10, transferableProduction: 10 },
     ]);
   });
+
+  it('uses Stage 5 espionage when a stationed spy has cyber-warfare tech', () => {
+    const state = makeAiDefenseSpyState();
+    const bus = new EventBus();
+    state.civilizations['ai-1'].techState.completed = [
+      'espionage-scouting',
+      'espionage-informants',
+      'spy-networks',
+      'digital-surveillance',
+      'cyber-warfare',
+    ];
+    state.espionage!['ai-1'] = {
+      spies: {
+        'spy-ai-1': {
+          id: 'spy-ai-1',
+          owner: 'ai-1',
+          name: 'Agent Cipher',
+          targetCivId: 'player',
+          targetCityId: 'city-player',
+          position: { q: 4, r: 0 },
+          status: 'stationed',
+          experience: 0,
+          currentMission: null,
+          cooldownTurns: 0,
+          promotionAvailable: false,
+          feedsFalseIntel: false,
+        },
+      },
+      maxSpies: 1,
+      counterIntelligence: {},
+    };
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.type).toBe('cyber_attack');
+  });
 });

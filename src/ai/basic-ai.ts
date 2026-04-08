@@ -624,7 +624,15 @@ export function chooseAiMission(
   const traits = new Set(personality.traits);
 
   let preferredOrder: SpyMissionType[];
-  if (traits.has('aggressive')) {
+  const hasStage5 = available.includes('cyber_attack') || available.includes('misinformation_campaign');
+  if (hasStage5 && (civ.civType === 'annuvin' || traits.has('aggressive'))) {
+    preferredOrder = [
+      'cyber_attack', 'misinformation_campaign', 'satellite_surveillance',
+      'election_interference', 'steal_tech', 'sabotage_production',
+      'arms_smuggling', 'incite_unrest', 'gather_intel', 'monitor_troops',
+      'monitor_diplomacy', 'identify_resources', 'scout_area',
+    ];
+  } else if (traits.has('aggressive')) {
     preferredOrder = [
       'steal_tech', 'sabotage_production', 'arms_smuggling',
       'incite_unrest', 'gather_intel', 'monitor_troops',

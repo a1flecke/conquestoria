@@ -8,6 +8,8 @@ import {
   startMission,
   processEspionageTurn,
   initializeEspionage,
+  turnCapturedSpy,
+  verifyAgent,
   _resetSpyIdCounter,
 } from '@/systems/espionage-system';
 import type { GameState, EspionageState } from '@/core/types';
@@ -514,6 +516,21 @@ describe('M4a full integration', () => {
     processEspionageTurn(makeScenario(), bus2);
 
     expect(results1).toEqual(results2);
+  });
+
+  it('handles double-agent deception and verify-agent exposure deterministically', () => {
+    const state = makeTestGameState();
+    state.espionage = initializeEspionage(state);
+    const { state: esp1, spy } = recruitSpy(state.espionage['player'], 'player', 'double-agent-seed');
+    state.espionage['player'] = esp1;
+    state.espionage['player'].spies[spy.id].status = 'captured';
+
+    state.espionage = turnCapturedSpy(state.espionage, 'ai-egypt', 'player', spy.id);
+    expect(state.espionage['player'].spies[spy.id].feedsFalseIntel).toBe(true);
+
+    state.espionage['player'] = verifyAgent(state.espionage['player'], spy.id);
+    expect(state.espionage['player'].spies[spy.id].feedsFalseIntel).toBe(false);
+    expect(state.espionage['player'].spies[spy.id].turnedBy).toBeUndefined();
   });
 });
 

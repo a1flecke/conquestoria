@@ -50,6 +50,16 @@ export function resolveCombat(
     if (context?.defenderBonus?.type === 'homeland_defense' && defTile.owner === defender.owner) {
       defStrength *= (1 + context.defenderBonus.defenseBonus);
     }
+    if (context?.defenderBonus?.type === 'forest_guardians' && defTile.terrain === 'forest') {
+      defStrength *= (1 + context.defenderBonus.defenseBonus);
+    }
+  }
+
+  if (
+    context?.attackerBonus?.type === 'coastal_science'
+    && (attacker.type === 'galley' || attacker.type === 'trireme')
+  ) {
+    atkStrength *= (1 + context.attackerBonus.navalCombatBonus);
   }
 
   // Non-combat units auto-lose

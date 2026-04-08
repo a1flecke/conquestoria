@@ -184,6 +184,31 @@ describe('espionage-panel', () => {
       expect(data.disabledAdvisors).not.toContain('spymaster');
     });
 
+    it('includes a threat board for detected foreign spy activity in the current players cities only', () => {
+      const state = makeEspUiState();
+      state.currentPlayer = 'player';
+      state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
+      state.espionage!['ai-egypt'].spies['enemy-spy'] = {
+        id: 'enemy-spy',
+        owner: 'ai-egypt',
+        name: 'Agent Raven',
+        targetCivId: 'player',
+        targetCityId: 'city-player-1',
+        position: { q: 0, r: 0 },
+        status: 'stationed',
+        experience: 40,
+        currentMission: null,
+        cooldownTurns: 0,
+        feedsFalseIntel: false,
+        promotionAvailable: false,
+      } as any;
+
+      const data = getEspionagePanelViewModel(state);
+      expect((data as any).threatBoard).toEqual([
+        { cityId: 'city-player-1', foreignCivId: 'ai-egypt', confidence: 'detected' },
+      ]);
+    });
+
     it('creates a view model with grouped missions', () => {
       const state = makeEspUiState();
       state.civilizations.player.techState.completed = [
@@ -294,6 +319,31 @@ describe('espionage-panel', () => {
       expect(rendered).toContain('Remote-capable');
       expect(rendered).toContain('Digital Warfare');
       expect(rendered).not.toContain('Target: player / city-player-1');
+    });
+
+    it('renders a threat board section for detected foreign spy activity', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
+      state.espionage!['ai-egypt'].spies['enemy-spy'] = {
+        id: 'enemy-spy',
+        owner: 'ai-egypt',
+        name: 'Agent Raven',
+        targetCivId: 'player',
+        targetCityId: 'city-player-1',
+        position: { q: 0, r: 0 },
+        status: 'stationed',
+        experience: 40,
+        currentMission: null,
+        cooldownTurns: 0,
+        feedsFalseIntel: false,
+        promotionAvailable: false,
+      } as any;
+
+      const panel = createEspionagePanel(state) as unknown;
+      const threat = findAll(panel, el => el.dataset?.section === 'threat-board')[0];
+      expect(collectText(threat)).toContain('Threat Board');
+      expect(collectText(threat)).toContain('ai-egypt');
+      expect(collectText(threat)).toContain('city-player-1');
     });
   });
 });

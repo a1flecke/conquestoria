@@ -21,6 +21,8 @@ import {
   handleSpyExpelled,
   handleSpyCaptured,
   setCounterIntelligence,
+  turnCapturedSpy,
+  verifyAgent,
   _resetSpyIdCounter,
 } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
@@ -562,6 +564,32 @@ describe('resolveMissionResult', () => {
     expect(result.nearbyUnits!.length).toBeGreaterThan(0);
     expect(result.nearbyUnits![0].type).toBe('warrior');
   });
+
+  it('cyber_attack returns a production shutdown timer', () => {
+    const gameState = makeTestGameState();
+    const result = resolveMissionResult('cyber_attack', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
+    expect(result.productionDisabledTurns).toBe(3);
+  });
+
+  it('misinformation_campaign returns a bounded research penalty window', () => {
+    const gameState = makeTestGameState();
+    const result = resolveMissionResult('misinformation_campaign', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
+    expect(result.researchPenaltyTurns).toBe(10);
+    expect(result.researchPenaltyMultiplier).toBe(0.2);
+  });
+
+  it('election_interference uses the approved stability-penalty simplification', () => {
+    const gameState = makeTestGameState();
+    const result = resolveMissionResult('election_interference', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
+    expect(result.stabilityPenaltyTurns).toBe(15);
+    expect(result.unrestInjected).toBe(20);
+  });
+
+  it('satellite_surveillance grants territory vision instead of mutating target state directly', () => {
+    const gameState = makeTestGameState();
+    const result = resolveMissionResult('satellite_surveillance', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
+    expect(result.grantTerritoryVision).toBe(true);
+  });
 });
 
 describe('espionage diplomatic consequences', () => {
@@ -611,6 +639,36 @@ describe('espionage diplomatic consequences', () => {
       expect(state.counterIntelligence['city-1']).toBe(100);
       state = setCounterIntelligence(state, 'city-1', -10);
       expect(state.counterIntelligence['city-1']).toBe(0);
+    });
+  });
+
+  describe('double agents', () => {
+    it('turns a captured spy into a false-intel asset for the captor', () => {
+      const espionage = {
+        player: createEspionageCivState(),
+        'ai-egypt': createEspionageCivState(),
+      };
+      const { state: playerState, spy } = recruitSpy(espionage.player, 'player', 'seed-1');
+      espionage.player = playerState;
+      espionage.player.spies[spy.id].status = 'captured';
+
+      const turned = turnCapturedSpy(espionage, 'ai-egypt', 'player', spy.id);
+
+      expect(turned.player.spies[spy.id].turnedBy).toBe('ai-egypt');
+      expect(turned.player.spies[spy.id].feedsFalseIntel).toBe(true);
+      expect(turned.player.spies[spy.id].status).toBe('stationed');
+    });
+
+    it('verifyAgent clears false-intel state from a turned spy', () => {
+      const state = createEspionageCivState();
+      const { state: updated, spy } = recruitSpy(state, 'player', 'seed-1');
+      updated.spies[spy.id].turnedBy = 'ai-egypt';
+      updated.spies[spy.id].feedsFalseIntel = true;
+
+      const verified = verifyAgent(updated, spy.id);
+
+      expect(verified.spies[spy.id].turnedBy).toBeUndefined();
+      expect(verified.spies[spy.id].feedsFalseIntel).toBe(false);
     });
   });
 });

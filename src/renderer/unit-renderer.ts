@@ -1,6 +1,6 @@
-import type { Unit, VisibilityMap } from '@/core/types';
+import type { Unit, VisibilityMap, GameState } from '@/core/types';
 import { hexToPixel } from '@/systems/hex-utils';
-import { isVisible } from '@/systems/fog-of-war';
+import { isVisible, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { Camera } from './camera';
 
 const UNIT_ICONS: Record<string, string> = {
@@ -24,11 +24,14 @@ export function drawUnits(
   units: Record<string, Unit>,
   camera: Camera,
   playerVisibility: VisibilityMap,
+  state: GameState,
+  currentPlayer: string,
   colorLookup?: Record<string, string>,
 ): void {
   for (const unit of Object.values(units)) {
     // Only draw units visible to the player
     if (!isVisible(playerVisibility, unit.position)) continue;
+    if (isForestConcealedUnit(state, currentPlayer, unit)) continue;
     if (!camera.isHexVisible(unit.position)) continue;
 
     const pixel = hexToPixel(unit.position, camera.hexSize);

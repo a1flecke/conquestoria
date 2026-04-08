@@ -14,7 +14,7 @@ import { createCityPanel } from '@/ui/city-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
-import { updateVisibility, isVisible, getVisibility } from '@/systems/fog-of-war';
+import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { destroyCamp } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves } from '@/storage/save-manager';
 import { AudioManager } from '@/audio/audio-manager';
@@ -733,7 +733,9 @@ function handleHexTap(rawCoord: HexCoord): void {
 
   // Check if tapping a unit
   const unitAtHex = Object.entries(gameState.units).find(
-    ([_, u]) => hexKey(u.position) === key
+    ([_, u]) => hexKey(u.position) === key && (
+      u.owner === gameState.currentPlayer || !isForestConcealedUnit(gameState, gameState.currentPlayer, u)
+    )
   );
 
   if (unitAtHex) {
@@ -1382,7 +1384,7 @@ function migrateLegacySave(): void {
     }
   }
   if (!gameState.settings.advisorsEnabled) {
-    gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true };
+    gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true, artisan: true };
   }
   // Add new advisor types if missing (M3b migration)
   if (gameState.settings.advisorsEnabled && !('treasurer' in gameState.settings.advisorsEnabled)) {

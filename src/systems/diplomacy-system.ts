@@ -14,6 +14,7 @@ import {
   REABSORB_RELATIONSHIP_MINIMUM,
   tryReabsorbBreakaway,
 } from '@/systems/breakaway-system';
+import { getCivDefinition } from '@/systems/civ-definitions';
 
 export function createDiplomacyState(
   allCivIds: string[],
@@ -348,36 +349,48 @@ export function applyDiplomaticAction(
     case 'non_aggression_pact':
     case 'trade_agreement':
     case 'open_borders':
-    case 'alliance':
+    case 'alliance': {
+      const actorTreatyBonus = getCivDefinition(actor.civType ?? '')?.bonusEffect;
+      const targetTreatyBonus = getCivDefinition(target.civType ?? '')?.bonusEffect;
+      const relationshipBonus =
+        (actorTreatyBonus?.type === 'allied_kingdoms' ? actorTreatyBonus.treatyRelationshipBonus : 0) +
+        (targetTreatyBonus?.type === 'allied_kingdoms' ? targetTreatyBonus.treatyRelationshipBonus : 0);
       bus.emit('diplomacy:treaty-accepted', { civA: actorId, civB: targetCivId, treaty: action });
+      const actorTreatyState = proposeTreaty(
+        actor.diplomacy,
+        actorId,
+        targetCivId,
+        action,
+        action === 'non_aggression_pact' ? 10 : -1,
+        state.turn,
+      );
+      const targetTreatyState = proposeTreaty(
+        target.diplomacy,
+        targetCivId,
+        actorId,
+        action,
+        action === 'non_aggression_pact' ? 10 : -1,
+        state.turn,
+      );
       return {
         ...state,
         civilizations: {
           ...state.civilizations,
           [actorId]: {
             ...actor,
-            diplomacy: proposeTreaty(
-              actor.diplomacy,
-              actorId,
-              targetCivId,
-              action,
-              action === 'non_aggression_pact' ? 10 : -1,
-              state.turn,
-            ),
+            diplomacy: relationshipBonus > 0
+              ? modifyRelationship(actorTreatyState, targetCivId, relationshipBonus)
+              : actorTreatyState,
           },
           [targetCivId]: {
             ...target,
-            diplomacy: proposeTreaty(
-              target.diplomacy,
-              targetCivId,
-              actorId,
-              action,
-              action === 'non_aggression_pact' ? 10 : -1,
-              state.turn,
-            ),
+            diplomacy: relationshipBonus > 0
+              ? modifyRelationship(targetTreatyState, actorId, relationshipBonus)
+              : targetTreatyState,
           },
         },
       };
+    }
     case 'reabsorb_breakaway': {
       const cityId = target.breakaway?.originCityId;
       const nextState = tryReabsorbBreakaway(state, actorId, targetCivId);

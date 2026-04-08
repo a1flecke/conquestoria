@@ -340,6 +340,49 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
       expansionDrive: 0.55,
     },
   },
+  // === M4d New Civilizations ===
+  {
+    id: 'lothlorien',
+    name: 'Lothlorien',
+    color: '#4d7c0f',
+    bonusName: 'Forest Guardians',
+    bonusDescription: 'Forest cities and units are harder to pin down, with stronger forests and hidden movement through woods',
+    bonusEffect: { type: 'forest_guardians', defenseBonus: 0.2, visionBonus: 1, concealmentInForest: true, forestYieldBonus: 1 },
+    personality: {
+      traits: ['diplomatic', 'expansionist'],
+      warLikelihood: 0.25,
+      diplomacyFocus: 0.7,
+      expansionDrive: 0.4,
+    },
+  },
+  {
+    id: 'narnia',
+    name: 'Narnia',
+    color: '#60a5fa',
+    bonusName: 'Allied Kingdoms',
+    bonusDescription: 'Treaties build stronger relationships and alliances improve empire yields',
+    bonusEffect: { type: 'allied_kingdoms', treatyRelationshipBonus: 10, allianceYieldBonus: 2 },
+    personality: {
+      traits: ['diplomatic', 'aggressive'],
+      warLikelihood: 0.35,
+      diplomacyFocus: 0.8,
+      expansionDrive: 0.5,
+    },
+  },
+  {
+    id: 'atlantis',
+    name: 'Atlantis',
+    color: '#0b7285',
+    bonusName: 'Tidebound Knowledge',
+    bonusDescription: 'Coastal cities gain extra science and naval forces are built and fight more effectively',
+    bonusEffect: { type: 'coastal_science', coastalScienceBonus: 1, navalProductionBonus: 0.15, navalCombatBonus: 0.15 },
+    personality: {
+      traits: ['trader', 'expansionist'],
+      warLikelihood: 0.3,
+      diplomacyFocus: 0.6,
+      expansionDrive: 0.7,
+    },
+  },
 ];
 
 export function getCivDefinition(id: string): CivDefinition | undefined {

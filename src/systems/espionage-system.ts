@@ -11,6 +11,7 @@ import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-system';
 import { createUnit } from './unit-system';
 import { getCivDefinition } from './civ-definitions';
+import { applySatelliteSurveillance } from './fog-of-war';
 
 const SPY_NAMES = [
   'Shadow', 'Whisper', 'Ghost', 'Cipher', 'Raven',
@@ -37,6 +38,10 @@ const MISSION_BASE_SUCCESS = {
   forge_documents: 0.55,
   fund_rebels: 0.60,
   arms_smuggling: 0.50,
+  cyber_attack: 0.45,
+  misinformation_campaign: 0.55,
+  election_interference: 0.40,
+  satellite_surveillance: 0.70,
 } as Record<SpyMissionType, number>;
 
 const MISSION_DURATIONS = {
@@ -52,6 +57,10 @@ const MISSION_DURATIONS = {
   forge_documents: 5,
   fund_rebels: 6,
   arms_smuggling: 4,
+  cyber_attack: 2,
+  misinformation_campaign: 3,
+  election_interference: 5,
+  satellite_surveillance: 1,
 } as Record<SpyMissionType, number>;
 
 // --- State creation ---
@@ -123,6 +132,7 @@ export function recruitSpy(
     cooldownTurns: 0,
     promotion: undefined,
     promotionAvailable: false,
+    feedsFalseIntel: false,
   };
 
   return {
@@ -254,7 +264,12 @@ export function startMission(
 ): EspionageCivState {
   const spy = state.spies[spyId];
   if (!spy) throw new Error(`Spy ${spyId} not found`);
-  if (spy.status !== 'stationed') throw new Error('Spy must be stationed to start a mission');
+  if (missionRequiresPlacedSpy(missionType)) {
+    if (spy.status !== 'stationed') throw new Error('Spy must be stationed to start a mission');
+  } else if (!['idle', 'stationed'].includes(spy.status)) {
+    throw new Error('Spy must be idle or stationed to start a remote mission');
+  }
+  if (!spy.targetCivId || !spy.targetCityId) throw new Error('Spy must have a valid target to start a mission');
 
   let duration = getMissionDuration(missionType);
   if (civBonusEffect?.type === 'espionage_growth') {
@@ -315,6 +330,10 @@ const XP_PER_MISSION = {
   forge_documents: 15,
   fund_rebels: 12,
   arms_smuggling: 12,
+  cyber_attack: 16,
+  misinformation_campaign: 14,
+  election_interference: 16,
+  satellite_surveillance: 8,
 } as Record<SpyMissionType, number>;
 
 const EXPULSION_COOLDOWN = 5;
@@ -451,8 +470,10 @@ export interface MissionResult {
   stolenTechId?: string;
   // sabotage_production
   productionLost?: number;       // production progress points destroyed
+  productionDisabledTurns?: number;
   // incite_unrest / fund_rebels
   unrestInjected?: number;       // spyUnrestBonus amount added
+  stabilityPenaltyTurns?: number;
   // assassinate_advisor
   assassinatedAdvisor?: AdvisorType;
   disabledUntilTurn?: number;
@@ -462,6 +483,9 @@ export interface MissionResult {
   forgeRelationshipPenalty?: number;
   // arms_smuggling
   spawnPosition?: HexCoord;
+  researchPenaltyTurns?: number;
+  researchPenaltyMultiplier?: number;
+  grantTerritoryVision?: boolean;
 }
 
 const SCOUT_VISION_RADIUS = 3;
@@ -614,6 +638,22 @@ export function resolveMissionResult(
       return { spawnPosition };
     }
 
+    case 'cyber_attack': {
+      return { productionDisabledTurns: 3 };
+    }
+
+    case 'misinformation_campaign': {
+      return { researchPenaltyTurns: 10, researchPenaltyMultiplier: 0.2 };
+    }
+
+    case 'election_interference': {
+      return { stabilityPenaltyTurns: 15, unrestInjected: 20 };
+    }
+
+    case 'satellite_surveillance': {
+      return { grantTerritoryVision: true };
+    }
+
     default:
       return {};
   }
@@ -670,6 +710,55 @@ export function setCounterIntelligence(
     counterIntelligence: {
       ...state.counterIntelligence,
       [cityId]: Math.max(0, Math.min(100, score)),
+    },
+  };
+}
+
+export function turnCapturedSpy(
+  state: EspionageState,
+  captorId: string,
+  spyOwner: string,
+  spyId: string,
+): EspionageState {
+  const ownerState = state[spyOwner];
+  const spy = ownerState?.spies[spyId];
+  if (!ownerState || !spy) return state;
+
+  return {
+    ...state,
+    [spyOwner]: {
+      ...ownerState,
+      spies: {
+        ...ownerState.spies,
+        [spyId]: {
+          ...spy,
+          status: 'stationed',
+          currentMission: null,
+          cooldownTurns: 0,
+          turnedBy: captorId,
+          feedsFalseIntel: true,
+        },
+      },
+    },
+  };
+}
+
+export function verifyAgent(
+  state: EspionageCivState,
+  spyId: string,
+): EspionageCivState {
+  const spy = state.spies[spyId];
+  if (!spy) return state;
+
+  return {
+    ...state,
+    spies: {
+      ...state.spies,
+      [spyId]: {
+        ...spy,
+        turnedBy: undefined,
+        feedsFalseIntel: false,
+      },
     },
   };
 }
@@ -786,8 +875,28 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             }
           }
 
+          if (evt.missionType === 'cyber_attack' && result.productionDisabledTurns) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCity = originalSpy?.targetCityId ? state.cities[originalSpy.targetCityId] : null;
+            if (targetCity) {
+              state.cities[targetCity.id] = {
+                ...targetCity,
+                productionDisabledTurns: result.productionDisabledTurns as number,
+              };
+            }
+          }
+
+          if (evt.missionType === 'misinformation_campaign' && result.researchPenaltyTurns && result.researchPenaltyMultiplier !== undefined) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCiv = originalSpy?.targetCivId ? state.civilizations[originalSpy.targetCivId] : null;
+            if (targetCiv) {
+              targetCiv.researchPenaltyTurns = result.researchPenaltyTurns as number;
+              targetCiv.researchPenaltyMultiplier = result.researchPenaltyMultiplier as number;
+            }
+          }
+
           // incite_unrest / fund_rebels: inject spyUnrestBonus
-          if ((evt.missionType === 'incite_unrest' || evt.missionType === 'fund_rebels') && result.unrestInjected) {
+          if ((evt.missionType === 'incite_unrest' || evt.missionType === 'fund_rebels' || evt.missionType === 'election_interference') && result.unrestInjected) {
             const spyTarget = updatedEsp.spies[evt.spyId];
             if (spyTarget?.targetCityId) {
               const tc = state.cities[spyTarget.targetCityId];
@@ -797,6 +906,18 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                   spyUnrestBonus: Math.min(50, tc.spyUnrestBonus + (result.unrestInjected as number)),
                 };
               }
+            }
+          }
+
+          if (evt.missionType === 'satellite_surveillance' && result.grantTerritoryVision) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            if (targetCivId && state.civilizations[civId]) {
+              state.civilizations[civId].satelliteSurveillanceTargets = {
+                ...state.civilizations[civId].satelliteSurveillanceTargets,
+                [targetCivId]: 3,
+              };
+              state = applySatelliteSurveillance(state, civId, targetCivId);
             }
           }
 

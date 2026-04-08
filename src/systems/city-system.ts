@@ -229,6 +229,11 @@ export function applyProductionBonus(
     if (isMilitary) return bonusEffect.speedMultiplier;
   }
 
+  if (bonusEffect.type === 'coastal_science') {
+    const isNaval = ['galley', 'trireme'].includes(itemId);
+    if (isNaval) return 1 - bonusEffect.navalProductionBonus;
+  }
+
   // Shire: military units cost 25% more
   if (bonusEffect.type === 'peaceful_growth') {
     const militaryTypes = ['warrior', 'swordsman', 'pikeman', 'musketeer', 'scout', 'archer'];
