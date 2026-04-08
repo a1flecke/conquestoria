@@ -34,10 +34,9 @@ import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cyclin
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
-import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { hasDiscoveredMinorCiv, refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
-import { formatMinorCivEventMessageForPlayer, getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
-import { getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
+import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
+import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
@@ -1369,123 +1368,141 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
 });
 
 bus.on('minor-civ:quest-issued', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
-    return;
-  }
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = getQuestIssuedMessageForPlayer(
-    gameState,
-    data.majorCivId,
-    def?.name ?? 'City-state',
-    data.quest,
-  );
+  const notification = getMinorCivNotification(gameState, data.majorCivId, {
+    type: 'minor-civ:quest-issued',
+    majorCivId: data.majorCivId,
+    minorCivId: data.minorCivId,
+    quest: data.quest,
+  });
+  if (!notification) return;
 
   if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest', message: msg, turn: gameState.turn });
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest', message: notification.message, turn: gameState.turn });
   }
   if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(msg, 'info');
+    showNotification(notification.message, notification.type);
   }
 });
 
 bus.on('minor-civ:quest-completed', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
-    return;
-  }
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const rewards: string[] = [];
-  if (data.reward.gold) rewards.push(`+${data.reward.gold} gold`);
-  if (data.reward.science) rewards.push(`+${data.reward.science} science`);
-  const msg = `${def?.name ?? 'City-state'} is grateful! ${rewards.join(', ')}`;
+  const notification = getMinorCivNotification(gameState, data.majorCivId, {
+    type: 'minor-civ:quest-completed',
+    majorCivId: data.majorCivId,
+    minorCivId: data.minorCivId,
+    reward: data.reward,
+  });
+  if (!notification) return;
 
   if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-done', message: msg, turn: gameState.turn });
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-done', message: notification.message, turn: gameState.turn });
   }
   if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(msg, 'success');
+    showNotification(notification.message, notification.type);
   }
 });
 
 bus.on('minor-civ:evolved', (data: any) => {
   if (gameState.hotSeat && gameState.pendingEvents) {
     for (const civId of Object.keys(gameState.civilizations)) {
-      const msg = formatMinorCivEventMessageForPlayer(gameState, civId, data.minorCivId, 'evolved');
-      collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:evolved', message: msg, turn: gameState.turn });
+      const notification = getMinorCivNotification(gameState, civId, {
+        type: 'minor-civ:evolved',
+        minorCivId: data.minorCivId,
+      });
+      if (notification) {
+        collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:evolved', message: notification.message, turn: gameState.turn });
+      }
     }
   }
-  const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'evolved');
-  showNotification(currentMsg, 'info');
+  const notification = getMinorCivNotification(gameState, gameState.currentPlayer, {
+    type: 'minor-civ:evolved',
+    minorCivId: data.minorCivId,
+  });
+  if (notification) {
+    showNotification(notification.message, notification.type);
+  }
 });
 
 bus.on('minor-civ:destroyed', (data: any) => {
   if (gameState.hotSeat && gameState.pendingEvents) {
     for (const civId of Object.keys(gameState.civilizations)) {
-      const msg = formatMinorCivEventMessageForPlayer(gameState, civId, data.minorCivId, 'destroyed');
-      collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:destroyed', message: msg, turn: gameState.turn });
+      const notification = getMinorCivNotification(gameState, civId, {
+        type: 'minor-civ:destroyed',
+        minorCivId: data.minorCivId,
+      });
+      if (notification) {
+        collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:destroyed', message: notification.message, turn: gameState.turn });
+      }
     }
   }
-  const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'destroyed');
-  showNotification(currentMsg, 'warning');
+  const notification = getMinorCivNotification(gameState, gameState.currentPlayer, {
+    type: 'minor-civ:destroyed',
+    minorCivId: data.minorCivId,
+  });
+  if (notification) {
+    showNotification(notification.message, notification.type);
+  }
 });
 
 bus.on('minor-civ:allied', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
-    return;
-  }
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `${def?.name ?? 'City-state'} is now your ally!`;
+  const notification = getMinorCivNotification(gameState, data.majorCivId, {
+    type: 'minor-civ:allied',
+    majorCivId: data.majorCivId,
+    minorCivId: data.minorCivId,
+  });
+  if (!notification) return;
 
   if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:allied', message: msg, turn: gameState.turn });
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:allied', message: notification.message, turn: gameState.turn });
   }
   if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(msg, 'success');
+    showNotification(notification.message, notification.type);
   }
 });
 
 bus.on('minor-civ:relationship-threshold', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
-    return;
-  }
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `${def?.name ?? 'City-state'} now considers you ${data.newStatus}`;
+  const notification = getMinorCivNotification(gameState, data.majorCivId, {
+    type: 'minor-civ:relationship-threshold',
+    majorCivId: data.majorCivId,
+    minorCivId: data.minorCivId,
+    newStatus: data.newStatus,
+  });
+  if (!notification) return;
 
   if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:status', message: msg, turn: gameState.turn });
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:status', message: notification.message, turn: gameState.turn });
   }
   if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(msg, 'info');
+    showNotification(notification.message, notification.type);
   }
 });
 
 bus.on('minor-civ:guerrilla', (data: any) => {
-  if (gameState.hotSeat && gameState.pendingEvents) {
-    const msg = formatMinorCivEventMessageForPlayer(gameState, data.targetCivId, data.minorCivId, 'guerrilla');
-    collectEvent(gameState.pendingEvents, data.targetCivId, { type: 'minor-civ:guerrilla', message: msg, turn: gameState.turn });
+  const notification = getMinorCivNotification(gameState, data.targetCivId, {
+    type: 'minor-civ:guerrilla',
+    targetCivId: data.targetCivId,
+    minorCivId: data.minorCivId,
+  });
+  if (gameState.hotSeat && gameState.pendingEvents && notification) {
+    collectEvent(gameState.pendingEvents, data.targetCivId, { type: 'minor-civ:guerrilla', message: notification.message, turn: gameState.turn });
   }
-  if (data.targetCivId === gameState.currentPlayer) {
-    const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'guerrilla');
-    showNotification(currentMsg, 'warning');
+  if (data.targetCivId === gameState.currentPlayer && notification) {
+    showNotification(notification.message, notification.type);
   }
 });
 
 bus.on('minor-civ:quest-expired', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
-    return;
-  }
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `Quest from ${def?.name ?? 'City-state'} has expired`;
+  const notification = getMinorCivNotification(gameState, data.majorCivId, {
+    type: 'minor-civ:quest-expired',
+    majorCivId: data.majorCivId,
+    minorCivId: data.minorCivId,
+  });
+  if (!notification) return;
 
   if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-expired', message: msg, turn: gameState.turn });
+    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-expired', message: notification.message, turn: gameState.turn });
   }
   if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(msg, 'info');
+    showNotification(notification.message, notification.type);
   }
 });
 
