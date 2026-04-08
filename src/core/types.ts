@@ -450,6 +450,7 @@ export interface Civilization {
   techState: TechState;
   gold: number;
   visibility: VisibilityMap;
+  knownCivilizations?: string[];
   score: number;
   diplomacy: DiplomacyState;
   advisorDisabledUntil?: Partial<Record<AdvisorType, number>>; // turn number until re-enabled

@@ -87,4 +87,22 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(rendered).not.toContain('Sparta');
     expect(rendered).not.toContain('Gift 25 gold');
   });
+
+  it('uses state.currentPlayer contact memory in hot-seat instead of leaking another players contacts', () => {
+    const { container, state } = makeDiplomacyFixture({
+      currentPlayer: 'player-2',
+      includeThirdCiv: true,
+    });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations['player-2'].visibility = { tiles: {} };
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).toContain('Unknown Civilization');
+    expect(rendered).not.toContain('Outsider');
+  });
 });

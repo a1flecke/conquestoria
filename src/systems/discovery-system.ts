@@ -17,9 +17,55 @@ export function hasDiscoveredMinorCiv(state: GameState, viewerCivId: string, min
   return hasExploredCoord(state, viewerCivId, city.position);
 }
 
+export function hasDiscoveredCity(state: GameState, viewerCivId: string, cityId: string): boolean {
+  const city = state.cities[cityId];
+  if (!city) return false;
+  return hasExploredCoord(state, viewerCivId, city.position);
+}
+
+export function recordCivilizationContact(state: GameState, civA: string, civB: string): void {
+  if (civA === civB) return;
+  const first = state.civilizations[civA];
+  const second = state.civilizations[civB];
+  if (!first || !second) return;
+
+  const firstKnown = first.knownCivilizations ?? ((first as GameState['civilizations'][string]).knownCivilizations = []);
+  const secondKnown = second.knownCivilizations ?? ((second as GameState['civilizations'][string]).knownCivilizations = []);
+
+  if (!firstKnown.includes(civB)) {
+    firstKnown.push(civB);
+  }
+  if (!secondKnown.includes(civA)) {
+    secondKnown.push(civA);
+  }
+}
+
+export function refreshKnownCivilizations(state: GameState, civId: string): void {
+  const civ = state.civilizations[civId];
+  if (!civ) return;
+
+  for (const otherId of Object.keys(state.civilizations)) {
+    if (otherId === civId) continue;
+    if (hasMetCivilizationByCurrentEvidence(state, civId, otherId)) {
+      recordCivilizationContact(state, civId, otherId);
+    }
+  }
+}
+
 export function hasMetCivilization(state: GameState, viewerCivId: string, targetCivId: string): boolean {
   if (viewerCivId === targetCivId) return true;
 
+  const viewer = state.civilizations[viewerCivId];
+  const target = state.civilizations[targetCivId];
+  if (!viewer || !target) return false;
+  const viewerKnown = viewer.knownCivilizations ?? [];
+  const targetKnown = target.knownCivilizations ?? [];
+  if (viewerKnown.includes(targetCivId)) return true;
+  if (targetKnown.includes(viewerCivId)) return true;
+  return hasMetCivilizationByCurrentEvidence(state, viewerCivId, targetCivId);
+}
+
+function hasMetCivilizationByCurrentEvidence(state: GameState, viewerCivId: string, targetCivId: string): boolean {
   const viewer = state.civilizations[viewerCivId];
   const target = state.civilizations[targetCivId];
   if (!viewer || !target) return false;

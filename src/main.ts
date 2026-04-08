@@ -35,7 +35,7 @@ import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
+import { hasDiscoveredMinorCiv, refreshKnownCivilizations } from '@/systems/discovery-system';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
@@ -1536,6 +1536,7 @@ async function init(): Promise<void> {
 function migrateLegacySave(): void {
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
     if (!civ.civType) (civ as any).civType = 'generic';
+    if (!civ.knownCivilizations) (civ as any).knownCivilizations = [];
     if (!civ.diplomacy) {
       const relationships: Record<string, number> = {};
       for (const otherId of Object.keys(gameState.civilizations)) {
@@ -1588,6 +1589,9 @@ function migrateLegacySave(): void {
         (civ.techState.trackPriorities as any)[track] = 'medium';
       }
     }
+  }
+  for (const civId of Object.keys(gameState.civilizations)) {
+    refreshKnownCivilizations(gameState, civId);
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasDiscoveredMinorCiv, hasMetCivilization } from '@/systems/discovery-system';
+import { hasDiscoveredCity, hasDiscoveredMinorCiv, hasMetCivilization, recordCivilizationContact } from '@/systems/discovery-system';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 
 describe('discovery-system', () => {
@@ -43,5 +43,51 @@ describe('discovery-system', () => {
 
     state.civilizations.player.visibility.tiles['6,0'] = 'fog';
     expect(hasDiscoveredMinorCiv(state, 'player', 'mc-sparta')).toBe(true);
+  });
+
+  it('keeps a civilization known after first visible unit contact even after visibility is lost', () => {
+    const { state } = makeBreakawayFixture({ includeThirdCiv: true });
+    state.units['unit-outsider'] = {
+      id: 'unit-outsider',
+      type: 'warrior',
+      owner: 'outsider',
+      position: { q: 2, r: 0 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.civilizations.outsider.units = ['unit-outsider'];
+    state.civilizations.player.visibility.tiles['2,0'] = 'visible';
+
+    recordCivilizationContact(state, 'player', 'outsider');
+    delete state.civilizations.player.visibility.tiles['2,0'];
+
+    expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
+  });
+
+  it('does not treat city discovery as implied by civilization contact', () => {
+    const { state, cityId } = makeBreakawayFixture({ includeThirdCiv: true });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+
+    state.cities['outsider-city'] = {
+      ...state.cities[cityId],
+      id: 'outsider-city',
+      owner: 'outsider',
+      name: 'Rome',
+      position: { q: 6, r: 0 },
+      ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.civilizations.outsider.cities = ['outsider-city'];
+    state.map.tiles['6,0'] = {
+      ...state.map.tiles['4,0'],
+      coord: { q: 6, r: 0 },
+      owner: 'outsider',
+    };
+
+    expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
+    expect(hasDiscoveredCity(state, 'player', 'outsider-city')).toBe(false);
   });
 });

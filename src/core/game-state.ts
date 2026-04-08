@@ -71,6 +71,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     techState: createTechState(),
     gold: 0,
     visibility: createVisibilityMap(),
+    knownCivilizations: [],
     score: 0,
     diplomacy: createDiplomacyState(allCivIds, 'player', playerStartBonus),
   };
@@ -87,6 +88,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     techState: createTechState(),
     gold: 0,
     visibility: createVisibilityMap(),
+    knownCivilizations: [],
     score: 0,
     diplomacy: createDiplomacyState(allCivIds, 'ai-1', aiStartBonus),
   };
@@ -200,6 +202,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string): GameSta
       techState: createTechState(),
       gold: 0,
       visibility: createVisibilityMap(),
+      knownCivilizations: [],
       score: 0,
       diplomacy: createDiplomacyState(allSlotIds, player.slotId, startBonus),
     };
