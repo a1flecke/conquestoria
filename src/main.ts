@@ -35,6 +35,7 @@ import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
@@ -1367,6 +1368,9 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
 
 bus.on('minor-civ:quest-issued', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const msg = `${def?.name ?? 'City-state'} asks: ${data.quest.description}`;
 
@@ -1380,6 +1384,9 @@ bus.on('minor-civ:quest-issued', (data: any) => {
 
 bus.on('minor-civ:quest-completed', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const rewards: string[] = [];
   if (data.reward.gold) rewards.push(`+${data.reward.gold} gold`);
@@ -1422,6 +1429,9 @@ bus.on('minor-civ:destroyed', (data: any) => {
 
 bus.on('minor-civ:allied', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const msg = `${def?.name ?? 'City-state'} is now your ally!`;
 
@@ -1435,6 +1445,9 @@ bus.on('minor-civ:allied', (data: any) => {
 
 bus.on('minor-civ:relationship-threshold', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const msg = `${def?.name ?? 'City-state'} now considers you ${data.newStatus}`;
 
@@ -1461,6 +1474,9 @@ bus.on('minor-civ:guerrilla', (data: any) => {
 
 bus.on('minor-civ:quest-expired', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const msg = `Quest from ${def?.name ?? 'City-state'} has expired`;
 
