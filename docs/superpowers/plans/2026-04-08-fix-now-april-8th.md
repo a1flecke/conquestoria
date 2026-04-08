@@ -72,6 +72,9 @@ The milestone is complete only when all of the following are true:
 8. Edge-to-edge wrapped movement/pathfinding continues to work on the same tiles and overlays the player sees.
 9. Every changed rule has focused regression tests, and the full suite plus build pass.
 10. GitHub issues are commented with final behavior before merge, but are not closed until the PR actually merges.
+11. First contact persists immediately when contact happens during live play, not only after end-turn processing or load migration.
+12. Once real per-game autosaves exist, legacy singleton autosave data cannot resurface in the UI or `Continue` flow unless it is the only remaining autosave source.
+13. Horizontal wrap rendering stays correct at any zoom level and viewport width supported by the game, including cases where more than one wrapped copy may be visible.
 
 ---
 
@@ -84,6 +87,496 @@ The milestone is complete only when all of the following are true:
 | Autosave delete is fake | UI deletes `autosave` as if it were a manual slot while real data lives under separate autosave keys | Autosaves must become first-class saved entries with real metadata and a real delete path |
 | Autosave system is underspecified | Existing code stores only one autosave and synthesizes one row | Store real autosave entries keyed by `gameId`, retain last `5`, and label them with `gameTitle` |
 | Wrap rendering still looks broken | Ghost rendering stops at terrain/fog/rivers | Route every render layer with map coords through the same wrap helper |
+| First contact still regresses after brief scouting | Contact is only persisted in `processTurn(...)` / migration, not at the moment visibility changes during movement, combat, or setup | Persist contact from a shared post-visibility sync helper invoked anywhere visibility is recalculated |
+| Deleted autosaves can come back from legacy storage | Legacy singleton autosave fallback remains readable even after real autosaves have been created and deleted | Make legacy autosave fallback one-way: migrate or retire it once real autosaves exist |
+| Wrap seam can still break at low zoom or wide viewport | The ghost helper uses a fixed `EDGE_MARGIN = 3` instead of viewport-aware duplication based on what the camera can actually see | Replace edge-margin duplication with offset enumeration derived from camera viewport and world wrap span |
+
+---
+
+## Second Formal Review Follow-Up
+
+This section supersedes any earlier “good enough” interpretation of the hotfix. The remaining work is not cosmetic. These are correctness and completeness gaps found after the first implementation pass:
+
+1. `knownCivilizations` is only refreshed during turn processing and save migration, so transient scouting contact can disappear again before end turn.
+2. The autosave system now has real per-game entries, but the legacy singleton fallback is still live and can resurrect deleted autosaves after migration.
+3. Wrapped rendering works for the seam-near-column case, but the helper is still based on a hardcoded column margin instead of the actual visible camera span.
+
+The corrective design below fixes the underlying issue in each case rather than layering more special cases.
+
+### Corrective Design: Contact Persistence
+
+- Introduce a shared `syncCivilizationContactsFromVisibility(state, civId)` helper in `src/systems/discovery-system.ts`.
+- This helper keeps the existing contact rules, but it is called any time visibility is refreshed, not just during end-turn processing.
+- Add a small wrapper in the visibility update call sites so the sequence is always:
+  1. recalculate visibility
+  2. persist newly discovered civilization contacts
+  3. continue normal game flow
+- Required call sites:
+  - initial game creation in `src/core/game-state.ts`
+  - end-turn visibility refresh in `src/core/turn-manager.ts`
+  - live visibility refresh in `src/main.ts` after player movement / other direct updates
+  - AI visibility refresh in `src/ai/basic-ai.ts` if it updates visibility directly
+  - legacy save migration in `src/main.ts`
+- Keep city discovery separate. Contact persistence must never reveal city identity unless `hasDiscoveredCity(...)` is independently true.
+
+### Corrective Design: Autosave Migration
+
+- Add a one-way legacy migration/retirement helper in `src/storage/save-manager.ts`.
+- Required behavior:
+  - if real autosave metas already exist, ignore and retire the legacy singleton fallback
+  - if no real autosaves exist but a legacy singleton exists, surface it exactly once as a migration source
+  - once a real autosave is written for any game, delete or tombstone the legacy singleton so it cannot resurface later
+  - deleting the last visible real autosave must not “reveal” a stale legacy autosave that the player thought was already gone
+- Keep `Continue` bound to newest autosave overall.
+- Keep row-load behavior precise:
+  - legacy singleton autosave row may map to `Continue`
+  - real autosave rows must load the selected slot by id
+
+### Corrective Design: Wrap Rendering
+
+- Replace `EDGE_MARGIN` duplication in `src/renderer/wrap-rendering.ts` with a viewport-aware offset enumerator.
+- The helper must answer: “for this canonical coord, which wrapped copies could be visible in the current camera viewport?”
+- Implement it by computing the horizontal world-space wrap span and enumerating all integer wrap offsets whose copies intersect the visible world bounds.
+- This helper becomes the only source of wrapped render coords for:
+  - terrain
+  - fog
+  - rivers
+  - movement highlights
+  - minor-civ territory
+  - cities
+  - units
+- Do not change gameplay/input coordinates. This is still render-only duplication.
+
+---
+
+## Additional Files For This Follow-Up
+
+### Existing Production Files To Modify
+- Modify: `src/systems/fog-of-war.ts`
+  - if needed, expose a narrow helper or return value so callers can sync contact immediately after visibility changes without duplicating logic
+- Modify: `src/storage/save-manager.ts`
+  - add legacy migration/retirement helper and tests around fallback suppression
+- Modify: `src/renderer/wrap-rendering.ts`
+  - replace fixed edge-margin helper with viewport-aware copy enumeration
+- Modify: `src/renderer/fog-renderer.ts`
+  - adopt the new viewport-aware helper instead of any seam-local duplication assumptions
+
+### Existing Tests To Modify
+- Modify: `tests/storage/save-manager.test.ts`
+  - add legacy fallback retirement coverage
+- Modify: `tests/systems/discovery-system.test.ts`
+  - add gameplay-path contact persistence coverage, not just direct helper calls
+- Modify: `tests/renderer/fog-renderer.test.ts`
+  - add wide-viewport / low-zoom wrapped-copy coverage
+
+### New Tests To Create
+- Create: `tests/renderer/wrap-rendering.test.ts`
+  - direct unit tests for viewport-aware wrapped copy enumeration
+
+---
+
+## Task 6A: Persist First Contact At The Moment Visibility Changes
+
+**Files:**
+- Modify: `src/systems/discovery-system.ts`
+- Modify: `src/core/game-state.ts`
+- Modify: `src/core/turn-manager.ts`
+- Modify: `src/main.ts`
+- Modify: `src/ai/basic-ai.ts`
+- Modify: `tests/systems/discovery-system.test.ts`
+- Modify: `tests/ui/diplomacy-panel.test.ts`
+- Modify: `tests/ai/basic-ai.test.ts`
+
+- [ ] **Step 1: Add red tests for real gameplay-path persistence**
+
+Extend `tests/systems/discovery-system.test.ts` with behaviors that do not manually seed contact:
+
+```ts
+it('persists contact immediately after a visibility refresh reveals a foreign unit', () => {
+  updateVisibility(state.civilizations.player.visibility, [playerScout], state.map);
+  syncCivilizationContactsFromVisibility(state, 'player');
+  expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
+});
+
+it('does not lose first contact when the revealing unit moves away before end turn', () => {
+  updateVisibility(state.civilizations.player.visibility, [playerScout], state.map);
+  syncCivilizationContactsFromVisibility(state, 'player');
+  removeVisionFromOutsiderTile(state);
+  expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
+});
+```
+
+Extend `tests/ui/diplomacy-panel.test.ts` with:
+
+```ts
+it('keeps a rival named in diplomacy immediately after brief scouting contact', () => {
+  expect(rendered).toContain('Rome');
+});
+```
+
+Extend `tests/ai/basic-ai.test.ts` with:
+
+```ts
+it('treats a civ as met after ai visibility refresh records first contact', () => {
+  expect(decisions.some(d => d.targetCiv === 'player')).toBe(true);
+});
+```
+
+- [ ] **Step 2: Run the focused tests and confirm failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts tests/ai/basic-ai.test.ts
+```
+
+Expected: FAIL because the branch currently persists contact only in turn processing / migration.
+
+- [ ] **Step 3: Add a shared post-visibility contact sync helper**
+
+In `src/systems/discovery-system.ts`, add a public helper that persists contact from the viewer’s current visibility:
+
+```ts
+export function syncCivilizationContactsFromVisibility(state: GameState, viewerCivId: string): void {
+  for (const otherId of Object.keys(state.civilizations)) {
+    if (otherId === viewerCivId) continue;
+    if (hasMetCivilizationByCurrentEvidence(state, viewerCivId, otherId)) {
+      recordCivilizationContact(state, viewerCivId, otherId);
+    }
+  }
+}
+```
+
+Keep `refreshKnownCivilizations(...)` as a compatibility alias or replace its call sites directly. Do not duplicate the evidence logic in callers.
+
+- [ ] **Step 4: Invoke the helper from every visibility-refresh path**
+
+Required call-site pattern:
+
+```ts
+updateVisibility(civ.visibility, civUnits, state.map, cityPositions);
+syncCivilizationContactsFromVisibility(state, civId);
+```
+
+Add this immediately after visibility refresh in:
+- `src/core/game-state.ts`
+- `src/core/turn-manager.ts`
+- `src/main.ts`
+- `src/ai/basic-ai.ts`
+- `src/main.ts` legacy migration path
+
+- [ ] **Step 5: Re-run the focused tests**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts tests/ai/basic-ai.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit the contact fix**
+
+```bash
+git add src/systems/discovery-system.ts src/core/game-state.ts src/core/turn-manager.ts src/main.ts src/ai/basic-ai.ts tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts tests/ai/basic-ai.test.ts
+git commit -m "fix(hotfix): persist contact on visibility refresh"
+```
+
+---
+
+## Task 6B: Make Legacy Autosave Migration One-Way
+
+**Files:**
+- Modify: `src/storage/save-manager.ts`
+- Modify: `src/ui/save-panel.ts`
+- Modify: `tests/storage/save-manager.test.ts`
+- Modify: `tests/ui/save-panel.test.ts`
+
+- [ ] **Step 1: Add red tests for legacy fallback retirement**
+
+Extend `tests/storage/save-manager.test.ts` with:
+
+```ts
+it('ignores legacy autosave fallback once a real autosave exists', async () => {
+  dbState.set('autosave', {
+    turn: 3,
+    currentPlayer: 'player',
+    civilizations: { player: { civType: 'egypt' } },
+    hotSeat: undefined,
+  });
+  await autoSave({
+    turn: 9,
+    currentPlayer: 'player',
+    gameId: 'game-a',
+    gameTitle: 'Game A',
+    civilizations: { player: { civType: 'egypt' } },
+    hotSeat: undefined,
+  } as any);
+  const saves = await listSaves({ includeAutoSave: true });
+  expect(saves.find(save => save.id === 'autosave')).toBeUndefined();
+});
+
+it('does not resurrect a legacy autosave after deleting the last real autosave', async () => {
+  dbState.set('autosave', {
+    turn: 3,
+    currentPlayer: 'player',
+    civilizations: { player: { civType: 'egypt' } },
+    hotSeat: undefined,
+  });
+  await autoSave({
+    turn: 9,
+    currentPlayer: 'player',
+    gameId: 'game-a',
+    gameTitle: 'Game A',
+    civilizations: { player: { civType: 'egypt' } },
+    hotSeat: undefined,
+  } as any);
+  await deleteSaveEntry('autosave:game-a:9', 'autosave');
+  const saves = await listSaves({ includeAutoSave: true });
+  expect(saves.find(save => save.id === 'autosave')).toBeUndefined();
+});
+```
+
+Extend `tests/ui/save-panel.test.ts` with:
+
+```ts
+it('loads a real autosave row by slot id while keeping legacy autosave on continue semantics only', async () => {
+  expect(onLoadSlot).toHaveBeenCalledWith('autosave:game-1:9');
+});
+```
+
+- [ ] **Step 2: Run the focused autosave tests and confirm failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts tests/ui/save-panel.test.ts
+```
+
+Expected: FAIL because the legacy fallback is still globally readable after real autosaves exist.
+
+- [ ] **Step 3: Add a legacy retirement helper**
+
+In `src/storage/save-manager.ts`, add a helper along these lines:
+
+```ts
+async function retireLegacyAutosaveIfRealAutosavesExist(): Promise<void> {
+  const metas = await listPersistedMetas();
+  if (metas.some(meta => meta.kind === 'autosave')) {
+    await dbDelete(LEGACY_AUTO_SAVE_KEY);
+    await syncLocalStorageBackup(undefined);
+  }
+}
+```
+
+Call it from:
+- `autoSave(...)` after writing the real autosave
+- `listSaves(...)` before deciding whether to fall back to legacy
+- `loadMostRecentAutoSave(...)` before deciding whether to fall back to legacy
+
+The rule is simple:
+- no real autosaves: legacy fallback allowed
+- any real autosave exists: legacy fallback retired / ignored
+
+- [ ] **Step 4: Keep row-load semantics exact**
+
+In `src/ui/save-panel.ts`, preserve this distinction:
+
+```ts
+if (saveKind === 'autosave' && save.id === 'autosave') {
+  callbacks.onContinue();
+} else {
+  callbacks.onLoadSlot(save.id);
+}
+```
+
+This keeps the legacy singleton compatible while ensuring real autosave history rows load the selected entry.
+
+- [ ] **Step 5: Re-run focused autosave tests**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts tests/ui/save-panel.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit the autosave migration fix**
+
+```bash
+git add src/storage/save-manager.ts src/ui/save-panel.ts tests/storage/save-manager.test.ts tests/ui/save-panel.test.ts
+git commit -m "fix(hotfix): retire legacy autosave fallback"
+```
+
+---
+
+## Task 6C: Replace Edge-Margin Wrapping With Viewport-Aware Copy Enumeration
+
+**Files:**
+- Modify: `src/renderer/wrap-rendering.ts`
+- Modify: `src/renderer/hex-renderer.ts`
+- Modify: `src/renderer/fog-renderer.ts`
+- Modify: `src/renderer/city-renderer.ts`
+- Modify: `src/renderer/unit-renderer.ts`
+- Modify: `src/renderer/render-loop.ts`
+- Create: `tests/renderer/wrap-rendering.test.ts`
+- Modify: `tests/renderer/fog-renderer.test.ts`
+- Modify: `tests/renderer/city-renderer.test.ts`
+- Modify: `tests/renderer/unit-renderer.test.ts`
+- Modify: `tests/renderer/render-loop-wrap.test.ts`
+
+- [ ] **Step 1: Add red tests for wide-viewport / low-zoom wrap cases**
+
+Create `tests/renderer/wrap-rendering.test.ts` with:
+
+```ts
+it('returns all visible wrapped copies for a coord when the viewport spans more than one seam copy', () => {
+  const copies = getVisibleHorizontalWrapCoords({ q: 0, r: 0 }, map, camera);
+  expect(copies).toEqual(
+    expect.arrayContaining([{ q: 0, r: 0 }, { q: 5, r: 0 }]),
+  );
+});
+
+it('can return more than one ghost copy when the viewport is wider than a single wrap span', () => {
+  const copies = getVisibleHorizontalWrapCoords({ q: 0, r: 0 }, map, veryWideCamera);
+  expect(copies.length).toBeGreaterThan(2);
+});
+```
+
+Extend `tests/renderer/fog-renderer.test.ts` with a low-zoom case where the visible seam is wider than three columns.
+
+Keep the existing city/unit/render-loop tests, but update them to call the new helper-backed paths.
+
+- [ ] **Step 2: Run the focused renderer tests and confirm failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/renderer/wrap-rendering.test.ts tests/renderer/fog-renderer.test.ts tests/renderer/city-renderer.test.ts tests/renderer/unit-renderer.test.ts tests/renderer/render-loop-wrap.test.ts
+```
+
+Expected: FAIL because the current helper is fixed to `EDGE_MARGIN = 3`.
+
+- [ ] **Step 3: Replace the wrap helper with viewport-aware enumeration**
+
+In `src/renderer/wrap-rendering.ts`, replace the fixed-margin helper with a camera-aware function:
+
+```ts
+export function getVisibleHorizontalWrapCoords(
+  coord: HexCoord,
+  mapWidth: number,
+  camera: Camera,
+): HexCoord[] {
+  const wrapOrigin = hexToPixel({ q: coord.q, r: coord.r }, camera.hexSize).x;
+  const wrapSpan = hexToPixel({ q: coord.q + mapWidth, r: coord.r }, camera.hexSize).x - wrapOrigin;
+  const visibleWorldLeft = camera.x - camera.hexSize * 2;
+  const visibleWorldRight = camera.x + (camera.width / camera.zoom) + camera.hexSize * 2;
+
+  const minOffset = Math.floor((visibleWorldLeft - wrapOrigin) / wrapSpan);
+  const maxOffset = Math.ceil((visibleWorldRight - wrapOrigin) / wrapSpan);
+
+  const coords: HexCoord[] = [];
+  for (let offset = minOffset; offset <= maxOffset; offset++) {
+    coords.push({ q: coord.q + offset * mapWidth, r: coord.r });
+  }
+  return coords;
+}
+```
+
+Use the repo’s actual `hexToPixel(...)` signature. The important part is viewport-derived offset bounds, not a hardcoded edge margin.
+
+- [ ] **Step 4: Thread the new helper through every wrapped render layer**
+
+Replace all `getHorizontalWrapRenderCoords(...)` call sites with the new camera-aware helper in:
+- `src/renderer/hex-renderer.ts`
+- `src/renderer/fog-renderer.ts`
+- `src/renderer/city-renderer.ts`
+- `src/renderer/unit-renderer.ts`
+- `src/renderer/render-loop.ts`
+
+Do not leave any layer on old “near edge only” logic.
+
+- [ ] **Step 5: Re-run focused renderer tests**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/renderer/wrap-rendering.test.ts tests/renderer/fog-renderer.test.ts tests/renderer/city-renderer.test.ts tests/renderer/unit-renderer.test.ts tests/renderer/render-loop-wrap.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit the wrap fix**
+
+```bash
+git add src/renderer/wrap-rendering.ts src/renderer/hex-renderer.ts src/renderer/fog-renderer.ts src/renderer/city-renderer.ts src/renderer/unit-renderer.ts src/renderer/render-loop.ts tests/renderer/wrap-rendering.test.ts tests/renderer/fog-renderer.test.ts tests/renderer/city-renderer.test.ts tests/renderer/unit-renderer.test.ts tests/renderer/render-loop-wrap.test.ts
+git commit -m "fix(hotfix): make wrap rendering viewport aware"
+```
+
+---
+
+## Release Gate Addendum
+
+Before the PR is considered ready again, run these exact checks:
+
+1. Focused contact checks:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts tests/ai/basic-ai.test.ts
+```
+
+2. Focused autosave checks:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts tests/ui/save-panel.test.ts
+```
+
+3. Focused wrap-render checks:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/renderer/wrap-rendering.test.ts tests/renderer/fog-renderer.test.ts tests/renderer/city-renderer.test.ts tests/renderer/unit-renderer.test.ts tests/renderer/render-loop-wrap.test.ts
+```
+
+4. Full regression:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run
+./scripts/run-with-mise.sh yarn build
+```
+
+5. Final branch review checklist:
+- confirm first-contact persistence without manual helper seeding
+- confirm legacy autosave cannot resurface after real autosave migration
+- confirm wrapped copies render correctly at low zoom and wide viewport, not only at seam-adjacent columns
+- confirm save-panel row load/delete semantics still match the real autosave model
+
+---
+
+## Follow-Up Plan Self-Review
+
+### Coverage Check
+
+- `P1 contact persistence` is covered by Task `6A`.
+- `P2 legacy autosave fallback resurrection` is covered by Task `6B`.
+- `P2 viewport-incomplete wrap rendering` is covered by Task `6C`.
+
+### Hole Check
+
+- The plan now covers gameplay call sites, not just helpers, for first contact.
+- The plan now covers migration-path retirement, not just visible-row deletion, for autosaves.
+- The plan now covers low-zoom / wide-viewport scenarios, not just seam-adjacent coordinates, for wrapping.
+
+### Quality Check
+
+- Each remaining review finding has a red-test step, focused verification, implementation step, and commit boundary.
+- The plan preserves repository patterns:
+  - TypeScript
+  - Vitest
+  - event-driven state flow
+  - `state.currentPlayer` discipline
+  - render-only wrap duplication
+- No placeholder “handle edge cases” steps remain for these three findings.
 
 ---
 
