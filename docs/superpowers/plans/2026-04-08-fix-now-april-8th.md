@@ -50,6 +50,7 @@ This follow-up plan replaces the parts of that implementation that were shown in
 - save-panel rendering staying DOM-safe for user-controlled save names, campaign titles, and hot-seat player names
 - legacy autosave retirement validating a loadable real autosave payload, not just orphaned autosave metadata
 - save-panel list rendering working in the real browser DOM, not only in the current detached-node test harness
+- minor-civ names staying hidden until the city-state itself is discovered, across unit panels, combat preview, notifications, and hot-seat pending events
 
 **Out of scope**
 - broad campaign browser redesign
@@ -84,6 +85,7 @@ The milestone is complete only when all of the following are true:
 16. Orphaned autosave metadata does not suppress or delete a valid legacy autosave fallback; legacy retirement happens only after at least one loadable real autosave exists.
 17. The save list renders real slot cards in both `start` and `save` modes when `createSavePanel(...)` runs in an actual DOM, even though the panel subtree is constructed before it is appended to the document.
 18. Save-panel regression coverage runs in a real DOM environment and fails if detached-tree lookups or impossible mock-document behavior reappear.
+19. A player who has not discovered a city-state’s city tile never learns that city-state’s proper name from unit info, combat preview, global event notifications, or hot-seat pending events; those surfaces use a generic fallback label instead.
 
 ---
 
@@ -103,6 +105,7 @@ The milestone is complete only when all of the following are true:
 | Save-panel hotfix breaks DOM safety | User-controlled `save.name`, `gameTitle`, and `playerNames` are interpolated into `innerHTML` | Rebuild dynamic save rows with DOM nodes and `textContent`, keeping user content out of markup strings |
 | Legacy autosave retirement is too eager | Any autosave meta is treated as proof of a real autosave, even if its payload is missing | Treat only loadable autosave meta+payload pairs as real, and prune orphaned metas before retire/list/continue decisions |
 | Save-panel tests hide the live rendering regression | `createSavePanel(...)` queries `document.getElementById('save-slots')` before mount, while the custom fixture globally registers ids from detached `innerHTML` as if the subtree were already in the document | Refactor the panel to keep local element references / panel-scoped queries, and move save-panel rendering tests to a file-local real DOM environment instead of a fake `document` |
+| Minor-civ privacy is enforced ad hoc instead of through one viewer-aware naming layer | Some surfaces use `hasDiscoveredMinorCiv(...)`, but `main.ts` still formats `mcDef?.name` directly in unit/combat panels and several bus handlers | Centralize minor-civ naming/notification formatting in one helper layer and route every player-facing minor-civ name through it |
 
 ---
 
@@ -2134,6 +2137,315 @@ git commit -m "fix(hotfix): render save slots in real dom"
 
 ---
 
+### Task 12: Centralize Minor-Civ Naming Privacy Across All Player-Facing Surfaces
+
+**Files:**
+- Create: `src/systems/minor-civ-presentation.ts`
+- Modify: `src/main.ts`
+- Modify: `src/ui/diplomacy-panel.ts`
+- Create: `tests/systems/minor-civ-presentation.test.ts`
+- Modify: `tests/ui/diplomacy-panel.test.ts`
+
+**Root cause being fixed**
+
+The remaining city-state leak is not limited to two lines in `handleHexTap(...)`. The actual problem is architectural:
+
+1. Some city-state surfaces already gate on `hasDiscoveredMinorCiv(...)`.
+2. Other surfaces still format `MINOR_CIV_DEFINITIONS.find(...).name` directly.
+3. Several bus handlers prebuild one notification string and then fan it out to multiple players, which makes per-viewer privacy impossible.
+
+As long as each panel or event handler invents its own city-state label, the privacy rule will drift again. The fix must centralize viewer-aware naming and force all player-facing minor-civ labels through it.
+
+**Areas that need to change**
+
+- `src/main.ts`
+  - enemy-unit info panel owner label
+  - combat preview owner label
+  - `minor-civ:evolved`
+  - `minor-civ:destroyed`
+  - `minor-civ:guerrilla`
+- `src/ui/diplomacy-panel.ts`
+  - switch discovered city-state names to the shared helper for consistency, even though undiscovered rows are already omitted
+
+**Areas audited and intentionally left unchanged**
+
+- `src/renderer/city-renderer.ts`
+  - safe because city names are drawn only when the city tile is currently visible
+- `src/renderer/render-loop.ts`
+  - territory overlay is still hidden by fog; this task is about name leaks, not fog parity
+- quest rows / quest-issued notifications
+  - already use the new quest privacy helpers and are covered by earlier tasks
+
+- [ ] **Step 1: Add a pure presentation helper layer**
+
+Create `src/systems/minor-civ-presentation.ts` with a narrow, testable API:
+
+```ts
+import type { GameState } from '@/core/types';
+import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
+import { hasDiscoveredMinorCiv } from './discovery-system';
+
+export interface MinorCivPresentation {
+  known: boolean;
+  name: string;
+  color: string;
+}
+
+export function getMinorCivPresentationForPlayer(
+  state: Pick<GameState, 'minorCivs' | 'cities' | 'civilizations'>,
+  viewerCivId: string,
+  minorCivId: string,
+  unknownName: string = 'City-State',
+): MinorCivPresentation {
+  const mc = (state as GameState).minorCivs?.[minorCivId];
+  const def = mc ? MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId) : undefined;
+  const known = mc ? hasDiscoveredMinorCiv(state as GameState, viewerCivId, minorCivId) : false;
+  return {
+    known,
+    name: known ? (def?.name ?? unknownName) : unknownName,
+    color: def?.color ?? '#888',
+  };
+}
+
+export function formatMinorCivEventMessageForPlayer(
+  state: Pick<GameState, 'minorCivs' | 'cities' | 'civilizations'>,
+  viewerCivId: string,
+  minorCivId: string,
+  kind: 'evolved' | 'destroyed' | 'guerrilla',
+): string {
+  const presentation = getMinorCivPresentationForPlayer(state, viewerCivId, minorCivId);
+
+  switch (kind) {
+    case 'evolved':
+      return presentation.known
+        ? `A barbarian tribe formed the city-state of ${presentation.name}!`
+        : 'A barbarian tribe formed a new city-state!';
+    case 'destroyed':
+      return presentation.known
+        ? `${presentation.name} has fallen!`
+        : 'A city-state has fallen!';
+    case 'guerrilla':
+      return presentation.known
+        ? `${presentation.name} guerrilla fighters attack!`
+        : 'City-state guerrilla fighters attack!';
+  }
+}
+```
+
+Do not add quest formatting here. Keep the file focused on city-state identity presentation.
+
+- [ ] **Step 2: Add red tests for the helper and the audited leak paths**
+
+Create `tests/systems/minor-civ-presentation.test.ts` with:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { createNewGame } from '@/core/game-state';
+import { hexKey } from '@/systems/hex-utils';
+import {
+  getMinorCivPresentationForPlayer,
+  formatMinorCivEventMessageForPlayer,
+} from '@/systems/minor-civ-presentation';
+
+describe('minor-civ-presentation', () => {
+  it('uses a generic name for an undiscovered city-state', () => {
+    const state = createNewGame(undefined, 'mc-present-undiscovered', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+
+    expect(getMinorCivPresentationForPlayer(state, 'player', mcId)).toMatchObject({
+      known: false,
+      name: 'City-State',
+    });
+  });
+
+  it('uses the real name after the city tile is discovered', () => {
+    const state = createNewGame(undefined, 'mc-present-discovered', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const city = state.cities[state.minorCivs[mcId].cityId];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+
+    expect(getMinorCivPresentationForPlayer(state, 'player', mcId).known).toBe(true);
+    expect(getMinorCivPresentationForPlayer(state, 'player', mcId).name).not.toBe('City-State');
+  });
+
+  it('formats evolved notifications generically for undiscovered viewers', () => {
+    const state = createNewGame(undefined, 'mc-present-evolved', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+
+    expect(formatMinorCivEventMessageForPlayer(state, 'player', mcId, 'evolved'))
+      .toBe('A barbarian tribe formed a new city-state!');
+  });
+
+  it('formats destroyed notifications generically for undiscovered viewers', () => {
+    const state = createNewGame(undefined, 'mc-present-destroyed', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+
+    expect(formatMinorCivEventMessageForPlayer(state, 'player', mcId, 'destroyed'))
+      .toBe('A city-state has fallen!');
+  });
+
+  it('formats guerrilla notifications generically for undiscovered viewers', () => {
+    const state = createNewGame(undefined, 'mc-present-guerrilla', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+
+    expect(formatMinorCivEventMessageForPlayer(state, 'player', mcId, 'guerrilla'))
+      .toBe('City-state guerrilla fighters attack!');
+  });
+});
+```
+
+Extend `tests/ui/diplomacy-panel.test.ts` with a consistency test:
+
+```ts
+it('uses the shared presentation helper for discovered city-state names', () => {
+  // Set discovered visibility and assert the rendered city-state name matches the helper output.
+});
+```
+
+The purpose of this extra test is not because diplomacy is currently broken; it is to prevent future divergence.
+
+- [ ] **Step 3: Run the focused tests and verify they fail**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-presentation.test.ts tests/ui/diplomacy-panel.test.ts
+```
+
+Expected: FAIL because the helper file does not exist yet and the current code still hardcodes minor-civ names in `main.ts`.
+
+- [ ] **Step 4: Route unit/combat labels through the shared helper**
+
+In `src/main.ts`, replace both direct owner-name lookups:
+
+```ts
+const mc = Object.values(gameState.minorCivs ?? {}).find(m => m.id === enemyUnit.owner);
+const mcDef = mc ? MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId) : undefined;
+ownerName = mcDef?.name ?? 'City-State';
+ownerColor = mcDef?.color ?? '#888';
+```
+
+with:
+
+```ts
+const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, enemyUnit.owner, 'City-State');
+ownerName = presentation.name;
+ownerColor = presentation.color;
+```
+
+Do the same in the combat preview path for `defender.owner`.
+
+- [ ] **Step 5: Fix the event handlers so they format per viewer instead of once globally**
+
+In `src/main.ts`:
+
+- `minor-civ:evolved`
+  - stop building one `msg` before the hot-seat loop
+  - for each `civId`, call `formatMinorCivEventMessageForPlayer(gameState, civId, data.minorCivId, 'evolved')`
+  - for the on-screen notification, use `gameState.currentPlayer`
+
+- `minor-civ:destroyed`
+  - same per-viewer formatting using `kind: 'destroyed'`
+
+- `minor-civ:guerrilla`
+  - same per-viewer formatting using `kind: 'guerrilla'`
+  - do **not** early-return just because the player has not discovered the city-state; the player still needs the warning, but the label must stay generic
+
+Implementation shape:
+
+```ts
+bus.on('minor-civ:destroyed', (data: any) => {
+  if (gameState.hotSeat && gameState.pendingEvents) {
+    for (const civId of Object.keys(gameState.civilizations)) {
+      const msg = formatMinorCivEventMessageForPlayer(gameState, civId, data.minorCivId, 'destroyed');
+      collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:destroyed', message: msg, turn: gameState.turn });
+    }
+  }
+
+  const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'destroyed');
+  showNotification(currentMsg, 'warning');
+});
+```
+
+This is the key underlying fix. Per-viewer formatting has to happen before the message is materialized.
+
+- [ ] **Step 6: Route diplomacy rows through the shared helper for consistency**
+
+In `src/ui/diplomacy-panel.ts`, replace direct `def.name` usage in discovered city-state rows with:
+
+```ts
+const presentation = getMinorCivPresentationForPlayer(state, state.currentPlayer, mcId, 'City-State');
+defName: presentation.name,
+defColor: presentation.color,
+```
+
+This does not change current behavior for undiscovered rows because those rows are already filtered out. It prevents future helper drift.
+
+- [ ] **Step 7: Add regression coverage for the actual leak paths**
+
+Extend or create tests that prove the fix at the state/presentation layer:
+
+```ts
+it('does not reveal an undiscovered city-state name through the unit owner label helper', () => {
+  const state = createNewGame(undefined, 'mc-owner-label', 'small');
+  const mcId = Object.keys(state.minorCivs)[0]!;
+
+  const presentation = getMinorCivPresentationForPlayer(state, 'player', mcId);
+
+  expect(presentation.name).toBe('City-State');
+});
+
+it('formats guerrilla messages per viewer when one hot-seat player discovered the city-state and another did not', () => {
+  const state = createHotSeatGame({
+    playerCount: 2,
+    mapSize: 'small',
+    players: [
+      { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+      { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+    ],
+  }, 'mc-hotseat-privacy');
+  const mcId = Object.keys(state.minorCivs)[0]!;
+  const city = state.cities[state.minorCivs[mcId].cityId];
+  state.civilizations['player-1'].visibility.tiles[hexKey(city.position)] = 'fog';
+
+  const discoveredMsg = formatMinorCivEventMessageForPlayer(state, 'player-1', mcId, 'guerrilla');
+  const hiddenMsg = formatMinorCivEventMessageForPlayer(state, 'player-2', mcId, 'guerrilla');
+
+  expect(discoveredMsg).not.toBe('City-state guerrilla fighters attack!');
+  expect(hiddenMsg).toBe('City-state guerrilla fighters attack!');
+});
+```
+
+- [ ] **Step 8: Run focused verification**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-presentation.test.ts tests/ui/diplomacy-panel.test.ts tests/systems/minor-civ-system.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 9: Run full regression and build**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add src/systems/minor-civ-presentation.ts src/main.ts src/ui/diplomacy-panel.ts tests/systems/minor-civ-presentation.test.ts tests/ui/diplomacy-panel.test.ts
+git commit -m "fix(hotfix): centralize minor civ privacy labels"
+```
+
+---
+
 ## Spec Coverage Checklist
 
 - Persistent contact memory: `Task 1`
@@ -2148,6 +2460,7 @@ git commit -m "fix(hotfix): render save slots in real dom"
 - Loadable autosave validation before legacy retirement: `Task 9`
 - Final re-review of the remaining hotfix gaps: `Task 10`
 - Real-DOM save-panel rendering and test-harness correction: `Task 11`
+- Minor-civ name privacy across all player-facing surfaces: `Task 12`
 
 No review finding or April 8 clarification is left without an explicit task.
 
@@ -2191,6 +2504,14 @@ No review finding or April 8 clarification is left without an explicit task.
   - clicked autosave row loads the selected slot instead of `Continue`
   - delete/rerender flow stays in sync with visible cards
   - tests use a real DOM environment instead of a fake global-id registry
+- Minor-civ privacy scenarios covered:
+  - unit info panel uses a generic city-state label before discovery
+  - combat preview uses a generic city-state label before discovery
+  - evolved notification is generic for undiscovered viewers
+  - destroyed notification is generic for undiscovered viewers
+  - guerrilla notification is generic for undiscovered viewers
+  - hot-seat pending events are formatted per viewer instead of once globally
+  - discovered viewers still receive the proper city-state name
 - Wrapping scenarios covered:
   - terrain
   - fog
