@@ -137,6 +137,7 @@ Slice 1 ships:
 - Grid-view explanation (`#31`)
 - General actionable guidance for `#21` and `#33`
 - Quest-origin sanity and clarity for `#61`
+- Council-safe naming and disambiguation for player-facing guidance surfaces
 
 ### 4.3 The Council Experience
 
@@ -148,6 +149,8 @@ The deeper advisor-personality mechanics land later:
 
 - **Slice 1:** structured guidance, proactive interruptions, tunable talk level, clear recommendations, and lovable presentation
 - **Slice 5:** persistent memory, lobbying, advisor disagreements with recall of prior recommendations, and “I told you so” callbacks
+
+Slice 1 may include light presentational banter and reactive flavor, but it must not depend on persistent memory or recall-based callbacks to feel complete.
 
 It should be:
 
@@ -172,7 +175,7 @@ It must include:
 - Humor
 - Light surprise
 - Distinct advisor personalities
-- Occasional banter and callback lines
+- Occasional banter and reactive lines
 
 It must avoid:
 
@@ -194,7 +197,7 @@ Recommended buckets:
 - **To Win**
   High-level domination path and progress framing
 - **Council Drama**
-  Disagreements, lobbying, callbacks, humor, and personality
+  Humor, interjections, and personality in Slice 1; true disagreements, lobbying, and memory-based callbacks in Slice 5
 
 The Council must be “deep at rest, shallow at first glance”:
 
@@ -256,7 +259,20 @@ Slice 1 must make quest origin legible:
 - own-city and city-state quest affordances must not blur together
 - if a quest is invalid, impossible, or misattributed, the system should not present it
 
-### 4.10 Council Privacy Model
+### 4.10 Council-Safe Naming Before Full Naming Integrity
+
+Slice 1 must not wait for Slice 5’s full naming-system cleanup before becoming trustworthy.
+
+Until the full naming-integrity work lands later in the milestone:
+
+- the Council must disambiguate duplicate city names in its own output
+- the Council must qualify ambiguous names with owner/civ context or other clear descriptors
+- the Council must avoid presenting suspicious or lore-breaking names as if they are obviously correct
+- Council, progress, and guidance surfaces must prefer clarity over raw underlying city-name strings
+
+This is a presentation-layer safety rule for Slice 1. The full naming-data and naming-policy fix still belongs to Slice 5.
+
+### 4.11 Council Privacy Model
 
 The Council must never act as an information leak.
 
@@ -301,7 +317,7 @@ Slice 2 reduces repetitive work and lowers per-turn friction after the player al
 
 Slice 2 ships:
 
-- Balance smoothing pass
+- Initial balance smoothing pass
 - Auto-explore (`#10`)
 - Desktop keyboard shortcuts
 - Right-click menus
@@ -429,6 +445,7 @@ Slice 5 ships:
 - Avalon
 - medium-depth custom civ creator
 - city naming correctness and uniqueness fixes (`#59`, `#65`)
+- final milestone-wide balance and UX consolidation pass
 
 ### 8.3 Advisor Memory And Personality
 
@@ -477,6 +494,20 @@ Issues `#59` and `#65` must be resolved with a real naming policy:
 
 This should be solved as a naming/data-model rule, not just a patch for one reported example.
 
+### 8.7 Final Balance And UX Consolidation
+
+Because Slices 3-5 add major new progression, wonder, civ, and customization content after the initial smoothing work in Slice 2, M4e needs an explicit closing tuning gate.
+
+Slice 5 must therefore include a milestone-wide consolidation pass that rechecks:
+
+- Council usefulness after all five slices exist
+- late-era pacing after the tech expansion
+- wonder clarity and overload risk after the full catalog lands
+- Wakanda, Avalon, and custom-civ trait balance
+- desktop/mobile usability after the full M4e surface area exists
+
+This is not optional cleanup. It is the final quality gate that makes the earlier Slice 2 smoothing work remain true after the rest of the milestone content lands.
+
 ---
 
 ## 9. UI And UX Standards For The Whole Milestone
@@ -497,6 +528,8 @@ M4e must preserve these standards across all slices:
    The Council must obey the same information boundaries as the current player and current hot-seat viewer.
 7. **Playable slices only**
    No “future slice required to make this usable” UI promises.
+8. **Trustworthy naming in guidance surfaces**
+   Before Slice 5 fixes the naming system completely, Council and progress views must still present unambiguous city references.
 
 ---
 
@@ -525,6 +558,12 @@ It also requires explicit privacy regression coverage for the Council:
 - undiscovered city-state recommendations use generic labels
 - hot-seat Council output is formatted from `state.currentPlayer`, not another player’s knowledge
 - advisor memory and callbacks never “remember” facts the current player was not allowed to know
+
+It also requires explicit guidance-trust coverage:
+
+- Council output stays unambiguous when duplicate city names exist
+- Council output does not rely on raw underlying city names when that would create player confusion
+- post-slice balance checks are rerun after late-era tech, wonder, and civ content land
 
 The milestone plan must explicitly call out file ownership, UI test realism, regression risk areas, and vertical-slice release gates.
 
@@ -576,12 +615,14 @@ M4e is complete only when all of the following are true:
 2. The Council gives actionable, understandable, and tunable guidance.
 3. The player can understand both what to do next and why it matters for winning.
 4. Grid view, tech-tree progression, and domination progress are legible without outside explanation.
-5. Auto-explore and desktop affordances reduce click-work without creating obvious trust problems.
-6. Late-era tech progression cleanly supports the remaining M4 wonder catalog.
-7. The remaining legendary quest wonders are playable and understandable.
-8. Advisor memory/disagreements/callbacks feel alive without becoming exhausting.
-9. Wakanda, Avalon, and medium-depth custom civ creation are playable and coherent.
-10. Naming integrity is fixed across fantasy, major, and minor civilization city naming.
-11. All explicitly assigned M4e issues are resolved.
-12. Every slice lands as a complete, mergeable, playable value drop.
-13. The Council never leaks hidden cities, unmet civilizations, undiscovered city-states, or any other player-invisible information.
+5. Council and progress surfaces remain trustworthy and unambiguous even before the full naming-system cleanup lands.
+6. Auto-explore and desktop affordances reduce click-work without creating obvious trust problems.
+7. Late-era tech progression cleanly supports the remaining M4 wonder catalog.
+8. The remaining legendary quest wonders are playable and understandable.
+9. Advisor memory/disagreements/callbacks feel alive without becoming exhausting.
+10. Wakanda, Avalon, and medium-depth custom civ creation are playable and coherent.
+11. Naming integrity is fixed across fantasy, major, and minor civilization city naming.
+12. A final post-content balance and UX consolidation pass is complete after all M4e slices land.
+13. All explicitly assigned M4e issues are resolved.
+14. Every slice lands as a complete, mergeable, playable value drop.
+15. The Council never leaks hidden cities, unmet civilizations, undiscovered city-states, or any other player-invisible information.
