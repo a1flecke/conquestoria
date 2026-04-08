@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { hasDiscoveredCity, hasDiscoveredMinorCiv, hasMetCivilization, recordCivilizationContact } from '@/systems/discovery-system';
+import { updateVisibility } from '@/systems/fog-of-war';
+import {
+  hasDiscoveredCity,
+  hasDiscoveredMinorCiv,
+  hasMetCivilization,
+  recordCivilizationContact,
+  syncCivilizationContactsFromVisibility,
+} from '@/systems/discovery-system';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 
 describe('discovery-system', () => {
@@ -64,6 +71,111 @@ describe('discovery-system', () => {
 
     recordCivilizationContact(state, 'player', 'outsider');
     delete state.civilizations.player.visibility.tiles['2,0'];
+
+    expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
+  });
+
+  it('persists contact immediately after a visibility refresh reveals a foreign unit', () => {
+    const { state } = makeBreakawayFixture({ includeThirdCiv: true });
+    state.map.tiles['1,0'] = {
+      ...state.map.tiles['0,0'],
+      coord: { q: 1, r: 0 },
+      owner: null,
+    };
+    state.map.tiles['2,0'] = {
+      ...state.map.tiles['0,0'],
+      coord: { q: 2, r: 0 },
+      owner: 'outsider',
+    };
+    state.units['unit-outsider'] = {
+      id: 'unit-outsider',
+      type: 'warrior',
+      owner: 'outsider',
+      position: { q: 2, r: 0 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.civilizations.outsider.units = ['unit-outsider'];
+    state.civilizations.player.units = [];
+
+    const spottingScout = {
+      id: 'unit-player-scout',
+      type: 'scout' as const,
+      owner: 'player',
+      position: { q: 1, r: 0 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+
+    updateVisibility(state.civilizations.player.visibility, [spottingScout], state.map);
+
+    expect(state.civilizations.player.knownCivilizations ?? []).not.toContain('outsider');
+
+    syncCivilizationContactsFromVisibility(state, 'player');
+
+    expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
+    expect(state.civilizations.player.knownCivilizations).toContain('outsider');
+  });
+
+  it('does not lose first contact when visibility changes again before end turn', () => {
+    const { state } = makeBreakawayFixture({ includeThirdCiv: true });
+    state.map.tiles['0,0'] = {
+      ...state.map.tiles['0,0'],
+      owner: null,
+    };
+    state.map.tiles['1,0'] = {
+      ...state.map.tiles['0,0'],
+      coord: { q: 1, r: 0 },
+      owner: null,
+    };
+    state.map.tiles['2,0'] = {
+      ...state.map.tiles['0,0'],
+      coord: { q: 2, r: 0 },
+      owner: 'outsider',
+    };
+    state.units['unit-outsider'] = {
+      id: 'unit-outsider',
+      type: 'warrior',
+      owner: 'outsider',
+      position: { q: 2, r: 0 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.civilizations.outsider.units = ['unit-outsider'];
+    state.civilizations.player.units = [];
+
+    const spottingScout = {
+      id: 'unit-player-scout',
+      type: 'scout' as const,
+      owner: 'player',
+      position: { q: 1, r: 0 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    const retreatingScout = {
+      ...spottingScout,
+      position: { q: 0, r: 0 },
+    };
+
+    updateVisibility(state.civilizations.player.visibility, [spottingScout], state.map);
+    syncCivilizationContactsFromVisibility(state, 'player');
+    updateVisibility(state.civilizations.player.visibility, [retreatingScout], state.map);
 
     expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
   });

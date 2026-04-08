@@ -105,4 +105,22 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(rendered).toContain('Unknown Civilization');
     expect(rendered).not.toContain('Outsider');
   });
+
+  it('keeps a rival named in diplomacy after brief scouting contact is recorded', () => {
+    const { container, state } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeThirdCiv: true,
+    });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.outsider.knownCivilizations = ['player'];
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).toContain('Outsider');
+    expect(rendered).not.toContain('Unknown Civilization');
+  });
 });

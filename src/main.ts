@@ -35,7 +35,7 @@ import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { hasDiscoveredMinorCiv, refreshKnownCivilizations } from '@/systems/discovery-system';
+import { hasDiscoveredMinorCiv, refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
@@ -750,6 +750,7 @@ function foundCityAction(): void {
     .map(id => gameState.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
   updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
+  syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer);
 
   renderLoop.setGameState(gameState);
   updateHUD();
@@ -1096,6 +1097,7 @@ function handleHexTap(rawCoord: HexCoord): void {
         .map(id => gameState.cities[id]?.position)
         .filter((p): p is HexCoord => p !== undefined);
       const revealed = updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
+      syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer);
 
       if (revealed.length > 0) {
         bus.emit('fog:revealed', { tiles: revealed });

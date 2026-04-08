@@ -41,6 +41,10 @@ export function recordCivilizationContact(state: GameState, civA: string, civB: 
 }
 
 export function refreshKnownCivilizations(state: GameState, civId: string): void {
+  syncCivilizationContactsFromVisibility(state, civId);
+}
+
+export function syncCivilizationContactsFromVisibility(state: GameState, civId: string): void {
   const civ = state.civilizations[civId];
   if (!civ) return;
 

@@ -710,4 +710,28 @@ describe('processAITurn', () => {
     expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.targetCivId).toBe('player');
     expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.targetCityId).toBe('city-player');
   });
+
+  it('records first contact when ai visibility refresh reveals the player during its turn', () => {
+    const state = makeAiDefenseSpyState();
+    const bus = new EventBus();
+    state.units['unit-ai-scout'] = {
+      id: 'unit-ai-scout',
+      type: 'scout',
+      owner: 'ai-1',
+      position: { q: 3, r: 0 },
+      movementPointsLeft: 0,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.civilizations['ai-1'].units = ['unit-ai-scout'];
+    state.civilizations['ai-1'].knownCivilizations = [];
+    state.civilizations.player.knownCivilizations = [];
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.civilizations['ai-1'].knownCivilizations).toContain('player');
+  });
 });

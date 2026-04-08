@@ -3,6 +3,7 @@ import { generateMap, findStartPositions, createRng } from '@/systems/map-genera
 import { createUnit, resetUnitId } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
+import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { spawnBarbarianCamp, resetCampId } from '@/systems/barbarian-system';
 import { resetCityId } from '@/systems/city-system';
 import { _resetSpyIdCounter } from '@/systems/espionage-system';
@@ -164,6 +165,9 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
 
+  syncCivilizationContactsFromVisibility(state, 'player');
+  syncCivilizationContactsFromVisibility(state, 'ai-1');
+
   // Initialize espionage state for all civs
   state.espionage = initializeEspionage(state);
 
@@ -271,6 +275,10 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
   state.minorCivs = mcResult.minorCivs;
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
+
+  for (const civId of Object.keys(state.civilizations)) {
+    syncCivilizationContactsFromVisibility(state, civId);
+  }
 
   // Initialize espionage state for all civs
   state.espionage = initializeEspionage(state);

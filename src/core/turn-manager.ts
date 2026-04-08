@@ -9,7 +9,7 @@ import { moveUnit } from '@/systems/unit-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance } from '@/systems/fog-of-war';
-import { refreshKnownCivilizations } from '@/systems/discovery-system';
+import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import {
   processRelationshipDrift,
   decayEvents,
@@ -208,7 +208,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
     // Update visibility
     updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
-    refreshKnownCivilizations(newState, civId);
+    syncCivilizationContactsFromVisibility(newState, civId);
 
     for (const [targetCivId, turnsRemaining] of Object.entries(currentCivState.satelliteSurveillanceTargets ?? {})) {
       if (turnsRemaining > 0) {
