@@ -1,4 +1,4 @@
-#!/bin/zsh
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
 exec mise exec -- "$@"
