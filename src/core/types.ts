@@ -421,10 +421,18 @@ export interface Spy {
   feedsFalseIntel?: boolean;
 }
 
+export interface DetectedSpyThreat {
+  cityId: string;
+  foreignCivId: string;
+  detectedTurn: number;
+  expiresOnTurn: number;
+}
+
 export interface EspionageCivState {
   spies: Record<string, Spy>;
   maxSpies: number;                // scales with espionage tech
   counterIntelligence: Record<string, number>; // cityId -> detection score (0-100)
+  detectedThreats?: Record<string, DetectedSpyThreat>;
 }
 
 export type EspionageState = Record<string, EspionageCivState>;

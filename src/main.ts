@@ -41,6 +41,17 @@ import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
+import {
+  assignSpy,
+  assignSpyDefensive,
+  canRecruitSpy,
+  getAvailableMissions,
+  missionRequiresPlacedSpy,
+  recallSpy,
+  recruitSpy,
+  startMission,
+  verifyAgent,
+} from '@/systems/espionage-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
 // --- App State ---
@@ -439,7 +450,146 @@ function togglePanel(panel: string): void {
       onClose: () => {},
     });
   } else if (panel === 'espionage') {
-    uiLayer.appendChild(createEspionagePanel(gameState));
+    const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
+      const choices = Object.values(gameState.cities)
+        .filter(city => city.owner !== gameState.currentPlayer)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      if (choices.length === 0) {
+        showNotification('No foreign cities available for espionage.', 'info');
+        return null;
+      }
+      const selection = window.prompt(
+        `Choose target city by id:\n${choices.map(city => `${city.id} (${city.owner})`).join('\n')}`,
+        choices[0].id,
+      );
+      if (!selection) return null;
+      const city = gameState.cities[selection];
+      if (!city || city.owner === gameState.currentPlayer) {
+        showNotification('Invalid espionage target.', 'warning');
+        return null;
+      }
+      return { civId: city.owner, cityId: city.id, position: city.position };
+    };
+
+    const chooseFriendlyCityTarget = (): { cityId: string; position: HexCoord } | null => {
+      const choices = currentCiv().cities
+        .map(cityId => gameState.cities[cityId])
+        .filter((city): city is NonNullable<typeof gameState.cities[string]> => city !== undefined);
+      if (choices.length === 0) {
+        showNotification('No cities available for defensive espionage.', 'info');
+        return null;
+      }
+      const selection = window.prompt(
+        `Choose friendly city by id:\n${choices.map(city => city.id).join('\n')}`,
+        choices[0].id,
+      );
+      if (!selection) return null;
+      const city = gameState.cities[selection];
+      if (!city || city.owner !== gameState.currentPlayer) {
+        showNotification('Invalid defensive target.', 'warning');
+        return null;
+      }
+      return { cityId: city.id, position: city.position };
+    };
+
+    const chooseMission = (spyId: string): string | null => {
+      const spy = gameState.espionage?.[gameState.currentPlayer]?.spies[spyId];
+      const completedTechs = currentCiv().techState.completed ?? [];
+      const missions = getAvailableMissions(completedTechs)
+        .filter(mission => !missionRequiresPlacedSpy(mission) || Boolean(spy?.targetCivId));
+      if (missions.length === 0) {
+        showNotification('No missions available for this spy.', 'info');
+        return null;
+      }
+      return window.prompt(`Choose mission:\n${missions.join('\n')}`, missions[0]);
+    };
+
+    uiLayer.appendChild(createEspionagePanel(gameState, {
+      onClose: () => document.getElementById('espionage-panel')?.remove(),
+      onRecruit: () => {
+        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        if (!civEsp || !canRecruitSpy(civEsp)) {
+          showNotification('No spy recruitment slots available.', 'warning');
+          return;
+        }
+        const recruited = recruitSpy(civEsp, gameState.currentPlayer, `player-recruit-${gameState.turn}`);
+        gameState.espionage![gameState.currentPlayer] = recruited.state;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        togglePanel('espionage');
+        showNotification(`${recruited.spy.name} recruited.`, 'success');
+      },
+      onAssign: (spyId) => {
+        const target = chooseForeignCityTarget();
+        if (!target) return;
+        gameState.espionage![gameState.currentPlayer] = assignSpy(
+          gameState.espionage![gameState.currentPlayer],
+          spyId,
+          target.civId,
+          target.cityId,
+          target.position,
+        );
+        renderLoop.setGameState(gameState);
+        togglePanel('espionage');
+        showNotification(`Spy assigned to ${target.cityId}.`, 'info');
+      },
+      onAssignDefensive: (spyId) => {
+        const target = chooseFriendlyCityTarget();
+        if (!target) return;
+        gameState.espionage![gameState.currentPlayer] = assignSpyDefensive(
+          gameState.espionage![gameState.currentPlayer],
+          spyId,
+          target.cityId,
+          target.position,
+        );
+        renderLoop.setGameState(gameState);
+        togglePanel('espionage');
+        showNotification(`Spy defending ${target.cityId}.`, 'info');
+      },
+      onStartMission: (spyId) => {
+        const spy = gameState.espionage?.[gameState.currentPlayer]?.spies[spyId];
+        if (!spy) return;
+        const mission = chooseMission(spyId);
+        if (!mission) return;
+        let targetCivId = spy.targetCivId ?? undefined;
+        let targetCityId = spy.targetCityId ?? undefined;
+        if (!missionRequiresPlacedSpy(mission as any)) {
+          const target = chooseForeignCityTarget();
+          if (!target) return;
+          targetCivId = target.civId;
+          targetCityId = target.cityId;
+        }
+        gameState.espionage![gameState.currentPlayer] = startMission(
+          gameState.espionage![gameState.currentPlayer],
+          spyId,
+          mission as any,
+          getCivDefinition(currentCiv().civType ?? '')?.bonusEffect,
+          targetCivId,
+          targetCityId,
+        );
+        renderLoop.setGameState(gameState);
+        togglePanel('espionage');
+        showNotification(`Mission ${mission} started.`, 'info');
+      },
+      onRecall: (spyId) => {
+        gameState.espionage![gameState.currentPlayer] = recallSpy(
+          gameState.espionage![gameState.currentPlayer],
+          spyId,
+        );
+        renderLoop.setGameState(gameState);
+        togglePanel('espionage');
+        showNotification('Spy recalled.', 'info');
+      },
+      onVerifyAgent: (spyId) => {
+        gameState.espionage![gameState.currentPlayer] = verifyAgent(
+          gameState.espionage![gameState.currentPlayer],
+          spyId,
+        );
+        renderLoop.setGameState(gameState);
+        togglePanel('espionage');
+        showNotification('Agent verified and cleared.', 'success');
+      },
+    }));
   } else if (panel === 'diplomacy') {
     createDiplomacyPanel(uiLayer, gameState, {
       onAction: handleDiplomaticAction,

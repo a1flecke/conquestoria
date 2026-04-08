@@ -367,6 +367,33 @@ describe('missions', () => {
       expect(() => startMission(s1, spy.id, 'gather_intel'))
         .toThrow('Spy must be stationed');
     });
+
+    it('allows remote Stage 5 missions from an idle spy when a target is supplied', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+
+      const s2 = startMission(
+        s1,
+        spy.id,
+        'cyber_attack',
+        undefined,
+        'ai-egypt',
+        'city-egypt-1',
+      );
+
+      expect(s2.spies[spy.id].status).toBe('on_mission');
+      expect(s2.spies[spy.id].currentMission?.type).toBe('cyber_attack');
+      expect(s2.spies[spy.id].currentMission?.targetCivId).toBe('ai-egypt');
+      expect(s2.spies[spy.id].currentMission?.targetCityId).toBe('city-egypt-1');
+    });
+
+    it('requires a target when starting a remote mission from an idle spy', () => {
+      const state = createEspionageCivState();
+      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+
+      expect(() => startMission(s1, spy.id, 'cyber_attack'))
+        .toThrow('Spy must have a valid target to start a mission');
+    });
   });
 
   describe('getMissionDuration', () => {
@@ -669,6 +696,27 @@ describe('espionage diplomatic consequences', () => {
 
       expect(verified.spies[spy.id].turnedBy).toBeUndefined();
       expect(verified.spies[spy.id].feedsFalseIntel).toBe(false);
+    });
+
+    it('records detected threat intel for the captor when a spy is turned', () => {
+      const espionage = {
+        player: createEspionageCivState(),
+        'ai-egypt': createEspionageCivState(),
+      };
+      const { state: playerState, spy } = recruitSpy(espionage.player, 'player', 'seed-1');
+      espionage.player = playerState;
+      espionage.player.spies[spy.id].status = 'captured';
+      espionage.player.spies[spy.id].targetCivId = 'ai-egypt';
+      espionage.player.spies[spy.id].targetCityId = 'city-egypt-1';
+
+      const turned = turnCapturedSpy(espionage, 'ai-egypt', 'player', spy.id, 12);
+
+      expect(turned['ai-egypt'].detectedThreats?.[spy.id]).toEqual({
+        cityId: 'city-egypt-1',
+        foreignCivId: 'player',
+        detectedTurn: 12,
+        expiresOnTurn: 17,
+      });
     });
   });
 });

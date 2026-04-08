@@ -16,6 +16,7 @@ class MockElement {
   dataset: Record<string, string> = {};
   id = '';
   textContent = '';
+  listeners: Record<string, Array<() => void>> = {};
 
   constructor(tagName: string) {
     this.tagName = tagName.toUpperCase();
@@ -24,6 +25,17 @@ class MockElement {
   appendChild(child: MockElement): MockElement {
     this.children.push(child);
     return child;
+  }
+
+  addEventListener(event: string, listener: () => void): void {
+    this.listeners[event] ??= [];
+    this.listeners[event].push(listener);
+  }
+
+  click(): void {
+    for (const listener of this.listeners.click ?? []) {
+      listener();
+    }
   }
 }
 
@@ -184,24 +196,18 @@ describe('espionage-panel', () => {
       expect(data.disabledAdvisors).not.toContain('spymaster');
     });
 
-    it('includes a threat board for detected foreign spy activity in the current players cities only', () => {
+    it('includes a threat board only for detected foreign spy activity in the current players cities', () => {
       const state = makeEspUiState();
       state.currentPlayer = 'player';
       state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
-      state.espionage!['ai-egypt'].spies['enemy-spy'] = {
-        id: 'enemy-spy',
-        owner: 'ai-egypt',
-        name: 'Agent Raven',
-        targetCivId: 'player',
-        targetCityId: 'city-player-1',
-        position: { q: 0, r: 0 },
-        status: 'stationed',
-        experience: 40,
-        currentMission: null,
-        cooldownTurns: 0,
-        feedsFalseIntel: false,
-        promotionAvailable: false,
-      } as any;
+      state.espionage!['player'].detectedThreats = {
+        'enemy-spy': {
+          cityId: 'city-player-1',
+          foreignCivId: 'ai-egypt',
+          detectedTurn: 10,
+          expiresOnTurn: 15,
+        },
+      };
 
       const data = getEspionagePanelViewModel(state);
       expect((data as any).threatBoard).toEqual([
@@ -242,6 +248,17 @@ describe('espionage-panel', () => {
       expect(actions).toContain('assign_defensive');
     });
 
+    it('offers remote mission starts from idle spies once Stage 5 is unlocked', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
+      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
+      state.espionage!['player'] = esp;
+
+      const actions = getSpyActions(state, spy.id);
+
+      expect(actions).toContain('start_mission');
+    });
+
     it('returns mission and recall actions for stationed spy', () => {
       const state = makeEspUiState();
       const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
@@ -259,6 +276,19 @@ describe('espionage-panel', () => {
       state.espionage!['player'].spies[spy.id].status = 'captured';
       const actions = getSpyActions(state, spy.id);
       expect(actions).toHaveLength(0);
+    });
+
+    it('offers verify-agent for turned spies', () => {
+      const state = makeEspUiState();
+      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
+      state.espionage!['player'] = assignSpy(esp, spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
+      state.espionage!['player'].spies[spy.id].status = 'stationed';
+      state.espionage!['player'].spies[spy.id].turnedBy = 'ai-egypt';
+      state.espionage!['player'].spies[spy.id].feedsFalseIntel = true;
+
+      const actions = getSpyActions(state, spy.id);
+
+      expect(actions).toContain('verify_agent');
     });
   });
 
@@ -324,6 +354,25 @@ describe('espionage-panel', () => {
     it('renders a threat board section for detected foreign spy activity', () => {
       const state = makeEspUiState();
       state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
+      state.espionage!['player'].detectedThreats = {
+        'enemy-spy': {
+          cityId: 'city-player-1',
+          foreignCivId: 'ai-egypt',
+          detectedTurn: 10,
+          expiresOnTurn: 15,
+        },
+      };
+
+      const panel = createEspionagePanel(state) as unknown;
+      const threat = findAll(panel, el => el.dataset?.section === 'threat-board')[0];
+      expect(collectText(threat)).toContain('Threat Board');
+      expect(collectText(threat)).toContain('ai-egypt');
+      expect(collectText(threat)).toContain('city-player-1');
+    });
+
+    it('does not render a threat board entry from raw foreign spy state without detection intel', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
       state.espionage!['ai-egypt'].spies['enemy-spy'] = {
         id: 'enemy-spy',
         owner: 'ai-egypt',
@@ -341,9 +390,15 @@ describe('espionage-panel', () => {
 
       const panel = createEspionagePanel(state) as unknown;
       const threat = findAll(panel, el => el.dataset?.section === 'threat-board')[0];
-      expect(collectText(threat)).toContain('Threat Board');
-      expect(collectText(threat)).toContain('ai-egypt');
-      expect(collectText(threat)).toContain('city-player-1');
+      expect(collectText(threat)).toContain('No foreign spy activity detected.');
+    });
+
+    it('renders a close button for the panel shell', () => {
+      const state = makeEspUiState();
+      const panel = createEspionagePanel(state) as unknown;
+      const close = findAll(panel, el => el.dataset?.action === 'close-panel')[0];
+      expect(close).toBeDefined();
+      expect(collectText(close)).toContain('Close');
     });
   });
 });

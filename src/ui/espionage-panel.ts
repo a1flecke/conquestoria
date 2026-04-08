@@ -45,7 +45,17 @@ export interface EspionagePanelViewModel extends EspionagePanelData {
   missionStages: MissionStageGroup[];
 }
 
-export type SpyAction = 'assign' | 'assign_defensive' | 'start_mission' | 'recall';
+export type SpyAction = 'assign' | 'assign_defensive' | 'start_mission' | 'recall' | 'verify_agent';
+
+export interface EspionagePanelCallbacks {
+  onClose: () => void;
+  onRecruit?: () => void;
+  onAssign?: (spyId: string) => void;
+  onAssignDefensive?: (spyId: string) => void;
+  onStartMission?: (spyId: string) => void;
+  onRecall?: (spyId: string) => void;
+  onVerifyAgent?: (spyId: string) => void;
+}
 
 const MISSION_LABELS: Record<SpyMissionType, string> = {
   scout_area: 'Scout Area',
@@ -156,6 +166,19 @@ function appendSectionHeader(parent: HTMLElement, title: string, subtitle: strin
   parent.appendChild(header);
 }
 
+function appendActionButton(
+  parent: HTMLElement,
+  label: string,
+  action: string,
+  onClick: () => void,
+): void {
+  const button = createEl('button', label);
+  button.dataset.action = action;
+  button.style.cssText = 'padding:6px 10px;border:1px solid rgba(255,255,255,0.16);border-radius:8px;background:rgba(255,255,255,0.06);color:#f5f7fb;font-size:11px;cursor:pointer;';
+  button.addEventListener('click', onClick);
+  parent.appendChild(button);
+}
+
 function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void {
   const section = createEl('section');
   section.dataset.stage = String(group.stage);
@@ -189,7 +212,12 @@ function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void
   parent.appendChild(section);
 }
 
-function appendSpyCard(parent: HTMLElement, state: GameState, spy: SpySummary): void {
+function appendSpyCard(
+  parent: HTMLElement,
+  state: GameState,
+  spy: SpySummary,
+  callbacks: EspionagePanelCallbacks,
+): void {
   const card = createEl('article');
   card.dataset.spyId = spy.id;
   card.style.cssText = 'padding:10px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:8px;';
@@ -222,7 +250,20 @@ function appendSpyCard(parent: HTMLElement, state: GameState, spy: SpySummary): 
     const actionRow = createEl('div');
     actionRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
     for (const action of actions) {
-      appendChip(actionRow, action.replace(/_/g, ' '));
+      const actionLabel = action.replace(/_/g, ' ');
+      if (action === 'assign' && callbacks.onAssign) {
+        appendActionButton(actionRow, actionLabel, action, () => callbacks.onAssign?.(spy.id));
+      } else if (action === 'assign_defensive' && callbacks.onAssignDefensive) {
+        appendActionButton(actionRow, actionLabel, action, () => callbacks.onAssignDefensive?.(spy.id));
+      } else if (action === 'start_mission' && callbacks.onStartMission) {
+        appendActionButton(actionRow, actionLabel, action, () => callbacks.onStartMission?.(spy.id));
+      } else if (action === 'recall' && callbacks.onRecall) {
+        appendActionButton(actionRow, action, action, () => callbacks.onRecall?.(spy.id));
+      } else if (action === 'verify_agent' && callbacks.onVerifyAgent) {
+        appendActionButton(actionRow, 'verify agent', action, () => callbacks.onVerifyAgent?.(spy.id));
+      } else {
+        appendChip(actionRow, actionLabel);
+      }
     }
     card.appendChild(actionRow);
   }
@@ -269,18 +310,34 @@ function appendThreatBoard(
   parent.appendChild(threatBlock);
 }
 
-export function createEspionagePanel(state: GameState): HTMLDivElement {
+export function createEspionagePanel(
+  state: GameState,
+  callbacks: EspionagePanelCallbacks = { onClose: () => {} },
+): HTMLDivElement {
   const data = getEspionagePanelViewModel(state);
   const panel = createEl('div');
   panel.id = 'espionage-panel';
   panel.style.cssText = 'display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:14px;background:rgba(12,16,28,0.96);color:#f5f7fb;';
   panel.dataset.panel = 'espionage';
 
+  const headerRow = createEl('div');
+  headerRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;';
+  const titleWrap = createEl('div');
+  titleWrap.style.cssText = 'flex:1;';
   appendSectionHeader(
-    panel,
+    titleWrap,
     'Espionage',
     `Spies ${data.activeSpyCount}/${data.maxSpies} · ${data.canRecruit ? 'Recruitment available' : 'No recruitment available'}`,
   );
+  headerRow.appendChild(titleWrap);
+  const headerActions = createEl('div');
+  headerActions.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  if (data.canRecruit && callbacks.onRecruit) {
+    appendActionButton(headerActions, 'Recruit', 'recruit-spy', () => callbacks.onRecruit?.());
+  }
+  appendActionButton(headerActions, 'Close', 'close-panel', () => callbacks.onClose());
+  headerRow.appendChild(headerActions);
+  panel.appendChild(headerRow);
 
   const missionBlock = createEl('section');
   missionBlock.dataset.section = 'missions';
@@ -296,7 +353,7 @@ export function createEspionagePanel(state: GameState): HTMLDivElement {
     empty.style.cssText = 'font-size:11px;opacity:0.55;';
     spiesBlock.appendChild(empty);
   } else {
-    for (const spy of data.spySummaries) appendSpyCard(spiesBlock, state, spy);
+    for (const spy of data.spySummaries) appendSpyCard(spiesBlock, state, spy, callbacks);
   }
   panel.appendChild(spiesBlock);
 
@@ -350,17 +407,11 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
   const playerTechs = state.civilizations[state.currentPlayer]?.techState.completed ?? [];
   const canDetectThreats = playerTechs.includes('digital-surveillance') || playerTechs.includes('counter-intelligence');
   const threatBoard = canDetectThreats
-    ? Object.values(state.espionage ?? {})
-      .flatMap(civEsp => Object.values(civEsp.spies))
-      .filter(spy =>
-        spy.owner !== state.currentPlayer &&
-        spy.targetCivId === state.currentPlayer &&
-        spy.targetCityId !== null &&
-        (spy.status === 'stationed' || spy.status === 'on_mission'),
-      )
-      .map(spy => ({
-        cityId: spy.targetCityId!,
-        foreignCivId: spy.owner,
+    ? Object.values(civEsp.detectedThreats ?? {})
+      .filter(threat => threat.expiresOnTurn >= state.turn)
+      .map(threat => ({
+        cityId: threat.cityId,
+        foreignCivId: threat.foreignCivId,
         confidence: 'detected' as const,
       }))
     : [];
@@ -397,13 +448,21 @@ export function getSpyActions(state: GameState, spyId: string): SpyAction[] {
   if (!spy) return [];
 
   const actions: SpyAction[] = [];
+  const completedTechs = state.civilizations[state.currentPlayer]?.techState.completed ?? [];
+  const hasRemoteMission = getAvailableMissions(completedTechs).some(mission => !missionRequiresPlacedSpy(mission));
 
   switch (spy.status) {
     case 'idle':
       actions.push('assign', 'assign_defensive');
+      if (hasRemoteMission) {
+        actions.push('start_mission');
+      }
       break;
     case 'stationed':
-      if (!spy.currentMission && spy.targetCivId) {
+      if (spy.turnedBy) {
+        actions.push('verify_agent');
+      }
+      if (!spy.currentMission && (spy.targetCivId || hasRemoteMission)) {
         actions.push('start_mission');
       }
       actions.push('recall');

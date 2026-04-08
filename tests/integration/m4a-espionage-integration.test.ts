@@ -173,6 +173,27 @@ describe('espionage integration', () => {
       expect(captureFound).toBe(true);
     });
 
+    it('turns captured spies into detected double agents for captors with counter-intelligence', () => {
+      const state = makeTestGameState();
+      state.espionage = initializeEspionage(state);
+      state.civilizations['ai-egypt'].techState.completed.push('counter-intelligence');
+      const { state: s1, spy } = recruitSpy(state.espionage['player'], 'player', 'seed-1');
+      state.espionage['player'] = s1;
+      state.espionage['player'] = assignSpy(
+        state.espionage['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
+      );
+      state.espionage['player'].spies[spy.id].status = 'captured';
+
+      const updated = processEspionageTurn(state, bus);
+
+      expect(updated.espionage!['player'].spies[spy.id].feedsFalseIntel).toBe(true);
+      expect(updated.espionage!['player'].spies[spy.id].turnedBy).toBe('ai-egypt');
+      expect(updated.espionage!['ai-egypt'].detectedThreats?.[spy.id]).toMatchObject({
+        cityId: 'city-egypt-1',
+        foreignCivId: 'player',
+      });
+    });
+
     it('processes all civs spies each turn', () => {
       const state = makeTestGameState();
       state.espionage = initializeEspionage(state);
@@ -525,8 +546,12 @@ describe('M4a full integration', () => {
     state.espionage['player'] = esp1;
     state.espionage['player'].spies[spy.id].status = 'captured';
 
-    state.espionage = turnCapturedSpy(state.espionage, 'ai-egypt', 'player', spy.id);
+    state.espionage['player'].spies[spy.id].targetCivId = 'ai-egypt';
+    state.espionage['player'].spies[spy.id].targetCityId = 'city-egypt-1';
+
+    state.espionage = turnCapturedSpy(state.espionage, 'ai-egypt', 'player', spy.id, state.turn);
     expect(state.espionage['player'].spies[spy.id].feedsFalseIntel).toBe(true);
+    expect(state.espionage['ai-egypt'].detectedThreats?.[spy.id]).toBeDefined();
 
     state.espionage['player'] = verifyAgent(state.espionage['player'], spy.id);
     expect(state.espionage['player'].spies[spy.id].feedsFalseIntel).toBe(false);

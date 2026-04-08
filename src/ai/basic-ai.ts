@@ -24,6 +24,7 @@ import {
   recruitSpy,
   assignSpy,
   assignSpyDefensive,
+  missionRequiresPlacedSpy,
   startMission,
 } from '@/systems/espionage-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
@@ -544,9 +545,15 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   const espState = newState.espionage?.[civId];
   if (espState) {
     for (const spy of Object.values(espState.spies)) {
-      if (spy.status === 'stationed' && spy.targetCivId && !spy.currentMission) {
-        const mission = chooseAiMission(newState, civId);
-        if (mission) {
+      if (spy.currentMission) {
+        continue;
+      }
+      const mission = chooseAiMission(newState, civId);
+      if (!mission) {
+        continue;
+      }
+      if (missionRequiresPlacedSpy(mission)) {
+        if (spy.status === 'stationed' && spy.targetCivId) {
           newState.espionage![civId] = startMission(
             newState.espionage![civId],
             spy.id,
@@ -554,6 +561,23 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
             getCivDefinition(civ.civType ?? '')?.bonusEffect,
           );
         }
+        continue;
+      }
+      if (!['idle', 'stationed'].includes(spy.status)) {
+        continue;
+      }
+      const target = spy.targetCivId && spy.targetCityId
+        ? { civId: spy.targetCivId, cityId: spy.targetCityId }
+        : chooseAiSpyTarget(newState, civId);
+      if (target) {
+        newState.espionage![civId] = startMission(
+          newState.espionage![civId],
+          spy.id,
+          mission,
+          getCivDefinition(civ.civType ?? '')?.bonusEffect,
+          target.civId,
+          target.cityId,
+        );
       }
     }
   }

@@ -3,7 +3,7 @@ import type {
   Spy, SpyMission, SpyMissionType, SpyStatus, SpyPromotion,
   EspionageCivState, EspionageState, HexCoord, GameState,
   DiplomacyState, Treaty, UnitType, AdvisorType,
-  CivBonusEffect,
+  CivBonusEffect, DetectedSpyThreat,
 } from '../core/types';
 import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
@@ -70,6 +70,7 @@ export function createEspionageCivState(): EspionageCivState {
     spies: {},
     maxSpies: 1,
     counterIntelligence: {},
+    detectedThreats: {},
   };
 }
 
@@ -261,6 +262,8 @@ export function startMission(
   spyId: string,
   missionType: SpyMissionType,
   civBonusEffect?: CivBonusEffect,
+  targetCivId?: string,
+  targetCityId?: string,
 ): EspionageCivState {
   const spy = state.spies[spyId];
   if (!spy) throw new Error(`Spy ${spyId} not found`);
@@ -269,7 +272,11 @@ export function startMission(
   } else if (!['idle', 'stationed'].includes(spy.status)) {
     throw new Error('Spy must be idle or stationed to start a remote mission');
   }
-  if (!spy.targetCivId || !spy.targetCityId) throw new Error('Spy must have a valid target to start a mission');
+  const effectiveTargetCivId = targetCivId ?? spy.targetCivId;
+  const effectiveTargetCityId = targetCityId ?? spy.targetCityId;
+  if (!effectiveTargetCivId || !effectiveTargetCityId) {
+    throw new Error('Spy must have a valid target to start a mission');
+  }
 
   let duration = getMissionDuration(missionType);
   if (civBonusEffect?.type === 'espionage_growth') {
@@ -279,8 +286,8 @@ export function startMission(
     type: missionType,
     turnsRemaining: duration,
     turnsTotal: duration,
-    targetCivId: spy.targetCivId!,
-    targetCityId: spy.targetCityId!,
+    targetCivId: effectiveTargetCivId,
+    targetCityId: effectiveTargetCityId,
   };
 
   return {
@@ -289,6 +296,8 @@ export function startMission(
       ...state.spies,
       [spyId]: {
         ...spy,
+        targetCivId: effectiveTargetCivId,
+        targetCityId: effectiveTargetCityId,
         status: 'on_mission',
         currentMission: mission,
       },
@@ -719,10 +728,24 @@ export function turnCapturedSpy(
   captorId: string,
   spyOwner: string,
   spyId: string,
+  turn: number = 0,
 ): EspionageState {
   const ownerState = state[spyOwner];
   const spy = ownerState?.spies[spyId];
   if (!ownerState || !spy) return state;
+  const captorState = state[captorId];
+  const detectedThreats = captorState?.detectedThreats ?? {};
+  const updatedThreats = spy.targetCityId
+    ? {
+      ...detectedThreats,
+      [spyId]: {
+        cityId: spy.targetCityId,
+        foreignCivId: spyOwner,
+        detectedTurn: turn,
+        expiresOnTurn: turn + 5,
+      } satisfies DetectedSpyThreat,
+    }
+    : detectedThreats;
 
   return {
     ...state,
@@ -740,6 +763,14 @@ export function turnCapturedSpy(
         },
       },
     },
+    ...(captorState
+      ? {
+        [captorId]: {
+          ...captorState,
+          detectedThreats: updatedThreats,
+        },
+      }
+      : {}),
   };
 }
 
@@ -760,6 +791,25 @@ export function verifyAgent(
         feedsFalseIntel: false,
       },
     },
+  };
+}
+
+function pruneDetectedThreats(
+  state: EspionageCivState,
+  turn: number,
+): EspionageCivState {
+  const detectedThreats = Object.fromEntries(
+    Object.entries(state.detectedThreats ?? {})
+      .filter(([, threat]) => threat.expiresOnTurn >= turn),
+  );
+
+  if (Object.keys(detectedThreats).length === Object.keys(state.detectedThreats ?? {}).length) {
+    return state;
+  }
+
+  return {
+    ...state,
+    detectedThreats,
   };
 }
 
@@ -796,6 +846,22 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
   const turnSeed = `esp-turn-${state.turn}`;
 
   for (const civId of Object.keys(state.espionage!)) {
+    for (const spy of Object.values(state.espionage![civId].spies)) {
+      const captorId = spy.targetCivId;
+      const captorTechs = captorId ? state.civilizations[captorId]?.techState.completed ?? [] : [];
+      const canTurnCapturedSpy = captorTechs.includes('counter-intelligence') || captorTechs.includes('digital-surveillance');
+      if (spy.status === 'captured' && !spy.turnedBy && captorId && canTurnCapturedSpy) {
+        state.espionage = turnCapturedSpy(state.espionage!, captorId, civId, spy.id, state.turn);
+        bus.emit('espionage:spy-detected', {
+          detectingCivId: captorId,
+          spyOwner: civId,
+          spyId: spy.id,
+          cityId: spy.targetCityId ?? '',
+        });
+      }
+    }
+
+    state.espionage![civId] = pruneDetectedThreats(state.espionage![civId], state.turn);
     const civEspBefore: EspionageCivState = state.espionage![civId];
     const civBonus = getCivDefinition(state.civilizations[civId]?.civType ?? '')?.bonusEffect;
     const xpMultiplier = civBonus?.type === 'espionage_growth' ? 1 + civBonus.experienceBonus : 1;
@@ -1021,6 +1087,16 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
               state.civilizations[civId].diplomacy = modifyRelationship(
                 state.civilizations[civId].diplomacy, targetCivId, -10,
               );
+            }
+            const targetTechs = state.civilizations[targetCivId].techState.completed ?? [];
+            if (targetTechs.includes('counter-intelligence') || targetTechs.includes('digital-surveillance')) {
+              state.espionage = turnCapturedSpy(state.espionage!, targetCivId, civId, evt.spyId, state.turn);
+              bus.emit('espionage:spy-detected', {
+                detectingCivId: targetCivId,
+                spyOwner: civId,
+                spyId: evt.spyId,
+                cityId: originalSpy?.targetCityId ?? '',
+              });
             }
           }
           bus.emit('espionage:spy-captured', {

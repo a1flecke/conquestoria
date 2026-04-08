@@ -655,7 +655,7 @@ describe('processAITurn', () => {
     ]);
   });
 
-  it('uses Stage 5 espionage when a stationed spy has cyber-warfare tech', () => {
+  it('uses Stage 5 espionage remotely when an idle spy has cyber-warfare tech', () => {
     const state = makeAiDefenseSpyState();
     const bus = new EventBus();
     state.civilizations['ai-1'].techState.completed = [
@@ -671,10 +671,10 @@ describe('processAITurn', () => {
           id: 'spy-ai-1',
           owner: 'ai-1',
           name: 'Agent Cipher',
-          targetCivId: 'player',
-          targetCityId: 'city-player',
-          position: { q: 4, r: 0 },
-          status: 'stationed',
+          targetCivId: null,
+          targetCityId: null,
+          position: null,
+          status: 'idle',
           experience: 0,
           currentMission: null,
           cooldownTurns: 0,
@@ -689,5 +689,7 @@ describe('processAITurn', () => {
     const result = processAITurn(state, 'ai-1', bus);
 
     expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.type).toBe('cyber_attack');
+    expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.targetCivId).toBe('player');
+    expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.targetCityId).toBe('city-player');
   });
 });
