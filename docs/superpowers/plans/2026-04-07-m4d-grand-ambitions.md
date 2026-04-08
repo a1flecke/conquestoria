@@ -570,7 +570,7 @@ git push -u origin feature/m4d-slice1-breakaway
 gh pr create --base main --head feature/m4d-slice1-breakaway --title "feat(m4d): ship full breakaway slice" --body "## Summary\n- add breakaway secession and 50-turn establishment\n- add reabsorption UI and breakaway AI behavior\n- add save/load and renderer coverage\n\n## Verification\n- yarn build\n- yarn test --run"
 ```
 
-- [ ] **Step 5: Merge, delete branch, and refresh `main` before Slice 2**
+- [ ] **Step 5: Merge, delete branch, refresh `main`, and clean up the Slice 1 worktree only after confirming the merge landed on `origin/main`**
 
 Run:
 
@@ -578,7 +578,11 @@ Run:
 gh pr merge --squash --delete-branch
 git checkout main
 git pull --ff-only origin main
+git branch --remotes --contains <slice1-merge-commit>
+git worktree remove .worktrees/feature-m4d-slice1-breakaway
 ```
+
+Expected: the merged Slice 1 commit appears in `origin/main` before the worktree is removed.
 
 ---
 
@@ -1042,7 +1046,7 @@ git push -u origin feature/m4d-slice2-legendary-wonders
 gh pr create --base main --head feature/m4d-slice2-legendary-wonders --title "feat(m4d): ship legendary quest wonders slice" --body "## Summary\n- add legendary wonder system and four flagship wonders\n- add wonder panel and city UX for the three-phase flow\n- add AI race logic and 25/25/50 compensation\n\n## Verification\n- yarn build\n- yarn test --run"
 ```
 
-- [ ] **Step 5: Merge, delete branch, and refresh `main`**
+- [ ] **Step 5: Merge, delete branch, refresh `main`, and clean up the Slice 1/2 worktrees only after confirming their merged commits landed on `origin/main`**
 
 Run:
 
@@ -1050,7 +1054,13 @@ Run:
 gh pr merge --squash --delete-branch
 git checkout main
 git pull --ff-only origin main
+git branch --remotes --contains <slice1-fix-merge-commit>
+git branch --remotes --contains <slice2-merge-commit>
+git worktree remove .worktrees/feature-m4d-slice1-breakaway
+git worktree remove .worktrees/feature-m4d-slice2-legendary-wonders
 ```
+
+Expected: both merged commits are reachable from `origin/main` before either worktree is removed.
 
 ---
 
