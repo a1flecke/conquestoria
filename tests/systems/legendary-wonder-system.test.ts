@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   getEligibleLegendaryWonders,
+  getLegendaryWonderCityYieldBonus,
+  getLegendaryWonderCivYieldBonus,
   unlockLegendaryWonderProject,
   loseLegendaryWonderRace,
   startLegendaryWonderBuild,
@@ -140,6 +142,75 @@ describe('legendary-wonder-system', () => {
     const result = tickLegendaryWonderProjects(state, new EventBus());
 
     expect(result.legendaryWonderProjects!['oracle-of-delphi'].investedProduction).toBe(40);
+  });
+
+  it('resolves the race globally when one civ completes a legendary wonder', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+    state.legendaryWonderProjects!['grand-canal'].phase = 'building';
+    state.legendaryWonderProjects!['grand-canal'].investedProduction = 145;
+    state.cities['city-river'].productionQueue = ['legendary:grand-canal'];
+    state.cities['city-river'].productionProgress = 150;
+    state.cities['city-rival'].productionQueue = ['legendary:grand-canal'];
+    state.cities['city-rival'].productionProgress = 90;
+    state.legendaryWonderProjects!['grand-canal-rival'].investedProduction = 90;
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.legendaryWonderProjects!['grand-canal'].phase).toBe('completed');
+    expect(result.legendaryWonderProjects!['grand-canal-rival'].phase).toBe('lost_race');
+    expect(result.legendaryWonderProjects!['grand-canal-rival'].transferableProduction).toBe(22);
+    expect(result.cities['city-rival'].productionQueue).toEqual([]);
+    expect(result.cities['city-rival'].productionProgress).toBe(0);
+    expect(result.civilizations.rival.gold).toBe(222);
+  });
+
+  it('applies the winning wonder reward when construction completes', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = 120;
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.civilizations.player.techState.researchProgress).toBeGreaterThan(0);
+    expect(result.completedLegendaryWonders?.['oracle-of-delphi']?.ownerId).toBe('player');
+  });
+
+  it('preserves existing city production when starting a wonder build', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+    state.cities['city-river'].productionQueue = ['library'];
+    state.cities['city-river'].productionProgress = 35;
+
+    const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi');
+
+    expect(result.legendaryWonderProjects!['oracle-of-delphi'].phase).toBe('building');
+    expect(result.legendaryWonderProjects!['oracle-of-delphi'].investedProduction).toBe(35);
+    expect(result.legendaryWonderProjects!['oracle-of-delphi'].transferableProduction).toBe(0);
+  });
+
+  it('exposes passive city and civ bonuses from completed legendary wonders', () => {
+    const state = makeLegendaryWonderFixture();
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': {
+        ownerId: 'player',
+        cityId: 'city-river',
+        turnCompleted: 38,
+      },
+      'world-archive': {
+        ownerId: 'player',
+        cityId: 'city-river',
+        turnCompleted: 39,
+      },
+    };
+
+    expect(getLegendaryWonderCityYieldBonus(state, 'player', 'city-river')).toMatchObject({
+      science: 1,
+    });
+    expect(getLegendaryWonderCivYieldBonus(state, 'player')).toMatchObject({
+      science: 4,
+    });
+    expect(getLegendaryWonderCityYieldBonus(state, 'rival', 'city-rival')).toEqual({});
   });
 
   it('converts 25 percent to coins and 25 percent to city carryover when a race is lost', () => {

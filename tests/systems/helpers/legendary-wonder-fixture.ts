@@ -51,10 +51,17 @@ export function makeLegendaryWonderFixture({
 } = {}): GameState {
   const playerId = 'player';
   const cityId = 'city-river';
+  const rivalCityId = 'city-rival';
   const city = makeCity(cityId, playerId, { q: 2, r: 2 }, {
     ownedTiles: [
       { q: 2, r: 2 },
       { q: 2, r: 3 },
+    ],
+  });
+  const rivalCity = makeCity(rivalCityId, 'rival', { q: 5, r: 5 }, {
+    ownedTiles: [
+      { q: 5, r: 5 },
+      { q: 5, r: 6 },
     ],
   });
 
@@ -75,6 +82,8 @@ export function makeLegendaryWonderFixture({
       tiles: {
         '2,2': makeTile({ q: 2, r: 2 }, playerId, { hasRiver }),
         '2,3': makeTile({ q: 2, r: 3 }, playerId, { resource: resources[0] ?? null, hasRiver }),
+        '5,5': makeTile({ q: 5, r: 5 }, 'rival', { hasRiver: true }),
+        '5,6': makeTile({ q: 5, r: 6 }, 'rival', { resource: 'stone', hasRiver: true }),
       },
       wrapsHorizontally: false,
       rivers: [],
@@ -82,6 +91,7 @@ export function makeLegendaryWonderFixture({
     units: {},
     cities: {
       [cityId]: city,
+      [rivalCityId]: rivalCity,
     },
     civilizations: {
       [playerId]: {
@@ -102,6 +112,25 @@ export function makeLegendaryWonderFixture({
         visibility: { tiles: {} },
         score: 0,
         diplomacy: createDiplomacyState([playerId], playerId),
+      },
+      rival: {
+        id: 'rival',
+        name: 'Rival',
+        color: '#9333ea',
+        isHuman: false,
+        civType: 'rome',
+        cities: [rivalCityId],
+        units: [],
+        techState: {
+          completed: ['city-planning', 'printing', 'philosophy', 'pilgrimages'],
+          currentResearch: null,
+          researchProgress: 0,
+          trackPriorities: {} as any,
+        },
+        gold: 200,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: createDiplomacyState([playerId, 'rival'], 'rival'),
       },
     },
     barbarianCamps: {},
@@ -141,6 +170,18 @@ export function makeLegendaryWonderFixture({
         questSteps: [
           { id: 'connect-two-cities', description: 'Connect two cities', completed: false },
           { id: 'grow-river-city', description: 'Grow a river city', completed: false },
+        ],
+      },
+      'grand-canal-rival': {
+        wonderId: 'grand-canal',
+        ownerId: 'rival',
+        cityId: rivalCityId,
+        phase: 'building',
+        investedProduction: 90,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'connect-two-cities', description: 'Connect two cities', completed: true },
+          { id: 'grow-river-city', description: 'Grow a river city', completed: true },
         ],
       },
     },
