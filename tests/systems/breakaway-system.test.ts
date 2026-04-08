@@ -20,6 +20,10 @@ describe('breakaway-system', () => {
     expect(result.cities['city-border'].owner).toBe(spawned!.id);
     expect(spawned!.breakaway?.status).toBe('secession');
     expect(spawned!.breakaway?.establishesOnTurn).toBe(90);
+    expect(result.units['unit-player'].owner).toBe(spawned!.id);
+    expect(result.civilizations.player.units).not.toContain('unit-player');
+    expect(result.map.tiles['4,0'].owner).toBe(spawned!.id);
+    expect(result.map.tiles['4,1'].owner).toBe(spawned!.id);
   });
 
   it('promotes a surviving breakaway state into an established civilization after 50 turns', () => {
@@ -44,6 +48,21 @@ describe('breakaway-system', () => {
     expect(result.civilizations.player.gold).toBe(50);
     expect(result.civilizations.player.cities).toContain(cityId);
     expect(result.civilizations[breakawayId]).toBeUndefined();
+    expect(result.units['unit-breakaway'].owner).toBe('player');
+    expect(result.civilizations.player.units).toContain('unit-breakaway');
+    expect(result.map.tiles['4,0'].owner).toBe('player');
+    expect(result.map.tiles['4,1'].owner).toBe('player');
+  });
+
+  it('rejects reabsorption attempts from civs other than the origin owner', () => {
+    const { state, breakawayId } = makeBreakawayFixture({
+      breakawayStartedTurn: 12,
+      relationship: 70,
+      gold: 250,
+      includeThirdCiv: true,
+    });
+
+    expect(() => tryReabsorbBreakaway(state, 'outsider', breakawayId)).toThrow(/origin owner/i);
   });
 
   it('reapplies instability pressure after reconquest instead of restoring a fully stable city', () => {
