@@ -49,6 +49,7 @@ This follow-up plan replaces the parts of that implementation that were shown in
 - city-targeted quest text staying private until the city itself is discovered
 - save-panel rendering staying DOM-safe for user-controlled save names, campaign titles, and hot-seat player names
 - legacy autosave retirement validating a loadable real autosave payload, not just orphaned autosave metadata
+- save-panel list rendering working in the real browser DOM, not only in the current detached-node test harness
 
 **Out of scope**
 - broad campaign browser redesign
@@ -81,6 +82,8 @@ The milestone is complete only when all of the following are true:
 14. City-targeted quest text never reveals an undiscovered city name in diplomacy rows, notifications, or hot-seat pending events.
 15. Save-panel user-controlled text is rendered through DOM nodes and `textContent`, not interpolated into `innerHTML`.
 16. Orphaned autosave metadata does not suppress or delete a valid legacy autosave fallback; legacy retirement happens only after at least one loadable real autosave exists.
+17. The save list renders real slot cards in both `start` and `save` modes when `createSavePanel(...)` runs in an actual DOM, even though the panel subtree is constructed before it is appended to the document.
+18. Save-panel regression coverage runs in a real DOM environment and fails if detached-tree lookups or impossible mock-document behavior reappear.
 
 ---
 
@@ -99,6 +102,7 @@ The milestone is complete only when all of the following are true:
 | Quest privacy fix is helper-only | `isQuestTargetKnownToPlayer(...)` exists, but the real UI/notification surfaces still print raw `quest.description` | Centralize player-facing quest copy in a formatter that gates city names before display |
 | Save-panel hotfix breaks DOM safety | User-controlled `save.name`, `gameTitle`, and `playerNames` are interpolated into `innerHTML` | Rebuild dynamic save rows with DOM nodes and `textContent`, keeping user content out of markup strings |
 | Legacy autosave retirement is too eager | Any autosave meta is treated as proof of a real autosave, even if its payload is missing | Treat only loadable autosave meta+payload pairs as real, and prune orphaned metas before retire/list/continue decisions |
+| Save-panel tests hide the live rendering regression | `createSavePanel(...)` queries `document.getElementById('save-slots')` before mount, while the custom fixture globally registers ids from detached `innerHTML` as if the subtree were already in the document | Refactor the panel to keep local element references / panel-scoped queries, and move save-panel rendering tests to a file-local real DOM environment instead of a fake `document` |
 
 ---
 
@@ -1758,6 +1762,378 @@ git commit -m "docs(hotfix): extend april 8 review follow-up plan"
 
 ---
 
+### Task 11: Fix Save-Panel Detached-DOM Rendering And Replace The Unrealistic Fixture
+
+**Files:**
+- Modify: `package.json`
+- Modify: `yarn.lock`
+- Modify: `src/ui/save-panel.ts`
+- Modify: `tests/ui/save-panel.test.ts`
+- Delete or reduce: `tests/ui/helpers/save-panel-fixture.ts`
+
+**Root cause being fixed**
+
+The remaining save-panel failure is a combined production-code and test-harness bug:
+
+1. `createSavePanel(...)` builds a detached subtree, then asks the global `document` for `#save-slots` before the subtree is mounted.
+2. In a real DOM, that lookup returns `null`, so no save cards are appended.
+3. The current save-panel fixture masks the problem by globally registering ids from `innerHTML` even on detached nodes, which is not browser behavior.
+
+The correct repair is to make the component own its subtree and to test it in a real DOM environment instead of extending the fake document further.
+
+- [ ] **Step 1: Add a file-local real DOM environment for save-panel tests**
+
+Add `jsdom` as a dev dependency without changing the repo-wide Vitest environment:
+
+```bash
+./scripts/run-with-mise.sh yarn add -D jsdom
+```
+
+Then rewrite `tests/ui/save-panel.test.ts` to start with:
+
+```ts
+// @vitest-environment jsdom
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+```
+
+The repo should stay globally on `environment: 'node'`. Only the save-panel suite should opt into a real DOM.
+
+- [ ] **Step 2: Replace the fake document fixture with real DOM setup**
+
+Remove `installSavePanelDocumentMock()` from `tests/ui/save-panel.test.ts` and use `document.body` directly:
+
+```ts
+beforeEach(() => {
+  document.body.innerHTML = '';
+  mocks.listSaves.mockReset();
+  mocks.hasAutoSave.mockReset();
+  mocks.loadAutoSave.mockReset();
+  mocks.deleteSaveEntry.mockReset();
+  mocks.renameSave.mockReset();
+});
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+function mountContainer(): HTMLElement {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  return container;
+}
+```
+
+Delete `tests/ui/helpers/save-panel-fixture.ts`. Do not replace it with another fake `document`. If any helper is still needed after the rewrite, it must only inspect real DOM nodes.
+
+- [ ] **Step 3: Add red tests that reproduce the live bug and lock the correct behavior**
+
+Add these real-DOM regressions to `tests/ui/save-panel.test.ts`:
+
+```ts
+it('renders listed saves into the mounted save-slots container in start mode', async () => {
+  const container = mountContainer();
+  mocks.hasAutoSave.mockResolvedValue(true);
+  mocks.listSaves.mockResolvedValue([
+    {
+      id: 'autosave:game-1:9',
+      name: 'Autosave Turn 9',
+      civType: 'egypt',
+      turn: 9,
+      lastPlayed: '2026-04-08T12:00:00.000Z',
+      kind: 'autosave',
+      gameMode: 'solo',
+      gameTitle: 'Desert Run',
+    },
+  ]);
+
+  await createSavePanel(container, {
+    onNewGame: () => {},
+    onContinue: () => {},
+    onLoadSlot: () => {},
+  });
+
+  expect(document.querySelectorAll('#save-panel [data-save-slot-card=\"true\"]')).toHaveLength(1);
+  expect(document.body.textContent).toContain('Autosave Turn 9');
+  expect(document.body.textContent).toContain('Desert Run');
+});
+
+it('renders only manual saves as overwrite targets in save mode', async () => {
+  const container = mountContainer();
+  mocks.hasAutoSave.mockResolvedValue(true);
+  mocks.listSaves.mockResolvedValue([
+    {
+      id: 'autosave:game-1:9',
+      name: 'Autosave Turn 9',
+      civType: 'egypt',
+      turn: 9,
+      lastPlayed: '2026-04-08T12:00:00.000Z',
+      kind: 'autosave',
+      gameMode: 'solo',
+      gameTitle: 'Desert Run',
+    },
+    {
+      id: 'slot-1',
+      name: 'Manual Save',
+      civType: 'egypt',
+      turn: 9,
+      lastPlayed: '2026-04-08T12:00:00.000Z',
+      kind: 'manual',
+      gameMode: 'solo',
+      gameTitle: 'Desert Run',
+    },
+  ]);
+
+  await createSavePanel(container, {
+    onNewGame: () => {},
+    onContinue: () => {},
+    onLoadSlot: () => {},
+    onSaveToSlot: () => {},
+  }, 'save');
+
+  expect(document.body.textContent).toContain('Manual Save');
+  expect(document.body.textContent).not.toContain('Autosave Turn 9');
+});
+```
+
+Keep the interaction and injection coverage in the same real DOM:
+
+```ts
+it('loads the clicked autosave row instead of routing through continue', async () => {
+  const container = mountContainer();
+  const onContinue = vi.fn();
+  const onLoadSlot = vi.fn();
+  mocks.hasAutoSave.mockResolvedValue(true);
+  mocks.listSaves.mockResolvedValue([
+    {
+      id: 'autosave:game-1:9',
+      name: 'Autosave Turn 9',
+      civType: 'egypt',
+      turn: 9,
+      lastPlayed: '2026-04-08T12:00:00.000Z',
+      kind: 'autosave',
+      gameMode: 'solo',
+      gameTitle: 'Desert Run',
+    },
+  ]);
+
+  await createSavePanel(container, {
+    onNewGame: () => {},
+    onContinue,
+    onLoadSlot,
+  });
+
+  (document.querySelector('[data-role=\"load-slot\"]') as HTMLButtonElement).click();
+
+  expect(onLoadSlot).toHaveBeenCalledWith('autosave:game-1:9');
+  expect(onContinue).not.toHaveBeenCalled();
+});
+
+it('renders user-controlled save labels as literal text', async () => {
+  const container = mountContainer();
+  mocks.hasAutoSave.mockResolvedValue(false);
+  mocks.listSaves.mockResolvedValue([
+    {
+      id: 'slot-1',
+      name: '<span id=\"evil-save\">Owned</span>',
+      civType: 'egypt',
+      turn: 9,
+      lastPlayed: '2026-04-08T12:00:00.000Z',
+      kind: 'manual',
+      gameMode: 'solo',
+      gameTitle: '<span id=\"evil-title\">Injected</span>',
+    },
+  ]);
+
+  await createSavePanel(container, {
+    onNewGame: () => {},
+    onContinue: () => {},
+    onLoadSlot: () => {},
+  });
+
+  expect(document.getElementById('evil-save')).toBeNull();
+  expect(document.getElementById('evil-title')).toBeNull();
+  expect(document.body.textContent).toContain('<span id=\"evil-save\">Owned</span>');
+});
+```
+
+Also add an explicit rerender regression:
+
+```ts
+it('rerenders the list after deleting one row and keeps the remaining rows visible', async () => {
+  const container = mountContainer();
+  mocks.hasAutoSave.mockResolvedValue(false);
+  mocks.listSaves
+    .mockResolvedValueOnce([
+      {
+        id: 'slot-1',
+        name: 'Manual Save A',
+        civType: 'egypt',
+        turn: 9,
+        lastPlayed: '2026-04-08T12:00:00.000Z',
+        kind: 'manual',
+        gameMode: 'solo',
+        gameTitle: 'Desert Run',
+      },
+      {
+        id: 'slot-2',
+        name: 'Manual Save B',
+        civType: 'egypt',
+        turn: 10,
+        lastPlayed: '2026-04-08T12:05:00.000Z',
+        kind: 'manual',
+        gameMode: 'solo',
+        gameTitle: 'Desert Run',
+      },
+    ])
+    .mockResolvedValueOnce([
+      {
+        id: 'slot-2',
+        name: 'Manual Save B',
+        civType: 'egypt',
+        turn: 10,
+        lastPlayed: '2026-04-08T12:05:00.000Z',
+        kind: 'manual',
+        gameMode: 'solo',
+        gameTitle: 'Desert Run',
+      },
+    ]);
+
+  await createSavePanel(container, {
+    onNewGame: () => {},
+    onContinue: () => {},
+    onLoadSlot: () => {},
+  });
+
+  (document.querySelector('[data-role=\"delete-slot\"][data-slot-id=\"slot-1\"]') as HTMLButtonElement).click();
+  await Promise.resolve();
+
+  expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('slot-1', 'manual');
+  expect(document.querySelectorAll('#save-panel [data-save-slot-card=\"true\"]')).toHaveLength(1);
+  expect(document.body.textContent).toContain('Manual Save B');
+  expect(document.body.textContent).not.toContain('Manual Save A');
+});
+```
+
+- [ ] **Step 4: Run the focused save-panel suite and confirm failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/save-panel.test.ts
+```
+
+Expected: FAIL because the current implementation still uses a global `document.getElementById('save-slots')` before mount.
+
+- [ ] **Step 5: Refactor `createSavePanel(...)` so the component owns its subtree**
+
+In `src/ui/save-panel.ts`, remove the mount-order-sensitive pattern:
+
+```ts
+panel.innerHTML = `...<div id="save-slots"></div>...`;
+const saveSlots = document.getElementById('save-slots');
+```
+
+Replace it with component-local references. Either:
+
+1. create `saveSlots` with `document.createElement('div')` and keep the reference, or
+2. if the shell stays string-based, use `panel.querySelector('#save-slots')`.
+
+Preferred shape:
+
+```ts
+const saveSlots = document.createElement('div');
+saveSlots.id = 'save-slots';
+saveSlots.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+for (const save of displaySaves) {
+  saveSlots.appendChild(createSlotCard(save, mode));
+}
+```
+
+Do the same for event wiring: stop binding row buttons through `document.getElementById(...)` loops. Use panel-local event delegation or retained button references instead:
+
+```ts
+panel.addEventListener('click', async event => {
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-role]');
+  if (!target) return;
+
+  const slotId = target.dataset.slotId!;
+  const slotKind = target.dataset.slotKind as 'manual' | 'autosave';
+  const role = target.dataset.role;
+
+  if (role === 'load-slot') {
+    panel.remove();
+    if (slotKind === 'autosave' && slotId === 'autosave') {
+      callbacks.onContinue();
+      return;
+    }
+    callbacks.onLoadSlot(slotId);
+    return;
+  }
+
+  if (role === 'overwrite-slot') {
+    panel.remove();
+    callbacks.onSaveToSlot?.(slotId, target.dataset.slotName ?? '');
+    return;
+  }
+
+  if (role === 'delete-slot') {
+    await deleteSaveEntry(slotId, slotKind);
+    panel.remove();
+    await createSavePanel(container, callbacks, mode);
+  }
+});
+```
+
+Update `createSlotCard(...)` accordingly:
+
+```ts
+card.dataset.saveSlotCard = 'true';
+primaryButton.dataset.role = mode === 'start' ? 'load-slot' : 'overwrite-slot';
+primaryButton.dataset.slotId = save.id;
+primaryButton.dataset.slotKind = save.kind === 'autosave' ? 'autosave' : 'manual';
+primaryButton.dataset.slotName = save.name;
+deleteButton.dataset.role = 'delete-slot';
+deleteButton.dataset.slotId = save.id;
+deleteButton.dataset.slotKind = save.kind === 'autosave' ? 'autosave' : 'manual';
+```
+
+This fixes the immediate rendering regression and removes the broader class of detached-tree/global-id bugs.
+
+Apply the same rule to the panel’s static controls (`New Game`, `Continue`, `Save`, `Export`, `Import`): bind them from retained references or `panel.querySelector(...)`, not `document.getElementById(...)`. The component should be internally scoped everywhere except the initial `document.getElementById('save-panel')` removal of any pre-existing panel.
+
+- [ ] **Step 6: Re-run the focused save-panel and autosave suites**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/save-panel.test.ts tests/storage/save-manager.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Run the full suite and build**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add package.json yarn.lock src/ui/save-panel.ts tests/ui/save-panel.test.ts
+git add -u tests/ui/helpers/save-panel-fixture.ts
+git commit -m "fix(hotfix): render save slots in real dom"
+```
+
+---
+
 ## Spec Coverage Checklist
 
 - Persistent contact memory: `Task 1`
@@ -1771,6 +2147,7 @@ git commit -m "docs(hotfix): extend april 8 review follow-up plan"
 - DOM-safe save-panel rendering for user-controlled text: `Task 8`
 - Loadable autosave validation before legacy retirement: `Task 9`
 - Final re-review of the remaining hotfix gaps: `Task 10`
+- Real-DOM save-panel rendering and test-harness correction: `Task 11`
 
 No review finding or April 8 clarification is left without an explicit task.
 
@@ -1807,6 +2184,13 @@ No review finding or April 8 clarification is left without an explicit task.
   - campaign titles rendered as text
   - hot-seat player names rendered as text
   - regression tests detect injected ids in user-controlled labels
+- Save-panel DOM realism scenarios covered:
+  - detached subtree construction before mount
+  - real slot cards rendered after mount in `start` mode
+  - autosaves excluded from overwrite rows in `save` mode
+  - clicked autosave row loads the selected slot instead of `Continue`
+  - delete/rerender flow stays in sync with visible cards
+  - tests use a real DOM environment instead of a fake global-id registry
 - Wrapping scenarios covered:
   - terrain
   - fog
