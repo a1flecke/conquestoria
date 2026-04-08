@@ -10,6 +10,33 @@ import type { GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 
+function createWrappedGrasslandMap(width: number, height: number): GameMap {
+  const tiles: GameMap['tiles'] = {};
+  for (let q = 0; q < width; q++) {
+    for (let r = 0; r < height; r++) {
+      tiles[hexKey({ q, r })] = {
+        coord: { q, r },
+        terrain: 'grassland',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        owner: null,
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+      };
+    }
+  }
+
+  return {
+    width,
+    height,
+    wrapsHorizontally: true,
+    tiles,
+    rivers: [],
+  };
+}
+
 describe('createUnit', () => {
   it('creates a unit with full movement points', () => {
     const unit = createUnit('warrior', 'p1', { q: 5, r: 5 });
@@ -156,6 +183,21 @@ describe('findPath', () => {
       const path = findPath(landTile.coord, oceanTile.coord, map);
       expect(path).toBeNull();
     }
+  });
+
+  it('finds the shortest wrapped path across the map edge', () => {
+    const wrappedMap = createWrappedGrasslandMap(5, 3);
+    const path = findPath({ q: 0, r: 1 }, { q: 4, r: 1 }, wrappedMap);
+    expect(path).toEqual([{ q: 0, r: 1 }, { q: 4, r: 1 }]);
+  });
+});
+
+describe('wrapped movement', () => {
+  it('includes horizontally wrapped neighbors in movement range', () => {
+    const wrappedMap = createWrappedGrasslandMap(5, 3);
+    const unit = createUnit('warrior', 'p1', { q: 0, r: 1 });
+    const range = getMovementRange(unit, wrappedMap, {});
+    expect(range).toContainEqual({ q: 4, r: 1 });
   });
 });
 

@@ -1,4 +1,4 @@
-import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType } from '@/core/types';
+import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';

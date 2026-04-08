@@ -1,6 +1,7 @@
 import type { GameMap, HexCoord, HexTile, TerrainType } from '@/core/types';
 import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY } from '@/systems/hex-utils';
 import { Camera } from './camera';
+import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 
 // --- Terrain labels ---
 
@@ -76,46 +77,69 @@ export function drawHexMap(
   const size = camera.hexSize;
 
   for (const tile of Object.values(map.tiles)) {
-    if (!camera.isHexVisible(tile.coord)) continue;
-
-    const pixel = hexToPixel(tile.coord, size);
-    const screen = camera.worldToScreen(pixel.x, pixel.y);
-    const scaledSize = size * camera.zoom;
+    const renderCoords = map.wrapsHorizontally
+      ? getHorizontalWrapRenderCoords(tile.coord, map.width)
+      : [tile.coord];
     const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
 
-    drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, camera.zoom);
+    for (const renderCoord of renderCoords) {
+      if (!camera.isHexVisible(renderCoord)) continue;
+
+      const pixel = hexToPixel(renderCoord, size);
+      const screen = camera.worldToScreen(pixel.x, pixel.y);
+      const scaledSize = size * camera.zoom;
+      drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, camera.zoom);
+    }
+  }
+}
+
+function isNearHorizontalWrapEdge(coord: HexCoord, mapWidth: number): boolean {
+  return coord.q >= mapWidth - 3 || coord.q < 3;
+}
+
+export function getHorizontalWrapOffsetsForRiver(
+  from: HexCoord,
+  to: HexCoord,
+  mapWidth: number,
+): number[] {
+  if (!isNearHorizontalWrapEdge(from, mapWidth) && !isNearHorizontalWrapEdge(to, mapWidth)) {
+    return [];
   }
 
-  // Render wrap-around ghost tiles for seamless horizontal wrapping
-  if (map.wrapsHorizontally) {
-    const edgeMargin = 3; // Only check tiles within 3 columns of edge
-    for (const tile of Object.values(map.tiles)) {
-      const q = tile.coord.q;
-      const isNearLeftEdge = q < edgeMargin;
-      const isNearRightEdge = q >= map.width - edgeMargin;
+  return [mapWidth, -mapWidth];
+}
 
-      if (isNearLeftEdge) {
-        const ghostCoord: HexCoord = { q: q + map.width, r: tile.coord.r };
-        if (camera.isHexVisible(ghostCoord)) {
-          const pixel = hexToPixel(ghostCoord, size);
-          const screen = camera.worldToScreen(pixel.x, pixel.y);
-          const scaledSize = size * camera.zoom;
-          const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
-          drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, camera.zoom);
-        }
-      }
-
-      if (isNearRightEdge) {
-        const ghostCoord: HexCoord = { q: q - map.width, r: tile.coord.r };
-        if (camera.isHexVisible(ghostCoord)) {
-          const pixel = hexToPixel(ghostCoord, size);
-          const screen = camera.worldToScreen(pixel.x, pixel.y);
-          const scaledSize = size * camera.zoom;
-          const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
-          drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, camera.zoom);
-        }
-      }
+export function drawWrapGhostRivers(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  camera: Camera,
+): void {
+  for (const river of map.rivers) {
+    for (const offset of getHorizontalWrapOffsetsForRiver(river.from, river.to, map.width)) {
+      const ghostFrom: HexCoord = { q: river.from.q + offset, r: river.from.r };
+      const ghostTo: HexCoord = { q: river.to.q + offset, r: river.to.r };
+      if (!camera.isHexVisible(ghostFrom) && !camera.isHexVisible(ghostTo)) continue;
+      drawRiverSegment(ctx, camera, ghostFrom, ghostTo);
     }
+  }
+}
+
+export function drawRivers(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  camera: Camera,
+): void {
+  ctx.strokeStyle = '#4a8faf';
+  ctx.lineWidth = 3 * camera.zoom;
+  ctx.lineCap = 'round';
+
+  for (const river of map.rivers) {
+    if (!camera.isHexVisible(river.from) && !camera.isHexVisible(river.to)) continue;
+    drawRiverSegment(ctx, camera, river.from, river.to);
+  }
+
+  if (map.wrapsHorizontally) {
+    drawWrapGhostRivers(ctx, map, camera);
   }
 }
 
@@ -146,36 +170,6 @@ function drawRiverSegment(
   ctx.stroke();
 }
 
-export function drawRivers(
-  ctx: CanvasRenderingContext2D,
-  map: GameMap,
-  camera: Camera,
-): void {
-  ctx.strokeStyle = '#4a8faf';
-  ctx.lineWidth = 3 * camera.zoom;
-  ctx.lineCap = 'round';
-
-  for (const river of map.rivers) {
-    if (!camera.isHexVisible(river.from) && !camera.isHexVisible(river.to)) continue;
-    drawRiverSegment(ctx, camera, river.from, river.to);
-  }
-
-  // Ghost rivers at wrap edges
-  if (map.wrapsHorizontally) {
-    for (const river of map.rivers) {
-      const fq = river.from.q;
-      const tq = river.to.q;
-      if (fq >= map.width - 3 || fq < 3 || tq >= map.width - 3 || tq < 3) {
-        for (const offset of [map.width, -map.width]) {
-          const ghostFrom: HexCoord = { q: river.from.q + offset, r: river.from.r };
-          const ghostTo: HexCoord = { q: river.to.q + offset, r: river.to.r };
-          if (!camera.isHexVisible(ghostFrom) && !camera.isHexVisible(ghostTo)) continue;
-          drawRiverSegment(ctx, camera, ghostFrom, ghostTo);
-        }
-      }
-    }
-  }
-}
 
 function drawHex(
   ctx: CanvasRenderingContext2D,

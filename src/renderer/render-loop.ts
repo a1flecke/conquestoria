@@ -136,7 +136,14 @@ export class RenderLoop {
 
     // Draw fog of war
     if (playerVis) {
-      drawFogOfWar(this.ctx, playerVis, this.state.map.width, this.state.map.height, this.camera);
+      drawFogOfWar(
+        this.ctx,
+        playerVis,
+        this.state.map.width,
+        this.state.map.height,
+        this.camera,
+        this.state.map.wrapsHorizontally,
+      );
     }
 
     // Draw animations

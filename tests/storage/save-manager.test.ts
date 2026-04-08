@@ -14,6 +14,10 @@ import { autoSave, listSaves, saveGame } from '@/storage/save-manager';
 function makeLocalStorageMock() {
   const store: Record<string, string> = {};
   return {
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: (index: number) => Object.keys(store)[index] ?? null,
     getItem: (key: string) => store[key] ?? null,
     setItem: (key: string, value: string) => { store[key] = value; },
     removeItem: (key: string) => { delete store[key]; },

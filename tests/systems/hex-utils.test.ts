@@ -3,10 +3,12 @@ import {
   parseHexKey,
   hexNeighbors,
   hexDistance,
+  getWrappedHexNeighbors,
   hexRing,
   hexesInRange,
   pixelToHex,
   hexToPixel,
+  wrappedHexDistance,
   wrapHexCoord,
 } from '@/systems/hex-utils';
 
@@ -110,5 +112,18 @@ describe('wrapHexCoord', () => {
   it('leaves valid coordinates unchanged', () => {
     const wrapped = wrapHexCoord({ q: 15, r: 10 }, 30);
     expect(wrapped).toEqual({ q: 15, r: 10 });
+  });
+});
+
+describe('wrapped hex helpers', () => {
+  it('treats horizontal wrap neighbors as adjacent', () => {
+    const neighbors = getWrappedHexNeighbors({ q: 0, r: 0 }, 5);
+    expect(neighbors).toContainEqual({ q: 4, r: 0 });
+    expect(neighbors).toContainEqual({ q: 4, r: 1 });
+  });
+
+  it('uses the wrapped distance across horizontal seams', () => {
+    expect(wrappedHexDistance({ q: 0, r: 0 }, { q: 4, r: 0 }, 5)).toBe(1);
+    expect(wrappedHexDistance({ q: 0, r: 0 }, { q: 3, r: 0 }, 5)).toBe(2);
   });
 });
