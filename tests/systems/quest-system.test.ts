@@ -13,6 +13,18 @@ describe('quest system', () => {
       const quest = generateQuest('militaristic', 'mc-sparta', 'player', 1, {
         barbarianCamps: { camp1: { id: 'camp1', position: { q: 5, r: 5 }, strength: 5, spawnCooldown: 0 } },
         era: 1,
+        minorCivs: {
+          'mc-sparta': { cityId: 'city-sparta' },
+        },
+        cities: {
+          'city-sparta': {
+            id: 'city-sparta',
+            owner: 'mc-sparta',
+            position: { q: 4, r: 5 },
+            ownedTiles: [{ q: 4, r: 5 }],
+          },
+        },
+        units: {},
       } as any, () => 0.1);
       expect(quest).toBeDefined();
       expect(quest!.type).toBe('destroy_camp');
@@ -64,6 +76,82 @@ describe('quest system', () => {
       } as any, () => 0.1);
       expect(quest).toBeDefined();
       expect(quest!.chainNext).toBeUndefined();
+    });
+
+    it('does not emit trade_route quests while the trade-route gameplay loop is unsupported', () => {
+      const quest = generateQuest('mercantile', 'mc-carthage', 'player', 5, {
+        barbarianCamps: {},
+        era: 1,
+        minorCivs: {
+          'mc-carthage': { cityId: 'city-carthage' },
+        },
+        cities: {
+          'city-carthage': {
+            id: 'city-carthage',
+            owner: 'mc-carthage',
+            position: { q: 5, r: 5 },
+            ownedTiles: [{ q: 5, r: 5 }],
+          },
+        },
+        units: {},
+        civilizations: {
+          player: { units: [], cities: [] },
+        },
+        map: { tiles: {} },
+      } as any, () => 0.8);
+      expect(quest?.type).not.toBe('trade_route');
+    });
+
+    it('returns null when no nearby hostile units exist for a defeat_units quest', () => {
+      const quest = generateQuest('militaristic', 'mc-sparta', 'player', 5, {
+        barbarianCamps: {},
+        era: 1,
+        minorCivs: {
+          'mc-sparta': { cityId: 'city-sparta' },
+        },
+        cities: {
+          'city-sparta': {
+            id: 'city-sparta',
+            owner: 'mc-sparta',
+            position: { q: 5, r: 5 },
+            ownedTiles: [{ q: 5, r: 5 }],
+          },
+        },
+        units: {},
+        civilizations: {
+          player: { units: [], cities: [] },
+        },
+        map: { tiles: {} },
+      } as any, () => 0.8);
+      expect(quest).toBeNull();
+    });
+
+    it('targets the nearby barbarian camp instead of a faraway one', () => {
+      const quest = generateQuest('militaristic', 'mc-sparta', 'player', 1, {
+        barbarianCamps: {
+          far: { id: 'far', position: { q: 20, r: 20 }, strength: 5, spawnCooldown: 0 },
+          near: { id: 'near', position: { q: 6, r: 5 }, strength: 5, spawnCooldown: 0 },
+        },
+        era: 1,
+        minorCivs: {
+          'mc-sparta': { cityId: 'city-sparta' },
+        },
+        cities: {
+          'city-sparta': {
+            id: 'city-sparta',
+            owner: 'mc-sparta',
+            position: { q: 5, r: 5 },
+            ownedTiles: [{ q: 5, r: 5 }],
+          },
+        },
+        units: {},
+        civilizations: {
+          player: { units: [], cities: [] },
+        },
+        map: { tiles: {} },
+      } as any, () => 0.1);
+      expect(quest).toBeDefined();
+      expect((quest!.target as any).campId).toBe('near');
     });
   });
 

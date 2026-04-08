@@ -1,4 +1,5 @@
 import type { MinorCivArchetype, Quest, QuestReward, QuestTarget, QuestType, GameState } from '@/core/types';
+import { hexDistance } from './hex-utils';
 
 let questIdCounter = 0;
 
@@ -19,53 +20,69 @@ export function generateQuest(
   minorCivId: string,
   majorCivId: string,
   currentTurn: number,
-  state: Pick<GameState, 'barbarianCamps' | 'era'>,
+  state: Pick<GameState, 'barbarianCamps' | 'era' | 'minorCivs' | 'cities' | 'units'>,
   rng: () => number,
 ): Quest | null {
   const weights = QUEST_WEIGHTS[archetype];
-  const roll = rng();
+  const candidates = (Object.entries(weights) as [QuestType, number][])
+    .filter(([, weight]) => weight > 0)
+    .map(([type, weight]) => ({
+      type,
+      weight,
+      target: buildQuestTarget(type, minorCivId, majorCivId, state),
+    }))
+    .filter((candidate): candidate is { type: QuestType; weight: number; target: QuestTarget } => candidate.target !== null);
 
-  // Select quest type by cumulative weight
+  if (candidates.length === 0) return null;
+
+  const totalWeight = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
+  const roll = rng() * totalWeight;
   let cumulative = 0;
-  let selectedType: QuestType = 'gift_gold';
-  for (const [type, weight] of Object.entries(weights) as [QuestType, number][]) {
-    cumulative += weight;
+  for (const candidate of candidates) {
+    cumulative += candidate.weight;
     if (roll < cumulative) {
-      selectedType = type;
-      break;
+      return makeQuest(candidate.type, candidate.target, currentTurn);
     }
   }
 
-  // Build target based on type; fall back if no valid target
-  const target = buildQuestTarget(selectedType, minorCivId, state);
-  if (!target) {
-    // Fallback to gift_gold which always works
-    const fallbackTarget = buildQuestTarget('gift_gold', minorCivId, state);
-    if (!fallbackTarget) return null;
-    return makeQuest('gift_gold', fallbackTarget, currentTurn);
-  }
-
-  return makeQuest(selectedType, target, currentTurn);
+  const fallback = candidates[candidates.length - 1];
+  return makeQuest(fallback.type, fallback.target, currentTurn);
 }
 
 function buildQuestTarget(
   type: QuestType,
   minorCivId: string,
-  state: Pick<GameState, 'barbarianCamps' | 'era'>,
+  majorCivId: string,
+  state: Pick<GameState, 'barbarianCamps' | 'era' | 'minorCivs' | 'cities' | 'units'>,
 ): QuestTarget | null {
+  const minorCiv = state.minorCivs?.[minorCivId];
+  const city = minorCiv ? state.cities?.[minorCiv.cityId] : null;
+  const cityPosition = city?.position;
+
   switch (type) {
     case 'destroy_camp': {
-      const camps = Object.values(state.barbarianCamps);
+      if (!cityPosition) return null;
+      const camps = Object.values(state.barbarianCamps)
+        .filter(camp => hexDistance(camp.position, cityPosition) <= 8)
+        .sort((a, b) => hexDistance(a.position, cityPosition) - hexDistance(b.position, cityPosition));
       if (camps.length === 0) return null;
       const camp = camps[0];
       return { type: 'destroy_camp', campId: camp.id };
     }
     case 'gift_gold':
       return { type: 'gift_gold', amount: GOLD_PER_ERA[state.era] ?? 25 };
-    case 'defeat_units':
-      return { type: 'defeat_units', count: 2, nearPosition: { q: 0, r: 0 }, radius: 8 };
+    case 'defeat_units': {
+      if (!cityPosition) return null;
+      const nearbyHostiles = Object.values(state.units ?? {}).filter(unit => (
+        unit.owner !== majorCivId
+        && unit.owner !== minorCivId
+        && hexDistance(unit.position, cityPosition) <= 8
+      ));
+      if (nearbyHostiles.length < 2) return null;
+      return { type: 'defeat_units', count: 2, nearPosition: cityPosition, radius: 8 };
+    }
     case 'trade_route':
-      return { type: 'trade_route', minorCivId };
+      return null;
     default:
       return null;
   }
