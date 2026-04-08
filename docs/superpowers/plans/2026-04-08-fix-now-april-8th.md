@@ -86,6 +86,7 @@ The milestone is complete only when all of the following are true:
 17. The save list renders real slot cards in both `start` and `save` modes when `createSavePanel(...)` runs in an actual DOM, even though the panel subtree is constructed before it is appended to the document.
 18. Save-panel regression coverage runs in a real DOM environment and fails if detached-tree lookups or impossible mock-document behavior reappear.
 19. A player who has not discovered a city-state’s city tile never learns that city-state’s proper name from unit info, combat preview, global event notifications, or hot-seat pending events; those surfaces use a generic fallback label instead.
+20. Minor-civ notification behavior is covered by direct player-facing tests, not only lower-level helper tests; every event surface in `main.ts` that emits city-state text has a focused regression proving viewer gating, privacy, and hot-seat formatting.
 
 ---
 
@@ -106,6 +107,7 @@ The milestone is complete only when all of the following are true:
 | Legacy autosave retirement is too eager | Any autosave meta is treated as proof of a real autosave, even if its payload is missing | Treat only loadable autosave meta+payload pairs as real, and prune orphaned metas before retire/list/continue decisions |
 | Save-panel tests hide the live rendering regression | `createSavePanel(...)` queries `document.getElementById('save-slots')` before mount, while the custom fixture globally registers ids from detached `innerHTML` as if the subtree were already in the document | Refactor the panel to keep local element references / panel-scoped queries, and move save-panel rendering tests to a file-local real DOM environment instead of a fake `document` |
 | Minor-civ privacy is enforced ad hoc instead of through one viewer-aware naming layer | Some surfaces use `hasDiscoveredMinorCiv(...)`, but `main.ts` still formats `mcDef?.name` directly in unit/combat panels and several bus handlers | Centralize minor-civ naming/notification formatting in one helper layer and route every player-facing minor-civ name through it |
+| Notification tests stop too low in the stack | `minor-civ-presentation` and `quest-system` tests prove building blocks, but the real player-facing event rules still live inline in `main.ts`, so helper tests can pass while a notification surface diverges | Extract minor-civ notification policy into a dedicated helper module and cover every event type with viewer-aware tests, leaving `main.ts` as thin bus wiring |
 
 ---
 
@@ -2461,6 +2463,7 @@ git commit -m "fix(hotfix): centralize minor civ privacy labels"
 - Final re-review of the remaining hotfix gaps: `Task 10`
 - Real-DOM save-panel rendering and test-harness correction: `Task 11`
 - Minor-civ name privacy across all player-facing surfaces: `Task 12`
+- Minor-civ notification-flow testability and coverage: `Task 13`
 
 No review finding or April 8 clarification is left without an explicit task.
 
@@ -2512,6 +2515,12 @@ No review finding or April 8 clarification is left without an explicit task.
   - guerrilla notification is generic for undiscovered viewers
   - hot-seat pending events are formatted per viewer instead of once globally
   - discovered viewers still receive the proper city-state name
+- Notification test-shape scenarios covered:
+  - helper-level privacy tests remain in place for focused naming logic
+  - player-facing event tests cover `quest-issued`, `quest-completed`, `evolved`, `destroyed`, `allied`, `relationship-threshold`, `guerrilla`, and `quest-expired`
+  - `main.ts` no longer owns city-state notification policy inline
+  - hot-seat notification formatting is asserted through per-viewer helper outputs
+  - current-player gating is asserted separately from name/privacy gating
 - Wrapping scenarios covered:
   - terrain
   - fog
@@ -2520,4 +2529,244 @@ No review finding or April 8 clarification is left without an explicit task.
   - minor-civ territory
   - cities
   - units
-  - wrapped movement/pathfinding staying aligned with rendering
+- wrapped movement/pathfinding staying aligned with rendering
+
+---
+
+## Task 13: Extract And Exhaustively Test Minor-Civ Notification Flow
+
+**Files:**
+- Create: `src/ui/minor-civ-notifications.ts`
+- Create: `tests/ui/minor-civ-notifications.test.ts`
+- Modify: `src/main.ts`
+- Audit only: `tests/systems/minor-civ-presentation.test.ts`
+- Audit only: `tests/ui/diplomacy-panel.test.ts`
+
+- [ ] **Step 1: Write the failing notification-flow tests**
+
+Create `tests/ui/minor-civ-notifications.test.ts` with direct player-facing cases:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { createHotSeatGame, createNewGame } from '@/core/game-state';
+import type { GameState, Quest } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
+import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
+
+describe('minor-civ-notifications', () => {
+  it('hides quest-issued notifications from players who have not discovered the city-state', () => {
+    const state = createNewGame(undefined, 'mc-quest-issued-hidden', 'small');
+    const minorCivId = Object.keys(state.minorCivs)[0]!;
+    const quest: Quest = {
+      id: 'quest-gold',
+      type: 'gift_gold',
+      description: 'Gift 25 gold',
+      target: { type: 'gift_gold', amount: 25 },
+      reward: { relationshipBonus: 20 },
+      progress: 0,
+      status: 'active',
+      turnIssued: 1,
+      expiresOnTurn: 21,
+    };
+
+    const notification = getMinorCivNotification(state, 'player', {
+      type: 'minor-civ:quest-issued',
+      majorCivId: 'player',
+      minorCivId,
+      quest,
+    });
+
+    expect(notification).toBeNull();
+  });
+
+  it('keeps undiscovered city targets generic in quest-issued notifications', () => {
+    const state = createNewGame(undefined, 'mc-quest-issued-generic-city', 'small');
+    const minorCivId = Object.keys(state.minorCivs)[0]!;
+    const city = state.cities[state.minorCivs[minorCivId].cityId];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+
+    const notification = getMinorCivNotification(state, 'player', {
+      type: 'minor-civ:quest-issued',
+      majorCivId: 'player',
+      minorCivId,
+      quest: {
+        id: 'quest-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 7, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      },
+    });
+
+    expect(notification?.message).toContain('foreign city');
+    expect(notification?.message).not.toContain('Rome');
+  });
+
+  it('formats evolved notifications generically for undiscovered viewers in hot-seat', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'mc-evolved-hotseat');
+    const minorCivId = Object.keys(state.minorCivs)[0]!;
+    const city = state.cities[state.minorCivs[minorCivId].cityId];
+    state.civilizations['player-1'].visibility.tiles[hexKey(city.position)] = 'fog';
+
+    const visible = getMinorCivNotification(state, 'player-1', { type: 'minor-civ:evolved', minorCivId });
+    const hidden = getMinorCivNotification(state, 'player-2', { type: 'minor-civ:evolved', minorCivId });
+
+    expect(visible?.message).not.toBe('A barbarian tribe formed a new city-state!');
+    expect(hidden?.message).toBe('A barbarian tribe formed a new city-state!');
+  });
+
+  it('only returns allied notifications for the affected major civ', () => {
+    const state = createNewGame(undefined, 'mc-ally-targeted', 'small');
+    const minorCivId = Object.keys(state.minorCivs)[0]!;
+    const city = state.cities[state.minorCivs[minorCivId].cityId];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+
+    const owner = getMinorCivNotification(state, 'player', {
+      type: 'minor-civ:allied',
+      majorCivId: 'player',
+      minorCivId,
+    });
+    const other = getMinorCivNotification(state, 'ai-1', {
+      type: 'minor-civ:allied',
+      majorCivId: 'player',
+      minorCivId,
+    });
+
+    expect(owner?.message).toMatch(/ally/i);
+    expect(other).toBeNull();
+  });
+
+  it('keeps guerrilla warnings generic for undiscovered targets', () => {
+    const state = createNewGame(undefined, 'mc-guerrilla-generic', 'small');
+    const minorCivId = Object.keys(state.minorCivs)[0]!;
+
+    const notification = getMinorCivNotification(state, 'player', {
+      type: 'minor-civ:guerrilla',
+      targetCivId: 'player',
+      minorCivId,
+    });
+
+    expect(notification?.message).toBe('City-state guerrilla fighters attack!');
+  });
+});
+```
+
+- [ ] **Step 2: Run the new tests and verify they fail**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/minor-civ-notifications.test.ts
+```
+
+Expected: FAIL because `src/ui/minor-civ-notifications.ts` does not exist and `main.ts` still owns the notification policy inline.
+
+- [ ] **Step 3: Extract the notification policy into a dedicated helper**
+
+Create `src/ui/minor-civ-notifications.ts` alongside the existing legendary-wonder notification helper:
+
+```ts
+import type { GameState, NotificationEntry, Quest } from '@/core/types';
+import { getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
+import {
+  formatMinorCivEventMessageForPlayer,
+  getMinorCivPresentationForPlayer,
+} from '@/systems/minor-civ-presentation';
+
+type MinorCivNotificationEvent =
+  | { type: 'minor-civ:quest-issued'; majorCivId: string; minorCivId: string; quest: Quest }
+  | { type: 'minor-civ:quest-completed'; majorCivId: string; minorCivId: string; reward: { gold?: number; science?: number } }
+  | { type: 'minor-civ:evolved'; minorCivId: string }
+  | { type: 'minor-civ:destroyed'; minorCivId: string }
+  | { type: 'minor-civ:allied'; majorCivId: string; minorCivId: string }
+  | { type: 'minor-civ:relationship-threshold'; majorCivId: string; minorCivId: string; newStatus: string }
+  | { type: 'minor-civ:guerrilla'; targetCivId: string; minorCivId: string }
+  | { type: 'minor-civ:quest-expired'; majorCivId: string; minorCivId: string };
+```
+
+Implement `getMinorCivNotification(state, viewerCivId, event): NotificationEntry | null` with these rules:
+- `quest-issued`, `quest-completed`, `allied`, `relationship-threshold`, and `quest-expired` are targeted at one major civ only; return `null` for other viewers.
+- `quest-issued`, `quest-completed`, `allied`, `relationship-threshold`, and `quest-expired` require the city-state to be discovered by the targeted viewer.
+- `quest-issued` must call `getQuestIssuedMessageForPlayer(...)` so undiscovered foreign city targets stay generic.
+- `evolved` and `destroyed` always produce a message, but their names are viewer-aware through `formatMinorCivEventMessageForPlayer(...)`.
+- `guerrilla` only targets `targetCivId`, but still returns a generic warning if the city-state is undiscovered.
+
+- [ ] **Step 4: Move `main.ts` bus handlers to the helper**
+
+Replace the inline message construction in `src/main.ts` for:
+- `minor-civ:quest-issued`
+- `minor-civ:quest-completed`
+- `minor-civ:evolved`
+- `minor-civ:destroyed`
+- `minor-civ:allied`
+- `minor-civ:relationship-threshold`
+- `minor-civ:guerrilla`
+- `minor-civ:quest-expired`
+
+with calls to `getMinorCivNotification(...)`.
+
+Implementation shape:
+
+```ts
+const notification = getMinorCivNotification(gameState, data.majorCivId, {
+  type: 'minor-civ:quest-completed',
+  majorCivId: data.majorCivId,
+  minorCivId: data.minorCivId,
+  reward: data.reward,
+});
+if (gameState.hotSeat && gameState.pendingEvents && notification) {
+  collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-done', message: notification.message, turn: gameState.turn });
+}
+if (data.majorCivId === gameState.currentPlayer && notification) {
+  showNotification(notification.message, notification.type);
+}
+```
+
+For hot-seat loops like `evolved`/`destroyed`, call `getMinorCivNotification(...)` inside the loop for each viewer.
+
+- [ ] **Step 5: Audit the existing focused tests so they stay aligned**
+
+Confirm `tests/systems/minor-civ-presentation.test.ts` remains narrowly about naming/presentation, not full notification policy.
+
+Confirm `tests/ui/diplomacy-panel.test.ts` stays focused on panel rendering and continues to rely on the shared presentation helper instead of duplicating event-message policy.
+
+Do **not** duplicate the new notification assertions there; keep the event-policy coverage in `tests/ui/minor-civ-notifications.test.ts`.
+
+- [ ] **Step 6: Run focused verification**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/minor-civ-notifications.test.ts tests/systems/minor-civ-presentation.test.ts tests/ui/diplomacy-panel.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Run full regression and build**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add docs/superpowers/plans/2026-04-08-fix-now-april-8th.md src/ui/minor-civ-notifications.ts src/main.ts tests/ui/minor-civ-notifications.test.ts
+git commit -m "test(hotfix): cover minor civ notification flow"
+```
