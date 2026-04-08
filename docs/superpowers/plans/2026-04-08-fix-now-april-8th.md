@@ -1,20 +1,35 @@
-# Fix-Now-April-8th Implementation Plan
+# Fix-Now-April-8th Follow-Up Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix the April 8 gameplay blockers that leak hidden information, generate impossible quests, hide valid saves from players, allow nonsensical first-turn wars, and make horizontal wrap presentation disagree with movement rules.
+**Goal:** Finish the April 8 hotfix milestone by correcting the review regressions in PR `#67`: persistent first-contact memory, a real per-campaign autosave system with last-5 history, and complete horizontal-wrap rendering across the full visible scene.
 
-**Architecture:** Keep this milestone tightly scoped to correctness and UX repair, not redesign. Introduce one shared discovery/privacy helper layer, one synthesized autosave metadata path, one explicit AI early-war gate, and one shared horizontal-wrap helper path so the fixes land in stable seams instead of scattered special cases. Preserve the repository’s event-driven pattern, serializable state objects, and hot-seat rule that all player-facing logic must key off `state.currentPlayer`.
+**Architecture:** Treat this as a follow-up patch set on top of the existing hotfix branch, not a restart. Preserve the already-landed fixes, but replace the weak seams they exposed: add explicit civilization contact memory in game state, split civilization contact from city discovery, replace the singleton autosave path with real autosave entries keyed by `gameId`, and route every renderer layer that paints map coordinates through the same horizontal-wrap ghost enumeration helper.
 
-**Tech Stack:** TypeScript, Vitest, Canvas 2D, IndexedDB/localStorage persistence, GitHub issue triage
+**Tech Stack:** TypeScript, Vitest, Canvas 2D, IndexedDB/localStorage persistence, GitHub PR review workflow
+
+---
+
+## Current Branch Baseline
+
+This plan assumes work starts from branch `feature/fix-now-april-8th` at commit `338fd13`, which already contains:
+
+- `b89858b` discovery-based diplomacy masking
+- `ae49351` undiscovered city-state quest gating
+- `79272e1` quest target validation
+- `f8591e3` autosave list surfacing
+- `4e18d69` AI early-war sanity gates
+- `338fd13` wrap movement/fog/terrain consistency
+
+This follow-up plan replaces the parts of that implementation that were shown incorrect in review and extends the hotfix to satisfy the clarified product requirements from April 8.
 
 ---
 
 ## Milestone Contract
 
-**Milestone name:** `fix-now-april-8th`
+**PR being repaired:** `#67`
 
-**Issues fixed in this milestone**
+**Issues still targeted by this milestone**
 - `#47` Initial diplomacy still shows civilizations not met
 - `#49` Saved games do not appear in the list
 - `#50` Computer declared war after first turn
@@ -24,12 +39,19 @@
 - `#63` Cannot move onto wrapped desert-edge tiles
 - `#66` Quest generation produces invalid or unsupported requests
 
-**Issues explicitly out of scope**
-- `#48`, `#56`, `#59`, `#60`, `#61`, `#64`, `#65`
+**Additional review findings now explicitly in scope**
+- persistent first-contact memory for major civs
+- city discovery remaining separate from civilization contact
+- autosave deletion working on real autosave entries
+- per-game autosave history, retaining the last `5` autosaves by turn
+- user-supplied game title for new campaigns
+- full wrap rendering parity for cities, units, highlights, and minor-civ territory
 
-**Already resolved on `main`**
-- `#45`
-- `#46`
+**Out of scope**
+- broad campaign browser redesign
+- multi-column save management UI
+- new quest types beyond current hotfix needs
+- renderer/input refactors unrelated to wrap parity
 
 ---
 
@@ -37,218 +59,260 @@
 
 The milestone is complete only when all of the following are true:
 
-1. The diplomacy panel no longer leaks unmet major-civ names or undiscovered city-states, including in hot-seat.
-2. City-state quests cannot be issued, displayed, or expire for a player who has not discovered that city-state.
-3. Generated quests are grounded in real current-world targets. No unsupported `trade_route` quests appear, and combat/camp quests require actual nearby targets.
-4. The start-screen save list visibly includes a loadable autosave entry when one exists, without turning autosave into an invalid overwrite/delete target in save mode.
-5. AI civs cannot declare war on turn 1 unless a deliberately narrow “extreme hostility and direct contact” exception is satisfied, and aggressive AIs still become dangerous later.
-6. Wrapped maps render fog consistently at ghost edges, and wrapped edge-to-edge movement/pathfinding works on the same tiles the player can click.
-7. Every issue above has at least one regression test for the exact failure mode, and hot-seat-sensitive behavior uses `state.currentPlayer`.
+1. Meeting another major civ by unit sight, border sight, war, treaty, or breakaway-origin relationship persists as civilization knowledge even after those tiles are no longer visible.
+2. Civilization contact does not reveal foreign city names, city locations, or city-targeted quest data unless the specific city tile has been discovered.
+3. The diplomacy panel uses persistent contact memory, not transient visibility, for identity masking and AI contact checks.
+4. Autosaves are real save entries tied to `gameId` and `gameTitle`, not a singleton synthetic row.
+5. Each campaign keeps only the newest `5` autosaves by turn, and deleting an autosave removes the real stored entry instead of it reappearing on refresh.
+6. The start-screen list and `Continue` button both work with the new autosave model:
+   - `Continue` loads the newest autosave overall
+   - the save list shows titled campaigns and their autosave rows
+   - save mode still excludes autosaves from overwrite rows
+7. Horizontal wrapping is visually complete for terrain, fog, rivers, movement highlights, minor-civ territory, cities, and units.
+8. Edge-to-edge wrapped movement/pathfinding continues to work on the same tiles and overlays the player sees.
+9. Every changed rule has focused regression tests, and the full suite plus build pass.
+10. GitHub issues are commented with final behavior before merge, but are not closed until the PR actually merges.
 
 ---
 
 ## Root-Cause Summary
 
-| Issue(s) | Root cause | Fix shape |
+| Problem | Root cause on branch `338fd13` | Correct fix |
 | --- | --- | --- |
-| `#47`, `#57`, `#58` | No shared notion of “discovered/met”; UI and quest code read raw global state | Add shared discovery helpers and route panel/quest/notification decisions through them |
-| `#66` | Quest generator emits fallback or placeholder targets that are not backed by the live world | Validate target generation against actual nearby camps/units and disable unsupported quest types |
-| `#49` | Autosave exists on a separate code path from the save-slot list | Synthesize autosave metadata into the load list used by the start screen |
-| `#50` | AI war logic only looks at relationship and military advantage | Add early-turn/contact sanity gates while preserving post-grace aggression |
-| `#55`, `#63` | Terrain renderer supports horizontal ghost tiles, but fog and movement/pathing do not share the same wrap semantics | Add shared wrap helpers for ghost rendering and canonical wrapped neighbors/pathing |
+| First contact regresses | `hasMetCivilization(...)` recomputes contact from current visibility/explored tiles instead of stored encounter memory | Persist `knownCivilizations` in state and update it from actual contact events / visibility scans |
+| Contact reveals too much | Current discovery helper mixes “know civ exists” with “know a city” | Add separate `hasDiscoveredCity(...)` and keep city gating stricter than civ contact |
+| Autosave delete is fake | UI deletes `autosave` as if it were a manual slot while real data lives under separate autosave keys | Autosaves must become first-class saved entries with real metadata and a real delete path |
+| Autosave system is underspecified | Existing code stores only one autosave and synthesizes one row | Store real autosave entries keyed by `gameId`, retain last `5`, and label them with `gameTitle` |
+| Wrap rendering still looks broken | Ghost rendering stops at terrain/fog/rivers | Route every render layer with map coords through the same wrap helper |
 
 ---
 
 ## File Structure
 
-### New Files
-- Create: `src/systems/discovery-system.ts`
-  - Shared “has discovered / has met” helpers derived from existing visibility and live contact state.
-- Create: `tests/systems/discovery-system.test.ts`
-  - Unit coverage for major-civ contact and minor-civ discovery.
-- Create: `tests/ui/save-panel.test.ts`
-  - UI regression tests for autosave visibility and ordering.
-- Create: `tests/ui/helpers/save-panel-fixture.ts`
-  - Small DOM/storage test harness for the save panel.
-- Create: `tests/storage/save-manager.test.ts`
-  - Focused save-manager coverage for synthesized autosave metadata and list ordering.
-- Create: `src/renderer/wrap-rendering.ts`
-  - Shared helper that enumerates horizontal ghost coordinates for renderers.
-- Create: `tests/renderer/fog-renderer.test.ts`
-  - Focused canvas-free regression coverage for wrap ghost fog overlays.
-
-### Existing Files To Modify
-- Modify: `src/ui/diplomacy-panel.ts`
-- Modify: `src/ui/advisor-system.ts`
-- Modify: `src/main.ts`
-- Modify: `src/systems/minor-civ-system.ts`
-- Modify: `src/systems/quest-system.ts`
-- Modify: `src/storage/save-manager.ts`
-- Modify: `src/ui/save-panel.ts`
+### Existing Production Files To Modify
 - Modify: `src/core/types.ts`
-- Modify: `src/ai/ai-diplomacy.ts`
-- Modify: `src/ai/ai-personality.ts`
-- Modify: `src/ai/basic-ai.ts`
-- Modify: `src/renderer/fog-renderer.ts`
+  - add `knownCivilizations` to `Civilization`
+  - add `gameId` and `gameTitle` to `GameState`
+  - add `gameId` and `gameTitle` to `SaveSlotMeta`
+- Modify: `src/core/game-state.ts`
+  - initialize `knownCivilizations`, `gameId`, `gameTitle`
+  - require title input in new game creation entry points
+- Modify: `src/core/turn-manager.ts`
+  - update persistent contact memory after visibility refresh for every civ
+- Modify: `src/main.ts`
+  - thread title from new-game flow
+  - keep `Continue` bound to newest autosave overall
+  - migrate legacy saves to new state shape
+  - mirror highlight rendering through wrap helper
+- Modify: `src/systems/discovery-system.ts`
+  - replace transient-only met logic with persistent contact helpers
+  - add city discovery helper
+- Modify: `src/systems/minor-civ-system.ts`
+  - keep city-state quest gating based on city discovery, not mere civ contact
+- Modify: `src/systems/quest-system.ts`
+  - add a guard/helper for any city-targeted quest description or generation path
+- Modify: `src/storage/save-manager.ts`
+  - replace singleton autosave model with per-game autosave entries
+  - add last-5 retention by `gameId`
+  - add newest-autosave lookup
+  - add real autosave delete path
+- Modify: `src/ui/save-panel.ts`
+  - show titled autosave rows
+  - delete real autosave entries
+  - keep autosaves out of save-mode overwrite rows
+- Modify: `src/ui/hotseat-setup.ts`
+  - accept and carry a game title through the hot-seat setup flow
+- Modify: `src/renderer/wrap-rendering.ts`
+  - become the shared ghost-coordinate source for all render layers
 - Modify: `src/renderer/hex-renderer.ts`
-- Modify: `src/systems/hex-utils.ts`
-- Modify: `src/systems/unit-system.ts`
+  - mirror minor-civ territory through wrap helper
+- Modify: `src/renderer/city-renderer.ts`
+  - mirror cities through wrap helper
+- Modify: `src/renderer/unit-renderer.ts`
+  - mirror units through wrap helper
+- Modify: `src/renderer/render-loop.ts`
+  - mirror movement highlights through wrap helper
 
 ### Existing Tests To Modify
+- Modify: `tests/systems/discovery-system.test.ts`
 - Modify: `tests/ui/diplomacy-panel.test.ts`
+- Modify: `tests/ai/basic-ai.test.ts`
 - Modify: `tests/systems/minor-civ-system.test.ts`
 - Modify: `tests/systems/quest-system.test.ts`
+- Modify: `tests/storage/save-manager.test.ts`
 - Modify: `tests/storage/save-persistence.test.ts`
-- Modify: `tests/ai/ai-diplomacy.test.ts`
-- Modify: `tests/ai/ai-personality.test.ts`
-- Modify: `tests/ai/basic-ai.test.ts`
-- Modify: `tests/ui/fog-leak.test.ts`
-- Modify: `tests/systems/hex-utils.test.ts`
-- Modify: `tests/systems/unit-system.test.ts`
+- Modify: `tests/ui/save-panel.test.ts`
+- Modify: `tests/renderer/city-renderer.test.ts`
+
+### New Tests To Create
+- Create: `tests/renderer/unit-renderer.test.ts`
+- Create: `tests/renderer/render-loop-wrap.test.ts`
 
 ---
 
 ## Design Decisions Locked In
 
-### Discovery / Privacy Model
+### Contact And Discovery
 
-- Do **not** add a brand-new persistent diplomacy-contact save structure for this hotfix milestone.
-- Major-civ “met” state is derived from legitimate in-world evidence:
-  - the viewer has ever explored one of the target civ’s city/owned tiles, or
-  - the viewer can currently see one of the target civ’s units, or
-  - the viewer is already in a real treaty/war relationship with that civ.
-- Minor-civ discovery is derived from whether the viewer has explored the city-state’s city tile.
-- Unknown major civs remain present in diplomacy as masked placeholders (`Unknown Civilization N`) so the player can see there are rivals without learning who they are.
-- Undiscovered minor civs are omitted entirely from player-facing diplomacy and quest messaging.
+- Add `knownCivilizations: string[]` to each civilization and persist it in saves.
+- A civ becomes known when any of these happen:
+  - one of its units is visible
+  - one of its owned tiles or city tiles is visible or fogged
+  - the two civs are at war
+  - the two civs have any treaty
+  - the civ is a breakaway whose origin owner is the viewer, or vice versa
+- Once known, the civ stays known.
+- Knowing a civilization exists does **not** reveal its cities.
+- Add `hasDiscoveredCity(state, viewerCivId, cityId)` and use it anywhere the UI or quest text wants to name a specific city.
+- City-state discovery remains city-tile based.
 
-### Quest Validity
+### Autosave System
 
-- `trade_route` stays in the type union for backward compatibility, but quest generation must stop emitting it until a real player trade-route gameplay loop exists.
-- Quest generation becomes “skip invalid targets, do not fallback to a nonsense target”.
-- If no supported valid quest exists for the current minor civ and player, no quest is issued that turn.
-- “Nearby” is anchored on the minor civ’s city position, not `{ q: 0, r: 0 }`.
+- Add `gameId` and `gameTitle` to every game state.
+- New solo and hot-seat campaigns require a user-supplied title before the game starts.
+- Autosaves are stored as real save entries, not a special synthesized row.
+- Autosave entry IDs use a stable per-campaign key, e.g. `autosave:<gameId>:<turn>`.
+- `SaveSlotMeta.name` remains the row label (`Autosave Turn 24`, `Manual Save`, etc.).
+- `SaveSlotMeta.gameTitle` is the campaign label shown in the save list.
+- Keep only the newest `5` autosaves per `gameId`, based on turn and then timestamp.
+- `Continue` loads the newest autosave overall.
+- Keep a single localStorage fallback only for the newest autosave overall, not all `5`, to avoid bloating localStorage.
+- Legacy singleton autosave support stays as a migration path until the old key is no longer present.
 
-### Autosave UX
+### Wrap Rendering
 
-- Autosave becomes a first-class entry in the **start-mode load list**.
-- Autosave does **not** become an overwrite/delete row in save mode.
-- Keep the existing `Continue` button for fast resume, but the “Saved Games” list must also visibly contain the autosave row so the player does not think no saves exist.
-
-### AI War Gate
-
-- The AI may not declare opportunistic war in the opening turns based solely on raw strength.
-- The gate must consider:
-  - current turn
-  - whether the target is actually met/known
-  - whether there is border/direct contact pressure
-  - relationship level
-- Aggressive personalities must still be able to declare war later; this is a gate, not a pacification rewrite.
-
-### Wrap Consistency
-
-- Canonical map state remains stored at wrapped coordinates inside map bounds.
-- Renderers may draw ghost copies at `q +/- map.width`, but fog overlays must use the same ghost-coordinate enumeration.
-- Movement/pathfinding must use wrapped neighbor generation and wrapped distance heuristics when `map.wrapsHorizontally` is true.
+- The canonical map state remains wrapped into in-bounds `q` coordinates.
+- Every visual layer that paints world coordinates must be able to mirror at `q +/- map.width` when near an edge.
+- This includes:
+  - terrain and tile contents
+  - fog
+  - rivers
+  - movement highlights
+  - minor-civ territory outlines
+  - cities
+  - units
+- Input stays canonical and continues to wrap through `wrapHexCoord(...)` in `main.ts`; this task is render parity, not input redesign.
 
 ---
 
-## Task 1: Add Shared Discovery Helpers And Use Them In Diplomacy Privacy
-
-**Issues:** `#47`, `#57`, `#58`
+## Task 1: Persist Major-Civ Contact Memory And Split It From City Discovery
 
 **Files:**
-- Create: `src/systems/discovery-system.ts`
-- Create: `tests/systems/discovery-system.test.ts`
-- Modify: `src/ui/diplomacy-panel.ts`
-- Modify: `src/ui/advisor-system.ts`
+- Modify: `src/core/types.ts`
+- Modify: `src/core/game-state.ts`
+- Modify: `src/core/turn-manager.ts`
+- Modify: `src/systems/discovery-system.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/systems/discovery-system.test.ts`
 - Modify: `tests/ui/diplomacy-panel.test.ts`
+- Modify: `tests/ai/basic-ai.test.ts`
 
-- [ ] **Step 1: Write the failing discovery helper tests**
+- [ ] **Step 1: Add red tests for persistent contact and separate city discovery**
 
-Add `tests/systems/discovery-system.test.ts` with cases for:
+Add or extend `tests/systems/discovery-system.test.ts` with these behaviors:
 
 ```ts
-it('treats a civ as met after one of its city tiles has been explored', () => {
+it('keeps a civilization known after first visible unit contact even after visibility is lost', () => {
   expect(hasMetCivilization(state, 'player', 'ai-1')).toBe(true);
 });
 
-it('does not treat an unseen rival as met when relationship data exists but no contact exists', () => {
-  expect(hasMetCivilization(state, 'player', 'ai-1')).toBe(false);
+it('does not treat city discovery as implied by civilization contact', () => {
+  expect(hasDiscoveredCity(state, 'player', romeCityId)).toBe(false);
 });
 
-it('treats a minor civ as discovered only after its city tile is visible or fogged', () => {
-  expect(hasDiscoveredMinorCiv(state, 'player', 'mc-sparta')).toBe(false);
+it('treaties and wars count as persistent contact even without current visibility', () => {
+  expect(hasMetCivilization(state, 'player', 'ai-1')).toBe(true);
 });
 ```
 
-- [ ] **Step 2: Run the new discovery tests and confirm failure**
+Extend `tests/ui/diplomacy-panel.test.ts` with:
+
+```ts
+it('keeps a known rival named in diplomacy after scouts lose sight of them', () => {
+  expect(rendered).toContain('Rome');
+});
+
+it('uses state.currentPlayer contact memory in hot-seat instead of leaking another players contacts', () => {
+  expect(rendered).not.toContain('Known only to the other human');
+});
+```
+
+Extend `tests/ai/basic-ai.test.ts` with:
+
+```ts
+it('still considers a civ met for diplomacy after first contact has been recorded', () => {
+  expect(decisionContext['ai-1'].hasMet).toBe(true);
+});
+```
+
+- [ ] **Step 2: Run the focused contact tests and confirm failure**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/discovery-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts tests/ai/basic-ai.test.ts
 ```
 
-Expected: FAIL because the helper module does not exist yet.
+Expected: FAIL because contact is currently recomputed from transient visibility and no city discovery helper exists.
 
-- [ ] **Step 3: Implement the shared discovery helper module**
+- [ ] **Step 3: Add the persistent state fields**
 
-Create `src/systems/discovery-system.ts` with small focused helpers:
+Update `src/core/types.ts`:
 
 ```ts
-export function hasExploredCoord(state: GameState, viewerCivId: string, coord: HexCoord): boolean;
-export function hasDiscoveredMinorCiv(state: GameState, viewerCivId: string, minorCivId: string): boolean;
+export interface Civilization {
+  // existing fields...
+  knownCivilizations: string[];
+}
+
+export interface GameState {
+  // existing fields...
+  gameId: string;
+  gameTitle: string;
+}
+```
+
+Initialize `knownCivilizations: []` in `src/core/game-state.ts` for every civ.
+
+- [ ] **Step 4: Implement persistent contact helpers**
+
+In `src/systems/discovery-system.ts`, define and use these seams:
+
+```ts
+export function recordCivilizationContact(state: GameState, civA: string, civB: string): void;
+export function refreshKnownCivilizations(state: GameState, civId: string): void;
 export function hasMetCivilization(state: GameState, viewerCivId: string, targetCivId: string): boolean;
+export function hasDiscoveredCity(state: GameState, viewerCivId: string, cityId: string): boolean;
 ```
 
 Rules:
-- use `visible` or `fog` as explored
-- scan target cities / owned tiles / currently visible units
-- allow existing treaty or war state to count as contact
-- never hardcode `player`; always accept `viewerCivId`
+- `recordCivilizationContact(...)` updates both civs
+- `refreshKnownCivilizations(...)` scans current visibility plus war/treaty/breakaway-origin states
+- `hasMetCivilization(...)` first checks persistent memory, then any guaranteed relationship shortcuts
+- `hasDiscoveredCity(...)` only checks the city tile visibility history (`visible` or `fog`)
 
-- [ ] **Step 4: Add failing diplomacy-panel tests for unmet majors and undiscovered minor civs**
+- [ ] **Step 5: Call the contact refresh from real gameplay flow**
 
-Extend `tests/ui/diplomacy-panel.test.ts` with cases like:
-
-```ts
-it('renders unmet major civs as Unknown Civilization placeholders', () => {
-  expect(rendered).toContain('Unknown Civilization 1');
-  expect(rendered).not.toContain('Rome');
-});
-
-it('omits undiscovered city-states from the panel', () => {
-  expect(rendered).not.toContain('Sparta');
-});
-```
-
-- [ ] **Step 5: Update the diplomacy panel to use the shared helper**
-
-In `src/ui/diplomacy-panel.ts`:
-- import the shared helper
-- mask unmet major names and bonus text
-- keep relationship/treaty actions hidden for unknown rivals except the placeholder row shell
-- skip undiscovered minor civ rows entirely
-- preserve the existing breakaway row behavior for a breakaway the player already knows
-
-Use placeholder copy shaped like:
+After every civ visibility refresh in `src/core/turn-manager.ts`, call:
 
 ```ts
-const displayName = hasMetCivilization(state, state.currentPlayer, civId)
-  ? civ.name
-  : `Unknown Civilization ${unknownIndex}`;
+refreshKnownCivilizations(newState, civId);
 ```
 
-- [ ] **Step 6: Replace the local advisor minor-civ discovery logic with the shared helper**
+Also call it during initial game setup / migration in `src/main.ts` so loaded legacy saves gain a valid `knownCivilizations` baseline.
 
-Update `src/ui/advisor-system.ts` so its local `isMinorCivDiscovered` check is removed and replaced by the shared helper. This prevents discovery logic from diverging across systems.
+- [ ] **Step 6: Rewire UI and AI to the corrected semantics**
 
-- [ ] **Step 7: Re-run focused discovery and diplomacy tests**
+- `src/ui/diplomacy-panel.ts` should use `hasMetCivilization(...)` for civilization identity
+- it must not assume `hasMetCivilization(...)` means any city is known
+- `src/ai/basic-ai.ts` keeps using `hasMetCivilization(...)`, but now that helper is persistent
+
+- [ ] **Step 7: Re-run focused tests**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts tests/ai/basic-ai.test.ts
 ```
 
 Expected: PASS.
@@ -256,70 +320,70 @@ Expected: PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/systems/discovery-system.ts src/ui/diplomacy-panel.ts src/ui/advisor-system.ts tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts
-git commit -m "fix(hotfix): gate diplomacy by discovery state"
+git add src/core/types.ts src/core/game-state.ts src/core/turn-manager.ts src/systems/discovery-system.ts src/main.ts src/ui/diplomacy-panel.ts src/ai/basic-ai.ts tests/systems/discovery-system.test.ts tests/ui/diplomacy-panel.test.ts tests/ai/basic-ai.test.ts
+git commit -m "fix(hotfix): persist major civ contact"
 ```
 
 ---
 
-## Task 2: Gate Minor-Civ Quest Issuance And Notifications By Discovery
-
-**Issues:** `#57`, partial support for `#58`
+## Task 2: Keep Quest And City-State Gating Based On City Discovery, Not Mere Contact
 
 **Files:**
 - Modify: `src/systems/minor-civ-system.ts`
-- Modify: `src/main.ts`
+- Modify: `src/systems/quest-system.ts`
 - Modify: `tests/systems/minor-civ-system.test.ts`
+- Modify: `tests/systems/quest-system.test.ts`
 
-- [ ] **Step 1: Add failing minor-civ tests for undiscovered quest issuance**
+- [ ] **Step 1: Add red tests for city-discovery-sensitive quest behavior**
 
-Add tests such as:
+Add tests like:
 
 ```ts
-it('does not issue a quest to a player who has not discovered the minor civ', () => {
+it('does not issue a city-state quest when the city-state city has not been discovered even if its civilization is known', () => {
   expect(mc.activeQuests.player).toBeUndefined();
 });
 
-it('issues a quest after the player has discovered the city-state', () => {
-  expect(mc.activeQuests.player).toBeDefined();
+it('does not format or emit a city-targeted quest against an undiscovered foreign city', () => {
+  expect(isQuestTargetKnownToPlayer(state, 'player', quest)).toBe(false);
 });
 ```
 
-- [ ] **Step 2: Run the minor-civ regression tests and confirm failure**
+If `quest-system.ts` has no generic target-knowledge helper yet, add one as part of this task so the rule is explicit instead of implicit.
+
+- [ ] **Step 2: Run the focused quest tests and confirm failure**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-system.test.ts tests/systems/quest-system.test.ts
 ```
 
-Expected: FAIL on the new undiscovered-quest assertions.
+Expected: FAIL on the new “known civ but unknown city” cases.
 
-- [ ] **Step 3: Change quest issuance to skip undiscovered players entirely**
+- [ ] **Step 3: Add a quest-target knowledge guard**
 
-In `src/systems/minor-civ-system.ts`, before generating or expiring quests for a civ:
+In `src/systems/quest-system.ts`, add:
 
 ```ts
-if (!hasDiscoveredMinorCiv(state, civId, mc.id)) {
-  continue;
-}
+export function isQuestTargetKnownToPlayer(state: GameState, playerId: string, quest: Quest): boolean;
 ```
 
-Important:
-- do not create hidden background quests that can expire unseen
-- do not penalize undiscovered players for unseen quest expiry
-- leave already-existing discovered-player quest behavior unchanged
+Rules:
+- `gift_gold` is always known if the city-state itself is discovered
+- `destroy_camp` requires the camp target to exist and be near the minor civ city
+- `defeat_units` requires real nearby units and must not mention an undiscovered foreign city
+- any current or future quest variant that carries `cityId` must call `hasDiscoveredCity(...)`
 
-- [ ] **Step 4: Harden player-facing notifications against discovery leaks**
+- [ ] **Step 4: Keep city-state quest issuance gated by city discovery**
 
-Update the `minor-civ:*` event handlers in `src/main.ts` so they only show/collect quest-related notifications when the target player has discovered the relevant minor civ. This is a second-line guard against future leakage even if an emitter regresses later.
+In `src/systems/minor-civ-system.ts`, keep quest issuance, expiry, and player-targeted display logic tied to `hasDiscoveredMinorCiv(...)`, not `hasMetCivilization(...)`.
 
-- [ ] **Step 5: Re-run focused minor-civ tests**
+- [ ] **Step 5: Re-run the focused quest tests**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-system.test.ts tests/systems/quest-system.test.ts
 ```
 
 Expected: PASS.
@@ -327,188 +391,107 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/systems/minor-civ-system.ts src/main.ts tests/systems/minor-civ-system.test.ts
-git commit -m "fix(hotfix): prevent undiscovered city-state quest leaks"
+git add src/systems/minor-civ-system.ts src/systems/quest-system.ts tests/systems/minor-civ-system.test.ts tests/systems/quest-system.test.ts
+git commit -m "fix(hotfix): keep quest city gating strict"
 ```
 
 ---
 
-## Task 3: Rebuild Quest Targeting So It Only Emits Supported Real-World Quests
-
-**Issues:** `#57`, `#66`
+## Task 3: Replace Singleton Autosave With Real Per-Game Autosave History
 
 **Files:**
-- Modify: `src/systems/quest-system.ts`
-- Modify: `src/systems/minor-civ-system.ts`
-- Modify: `tests/systems/quest-system.test.ts`
-- Modify: `tests/systems/minor-civ-system.test.ts`
-
-- [ ] **Step 1: Add failing quest-generation tests for invalid targets**
-
-Extend `tests/systems/quest-system.test.ts` with:
-
-```ts
-it('does not emit trade_route quests while the trade-route gameplay loop is unsupported', () => {
-  expect(quest?.type).not.toBe('trade_route');
-});
-
-it('returns null when no nearby hostile units exist for a defeat_units quest', () => {
-  expect(buildQuestTarget('defeat_units', minorCivId, state)).toBeNull();
-});
-
-it('only targets barbarian camps within radius of the issuing city-state', () => {
-  expect((quest!.target as any).campId).toBe('camp-nearby');
-});
-```
-
-- [ ] **Step 2: Run the quest tests and confirm failure**
-
-Run:
-
-```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/quest-system.test.ts tests/systems/minor-civ-system.test.ts
-```
-
-Expected: FAIL because `trade_route` and placeholder coordinates are still possible.
-
-- [ ] **Step 3: Expand quest target generation to use live game state**
-
-Update `generateQuest(...)` and its helper input so target building has enough context:
-
-```ts
-type QuestGenerationState = Pick<GameState, 'barbarianCamps' | 'era' | 'cities' | 'minorCivs' | 'units' | 'civilizations' | 'map'>;
-```
-
-Inside `quest-system.ts`:
-- locate the minor civ city position from `minorCivId`
-- only emit `destroy_camp` when a real camp exists within the configured radius
-- only emit `defeat_units` when real hostile units exist near that city
-- remove `trade_route` from active generation weights for now by setting its runtime weight to `0`
-- if no valid quest type has a real target, return `null`
-
-- [ ] **Step 4: Make quest descriptions reflect the validated target**
-
-Update descriptions so they remain truthful after validation, for example:
-
-```ts
-'Destroy a nearby barbarian camp'
-'Defeat 2 enemy units near our territory'
-```
-
-Do not add fake coordinates or unsupported route wording.
-
-- [ ] **Step 5: Re-run focused quest tests**
-
-Run:
-
-```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/quest-system.test.ts tests/systems/minor-civ-system.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/systems/quest-system.ts src/systems/minor-civ-system.ts tests/systems/quest-system.test.ts tests/systems/minor-civ-system.test.ts
-git commit -m "fix(hotfix): validate city-state quest targets"
-```
-
----
-
-## Task 4: Surface Autosave As A Real Load Entry Without Polluting Save Mode
-
-**Issue:** `#49`
-
-**Files:**
-- Create: `tests/ui/helpers/save-panel-fixture.ts`
-- Create: `tests/ui/save-panel.test.ts`
-- Create: `tests/storage/save-manager.test.ts`
 - Modify: `src/core/types.ts`
+- Modify: `src/core/game-state.ts`
 - Modify: `src/storage/save-manager.ts`
-- Modify: `src/ui/save-panel.ts`
-- Modify: `tests/storage/save-persistence.test.ts`
+- Modify: `tests/storage/save-manager.test.ts`
 
-- [ ] **Step 1: Add failing save-manager and save-panel tests**
+- [ ] **Step 1: Add red tests for autosave history semantics**
 
-Create `tests/ui/save-panel.test.ts` and `tests/storage/save-manager.test.ts` with cases:
+Extend `tests/storage/save-manager.test.ts` with:
 
 ```ts
-it('lists autosave as the first loadable saved-game entry in start mode', async () => {
-  expect(rendered).toContain('Autosave');
+it('keeps only the latest five autosaves for one game id', async () => {
+  expect(autosavesForGame.map(s => s.turn)).toEqual([12, 11, 10, 9, 8]);
 });
 
-it('does not show autosave as an overwrite/delete row in save mode', async () => {
-  expect(rendered).not.toContain('Overwrite Autosave');
+it('retains autosaves separately per game id', async () => {
+  expect(gameA.every(s => s.gameId === 'game-a')).toBe(true);
+  expect(gameB.every(s => s.gameId === 'game-b')).toBe(true);
 });
 
-it('keeps backup and import actions below the load list', async () => {
-  expect(exportIndex).toBeGreaterThan(savedGamesIndex);
+it('deletes a single autosave entry by id without leaving it in the list', async () => {
+  expect(saves.find(s => s.id === deletedId)).toBeUndefined();
+});
+
+it('loads the newest autosave overall for continue', async () => {
+  expect(save?.turn).toBe(42);
 });
 ```
 
-Also add a persistence-level test to confirm autosave metadata can be synthesized from the stored autosave state.
-
-- [ ] **Step 2: Run the new save tests and confirm failure**
+- [ ] **Step 2: Run the autosave manager tests and confirm failure**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts tests/ui/save-panel.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts
 ```
 
-Expected: FAIL because autosave is not part of the list contract yet.
+Expected: FAIL because the current code still uses one autosave key.
 
-- [ ] **Step 3: Extend the save metadata contract to distinguish autosave**
+- [ ] **Step 3: Expand save metadata and state shape**
 
-Modify `src/core/types.ts`:
+In `src/core/types.ts`, add:
 
 ```ts
 export interface SaveSlotMeta {
-  id: string;
-  name: string;
-  civType: string;
-  turn: number;
-  lastPlayed: string;
-  kind?: 'manual' | 'autosave';
-  gameMode?: GameMode;
-  playerCount?: number;
-  playerNames?: string[];
+  // existing fields...
+  gameId: string;
+  gameTitle: string;
 }
 ```
 
-This is a minimal type extension, not a persistence rewrite.
-
-- [ ] **Step 4: Synthesize autosave metadata in the save manager**
-
-In `src/storage/save-manager.ts`:
-- add a small helper like `getAutoSaveMeta()`
-- modify `listSaves()` to accept an option shape:
+In `src/core/game-state.ts`, ensure every new game gets:
 
 ```ts
-export async function listSaves(options?: { includeAutoSave?: boolean }): Promise<SaveSlotMeta[]>
+gameId: `game-${Date.now()}`,
+gameTitle: userSuppliedTitle,
 ```
 
-Rules:
-- when `includeAutoSave` is true and autosave exists, prepend a synthesized row with `kind: 'autosave'`
-- do not persist a separate autosave metadata record
-- preserve existing manual-slot sort order after the autosave row
+- [ ] **Step 4: Rewrite autosave storage around real entries**
 
-- [ ] **Step 5: Update the save panel UI and actions**
+In `src/storage/save-manager.ts`, replace the singleton path with functions shaped like:
 
-In `src/ui/save-panel.ts`:
-- call `listSaves({ includeAutoSave: mode === 'start' })`
-- render autosave with a clear label, for example `Autosave`
-- keep `Continue` as a shortcut if desired, but the list itself must visibly include the autosave row
-- in save mode, filter out `kind === 'autosave'` rows from overwrite/delete controls
-- visually demote backup/import below the list, not alongside the primary load surface
+```ts
+export async function autoSave(state: GameState): Promise<void>;
+export async function loadMostRecentAutoSave(): Promise<GameState | undefined>;
+export async function listSaves(options?: { includeAutoSaves?: boolean }): Promise<SaveSlotMeta[]>;
+export async function deleteSaveEntry(entryId: string, kind: 'manual' | 'autosave'): Promise<void>;
+```
 
-- [ ] **Step 6: Re-run focused save tests**
+Implementation rules:
+- autosave IDs use `autosave:${state.gameId}:${state.turn}`
+- autosave meta uses `name: Autosave Turn ${state.turn}`
+- after writing an autosave, prune older autosaves for the same `gameId` down to the latest `5`
+- keep a single localStorage backup for the newest autosave overall
+- preserve manual saves as separate slot entries
+
+- [ ] **Step 5: Handle legacy data explicitly**
+
+Add a migration helper in `save-manager.ts` or `main.ts` that:
+- still loads the old singleton `AUTO_SAVE_KEY` if present
+- wraps it with generated `gameId` / fallback `gameTitle`
+- writes it into the new autosave model the first time it is loaded or surfaced
+
+Fallback title rules:
+- manual save with existing slot name: use that slot name
+- loaded legacy autosave without a title: use `Recovered ${civType} Campaign`
+
+- [ ] **Step 6: Re-run save-manager tests**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts tests/ui/save-panel.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 Expected: PASS.
@@ -516,88 +499,81 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/core/types.ts src/storage/save-manager.ts src/ui/save-panel.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts tests/ui/helpers/save-panel-fixture.ts tests/ui/save-panel.test.ts
-git commit -m "fix(hotfix): surface autosave in save list"
+git add src/core/types.ts src/core/game-state.ts src/storage/save-manager.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+git commit -m "fix(hotfix): add per-game autosave history"
 ```
 
 ---
 
-## Task 5: Add AI Early-War Sanity Gates Without Flattening Aggressive Personalities
-
-**Issue:** `#50`
+## Task 4: Capture User-Supplied Game Titles And Fix Save Panel Autosave UX
 
 **Files:**
-- Modify: `src/ai/ai-diplomacy.ts`
-- Modify: `src/ai/ai-personality.ts`
-- Modify: `src/ai/basic-ai.ts`
-- Modify: `tests/ai/ai-diplomacy.test.ts`
-- Modify: `tests/ai/ai-personality.test.ts`
-- Modify: `tests/ai/basic-ai.test.ts`
+- Modify: `src/main.ts`
+- Modify: `src/ui/hotseat-setup.ts`
+- Modify: `src/ui/save-panel.ts`
+- Modify: `tests/ui/save-panel.test.ts`
 
-- [ ] **Step 1: Add failing AI unit and integration tests**
+- [ ] **Step 1: Add red UI tests for titles, continue, and autosave deletion**
 
-Add/extend tests such as:
+Extend `tests/ui/save-panel.test.ts` with:
 
 ```ts
-it('does not declare war on turn 1 against an unmet or low-pressure rival', () => {
-  expect(decisions.find(d => d.action === 'declare_war')).toBeUndefined();
+it('renders the game title on autosave rows', async () => {
+  expect(rendered).toContain('Rise of Egypt');
 });
 
-it('aggressive civ can still declare war after the grace period when hostile and stronger', () => {
-  expect(shouldDeclareWar(aggressive, -60, 1.6, 12, true, true)).toBe(true);
+it('routes autosave row deletion through the autosave delete path', async () => {
+  expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('autosave:game-1:12', 'autosave');
 });
 
-it('basic AI leaves diplomacy peaceful on the opening turn in the default start state', () => {
-  expect(result.civilizations['ai-1'].diplomacy.atWarWith).toHaveLength(0);
+it('keeps autosaves out of save mode overwrite rows', async () => {
+  expect(rendered).not.toContain('Overwrite');
 });
 ```
 
-- [ ] **Step 2: Run the AI tests and confirm failure**
+- [ ] **Step 2: Run the save panel tests and confirm failure**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/ai/ai-personality.test.ts tests/ai/ai-diplomacy.test.ts tests/ai/basic-ai.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/ui/save-panel.test.ts
 ```
 
-Expected: FAIL on the new early-war assertions.
+Expected: FAIL because titles and autosave delete routing do not exist yet.
 
-- [ ] **Step 3: Expand the war-declaration heuristic signature**
+- [ ] **Step 3: Add title capture to the new-game flow**
 
-Change `shouldDeclareWar(...)` in `src/ai/ai-personality.ts` to accept:
+Update `src/main.ts` and `src/ui/hotseat-setup.ts` so:
+- the “New Game” flow prompts for a non-empty title before campaign creation
+- solo creation calls `createNewGame(civId, seed, mapSize, gameTitle)`
+- hot-seat completion calls `createHotSeatGame(config, seed, gameTitle)`
+
+For this hotfix, keep the UX lightweight:
+- title input on the “New Game” mode screen
+- default suggestion allowed (`${selected civ or mode} Campaign`) but editable
+- empty submission is not allowed
+
+- [ ] **Step 4: Update save panel rendering and delete routing**
+
+In `src/ui/save-panel.ts`:
+- replace `deleteGame(save.id)` with `deleteSaveEntry(save.id, save.kind ?? 'manual')`
+- show `save.gameTitle` on every autosave row
+- keep `Continue` bound to `loadMostRecentAutoSave()`
+- keep start-mode rows flat and chronological; do not add grouping in this hotfix
+
+Row copy should follow this shape:
 
 ```ts
-shouldDeclareWar(
-  personality,
-  relationship,
-  militaryAdvantage,
-  currentTurn,
-  hasMetTarget,
-  hasBorderPressure,
-)
+${save.gameTitle} · ${save.name}
+Turn ${save.turn} · ${save.gameMode === 'hotseat' ? 'Hot Seat' : save.civType}
 ```
 
-Rules:
-- immediately return `false` if `hasMetTarget` is `false`
-- before the grace turn, require an extreme exception path only if hostility is severe and border pressure is present
-- after the grace turn, allow aggressive personalities to resume normal hostile behavior
-
-- [ ] **Step 4: Thread the extra context through AI decision evaluation**
-
-In `src/ai/ai-diplomacy.ts`, extend `evaluateDiplomacy(...)` to receive `currentTurn` and `pressureByCiv`.
-
-In `src/ai/basic-ai.ts`, compute `pressureByCiv` for each target using:
-- shared discovery/contact state
-- current border or visible military pressure near the rival
-
-Then pass the richer context to `evaluateDiplomacy(...)`.
-
-- [ ] **Step 5: Re-run focused AI tests**
+- [ ] **Step 5: Re-run save panel and save-manager tests**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/ai/ai-personality.test.ts tests/ai/ai-diplomacy.test.ts tests/ai/basic-ai.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-manager.test.ts tests/ui/save-panel.test.ts
 ```
 
 Expected: PASS.
@@ -605,105 +581,117 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/ai/ai-diplomacy.ts src/ai/ai-personality.ts src/ai/basic-ai.ts tests/ai/ai-diplomacy.test.ts tests/ai/ai-personality.test.ts tests/ai/basic-ai.test.ts
-git commit -m "fix(hotfix): add ai early-war sanity gates"
+git add src/main.ts src/ui/hotseat-setup.ts src/ui/save-panel.ts tests/ui/save-panel.test.ts tests/storage/save-manager.test.ts
+git commit -m "fix(hotfix): title campaigns and delete autosaves correctly"
 ```
 
 ---
 
-## Task 6: Unify Horizontal Wrap Rendering And Movement Rules
-
-**Issues:** `#55`, `#63`
+## Task 5: Complete Horizontal-Wrap Rendering For The Full Scene
 
 **Files:**
-- Create: `src/renderer/wrap-rendering.ts`
-- Create: `tests/renderer/fog-renderer.test.ts`
-- Modify: `src/renderer/fog-renderer.ts`
+- Modify: `src/renderer/wrap-rendering.ts`
 - Modify: `src/renderer/hex-renderer.ts`
-- Modify: `src/systems/hex-utils.ts`
-- Modify: `src/systems/unit-system.ts`
-- Modify: `tests/ui/fog-leak.test.ts`
-- Modify: `tests/systems/hex-utils.test.ts`
-- Modify: `tests/systems/unit-system.test.ts`
+- Modify: `src/renderer/city-renderer.ts`
+- Modify: `src/renderer/unit-renderer.ts`
+- Modify: `src/renderer/render-loop.ts`
+- Modify: `tests/renderer/city-renderer.test.ts`
+- Create: `tests/renderer/unit-renderer.test.ts`
+- Create: `tests/renderer/render-loop-wrap.test.ts`
 
-- [ ] **Step 1: Add failing wrap helper, fog, and movement tests**
+- [ ] **Step 1: Add red tests for the missing mirrored layers**
 
-Add tests such as:
+Extend `tests/renderer/city-renderer.test.ts` with:
 
 ```ts
-it('returns wrapped neighbors across the left/right boundary when the map wraps', () => {
-  expect(getWrappedHexNeighbors({ q: 0, r: 5 }, 30, true)).toContainEqual({ q: 29, r: 5 });
-});
-
-it('draws fog overlays for ghost wrap tiles using the same source visibility as the base tile', () => {
-  expect(drawCalls).toContain('ghost-right-edge');
-});
-
-it('finds a path across a wrapped horizontal edge', () => {
-  expect(path).toEqual([{ q: 29, r: 5 }, { q: 0, r: 5 }]);
+it('renders a wrapped ghost copy of a city near the horizontal seam', () => {
+  expect(ctx.fillTextCalls.filter(call => call.text.includes(city.name)).length).toBeGreaterThan(1);
 });
 ```
 
-- [ ] **Step 2: Run the wrap-related tests and confirm failure**
+Create `tests/renderer/unit-renderer.test.ts` with:
+
+```ts
+it('renders a wrapped ghost copy of a visible unit near the horizontal seam', () => {
+  expect(iconCalls.length).toBe(2);
+});
+```
+
+Create `tests/renderer/render-loop-wrap.test.ts` with:
+
+```ts
+it('draws wrapped movement highlights near the seam', () => {
+  expect(highlightCalls).toContainEqual({ q: map.width, r: 0 });
+});
+
+it('draws wrapped minor-civ territory outlines near the seam', () => {
+  expect(strokeCalls).toBeGreaterThan(canonicalOnlyCount);
+});
+```
+
+- [ ] **Step 2: Run the renderer wrap tests and confirm failure**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/hex-utils.test.ts tests/systems/unit-system.test.ts tests/renderer/fog-renderer.test.ts tests/ui/fog-leak.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/renderer/city-renderer.test.ts tests/renderer/unit-renderer.test.ts tests/renderer/render-loop-wrap.test.ts
 ```
 
-Expected: FAIL because neighbor/path/fog wrap behavior is inconsistent.
+Expected: FAIL because those layers still render only canonical coordinates.
 
-- [ ] **Step 3: Add shared wrap helpers**
+- [ ] **Step 3: Generalize the wrap helper for all render layers**
 
-In `src/systems/hex-utils.ts`, add:
+In `src/renderer/wrap-rendering.ts`, expose a single helper shaped like:
 
 ```ts
-export function getWrappedHexNeighbors(coord: HexCoord, mapWidth: number, wrapsHorizontally: boolean): HexCoord[];
-export function wrappedHexDistance(a: HexCoord, b: HexCoord, mapWidth: number, wrapsHorizontally: boolean): number;
+export function getRenderCoordsForHex(coord: HexCoord, wrapsHorizontally: boolean, mapWidth: number): HexCoord[];
 ```
 
-In `src/renderer/wrap-rendering.ts`, add a small helper that yields render coordinates for base tiles plus left/right ghost copies near the edge.
+This must return:
+- canonical coord always
+- left ghost when near the left seam
+- right ghost when near the right seam
 
-- [ ] **Step 4: Update fog rendering to reuse the same ghost-coordinate enumeration as terrain**
+No renderer should manually recompute seam offsets after this change.
 
-Refactor `src/renderer/hex-renderer.ts` to use the new shared helper, then update `src/renderer/fog-renderer.ts` to iterate the same ghost positions and draw overlays based on the canonical tile’s visibility state.
+- [ ] **Step 4: Apply the helper to every remaining visible layer**
 
-This step fixes the seam without changing map data.
+Update:
+- `src/renderer/city-renderer.ts`
+- `src/renderer/unit-renderer.ts`
+- `src/renderer/hex-renderer.ts` for `drawMinorCivTerritory(...)`
+- `src/renderer/render-loop.ts` for movement highlights
 
-- [ ] **Step 5: Update movement range and pathfinding to use wrapped neighbors**
+Important:
+- visibility checks still use canonical coordinates
+- mirrored draw calls only duplicate rendering, not state
+- concealed-forest unit rules still evaluate on the canonical unit position
 
-In `src/systems/unit-system.ts`:
-- canonicalize neighbor lookups when the map wraps
-- use wrapped neighbors in `getMovementRange(...)`
-- use `wrappedHexDistance(...)` as the A* heuristic in `findPath(...)`
-- keep non-wrapping maps on the current behavior
-
-- [ ] **Step 6: Re-run focused wrap tests**
+- [ ] **Step 5: Re-run focused renderer tests**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/hex-utils.test.ts tests/systems/unit-system.test.ts tests/renderer/fog-renderer.test.ts tests/ui/fog-leak.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/renderer/city-renderer.test.ts tests/renderer/unit-renderer.test.ts tests/renderer/render-loop-wrap.test.ts tests/renderer/fog-renderer.test.ts
 ```
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/renderer/wrap-rendering.ts src/renderer/fog-renderer.ts src/renderer/hex-renderer.ts src/systems/hex-utils.ts src/systems/unit-system.ts tests/renderer/fog-renderer.test.ts tests/ui/fog-leak.test.ts tests/systems/hex-utils.test.ts tests/systems/unit-system.test.ts
-git commit -m "fix(hotfix): unify wrapped map fog and movement"
+git add src/renderer/wrap-rendering.ts src/renderer/hex-renderer.ts src/renderer/city-renderer.ts src/renderer/unit-renderer.ts src/renderer/render-loop.ts tests/renderer/city-renderer.test.ts tests/renderer/unit-renderer.test.ts tests/renderer/render-loop-wrap.test.ts tests/renderer/fog-renderer.test.ts
+git commit -m "fix(hotfix): finish wrapped scene rendering"
 ```
 
 ---
 
-## Task 7: Full Regression Sweep, Issue Verification, And Release Gate
+## Task 6: Full Verification, PR Review Pass, And GitHub Closeout Discipline
 
 **Files:**
-- Modify: this plan only if implementation deviated from the approved design
+- Modify: this plan only if the implementation deviates from the locked design
 
-- [ ] **Step 1: Run the full test suite**
+- [ ] **Step 1: Run the full suite**
 
 Run:
 
@@ -711,7 +699,7 @@ Run:
 ./scripts/run-with-mise.sh yarn test --run
 ```
 
-Expected: PASS across the full suite.
+Expected: PASS.
 
 - [ ] **Step 2: Run the production build**
 
@@ -723,59 +711,90 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 3: Do a spec-to-implementation issue audit**
+- [ ] **Step 3: Perform the final issue audit against real behavior**
 
-Before closing anything, verify:
-- `#47` / `#58`: unmet civ masking works in solo and hot-seat
-- `#57`: undiscovered city-states cannot issue quests or notifications
-- `#66`: no unsupported/placeholder quests are generated
-- `#49`: autosave is visible in the list and still quick-resumable
-- `#50`: AI no longer opens with irrational war
-- `#55` / `#63`: wrapped edges match render + movement behavior
+Verify explicitly:
+- `#47` / `#58`: known civs stay known after first contact; unknown civs remain masked
+- `#57`: undiscovered city-states still cannot issue quests or notifications
+- `#66`: no invalid targets and no undiscovered city leaks in quest text
+- `#49`: autosave rows are real, titled, deletable, and capped at `5` per game
+- `#50`: AI no longer declares irrational turn-1 wars
+- `#55` / `#63`: seam visuals and wrapped movement/pathing now match for all visible layers
 
-- [ ] **Step 4: Update GitHub issue comments with shipped fix details and close fixed issues**
+- [ ] **Step 4: Review PR `#67` again after the fix commits land**
 
-Comment on the fix-now issues with:
-- commit or PR reference
-- short note on the final behavior
-- any remaining non-blocking caveat, if present
+Review against:
 
-Then close:
-- `#47`, `#49`, `#50`, `#55`, `#57`, `#58`, `#63`, `#66`
+```bash
+git diff origin/main...HEAD
+git diff
+```
 
-- [ ] **Step 5: Commit any doc-only release-gate adjustments**
+Focus on:
+- contact persistence
+- city discovery separation
+- autosave migration/backward compatibility
+- autosave delete path
+- full wrap-layer parity
+- hot-seat correctness via `state.currentPlayer`
+
+- [ ] **Step 5: Comment on GitHub issues, but do not close them yet**
+
+Update the issue threads with:
+- PR reference `#67`
+- final shipped behavior
+- key regression tests added
+
+Do **not** close the issues in this task. They stay open until the PR is merged into `main`.
+
+- [ ] **Step 6: Commit any plan-only follow-up edits if needed**
 
 ```bash
 git add docs/superpowers/plans/2026-04-08-fix-now-april-8th.md
-git commit -m "docs(hotfix): finalize april 8 implementation plan"
+git commit -m "docs(hotfix): update april 8 follow-up plan"
 ```
 
 ---
 
 ## Spec Coverage Checklist
 
-- Discovery/privacy is covered by `Task 1` and `Task 2`.
-- Quest validity is covered by `Task 3`.
-- Save discoverability and start-screen UX are covered by `Task 4`.
-- AI first-turn war sanity is covered by `Task 5`.
-- Wrapped-edge render and movement consistency are covered by `Task 6`.
-- Final correctness, issue closeout, and verification are covered by `Task 7`.
+- Persistent contact memory: `Task 1`
+- Separation of civilization contact from city discovery: `Task 1` and `Task 2`
+- Strict city-state and quest discovery gating: `Task 2`
+- Proper per-game autosave history with title: `Task 3` and `Task 4`
+- Correct autosave deletion and continue behavior: `Task 3` and `Task 4`
+- Full wrap-render parity for all visible layers: `Task 5`
+- Release-gate discipline and “do not close before merge”: `Task 6`
 
-No issue in the `fix-now-april-8th` milestone is left without an explicit task.
-
----
-
-## Placeholder Scan
-
-- No `TODO`, `TBD`, or “implement later” placeholders remain in this plan.
-- Unsupported `trade_route` quests are explicitly disabled for this milestone instead of hand-waved.
-- Autosave behavior is explicitly split between start mode and save mode.
-- The discovery/privacy model is explicitly defined instead of deferred to implementation taste.
+No review finding or April 8 clarification is left without an explicit task.
 
 ---
 
-## Execution Notes
+## Plan Self-Review
 
-- Prefer one branch for the whole `fix-now-april-8th` milestone, but keep commits task-scoped.
-- Do not broaden this milestone into the deferred `M4e` or `M5` items.
-- If any task uncovers a missing dependency outside this scope, stop and update this plan before coding around it.
+- Placeholder scan: no `TODO`, `TBD`, or “implement later” placeholders remain.
+- Contact scenarios covered:
+  - visible unit contact
+  - explored owned tile contact
+  - explored city tile contact
+  - war/treaty contact
+  - breakaway-origin contact
+  - persistence after visibility loss
+  - city knowledge staying separate
+- Autosave scenarios covered:
+  - solo titles
+  - hot-seat titles
+  - newest-overall continue
+  - per-game retention at `5`
+  - autosave deletion
+  - legacy singleton migration
+  - save-mode exclusion
+- Wrapping scenarios covered:
+  - terrain
+  - fog
+  - rivers
+  - movement highlights
+  - minor-civ territory
+  - cities
+  - units
+  - wrapped movement/pathfinding staying aligned with rendering
