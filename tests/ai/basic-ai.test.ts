@@ -642,11 +642,16 @@ describe('processAITurn', () => {
   it('abandons a legendary wonder race when a rival is far ahead and reuses the carryover in the same city', () => {
     const state = makeLegendaryWonderAiFixture();
     const bus = new EventBus();
+    const lostEvents: Array<{ civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number }> = [];
+    bus.on('wonder:legendary-lost', event => lostEvents.push(event));
 
     const result = processAITurn(state, 'ai-1', bus);
 
     expect(result.legendaryWonderProjects!['grand-canal'].phase).toBe('lost_race');
     expect(result.cities['city-ai'].productionQueue[0]).toBe('granary');
     expect(result.cities['city-ai'].productionProgress).toBeGreaterThan(0);
+    expect(lostEvents).toEqual([
+      { civId: 'ai-1', cityId: 'city-ai', wonderId: 'grand-canal', goldRefund: 10, transferableProduction: 10 },
+    ]);
   });
 });

@@ -427,7 +427,7 @@ function togglePanel(panel: string): void {
           onStartBuild: (buildCityId, wonderId) => {
             const targetCity = gameState.cities[buildCityId];
             if (targetCity) {
-              gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId);
+              gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
               targetCity.productionQueue = [`legendary:${wonderId}`];
               targetCity.productionProgress = 0;
               renderLoop.setGameState(gameState);

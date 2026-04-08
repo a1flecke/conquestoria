@@ -50,6 +50,19 @@ describe('legendary-wonder-system', () => {
     expect(project.phase).toBe('ready_to_build');
   });
 
+  it('emits a legendary-ready event when quest completion unlocks construction', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const bus = new EventBus();
+    const readyEvents: Array<{ civId: string; cityId: string; wonderId: string }> = [];
+    bus.on('wonder:legendary-ready', event => readyEvents.push(event));
+
+    tickLegendaryWonderProjects(state, bus);
+
+    expect(readyEvents).toEqual([
+      { civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi' },
+    ]);
+  });
+
   it('moves a ready project into the building phase when construction starts', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
@@ -61,6 +74,9 @@ describe('legendary-wonder-system', () => {
 
   it('surfaces a build-start event to observers with stationed spies in the target city', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const bus = new EventBus();
+    const revealedEvents: Array<{ observerId: string; civId: string; cityId: string; wonderId: string }> = [];
+    bus.on('wonder:legendary-race-revealed', event => revealedEvents.push(event));
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
     state.pendingEvents = {};
     state.espionage = {
@@ -107,9 +123,12 @@ describe('legendary-wonder-system', () => {
       },
     };
 
-    const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi');
+    const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi', bus);
 
     expect(result.pendingEvents?.observer?.[0]?.message).toMatch(/oracle of delphi/i);
+    expect(revealedEvents).toEqual([
+      { observerId: 'observer', civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi' },
+    ]);
   });
 
   it('tracks invested production from the active city queue while a legendary wonder is building', () => {

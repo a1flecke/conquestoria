@@ -154,6 +154,19 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   }
 
   newState = abandonLostLegendaryWonderRace(newState, civId);
+  const updatedProject = Object.values(newState.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === civId && project.phase === 'lost_race',
+  );
+  if (updatedProject) {
+    const compensation = loseLegendaryWonderRace(updatedProject.investedProduction);
+    bus.emit('wonder:legendary-lost', {
+      civId,
+      cityId: updatedProject.cityId,
+      wonderId: updatedProject.wonderId,
+      goldRefund: compensation.goldRefund,
+      transferableProduction: compensation.transferableProduction,
+    });
+  }
 
   // --- Handle settlers: found cities ---
   const settlers = civ.units
