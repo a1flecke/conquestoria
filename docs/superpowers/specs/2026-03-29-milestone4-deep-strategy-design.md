@@ -23,6 +23,31 @@ M4 is delivered as five sub-milestones. Each is independently playable — no st
 
 ---
 
+### 1.1 Deferred Playtest Follow-Ups
+
+The April 8, 2026 playtest bug triage assigned several non-blocking issues to future milestone work instead of the immediate hotfix pass.
+
+- **Immediate hotfix milestone:** `fix-now-april-8th`
+  - issue `#47` diplomacy privacy leak for unmet civilizations
+  - issue `#49` saved-game list discoverability
+  - issue `#50` AI early-war sanity
+  - issue `#55` wrapped-map fog/render seams
+  - issue `#57` city-state quest visibility before discovery
+  - issue `#58` diplomacy panel leaks for unmet major/minor civs
+  - issue `#63` wrapped-edge movement/pathing failure
+  - issue `#66` invalid or unsupported quest generation
+
+- **M4e** absorbs the broader UX and content polish items:
+  - solo new-game setup flow (map size / opponent-count configuration) from issue `#48`
+  - tech-tree layout redesign from issue `#56`
+  - civ-specific and globally unique city naming from issues `#59`, `#61`, and `#65`
+  - residual visibility/render polish after the current fog/privacy hotfixes, including the unresolved flashing report in issue `#60`
+- **M5** absorbs the combat-reward and unit-veterancy expansion requested in issue `#64`
+
+The immediate hotfix pass focuses only on current-gameplay defects that break information privacy, map wrapping, save/load discoverability, AI war sanity, or quest validity. The deferred items above remain explicitly planned, not discarded backlog.
+
+---
+
 ## 2. Espionage System
 
 The largest new system in M4. Five stages that mirror the game's era progression, each unlocking more powerful (and riskier) spy operations. Delivered incrementally: stages 1-2 in M4a, stages 3-4 in M4c, stage 5 in M4d.

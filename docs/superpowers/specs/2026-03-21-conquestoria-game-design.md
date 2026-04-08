@@ -735,6 +735,12 @@ Advisors narrate the guided tutorial, handing off naturally as systems are intro
 - `M4e — The Council`: remaining legendary quest wonder expansion, late-era tech tree expansion needed for the remaining late-game content, advisor lobbying/disagreements, auto-explore, custom civs, desktop UI, balance/UX pass, Wakanda/Avalon
 - See detailed spec: `docs/superpowers/specs/2026-03-29-milestone4-deep-strategy-design.md`
 
+### Hotfix Milestone — `fix-now-april-8th`
+- Targeted April 8, 2026 gameplay hotfix milestone
+- Fixes only current blockers: diplomacy/privacy leaks, invalid quest issuance, save-list discoverability, AI first-turn war sanity, and horizontal-wrap fog/movement consistency
+- Keeps broader UX redesign, content expansion, naming overhaul, and combat reward work in `M4e` or `M5`
+- See implementation plan: `docs/superpowers/plans/2026-04-08-fix-now-april-8th.md`
+
 ### Milestone 5 — "The Full Experience"
 - Underground and deep ocean layers
 - 120+ wonders (expand beyond M4's buildable set)
