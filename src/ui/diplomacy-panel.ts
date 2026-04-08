@@ -3,6 +3,7 @@ import { canReabsorbBreakaway, getRelationship, isAtWar, getAvailableActions } f
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv, hasMetCivilization } from '@/systems/discovery-system';
+import { getQuestDescriptionForPlayer } from '@/systems/quest-system';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
@@ -138,7 +139,7 @@ export function createDiplomacyPanel(
       archIcon,
       statusColor,
       statusText: `${status} (${rel})`,
-      questDescription: quest ? quest.description : null,
+      questDescription: quest ? getQuestDescriptionForPlayer(state, state.currentPlayer, quest) : null,
       atWar,
       warBg: atWar ? 'rgba(74,155,74,0.3)' : 'rgba(217,74,74,0.3)',
       warBorder: atWar ? '#4a9b4a' : '#d94a4a',

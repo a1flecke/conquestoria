@@ -36,6 +36,7 @@ import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv, refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
@@ -1374,7 +1375,12 @@ bus.on('minor-civ:quest-issued', (data: any) => {
     return;
   }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `${def?.name ?? 'City-state'} asks: ${data.quest.description}`;
+  const msg = getQuestIssuedMessageForPlayer(
+    gameState,
+    data.majorCivId,
+    def?.name ?? 'City-state',
+    data.quest,
+  );
 
   if (gameState.hotSeat && gameState.pendingEvents) {
     collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest', message: msg, turn: gameState.turn });

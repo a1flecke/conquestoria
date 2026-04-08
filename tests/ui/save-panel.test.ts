@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { installSavePanelDocumentMock } from './helpers/save-panel-fixture';
+import { collectRenderedText, installSavePanelDocumentMock } from './helpers/save-panel-fixture';
 
 const mocks = vi.hoisted(() => ({
   listSaves: vi.fn(),
@@ -50,8 +50,8 @@ describe('save-panel', () => {
       onLoadSlot: () => {},
     });
 
-    const rendered = (container as unknown as { children: Array<{ innerHTML: string }> }).children[0]?.innerHTML ?? '';
-    expect(rendered).toContain('Saved Games');
+    const rendered = collectRenderedText(document.getElementById('save-slots') as unknown as { textContent?: string; innerHTML?: string; children?: Array<unknown> });
+    expect((container as unknown as { children: Array<{ innerHTML: string }> }).children[0]?.innerHTML ?? '').toContain('Saved Games');
     expect(rendered).toContain('Autosave Turn 9');
     expect(rendered).toContain('Desert Run');
   });
@@ -174,8 +174,60 @@ describe('save-panel', () => {
       onSaveToSlot: () => {},
     }, 'save');
 
-    const rendered = (container as unknown as { children: Array<{ innerHTML: string }> }).children[0]?.innerHTML ?? '';
+    const rendered = collectRenderedText(document.getElementById('save-slots') as unknown as { textContent?: string; innerHTML?: string; children?: Array<unknown> });
     expect(rendered).toContain('Manual Save');
     expect(rendered).not.toContain('Autosave Turn 9');
+  });
+
+  it('does not register ids embedded inside a save name', async () => {
+    const container = installSavePanelDocumentMock();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaves.mockResolvedValue([
+      {
+        id: 'slot-1',
+        name: '<span id="evil-save">Owned</span>',
+        civType: 'egypt',
+        turn: 9,
+        lastPlayed: '2026-04-08T12:00:00.000Z',
+        kind: 'manual',
+        gameMode: 'solo',
+        gameTitle: '<span id="evil-title">Injected</span>',
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadSlot: () => {},
+    });
+
+    expect(document.getElementById('evil-save')).toBeNull();
+    expect(document.getElementById('evil-title')).toBeNull();
+  });
+
+  it('renders hot-seat player names as plain text instead of markup', async () => {
+    const container = installSavePanelDocumentMock();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaves.mockResolvedValue([
+      {
+        id: 'slot-1',
+        name: 'Manual Save',
+        civType: 'hotseat',
+        turn: 9,
+        lastPlayed: '2026-04-08T12:00:00.000Z',
+        kind: 'manual',
+        gameMode: 'hotseat',
+        playerNames: ['Alice', '<span id="evil-player">Bob</span>'],
+        gameTitle: 'Hot Seat Run',
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadSlot: () => {},
+    });
+
+    expect(document.getElementById('evil-player')).toBeNull();
   });
 });

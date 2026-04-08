@@ -167,3 +167,39 @@ export function isQuestTargetKnownToPlayer(
 
   return true;
 }
+
+export function getQuestDescriptionForPlayer(
+  state: Pick<GameState, 'cities' | 'civilizations' | 'minorCivs'>,
+  playerId: string,
+  quest: Quest,
+): string {
+  switch (quest.target.type) {
+    case 'destroy_camp':
+      return 'Destroy a nearby barbarian camp';
+    case 'gift_gold':
+      return `Gift ${quest.target.amount} gold`;
+    case 'defeat_units': {
+      const target = quest.target as Extract<QuestTarget, { type: 'defeat_units' }> & { cityId?: string };
+      if (target.cityId && hasDiscoveredCity(state as GameState, playerId, target.cityId)) {
+        const city = (state as GameState).cities[target.cityId];
+        return `Clear ${target.count} units from ${city?.name ?? 'the target city'}`;
+      }
+      return `Clear ${target.count} units near a foreign city`;
+    }
+    case 'trade_route':
+      return hasDiscoveredMinorCiv(state as GameState, playerId, quest.target.minorCivId)
+        ? quest.description
+        : 'Establish a trade route to a discovered city-state';
+    default:
+      return 'Complete the assigned task';
+  }
+}
+
+export function getQuestIssuedMessageForPlayer(
+  state: Pick<GameState, 'cities' | 'civilizations' | 'minorCivs'>,
+  playerId: string,
+  minorCivName: string,
+  quest: Quest,
+): string {
+  return `${minorCivName} asks: ${getQuestDescriptionForPlayer(state, playerId, quest)}`;
+}

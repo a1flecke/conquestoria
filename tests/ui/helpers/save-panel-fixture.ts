@@ -2,12 +2,22 @@ class MockElement {
   private _innerHTML = '';
   private listeners = new Map<string, Array<() => void>>();
   private ownerDocument: MockDocument;
+  private _id = '';
 
   constructor(ownerDocument: MockDocument) {
     this.ownerDocument = ownerDocument;
   }
 
-  id = '';
+  set id(value: string) {
+    this._id = value;
+    if (value) {
+      this.ownerDocument.registerElement(this);
+    }
+  }
+
+  get id(): string {
+    return this._id;
+  }
   textContent = '';
   children: MockElement[] = [];
   style = { cssText: '' };
@@ -45,6 +55,12 @@ class MockElement {
 class MockDocument {
   private elements = new Map<string, MockElement>();
 
+  registerElement(element: MockElement): void {
+    if (element.id) {
+      this.elements.set(element.id, element);
+    }
+  }
+
   registerMarkup(markup: string): void {
     const idPattern = /id="([^"]+)"/g;
     for (const match of markup.matchAll(idPattern)) {
@@ -70,4 +86,13 @@ export function installSavePanelDocumentMock(): HTMLElement {
   const document = new MockDocument();
   (globalThis as typeof globalThis & { document?: Document }).document = document as unknown as Document;
   return new MockElement(document) as unknown as HTMLElement;
+}
+
+export function collectRenderedText(root: { textContent?: string; innerHTML?: string; children?: Array<unknown> }): string {
+  const ownText = [root.textContent ?? '', root.innerHTML ?? ''].filter(Boolean).join(' ');
+  const childText = (root.children ?? [])
+    .map(child => collectRenderedText(child as { textContent?: string; innerHTML?: string; children?: Array<unknown> }))
+    .filter(Boolean)
+    .join(' ');
+  return [ownText, childText].filter(Boolean).join(' ');
 }

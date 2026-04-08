@@ -116,9 +116,27 @@ async function pruneAutosavesForGame(gameId: string): Promise<void> {
   }
 }
 
-async function getMostRecentAutosaveMeta(): Promise<SaveSlotMeta | undefined> {
+async function listLoadableAutosaveMetas(pruneInvalid: boolean = true): Promise<SaveSlotMeta[]> {
   const metas = (await listPersistedMetas()).filter(meta => meta.kind === 'autosave');
-  return metas.sort((a, b) => b.turn - a.turn || compareSaveMeta(a, b))[0];
+  const valid: SaveSlotMeta[] = [];
+
+  for (const meta of metas) {
+    const payload = await dbGet<GameState>(getSaveStorageKey(meta.id, 'autosave'));
+    if (payload) {
+      valid.push(meta);
+      continue;
+    }
+
+    if (pruneInvalid) {
+      await dbDelete(getMetaStorageKey(meta.id));
+    }
+  }
+
+  return valid.sort((a, b) => b.turn - a.turn || compareSaveMeta(a, b));
+}
+
+async function getMostRecentAutosaveMeta(): Promise<SaveSlotMeta | undefined> {
+  return (await listLoadableAutosaveMetas())[0];
 }
 
 async function loadMostRecentPersistedAutosave(): Promise<GameState | undefined> {
@@ -132,9 +150,8 @@ async function loadMostRecentPersistedAutosave(): Promise<GameState | undefined>
 }
 
 async function retireLegacyAutosaveIfRealAutosavesExist(): Promise<boolean> {
-  const metas = await listPersistedMetas();
-  const hasRealAutosave = metas.some(meta => meta.kind === 'autosave');
-  if (!hasRealAutosave) {
+  const loadableAutosaves = await listLoadableAutosaveMetas();
+  if (loadableAutosaves.length === 0) {
     return false;
   }
 
@@ -250,23 +267,21 @@ export async function listSaves(options: { includeAutoSave?: boolean } = {}): Pr
     return visible;
   }
 
-  if (visible.some(meta => meta.kind === 'autosave')) {
-    return visible;
-  }
-
-  const retiredLegacy = await retireLegacyAutosaveIfRealAutosavesExist();
-  if (retiredLegacy) {
-    return visible;
+  const loadableAutosaves = await listLoadableAutosaveMetas();
+  const visibleManualSaves = visible.filter(meta => meta.kind !== 'autosave');
+  if (loadableAutosaves.length > 0) {
+    await retireLegacyAutosaveIfRealAutosavesExist();
+    return [...loadableAutosaves, ...visibleManualSaves].sort(compareSaveMeta);
   }
 
   const legacyAuto = await loadLegacyAutoSave();
   if (!legacyAuto) {
-    return visible;
+    return visibleManualSaves;
   }
 
   return [
     buildSaveMeta(LEGACY_AUTO_SAVE_KEY, `Autosave Turn ${legacyAuto.turn}`, legacyAuto, 'autosave'),
-    ...visible,
+    ...visibleManualSaves,
   ].sort(compareSaveMeta);
 }
 

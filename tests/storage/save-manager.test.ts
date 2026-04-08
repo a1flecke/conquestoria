@@ -235,4 +235,73 @@ describe('save-manager autosave listing', () => {
     expect(saves.find(save => save.id === 'autosave')).toBeUndefined();
     expect(mostRecent).toBeUndefined();
   });
+
+  it('keeps the legacy autosave visible when autosave metadata exists without a real payload', async () => {
+    const legacyState = {
+      turn: 3,
+      currentPlayer: 'player',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    };
+
+    dbState.set('meta:autosave:game-a:9', {
+      id: 'autosave:game-a:9',
+      name: 'Autosave Turn 9',
+      civType: 'egypt',
+      turn: 9,
+      lastPlayed: '2026-04-08T12:00:00.000Z',
+      kind: 'autosave',
+      gameMode: 'solo',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+    });
+    dbState.set('autosave', legacyState);
+
+    const saves = await listSaves({ includeAutoSave: true });
+    const continued = await loadMostRecentAutoSave();
+
+    expect(saves.find(save => save.id === 'autosave')).toBeDefined();
+    expect(continued?.turn).toBe(legacyState.turn);
+    expect(dbState.has('meta:autosave:game-a:9')).toBe(false);
+  });
+
+  it('retires the legacy autosave only after a loadable real autosave exists', async () => {
+    dbState.set('autosave', {
+      turn: 3,
+      currentPlayer: 'player',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    });
+
+    dbState.set('meta:autosave:game-a:9', {
+      id: 'autosave:game-a:9',
+      name: 'Autosave Turn 9',
+      civType: 'egypt',
+      turn: 9,
+      lastPlayed: '2026-04-08T12:00:00.000Z',
+      kind: 'autosave',
+      gameMode: 'solo',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+    });
+    dbState.set('autosave:game-a:9', {
+      turn: 9,
+      currentPlayer: 'player',
+      gameId: 'game-a',
+      gameTitle: 'Game A',
+      civilizations: {
+        player: { civType: 'egypt' },
+      },
+      hotSeat: undefined,
+    });
+
+    const continued = await loadMostRecentAutoSave();
+
+    expect(continued).toMatchObject({ gameId: 'game-a', turn: 9 });
+    expect(dbState.has('autosave')).toBe(false);
+  });
 });

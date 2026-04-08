@@ -36,13 +36,19 @@ export async function createSavePanel(
         <div style="font-size:14px;color:#e8c170;margin-bottom:8px;">${mode === 'save' ? 'Save Game' : 'Saved Games'}</div>
         ${mode === 'save' ? renderNewSlotInput() : ''}
         ${displaySaves.length === 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;padding:16px;">No saved games yet</div>' : ''}
-        <div id="save-slots" style="display:flex;flex-direction:column;gap:8px;">
-          ${displaySaves.map(s => renderSlotCard(s, mode)).join('')}
-        </div>
+        <div id="save-slots" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
       ${mode === 'start' ? renderBackupButtons() : ''}
     </div>
   `;
+
+  const saveSlots = document.getElementById('save-slots');
+  if (saveSlots) {
+    saveSlots.innerHTML = '';
+    for (const save of displaySaves) {
+      saveSlots.appendChild(createSlotCard(save, mode));
+    }
+  }
 
   container.appendChild(panel);
 
@@ -155,27 +161,50 @@ function renderNewSlotInput(): string {
   `;
 }
 
-function renderSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): string {
+function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement {
+  const card = document.createElement('div');
+  card.style.cssText = 'background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;';
+
+  const content = document.createElement('div');
+  content.style.cssText = 'flex:1;';
+
+  const name = document.createElement('div');
+  name.style.cssText = 'font-size:13px;font-weight:bold;';
+  name.textContent = save.name;
+  content.appendChild(name);
+
+  if (save.gameTitle) {
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:11px;color:#e8c170;opacity:0.9;';
+    title.textContent = save.gameTitle;
+    content.appendChild(title);
+  }
+
   const date = new Date(save.lastPlayed);
   const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const titleLine = save.gameTitle
-    ? `<div style="font-size:11px;color:#e8c170;opacity:0.9;">${save.gameTitle}</div>`
-    : '';
+  const meta = document.createElement('div');
+  meta.style.cssText = 'font-size:11px;opacity:0.5;';
+  meta.textContent = `Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType} · ${dateStr}`;
+  content.appendChild(meta);
+  card.appendChild(content);
 
-  return `
-    <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:bold;">${save.name}</div>
-        ${titleLine}
-        <div style="font-size:11px;opacity:0.5;">Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType} · ${dateStr}</div>
-      </div>
-      <div style="display:flex;gap:6px;">
-        ${mode === 'start'
-          ? `<button id="load-${save.id}" style="padding:6px 12px;border-radius:6px;background:#4a90d9;border:none;color:white;font-size:11px;cursor:pointer;">Load</button>`
-          : `<button id="save-${save.id}" style="padding:6px 12px;border-radius:6px;background:#6b9b4b;border:none;color:white;font-size:11px;cursor:pointer;">Overwrite</button>`
-        }
-        <button id="delete-${save.id}" style="padding:6px 12px;border-radius:6px;background:#d94a4a;border:none;color:white;font-size:11px;cursor:pointer;">✕</button>
-      </div>
-    </div>
-  `;
+  const buttons = document.createElement('div');
+  buttons.style.cssText = 'display:flex;gap:6px;';
+
+  const primaryButton = document.createElement('button');
+  primaryButton.id = `${mode === 'start' ? 'load' : 'save'}-${save.id}`;
+  primaryButton.style.cssText = mode === 'start'
+    ? 'padding:6px 12px;border-radius:6px;background:#4a90d9;border:none;color:white;font-size:11px;cursor:pointer;'
+    : 'padding:6px 12px;border-radius:6px;background:#6b9b4b;border:none;color:white;font-size:11px;cursor:pointer;';
+  primaryButton.textContent = mode === 'start' ? 'Load' : 'Overwrite';
+  buttons.appendChild(primaryButton);
+
+  const deleteButton = document.createElement('button');
+  deleteButton.id = `delete-${save.id}`;
+  deleteButton.style.cssText = 'padding:6px 12px;border-radius:6px;background:#d94a4a;border:none;color:white;font-size:11px;cursor:pointer;';
+  deleteButton.textContent = '✕';
+  buttons.appendChild(deleteButton);
+
+  card.appendChild(buttons);
+  return card;
 }

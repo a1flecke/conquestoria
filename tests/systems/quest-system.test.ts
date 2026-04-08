@@ -4,6 +4,8 @@ import {
   checkQuestCompletion,
   processQuestExpiry,
   awardQuestReward,
+  getQuestDescriptionForPlayer,
+  getQuestIssuedMessageForPlayer,
   isQuestTargetKnownToPlayer,
 } from '@/systems/quest-system';
 import type { Quest } from '@/core/types';
@@ -269,6 +271,107 @@ describe('quest system', () => {
       } as any;
 
       expect(isQuestTargetKnownToPlayer(state, 'player', quest)).toBe(false);
+    });
+
+    it('returns a generic city-targeted description when the target city is undiscovered', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: {} },
+            knownCivilizations: ['outsider'],
+          },
+        },
+      } as any;
+
+      expect(getQuestDescriptionForPlayer(state, 'player', quest)).toBe('Clear 2 units near a foreign city');
+    });
+
+    it('returns the named city-targeted description once the city is discovered', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: { '6,0': 'fog' } },
+            knownCivilizations: ['outsider'],
+          },
+        },
+      } as any;
+
+      expect(getQuestDescriptionForPlayer(state, 'player', quest)).toBe('Clear 2 units from Rome');
+    });
+
+    it('builds a quest-issued notification without leaking an undiscovered city name', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: {} },
+            knownCivilizations: ['outsider'],
+          },
+        },
+      } as any;
+
+      expect(getQuestIssuedMessageForPlayer(state, 'player', 'Sparta', quest)).toBe(
+        'Sparta asks: Clear 2 units near a foreign city',
+      );
     });
   });
 });
