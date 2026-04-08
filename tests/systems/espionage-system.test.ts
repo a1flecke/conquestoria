@@ -69,8 +69,18 @@ describe('espionage types', () => {
   });
 
   it('all SpyMissionType values are valid', () => {
-    const validTypes: SpyMissionType[] = ['scout_area', 'monitor_troops', 'gather_intel', 'identify_resources', 'monitor_diplomacy'];
-    expect(validTypes).toHaveLength(5);
+    const validTypes: SpyMissionType[] = [
+      'scout_area',
+      'monitor_troops',
+      'gather_intel',
+      'identify_resources',
+      'monitor_diplomacy',
+      'cyber_attack',
+      'misinformation_campaign',
+      'election_interference',
+      'satellite_surveillance',
+    ];
+    expect(validTypes).toHaveLength(9);
     // Type system enforces these — runtime check for completeness
     validTypes.forEach(t => expect(typeof t).toBe('string'));
   });
@@ -315,6 +325,22 @@ describe('missions', () => {
     it('returns empty array with no espionage tech', () => {
       const missions = getAvailableMissions([]);
       expect(missions).toEqual([]);
+    });
+
+    it('unlocks Stage 5 missions from digital-surveillance and cyber-warfare', () => {
+      const missions = getAvailableMissions([
+        'espionage-scouting',
+        'espionage-informants',
+        'spy-networks',
+        'cryptography',
+        'digital-surveillance',
+        'cyber-warfare',
+      ]);
+
+      expect(missions).toContain('cyber_attack');
+      expect(missions).toContain('misinformation_campaign');
+      expect(missions).toContain('election_interference');
+      expect(missions).toContain('satellite_surveillance');
     });
   });
 

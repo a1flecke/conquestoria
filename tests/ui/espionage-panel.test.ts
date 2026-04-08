@@ -193,7 +193,7 @@ describe('espionage-panel', () => {
         'cryptography',
       ];
       const view = getEspionagePanelViewModel(state);
-      expect(view.missionStages).toHaveLength(4);
+      expect(view.missionStages).toHaveLength(5);
       expect(view.missionStages[2].missions.some(m => m.id === 'steal_tech')).toBe(true);
     });
 
@@ -260,7 +260,7 @@ describe('espionage-panel', () => {
       expect((panel as { id?: string }).id).toBe('espionage-panel');
 
       const stages = findAll(panel, el => el.dataset?.stage !== undefined);
-      expect(stages.map(stage => (stage as { dataset: Record<string, string> }).dataset.stage)).toEqual(['1', '2', '3', '4']);
+      expect(stages.map(stage => (stage as { dataset: Record<string, string> }).dataset.stage)).toEqual(['1', '2', '3', '4', '5']);
       expect(collectText(stages[2])).toContain('Steal Tech');
       expect(collectText(stages[3])).toContain('Assassinate Advisor');
 
@@ -273,6 +273,27 @@ describe('espionage-panel', () => {
 
       const disabled = findAll(panel, el => el.dataset?.section === 'disabled-advisors')[0];
       expect(collectText(disabled)).toContain('chancellor');
+    });
+
+    it('labels Stage 5 remote-capable missions clearly and does not leak other players data in hot seat', () => {
+      const state = makeEspUiState();
+      state.currentPlayer = 'player-2';
+      state.civilizations['player-2'] = {
+        ...state.civilizations.player,
+        id: 'player-2',
+        name: 'Second Player',
+        isHuman: true,
+        cities: ['city-player-1'],
+      };
+      state.civilizations['player-2'].techState.completed = ['digital-surveillance', 'cyber-warfare'];
+      state.espionage!['player-2'] = createEspionageCivState();
+
+      const panel = createEspionagePanel(state) as unknown;
+      const rendered = collectText(panel);
+
+      expect(rendered).toContain('Remote-capable');
+      expect(rendered).toContain('Digital Warfare');
+      expect(rendered).not.toContain('Target: player / city-player-1');
     });
   });
 });

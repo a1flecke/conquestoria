@@ -1,11 +1,12 @@
 // src/ui/espionage-panel.ts
 import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion } from '../core/types';
-import { canRecruitSpy, getAvailableMissions } from '../systems/espionage-system';
+import { canRecruitSpy, getAvailableMissions, missionRequiresPlacedSpy } from '../systems/espionage-system';
 
 export interface MissionCatalogEntry {
   id: SpyMissionType;
   label: string;
-  stage: 1 | 2 | 3 | 4;
+  stage: 1 | 2 | 3 | 4 | 5;
+  accessLabel: string;
 }
 
 export interface SpySummary {
@@ -33,7 +34,7 @@ export interface EspionagePanelData {
 }
 
 export interface MissionStageGroup {
-  stage: 1 | 2 | 3 | 4;
+  stage: 1 | 2 | 3 | 4 | 5;
   title: string;
   description: string;
   missions: MissionCatalogEntry[];
@@ -59,9 +60,13 @@ const MISSION_LABELS: Record<SpyMissionType, string> = {
   forge_documents: 'Forge Documents',
   fund_rebels: 'Fund Rebels',
   arms_smuggling: 'Arms Smuggling',
+  cyber_attack: 'Cyber Attack',
+  misinformation_campaign: 'Misinformation Campaign',
+  election_interference: 'Election Interference',
+  satellite_surveillance: 'Satellite Surveillance',
 };
 
-const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4> = {
+const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
   scout_area: 1,
   monitor_troops: 1,
   gather_intel: 2,
@@ -75,6 +80,10 @@ const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4> = {
   forge_documents: 4,
   fund_rebels: 4,
   arms_smuggling: 4,
+  cyber_attack: 5,
+  misinformation_campaign: 5,
+  election_interference: 5,
+  satellite_surveillance: 5,
 };
 
 function toMissionCatalog(missions: SpyMissionType[]): MissionCatalogEntry[] {
@@ -82,22 +91,24 @@ function toMissionCatalog(missions: SpyMissionType[]): MissionCatalogEntry[] {
     id: mission,
     label: MISSION_LABELS[mission],
     stage: MISSION_STAGE[mission],
+    accessLabel: missionRequiresPlacedSpy(mission) ? 'Requires placed spy' : 'Remote-capable',
   }));
 }
 
 function buildMissionStageGroups(missionCatalog: MissionCatalogEntry[]): MissionStageGroup[] {
-  const stages: Record<1 | 2 | 3 | 4, { title: string; description: string; missions: MissionCatalogEntry[] }> = {
+  const stages: Record<1 | 2 | 3 | 4 | 5, { title: string; description: string; missions: MissionCatalogEntry[] }> = {
     1: { title: 'Stage 1: Scouts', description: 'Passive intelligence and city perimeter awareness.', missions: [] },
     2: { title: 'Stage 2: Informants', description: 'Active reconnaissance and diplomatic spying.', missions: [] },
     3: { title: 'Stage 3: Spy Rings', description: 'Disruption, theft, and covert pressure.', missions: [] },
     4: { title: 'Stage 4: Shadow Operations', description: 'High-risk operations that shape empires.', missions: [] },
+    5: { title: 'Stage 5: Digital Warfare', description: 'Remote disruption and global surveillance. Higher stakes, higher diplomatic fallout.', missions: [] },
   };
 
   for (const mission of missionCatalog) {
     stages[mission.stage].missions.push(mission);
   }
 
-  const stageOrder: Array<1 | 2 | 3 | 4> = [1, 2, 3, 4];
+  const stageOrder: Array<1 | 2 | 3 | 4 | 5> = [1, 2, 3, 4, 5];
   return stageOrder.map(stage => ({
     stage,
     title: stages[stage].title,
@@ -152,8 +163,9 @@ function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void
   appendSectionHeader(section, group.title, group.description);
 
   if (group.missions.length === 0) {
-    section.appendChild(createEl('div', 'No missions unlocked.'));
-    (section.lastChild as HTMLElement).style.cssText = 'font-size:11px;opacity:0.55;';
+    const empty = createEl('div', 'No missions unlocked.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    section.appendChild(empty);
   } else {
     const list = createEl('div');
     list.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
@@ -165,6 +177,9 @@ function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void
       const stageTag = createEl('span', `S${mission.stage}`);
       stageTag.style.cssText = 'color:#e8c170;font-size:10px;font-weight:700;';
       item.appendChild(stageTag);
+      const accessTag = createEl('span', mission.accessLabel);
+      accessTag.style.cssText = 'color:#9dd1ff;font-size:10px;';
+      item.appendChild(accessTag);
       list.appendChild(item);
     }
     section.appendChild(list);

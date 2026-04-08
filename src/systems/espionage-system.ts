@@ -222,11 +222,13 @@ const STAGE_1_TECHS = ['espionage-scouting'];
 const STAGE_2_TECHS = ['espionage-informants'];
 const STAGE_3_TECHS = ['spy-networks', 'sabotage'];      // either unlocks stage 3
 const STAGE_4_TECHS = ['cryptography', 'counter-intelligence']; // either unlocks stage 4
+const STAGE_5_TECHS = ['digital-surveillance', 'cyber-warfare'];
 
 const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
 const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
 const STAGE_3_MISSIONS: SpyMissionType[] = ['steal_tech', 'sabotage_production', 'incite_unrest'];
 const STAGE_4_MISSIONS: SpyMissionType[] = ['assassinate_advisor', 'forge_documents', 'fund_rebels', 'arms_smuggling'];
+const STAGE_5_MISSIONS: SpyMissionType[] = ['cyber_attack', 'misinformation_campaign', 'election_interference', 'satellite_surveillance'];
 
 export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
   const missions: SpyMissionType[] = [];
@@ -234,7 +236,12 @@ export function getAvailableMissions(completedTechs: string[]): SpyMissionType[]
   if (STAGE_2_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_2_MISSIONS);
   if (STAGE_3_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_3_MISSIONS);
   if (STAGE_4_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_4_MISSIONS);
+  if (STAGE_5_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_5_MISSIONS);
   return missions;
+}
+
+export function missionRequiresPlacedSpy(missionType: SpyMissionType): boolean {
+  return !['cyber_attack', 'misinformation_campaign', 'satellite_surveillance'].includes(missionType);
 }
 
 // --- Mission lifecycle ---

@@ -2,22 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 describe('tech definitions', () => {
-  it('has exactly 120 techs', () => {
-    expect(TECH_TREE.length).toBe(120);
+  it('has exactly 122 techs after the Stage 5 espionage expansion', () => {
+    expect(TECH_TREE.length).toBe(122);
   });
 
-  it('has 15 tracks with 8 techs each', () => {
+  it('keeps 15 tracks while expanding espionage to 10 techs', () => {
     const tracks = new Map<string, number>();
     for (const tech of TECH_TREE) {
       tracks.set(tech.track, (tracks.get(tech.track) ?? 0) + 1);
     }
     expect(tracks.size).toBe(15);
     for (const [track, count] of tracks) {
-      expect(count, `track ${track} should have 8 techs`).toBe(8);
+      const expected = track === 'espionage' ? 10 : 8;
+      expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });
 
-  it('each track has 2 techs per era (eras 1-4)', () => {
+  it('keeps 2 techs per era, with espionage extending into era 5', () => {
     const trackEra = new Map<string, number>();
     for (const tech of TECH_TREE) {
       const key = `${tech.track}-${tech.era}`;
@@ -30,6 +31,7 @@ describe('tech definitions', () => {
         expect(trackEra.get(key), `${key} should have 2 techs`).toBe(2);
       }
     }
+    expect(trackEra.get('espionage-5'), 'espionage-5 should have 2 techs').toBe(2);
   });
 
   it('all prerequisites reference existing tech IDs', () => {
@@ -86,5 +88,11 @@ describe('tech definitions', () => {
     const bronzeCasting = techMap.get('bronze-casting');
     expect(bronzeCasting).toBeDefined();
     expect(bronzeCasting!.prerequisites).toContain('bronze-working');
+  });
+
+  it('adds Stage 5 espionage techs after counter-intelligence', () => {
+    const ids = TECH_TREE.filter(t => t.track === 'espionage').map(t => t.id);
+    expect(ids).toContain('digital-surveillance');
+    expect(ids).toContain('cyber-warfare');
   });
 });

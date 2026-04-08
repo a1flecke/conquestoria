@@ -380,7 +380,12 @@ export type SpyMissionType =
   | 'assassinate_advisor' // disable one advisor for 10 turns
   | 'forge_documents'     // diplomatic relationship penalty between two other civs
   | 'fund_rebels'         // escalate unrest in already-unrest city
-  | 'arms_smuggling';     // spawn hostile units near target city
+  | 'arms_smuggling'      // spawn hostile units near target city
+  // Stage 5 (digital-surveillance and cyber-warfare tech)
+  | 'cyber_attack'
+  | 'misinformation_campaign'
+  | 'election_interference'
+  | 'satellite_surveillance';
 
 export interface SpyMission {
   type: SpyMissionType;
@@ -572,7 +577,15 @@ export interface MarketplaceState {
 
 // --- Advisors ---
 
-export type AdvisorType = 'builder' | 'explorer' | 'chancellor' | 'warchief' | 'treasurer' | 'scholar' | 'spymaster';
+export type AdvisorType =
+  | 'builder'
+  | 'explorer'
+  | 'chancellor'
+  | 'warchief'
+  | 'treasurer'
+  | 'scholar'
+  | 'spymaster'
+  | 'artisan';
 
 // --- Save Slots ---
 
