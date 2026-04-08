@@ -275,27 +275,35 @@ export function drawMinorCivTerritory(
   center: HexCoord,
   color: string,
   camera: Camera,
+  mapWidth?: number,
+  wrapsHorizontally = false,
 ): void {
   const hexes = hexesInRange(center, 2);
   for (const hex of hexes) {
-    if (!camera.isHexVisible(hex)) continue;
-    const pixel = hexToPixel(hex, camera.hexSize);
-    const screen = camera.worldToScreen(pixel.x, pixel.y);
-    const size = camera.hexSize * camera.zoom;
+    const renderCoords = wrapsHorizontally && mapWidth
+      ? getHorizontalWrapRenderCoords(hex, mapWidth)
+      : [hex];
 
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i - Math.PI / 6;
-      const x = screen.x + size * Math.cos(angle);
-      const y = screen.y + size * Math.sin(angle);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    for (const renderCoord of renderCoords) {
+      if (!camera.isHexVisible(renderCoord)) continue;
+      const pixel = hexToPixel(renderCoord, camera.hexSize);
+      const screen = camera.worldToScreen(pixel.x, pixel.y);
+      const size = camera.hexSize * camera.zoom;
+
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 6;
+        const x = screen.x + size * Math.cos(angle);
+        const y = screen.y + size * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.3;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
     }
-    ctx.closePath();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.3;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
   }
 }
