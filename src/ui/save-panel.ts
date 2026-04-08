@@ -107,7 +107,7 @@ export async function createSavePanel(
     const saveKind = save.kind === 'autosave' ? 'autosave' : 'manual';
     document.getElementById(`load-${save.id}`)?.addEventListener('click', () => {
       panel.remove();
-      if (saveKind === 'autosave') {
+      if (saveKind === 'autosave' && save.id === 'autosave') {
         callbacks.onContinue();
         return;
       }

@@ -110,6 +110,37 @@ describe('save-panel', () => {
     expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('autosave:game-1:9', 'autosave');
   });
 
+  it('loads the selected autosave row instead of routing through continue', async () => {
+    const container = installSavePanelDocumentMock();
+    const onContinue = vi.fn();
+    const onLoadSlot = vi.fn();
+    mocks.hasAutoSave.mockResolvedValue(true);
+    mocks.listSaves.mockResolvedValue([
+      {
+        id: 'autosave:game-1:9',
+        name: 'Autosave Turn 9',
+        civType: 'egypt',
+        turn: 9,
+        lastPlayed: '2026-04-08T12:00:00.000Z',
+        kind: 'autosave',
+        gameMode: 'solo',
+        gameTitle: 'Desert Run',
+      },
+    ]);
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue,
+      onLoadSlot,
+    });
+
+    const loadButton = document.getElementById('load-autosave:game-1:9') as { click: () => void };
+    loadButton.click();
+
+    expect(onLoadSlot).toHaveBeenCalledWith('autosave:game-1:9');
+    expect(onContinue).not.toHaveBeenCalled();
+  });
+
   it('does not include autosaves as overwrite targets in save mode', async () => {
     const container = installSavePanelDocumentMock();
     mocks.hasAutoSave.mockResolvedValue(true);
