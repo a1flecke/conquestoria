@@ -9,6 +9,7 @@ import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { foundCity } from './city-system';
 import { generateQuest, checkQuestCompletion, processQuestExpiry, awardQuestReward } from './quest-system';
 import { resolveCombat } from './combat-system';
+import { hasDiscoveredMinorCiv } from './discovery-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -154,6 +155,9 @@ export function processMinorCivTurn(state: GameState, bus: EventBus): GameState 
 function processQuests(state: GameState, mc: MinorCivState, def: { archetype: any }, bus: EventBus): void {
   const majorCivIds = Object.keys(state.civilizations);
   for (const civId of majorCivIds) {
+    if (!hasDiscoveredMinorCiv(state, civId, mc.id)) {
+      continue;
+    }
     const quest = mc.activeQuests[civId];
     if (quest) {
       const expiredQuest = processQuestExpiry(quest, state.turn);

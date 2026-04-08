@@ -35,6 +35,9 @@ import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectEvent } from '@/core/hotseat-events';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { hasDiscoveredMinorCiv, refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { formatMinorCivEventMessageForPlayer, getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
+import { getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
@@ -749,6 +752,7 @@ function foundCityAction(): void {
     .map(id => gameState.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
   updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
+  syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer);
 
   renderLoop.setGameState(gameState);
   updateHUD();
@@ -907,10 +911,9 @@ function handleHexTap(rawCoord: HexCoord): void {
         ownerName = 'Barbarian';
         ownerColor = '#8b4513';
       } else if (isMinorCiv) {
-        const mc = Object.values(gameState.minorCivs ?? {}).find(m => m.id === enemyUnit.owner);
-        const mcDef = mc ? MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId) : undefined;
-        ownerName = mcDef?.name ?? 'City-State';
-        ownerColor = mcDef?.color ?? '#888';
+        const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, enemyUnit.owner, 'City-State');
+        ownerName = presentation.name;
+        ownerColor = presentation.color;
       } else {
         const civ = gameState.civilizations[enemyUnit.owner];
         ownerName = civ?.name ?? enemyUnit.owner;
@@ -992,9 +995,8 @@ function handleHexTap(rawCoord: HexCoord): void {
       if (isBarbarian) {
         ownerName = 'Barbarian';
       } else if (isMinorCiv) {
-        const mc = Object.values(gameState.minorCivs ?? {}).find(m => m.id === defender.owner);
-        const mcDef = mc ? MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId) : undefined;
-        ownerName = mcDef?.name ?? 'City-State';
+        const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, defender.owner, 'City-State');
+        ownerName = presentation.name;
       } else {
         ownerName = gameState.civilizations[defender.owner]?.name ?? defender.owner;
       }
@@ -1095,6 +1097,7 @@ function handleHexTap(rawCoord: HexCoord): void {
         .map(id => gameState.cities[id]?.position)
         .filter((p): p is HexCoord => p !== undefined);
       const revealed = updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
+      syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer);
 
       if (revealed.length > 0) {
         bus.emit('fog:revealed', { tiles: revealed });
@@ -1367,8 +1370,16 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
 
 bus.on('minor-civ:quest-issued', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `${def?.name ?? 'City-state'} asks: ${data.quest.description}`;
+  const msg = getQuestIssuedMessageForPlayer(
+    gameState,
+    data.majorCivId,
+    def?.name ?? 'City-state',
+    data.quest,
+  );
 
   if (gameState.hotSeat && gameState.pendingEvents) {
     collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest', message: msg, turn: gameState.turn });
@@ -1380,6 +1391,9 @@ bus.on('minor-civ:quest-issued', (data: any) => {
 
 bus.on('minor-civ:quest-completed', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const rewards: string[] = [];
   if (data.reward.gold) rewards.push(`+${data.reward.gold} gold`);
@@ -1395,33 +1409,32 @@ bus.on('minor-civ:quest-completed', (data: any) => {
 });
 
 bus.on('minor-civ:evolved', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `A barbarian tribe formed the city-state of ${def?.name ?? 'Unknown'}!`;
-
   if (gameState.hotSeat && gameState.pendingEvents) {
     for (const civId of Object.keys(gameState.civilizations)) {
+      const msg = formatMinorCivEventMessageForPlayer(gameState, civId, data.minorCivId, 'evolved');
       collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:evolved', message: msg, turn: gameState.turn });
     }
   }
-  showNotification(msg, 'info');
+  const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'evolved');
+  showNotification(currentMsg, 'info');
 });
 
 bus.on('minor-civ:destroyed', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `${def?.name ?? 'City-state'} has fallen!`;
-
   if (gameState.hotSeat && gameState.pendingEvents) {
     for (const civId of Object.keys(gameState.civilizations)) {
+      const msg = formatMinorCivEventMessageForPlayer(gameState, civId, data.minorCivId, 'destroyed');
       collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:destroyed', message: msg, turn: gameState.turn });
     }
   }
-  showNotification(msg, 'warning');
+  const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'destroyed');
+  showNotification(currentMsg, 'warning');
 });
 
 bus.on('minor-civ:allied', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const msg = `${def?.name ?? 'City-state'} is now your ally!`;
 
@@ -1435,6 +1448,9 @@ bus.on('minor-civ:allied', (data: any) => {
 
 bus.on('minor-civ:relationship-threshold', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const msg = `${def?.name ?? 'City-state'} now considers you ${data.newStatus}`;
 
@@ -1447,20 +1463,21 @@ bus.on('minor-civ:relationship-threshold', (data: any) => {
 });
 
 bus.on('minor-civ:guerrilla', (data: any) => {
-  const mc = gameState.minorCivs[data.minorCivId];
-  const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
-  const msg = `${def?.name ?? 'City-state'} guerrilla fighters attack!`;
-
   if (gameState.hotSeat && gameState.pendingEvents) {
+    const msg = formatMinorCivEventMessageForPlayer(gameState, data.targetCivId, data.minorCivId, 'guerrilla');
     collectEvent(gameState.pendingEvents, data.targetCivId, { type: 'minor-civ:guerrilla', message: msg, turn: gameState.turn });
   }
   if (data.targetCivId === gameState.currentPlayer) {
-    showNotification(msg, 'warning');
+    const currentMsg = formatMinorCivEventMessageForPlayer(gameState, gameState.currentPlayer, data.minorCivId, 'guerrilla');
+    showNotification(currentMsg, 'warning');
   }
 });
 
 bus.on('minor-civ:quest-expired', (data: any) => {
   const mc = gameState.minorCivs[data.minorCivId];
+  if (!mc || !hasDiscoveredMinorCiv(gameState, data.majorCivId, data.minorCivId)) {
+    return;
+  }
   const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc?.definitionId);
   const msg = `Quest from ${def?.name ?? 'City-state'} has expired`;
 
@@ -1520,6 +1537,7 @@ async function init(): Promise<void> {
 function migrateLegacySave(): void {
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
     if (!civ.civType) (civ as any).civType = 'generic';
+    if (!civ.knownCivilizations) (civ as any).knownCivilizations = [];
     if (!civ.diplomacy) {
       const relationships: Record<string, number> = {};
       for (const otherId of Object.keys(gameState.civilizations)) {
@@ -1573,6 +1591,9 @@ function migrateLegacySave(): void {
       }
     }
   }
+  for (const civId of Object.keys(gameState.civilizations)) {
+    refreshKnownCivilizations(gameState, civId);
+  }
 }
 
 function showGameModeSelection(): void {
@@ -1581,6 +1602,9 @@ function showGameModeSelection(): void {
   modePanel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.98);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;';
   modePanel.innerHTML = `
     <h1 style="font-size:22px;color:#e8c170;margin-bottom:24px;">New Game</h1>
+    <div style="width:100%;max-width:320px;margin-bottom:20px;">
+      <input id="new-game-title" type="text" placeholder="Campaign title" value="New Campaign" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;font-size:14px;" />
+    </div>
     <div style="display:flex;gap:16px;">
       <div id="mode-solo" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:24px;cursor:pointer;text-align:center;min-width:140px;transition:border-color 0.2s;">
         <div style="font-size:28px;margin-bottom:8px;">&#x1f3ae;</div>
@@ -1597,11 +1621,23 @@ function showGameModeSelection(): void {
 
   uiLayer.appendChild(modePanel);
 
+  const getRequestedTitle = (): string | null => {
+    const input = document.getElementById('new-game-title') as HTMLInputElement | null;
+    const title = input?.value.trim() ?? '';
+    if (!title) {
+      showNotification('Campaign title is required', 'warning');
+      return null;
+    }
+    return title;
+  };
+
   document.getElementById('mode-solo')?.addEventListener('click', () => {
+    const title = getRequestedTitle();
+    if (!title) return;
     modePanel.remove();
     createCivSelectPanel(uiLayer, {
       onSelect: (civId) => {
-        gameState = createNewGame(civId);
+        gameState = createNewGame(civId, undefined, undefined, title);
         startGame();
         showNotification('Your tribe has settled near a river...', 'info');
       },
@@ -1609,10 +1645,12 @@ function showGameModeSelection(): void {
   });
 
   document.getElementById('mode-hotseat')?.addEventListener('click', () => {
+    const title = getRequestedTitle();
+    if (!title) return;
     modePanel.remove();
     showHotSeatSetup(uiLayer, {
       onComplete: (config) => {
-        gameState = createHotSeatGame(config);
+        gameState = createHotSeatGame(config, undefined, title);
         startGame();
         showNotification(`Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`, 'info');
       },

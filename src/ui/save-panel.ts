@@ -1,5 +1,5 @@
 import type { SaveSlotMeta, GameState } from '@/core/types';
-import { listSaves, deleteGame, renameSave, hasAutoSave, loadAutoSave } from '@/storage/save-manager';
+import { listSaves, deleteSaveEntry, hasAutoSave, loadAutoSave } from '@/storage/save-manager';
 
 interface SavePanelCallbacks {
   onNewGame: () => void;
@@ -21,8 +21,11 @@ export async function createSavePanel(
   panel.id = 'save-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.97);z-index:60;overflow-y:auto;padding:16px;';
 
-  const saves = await listSaves();
+  const saves = await listSaves({ includeAutoSave: mode === 'start' });
   const hasAuto = await hasAutoSave();
+  const displaySaves = mode === 'save'
+    ? saves.filter(save => save.kind !== 'autosave')
+    : saves;
 
   panel.innerHTML = `
     <div style="max-width:400px;margin:0 auto;">
@@ -32,31 +35,37 @@ export async function createSavePanel(
       <div style="margin-top:16px;">
         <div style="font-size:14px;color:#e8c170;margin-bottom:8px;">${mode === 'save' ? 'Save Game' : 'Saved Games'}</div>
         ${mode === 'save' ? renderNewSlotInput() : ''}
-        ${saves.length === 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;padding:16px;">No saved games yet</div>' : ''}
-        <div id="save-slots" style="display:flex;flex-direction:column;gap:8px;">
-          ${saves.map(s => renderSlotCard(s, mode)).join('')}
-        </div>
+        ${displaySaves.length === 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;padding:16px;">No saved games yet</div>' : ''}
+        <div id="save-slots" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
       ${mode === 'start' ? renderBackupButtons() : ''}
     </div>
   `;
 
+  const saveSlots = panel.querySelector('#save-slots');
+  if (saveSlots) {
+    saveSlots.innerHTML = '';
+    for (const save of displaySaves) {
+      saveSlots.appendChild(createSlotCard(save, mode));
+    }
+  }
+
   container.appendChild(panel);
 
   // Bind events
-  document.getElementById('btn-new-game')?.addEventListener('click', () => {
+  panel.querySelector('#btn-new-game')?.addEventListener('click', () => {
     panel.remove();
     callbacks.onNewGame();
   });
 
-  document.getElementById('btn-continue')?.addEventListener('click', () => {
+  panel.querySelector('#btn-continue')?.addEventListener('click', () => {
     panel.remove();
     callbacks.onContinue();
   });
 
   // Save to new slot
-  document.getElementById('btn-save-new')?.addEventListener('click', () => {
-    const input = document.getElementById('new-slot-name') as HTMLInputElement;
+  panel.querySelector('#btn-save-new')?.addEventListener('click', () => {
+    const input = panel.querySelector('#new-slot-name') as HTMLInputElement | null;
     const name = input?.value.trim() || `Save ${Date.now()}`;
     const slotId = `slot-${Date.now()}`;
     panel.remove();
@@ -64,7 +73,7 @@ export async function createSavePanel(
   });
 
   // Export save
-  document.getElementById('btn-export-save')?.addEventListener('click', async () => {
+  panel.querySelector('#btn-export-save')?.addEventListener('click', async () => {
     const state = await loadAutoSave();
     if (!state) { alert('No save to export'); return; }
     const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
@@ -77,7 +86,7 @@ export async function createSavePanel(
   });
 
   // Import save
-  document.getElementById('btn-import-save')?.addEventListener('click', () => {
+  panel.querySelector('#btn-import-save')?.addEventListener('click', () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -99,22 +108,36 @@ export async function createSavePanel(
     input.click();
   });
 
-  // Slot buttons
-  for (const save of saves) {
-    document.getElementById(`load-${save.id}`)?.addEventListener('click', () => {
+  panel.addEventListener('click', async event => {
+    const target = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('button[data-role]');
+    if (!target) return;
+
+    const slotId = target.dataset.slotId;
+    const slotKind = target.dataset.slotKind as 'manual' | 'autosave' | undefined;
+    const role = target.dataset.role;
+
+    if (role === 'load-slot' && slotId && slotKind) {
       panel.remove();
-      callbacks.onLoadSlot(save.id);
-    });
-    document.getElementById(`save-${save.id}`)?.addEventListener('click', () => {
+      if (slotKind === 'autosave' && slotId === 'autosave') {
+        callbacks.onContinue();
+        return;
+      }
+      callbacks.onLoadSlot(slotId);
+      return;
+    }
+
+    if (role === 'overwrite-slot' && slotId) {
       panel.remove();
-      callbacks.onSaveToSlot?.(save.id, save.name);
-    });
-    document.getElementById(`delete-${save.id}`)?.addEventListener('click', async () => {
-      await deleteGame(save.id);
+      callbacks.onSaveToSlot?.(slotId, target.dataset.slotName ?? '');
+      return;
+    }
+
+    if (role === 'delete-slot' && slotId && slotKind) {
+      await deleteSaveEntry(slotId, slotKind);
       panel.remove();
-      createSavePanel(container, callbacks, mode);
-    });
-  }
+      await createSavePanel(container, callbacks, mode);
+    }
+  });
 }
 
 function renderStartButtons(hasAuto: boolean): string {
@@ -147,23 +170,56 @@ function renderNewSlotInput(): string {
   `;
 }
 
-function renderSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): string {
+function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement {
+  const card = document.createElement('div');
+  card.dataset.saveSlotCard = 'true';
+  card.style.cssText = 'background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;';
+
+  const content = document.createElement('div');
+  content.style.cssText = 'flex:1;';
+
+  const name = document.createElement('div');
+  name.style.cssText = 'font-size:13px;font-weight:bold;';
+  name.textContent = save.name;
+  content.appendChild(name);
+
+  if (save.gameTitle) {
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:11px;color:#e8c170;opacity:0.9;';
+    title.textContent = save.gameTitle;
+    content.appendChild(title);
+  }
+
   const date = new Date(save.lastPlayed);
   const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const meta = document.createElement('div');
+  meta.style.cssText = 'font-size:11px;opacity:0.5;';
+  meta.textContent = `Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType} · ${dateStr}`;
+  content.appendChild(meta);
+  card.appendChild(content);
 
-  return `
-    <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:bold;">${save.name}</div>
-        <div style="font-size:11px;opacity:0.5;">Turn ${save.turn} · ${save.gameMode === 'hotseat' ? `Hot Seat (${save.playerNames?.join(', ') ?? ''})` : save.civType} · ${dateStr}</div>
-      </div>
-      <div style="display:flex;gap:6px;">
-        ${mode === 'start'
-          ? `<button id="load-${save.id}" style="padding:6px 12px;border-radius:6px;background:#4a90d9;border:none;color:white;font-size:11px;cursor:pointer;">Load</button>`
-          : `<button id="save-${save.id}" style="padding:6px 12px;border-radius:6px;background:#6b9b4b;border:none;color:white;font-size:11px;cursor:pointer;">Overwrite</button>`
-        }
-        <button id="delete-${save.id}" style="padding:6px 12px;border-radius:6px;background:#d94a4a;border:none;color:white;font-size:11px;cursor:pointer;">✕</button>
-      </div>
-    </div>
-  `;
+  const buttons = document.createElement('div');
+  buttons.style.cssText = 'display:flex;gap:6px;';
+
+  const primaryButton = document.createElement('button');
+  primaryButton.dataset.role = mode === 'start' ? 'load-slot' : 'overwrite-slot';
+  primaryButton.dataset.slotId = save.id;
+  primaryButton.dataset.slotKind = save.kind === 'autosave' ? 'autosave' : 'manual';
+  primaryButton.dataset.slotName = save.name;
+  primaryButton.style.cssText = mode === 'start'
+    ? 'padding:6px 12px;border-radius:6px;background:#4a90d9;border:none;color:white;font-size:11px;cursor:pointer;'
+    : 'padding:6px 12px;border-radius:6px;background:#6b9b4b;border:none;color:white;font-size:11px;cursor:pointer;';
+  primaryButton.textContent = mode === 'start' ? 'Load' : 'Overwrite';
+  buttons.appendChild(primaryButton);
+
+  const deleteButton = document.createElement('button');
+  deleteButton.dataset.role = 'delete-slot';
+  deleteButton.dataset.slotId = save.id;
+  deleteButton.dataset.slotKind = save.kind === 'autosave' ? 'autosave' : 'manual';
+  deleteButton.style.cssText = 'padding:6px 12px;border-radius:6px;background:#d94a4a;border:none;color:white;font-size:11px;cursor:pointer;';
+  deleteButton.textContent = '✕';
+  buttons.appendChild(deleteButton);
+
+  card.appendChild(buttons);
+  return card;
 }

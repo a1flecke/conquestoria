@@ -450,6 +450,7 @@ export interface Civilization {
   techState: TechState;
   gold: number;
   visibility: VisibilityMap;
+  knownCivilizations?: string[];
   score: number;
   diplomacy: DiplomacyState;
   advisorDisabledUntil?: Partial<Record<AdvisorType, number>>; // turn number until re-enabled
@@ -612,9 +613,12 @@ export interface SaveSlotMeta {
   civType: string;
   turn: number;
   lastPlayed: string;
+  kind?: 'manual' | 'autosave';
   gameMode?: GameMode;
   playerCount?: number;
   playerNames?: string[];
+  gameId?: string;
+  gameTitle?: string;
 }
 
 // --- Tutorial ---
@@ -640,6 +644,8 @@ export interface TutorialState {
 export interface GameState {
   turn: number;
   era: number;
+  gameId?: string;
+  gameTitle?: string;
   civilizations: Record<string, Civilization>;
   map: GameMap;
   units: Record<string, Unit>;

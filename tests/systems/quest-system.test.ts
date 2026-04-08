@@ -4,6 +4,9 @@ import {
   checkQuestCompletion,
   processQuestExpiry,
   awardQuestReward,
+  getQuestDescriptionForPlayer,
+  getQuestIssuedMessageForPlayer,
+  isQuestTargetKnownToPlayer,
 } from '@/systems/quest-system';
 import type { Quest } from '@/core/types';
 
@@ -13,6 +16,18 @@ describe('quest system', () => {
       const quest = generateQuest('militaristic', 'mc-sparta', 'player', 1, {
         barbarianCamps: { camp1: { id: 'camp1', position: { q: 5, r: 5 }, strength: 5, spawnCooldown: 0 } },
         era: 1,
+        minorCivs: {
+          'mc-sparta': { cityId: 'city-sparta' },
+        },
+        cities: {
+          'city-sparta': {
+            id: 'city-sparta',
+            owner: 'mc-sparta',
+            position: { q: 4, r: 5 },
+            ownedTiles: [{ q: 4, r: 5 }],
+          },
+        },
+        units: {},
       } as any, () => 0.1);
       expect(quest).toBeDefined();
       expect(quest!.type).toBe('destroy_camp');
@@ -64,6 +79,82 @@ describe('quest system', () => {
       } as any, () => 0.1);
       expect(quest).toBeDefined();
       expect(quest!.chainNext).toBeUndefined();
+    });
+
+    it('does not emit trade_route quests while the trade-route gameplay loop is unsupported', () => {
+      const quest = generateQuest('mercantile', 'mc-carthage', 'player', 5, {
+        barbarianCamps: {},
+        era: 1,
+        minorCivs: {
+          'mc-carthage': { cityId: 'city-carthage' },
+        },
+        cities: {
+          'city-carthage': {
+            id: 'city-carthage',
+            owner: 'mc-carthage',
+            position: { q: 5, r: 5 },
+            ownedTiles: [{ q: 5, r: 5 }],
+          },
+        },
+        units: {},
+        civilizations: {
+          player: { units: [], cities: [] },
+        },
+        map: { tiles: {} },
+      } as any, () => 0.8);
+      expect(quest?.type).not.toBe('trade_route');
+    });
+
+    it('returns null when no nearby hostile units exist for a defeat_units quest', () => {
+      const quest = generateQuest('militaristic', 'mc-sparta', 'player', 5, {
+        barbarianCamps: {},
+        era: 1,
+        minorCivs: {
+          'mc-sparta': { cityId: 'city-sparta' },
+        },
+        cities: {
+          'city-sparta': {
+            id: 'city-sparta',
+            owner: 'mc-sparta',
+            position: { q: 5, r: 5 },
+            ownedTiles: [{ q: 5, r: 5 }],
+          },
+        },
+        units: {},
+        civilizations: {
+          player: { units: [], cities: [] },
+        },
+        map: { tiles: {} },
+      } as any, () => 0.8);
+      expect(quest).toBeNull();
+    });
+
+    it('targets the nearby barbarian camp instead of a faraway one', () => {
+      const quest = generateQuest('militaristic', 'mc-sparta', 'player', 1, {
+        barbarianCamps: {
+          far: { id: 'far', position: { q: 20, r: 20 }, strength: 5, spawnCooldown: 0 },
+          near: { id: 'near', position: { q: 6, r: 5 }, strength: 5, spawnCooldown: 0 },
+        },
+        era: 1,
+        minorCivs: {
+          'mc-sparta': { cityId: 'city-sparta' },
+        },
+        cities: {
+          'city-sparta': {
+            id: 'city-sparta',
+            owner: 'mc-sparta',
+            position: { q: 5, r: 5 },
+            ownedTiles: [{ q: 5, r: 5 }],
+          },
+        },
+        units: {},
+        civilizations: {
+          player: { units: [], cities: [] },
+        },
+        map: { tiles: {} },
+      } as any, () => 0.1);
+      expect(quest).toBeDefined();
+      expect((quest!.target as any).campId).toBe('near');
     });
   });
 
@@ -145,6 +236,142 @@ describe('quest system', () => {
       const result = awardQuestReward(reward);
       expect(result.relationshipBonus).toBe(25);
       expect(result.gold).toBe(50);
+    });
+  });
+
+  describe('quest target visibility', () => {
+    it('treats a city-targeted quest as unknown when the city has not been discovered', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: {} },
+            knownCivilizations: ['outsider'],
+          },
+        },
+      } as any;
+
+      expect(isQuestTargetKnownToPlayer(state, 'player', quest)).toBe(false);
+    });
+
+    it('returns a generic city-targeted description when the target city is undiscovered', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: {} },
+            knownCivilizations: ['outsider'],
+          },
+        },
+      } as any;
+
+      expect(getQuestDescriptionForPlayer(state, 'player', quest)).toBe('Clear 2 units near a foreign city');
+    });
+
+    it('returns the named city-targeted description once the city is discovered', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: { '6,0': 'fog' } },
+            knownCivilizations: ['outsider'],
+          },
+        },
+      } as any;
+
+      expect(getQuestDescriptionForPlayer(state, 'player', quest)).toBe('Clear 2 units from Rome');
+    });
+
+    it('builds a quest-issued notification without leaking an undiscovered city name', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: {} },
+            knownCivilizations: ['outsider'],
+          },
+        },
+      } as any;
+
+      expect(getQuestIssuedMessageForPlayer(state, 'player', 'Sparta', quest)).toBe(
+        'Sparta asks: Clear 2 units near a foreign city',
+      );
     });
   });
 });

@@ -7,6 +7,7 @@ import { drawUnits } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem } from './animation-system';
 import { hexToPixel } from '@/systems/hex-utils';
+import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 
 export interface HexHighlight {
   coord: HexCoord;
@@ -101,18 +102,31 @@ export class RenderLoop {
         if (!city) continue;
         const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
         if (!def) continue;
-        drawMinorCivTerritory(this.ctx, city.position, def.color, this.camera);
+        drawMinorCivTerritory(
+          this.ctx,
+          city.position,
+          def.color,
+          this.camera,
+          this.state.map.width,
+          this.state.map.wrapsHorizontally,
+        );
       }
     }
 
     // Draw movement/attack highlights (behind units and cities)
     for (const highlight of this.highlights) {
-      if (!this.camera.isHexVisible(highlight.coord)) continue;
-      const pixel = hexToPixel(highlight.coord, this.camera.hexSize);
-      const screen = this.camera.worldToScreen(pixel.x, pixel.y);
-      const scaledSize = this.camera.hexSize * this.camera.zoom;
-      const color = highlight.type === 'move' ? 'rgba(74, 144, 217, 0.35)' : 'rgba(217, 74, 74, 0.45)';
-      drawHexHighlight(this.ctx, screen.x, screen.y, scaledSize, color);
+      const renderCoords = this.state.map.wrapsHorizontally
+        ? getHorizontalWrapRenderCoords(highlight.coord, this.state.map.width, this.camera)
+        : [highlight.coord];
+
+      for (const renderCoord of renderCoords) {
+        if (!this.camera.isHexVisible(renderCoord)) continue;
+        const pixel = hexToPixel(renderCoord, this.camera.hexSize);
+        const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+        const scaledSize = this.camera.hexSize * this.camera.zoom;
+        const color = highlight.type === 'move' ? 'rgba(74, 144, 217, 0.35)' : 'rgba(217, 74, 74, 0.45)';
+        drawHexHighlight(this.ctx, screen.x, screen.y, scaledSize, color);
+      }
     }
 
     // Draw cities
@@ -136,7 +150,14 @@ export class RenderLoop {
 
     // Draw fog of war
     if (playerVis) {
-      drawFogOfWar(this.ctx, playerVis, this.state.map.width, this.state.map.height, this.camera);
+      drawFogOfWar(
+        this.ctx,
+        playerVis,
+        this.state.map.width,
+        this.state.map.height,
+        this.camera,
+        this.state.map.wrapsHorizontally,
+      );
     }
 
     // Draw animations

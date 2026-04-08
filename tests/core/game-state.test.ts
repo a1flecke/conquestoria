@@ -65,6 +65,12 @@ describe('createNewGame', () => {
     expect(state.map.height).toBe(50);
     expect(state.settings.mapSize).toBe('medium');
   });
+
+  it('stores a caller-supplied campaign title and game id for solo games', () => {
+    const state = createNewGame('egypt', 'title-seed', 'small', 'Rise of the Nile');
+    expect(state.gameTitle).toBe('Rise of the Nile');
+    expect(state.gameId).toMatch(/^game-/);
+  });
 });
 
 describe('minor civ integration', () => {
@@ -122,5 +128,11 @@ describe('createHotSeatGame', () => {
   it('initializes pending events', () => {
     const state = createHotSeatGame(config, 'hs-test');
     expect(state.pendingEvents).toEqual({});
+  });
+
+  it('stores a caller-supplied campaign title and game id for hot seat games', () => {
+    const state = createHotSeatGame(config, 'hs-title', 'Friends Campaign');
+    expect(state.gameTitle).toBe('Friends Campaign');
+    expect(state.gameId).toMatch(/^game-/);
   });
 });

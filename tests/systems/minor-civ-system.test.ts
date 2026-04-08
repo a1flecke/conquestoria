@@ -128,6 +128,46 @@ describe('minor civ turn processing', () => {
     const result = processMinorCivTurn(state, bus);
     expect(result.minorCivs[mcId].isDestroyed).toBe(true);
   });
+
+  it('does not issue a quest to a player who has not discovered the minor civ', () => {
+    const state = createNewGame(undefined, 'mc-undiscovered-quest', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+
+    let questIssued = false;
+    const localBus = new EventBus();
+    localBus.on('minor-civ:quest-issued', ({ majorCivId }: { majorCivId: string }) => {
+      if (majorCivId === 'player') {
+        questIssued = true;
+      }
+    });
+
+    processMinorCivTurn(state, localBus);
+
+    expect(state.minorCivs[mcId].activeQuests.player).toBeUndefined();
+    expect(questIssued).toBe(false);
+  });
+
+  it('issues a quest after the player has discovered the city-state', () => {
+    const state = createNewGame(undefined, 'mc-discovered-quest', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const city = state.cities[state.minorCivs[mcId].cityId];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+
+    let questIssued = false;
+    const localBus = new EventBus();
+    localBus.on('minor-civ:quest-issued', ({ minorCivId, majorCivId }: { minorCivId: string; majorCivId: string }) => {
+      if (minorCivId === mcId && majorCivId === 'player') {
+        questIssued = true;
+      }
+    });
+
+    processMinorCivTurn(state, localBus);
+
+    expect(state.minorCivs[mcId].activeQuests.player).toBeDefined();
+    expect(questIssued).toBe(true);
+  });
 });
 
 describe('era advancement', () => {

@@ -57,18 +57,20 @@ class MockDocument {
 export function makeDiplomacyFixture({
   currentPlayer = 'player',
   includeBreakaway = true,
+  includeThirdCiv = false,
   relationship = 70,
   gold = 250,
 }: {
   currentPlayer?: string;
   includeBreakaway?: boolean;
+  includeThirdCiv?: boolean;
   relationship?: number;
   gold?: number;
 } = {}): { container: HTMLElement; state: GameState } {
   (globalThis as typeof globalThis & { document?: Document }).document = new MockDocument() as unknown as Document;
 
   const base = includeBreakaway
-    ? makeBreakawayFixture({ turn: 10, breakawayStartedTurn: 10 })
+    ? makeBreakawayFixture({ turn: 10, breakawayStartedTurn: 10, includeThirdCiv })
     : makeBreakawayFixture();
   const state = base.state;
   state.currentPlayer = currentPlayer;

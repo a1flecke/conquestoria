@@ -141,4 +141,28 @@ describe('city renderer', () => {
     const overlayTexts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
     expect(overlayTexts).toContain('⛓');
   });
+
+  it('renders wrapped ghost cities at the horizontal seam when only the mirrored copy is on screen', () => {
+    const state = createNewGame(undefined, 'wrapped-city-render');
+    state.map.wrapsHorizontally = true;
+    state.map.width = 5;
+
+    const city = foundCity('player', { q: 0, r: 0 }, state.map);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles['0,0'] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const camera = {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: (coord: { q: number; r: number }) => coord.q === 5,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    drawCities(ctx, state, camera, 'player');
+
+    const labels = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(labels).toContain(`${city.name} (${city.population})`);
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateMinorCivDiplomacy } from '@/ai/ai-diplomacy';
+import { evaluateDiplomacy, evaluateMinorCivDiplomacy } from '@/ai/ai-diplomacy';
 import type { PersonalityTraits, GameState, MinorCivState, DiplomacyState } from '@/core/types';
 
 function makeDiplomacy(overrides: Partial<DiplomacyState> = {}): DiplomacyState {
@@ -89,5 +89,22 @@ describe('evaluateMinorCivDiplomacy', () => {
     );
     const giftDecision = decisions.find(d => d.action === 'gift_gold');
     expect(giftDecision).toBeUndefined();
+  });
+});
+
+describe('evaluateDiplomacy', () => {
+  it('does not declare war on turn 1 against an unmet or low-pressure rival', () => {
+    const decisions = evaluateDiplomacy(
+      aggressivePersonality,
+      makeDiplomacy({ relationships: { player: -60 } }),
+      [],
+      1,
+      { player: 10 },
+      100,
+      1,
+      { player: { hasMet: false, hasBorderPressure: false } },
+    );
+
+    expect(decisions.find(d => d.action === 'declare_war')).toBeUndefined();
   });
 });

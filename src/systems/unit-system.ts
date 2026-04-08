@@ -1,5 +1,11 @@
 import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, CivBonusEffect } from '@/core/types';
-import { hexKey, hexNeighbors, hexDistance } from './hex-utils';
+import {
+  hexKey,
+  hexNeighbors,
+  hexDistance,
+  getWrappedHexNeighbors,
+  wrappedHexDistance,
+} from './hex-utils';
 
 let nextUnitId = 1;
 
@@ -200,7 +206,9 @@ export function getMovementRange(
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    const neighbors = hexNeighbors(current.coord);
+    const neighbors = map.wrapsHorizontally
+      ? getWrappedHexNeighbors(current.coord, map.width)
+      : hexNeighbors(current.coord);
 
     for (const neighbor of neighbors) {
       const key = hexKey(neighbor);
@@ -264,7 +272,10 @@ export function findPath(
     let lowestF = Infinity;
     for (const key of openSet) {
       const coord = coords.get(key)!;
-      const f = (gScore.get(key) ?? Infinity) + hexDistance(coord, to);
+      const heuristic = map.wrapsHorizontally
+        ? wrappedHexDistance(coord, to, map.width)
+        : hexDistance(coord, to);
+      const f = (gScore.get(key) ?? Infinity) + heuristic;
       if (f < lowestF) {
         lowestF = f;
         currentKey = key;
@@ -286,7 +297,10 @@ export function findPath(
     closedSet.add(currentKey);
     const currentCoord = coords.get(currentKey)!;
 
-    for (const neighbor of hexNeighbors(currentCoord)) {
+    const neighbors = map.wrapsHorizontally
+      ? getWrappedHexNeighbors(currentCoord, map.width)
+      : hexNeighbors(currentCoord);
+    for (const neighbor of neighbors) {
       const nKey = hexKey(neighbor);
       if (closedSet.has(nKey)) continue;
 

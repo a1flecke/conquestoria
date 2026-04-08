@@ -2,6 +2,9 @@ import type { GameState, DiplomaticAction } from '@/core/types';
 import { canReabsorbBreakaway, getRelationship, isAtWar, getAvailableActions } from '@/systems/diplomacy-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { hasDiscoveredMinorCiv, hasMetCivilization } from '@/systems/discovery-system';
+import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
+import { getQuestDescriptionForPlayer } from '@/systems/quest-system';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
@@ -56,12 +59,15 @@ export function createDiplomacyPanel(
   for (const [civId, civ] of Object.entries(state.civilizations)) {
     if (civId === state.currentPlayer) continue;
 
+    const hasMet = hasMetCivilization(state, state.currentPlayer, civId);
     const civDef = getCivDefinition(civ.civType ?? '');
     const relationship = getRelationship(playerDiplomacy, civId);
     const atWar = isAtWar(playerDiplomacy, civId);
-    const actions = getAvailableActions(
-      playerDiplomacy, civId, playerCiv.techState.completed, state.era,
-    );
+    const actions = hasMet
+      ? getAvailableActions(
+          playerDiplomacy, civId, playerCiv.techState.completed, state.era,
+        )
+      : [];
 
     let barColor = '#888';
     if (relationship > 30) barColor = '#4a9b4a';
@@ -99,13 +105,13 @@ export function createDiplomacyPanel(
     civRows.push({
       civId,
       civIdx,
-      name: civ.name,
+      name: hasMet ? civ.name : `Unknown Civilization ${civIdx + 1}`,
       color: civ.color,
-      bonusName: civDef?.bonusName ?? '',
-      relationship,
-      barWidth: Math.max(2, (relationship + 100) / 2),
-      barColor,
-      statusText,
+      bonusName: hasMet ? (civDef?.bonusName ?? '') : 'Unknown bonus',
+      relationship: hasMet ? relationship : 0,
+      barWidth: hasMet ? Math.max(2, (relationship + 100) / 2) : 50,
+      barColor: hasMet ? barColor : '#888',
+      statusText: hasMet ? statusText : 'Unknown rival',
       treaties,
       actions: rowActions.map(action => ({ action, isHostile: action === 'declare_war' })),
     });
@@ -116,8 +122,10 @@ export function createDiplomacyPanel(
   const mcEntries = Object.entries(state.minorCivs ?? {}).filter(([, mc]) => !mc.isDestroyed);
   const minorCivRows: MinorCivRowData[] = [];
   mcEntries.forEach(([mcId, mc], mcIdx) => {
+    if (!hasDiscoveredMinorCiv(state, state.currentPlayer, mcId)) return;
     const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
     if (!def) return;
+    const presentation = getMinorCivPresentationForPlayer(state, state.currentPlayer, mcId, 'City-State');
     const rel = mc.diplomacy.relationships[state.currentPlayer] ?? 0;
     const status = rel <= -60 ? 'Hostile' : rel >= 60 ? 'Allied' : rel >= 30 ? 'Friendly' : 'Neutral';
     const archIcon = def.archetype === 'militaristic' ? '⚔️' : def.archetype === 'mercantile' ? '🪙' : '📜';
@@ -128,12 +136,12 @@ export function createDiplomacyPanel(
     minorCivRows.push({
       mcId,
       mcIdx,
-      defName: def.name,
-      defColor: def.color,
+      defName: presentation.name,
+      defColor: presentation.color,
       archIcon,
       statusColor,
       statusText: `${status} (${rel})`,
-      questDescription: quest ? quest.description : null,
+      questDescription: quest ? getQuestDescriptionForPlayer(state, state.currentPlayer, quest) : null,
       atWar,
       warBg: atWar ? 'rgba(74,155,74,0.3)' : 'rgba(217,74,74,0.3)',
       warBorder: atWar ? '#4a9b4a' : '#d94a4a',

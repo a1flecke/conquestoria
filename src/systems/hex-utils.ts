@@ -120,6 +120,23 @@ export function wrapHexCoord(coord: HexCoord, mapWidth: number): HexCoord {
   return { q, r: coord.r };
 }
 
+export function getWrappedHexNeighbors(coord: HexCoord, mapWidth: number): HexCoord[] {
+  const deduped = new Map<string, HexCoord>();
+  for (const neighbor of hexNeighbors(coord)) {
+    const wrapped = wrapHexCoord(neighbor, mapWidth);
+    deduped.set(hexKey(wrapped), wrapped);
+  }
+  return Array.from(deduped.values());
+}
+
+export function wrappedHexDistance(a: HexCoord, b: HexCoord, mapWidth: number): number {
+  return Math.min(
+    hexDistance(a, b),
+    hexDistance(a, { q: b.q - mapWidth, r: b.r }),
+    hexDistance(a, { q: b.q + mapWidth, r: b.r }),
+  );
+}
+
 // --- Line of sight ---
 
 export function hexLineTo(a: HexCoord, b: HexCoord): HexCoord[] {

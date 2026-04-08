@@ -1,4 +1,4 @@
-import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType } from '@/core/types';
+import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
@@ -7,6 +7,8 @@ import { resolveCombat } from '@/systems/combat-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { getCivDefinition } from '@/systems/civ-definitions';
+import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { hexDistance } from '@/systems/hex-utils';
 import { chooseTech, chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import {
@@ -378,12 +380,37 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }, 0);
 
     const otherStrengths: Record<string, number> = {};
+    const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean }> = {};
     for (const [otherId, otherCiv] of Object.entries(newState.civilizations)) {
       if (otherId === civId) continue;
       const otherMil = otherCiv.units
         .map(id => newState.units[id])
         .filter((u): u is Unit => u !== undefined && u.type === 'warrior');
       otherStrengths[otherId] = otherMil.reduce((sum, u) => sum + u.health, 0);
+
+      const otherCities = otherCiv.cities
+        .map(id => newState.cities[id])
+        .filter((city): city is City => city !== undefined);
+      const ownCities = civ.cities
+        .map(id => newState.cities[id])
+        .filter((city): city is City => city !== undefined);
+      const ownUnits = civ.units
+        .map(id => newState.units[id])
+        .filter((unit): unit is Unit => unit !== undefined);
+      const otherUnits = otherCiv.units
+        .map(id => newState.units[id])
+        .filter((unit): unit is Unit => unit !== undefined);
+
+      const hasBorderPressure = ownUnits.some(unit =>
+        otherCities.some(city => hexDistance(unit.position, city.position) <= 3),
+      ) || otherUnits.some(unit =>
+        ownCities.some(city => hexDistance(unit.position, city.position) <= 3),
+      );
+
+      diplomacyContext[otherId] = {
+        hasMet: hasMetCivilization(newState, civId, otherId),
+        hasBorderPressure,
+      };
     }
 
     const decisions = evaluateDiplomacy(
@@ -393,6 +420,8 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       newState.era,
       otherStrengths,
       selfStrength,
+      newState.turn,
+      diplomacyContext,
     );
 
     for (const decision of decisions) {
@@ -590,6 +619,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     .map(id => newState.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
   updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
+  syncCivilizationContactsFromVisibility(newState, civId);
 
   return newState;
 }

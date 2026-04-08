@@ -595,6 +595,24 @@ describe('processAITurn', () => {
     expect(newState).toBeDefined();
   });
 
+  it('does not declare war on the opening turn in a fresh-contact state', () => {
+    const state = createNewGame(undefined, 'ai-war-gate');
+    state.turn = 1;
+    state.civilizations['ai-1'].civType = 'rome';
+    state.civilizations['ai-1'].diplomacy.relationships.player = -60;
+    state.civilizations.player.diplomacy.relationships['ai-1'] = -60;
+
+    const playerWarrior = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'warrior');
+    if (playerWarrior) {
+      playerWarrior.health = 10;
+    }
+
+    const bus = new EventBus();
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
+  });
+
   it('AI settler founds a city when possible', () => {
     const state = createNewGame(undefined, 'ai-test');
     const bus = new EventBus();
@@ -691,5 +709,29 @@ describe('processAITurn', () => {
     expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.type).toBe('cyber_attack');
     expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.targetCivId).toBe('player');
     expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.targetCityId).toBe('city-player');
+  });
+
+  it('records first contact when ai visibility refresh reveals the player during its turn', () => {
+    const state = makeAiDefenseSpyState();
+    const bus = new EventBus();
+    state.units['unit-ai-scout'] = {
+      id: 'unit-ai-scout',
+      type: 'scout',
+      owner: 'ai-1',
+      position: { q: 3, r: 0 },
+      movementPointsLeft: 0,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.civilizations['ai-1'].units = ['unit-ai-scout'];
+    state.civilizations['ai-1'].knownCivilizations = [];
+    state.civilizations.player.knownCivilizations = [];
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.civilizations['ai-1'].knownCivilizations).toContain('player');
   });
 });

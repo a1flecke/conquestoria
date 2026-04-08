@@ -1,18 +1,7 @@
 import type { GameState, TutorialStep, AdvisorType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
-
-/** Returns true only if the current player has discovered the minor civ's city position */
-function isMinorCivDiscovered(state: GameState, mc: { cityId: string; isDestroyed: boolean }): boolean {
-  if (mc.isDestroyed) return false;
-  const playerVis = state.civilizations[state.currentPlayer]?.visibility;
-  if (!playerVis) return false;
-  const city = state.cities[mc.cityId];
-  if (!city) return false;
-  const key = `${city.position.q},${city.position.r}`;
-  const visState = playerVis.tiles[key];
-  return visState === 'visible' || visState === 'fog'; // fog = previously seen (explored)
-}
+import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 
 interface AdvisorMessage {
   id: string;
@@ -456,7 +445,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'A nearby city-state could be a valuable ally. Consider their quest.',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        isMinorCivDiscovered(state, mc) && Object.values(mc.activeQuests).some(q => q.status === 'active')
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && Object.values(mc.activeQuests).some(q => q.status === 'active')
       ),
   },
   {
@@ -466,7 +455,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'Our aggression against city-states is making others wary.',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        isMinorCivDiscovered(state, mc) && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) < -30
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) < -30
       ),
   },
   // Minor Civ — Warchief
@@ -477,7 +466,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'An undefended city-state could be easy pickings...',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        isMinorCivDiscovered(state, mc) && mc.units.filter(uid => state.units[uid]).length === 0
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && mc.units.filter(uid => state.units[uid]).length === 0
       ),
   },
   {
@@ -498,7 +487,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'Our mercantile ally is boosting our income.',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        isMinorCivDiscovered(state, mc) && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
       ),
   },
   // Minor Civ — Scholar
@@ -509,7 +498,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'Our cultural ally advances our knowledge.',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        isMinorCivDiscovered(state, mc) && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
       ),
   },
   // --- Spymaster Advisor ---
