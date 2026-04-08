@@ -21,8 +21,11 @@ export async function createSavePanel(
   panel.id = 'save-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.97);z-index:60;overflow-y:auto;padding:16px;';
 
-  const saves = await listSaves();
+  const saves = await listSaves({ includeAutoSave: mode === 'start' });
   const hasAuto = await hasAutoSave();
+  const displaySaves = mode === 'save'
+    ? saves.filter(save => save.kind !== 'autosave')
+    : saves;
 
   panel.innerHTML = `
     <div style="max-width:400px;margin:0 auto;">
@@ -32,9 +35,9 @@ export async function createSavePanel(
       <div style="margin-top:16px;">
         <div style="font-size:14px;color:#e8c170;margin-bottom:8px;">${mode === 'save' ? 'Save Game' : 'Saved Games'}</div>
         ${mode === 'save' ? renderNewSlotInput() : ''}
-        ${saves.length === 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;padding:16px;">No saved games yet</div>' : ''}
+        ${displaySaves.length === 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;padding:16px;">No saved games yet</div>' : ''}
         <div id="save-slots" style="display:flex;flex-direction:column;gap:8px;">
-          ${saves.map(s => renderSlotCard(s, mode)).join('')}
+          ${displaySaves.map(s => renderSlotCard(s, mode)).join('')}
         </div>
       </div>
       ${mode === 'start' ? renderBackupButtons() : ''}
@@ -100,9 +103,13 @@ export async function createSavePanel(
   });
 
   // Slot buttons
-  for (const save of saves) {
+  for (const save of displaySaves) {
     document.getElementById(`load-${save.id}`)?.addEventListener('click', () => {
       panel.remove();
+      if (save.kind === 'autosave') {
+        callbacks.onContinue();
+        return;
+      }
       callbacks.onLoadSlot(save.id);
     });
     document.getElementById(`save-${save.id}`)?.addEventListener('click', () => {

@@ -19,6 +19,20 @@ export async function autoSave(state: GameState): Promise<void> {
   }
 }
 
+function buildAutoSaveMeta(state: GameState): SaveSlotMeta {
+  return {
+    id: AUTO_SAVE_KEY,
+    name: 'Autosave',
+    civType: state.hotSeat ? 'hotseat' : (state.civilizations[state.currentPlayer]?.civType ?? 'generic'),
+    turn: state.turn,
+    lastPlayed: new Date().toISOString(),
+    kind: 'autosave',
+    gameMode: state.hotSeat ? 'hotseat' : 'solo',
+    playerCount: state.hotSeat?.playerCount,
+    playerNames: state.hotSeat?.players.filter(p => p.isHuman).map(p => p.name),
+  };
+}
+
 export async function loadAutoSave(): Promise<GameState | undefined> {
   const idbSave = await dbGet<GameState>(AUTO_SAVE_KEY);
   if (idbSave) return idbSave;
@@ -62,6 +76,7 @@ export async function saveGame(slotId: string, name: string, state: GameState): 
     civType: state.hotSeat ? 'hotseat' : (state.civilizations[state.currentPlayer]?.civType ?? 'generic'),
     turn: state.turn,
     lastPlayed: new Date().toISOString(),
+    kind: 'manual',
     gameMode: state.hotSeat ? 'hotseat' : 'solo',
     playerCount: state.hotSeat?.playerCount,
     playerNames: state.hotSeat?.players.filter(p => p.isHuman).map(p => p.name),
@@ -79,7 +94,7 @@ export async function deleteGame(slotId: string): Promise<void> {
   await dbDelete(META_PREFIX + slotId);
 }
 
-export async function listSaves(): Promise<SaveSlotMeta[]> {
+export async function listSaves(options: { includeAutoSave?: boolean } = {}): Promise<SaveSlotMeta[]> {
   const allKeys = await dbGetAllKeys();
   const metaKeys = allKeys.filter(k => k.startsWith(META_PREFIX));
   const metas: SaveSlotMeta[] = [];
@@ -88,6 +103,12 @@ export async function listSaves(): Promise<SaveSlotMeta[]> {
     if (meta) metas.push(meta);
   }
   metas.sort((a, b) => b.lastPlayed.localeCompare(a.lastPlayed));
+  if (options.includeAutoSave) {
+    const autoState = await loadAutoSave();
+    if (autoState) {
+      metas.unshift(buildAutoSaveMeta(autoState));
+    }
+  }
   return metas;
 }
 

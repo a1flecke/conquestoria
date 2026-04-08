@@ -612,6 +612,7 @@ export interface SaveSlotMeta {
   civType: string;
   turn: number;
   lastPlayed: string;
+  kind?: 'manual' | 'autosave';
   gameMode?: GameMode;
   playerCount?: number;
   playerNames?: string[];
