@@ -12,6 +12,11 @@ export interface DiplomaticDecision {
   targetCiv: string;
 }
 
+export interface DiplomaticContext {
+  hasMet: boolean;
+  hasBorderPressure: boolean;
+}
+
 export function evaluateDiplomacy(
   personality: PersonalityTraits,
   diplomacy: DiplomacyState,
@@ -19,6 +24,8 @@ export function evaluateDiplomacy(
   era: number,
   militaryStrengths: Record<string, number>,
   selfStrength: number,
+  currentTurn: number,
+  contextByCiv: Record<string, DiplomaticContext>,
 ): DiplomaticDecision[] {
   const decisions: DiplomaticDecision[] = [];
 
@@ -35,7 +42,15 @@ export function evaluateDiplomacy(
         decisions.push({ action: 'request_peace', targetCiv: civId });
       }
     } else {
-      if (actions.includes('declare_war') && shouldDeclareWar(personality, relationship, advantage)) {
+      const context = contextByCiv[civId] ?? { hasMet: true, hasBorderPressure: false };
+      if (actions.includes('declare_war') && shouldDeclareWar(
+        personality,
+        relationship,
+        advantage,
+        currentTurn,
+        context.hasMet,
+        context.hasBorderPressure,
+      )) {
         decisions.push({ action: 'declare_war', targetCiv: civId });
         continue;
       }

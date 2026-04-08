@@ -45,8 +45,18 @@ export function shouldDeclareWar(
   personality: PersonalityTraits,
   relationship: number,
   militaryAdvantage: number,
+  currentTurn: number,
+  hasMetTarget: boolean,
+  hasBorderPressure: boolean,
 ): boolean {
+  if (!hasMetTarget) return false;
   if (relationship > 30) return false;
+  if (currentTurn <= 5) {
+    return hasBorderPressure
+      && relationship <= -80
+      && militaryAdvantage >= 2
+      && personality.warLikelihood >= 0.8;
+  }
   const warScore = personality.warLikelihood * militaryAdvantage;
   const peacePressure = Math.max(0, relationship) / 100;
   return warScore > (0.8 + peacePressure);

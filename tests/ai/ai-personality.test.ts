@@ -61,15 +61,19 @@ describe('ai-personality', () => {
 
   describe('shouldDeclareWar', () => {
     it('aggressive civ with military advantage declares war', () => {
-      expect(shouldDeclareWar(aggressive, -10, 1.5)).toBe(true);
+      expect(shouldDeclareWar(aggressive, -10, 1.5, 12, true, true)).toBe(true);
     });
 
     it('diplomatic civ avoids war even with advantage', () => {
-      expect(shouldDeclareWar(diplomatic, 10, 1.5)).toBe(false);
+      expect(shouldDeclareWar(diplomatic, 10, 1.5, 12, true, true)).toBe(false);
     });
 
     it('no one declares war with positive relationship above 30', () => {
-      expect(shouldDeclareWar(aggressive, 40, 2.0)).toBe(false);
+      expect(shouldDeclareWar(aggressive, 40, 2.0, 12, true, true)).toBe(false);
+    });
+
+    it('does not declare war on turn 1 against an unmet rival even with advantage', () => {
+      expect(shouldDeclareWar(aggressive, -60, 2.0, 1, false, false)).toBe(false);
     });
   });
 });

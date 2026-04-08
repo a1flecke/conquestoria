@@ -595,6 +595,24 @@ describe('processAITurn', () => {
     expect(newState).toBeDefined();
   });
 
+  it('does not declare war on the opening turn in a fresh-contact state', () => {
+    const state = createNewGame(undefined, 'ai-war-gate');
+    state.turn = 1;
+    state.civilizations['ai-1'].civType = 'rome';
+    state.civilizations['ai-1'].diplomacy.relationships.player = -60;
+    state.civilizations.player.diplomacy.relationships['ai-1'] = -60;
+
+    const playerWarrior = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'warrior');
+    if (playerWarrior) {
+      playerWarrior.health = 10;
+    }
+
+    const bus = new EventBus();
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
+  });
+
   it('AI settler founds a city when possible', () => {
     const state = createNewGame(undefined, 'ai-test');
     const bus = new EventBus();
