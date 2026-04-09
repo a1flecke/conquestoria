@@ -141,6 +141,7 @@ describe('save persistence (#38)', () => {
         advisorsEnabled: {
           artisan: true,
         },
+        councilTalkLevel: 'normal',
       },
       espionage: {
         player: {

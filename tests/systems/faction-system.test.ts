@@ -182,6 +182,7 @@ function makeState({
       sfxVolume: 0,
       tutorialEnabled: false,
       advisorsEnabled: {} as any,
+      councilTalkLevel: 'normal',
     },
     tribalVillages: {},
     discoveredWonders: {},

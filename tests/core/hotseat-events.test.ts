@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   collectEvent,
+  collectCouncilInterrupt,
   getEventsForPlayer,
   clearEventsForPlayer,
   generateSummary,
@@ -37,5 +38,21 @@ describe('hotseat-events', () => {
     expect(typeof summary.gold).toBe('number');
     expect(typeof summary.cities).toBe('number');
     expect(typeof summary.units).toBe('number');
+  });
+
+  it('collects council interrupts for the intended viewer only', () => {
+    const pending: Record<string, GameEvent[]> = {};
+
+    collectCouncilInterrupt(pending, 'player-2', {
+      civId: 'player-2',
+      advisor: 'treasurer',
+      summary: 'We are running low on food.',
+      sourceCardId: 'food-warning',
+    }, 6);
+
+    expect(pending['player-2']).toEqual([
+      { type: 'council:interrupt', message: 'We are running low on food.', turn: 6 },
+    ]);
+    expect(pending['player-1']).toBeUndefined();
   });
 });

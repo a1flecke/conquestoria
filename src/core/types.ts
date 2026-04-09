@@ -501,7 +501,7 @@ export type QuestType = 'destroy_camp' | 'gift_gold' | 'defeat_units' | 'trade_r
 export type QuestTarget =
   | { type: 'destroy_camp'; campId: string }
   | { type: 'gift_gold'; amount: number }
-  | { type: 'defeat_units'; count: number; nearPosition: HexCoord; radius: number }
+  | { type: 'defeat_units'; count: number; nearPosition: HexCoord; radius: number; cityId?: string }
   | { type: 'trade_route'; minorCivId: string };
 
 export interface QuestReward {
@@ -516,6 +516,8 @@ export interface Quest {
   type: QuestType;
   description: string;
   target: QuestTarget;
+  cityId?: string;
+  minorCivId?: string;
   reward: QuestReward;
   progress: number;
   status: 'active' | 'completed' | 'expired';
@@ -566,6 +568,15 @@ export interface HotSeatConfig {
   players: HotSeatPlayer[];
 }
 
+export interface SoloSetupConfig {
+  civType: string;
+  mapSize: 'small' | 'medium' | 'large';
+  opponentCount: number;
+  gameTitle: string;
+  settingsOverrides?: Partial<GameSettings>;
+  seed?: string;
+}
+
 export interface GameEvent {
   type: string;
   message: string;
@@ -604,6 +615,38 @@ export type AdvisorType =
   | 'scholar'
   | 'spymaster'
   | 'artisan';
+
+export type CouncilTalkLevel = 'quiet' | 'normal' | 'chatty' | 'chaos';
+
+export interface CouncilCard {
+  id: string;
+  advisor: AdvisorType;
+  bucket: 'do-now' | 'soon' | 'to-win' | 'drama';
+  title: string;
+  summary: string;
+  why: string;
+  priority: number;
+  actionLabel?: string;
+}
+
+export interface CouncilAgenda {
+  doNow: CouncilCard[];
+  soon: CouncilCard[];
+  toWin: CouncilCard[];
+  drama: CouncilCard[];
+}
+
+export interface CouncilInterrupt {
+  civId: string;
+  advisor: AdvisorType;
+  summary: string;
+  sourceCardId: string;
+}
+
+export interface CouncilState {
+  talkLevel: CouncilTalkLevel;
+  lastShownTurn: number;
+}
 
 // --- Save Slots ---
 
@@ -678,6 +721,7 @@ export interface GameSettings {
   sfxVolume: number;         // 0-1
   tutorialEnabled: boolean;
   advisorsEnabled: Record<AdvisorType, boolean>;
+  councilTalkLevel: CouncilTalkLevel;
 }
 
 // --- Events ---

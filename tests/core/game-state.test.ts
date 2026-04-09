@@ -71,6 +71,34 @@ describe('createNewGame', () => {
     expect(state.gameTitle).toBe('Rise of the Nile');
     expect(state.gameId).toMatch(/^game-/);
   });
+
+  it('passes the chosen title into object-based createNewGame config', () => {
+    const state = createNewGame({
+      civType: 'rome',
+      seed: 'seed-1',
+      mapSize: 'medium',
+      opponentCount: 3,
+      gameTitle: 'Wife Test Campaign',
+    });
+
+    expect(state.gameTitle).toBe('Wife Test Campaign');
+    expect(state.settings.mapSize).toBe('medium');
+    expect(Object.keys(state.civilizations)).toHaveLength(4);
+  });
+
+  it('can seed a new campaign from persisted app settings without re-listing defaults', () => {
+    const state = createNewGame({
+      civType: 'rome',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Quiet Council',
+      settingsOverrides: {
+        councilTalkLevel: 'quiet',
+      },
+    });
+
+    expect(state.settings.councilTalkLevel).toBe('quiet');
+  });
 });
 
 describe('minor civ integration', () => {

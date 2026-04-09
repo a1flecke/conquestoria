@@ -1,4 +1,4 @@
-import type { GameState, Civilization, Unit, HotSeatConfig } from './types';
+import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig } from './types';
 import { generateMap, findStartPositions, createRng } from '@/systems/map-generator';
 import { createUnit, resetUnitId } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
@@ -29,41 +29,108 @@ export const MAP_DIMENSIONS = {
   large: { width: 80, height: 80, maxPlayers: 8 },
 } as const;
 
+export function createDefaultSettings(
+  actualSize: 'small' | 'medium' | 'large',
+  overrides: Partial<GameSettings> = {},
+): GameSettings {
+  return {
+    mapSize: actualSize,
+    soundEnabled: true,
+    musicEnabled: true,
+    musicVolume: 0.5,
+    sfxVolume: 0.7,
+    tutorialEnabled: true,
+    advisorsEnabled: {
+      builder: true,
+      explorer: true,
+      chancellor: true,
+      warchief: true,
+      treasurer: true,
+      scholar: true,
+      spymaster: true,
+      artisan: true,
+    },
+    councilTalkLevel: 'normal',
+    ...overrides,
+  };
+}
+
 function createGameId(seed: string): string {
   return `game-${hashSeed(seed)}-${Date.now()}`;
 }
 
-export function createNewGame(civType?: string, seed?: string, mapSize?: 'small' | 'medium' | 'large', gameTitle?: string): GameState {
+function getDiplomacyStartBonus(civType: string | undefined): number {
+  const civDef = getCivDefinition(civType ?? '');
+  return civDef?.bonusEffect.type === 'diplomacy_start_bonus'
+    ? (civDef.bonusEffect as { type: 'diplomacy_start_bonus'; bonus: number }).bonus
+    : 0;
+}
+
+function normalizeSoloSetupConfig(
+  arg1?: SoloSetupConfig | string,
+  seed?: string,
+  mapSize?: 'small' | 'medium' | 'large',
+  gameTitle?: string,
+): SoloSetupConfig {
+  if (typeof arg1 === 'object' && arg1 !== null) {
+    return {
+      civType: arg1.civType,
+      seed: arg1.seed,
+      mapSize: arg1.mapSize,
+      opponentCount: arg1.opponentCount,
+      gameTitle: arg1.gameTitle,
+      settingsOverrides: arg1.settingsOverrides,
+    };
+  }
+
+  return {
+    civType: arg1 ?? 'generic',
+    seed,
+    mapSize: mapSize ?? 'small',
+    opponentCount: 1,
+    gameTitle: gameTitle ?? 'Solo Campaign',
+  };
+}
+
+export function createNewGame(config: SoloSetupConfig): GameState;
+export function createNewGame(civType?: string, seed?: string, mapSize?: 'small' | 'medium' | 'large', gameTitle?: string): GameState;
+export function createNewGame(
+  arg1?: SoloSetupConfig | string,
+  seed?: string,
+  mapSize?: 'small' | 'medium' | 'large',
+  gameTitle?: string,
+): GameState {
   // Reset all ID counters before creating new game
   resetUnitId();
   resetCityId();
   resetCampId();
   _resetSpyIdCounter();
 
-  const gameSeed = seed ?? `game-${Date.now()}`;
-  const resolvedGameTitle = gameTitle?.trim() || 'Solo Campaign';
-  const dims = MAP_DIMENSIONS[mapSize ?? 'small'];
-  const actualSize = mapSize ?? 'small';
+  const config = normalizeSoloSetupConfig(arg1, seed, mapSize, gameTitle);
+  const actualSize = config.mapSize ?? 'small';
+  const dims = MAP_DIMENSIONS[actualSize];
+  const boundedOpponentCount = Math.max(1, Math.min(config.opponentCount, dims.maxPlayers - 1));
+  const gameSeed = config.seed ?? `game-${Date.now()}`;
+  const resolvedGameTitle = config.gameTitle.trim() || 'Solo Campaign';
   const map = generateMap(dims.width, dims.height, gameSeed);
-  const startPositions = findStartPositions(map, 2);
+  const startPositions = findStartPositions(map, 1 + boundedOpponentCount);
 
   // Place wonders and villages
   placeWonders(map, startPositions, actualSize, gameSeed);
   const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
 
-  const playerCivDef = getCivDefinition(civType ?? '');
-  const aiCivDefs = CIV_DEFINITIONS.filter(c => c.id !== (civType ?? ''));
+  const playerCivDef = getCivDefinition(config.civType ?? '');
+  const aiCivPool = [...CIV_DEFINITIONS.filter(c => c.id !== (config.civType ?? ''))];
   const civSelectRng = createRng(gameSeed + '-civ-select');
-  const aiCivDef = aiCivDefs[Math.floor(civSelectRng() * aiCivDefs.length)] ?? CIV_DEFINITIONS[0];
+  for (let i = aiCivPool.length - 1; i > 0; i--) {
+    const j = Math.floor(civSelectRng() * (i + 1));
+    [aiCivPool[i], aiCivPool[j]] = [aiCivPool[j], aiCivPool[i]];
+  }
+  const aiCivDefs = aiCivPool.slice(0, boundedOpponentCount);
 
-  const allCivIds = ['player', 'ai-1'];
+  const allCivIds = ['player', ...aiCivDefs.map((_, index) => `ai-${index + 1}`)];
 
-  const playerStartBonus = playerCivDef?.bonusEffect.type === 'diplomacy_start_bonus'
-    ? (playerCivDef.bonusEffect as { type: 'diplomacy_start_bonus'; bonus: number }).bonus
-    : 0;
-  const aiStartBonus = aiCivDef.bonusEffect.type === 'diplomacy_start_bonus'
-    ? (aiCivDef.bonusEffect as { type: 'diplomacy_start_bonus'; bonus: number }).bonus
-    : 0;
+  const playerStartBonus = getDiplomacyStartBonus(config.civType);
 
   // Create player civilization
   const playerCiv: Civilization = {
@@ -71,7 +138,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     name: playerCivDef?.name ?? 'Player Civilization',
     color: playerCivDef?.color ?? '#4a90d9',
     isHuman: true,
-    civType: civType ?? 'generic',
+    civType: config.civType ?? 'generic',
     cities: [],
     units: [],
     techState: createTechState(),
@@ -82,22 +149,29 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     diplomacy: createDiplomacyState(allCivIds, 'player', playerStartBonus),
   };
 
-  // Create AI civilization
-  const aiCiv: Civilization = {
-    id: 'ai-1',
-    name: aiCivDef.name,
-    color: aiCivDef.color,
-    isHuman: false,
-    civType: aiCivDef.id,
-    cities: [],
-    units: [],
-    techState: createTechState(),
-    gold: 0,
-    visibility: createVisibilityMap(),
-    knownCivilizations: [],
-    score: 0,
-    diplomacy: createDiplomacyState(allCivIds, 'ai-1', aiStartBonus),
+  const civilizations: Record<string, Civilization> = {
+    player: playerCiv,
   };
+
+  for (let index = 0; index < aiCivDefs.length; index++) {
+    const civId = `ai-${index + 1}`;
+    const aiCivDef = aiCivDefs[index];
+    civilizations[civId] = {
+      id: civId,
+      name: aiCivDef.name,
+      color: aiCivDef.color,
+      isHuman: false,
+      civType: aiCivDef.id,
+      cities: [],
+      units: [],
+      techState: createTechState(),
+      gold: 0,
+      visibility: createVisibilityMap(),
+      knownCivilizations: [],
+      score: 0,
+      diplomacy: createDiplomacyState(allCivIds, civId, getDiplomacyStartBonus(aiCivDef.id)),
+    };
+  }
 
   // Create starting units
   const units: Record<string, Unit> = {};
@@ -108,15 +182,23 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   units[playerWarrior.id] = playerWarrior;
   playerCiv.units = [playerSettler.id, playerWarrior.id];
 
-  const aiSettler = createUnit('settler', 'ai-1', startPositions[1], aiCivDef?.bonusEffect);
-  const aiWarrior = createUnit('warrior', 'ai-1', startPositions[1], aiCivDef?.bonusEffect);
-  units[aiSettler.id] = aiSettler;
-  units[aiWarrior.id] = aiWarrior;
-  aiCiv.units = [aiSettler.id, aiWarrior.id];
+  for (let index = 0; index < aiCivDefs.length; index++) {
+    const civId = `ai-${index + 1}`;
+    const aiCivDef = aiCivDefs[index];
+    const aiSettler = createUnit('settler', civId, startPositions[index + 1], aiCivDef?.bonusEffect);
+    const aiWarrior = createUnit('warrior', civId, startPositions[index + 1], aiCivDef?.bonusEffect);
+    units[aiSettler.id] = aiSettler;
+    units[aiWarrior.id] = aiWarrior;
+    civilizations[civId].units = [aiSettler.id, aiWarrior.id];
+  }
 
   // Initial visibility
   updateVisibility(playerCiv.visibility, [playerSettler, playerWarrior], map);
-  updateVisibility(aiCiv.visibility, [aiSettler, aiWarrior], map);
+  for (let index = 0; index < aiCivDefs.length; index++) {
+    const civId = `ai-${index + 1}`;
+    const aiUnits = civilizations[civId].units.map(unitId => units[unitId]);
+    updateVisibility(civilizations[civId].visibility, aiUnits, map);
+  }
 
   // Spawn initial barbarian camps
   const barbarianCamps: Record<string, any> = {};
@@ -132,7 +214,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     era: 1,
     gameId: createGameId(gameSeed),
     gameTitle: resolvedGameTitle,
-    civilizations: { player: playerCiv, 'ai-1': aiCiv },
+    civilizations,
     map,
     units,
     cities: {},
@@ -148,15 +230,7 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
-    settings: {
-      mapSize: actualSize,
-      soundEnabled: true,
-      musicEnabled: true,
-      musicVolume: 0.5,
-      sfxVolume: 0.7,
-      tutorialEnabled: true,
-      advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true, artisan: true },
-    },
+    settings: createDefaultSettings(actualSize, config.settingsOverrides),
   };
 
   // Place minor civilizations
@@ -165,8 +239,9 @@ export function createNewGame(civType?: string, seed?: string, mapSize?: 'small'
   Object.assign(state.cities, mcResult.cities);
   Object.assign(state.units, mcResult.units);
 
-  syncCivilizationContactsFromVisibility(state, 'player');
-  syncCivilizationContactsFromVisibility(state, 'ai-1');
+  for (const civId of Object.keys(state.civilizations)) {
+    syncCivilizationContactsFromVisibility(state, civId);
+  }
 
   // Initialize espionage state for all civs
   state.espionage = initializeEspionage(state);
@@ -259,15 +334,9 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
-    settings: {
-      mapSize: config.mapSize,
-      soundEnabled: true,
-      musicEnabled: true,
-      musicVolume: 0.5,
-      sfxVolume: 0.7,
+    settings: createDefaultSettings(config.mapSize, {
       tutorialEnabled: false,
-      advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true, artisan: true },
-    },
+    }),
   };
 
   // Place minor civilizations
