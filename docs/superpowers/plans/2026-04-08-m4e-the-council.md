@@ -30,6 +30,8 @@ Critical rules to preserve:
 6. **Save/load safety is mandatory.** New settings, council state, auto-explore flags, naming pools, and custom civ definitions must round-trip through save persistence.
 7. **Use the repo wrapper for commands.** All test/build commands below assume `./scripts/run-with-mise.sh yarn ...`.
 8. **Worktree cleanup happens only after merge.** After each slice MR merges, confirm the merged commit is reachable from `origin/main`, then remove that slice worktree/branch.
+9. **Replacing a live UI surface means deleting the old construction path.** Do not append a second bottom bar, civ picker, or setup flow alongside the existing one. Add a regression that proves the legacy path is gone or delegated.
+10. **User-authored gameplay data must normalize into existing runtime types before live use.** Custom civs, campaign titles, and other authored content must be converted into the same runtime contracts the rest of the engine already expects before AI, diplomacy, rendering, or save/load code touches them.
 
 Standard commands:
 
@@ -59,7 +61,9 @@ Implementation branch / worktree cadence:
 | `src/main.ts` | Wire new panels, Council events, input systems, and per-slice feature entry points |
 | `src/core/hotseat-events.ts` | Queue Council and M4e notifications for the correct hot-seat viewer |
 | `src/storage/save-manager.ts` | Persist M4e state and campaign/custom-civ metadata safely |
+| `src/ui/game-shell.ts` | NEW - own the HUD, primary action bar, and shell-level utility buttons so `main.ts` stops hand-building duplicate UI |
 | `tests/storage/save-persistence.test.ts` | Round-trip new slice state |
+| `tests/ui/game-shell.test.ts` | NEW - prove the live shell exposes one action bar and the expected entry points |
 
 ### Slice 1 Files
 
@@ -122,6 +126,7 @@ Implementation branch / worktree cadence:
 
 | File | Responsibility |
 |------|----------------|
+| `src/systems/approved-legendary-wonder-roster.ts` | NEW - mirror the spec appendix into one code-owned roster module for exact catalog tests |
 | `src/systems/legendary-wonder-definitions.ts` | Add the remaining M4 legendary wonders |
 | `src/systems/legendary-wonder-system.ts` | Support any additional quest-step patterns and panel metadata |
 | `src/ui/wonder-panel.ts` | Keep the expanded catalog understandable and non-overwhelming |
@@ -146,9 +151,13 @@ Implementation branch / worktree cadence:
 | `src/storage/save-manager.ts` | Persist custom civ registries in app settings and save slots |
 | `src/systems/civ-definitions.ts` | Add Wakanda, Avalon, and plug in custom-civ support |
 | `src/ui/civ-select.ts` | Surface Wakanda/Avalon and custom civs in setup/selection |
+| `src/ui/campaign-setup.ts` | Pass saved custom civ registries into solo setup selection flow |
+| `src/ui/hotseat-setup.ts` | Pass saved custom civ registries into hot-seat setup selection flow |
 | `tests/systems/council-memory.test.ts` | NEW - memory recall, privacy, and disagreement cadence |
 | `tests/systems/civ-registry.test.ts` | NEW - runtime custom-civ resolution after save/load |
 | `tests/ui/custom-civ-panel.test.ts` | NEW - creator UX, validation, and trait-budget coverage |
+| `tests/ui/civ-select.test.ts` | NEW - real civ picker shows custom civs safely and allows selection |
+| `tests/ui/hotseat-setup.test.ts` | NEW - hot-seat setup can surface the saved custom civ registry without leaks or missing cards |
 | `tests/systems/city-name-system.test.ts` | NEW - fantasy naming correctness and uniqueness |
 | `tests/systems/civ-definitions.test.ts` | Extend with Wakanda/Avalon/custom-civ coverage |
 | `tests/storage/save-manager.test.ts` | Add custom civ settings persistence and migration coverage |
@@ -243,22 +252,50 @@ export interface CouncilState {
   talkLevel: CouncilTalkLevel;
   lastShownTurn: number;
 }
-```
 
-Extend the existing settings shape in both game-state constructors:
-
-```typescript
-settings: {
-  mapSize: actualSize,
-  soundEnabled: true,
-  musicEnabled: true,
-  musicVolume: 0.5,
-  sfxVolume: 0.7,
-  tutorialEnabled: true,
-  advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true, artisan: true },
-  councilTalkLevel: 'normal',
+export interface GameSettings {
+  mapSize: 'small' | 'medium' | 'large';
+  soundEnabled: boolean;
+  musicEnabled: boolean;
+  musicVolume: number;
+  sfxVolume: number;
+  tutorialEnabled: boolean;
+  advisorsEnabled: Record<AdvisorType, boolean>;
+  councilTalkLevel: CouncilTalkLevel;
 }
 ```
+
+Do not duplicate settings defaults in multiple constructors. Add one shared helper in `src/core/game-state.ts` and route both `createNewGame(...)` and `createHotSeatGame(...)` through it:
+
+```typescript
+export function createDefaultSettings(
+  actualSize: 'small' | 'medium' | 'large',
+  overrides: Partial<GameSettings> = {},
+): GameSettings {
+  return {
+    mapSize: actualSize,
+    soundEnabled: true,
+    musicEnabled: true,
+    musicVolume: 0.5,
+    sfxVolume: 0.7,
+    tutorialEnabled: true,
+    advisorsEnabled: {
+      builder: true,
+      explorer: true,
+      chancellor: true,
+      warchief: true,
+      treasurer: true,
+      scholar: true,
+      spymaster: true,
+      artisan: true,
+    },
+    councilTalkLevel: 'normal',
+    ...overrides,
+  };
+}
+```
+
+Every later slice that loads saved settings or app-level preferences must call `createDefaultSettings(...)` instead of re-listing defaults by hand. This is the single source of truth for `councilTalkLevel`, future custom-civ registries, and any later M4e settings.
 
 - [ ] **Step 4: Add minimal agenda and label helpers**
 
@@ -276,6 +313,16 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
 
 export function getCouncilInterrupt(state: GameState, civId: string, talkLevel: CouncilTalkLevel): CouncilInterrupt | null {
   return null;
+}
+
+export function getVictoryProgressSummary(state: GameState, civId: string): {
+  toWin: { summary: string };
+  domination: { visibleRivals: number };
+} {
+  return {
+    toWin: { summary: '' },
+    domination: { visibleRivals: 0 },
+  };
 }
 
 export function formatCityReference(rawName: string, opts: { ownerName?: string; duplicateCount?: number }): string {
@@ -308,18 +355,21 @@ git commit -m "feat(m4e): add council agenda foundations"
 **Files:**
 - Create: `src/ui/council-panel.ts`
 - Create: `src/ui/primary-action-bar.ts`
+- Create: `src/ui/game-shell.ts`
 - Modify: `src/ui/advisor-system.ts`
 - Modify: `src/main.ts`
 - Modify: `src/core/hotseat-events.ts`
 - Create: `tests/ui/council-panel.test.ts`
 - Create: `tests/ui/primary-action-bar.test.ts`
+- Create: `tests/ui/game-shell.test.ts`
 - Modify: `tests/ui/helpers/council-fixture.ts`
 - Modify: `tests/ui/advisor-system.test.ts`
+- Modify: `tests/storage/save-manager.test.ts`
 - Modify: `tests/core/hotseat-events.test.ts`
 - Modify: `tests/systems/council-system.test.ts`
 - Modify: `src/systems/council-system.ts`
 
-- [ ] **Step 1: Add failing real-DOM panel tests**
+- [ ] **Step 1: Add failing real-DOM panel, shell, and persistence tests**
 
 Create `tests/ui/council-panel.test.ts`:
 
@@ -344,6 +394,14 @@ it('does not reveal undiscovered city names in the panel or interruptions', () =
   const { state, container } = makeCouncilFixture({ discoveredForeignCity: false });
   const panel = createCouncilPanel(container, state, { onClose: () => {}, onTalkLevelChange: () => {} });
   expect(panel.textContent).not.toContain('Rome');
+});
+
+it('invokes the talk-level callback when the player changes the council mode', () => {
+  const onTalkLevelChange = vi.fn();
+  const { state, container } = makeCouncilFixture();
+  const panel = createCouncilPanel(container, state, { onClose: () => {}, onTalkLevelChange });
+  (panel.querySelector('[data-talk-level=\"chaos\"]') as HTMLButtonElement).click();
+  expect(onTalkLevelChange).toHaveBeenCalledWith('chaos');
 });
 
 it('queues council interruptions for the right hot-seat viewer instead of broadcasting them immediately', () => {
@@ -376,6 +434,44 @@ it('renders a Council button in the primary action bar and wires it for touch-sa
 });
 ```
 
+Create `tests/ui/game-shell.test.ts`:
+
+```typescript
+/** @vitest-environment jsdom */
+it('creates exactly one bottom action bar and exposes Council in the live shell', () => {
+  createGameShell(document.body, {
+    onOpenCouncil: () => {},
+    onOpenTech: () => {},
+    onOpenCity: () => {},
+    onOpenEspionage: () => {},
+    onOpenDiplomacy: () => {},
+    onOpenMarketplace: () => {},
+    onEndTurn: () => {},
+    onNextUnit: () => {},
+    onOpenNotificationLog: () => {},
+    onToggleIconLegend: () => {},
+  });
+  const shell = createGameShell(document.body, {
+    onOpenCouncil: () => {},
+    onOpenTech: () => {},
+    onOpenCity: () => {},
+    onOpenEspionage: () => {},
+    onOpenDiplomacy: () => {},
+    onOpenMarketplace: () => {},
+    onEndTurn: () => {},
+    onNextUnit: () => {},
+    onOpenNotificationLog: () => {},
+    onToggleIconLegend: () => {},
+  });
+
+  expect(document.querySelectorAll('#bottom-bar')).toHaveLength(1);
+  expect(document.querySelectorAll('#hud')).toHaveLength(1);
+  expect(shell.textContent).toContain('Council');
+  expect(shell.textContent).toContain('End Turn');
+  expect(shell.querySelector('#btn-next-unit')).toBeTruthy();
+});
+```
+
 Extend `tests/systems/council-system.test.ts` with talk-level behavior:
 
 ```typescript
@@ -386,19 +482,30 @@ it('suppresses low-priority interruptions on quiet but emits them on chaos', () 
 });
 ```
 
+Extend `tests/storage/save-manager.test.ts`:
+
+```typescript
+it('persists council talk level through settings save/load', async () => {
+  const settings = createDefaultSettings('small', { councilTalkLevel: 'chaos' });
+  await saveSettings(settings);
+  const loaded = await loadSettings();
+  expect(loaded?.councilTalkLevel).toBe('chaos');
+});
+```
+
 - [ ] **Step 2: Run focused tests to confirm red state**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts tests/systems/council-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/advisor-system.test.ts tests/storage/save-manager.test.ts tests/core/hotseat-events.test.ts tests/systems/council-system.test.ts
 ```
 
-Expected: FAIL with missing panel / action bar / missing Council interrupt flow.
+Expected: FAIL with missing panel / action bar / missing game shell / missing Council interrupt flow / missing talk-level persistence wiring.
 
-- [ ] **Step 3: Implement the Council panel and primary action bar with DOM-safe rendering**
+- [ ] **Step 3: Implement the Council panel, shell extraction, and action bar with DOM-safe rendering**
 
-Create `src/ui/council-panel.ts` and `src/ui/primary-action-bar.ts`:
+Create `src/ui/council-panel.ts`, `src/ui/primary-action-bar.ts`, and `src/ui/game-shell.ts`:
 
 ```typescript
 export function createCouncilPanel(container: HTMLElement, state: GameState, callbacks: CouncilPanelCallbacks): HTMLElement {
@@ -406,10 +513,34 @@ export function createCouncilPanel(container: HTMLElement, state: GameState, cal
   panel.id = 'council-panel';
 
   const agenda = buildCouncilAgenda(state, state.currentPlayer);
+  const talkLevelBar = document.createElement('div');
+  for (const level of ['quiet', 'normal', 'chatty', 'chaos'] as const) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.talkLevel = level;
+    button.textContent = level;
+    button.addEventListener('click', () => callbacks.onTalkLevelChange(level));
+    talkLevelBar.appendChild(button);
+  }
+  panel.appendChild(talkLevelBar);
+
   for (const section of ['doNow', 'soon', 'toWin', 'drama'] as const) {
     const block = document.createElement('section');
     block.dataset.section = section;
-    // append headers and cards with textContent only
+    const heading = document.createElement('h2');
+    heading.textContent = section === 'doNow' ? 'Do Now' : section === 'toWin' ? 'To Win' : section === 'drama' ? 'Council Drama' : 'Soon';
+    block.appendChild(heading);
+    for (const card of agenda[section]) {
+      const article = document.createElement('article');
+      const title = document.createElement('strong');
+      title.textContent = card.title;
+      const summary = document.createElement('p');
+      summary.textContent = card.summary;
+      const why = document.createElement('p');
+      why.textContent = `Why: ${card.why}`;
+      article.append(title, summary, why);
+      block.appendChild(article);
+    }
     panel.appendChild(block);
   }
 
@@ -449,6 +580,40 @@ function makePrimaryActionButton(label: string, icon: string, onClick: () => voi
   button.addEventListener('click', onClick);
   return button;
 }
+
+export interface GameShellCallbacks extends PrimaryActionCallbacks {
+  onNextUnit: () => void;
+  onOpenNotificationLog: () => void;
+  onToggleIconLegend: () => void;
+}
+
+export function createGameShell(container: HTMLElement, callbacks: GameShellCallbacks): HTMLElement {
+  container.querySelector('#game-shell')?.remove();
+  const shell = document.createElement('div');
+  shell.id = 'game-shell';
+
+  const hud = document.createElement('div');
+  hud.id = 'hud';
+  shell.appendChild(hud);
+
+  shell.appendChild(createPrimaryActionBar(callbacks));
+  shell.appendChild(makeShellIconButton('btn-next-unit', '⏩', 'Select next unmoved unit', callbacks.onNextUnit));
+  shell.appendChild(makeShellIconButton('btn-notif-log', '📜', 'View message log', callbacks.onOpenNotificationLog));
+  shell.appendChild(makeShellIconButton('btn-icon-legend', '🗺️', 'Toggle icon legend', callbacks.onToggleIconLegend));
+
+  container.appendChild(shell);
+  return shell;
+}
+
+function makeShellIconButton(id: string, label: string, title: string, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.id = id;
+  button.type = 'button';
+  button.textContent = label;
+  button.title = title;
+  button.addEventListener('click', onClick);
+  return button;
+}
 ```
 
 - [ ] **Step 4: Integrate talk-level state and proactive interruption routing**
@@ -470,10 +635,10 @@ if (interrupt) {
 }
 ```
 
-And in `main.ts`:
+In `main.ts`, remove the inline HUD block and the inline `const bottomBar = document.createElement('div')` construction from `createUI()` entirely. Do not leave the legacy `#hud` or `#bottom-bar` paths in place. Replace them with:
 
 ```typescript
-const actionBar = createPrimaryActionBar({
+createGameShell(uiLayer, {
   onOpenCouncil: () => togglePanel('council'),
   onOpenTech: () => togglePanel('tech'),
   onOpenCity: () => togglePanel('city'),
@@ -481,8 +646,10 @@ const actionBar = createPrimaryActionBar({
   onOpenDiplomacy: () => togglePanel('diplomacy'),
   onOpenMarketplace: () => togglePanel('marketplace'),
   onEndTurn: () => endTurn(),
+  onNextUnit: () => selectNextUnit(),
+  onOpenNotificationLog: () => toggleNotificationLog(),
+  onToggleIconLegend: () => toggleIconLegend(),
 });
-uiLayer.appendChild(actionBar);
 
 bus.on('council:interrupt', data => {
   if (gameState.hotSeat && gameState.pendingEvents) {
@@ -495,6 +662,18 @@ bus.on('council:interrupt', data => {
 
 Extend `togglePanel(panel)` so it removes `#council-panel` with the other panels and creates `createCouncilPanel(...)` when `panel === 'council'`.
 
+When the player changes talk level in the Council panel, update both the live state and app-level settings:
+
+```typescript
+async function updateCouncilTalkLevel(nextLevel: CouncilTalkLevel): Promise<void> {
+  gameState.settings = createDefaultSettings(gameState.settings.mapSize, {
+    ...gameState.settings,
+    councilTalkLevel: nextLevel,
+  });
+  await saveSettings(gameState.settings);
+}
+```
+
 Add a hot-seat regression in `tests/core/hotseat-events.test.ts` that proves a `player-2` Council interruption is queued for `player-2` and not shown during `player-1`’s live view.
 
 - [ ] **Step 5: Re-run focused tests until green**
@@ -502,7 +681,7 @@ Add a hot-seat regression in `tests/core/hotseat-events.test.ts` that proves a `
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts tests/systems/council-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/advisor-system.test.ts tests/storage/save-manager.test.ts tests/core/hotseat-events.test.ts tests/systems/council-system.test.ts
 ```
 
 Expected: PASS.
@@ -510,7 +689,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit the Council UI**
 
 ```bash
-git add src/systems/council-system.ts src/ui/council-panel.ts src/ui/primary-action-bar.ts src/ui/advisor-system.ts src/main.ts src/core/hotseat-events.ts tests/ui/helpers/council-fixture.ts tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts tests/systems/council-system.test.ts
+git add src/systems/council-system.ts src/ui/council-panel.ts src/ui/primary-action-bar.ts src/ui/game-shell.ts src/ui/advisor-system.ts src/main.ts src/core/hotseat-events.ts tests/ui/helpers/council-fixture.ts tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/advisor-system.test.ts tests/storage/save-manager.test.ts tests/core/hotseat-events.test.ts tests/systems/council-system.test.ts
 git commit -m "feat(m4e): add council panel and interruptions"
 ```
 
@@ -553,6 +732,19 @@ it('passes the chosen title into createNewGame', () => {
   expect(state.settings.mapSize).toBe('medium');
   expect(Object.keys(state.civilizations)).toHaveLength(4);
 });
+
+it('can seed a new campaign from persisted app settings without re-listing defaults', () => {
+  const state = createNewGame({
+    civType: 'rome',
+    mapSize: 'small',
+    opponentCount: 1,
+    gameTitle: 'Quiet Council',
+    settingsOverrides: {
+      councilTalkLevel: 'quiet',
+    },
+  });
+  expect(state.settings.councilTalkLevel).toBe('quiet');
+});
 ```
 
 - [ ] **Step 2: Run focused tests to verify they fail**
@@ -573,17 +765,31 @@ export interface SoloSetupConfig {
   mapSize: 'small' | 'medium' | 'large';
   opponentCount: number;
   gameTitle: string;
+  settingsOverrides?: Partial<GameSettings>;
   seed?: string;
 }
 ```
 
-Then implement `src/ui/campaign-setup.ts` around that shared type. Render map-size cards, opponent count, civ picker launch, and a required title field using DOM nodes instead of a raw `innerHTML` form.
+Then implement `src/ui/campaign-setup.ts` around that shared type. Render map-size cards, opponent count, a civ-picker launch button with `data-action="choose-civ"`, and a required title field using DOM nodes instead of a raw `innerHTML` form.
 
 - [ ] **Step 4: Wire `main.ts` and `createNewGame` to the new flow**
 
 Replace the current solo branch in `showGameModeSelection()` and refactor `createNewGame` to accept a real config object instead of four positional optionals:
 
 ```typescript
+const storedSettings = await loadSettings();
+const settingsOverrides = storedSettings
+  ? {
+      soundEnabled: storedSettings.soundEnabled,
+      musicEnabled: storedSettings.musicEnabled,
+      musicVolume: storedSettings.musicVolume,
+      sfxVolume: storedSettings.sfxVolume,
+      tutorialEnabled: storedSettings.tutorialEnabled,
+      advisorsEnabled: storedSettings.advisorsEnabled,
+      councilTalkLevel: storedSettings.councilTalkLevel,
+    }
+  : {};
+
 showCampaignSetup(uiLayer, {
   onStartSolo: (config) => {
     gameState = createNewGame({
@@ -591,6 +797,7 @@ showCampaignSetup(uiLayer, {
       mapSize: config.mapSize,
       opponentCount: config.opponentCount,
       gameTitle: config.gameTitle,
+      settingsOverrides,
     });
     startGame();
   },
@@ -615,6 +822,14 @@ const aiCivDefs = aiCivPool.slice(0, config.opponentCount);
 ```
 
 Then create `ai-1`, `ai-2`, and so on for the requested count, bounded by `MAP_DIMENSIONS[config.mapSize].maxPlayers - 1`.
+
+When building the returned state, do not hand-build the settings object. Call:
+
+```typescript
+settings: createDefaultSettings(config.mapSize, config.settingsOverrides),
+```
+
+Do not pass a previously saved `mapSize` override into `createDefaultSettings(...)`. The player’s new campaign choice must win over old app settings.
 
 Extract title validation into one concrete helper in `main.ts`:
 
@@ -755,7 +970,7 @@ it('keeps city-issued quest origin generic until the issuing city is actually di
 - [ ] **Step 2: Run the Slice 1 focused suite**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/systems/quest-system.test.ts tests/ui/council-panel.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/integration/m4e-council-guidance.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/systems/quest-system.test.ts tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/storage/save-manager.test.ts tests/integration/m4e-council-guidance.test.ts tests/storage/save-persistence.test.ts
 ```
 
 Expected: FAIL until quest-origin and grid-help wiring is complete.
@@ -1254,6 +1469,7 @@ After merge, confirm ancestry and remove the worktree/branch.
 ### Task 12: Add The Remaining Wonder Definitions And Quest Patterns
 
 **Files:**
+- Create: `src/systems/approved-legendary-wonder-roster.ts`
 - Modify: `src/systems/legendary-wonder-definitions.ts`
 - Modify: `src/systems/legendary-wonder-system.ts`
 - Modify: `tests/systems/legendary-wonder-system.test.ts`
@@ -1289,9 +1505,9 @@ it('supports at least one additional quest pattern beyond the original four', ()
 ./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts
 ```
 
-- [ ] **Step 4: Add the remaining wonders from an explicit authoritative roster**
+- [ ] **Step 4: Mirror the appendix into one code-owned roster module and implement every entry**
 
-At the top of `legendary-wonder-definitions.ts`, create one source of truth:
+Create `src/systems/approved-legendary-wonder-roster.ts`:
 
 ```typescript
 export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string; name: string }> {
@@ -1301,7 +1517,9 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
 }
 ```
 
-Then add a full definition for every entry in that approved roster. Do not treat “themed batches” as a stopping rule; the task is complete only when the exact-equality test above passes and no approved M4 legendary wonder is absent.
+Keep a header comment in that file pointing back to `Appendix A` in the spec and requiring manual update when the appendix changes.
+
+Then import that roster into `legendary-wonder-definitions.ts` and add a full definition for every entry in the approved roster. Do not treat “themed batches” as a stopping rule; the task is complete only when the exact-equality test above passes and no approved M4 legendary wonder is absent.
 
 - [ ] **Step 5: Add any missing quest-step evaluators**
 
@@ -1322,7 +1540,7 @@ case 'map-discoveries':
 - [ ] **Step 7: Commit the expanded wonder catalog**
 
 ```bash
-git add src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts
+git add src/systems/approved-legendary-wonder-roster.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts
 git commit -m "feat(m4e): expand the legendary wonder catalog"
 ```
 
@@ -1508,11 +1726,16 @@ git commit -m "feat(m4e): add council memory and disagreements"
 - Modify: `src/systems/diplomacy-system.ts`
 - Modify: `src/systems/espionage-system.ts`
 - Modify: `src/systems/fog-of-war.ts`
+- Modify: `src/ui/campaign-setup.ts`
+- Modify: `src/ui/hotseat-setup.ts`
 - Modify: `src/ui/diplomacy-panel.ts`
 - Modify: `src/ui/turn-handoff.ts`
 - Modify: `src/ui/civ-select.ts`
 - Create: `tests/systems/civ-registry.test.ts`
 - Create: `tests/ui/custom-civ-panel.test.ts`
+- Create: `tests/ui/civ-select.test.ts`
+- Modify: `tests/ui/campaign-setup.test.ts`
+- Create: `tests/ui/hotseat-setup.test.ts`
 - Modify: `tests/systems/civ-definitions.test.ts`
 - Modify: `tests/core/game-state.test.ts`
 - Modify: `tests/core/turn-manager.test.ts`
@@ -1528,6 +1751,137 @@ Create `tests/ui/custom-civ-panel.test.ts`:
 it('enforces a constrained trait budget and requires a city-name pool', () => {
   const panel = createCustomCivPanel(document.body, { onSave: () => {} });
   expect(panel.textContent).toContain('Trait budget');
+});
+```
+
+Create `tests/ui/civ-select.test.ts`:
+
+```typescript
+/** @vitest-environment jsdom */
+it('renders saved custom civs in the real civ picker and allows selecting them', () => {
+  const customCiv: CustomCivDefinition = {
+    id: 'custom-sunfolk',
+    name: 'Sunfolk',
+    color: '#d9a441',
+    leaderName: 'Aurelia',
+    cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+    primaryTrait: 'scholarly',
+    temperamentTraits: ['diplomatic', 'trader'],
+  };
+  const onSelect = vi.fn();
+  const panel = createCivSelectPanel(document.body, { onSelect }, {
+    civDefinitions: getPlayableCivDefinitions({
+      customCivilizations: [customCiv],
+    }),
+  });
+
+  expect(panel.textContent).toContain('Sunfolk');
+  const card = Array.from(panel.querySelectorAll('.civ-card')).find(node => node.textContent?.includes('Sunfolk'));
+  expect(card).toBeTruthy();
+  card?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  (panel.querySelector('#civ-start') as HTMLButtonElement).click();
+  expect(onSelect).toHaveBeenCalledWith('custom-sunfolk');
+});
+
+it('renders custom civ names with DOM nodes instead of trusting markup', () => {
+  const customCiv: CustomCivDefinition = {
+    id: 'custom-sunfolk',
+    name: 'Sunfolk',
+    color: '#d9a441',
+    leaderName: 'Aurelia',
+    cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+    primaryTrait: 'scholarly',
+    temperamentTraits: ['diplomatic', 'trader'],
+  };
+  const panel = createCivSelectPanel(document.body, { onSelect: () => {} }, {
+    civDefinitions: getPlayableCivDefinitions({
+      customCivilizations: [{ ...customCiv, name: '<img src=x onerror=alert(1)>' }],
+    }),
+  });
+  expect(panel.querySelector('img')).toBeNull();
+  expect(panel.textContent).toContain('<img src=x onerror=alert(1)>');
+});
+
+it('offers a create-custom-civ action from the real civ picker', () => {
+  const onCreateCustomCiv = vi.fn();
+  const panel = createCivSelectPanel(document.body, {
+    onSelect: () => {},
+    onCreateCustomCiv,
+  }, {
+    civDefinitions: getPlayableCivDefinitions(undefined),
+  });
+
+  (panel.querySelector('[data-action=\"create-custom-civ\"]') as HTMLButtonElement).click();
+  expect(onCreateCustomCiv).toHaveBeenCalledTimes(1);
+});
+```
+
+Create `tests/ui/hotseat-setup.test.ts`:
+
+```typescript
+/** @vitest-environment jsdom */
+it('passes custom civ definitions into hot-seat setup selection flow for later players', () => {
+  const customCiv: CustomCivDefinition = {
+    id: 'custom-sunfolk',
+    name: 'Sunfolk',
+    color: '#d9a441',
+    leaderName: 'Aurelia',
+    cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+    primaryTrait: 'scholarly',
+    temperamentTraits: ['diplomatic', 'trader'],
+  };
+
+  showHotSeatSetup(
+    document.body,
+    {
+      onComplete: () => {},
+      onCancel: () => {},
+    },
+    {
+      civDefinitions: getPlayableCivDefinitions({
+        customCivilizations: [customCiv],
+      }),
+    },
+  );
+
+  (document.querySelector('[data-size="small"]') as HTMLElement).click();
+  (document.querySelector('[data-count="2"]') as HTMLElement).click();
+  (document.querySelector('#hs-names-next') as HTMLButtonElement).click();
+
+  expect(document.body.textContent).toContain('Sunfolk');
+});
+```
+
+Extend `tests/ui/campaign-setup.test.ts`:
+
+```typescript
+/** @vitest-environment jsdom */
+it('passes custom civ definitions into solo campaign setup civ selection', () => {
+  const customCiv: CustomCivDefinition = {
+    id: 'custom-sunfolk',
+    name: 'Sunfolk',
+    color: '#d9a441',
+    leaderName: 'Aurelia',
+    cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+    primaryTrait: 'scholarly',
+    temperamentTraits: ['diplomatic', 'trader'],
+  };
+
+  showCampaignSetup(
+    document.body,
+    {
+      onStartSolo: () => {},
+      onCancel: () => {},
+    },
+    {
+      civDefinitions: getPlayableCivDefinitions({
+        customCivilizations: [customCiv],
+      }),
+    },
+  );
+
+  (document.querySelector('[data-action="choose-civ"]') as HTMLButtonElement).click();
+  expect(document.body.textContent).toContain('Sunfolk');
 });
 ```
 
@@ -1549,20 +1903,12 @@ const customCiv: CustomCivDefinition = {
   color: '#d9a441',
   leaderName: 'Aurelia',
   cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
-  traits: ['scholarly', 'wonder-craft'],
+  primaryTrait: 'scholarly',
+  temperamentTraits: ['diplomatic', 'trader'],
 };
 
 it('persists custom civilization definitions through settings save/load', async () => {
-  const baseSettings = await loadSettings() ?? {
-    mapSize: 'small',
-    soundEnabled: true,
-    musicEnabled: true,
-    musicVolume: 0.5,
-    sfxVolume: 0.7,
-    tutorialEnabled: true,
-    advisorsEnabled: { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true, artisan: true },
-    councilTalkLevel: 'normal',
-  };
+  const baseSettings = createDefaultSettings('small', (await loadSettings()) ?? {});
   await saveSettings({ ...baseSettings, customCivilizations: [customCiv] });
   const loaded = await loadSettings();
   expect(loaded?.customCivilizations?.[0].name).toBe(customCiv.name);
@@ -1582,7 +1928,9 @@ it('resolves a custom civ from saved settings before falling back to built-in de
   const resolved = resolveCivDefinition(state, 'custom-sunfolk');
   expect(resolved?.id).toBe('custom-sunfolk');
   expect(resolved?.name).toBe('Sunfolk');
-  expect(resolved?.bonusEffect).toBeDefined();
+  expect(resolved?.bonusName).toBe('Academies of State');
+  expect(resolved?.bonusEffect).toEqual({ type: 'extra_tech_speed', speedMultiplier: 1.15 });
+  expect(resolved?.personality.traits).toEqual(expect.arrayContaining(['diplomatic', 'trader']));
 });
 ```
 
@@ -1605,7 +1953,7 @@ it('createNewGame can start from a saved custom civ registry', () => {
 - [ ] **Step 2: Run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 3: Implement custom-civ validation, normalization, and runtime resolution**
@@ -1613,7 +1961,7 @@ it('createNewGame can start from a saved custom civ registry', () => {
 Add:
 
 ```typescript
-export type CustomCivTraitId =
+export type CustomCivPrimaryTraitId =
   | 'trade-dominance'
   | 'naval-supremacy'
   | 'scholarly'
@@ -1621,17 +1969,100 @@ export type CustomCivTraitId =
   | 'stealth'
   | 'wonder-craft';
 
+export type CustomCivTemperamentTrait = PersonalityTrait;
+
 export interface CustomCivDefinition {
   id: string;
   name: string;
   color: string;
   leaderName: string;
   cityNames: string[];
-  traits: CustomCivTraitId[];
+  primaryTrait: CustomCivPrimaryTraitId;
+  temperamentTraits: CustomCivTemperamentTrait[];
 }
 
 // Extend the existing GameSettings type with:
 customCivilizations?: CustomCivDefinition[];
+
+// Extend new-game config types as well:
+export interface SoloSetupConfig {
+  customCivilizations?: CustomCivDefinition[];
+}
+
+export interface HotSeatConfig {
+  customCivilizations?: CustomCivDefinition[];
+}
+```
+
+Do not invent `CivDefinition`s ad hoc at call sites. In `src/systems/custom-civ-system.ts`, define a single normalization pipeline that turns user-authored custom civs into full runtime `CivDefinition`s before any live system sees them:
+
+```typescript
+const CUSTOM_CIV_PRIMARY_TRAITS: Record<CustomCivPrimaryTraitId, {
+  bonusName: string;
+  bonusDescription: string;
+  bonusEffect: CivBonusEffect;
+  defaultPersonality: PersonalityTrait[];
+}> = {
+  'trade-dominance': {
+    bonusName: 'Merchant Princes',
+    bonusDescription: 'Trade routes yield +2 gold',
+    bonusEffect: { type: 'trade_route_bonus', bonusGold: 2 },
+    defaultPersonality: ['trader', 'diplomatic'],
+  },
+  'naval-supremacy': {
+    bonusName: 'Sea Lords',
+    bonusDescription: 'Naval units gain +1 vision',
+    bonusEffect: { type: 'naval_bonus', visionBonus: 1 },
+    defaultPersonality: ['trader', 'aggressive'],
+  },
+  scholarly: {
+    bonusName: 'Academies of State',
+    bonusDescription: 'Research progresses 15% faster',
+    bonusEffect: { type: 'extra_tech_speed', speedMultiplier: 1.15 },
+    defaultPersonality: ['diplomatic'],
+  },
+  expansionist: {
+    bonusName: 'Frontier Legions',
+    bonusDescription: 'Military units train 20% faster',
+    bonusEffect: { type: 'faster_military', speedMultiplier: 1.2 },
+    defaultPersonality: ['expansionist', 'aggressive'],
+  },
+  stealth: {
+    bonusName: 'Shadow Ministries',
+    bonusDescription: 'Spies gain experience faster',
+    bonusEffect: { type: 'espionage_growth', experienceBonus: 1 },
+    defaultPersonality: ['diplomatic', 'aggressive'],
+  },
+  'wonder-craft': {
+    bonusName: 'Monuments of Glory',
+    bonusDescription: 'Legendary wonder rewards are 25% stronger',
+    bonusEffect: { type: 'wonder_rewards', rewardMultiplier: 1.25 },
+    defaultPersonality: ['diplomatic', 'trader'],
+  },
+};
+
+export function normalizeCustomCivDefinition(def: CustomCivDefinition): CivDefinition {
+  const trait = CUSTOM_CIV_PRIMARY_TRAITS[def.primaryTrait];
+  const traits = Array.from(new Set([...trait.defaultPersonality, ...def.temperamentTraits])).slice(0, 3);
+  return {
+    id: def.id,
+    name: def.name,
+    color: def.color,
+    bonusName: trait.bonusName,
+    bonusDescription: trait.bonusDescription,
+    bonusEffect: trait.bonusEffect,
+    personality: {
+      traits,
+      warLikelihood: traits.includes('aggressive') ? 0.7 : 0.35,
+      diplomacyFocus: traits.includes('diplomatic') ? 0.7 : 0.4,
+      expansionDrive: traits.includes('expansionist') ? 0.75 : 0.4,
+    },
+  };
+}
+
+export function normalizeCustomCivDefinitions(defs: CustomCivDefinition[]): CivDefinition[] {
+  return defs.map(normalizeCustomCivDefinition);
+}
 ```
 
 Create `src/systems/civ-registry.ts`:
@@ -1660,7 +2091,9 @@ export function getPlayableCivDefinitions(
 Validate:
 
 ```typescript
-if (traits.length < 2 || traits.length > 3) throw new Error('Custom civs require 2-3 traits');
+if (temperamentTraits.length < 1 || temperamentTraits.length > 2) {
+  throw new Error('Custom civs require one primary trait and 1-2 temperament traits');
+}
 if (cityNames.length < 6) throw new Error('Custom civs need a real city-name pool');
 ```
 
@@ -1697,11 +2130,39 @@ The goal is that a loaded campaign with `state.settings.customCivilizations` sti
 
 - [ ] **Step 4: Add Wakanda/Avalon and selection wiring**
 
-Update `main.ts`, `civ-definitions.ts`, and `civ-select.ts` so:
+Update `main.ts`, `civ-definitions.ts`, `civ-select.ts`, `campaign-setup.ts`, and `hotseat-setup.ts` so:
 
-- `loadSettings()` is called before opening civ selection
-- saved `customCivilizations` are passed into the civ picker and custom-civ editor
+- `loadSettings()` is called in `main.ts` before opening solo or hot-seat setup
+- `main.ts` derives `const playableCivs = getPlayableCivDefinitions(storedSettings)` once and passes that into `showCampaignSetup(...)` / `showHotSeatSetup(...)`
+- saved `customCivilizations` are passed into the civ picker and custom-civ editor through setup options, not by making UI modules read storage directly
 - the chosen custom civ registry is passed into `createNewGame(...)` / `createHotSeatGame(...)`
+- hot-seat AI fill and available-player civ pools are derived from `getPlayableCivDefinitions(...)`, not hardcoded `CIV_DEFINITIONS`
+
+In `src/ui/civ-select.ts`, remove the current `panel.innerHTML = html` construction entirely and rebuild the picker with DOM nodes plus `textContent`. The saved custom-civ registry makes this a required standards fix, not optional polish. Also extend the panel API so callers can pass:
+
+```typescript
+export interface CivSelectCallbacks {
+  onSelect: (civId: string) => void;
+  onCreateCustomCiv?: () => void;
+}
+
+export interface CivSelectOptions {
+  disabledCivs?: string[];
+  headerText?: string;
+  civDefinitions?: CivDefinition[];
+}
+```
+
+Use `options.civDefinitions ?? CIV_DEFINITIONS` as the source list so the exact same panel can serve solo setup, hot-seat setup, and future custom-civ editing flows.
+
+Add a `Create Custom Civilization` button with `data-action="create-custom-civ"` to the civ picker. When it saves a new civ, `main.ts` / the active setup flow must reload settings, recompute `getPlayableCivDefinitions(...)`, and reopen the picker so the newly created civ is immediately selectable without restarting setup.
+
+Also extend both setup surfaces to accept those lists explicitly:
+
+```typescript
+showCampaignSetup(container, callbacks, { civDefinitions: playableCivs });
+showHotSeatSetup(container, callbacks, { civDefinitions: playableCivs });
+```
 
 Also update `save-persistence.test.ts` so a loaded campaign can still resolve a selected custom civ by ID after round-trip.
 
@@ -1725,13 +2186,13 @@ it('processTurn can still resolve a saved custom civ definition after JSON round
 - [ ] **Step 5: Re-run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 6: Commit the identity systems**
 
 ```bash
-git add src/systems/civ-registry.ts src/systems/custom-civ-system.ts src/ui/custom-civ-panel.ts src/core/types.ts src/core/game-state.ts src/core/turn-manager.ts src/ai/basic-ai.ts src/main.ts src/storage/save-manager.ts src/systems/civ-definitions.ts src/systems/diplomacy-system.ts src/systems/espionage-system.ts src/systems/fog-of-war.ts src/ui/civ-select.ts src/ui/diplomacy-panel.ts src/ui/turn-handoff.ts tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+git add src/systems/civ-registry.ts src/systems/custom-civ-system.ts src/ui/custom-civ-panel.ts src/core/types.ts src/core/game-state.ts src/core/turn-manager.ts src/ai/basic-ai.ts src/main.ts src/storage/save-manager.ts src/systems/civ-definitions.ts src/systems/diplomacy-system.ts src/systems/espionage-system.ts src/systems/fog-of-war.ts src/ui/civ-select.ts src/ui/campaign-setup.ts src/ui/hotseat-setup.ts src/ui/diplomacy-panel.ts src/ui/turn-handoff.ts tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 git commit -m "feat(m4e): add custom civs and final civ roster"
 ```
 
@@ -1773,7 +2234,7 @@ it('keeps council guidance trustworthy after all five slices land', () => {
 - [ ] **Step 2: Run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/city-name-system.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/city-name-system.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts tests/ui/civ-select.test.ts
 ```
 
 - [ ] **Step 3: Implement the naming policy as a real system**
@@ -1807,7 +2268,7 @@ expect(civSelect.textContent).toContain('Avalon');
 - [ ] **Step 5: Re-run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/city-name-system.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/city-name-system.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts tests/ui/civ-select.test.ts
 ```
 
 - [ ] **Step 6: Commit the naming fix and final consolidation**
@@ -1826,7 +2287,7 @@ git commit -m "feat(m4e): finish naming integrity and final tuning"
 - [ ] **Step 1: Run the final targeted suite**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/systems/auto-explore-system.test.ts tests/ui/desktop-controls.test.ts tests/ui/fog-leak.test.ts tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/systems/council-memory.test.ts tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/systems/city-name-system.test.ts tests/integration/m4e-council-guidance.test.ts tests/integration/m4e-acceptance.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/systems/auto-explore-system.test.ts tests/ui/desktop-controls.test.ts tests/ui/fog-leak.test.ts tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts tests/ui/wonder-panel.test.ts tests/systems/council-memory.test.ts tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/hotseat-setup.test.ts tests/systems/city-name-system.test.ts tests/integration/m4e-council-guidance.test.ts tests/integration/m4e-acceptance.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 2: Run the full suite and build**
