@@ -581,6 +581,165 @@ function makeLegendaryWonderAiFixture(): GameState {
   } as GameState;
 }
 
+function makeLegendaryWonderOpportunityFixture(): GameState {
+  return {
+    turn: 44,
+    era: 4,
+    currentPlayer: 'ai-1',
+    gameOver: false,
+    winner: null,
+    map: {
+      width: 10,
+      height: 8,
+      tiles: {
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: 'stone', improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
+        '1,0': { coord: { q: 1, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
+        '2,0': { coord: { q: 2, r: 0 }, terrain: 'coast', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        '5,0': { coord: { q: 5, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
+        '6,0': { coord: { q: 6, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
+        '7,0': { coord: { q: 7, r: 0 }, terrain: 'coast', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+      },
+      wrapsHorizontally: false,
+      rivers: [],
+    },
+    units: {},
+    cities: {
+      'city-ai-1': {
+        id: 'city-ai-1',
+        name: 'Capital',
+        owner: 'ai-1',
+        position: { q: 0, r: 0 },
+        population: 6,
+        food: 0,
+        foodNeeded: 20,
+        buildings: ['granary', 'workshop', 'market'],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+      'city-ai-2': {
+        id: 'city-ai-2',
+        name: 'Harbor',
+        owner: 'ai-1',
+        position: { q: 5, r: 0 },
+        population: 5,
+        food: 0,
+        foodNeeded: 20,
+        buildings: ['granary', 'library', 'market'],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 5, r: 0 }, { q: 6, r: 0 }, { q: 7, r: 0 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+      'city-ai-3': {
+        id: 'city-ai-3',
+        name: 'Archive',
+        owner: 'ai-1',
+        position: { q: 8, r: 0 },
+        population: 4,
+        food: 0,
+        foodNeeded: 20,
+        buildings: ['granary', 'library', 'market'],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 8, r: 0 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+    },
+    civilizations: {
+      'ai-1': {
+        id: 'ai-1',
+        name: 'AI',
+        color: '#d94a4a',
+        isHuman: false,
+        civType: 'rome',
+        cities: ['city-ai-1', 'city-ai-2', 'city-ai-3'],
+        units: [],
+        techState: {
+          completed: ['philosophy', 'pilgrimages', 'city-planning', 'printing', 'banking', 'agricultural-science', 'astronomy', 'navigation'],
+          currentResearch: null,
+          researchProgress: 0,
+          trackPriorities: {} as any,
+        },
+        gold: 200,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: {
+          relationships: {},
+          treaties: [],
+          events: [],
+          atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 3, peakMilitary: 0 },
+        },
+      },
+    },
+    barbarianCamps: {},
+    minorCivs: {},
+    tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+    settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+    tribalVillages: {},
+    discoveredWonders: {},
+    wonderDiscoverers: {
+      '0,0': ['ai-1'],
+      '1,0': ['ai-1'],
+    },
+    embargoes: [],
+    defensiveLeagues: [],
+    legendaryWonderProjects: {
+      'ai-1:city-ai-1:oracle-of-delphi': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'ai-1',
+        cityId: 'city-ai-1',
+        phase: 'ready_to_build',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'discover-natural-wonder', description: 'Discover a natural wonder', completed: true },
+          { id: 'complete-pilgrimage-route', description: 'Complete a pilgrimage route', completed: true },
+        ],
+      },
+      'ai-1:city-ai-2:grand-canal': {
+        wonderId: 'grand-canal',
+        ownerId: 'ai-1',
+        cityId: 'city-ai-2',
+        phase: 'ready_to_build',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'connect-two-cities', description: 'Connect two cities', completed: true },
+          { id: 'grow-river-city', description: 'Grow a river city', completed: true },
+        ],
+      },
+      'ai-1:city-ai-3:world-archive': {
+        wonderId: 'world-archive',
+        ownerId: 'ai-1',
+        cityId: 'city-ai-3',
+        phase: 'ready_to_build',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'complete-four-communication-techs', description: 'Complete four communication techs', completed: true },
+          { id: 'discover-natural-wonder', description: 'Discover a natural wonder', completed: true },
+        ],
+      },
+    },
+  } as GameState;
+}
+
 describe('processAITurn', () => {
   it('does not throw on a fresh game', () => {
     const state = createNewGame(undefined, 'ai-test');
@@ -733,5 +892,20 @@ describe('processAITurn', () => {
     const result = processAITurn(state, 'ai-1', bus);
 
     expect(result.civilizations['ai-1'].knownCivilizations).toContain('player');
+  });
+
+  it('starts a small number of high-fit legendary wonder builds instead of flooding every city', () => {
+    const state = makeLegendaryWonderOpportunityFixture();
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    const legendaryQueues = Object.values(result.cities)
+      .filter(city => city.owner === 'ai-1')
+      .map(city => city.productionQueue[0])
+      .filter((queue): queue is string => typeof queue === 'string' && queue.startsWith('legendary:'));
+
+    expect(legendaryQueues.length).toBeGreaterThan(0);
+    expect(legendaryQueues.length).toBeLessThanOrEqual(2);
   });
 });

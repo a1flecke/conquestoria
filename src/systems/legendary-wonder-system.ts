@@ -1,19 +1,210 @@
 import type { GameState, LegendaryWonderProject, ResourceYield } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
+import { getTechById } from '@/systems/tech-system';
+
+function hasCityRequirement(state: GameState, cityId: string, requirement: 'river' | 'coastal' | 'any'): boolean {
+  const city = state.cities[cityId];
+  if (!city) {
+    return false;
+  }
+
+  if (requirement === 'river') {
+    return city.ownedTiles.some(coord => state.map.tiles[`${coord.q},${coord.r}`]?.hasRiver);
+  }
+  if (requirement === 'coastal') {
+    return city.ownedTiles.some(coord => {
+      const tile = state.map.tiles[`${coord.q},${coord.r}`];
+      return tile?.terrain === 'coast' || tile?.terrain === 'ocean';
+    });
+  }
+  return true;
+}
+
+function getOwnedResources(state: GameState, cityId: string): Set<string> {
+  const city = state.cities[cityId];
+  if (!city) {
+    return new Set();
+  }
+
+  return new Set(
+    city.ownedTiles
+      .map(coord => state.map.tiles[`${coord.q},${coord.r}`]?.resource)
+      .filter((resource): resource is string => resource !== null),
+  );
+}
+
+function buildLegendaryWonderProjectKey(civId: string, cityId: string, wonderId: string): string {
+  return `${wonderId}:${civId}:${cityId}`;
+}
+
+function findLegendaryWonderProjectEntry(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  wonderId: string,
+): [string, LegendaryWonderProject] | undefined {
+  return Object.entries(state.legendaryWonderProjects ?? {}).find(([, project]) =>
+    project.ownerId === civId
+    && project.cityId === cityId
+    && project.wonderId === wonderId,
+  );
+}
+
+function getDefaultQuestStepDescription(step: NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>['questSteps'][number]): string {
+  switch (step.type) {
+    case 'discover_wonder':
+      return 'Discover a natural wonder.';
+    case 'trade_route':
+      return 'Establish a trade route.';
+    case 'research_count':
+      return `Complete ${step.targetCount ?? 1} technologies${step.track ? ` in ${step.track}` : ''}.`;
+    case 'defeat_stronghold':
+      return 'Destroy a barbarian stronghold.';
+    case 'buildings-in-multiple-cities':
+      return `Develop ${step.targetCount ?? 2} well-built cities.`;
+    case 'trade-routes-established':
+      return `Maintain ${step.targetCount ?? 1} trade routes.`;
+    case 'map-discoveries':
+      return `Discover ${step.targetCount ?? 2} remarkable sites.`;
+  }
+}
+
+function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderProject, stepId: string): boolean {
+  const definition = getLegendaryWonderDefinition(project.wonderId);
+  const step = definition?.questSteps.find(candidate => candidate.id === stepId);
+  const city = state.cities[project.cityId];
+  const civ = state.civilizations[project.ownerId];
+  if (!definition || !step || !city || !civ) {
+    return false;
+  }
+
+  const discoveredWonderCount = Object.values(state.wonderDiscoverers ?? {})
+    .filter(discoverers => discoverers.includes(project.ownerId))
+    .length;
+  const ownedTradeRoutes = (state.marketplace?.tradeRoutes ?? []).filter(route => route.fromCityId === project.cityId || civ.cities.includes(route.fromCityId));
+  const builtUpCities = civ.cities
+    .map(cityRef => state.cities[cityRef])
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+    .filter(candidate => candidate.buildings.length >= 3);
+
+  switch (stepId) {
+    case 'discover-natural-wonder':
+      return discoveredWonderCount >= 1;
+    case 'complete-pilgrimage-route':
+    case 'complete-sacred-route':
+      return ownedTradeRoutes.length >= 1;
+    case 'connect-two-cities':
+    case 'establish-two-trade-links':
+      return ownedTradeRoutes.length >= 2;
+    case 'grow-river-city':
+      return hasCityRequirement(state, city.id, 'river') && city.population >= 7;
+    case 'complete-four-communication-techs':
+      return civ.techState.completed.filter(techId => getTechById(techId)?.track === 'communication').length >= 4;
+  }
+
+  switch (step.type) {
+    case 'discover_wonder':
+      return discoveredWonderCount >= (step.targetCount ?? 1);
+    case 'trade_route':
+    case 'trade-routes-established':
+      return ownedTradeRoutes.length >= (step.targetCount ?? 1);
+    case 'research_count': {
+      if (step.track) {
+        const trackCount = civ.techState.completed.filter(techId => {
+          return getTechById(techId)?.track === step.track;
+        }).length;
+        return trackCount >= (step.targetCount ?? 1);
+      }
+      return civ.techState.completed.length >= (step.targetCount ?? 1);
+    }
+    case 'defeat_stronghold':
+      return Object.values(state.barbarianCamps).every(camp =>
+        Math.abs(camp.position.q - city.position.q) + Math.abs(camp.position.r - city.position.r) > 4,
+      );
+    case 'buildings-in-multiple-cities':
+      return builtUpCities.length >= (step.targetCount ?? 2);
+    case 'map-discoveries':
+      return discoveredWonderCount >= (step.targetCount ?? 2);
+  }
+}
+
+function syncLegendaryWonderQuestSteps(state: GameState, project: LegendaryWonderProject): LegendaryWonderProject {
+  return {
+    ...project,
+    questSteps: project.questSteps.map(step => ({
+      ...step,
+      completed: step.completed || evaluateLegendaryWonderStep(state, project, step.id),
+    })),
+  };
+}
+
+export function initializeLegendaryWonderProjectsForCity(
+  state: GameState,
+  civId: string,
+  cityId: string,
+): GameState {
+  const city = state.cities[cityId];
+  if (!city || city.owner !== civId) {
+    return state;
+  }
+
+  const legendaryWonderProjects = { ...(state.legendaryWonderProjects ?? {}) };
+  let changed = false;
+
+  for (const definition of getLegendaryWonderDefinitions()) {
+    const existing = findLegendaryWonderProjectEntry({ ...state, legendaryWonderProjects }, civId, cityId, definition.id);
+    if (existing) {
+      continue;
+    }
+
+    legendaryWonderProjects[buildLegendaryWonderProjectKey(civId, cityId, definition.id)] = {
+      wonderId: definition.id,
+      ownerId: civId,
+      cityId,
+      phase: 'questing',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: definition.questSteps.map(step => ({
+        id: step.id,
+        description: step.description ?? getDefaultQuestStepDescription(step),
+        completed: false,
+      })),
+    };
+    changed = true;
+  }
+
+  return changed
+    ? {
+      ...state,
+      legendaryWonderProjects,
+    }
+    : state;
+}
+
+export function initializeLegendaryWonderProjectsForAllCities(state: GameState): GameState {
+  let nextState = state;
+  for (const city of Object.values(state.cities)) {
+    nextState = initializeLegendaryWonderProjectsForCity(nextState, city.owner, city.id);
+  }
+  return nextState;
+}
 
 export function getEligibleLegendaryWonders(
   state: GameState,
   civId: string,
   cityId: string,
 ): string[] {
-  const civ = state.civilizations[civId];
-  const city = state.cities[cityId];
+  const seededState = initializeLegendaryWonderProjectsForCity(state, civId, cityId);
+  const civ = seededState.civilizations[civId];
+  const city = seededState.cities[cityId];
   if (!civ || !city) {
     return [];
   }
 
-  return Object.values(state.legendaryWonderProjects ?? {})
+  const ownedResources = getOwnedResources(seededState, cityId);
+
+  return Object.values(seededState.legendaryWonderProjects ?? {})
     .filter(project => project.ownerId === civId && project.cityId === cityId)
     .map(project => project.wonderId)
     .filter(wonderId => {
@@ -27,26 +218,12 @@ export function getEligibleLegendaryWonders(
         return false;
       }
 
-      const ownedResources = new Set(
-        city.ownedTiles
-          .map(coord => state.map.tiles[`${coord.q},${coord.r}`]?.resource)
-          .filter((resource): resource is string => resource !== null),
-      );
       const hasRequiredResources = definition.requiredResources.every(resource => ownedResources.has(resource));
       if (!hasRequiredResources) {
         return false;
       }
 
-      if (definition.cityRequirement === 'river') {
-        return city.ownedTiles.some(coord => state.map.tiles[`${coord.q},${coord.r}`]?.hasRiver);
-      }
-      if (definition.cityRequirement === 'coastal') {
-        return city.ownedTiles.some(coord => {
-          const tile = state.map.tiles[`${coord.q},${coord.r}`];
-          return tile?.terrain === 'coast' || tile?.terrain === 'ocean';
-        });
-      }
-      return true;
+      return hasCityRequirement(seededState, cityId, definition.cityRequirement);
     });
 }
 
@@ -55,8 +232,11 @@ export function unlockLegendaryWonderProject(
   civId: string,
   wonderId: string,
 ): LegendaryWonderProject {
-  const project = state.legendaryWonderProjects?.[wonderId];
-  if (!project || project.ownerId !== civId) {
+  const projectEntry = Object.entries(state.legendaryWonderProjects ?? {}).find(([, project]) =>
+    project.ownerId === civId && project.wonderId === wonderId,
+  );
+  const project = projectEntry?.[1];
+  if (!project) {
     throw new Error(`Legendary wonder project ${wonderId} not found`);
   }
 
@@ -83,21 +263,23 @@ export function loseLegendaryWonderRace(investedProduction: number): {
 }
 
 export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): GameState {
-  if (!state.legendaryWonderProjects) {
-    return state;
+  const seededState = initializeLegendaryWonderProjectsForAllCities(state);
+  if (!seededState.legendaryWonderProjects) {
+    return seededState;
   }
 
   const updatedProjects: Record<string, LegendaryWonderProject> = {};
-  const updatedCities = { ...state.cities };
-  const updatedCivilizations = structuredClone(state.civilizations);
-  const completedLegendaryWonders = { ...(state.completedLegendaryWonders ?? {}) };
-  let changed = false;
+  const updatedCities = { ...seededState.cities };
+  const updatedCivilizations = structuredClone(seededState.civilizations);
+  const completedLegendaryWonders = { ...(seededState.completedLegendaryWonders ?? {}) };
+  let changed = seededState !== state;
 
-  for (const [projectId, project] of Object.entries(state.legendaryWonderProjects)) {
+  for (const [projectId, rawProject] of Object.entries(seededState.legendaryWonderProjects)) {
     if (updatedProjects[projectId]) {
       continue;
     }
 
+    const project = syncLegendaryWonderQuestSteps(seededState, rawProject);
     const city = updatedCities[project.cityId];
     const definition = getLegendaryWonderDefinition(project.wonderId);
 
@@ -141,7 +323,8 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
           productionProgress: 0,
         };
 
-        for (const [rivalProjectId, rivalProject] of Object.entries(state.legendaryWonderProjects)) {
+        for (const [rivalProjectId, rivalRawProject] of Object.entries(seededState.legendaryWonderProjects)) {
+          const rivalProject = syncLegendaryWonderQuestSteps(seededState, rivalRawProject);
           if (rivalProjectId === projectId || rivalProject.wonderId !== project.wonderId || rivalProject.phase === 'completed') {
             continue;
           }
@@ -208,7 +391,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
   }
 
   return {
-    ...state,
+    ...seededState,
     cities: updatedCities,
     civilizations: updatedCivilizations,
     legendaryWonderProjects: updatedProjects,
@@ -223,18 +406,21 @@ export function startLegendaryWonderBuild(
   wonderId: string,
   bus?: EventBus,
 ): GameState {
-  const project = state.legendaryWonderProjects?.[wonderId];
-  if (!project || project.ownerId !== civId || project.cityId !== cityId || project.phase !== 'ready_to_build') {
-    return state;
+  const seededState = initializeLegendaryWonderProjectsForCity(state, civId, cityId);
+  const projectEntry = findLegendaryWonderProjectEntry(seededState, civId, cityId, wonderId);
+  const projectKey = projectEntry?.[0];
+  const project = projectEntry?.[1];
+  if (!projectKey || !project || project.phase !== 'ready_to_build') {
+    return seededState;
   }
 
   const wonderDefinition = getLegendaryWonderDefinition(project.wonderId);
-  const city = state.cities[cityId];
-  const civilization = state.civilizations[civId];
-  const pendingEvents = { ...(state.pendingEvents ?? {}) };
+  const city = seededState.cities[cityId];
+  const civilization = seededState.civilizations[civId];
+  const pendingEvents = { ...(seededState.pendingEvents ?? {}) };
   const carriedProduction = city?.productionProgress ?? 0;
 
-  for (const [observerId, espionageState] of Object.entries(state.espionage ?? {})) {
+  for (const [observerId, espionageState] of Object.entries(seededState.espionage ?? {})) {
     if (observerId === civId) {
       continue;
     }
@@ -267,10 +453,10 @@ export function startLegendaryWonderBuild(
   }
 
   return {
-    ...state,
+    ...seededState,
     pendingEvents,
     cities: city ? {
-      ...state.cities,
+      ...seededState.cities,
       [cityId]: {
         ...city,
         productionQueue: [`legendary:${wonderId}`],
@@ -278,8 +464,8 @@ export function startLegendaryWonderBuild(
       },
     } : state.cities,
     legendaryWonderProjects: {
-      ...state.legendaryWonderProjects,
-      [wonderId]: {
+      ...seededState.legendaryWonderProjects,
+      [projectKey]: {
         ...project,
         phase: 'building',
         investedProduction: carriedProduction,
@@ -290,7 +476,7 @@ export function startLegendaryWonderBuild(
 }
 
 export function getLegendaryWonderProjectDefinition(state: GameState, wonderId: string) {
-  const project = state.legendaryWonderProjects?.[wonderId];
+  const project = Object.values(state.legendaryWonderProjects ?? {}).find(candidate => candidate.wonderId === wonderId);
   if (!project) {
     return undefined;
   }

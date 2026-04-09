@@ -6,6 +6,168 @@ export interface WonderPanelCallbacks {
   onClose: () => void;
 }
 
+function getOwnedResources(state: GameState, cityId: string): Set<string> {
+  const city = state.cities[cityId];
+  if (!city) {
+    return new Set();
+  }
+
+  return new Set(
+    city.ownedTiles
+      .map(coord => state.map.tiles[`${coord.q},${coord.r}`]?.resource)
+      .filter((resource): resource is string => resource !== null),
+  );
+}
+
+function getMissingConditions(state: GameState, cityId: string, ownerId: string, wonderId: string): string[] {
+  const definition = getLegendaryWonderDefinition(wonderId);
+  const city = state.cities[cityId];
+  const civ = state.civilizations[ownerId];
+  if (!definition || !city || !civ) {
+    return ['requirements unavailable'];
+  }
+
+  const missingTechs = definition.requiredTechs.filter(tech => !civ.techState.completed.includes(tech));
+  const ownedResources = getOwnedResources(state, cityId);
+  const missingResources = definition.requiredResources.filter(resource => !ownedResources.has(resource));
+  const missingConditions = [
+    ...missingTechs.map(tech => `tech ${tech}`),
+    ...missingResources.map(resource => `resource ${resource}`),
+  ];
+
+  if (definition.cityRequirement === 'river'
+    && !city.ownedTiles.some(coord => state.map.tiles[`${coord.q},${coord.r}`]?.hasRiver)) {
+    missingConditions.push('river city');
+  }
+
+  if (definition.cityRequirement === 'coastal'
+    && !city.ownedTiles.some(coord => {
+      const tile = state.map.tiles[`${coord.q},${coord.r}`];
+      return tile?.terrain === 'coast' || tile?.terrain === 'ocean';
+    })) {
+    missingConditions.push('coastal city');
+  }
+
+  return missingConditions;
+}
+
+function getProjectPriority(state: GameState, cityId: string, wonderId: string, phase: string): number {
+  const definition = getLegendaryWonderDefinition(wonderId);
+  const missingConditions = getMissingConditions(state, cityId, state.currentPlayer, wonderId);
+  const phaseBonus = phase === 'ready_to_build' ? 120 : phase === 'questing' ? 70 : phase === 'building' ? 40 : 0;
+  const missingPenalty = missingConditions.length * 15;
+  const costPenalty = Math.floor((definition?.productionCost ?? 300) / 50);
+  return phaseBonus - missingPenalty - costPenalty;
+}
+
+function appendProjectCard(
+  state: GameState,
+  project: NonNullable<GameState['legendaryWonderProjects']>[string],
+  section: HTMLElement,
+  callbacks: WonderPanelCallbacks,
+  options: { recommended?: boolean } = {},
+): void {
+  const definition = getLegendaryWonderDefinition(project.wonderId);
+  const city = state.cities[project.cityId];
+  const civ = state.civilizations[project.ownerId];
+  const article = document.createElement('article');
+  article.dataset.projectCard = project.wonderId;
+  if (options.recommended) {
+    article.dataset.recommendedProject = 'true';
+  }
+
+  const header = document.createElement('h3');
+  header.textContent = definition?.name ?? project.wonderId;
+  article.appendChild(header);
+
+  const phase = document.createElement('p');
+  phase.textContent = `Phase: ${project.phase.replaceAll('_', ' ')}`;
+  article.appendChild(phase);
+
+  const requirements = document.createElement('p');
+  requirements.textContent = definition
+    ? `Requires ${definition.requiredTechs.join(', ') || 'no extra techs'} and ${definition.productionCost} production.`
+    : 'Wonder requirements unavailable.';
+  article.appendChild(requirements);
+
+  const eligibility = document.createElement('p');
+  const missingConditions = getMissingConditions(state, project.cityId, project.ownerId, project.wonderId);
+  eligibility.textContent = missingConditions.length > 0
+    ? `Missing: ${missingConditions.join(', ')}.`
+    : 'Missing: none.';
+  article.appendChild(eligibility);
+
+  const progress = document.createElement('p');
+  progress.textContent = project.questSteps.length > 0
+    ? `Quest steps: ${project.questSteps.filter(step => step.completed).length}/${project.questSteps.length} complete.`
+    : 'Quest steps complete.';
+  article.appendChild(progress);
+
+  for (const step of project.questSteps) {
+    const stepLine = document.createElement('p');
+    stepLine.textContent = `${step.completed ? 'Done' : 'Pending'}: ${step.description}`;
+    article.appendChild(stepLine);
+  }
+
+  const reward = document.createElement('p');
+  reward.textContent = `Reward: ${definition?.reward.summary ?? 'Unavailable.'}`;
+  article.appendChild(reward);
+
+  const race = document.createElement('p');
+  if (project.phase === 'building') {
+    race.textContent = `Race status: ${project.investedProduction}/${definition?.productionCost ?? 0} production invested.`;
+  } else if (project.phase === 'completed') {
+    race.textContent = 'Race status: won.';
+  } else if (project.phase === 'lost_race') {
+    race.textContent = `Race status: lost. ${project.transferableProduction} carryover remains in this city.`;
+  } else {
+    race.textContent = 'Race status: not yet in construction.';
+  }
+  article.appendChild(race);
+
+  if (project.phase === 'ready_to_build') {
+    const startBuild = document.createElement('button');
+    startBuild.textContent = 'Start Build';
+    startBuild.addEventListener('click', () => callbacks.onStartBuild(project.cityId, project.wonderId));
+    article.appendChild(startBuild);
+  }
+
+  if (city && civ && project.ownerId !== state.currentPlayer) {
+    const rival = document.createElement('p');
+    rival.textContent = `${civ.name} is pursuing this in ${city.name}.`;
+    article.appendChild(rival);
+  }
+
+  section.appendChild(article);
+}
+
+function appendProjectSection(
+  panel: HTMLElement,
+  heading: string,
+  dataSection: string,
+  projects: Array<NonNullable<GameState['legendaryWonderProjects']>[string]>,
+  state: GameState,
+  callbacks: WonderPanelCallbacks,
+  options: { recommended?: boolean } = {},
+): void {
+  if (projects.length === 0) {
+    return;
+  }
+
+  const section = document.createElement('section');
+  section.dataset.section = dataSection;
+
+  const header = document.createElement('h3');
+  header.textContent = heading;
+  section.appendChild(header);
+
+  for (const project of projects) {
+    appendProjectCard(state, project, section, callbacks, options);
+  }
+
+  panel.appendChild(section);
+}
+
 export function createWonderPanel(
   container: HTMLElement,
   state: GameState,
@@ -40,6 +202,8 @@ export function createWonderPanel(
 
   const cityProjects = Object.values(state.legendaryWonderProjects ?? {})
     .filter(project => project.ownerId === state.currentPlayer && project.cityId === cityId);
+  const rivalProjects = Object.values(state.legendaryWonderProjects ?? {})
+    .filter(project => project.ownerId !== state.currentPlayer && project.phase === 'building');
 
   if (cityProjects.length === 0) {
     const empty = document.createElement('p');
@@ -47,98 +211,23 @@ export function createWonderPanel(
     panel.appendChild(empty);
   }
 
-  for (const project of cityProjects) {
-    const definition = getLegendaryWonderDefinition(project.wonderId);
-    const city = state.cities[project.cityId];
-    const civ = state.civilizations[project.ownerId];
-    const section = document.createElement('section');
+  const sortedCityProjects = [...cityProjects].sort((left, right) =>
+    getProjectPriority(state, cityId, right.wonderId, right.phase)
+    - getProjectPriority(state, cityId, left.wonderId, left.phase),
+  );
+  const recommendedProjects = sortedCityProjects
+    .filter(project => project.phase === 'ready_to_build' || project.phase === 'questing')
+    .slice(0, 3);
+  const recommendedIds = new Set(recommendedProjects.map(project => project.wonderId));
+  const laterProjects = sortedCityProjects
+    .filter(project => !recommendedIds.has(project.wonderId))
+    .slice(0, 4);
 
-    const header = document.createElement('h3');
-    header.textContent = definition?.name ?? project.wonderId;
-    section.appendChild(header);
-
-    const phase = document.createElement('p');
-    phase.textContent = `Phase: ${project.phase.replaceAll('_', ' ')}`;
-    section.appendChild(phase);
-
-    const requirements = document.createElement('p');
-    requirements.textContent = definition
-      ? `Requires ${definition.requiredTechs.join(', ') || 'no extra techs'} and ${definition.productionCost} production.`
-      : 'Wonder requirements unavailable.';
-    section.appendChild(requirements);
-
-    const eligibility = document.createElement('p');
-    if (definition && city && civ) {
-      const missingTechs = definition.requiredTechs.filter(tech => !civ.techState.completed.includes(tech));
-      const ownedResources = new Set(
-        city.ownedTiles
-          .map(coord => state.map.tiles[`${coord.q},${coord.r}`]?.resource)
-          .filter((resource): resource is string => resource !== null),
-      );
-      const missingResources = definition.requiredResources.filter(resource => !ownedResources.has(resource));
-      const missingConditions = [
-        ...missingTechs.map(tech => `tech ${tech}`),
-        ...missingResources.map(resource => `resource ${resource}`),
-      ];
-
-      if (definition.cityRequirement === 'river'
-        && !city.ownedTiles.some(coord => state.map.tiles[`${coord.q},${coord.r}`]?.hasRiver)) {
-        missingConditions.push('river city');
-      }
-
-      if (definition.cityRequirement === 'coastal'
-        && !city.ownedTiles.some(coord => {
-          const tile = state.map.tiles[`${coord.q},${coord.r}`];
-          return tile?.terrain === 'coast' || tile?.terrain === 'ocean';
-        })) {
-        missingConditions.push('coastal city');
-      }
-
-      eligibility.textContent = missingConditions.length > 0
-        ? `Missing: ${missingConditions.join(', ')}.`
-        : 'Missing: none.';
-    } else {
-      eligibility.textContent = 'Missing: requirements unavailable.';
-    }
-    section.appendChild(eligibility);
-
-    const progress = document.createElement('p');
-    progress.textContent = project.questSteps.length > 0
-      ? `Quest steps: ${project.questSteps.filter(step => step.completed).length}/${project.questSteps.length} complete.`
-      : 'Quest steps complete.';
-    section.appendChild(progress);
-
-    for (const step of project.questSteps) {
-      const stepLine = document.createElement('p');
-      stepLine.textContent = `${step.completed ? 'Done' : 'Pending'}: ${step.description}`;
-      section.appendChild(stepLine);
-    }
-
-    const reward = document.createElement('p');
-    reward.textContent = `Reward: ${definition?.reward.summary ?? 'Unavailable.'}`;
-    section.appendChild(reward);
-
-    const race = document.createElement('p');
-    if (project.phase === 'building') {
-      race.textContent = `Race status: ${project.investedProduction}/${definition?.productionCost ?? 0} production invested.`;
-    } else if (project.phase === 'completed') {
-      race.textContent = 'Race status: won.';
-    } else if (project.phase === 'lost_race') {
-      race.textContent = `Race status: lost. ${project.transferableProduction} carryover remains in this city.`;
-    } else {
-      race.textContent = 'Race status: not yet in construction.';
-    }
-    section.appendChild(race);
-
-    if (project.phase === 'ready_to_build') {
-      const startBuild = document.createElement('button');
-      startBuild.textContent = 'Start Build';
-      startBuild.addEventListener('click', () => callbacks.onStartBuild(project.cityId, project.wonderId));
-      section.appendChild(startBuild);
-    }
-
-    panel.appendChild(section);
-  }
+  appendProjectSection(panel, 'Best fits right now', 'recommended-wonders', recommendedProjects, state, callbacks, {
+    recommended: true,
+  });
+  appendProjectSection(panel, 'Available later', 'later-wonders', laterProjects, state, callbacks);
+  appendProjectSection(panel, 'In progress elsewhere', 'rival-wonders', rivalProjects.slice(0, 3), state, callbacks);
 
   const close = document.createElement('button');
   close.textContent = 'Close';

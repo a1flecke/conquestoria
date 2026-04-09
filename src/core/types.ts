@@ -71,7 +71,17 @@ export interface LegendaryWonderDefinition {
   cityRequirement: 'river' | 'coastal' | 'any';
   questSteps: Array<{
     id: string;
-    type: 'discover_wonder' | 'trade_route' | 'research_count' | 'defeat_stronghold';
+    type:
+      | 'discover_wonder'
+      | 'trade_route'
+      | 'research_count'
+      | 'defeat_stronghold'
+      | 'buildings-in-multiple-cities'
+      | 'trade-routes-established'
+      | 'map-discoveries';
+    description?: string;
+    targetCount?: number;
+    track?: TechTrack;
   }>;
   reward: LegendaryWonderReward;
 }
@@ -627,6 +637,7 @@ export interface CouncilCard {
   id: string;
   advisor: AdvisorType;
   bucket: 'do-now' | 'soon' | 'to-win' | 'drama';
+  cardType?: 'standard' | 'wonder';
   title: string;
   summary: string;
   why: string;

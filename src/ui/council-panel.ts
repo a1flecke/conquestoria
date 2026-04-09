@@ -1,4 +1,4 @@
-import type { CouncilTalkLevel, GameState } from '@/core/types';
+import type { CouncilCard, CouncilTalkLevel, GameState } from '@/core/types';
 import { buildCouncilAgenda } from '@/systems/council-system';
 
 export interface CouncilPanelCallbacks {
@@ -6,7 +6,7 @@ export interface CouncilPanelCallbacks {
   onTalkLevelChange: (level: CouncilTalkLevel) => void;
 }
 
-function createBucket(title: string, cards: Array<{ title: string; summary: string; why: string }>): HTMLElement {
+function createBucket(title: string, cards: CouncilCard[]): HTMLElement {
   const section = document.createElement('section');
 
   const heading = document.createElement('h3');
@@ -22,6 +22,7 @@ function createBucket(title: string, cards: Array<{ title: string; summary: stri
 
   for (const card of cards) {
     const article = document.createElement('article');
+    article.dataset.cardType = card.cardType ?? 'standard';
 
     const cardTitle = document.createElement('strong');
     cardTitle.textContent = card.title;

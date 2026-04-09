@@ -1,7 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { getLateEraWonderTechRequirements } from '@/systems/legendary-wonder-definitions';
+import { getApprovedM4LegendaryWonderRoster } from '@/systems/approved-legendary-wonder-roster';
+import {
+  getLateEraWonderTechRequirements,
+  getLegendaryWonderDefinitions,
+} from '@/systems/legendary-wonder-definitions';
 
 describe('legendary-wonder-definitions', () => {
+  it('matches the full approved M4 legendary wonder roster exactly', () => {
+    const approved = getApprovedM4LegendaryWonderRoster().map(w => w.id);
+    const shipped = getLegendaryWonderDefinitions().map(w => w.id);
+
+    expect(shipped).toEqual(approved);
+    expect(approved).toHaveLength(15);
+    expect(approved).toEqual(expect.arrayContaining(['manhattan-project', 'internet']));
+  });
+
+  it('supports the new Slice 4 quest-step patterns in the expanded catalog', () => {
+    const definitions = getLegendaryWonderDefinitions();
+    const internet = definitions.find(w => w.id === 'internet');
+    const stormSignalSpire = definitions.find(w => w.id === 'storm-signal-spire');
+
+    expect(internet?.questSteps.some(step => step.type === 'buildings-in-multiple-cities')).toBe(true);
+    expect(internet?.questSteps.some(step => step.type === 'trade-routes-established')).toBe(true);
+    expect(stormSignalSpire?.questSteps.some(step => step.type === 'map-discoveries')).toBe(true);
+  });
+
   it('maps the remaining late-era wonder scaffolding to real Slice 3 techs', () => {
     const requirements = getLateEraWonderTechRequirements();
 

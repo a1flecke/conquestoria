@@ -30,9 +30,16 @@ import {
   startMission,
 } from '@/systems/espionage-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
-import { loseLegendaryWonderRace } from '@/systems/legendary-wonder-system';
+import {
+  getEligibleLegendaryWonders,
+  initializeLegendaryWonderProjectsForAllCities,
+  initializeLegendaryWonderProjectsForCity,
+  loseLegendaryWonderRace,
+  startLegendaryWonderBuild,
+} from '@/systems/legendary-wonder-system';
 import { BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
 import { calculateCityYields } from '@/systems/resource-system';
+import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 
 function getPersonality(civType: string): PersonalityTraits {
   const def = getCivDefinition(civType);
@@ -190,8 +197,32 @@ function chooseLegendaryWonderFallback(
   return Object.keys(BUILDINGS).find(buildingId => !city.buildings.includes(buildingId)) ?? 'warrior';
 }
 
+function scoreLegendaryWonderOpportunity(state: GameState, civId: string, cityId: string, wonderId: string): number {
+  const definition = getLegendaryWonderDefinition(wonderId);
+  const city = state.cities[cityId];
+  const civ = state.civilizations[civId];
+  if (!definition || !city || !civ) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const costPenalty = Math.floor(definition.productionCost / 40);
+  const cityBonus = definition.cityRequirement === 'river'
+    ? 25
+    : definition.cityRequirement === 'coastal'
+      ? 20
+      : 10;
+  const rewardBonus = (definition.reward.civYieldBonus?.science ?? 0) * 8
+    + (definition.reward.civYieldBonus?.production ?? 0) * 8
+    + (definition.reward.civYieldBonus?.gold ?? 0) * 6
+    + (definition.reward.cityYieldBonus?.production ?? 0) * 6
+    + (definition.reward.cityYieldBonus?.food ?? 0) * 5;
+  const techMomentum = civ.techState.completed.length;
+
+  return 100 + cityBonus + rewardBonus + techMomentum - costPenalty;
+}
+
 export function processAITurn(state: GameState, civId: string, bus: EventBus): GameState {
-  let newState = structuredClone(state);
+  let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
   const civ = newState.civilizations[civId];
   if (!civ) return newState;
 
@@ -244,6 +275,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       const city = foundCity(civId, settler.position, newState.map);
       newState.cities[city.id] = city;
       civ.cities.push(city.id);
+      newState = initializeLegendaryWonderProjectsForCity(newState, civId, city.id);
 
       for (const ownedCoord of city.ownedTiles) {
         const key = hexKey(ownedCoord);
@@ -366,6 +398,30 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
     if (city && city.productionQueue.length === 0) {
+      const activeWonderBuilds = Object.values(newState.cities).filter(candidate =>
+        candidate.owner === civId && candidate.productionQueue[0]?.startsWith('legendary:'),
+      ).length;
+      if (activeWonderBuilds < 2) {
+        const wonderCandidates = getEligibleLegendaryWonders(newState, civId, cityId)
+          .filter(wonderId =>
+            Object.values(newState.legendaryWonderProjects ?? {}).some(project =>
+              project.ownerId === civId
+              && project.cityId === cityId
+              && project.wonderId === wonderId
+              && project.phase === 'ready_to_build',
+            ),
+          )
+          .sort((left, right) =>
+            scoreLegendaryWonderOpportunity(newState, civId, cityId, right)
+            - scoreLegendaryWonderOpportunity(newState, civId, cityId, left),
+          );
+
+        if (wonderCandidates.length > 0) {
+          newState = startLegendaryWonderBuild(newState, civId, cityId, wonderCandidates[0], bus);
+          continue;
+        }
+      }
+
       const availableItems = ['warrior', 'scout', 'granary', 'settler'];
       const chosen = chooseProduction(personality, availableItems, isUnderThreat, civ.cities.length);
       city.productionQueue = [chosen];

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  initializeLegendaryWonderProjectsForCity,
   getEligibleLegendaryWonders,
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
@@ -13,6 +14,27 @@ import { createEspionageCivState, processEspionageTurn } from '@/systems/espiona
 import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 
 describe('legendary-wonder-system', () => {
+  it('seeds the full approved legendary wonder roster for a newly founded city', () => {
+    const state = makeLegendaryWonderFixture();
+    state.legendaryWonderProjects = undefined;
+
+    const result = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+
+    expect(Object.values(result.legendaryWonderProjects ?? {}).filter(project => project.cityId === 'city-river')).toHaveLength(15);
+  });
+
+  it('allows multiple civilizations to pursue the same legendary wonder in different cities', () => {
+    const state = makeLegendaryWonderFixture();
+    state.legendaryWonderProjects = undefined;
+
+    const withPlayerProjects = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const withRivalProjects = initializeLegendaryWonderProjectsForCity(withPlayerProjects, 'rival', 'city-rival');
+    const grandCanalProjects = Object.values(withRivalProjects.legendaryWonderProjects ?? {}).filter(project => project.wonderId === 'grand-canal');
+
+    expect(grandCanalProjects).toHaveLength(2);
+    expect(new Set(grandCanalProjects.map(project => project.cityId))).toEqual(new Set(['city-river', 'city-rival']));
+  });
+
   it('requires all eligibility constraints, not only one of them', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: ['philosophy'], resources: [] });
 

@@ -1,4 +1,7 @@
+// @vitest-environment jsdom
+
 import { describe, it, expect } from 'vitest';
+import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { makeWonderPanelFixture, collectText } from './helpers/wonder-panel-fixture';
 
@@ -71,5 +74,33 @@ describe('wonder-panel', () => {
     expect(rendered).toContain('Missing');
     expect(rendered).toContain('pilgrimages');
     expect(rendered).toContain('Reward');
+  });
+
+  it('does not overwhelm the player with an undifferentiated list of wonders', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = [
+      'philosophy',
+      'pilgrimages',
+      'city-planning',
+      'printing',
+      'diplomats',
+      'banking',
+      'agricultural-science',
+      'natural-philosophy',
+      'astronomy',
+    ];
+    const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+
+    const panel = createWonderPanel(container, seededState, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelectorAll('[data-section="recommended-wonders"]').length).toBe(1);
+    expect(panel.textContent).toContain('Best fits right now');
+    expect(panel.querySelectorAll('[data-project-card]').length).toBeLessThanOrEqual(8);
+    expect(panel.querySelectorAll('[data-recommended-project="true"]').length).toBeLessThanOrEqual(3);
+    expect(panel.textContent).toContain('Available later');
+    expect(panel.textContent).toContain('In progress elsewhere');
   });
 });

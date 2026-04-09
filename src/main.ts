@@ -48,7 +48,10 @@ import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-s
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
-import { startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
+import {
+  initializeLegendaryWonderProjectsForCity,
+  startLegendaryWonderBuild,
+} from '@/systems/legendary-wonder-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import {
   assignSpy,
@@ -390,6 +393,7 @@ function togglePanel(panel: string): void {
         }
       },
       onOpenWonderPanel: (selectedCityId) => {
+        gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);
         createWonderPanel(uiLayer, gameState, selectedCityId, {
           onStartBuild: (buildCityId, wonderId) => {
             gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
@@ -707,6 +711,7 @@ function foundCityAction(): void {
   const city = foundCity(cp, unit.position, gameState.map);
   gameState.cities[city.id] = city;
   currentCiv().cities.push(city.id);
+  gameState = initializeLegendaryWonderProjectsForCity(gameState, cp, city.id);
 
   // Mark tiles as owned
   for (const coord of city.ownedTiles) {
