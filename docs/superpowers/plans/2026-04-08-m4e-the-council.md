@@ -1656,6 +1656,186 @@ git push origin feature/m4e-the-council
 
 After merge, confirm on `origin/main`, then remove the worktree/branch.
 
+### Task 8E: Make Auto-Explore Threat Evaluation Match Real Player Knowledge
+
+**Root issue:**
+- `movement-safety.ts` decides “visible hostile” using raw tile visibility and diplomacy state, but it does not apply the same concealment logic used by rendering and selection.
+- That means player-owned automation can route around a forest-concealed enemy unit that the player is not actually allowed to know about.
+- This is a privacy-model split, not just a one-line bug: movement safety, rendering, and interaction are answering “is this unit knowable?” in different places with different rules.
+
+**Product direction:**
+- Do **not** restrict auto-explore to only scouts or military units.
+- Any unit may be placed into auto-explore when the player explicitly chooses it.
+- Auto-explore must stop immediately when:
+  - a hostile unit becomes visible under the real player-knowledge model, or
+  - there is nowhere else reachable that advances exploration.
+
+**Files:**
+- Modify: `src/systems/movement-safety.ts`
+- Modify: `src/systems/auto-explore-system.ts`
+- Modify: `src/systems/fog-of-war.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/systems/helpers/auto-explore-fixture.ts`
+- Modify: `tests/systems/movement-safety.test.ts`
+- Modify: `tests/systems/auto-explore-system.test.ts`
+- Modify: `tests/core/turn-manager.test.ts`
+
+- [ ] **Step 1: Add failing concealment and stop-rule tests**
+
+Extend `tests/systems/movement-safety.test.ts`:
+
+```typescript
+it('does not treat forest-concealed hostile units as visible threats', () => {
+  const { state } = makeAutoExploreFixture({ concealedForestHostileEast: true });
+  expect(getVisibleHostileUnits(state, 'player')).toEqual([]);
+  expect(isThreatenedByVisibleHostiles(state, 'player', { q: 2, r: 1 })).toBe(false);
+});
+```
+
+Extend `tests/systems/auto-explore-system.test.ts`:
+
+```typescript
+it('cancels auto-explore after a moved unit reveals a hostile threat', () => {
+  const { state, unitId } = makeAutoExploreFixture({ safeFogNorth: true, hostileRevealedAfterNorthMove: true });
+  applyAutoExploreOrder(state, unitId, { bus: new EventBus() });
+  expect(state.units[unitId].automation).toBeUndefined();
+});
+
+it('allows the player to auto-explore with civilian units by explicit choice', () => {
+  const { state, unitId } = makeAutoExploreFixture({ workerNorthStart: true, safeFogNorth: true });
+  applyAutoExploreOrder(state, unitId, { bus: new EventBus() });
+  expect(state.units[unitId].position).toEqual({ q: 1, r: 0 });
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts tests/core/turn-manager.test.ts
+```
+
+Expected: FAIL because concealment-aware visibility and post-move hostile cancellation are not yet wired.
+
+- [ ] **Step 3: Centralize the “player can know about this unit” rule**
+
+Add one shared helper in `src/systems/movement-safety.ts` or `src/systems/fog-of-war.ts`:
+
+```typescript
+export function isUnitVisibleToPlayerKnowledge(state: GameState, viewerId: string, unit: Unit): boolean
+```
+
+Requirements:
+- tile visibility must be `visible`
+- `isForestConcealedUnit(...)` must be false
+- future player-owned automation safety checks must use this helper instead of raw visibility checks
+
+- [ ] **Step 4: Stop automation with an explicit reason**
+
+Requirements for `applyAutoExploreOrder(...)`:
+- after moving through the shared movement path, evaluate visible hostile threats using the corrected knowledge model
+- if a threat is now visible, clear `unit.automation`
+- if no exploration-advancing destination exists, also clear `unit.automation`
+- return a structured stop reason:
+
+```typescript
+type AutoExploreStopReason = 'hostile-encountered' | 'no-safe-path';
+```
+
+- `main.ts` must show current-player-only notifications such as:
+  - `Auto-explore stopped: hostile unit sighted.`
+  - `Auto-explore stopped: nothing new to explore.`
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts tests/core/turn-manager.test.ts
+```
+
+Expected: PASS.
+
+### Task 8F: Wire Hover Tooltips Into The Live Desktop Shell
+
+**Root issue:**
+- Slice 2 shipped `TooltipLayer` as an isolated helper and test, but the actual desktop shell never creates it or routes hover events into it.
+- This is the same architectural problem as earlier Slice 2 issues: helper modules exist, but the real shell wiring path is incomplete.
+
+**Scope:**
+- Keep tooltips lightweight and desktop-only.
+- Initial live wiring for Slice 2:
+  - primary action bar buttons
+  - the grid/help affordance
+  - selected-unit auto-explore status / cancel affordance
+
+**Files:**
+- Modify: `src/ui/tooltip-layer.ts`
+- Modify: `src/ui/game-shell.ts`
+- Modify: `src/ui/selected-unit-info.ts`
+- Modify: `src/input/mouse-handler.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/ui/desktop-controls.test.ts`
+- Create: `tests/integration/m4e-desktop-tooltips.test.ts`
+
+- [ ] **Step 1: Add failing live-tooltip integration tests**
+
+Create `tests/integration/m4e-desktop-tooltips.test.ts`:
+
+```typescript
+/** @vitest-environment jsdom */
+it('shows a tooltip when hovering a primary action bar control', () => {
+  const { app } = makeDesktopControlIntegrationFixture();
+  hover(app.root.querySelector('[data-tooltip-id="open-council"]')!);
+  expect(app.tooltipRoot.textContent).toContain('Council');
+});
+
+it('shows a tooltip for selected-unit auto-explore controls', () => {
+  const { app } = makeDesktopControlIntegrationFixture({ autoExploreActive: true });
+  hover(app.root.querySelector('[data-tooltip-id="cancel-auto-explore"]')!);
+  expect(app.tooltipRoot.textContent).toContain('Stop automatic exploration');
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/desktop-controls.test.ts tests/integration/m4e-desktop-tooltips.test.ts
+```
+
+Expected: FAIL because the live shell still does not create or drive the tooltip layer.
+
+- [ ] **Step 3: Add declarative tooltip metadata and one live delegated hover path**
+
+Requirements:
+- `game-shell.ts` and `selected-unit-info.ts` must expose tooltip metadata using attributes:
+
+```typescript
+button.dataset.tooltipId = 'open-council';
+button.dataset.tooltipTitle = 'Council';
+button.dataset.tooltipBody = 'Open your advisors for guidance, goals, and drama.';
+```
+
+- `main.ts` must create one tooltip layer for the UI shell and install one delegated hover handler that:
+  - reads tooltip attributes from hovered elements
+  - shows/hides the layer
+  - no-ops when interaction is blocked or on touch-only flows
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/desktop-controls.test.ts tests/integration/m4e-desktop-tooltips.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Re-run full Slice 2 follow-up verification**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts tests/core/turn-manager.test.ts tests/ui/desktop-controls.test.ts tests/integration/m4e-desktop-tooltips.test.ts
+./scripts/run-with-mise.sh yarn test --run
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
+
 ---
 
 ## Slice 3: Late Era Foundations

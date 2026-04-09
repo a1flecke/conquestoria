@@ -43,6 +43,7 @@ import { collectCouncilInterrupt, collectEvent } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
+import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
@@ -1330,144 +1331,7 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
   }
 });
 
-bus.on('minor-civ:quest-issued', (data: any) => {
-  const notification = getMinorCivNotification(gameState, data.majorCivId, {
-    type: 'minor-civ:quest-issued',
-    majorCivId: data.majorCivId,
-    minorCivId: data.minorCivId,
-    quest: data.quest,
-  });
-  if (!notification) return;
-
-  if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest', message: notification.message, turn: gameState.turn });
-  }
-  if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(notification.message, notification.type);
-  }
-});
-
-bus.on('minor-civ:quest-completed', (data: any) => {
-  const notification = getMinorCivNotification(gameState, data.majorCivId, {
-    type: 'minor-civ:quest-completed',
-    majorCivId: data.majorCivId,
-    minorCivId: data.minorCivId,
-    reward: data.reward,
-  });
-  if (!notification) return;
-
-  if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-done', message: notification.message, turn: gameState.turn });
-  }
-  if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(notification.message, notification.type);
-  }
-});
-
-bus.on('minor-civ:evolved', (data: any) => {
-  if (gameState.hotSeat && gameState.pendingEvents) {
-    for (const civId of Object.keys(gameState.civilizations)) {
-      const notification = getMinorCivNotification(gameState, civId, {
-        type: 'minor-civ:evolved',
-        minorCivId: data.minorCivId,
-      });
-      if (notification) {
-        collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:evolved', message: notification.message, turn: gameState.turn });
-      }
-    }
-  }
-  const notification = getMinorCivNotification(gameState, gameState.currentPlayer, {
-    type: 'minor-civ:evolved',
-    minorCivId: data.minorCivId,
-  });
-  if (notification) {
-    showNotification(notification.message, notification.type);
-  }
-});
-
-bus.on('minor-civ:destroyed', (data: any) => {
-  if (gameState.hotSeat && gameState.pendingEvents) {
-    for (const civId of Object.keys(gameState.civilizations)) {
-      const notification = getMinorCivNotification(gameState, civId, {
-        type: 'minor-civ:destroyed',
-        minorCivId: data.minorCivId,
-      });
-      if (notification) {
-        collectEvent(gameState.pendingEvents, civId, { type: 'minor-civ:destroyed', message: notification.message, turn: gameState.turn });
-      }
-    }
-  }
-  const notification = getMinorCivNotification(gameState, gameState.currentPlayer, {
-    type: 'minor-civ:destroyed',
-    minorCivId: data.minorCivId,
-  });
-  if (notification) {
-    showNotification(notification.message, notification.type);
-  }
-});
-
-bus.on('minor-civ:allied', (data: any) => {
-  const notification = getMinorCivNotification(gameState, data.majorCivId, {
-    type: 'minor-civ:allied',
-    majorCivId: data.majorCivId,
-    minorCivId: data.minorCivId,
-  });
-  if (!notification) return;
-
-  if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:allied', message: notification.message, turn: gameState.turn });
-  }
-  if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(notification.message, notification.type);
-  }
-});
-
-bus.on('minor-civ:relationship-threshold', (data: any) => {
-  const notification = getMinorCivNotification(gameState, data.majorCivId, {
-    type: 'minor-civ:relationship-threshold',
-    majorCivId: data.majorCivId,
-    minorCivId: data.minorCivId,
-    newStatus: data.newStatus,
-  });
-  if (!notification) return;
-
-  if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:status', message: notification.message, turn: gameState.turn });
-  }
-  if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(notification.message, notification.type);
-  }
-});
-
-bus.on('minor-civ:guerrilla', (data: any) => {
-  const notification = getMinorCivNotification(gameState, data.targetCivId, {
-    type: 'minor-civ:guerrilla',
-    targetCivId: data.targetCivId,
-    minorCivId: data.minorCivId,
-  });
-  if (gameState.hotSeat && gameState.pendingEvents && notification) {
-    collectEvent(gameState.pendingEvents, data.targetCivId, { type: 'minor-civ:guerrilla', message: notification.message, turn: gameState.turn });
-  }
-  if (data.targetCivId === gameState.currentPlayer && notification) {
-    showNotification(notification.message, notification.type);
-  }
-});
-
-bus.on('minor-civ:quest-expired', (data: any) => {
-  const notification = getMinorCivNotification(gameState, data.majorCivId, {
-    type: 'minor-civ:quest-expired',
-    majorCivId: data.majorCivId,
-    minorCivId: data.minorCivId,
-  });
-  if (!notification) return;
-
-  if (gameState.hotSeat && gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, data.majorCivId, { type: 'minor-civ:quest-expired', message: notification.message, turn: gameState.turn });
-  }
-  if (data.majorCivId === gameState.currentPlayer) {
-    showNotification(notification.message, notification.type);
-  }
-});
+registerMinorCivNotificationListeners(bus, () => gameState, { showNotification });
 
 // --- Initialization ---
 async function init(): Promise<void> {

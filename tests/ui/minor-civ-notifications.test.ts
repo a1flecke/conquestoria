@@ -123,6 +123,31 @@ describe('minor-civ-notifications', () => {
     expect(hidden?.message).toBe('A barbarian tribe formed a new city-state!');
   });
 
+  it('formats destroyed notifications per viewer in hot-seat play', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'mc-destroyed-hotseat');
+    const minorCivId = getFirstMinorCivId(state);
+    discoverMinorCiv(state, 'player-1', minorCivId);
+
+    const visible = getMinorCivNotification(state, 'player-1', {
+      type: 'minor-civ:destroyed',
+      minorCivId,
+    });
+    const hidden = getMinorCivNotification(state, 'player-2', {
+      type: 'minor-civ:destroyed',
+      minorCivId,
+    });
+
+    expect(visible?.message).not.toBe('A city-state has fallen!');
+    expect(hidden?.message).toBe('A city-state has fallen!');
+  });
+
   it('only returns allied notifications for the affected major civ', () => {
     const state = createNewGame(undefined, 'mc-allied-targeted', 'small');
     const minorCivId = getFirstMinorCivId(state);
