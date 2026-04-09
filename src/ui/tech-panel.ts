@@ -34,6 +34,10 @@ function titleCase(track: string): string {
   return track.charAt(0).toUpperCase() + track.slice(1);
 }
 
+function getEraLabel(era: number): string {
+  return era === 5 ? 'Late Era Foundations' : `Era ${era}`;
+}
+
 function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: number): HTMLDivElement | null {
   if (!currentTech) {
     return null;
@@ -124,6 +128,38 @@ function createTechItem(
   return item;
 }
 
+function buildEraSection(
+  era: number,
+  techs: Tech[],
+  civ: GameState['civilizations'][string],
+  available: Tech[],
+  callbacks: TechPanelCallbacks,
+  panel: HTMLElement,
+): HTMLElement {
+  const section = document.createElement('div');
+  section.dataset.era = String(era);
+  section.style.cssText = 'margin-bottom:10px;';
+
+  const heading = document.createElement('div');
+  heading.textContent = getEraLabel(era);
+  heading.style.cssText = era === 5
+    ? 'font-size:11px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:#e8c170;margin:0 0 6px;'
+    : 'font-size:11px;font-weight:bold;letter-spacing:0.04em;text-transform:uppercase;opacity:0.65;margin:0 0 6px;';
+  section.appendChild(heading);
+
+  for (const tech of techs) {
+    section.appendChild(createTechItem(tech, {
+      isCompleted: civ.techState.completed.includes(tech.id),
+      isCurrent: civ.techState.currentResearch === tech.id,
+      isAvailable: available.some(candidate => candidate.id === tech.id),
+      onStartResearch: callbacks.onStartResearch,
+      onClosePanel: () => panel.remove(),
+    }));
+  }
+
+  return section;
+}
+
 export function createTechPanel(
   container: HTMLElement,
   state: GameState,
@@ -186,14 +222,10 @@ export function createTechPanel(
     trackBlock.appendChild(heading);
 
     const techs = TECH_TREE.filter(tech => tech.track === track);
-    for (const tech of techs) {
-      trackBlock.appendChild(createTechItem(tech, {
-        isCompleted: civ.techState.completed.includes(tech.id),
-        isCurrent: civ.techState.currentResearch === tech.id,
-        isAvailable: available.some(candidate => candidate.id === tech.id),
-        onStartResearch: callbacks.onStartResearch,
-        onClosePanel: () => panel.remove(),
-      }));
+    const eras = [...new Set(techs.map(tech => tech.era))].sort((a, b) => a - b);
+    for (const era of eras) {
+      const eraTechs = techs.filter(tech => tech.era === era);
+      trackBlock.appendChild(buildEraSection(era, eraTechs, civ, available, callbacks, panel));
     }
 
     grid.appendChild(trackBlock);

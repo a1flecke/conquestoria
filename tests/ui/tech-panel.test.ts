@@ -27,4 +27,14 @@ describe('tech-panel', () => {
 
     expect(panel.querySelector('[data-layout="tech-tree-grid"]')).toBeTruthy();
   });
+
+  it('groups late-era nodes into readable sections instead of appending a confusing tail', () => {
+    const state = createNewGame(undefined, 'tech-panel-late-era');
+    state.civilizations.player.techState.completed.push('printing', 'diplomats', 'trade-routes', 'banking', 'astronomy', 'medicine');
+
+    const panel = createTechPanel(document.body, state, { onStartResearch: () => {}, onClose: () => {} });
+
+    expect(panel.querySelector('[data-era="5"]')).toBeTruthy();
+    expect(panel.textContent).toContain('Late Era Foundations');
+  });
 });

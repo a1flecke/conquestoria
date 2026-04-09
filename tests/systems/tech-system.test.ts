@@ -20,19 +20,23 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the legacy 8-tech structure for most tracks and extends espionage to 10 techs', () => {
+  it('keeps the legacy shape while adding the planned era-5 foundation nodes', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      const expectedCount = track === 'espionage' ? 10 : 8;
+      const expectedCount = track === 'espionage'
+        ? 10
+        : ['economy', 'science', 'communication'].includes(track)
+          ? 9
+          : 8;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 122 techs total after adding Stage 5 espionage', () => {
-    expect(TECH_TREE.length).toBe(122);
+  it('has 125 techs total after adding Slice 3 late-era foundations', () => {
+    expect(TECH_TREE.length).toBe(125);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -58,6 +62,17 @@ describe('expanded tech tree', () => {
     expect(eras).toContain(3);
     expect(eras).toContain(4);
     expect(eras).toContain(5);
+  });
+
+  it('unlocks the new late-era nodes only after their era-4 prerequisites are complete', () => {
+    const state = createTechState();
+
+    expect(getAvailableTechs(state).find(t => t.id === 'mass-media')).toBeUndefined();
+
+    state.completed.push('printing', 'diplomats');
+    const available = getAvailableTechs(state);
+
+    expect(available.find(t => t.id === 'mass-media')).toBeDefined();
   });
 });
 

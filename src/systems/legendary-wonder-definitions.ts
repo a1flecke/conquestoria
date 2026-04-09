@@ -1,5 +1,10 @@
 import type { LegendaryWonderDefinition } from '@/core/types';
 
+export interface LateEraWonderTechRequirement {
+  wonderId: string;
+  requiredTechs: string[];
+}
+
 export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = [
   {
     id: 'oracle-of-delphi',
@@ -74,4 +79,22 @@ export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = [
 
 export function getLegendaryWonderDefinition(wonderId: string): LegendaryWonderDefinition | undefined {
   return LEGENDARY_WONDER_DEFINITIONS.find(wonder => wonder.id === wonderId);
+}
+
+const LATE_ERA_WONDER_TECH_REQUIREMENTS: LateEraWonderTechRequirement[] = [
+  {
+    wonderId: 'manhattan-project',
+    requiredTechs: ['nuclear-theory'],
+  },
+  {
+    wonderId: 'internet',
+    requiredTechs: ['mass-media', 'global-logistics'],
+  },
+];
+
+export function getLateEraWonderTechRequirements(): LateEraWonderTechRequirement[] {
+  return LATE_ERA_WONDER_TECH_REQUIREMENTS.map(requirement => ({
+    wonderId: requirement.wonderId,
+    requiredTechs: [...requirement.requiredTechs],
+  }));
 }
