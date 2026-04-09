@@ -1,13 +1,26 @@
 import type { CouncilAgenda, CouncilCard, CouncilInterrupt, CouncilTalkLevel, GameState } from '@/core/types';
 import { getQuestDescriptionForPlayer, getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
+import { calculateCityYields } from '@/systems/resource-system';
+import { getCivDefinition } from '@/systems/civ-definitions';
 
 function getPrimaryCity(state: GameState, civId: string) {
   const firstCityId = state.civilizations[civId]?.cities[0];
   return firstCityId ? state.cities[firstCityId] : undefined;
 }
 
+function getFoodRecommendation(city: GameState['cities'][string]): string {
+  if (!city.buildings.includes('herbalist')) {
+    return 'Queue a Herbalist for a quick food boost.';
+  }
+  if (!city.buildings.includes('granary')) {
+    return 'Queue a Granary next to steady food growth.';
+  }
+  return 'Work better farmland or build another food source before growth stalls.';
+}
+
 export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgenda {
   const primaryCity = getPrimaryCity(state, civId);
+  const civBonus = getCivDefinition(state.civilizations[civId]?.civType ?? '')?.bonusEffect;
   const doNow: CouncilCard[] = [
     {
       id: 'survey-frontier',
@@ -21,17 +34,32 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
     },
   ];
 
-  if (primaryCity && primaryCity.food < 0) {
-    doNow.unshift({
-      id: 'food-warning',
-      advisor: 'treasurer',
-      bucket: 'do-now' as const,
-      title: 'Food stores are slipping',
-      summary: 'One of our cities is starving and needs help soon.',
-      why: 'Stalled growth now makes every later plan weaker.',
-      priority: 20,
-      actionLabel: 'Stabilize',
-    });
+  if (primaryCity) {
+    const yields = calculateCityYields(primaryCity, state.map, civBonus);
+    const foodSurplus = yields.food - primaryCity.population;
+    if (foodSurplus < 0) {
+      doNow.unshift({
+        id: 'food-warning',
+        advisor: 'treasurer',
+        bucket: 'do-now' as const,
+        title: `Feed ${primaryCity.name}`,
+        summary: `${primaryCity.name} is only making ${yields.food} food for ${primaryCity.population} citizens. ${getFoodRecommendation(primaryCity)}`,
+        why: 'Food keeps growth alive. If the pantry is flat, every future plan slows down.',
+        priority: 95,
+        actionLabel: 'Fix food',
+      });
+    } else if (foodSurplus === 0) {
+      doNow.push({
+        id: 'food-warning',
+        advisor: 'treasurer',
+        bucket: 'do-now' as const,
+        title: `Keep ${primaryCity.name} growing`,
+        summary: `${primaryCity.name} is breaking even on food. ${getFoodRecommendation(primaryCity)}`,
+        why: 'A city that only treads water stops feeling lively fast.',
+        priority: 20,
+        actionLabel: 'Add food',
+      });
+    }
   }
 
   for (const minorCiv of Object.values(state.minorCivs ?? {})) {

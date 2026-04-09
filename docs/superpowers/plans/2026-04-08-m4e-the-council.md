@@ -1310,15 +1310,531 @@ Do not introduce a giant balance refactor. If a pacing constant changes, record 
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit, push, merge, and clean up after merge**
+### Task 8A: Unify Unit Movement Side Effects Across Manual And Automated Moves
+
+**Root issue:**
+- Manual movement in `src/main.ts` still owns village resolution, wonder discovery, visibility refresh, and contact sync.
+- Auto-explore in `src/systems/auto-explore-system.ts` and `src/core/turn-manager.ts` only updates position.
+- This is architectural duplication, not just a missing branch. Any future movement feature will drift again unless movement side effects live behind one shared gameplay path.
+
+**Files:**
+- Create: `src/systems/unit-movement-system.ts`
+- Modify: `src/main.ts`
+- Modify: `src/systems/auto-explore-system.ts`
+- Modify: `src/core/turn-manager.ts`
+- Modify: `tests/core/turn-manager.test.ts`
+- Create: `tests/systems/unit-movement-system.test.ts`
+- Modify: `tests/systems/auto-explore-system.test.ts`
+- Modify: `tests/integration/m4e-council-guidance.test.ts`
+
+- [ ] **Step 1: Add failing shared-movement tests**
+
+Create `tests/systems/unit-movement-system.test.ts`:
+
+```typescript
+it('applies village rewards and removes the village when an automated move enters it', () => {
+  const { state, unitId, villageId } = makeAutoExploreFixture({ villageNorth: true });
+  const result = executeUnitMove(state, unitId, { q: 1, r: 0 }, { actor: 'automation', civId: 'player' });
+  expect(result.villageOutcome?.outcome).toBeDefined();
+  expect(result.state.tribalVillages[villageId]).toBeUndefined();
+});
+
+it('refreshes visibility and civilization contacts after an automated move', () => {
+  const { state, unitId, hiddenCivId } = makeAutoExploreFixture({ foreignBorderNorth: true });
+  const result = executeUnitMove(state, unitId, { q: 1, r: 0 }, { actor: 'automation', civId: 'player' });
+  expect(result.revealedTiles.length).toBeGreaterThan(0);
+  expect(result.state.civilizations.player.knownCivilizations).toContain(hiddenCivId);
+});
+
+it('emits wonder discovery metadata when automation reveals a wonder tile', () => {
+  const { state, unitId } = makeAutoExploreFixture({ wonderNorth: 'crystal-caverns' });
+  const result = executeUnitMove(state, unitId, { q: 1, r: 0 }, { actor: 'automation', civId: 'player' });
+  expect(result.discoveredWonderIds).toContain('crystal-caverns');
+});
+```
+
+- [ ] **Step 2: Extend turn-manager and auto-explore regressions**
+
+Add explicit regressions:
+
+```typescript
+it('auto-explore processes village and wonder side effects during turn processing', () => {
+  const { state, unitId } = makeAutoExploreFixture({ villageNorth: true, wonderNorth: 'crystal-caverns' });
+  const result = processTurn(state, bus);
+  expect(result.units[unitId].position).toEqual({ q: 1, r: 0 });
+  expect(Object.keys(result.discoveredWonders)).toContain('crystal-caverns');
+  expect(Object.keys(result.tribalVillages)).toHaveLength(0);
+});
+```
+
+- [ ] **Step 3: Run focused tests to confirm failure**
 
 ```bash
-git add src/renderer/render-loop.ts src/ui/turn-handoff.ts src/systems/city-system.ts src/systems/resource-system.ts src/systems/tech-system.ts tests/ui/fog-leak.test.ts tests/systems/playtest-fixes.test.ts tests/systems/bugfix-playtest.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/unit-movement-system.test.ts tests/systems/auto-explore-system.test.ts tests/core/turn-manager.test.ts
+```
+
+Expected: FAIL because `executeUnitMove(...)` does not exist and automation still skips side effects.
+
+- [ ] **Step 4: Introduce the shared movement executor**
+
+Create `src/systems/unit-movement-system.ts` with one canonical movement path:
+
+```typescript
+export interface ExecuteUnitMoveOptions {
+  actor: 'player' | 'automation' | 'ai';
+  civId: string;
+  bus?: EventBus;
+}
+
+export interface ExecuteUnitMoveResult {
+  state: GameState;
+  revealedTiles: HexCoord[];
+  discoveredWonderIds: string[];
+  villageOutcome?: { outcome: string; message: string };
+}
+
+export function executeUnitMove(
+  state: GameState,
+  unitId: string,
+  to: HexCoord,
+  options: ExecuteUnitMoveOptions,
+): ExecuteUnitMoveResult {
+  // move unit
+  // resolve village
+  // refresh visibility
+  // sync contacts
+  // process wonder discovery
+  // return structured side effects for UI callers
+}
+```
+
+Requirements:
+- `main.ts` manual movement must call this instead of owning move side effects inline.
+- `applyAutoExploreOrder(...)` must call this.
+- `processTurn(...)` must keep auto-explore ticking through this shared executor.
+- `executeUnitMove(...)` must stay gameplay-only: it returns data; it does not show notifications directly.
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/unit-movement-system.test.ts tests/systems/auto-explore-system.test.ts tests/core/turn-manager.test.ts
+```
+
+Expected: PASS.
+
+### Task 8B: Add Modal-Aware Input Gating For Keyboard And Context Actions
+
+**Root issue:**
+- `installKeyboardShortcuts(...)` currently listens globally and has no concept of blocking overlays.
+- `main.ts` has multiple modal/overlay states (`turn-handoff`, panels, save/setup flows, context menus), but there is no shared UI activity policy.
+- Without a central gate, new shortcuts and menus will keep bypassing modal UX.
+
+**Files:**
+- Create: `src/ui/ui-interaction-state.ts`
+- Modify: `src/input/keyboard-shortcuts.ts`
+- Modify: `src/input/mouse-handler.ts`
+- Modify: `src/main.ts`
+- Modify: `src/ui/context-menu.ts`
+- Create: `tests/ui/keyboard-shortcuts.test.ts`
+- Modify: `tests/ui/desktop-controls.test.ts`
+
+- [ ] **Step 1: Add failing modal-gating tests**
+
+Create `tests/ui/keyboard-shortcuts.test.ts`:
+
+```typescript
+/** @vitest-environment jsdom */
+it('does not fire end-turn or panel shortcuts while turn handoff is present', () => {
+  document.body.innerHTML = '<div id="turn-handoff"></div>';
+  const interactions = createUiInteractionState();
+  interactions.setBlockingOverlay('turn-handoff');
+  const callbacks = { onOpenCouncil: vi.fn(), onOpenTech: vi.fn(), onEndTurn: vi.fn() };
+  installKeyboardShortcuts(document, callbacks, { canHandle: () => !interactions.isInteractionBlocked() });
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
+  expect(callbacks.onEndTurn).not.toHaveBeenCalled();
+});
+
+it('does not open a second context menu when interaction is blocked by a modal overlay', () => {
+  const { container, state, unitId } = makeDesktopControlFixture({ autoExploreActive: true });
+  const blocked = createUiInteractionState();
+  blocked.setBlockingOverlay('turn-handoff');
+  const callbacks = { onStartAutoExplore: vi.fn(), onCancelAutoExplore: vi.fn() };
+  const menu = createContextMenu(container, state, { unitId }, callbacks, blocked);
+  expect(menu.textContent).toContain('No actions available');
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/keyboard-shortcuts.test.ts tests/ui/desktop-controls.test.ts
+```
+
+Expected: FAIL because the current shortcut installer and menu system are not modal-aware.
+
+- [ ] **Step 3: Introduce one shared UI interaction gate**
+
+Create `src/ui/ui-interaction-state.ts`:
+
+```typescript
+export interface UiInteractionState {
+  setBlockingOverlay(id: string | null): void;
+  isInteractionBlocked(): boolean;
+}
+
+export function createUiInteractionState(): UiInteractionState {
+  let blockingOverlayId: string | null = null;
+  return {
+    setBlockingOverlay(id) { blockingOverlayId = id; },
+    isInteractionBlocked() { return blockingOverlayId !== null; },
+  };
+}
+```
+
+Then:
+- `installKeyboardShortcuts(...)` takes `options: { canHandle: () => boolean }`
+- `MouseHandler` ignores right-click context actions when `canHandleContextMenu()` is false
+- `main.ts` flips the shared state on turn handoff open/close and on other blocking panels
+- `createContextMenu(...)` refuses actionable items when the gate is blocked
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/keyboard-shortcuts.test.ts tests/ui/desktop-controls.test.ts
+```
+
+Expected: PASS.
+
+### Task 8C: Make Auto-Explore Threat Detection Diplomacy-Aware
+
+**Root issue:**
+- `movement-safety.ts` treats every visible foreign unit as hostile.
+- The plan/spec says “visible hostile attack range,” not “any non-owned unit.”
+- This logic will otherwise grow a permanent false-positive surface as diplomacy and city-states become richer.
+
+**Files:**
+- Modify: `src/systems/movement-safety.ts`
+- Modify: `src/systems/auto-explore-system.ts`
+- Modify: `tests/systems/auto-explore-system.test.ts`
+- Create: `tests/systems/movement-safety.test.ts`
+
+- [ ] **Step 1: Add failing hostility-semantics tests**
+
+Create `tests/systems/movement-safety.test.ts`:
+
+```typescript
+it('treats at-war major civ units as hostile threats', () => {
+  const { state } = makeAutoExploreFixture({ majorWarNorth: true });
+  expect(isThreatenedByVisibleHostiles(state, 'player', { q: 1, r: 0 })).toBe(true);
+});
+
+it('does not treat allied or neutral major civ units as hostile threats', () => {
+  const { state } = makeAutoExploreFixture({ neutralScoutNorth: true });
+  expect(isThreatenedByVisibleHostiles(state, 'player', { q: 1, r: 0 })).toBe(false);
+});
+
+it('does not treat friendly city-state units as hostile threats unless they are at war', () => {
+  const { state } = makeAutoExploreFixture({ minorCivNorth: true, minorCivAtWar: false });
+  expect(isThreatenedByVisibleHostiles(state, 'player', { q: 1, r: 0 })).toBe(false);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts
+```
+
+Expected: FAIL because visible foreign units are currently treated as hostile unconditionally.
+
+- [ ] **Step 3: Centralize hostility semantics**
+
+Requirements for `movement-safety.ts`:
+- `barbarian` is always hostile
+- breakaway civs are hostile only if the viewer is their origin owner or at war
+- major civs are hostile only if `viewer.diplomacy.atWarWith.includes(ownerId)`
+- minor civs are hostile only if their `diplomacy.atWarWith` includes the viewer
+- allied and neutral units do not block “safe” exploration paths
+
+Use one helper:
+
+```typescript
+export function isUnitHostileToCiv(state: GameState, viewerId: string, unitOwnerId: string): boolean
+```
+
+Then filter `getVisibleHostileUnits(...)` through that helper.
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts
+```
+
+Expected: PASS.
+
+### Task 8D: Add Missing Integration And Persistence Coverage For Slice 2
+
+**Root issue:**
+- The new helper tests are useful, but the highest-risk paths live in `main.ts` wiring and serializable unit state.
+- `automation` is now part of `Unit` but there is no save/load regression for it.
+- The new UI path needs one integration test proving the right game behavior happens from the actual wiring, not only from helper calls.
+
+**Files:**
+- Modify: `tests/storage/save-persistence.test.ts`
+- Create: `tests/integration/helpers/slice2-integration-fixture.ts`
+- Create: `tests/integration/m4e-smoother-turns.test.ts`
+- Modify: `tests/ui/desktop-controls.test.ts`
+
+- [ ] **Step 1: Add failing integration and persistence tests**
+
+Add to `tests/storage/save-persistence.test.ts`:
+
+```typescript
+it('persists unit auto-explore state through save/load', async () => {
+  const { state, unitId } = makeAutoExploreFixture({ safeFogNorth: true });
+  const saved = await saveGame(state, 'slice2-auto-explore');
+  const loaded = await loadGame(saved.id);
+  expect(loaded?.units[unitId].automation).toEqual(state.units[unitId].automation);
+});
+```
+
+Create `tests/integration/m4e-smoother-turns.test.ts`:
+
+```typescript
+/** @vitest-environment jsdom */
+it('starting auto-explore from the selected-unit UI moves through the shared movement path', () => {
+  const { app, state, unitId } = makeSlice2IntegrationFixture({ villageNorth: true });
+  app.selectUnit(unitId);
+  app.openUnitContextMenu(unitId);
+  clickByText(app.root, 'Auto-explore');
+  expect(Object.keys(state.tribalVillages)).toHaveLength(0);
+});
+
+it('keyboard shortcuts are ignored while turn handoff is active', () => {
+  const { app } = makeSlice2IntegrationFixture();
+  app.showTurnHandoff();
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
+  expect(app.endTurnSpy).not.toHaveBeenCalled();
+});
+```
+
+Create `tests/integration/helpers/slice2-integration-fixture.ts`:
+
+```typescript
+export function makeSlice2IntegrationFixture(options: { villageNorth?: boolean } = {}) {
+  // mount a minimal jsdom app shell
+  // seed game state with makeAutoExploreFixture(...)
+  // expose selectUnit, openUnitContextMenu, showTurnHandoff, root, and endTurnSpy
+}
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/storage/save-persistence.test.ts tests/integration/m4e-smoother-turns.test.ts tests/ui/desktop-controls.test.ts
+```
+
+Expected: FAIL until the shared movement path, input gate, and serializable automation behavior are fully wired.
+
+- [ ] **Step 3: Re-run full Slice 2 verification**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/unit-movement-system.test.ts tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts tests/ui/keyboard-shortcuts.test.ts tests/ui/desktop-controls.test.ts tests/integration/m4e-smoother-turns.test.ts tests/core/turn-manager.test.ts tests/storage/save-persistence.test.ts tests/ui/fog-leak.test.ts tests/systems/playtest-fixes.test.ts tests/systems/bugfix-playtest.test.ts
+./scripts/run-with-mise.sh yarn test --run
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
+
+- [ ] **Step 4: Commit, push, merge, and clean up after merge**
+
+```bash
+git add src/systems/unit-movement-system.ts src/systems/auto-explore-system.ts src/systems/movement-safety.ts src/ui/ui-interaction-state.ts src/input/keyboard-shortcuts.ts src/input/mouse-handler.ts src/ui/context-menu.ts src/ui/selected-unit-info.ts src/ui/tooltip-layer.ts src/core/turn-manager.ts src/core/types.ts src/main.ts src/systems/council-system.ts tests/systems/unit-movement-system.test.ts tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts tests/systems/helpers/auto-explore-fixture.ts tests/ui/keyboard-shortcuts.test.ts tests/ui/desktop-controls.test.ts tests/ui/helpers/desktop-controls-fixture.ts tests/core/turn-manager.test.ts tests/storage/save-persistence.test.ts tests/integration/helpers/slice2-integration-fixture.ts tests/integration/m4e-smoother-turns.test.ts tests/ui/fog-leak.test.ts tests/systems/playtest-fixes.test.ts tests/systems/bugfix-playtest.test.ts tests/ui/helpers/council-fixture.ts
 git commit -m "feat(m4e): finish slice 2 smoother turns"
-git push origin feature/m4e-slice2-smoother-turns
+git push origin feature/m4e-the-council
 ```
 
 After merge, confirm on `origin/main`, then remove the worktree/branch.
+
+### Task 8E: Make Auto-Explore Threat Evaluation Match Real Player Knowledge
+
+**Root issue:**
+- `movement-safety.ts` decides “visible hostile” using raw tile visibility and diplomacy state, but it does not apply the same concealment logic used by rendering and selection.
+- That means player-owned automation can route around a forest-concealed enemy unit that the player is not actually allowed to know about.
+- This is a privacy-model split, not just a one-line bug: movement safety, rendering, and interaction are answering “is this unit knowable?” in different places with different rules.
+
+**Product direction:**
+- Do **not** restrict auto-explore to only scouts or military units.
+- Any unit may be placed into auto-explore when the player explicitly chooses it.
+- Auto-explore must stop immediately when:
+  - a hostile unit becomes visible under the real player-knowledge model, or
+  - there is nowhere else reachable that advances exploration.
+
+**Files:**
+- Modify: `src/systems/movement-safety.ts`
+- Modify: `src/systems/auto-explore-system.ts`
+- Modify: `src/systems/fog-of-war.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/systems/helpers/auto-explore-fixture.ts`
+- Modify: `tests/systems/movement-safety.test.ts`
+- Modify: `tests/systems/auto-explore-system.test.ts`
+- Modify: `tests/core/turn-manager.test.ts`
+
+- [ ] **Step 1: Add failing concealment and stop-rule tests**
+
+Extend `tests/systems/movement-safety.test.ts`:
+
+```typescript
+it('does not treat forest-concealed hostile units as visible threats', () => {
+  const { state } = makeAutoExploreFixture({ concealedForestHostileEast: true });
+  expect(getVisibleHostileUnits(state, 'player')).toEqual([]);
+  expect(isThreatenedByVisibleHostiles(state, 'player', { q: 2, r: 1 })).toBe(false);
+});
+```
+
+Extend `tests/systems/auto-explore-system.test.ts`:
+
+```typescript
+it('cancels auto-explore after a moved unit reveals a hostile threat', () => {
+  const { state, unitId } = makeAutoExploreFixture({ safeFogNorth: true, hostileRevealedAfterNorthMove: true });
+  applyAutoExploreOrder(state, unitId, { bus: new EventBus() });
+  expect(state.units[unitId].automation).toBeUndefined();
+});
+
+it('allows the player to auto-explore with civilian units by explicit choice', () => {
+  const { state, unitId } = makeAutoExploreFixture({ workerNorthStart: true, safeFogNorth: true });
+  applyAutoExploreOrder(state, unitId, { bus: new EventBus() });
+  expect(state.units[unitId].position).toEqual({ q: 1, r: 0 });
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts tests/core/turn-manager.test.ts
+```
+
+Expected: FAIL because concealment-aware visibility and post-move hostile cancellation are not yet wired.
+
+- [ ] **Step 3: Centralize the “player can know about this unit” rule**
+
+Add one shared helper in `src/systems/movement-safety.ts` or `src/systems/fog-of-war.ts`:
+
+```typescript
+export function isUnitVisibleToPlayerKnowledge(state: GameState, viewerId: string, unit: Unit): boolean
+```
+
+Requirements:
+- tile visibility must be `visible`
+- `isForestConcealedUnit(...)` must be false
+- future player-owned automation safety checks must use this helper instead of raw visibility checks
+
+- [ ] **Step 4: Stop automation with an explicit reason**
+
+Requirements for `applyAutoExploreOrder(...)`:
+- after moving through the shared movement path, evaluate visible hostile threats using the corrected knowledge model
+- if a threat is now visible, clear `unit.automation`
+- if no exploration-advancing destination exists, also clear `unit.automation`
+- return a structured stop reason:
+
+```typescript
+type AutoExploreStopReason = 'hostile-encountered' | 'no-safe-path';
+```
+
+- `main.ts` must show current-player-only notifications such as:
+  - `Auto-explore stopped: hostile unit sighted.`
+  - `Auto-explore stopped: nothing new to explore.`
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts tests/core/turn-manager.test.ts
+```
+
+Expected: PASS.
+
+### Task 8F: Wire Hover Tooltips Into The Live Desktop Shell
+
+**Root issue:**
+- Slice 2 shipped `TooltipLayer` as an isolated helper and test, but the actual desktop shell never creates it or routes hover events into it.
+- This is the same architectural problem as earlier Slice 2 issues: helper modules exist, but the real shell wiring path is incomplete.
+
+**Scope:**
+- Keep tooltips lightweight and desktop-only.
+- Initial live wiring for Slice 2:
+  - primary action bar buttons
+  - the grid/help affordance
+  - selected-unit auto-explore status / cancel affordance
+
+**Files:**
+- Modify: `src/ui/tooltip-layer.ts`
+- Modify: `src/ui/game-shell.ts`
+- Modify: `src/ui/selected-unit-info.ts`
+- Modify: `src/input/mouse-handler.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/ui/desktop-controls.test.ts`
+- Create: `tests/integration/m4e-desktop-tooltips.test.ts`
+
+- [ ] **Step 1: Add failing live-tooltip integration tests**
+
+Create `tests/integration/m4e-desktop-tooltips.test.ts`:
+
+```typescript
+/** @vitest-environment jsdom */
+it('shows a tooltip when hovering a primary action bar control', () => {
+  const { app } = makeDesktopControlIntegrationFixture();
+  hover(app.root.querySelector('[data-tooltip-id="open-council"]')!);
+  expect(app.tooltipRoot.textContent).toContain('Council');
+});
+
+it('shows a tooltip for selected-unit auto-explore controls', () => {
+  const { app } = makeDesktopControlIntegrationFixture({ autoExploreActive: true });
+  hover(app.root.querySelector('[data-tooltip-id="cancel-auto-explore"]')!);
+  expect(app.tooltipRoot.textContent).toContain('Stop automatic exploration');
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/desktop-controls.test.ts tests/integration/m4e-desktop-tooltips.test.ts
+```
+
+Expected: FAIL because the live shell still does not create or drive the tooltip layer.
+
+- [ ] **Step 3: Add declarative tooltip metadata and one live delegated hover path**
+
+Requirements:
+- `game-shell.ts` and `selected-unit-info.ts` must expose tooltip metadata using attributes:
+
+```typescript
+button.dataset.tooltipId = 'open-council';
+button.dataset.tooltipTitle = 'Council';
+button.dataset.tooltipBody = 'Open your advisors for guidance, goals, and drama.';
+```
+
+- `main.ts` must create one tooltip layer for the UI shell and install one delegated hover handler that:
+  - reads tooltip attributes from hovered elements
+  - shows/hides the layer
+  - no-ops when interaction is blocked or on touch-only flows
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/desktop-controls.test.ts tests/integration/m4e-desktop-tooltips.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Re-run full Slice 2 follow-up verification**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/movement-safety.test.ts tests/systems/auto-explore-system.test.ts tests/core/turn-manager.test.ts tests/ui/desktop-controls.test.ts tests/integration/m4e-desktop-tooltips.test.ts
+./scripts/run-with-mise.sh yarn test --run
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
 
 ---
 
