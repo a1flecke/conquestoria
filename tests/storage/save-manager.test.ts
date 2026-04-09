@@ -10,7 +10,8 @@ vi.mock('@/storage/db', () => ({
 }));
 
 import { createDefaultSettings } from '@/core/game-state';
-import { autoSave, deleteSaveEntry, listSaves, loadMostRecentAutoSave, loadSettings, saveGame, saveSettings } from '@/storage/save-manager';
+import { autoSave, deleteSaveEntry, listSaves, loadGame, loadMostRecentAutoSave, loadSettings, saveGame, saveSettings } from '@/storage/save-manager';
+import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 
 function makeLocalStorageMock() {
   const store: Record<string, string> = {};
@@ -313,5 +314,14 @@ describe('save-manager autosave listing', () => {
     const loaded = await loadSettings();
 
     expect(loaded?.councilTalkLevel).toBe('chaos');
+  });
+
+  it('persists unit auto-explore state through save/load', async () => {
+    const { state, unitId } = makeAutoExploreFixture({ safeFogNorth: true });
+
+    await saveGame('slot-auto-explore', 'Automation Save', state);
+    const loaded = await loadGame('slot-auto-explore');
+
+    expect(loaded?.units[unitId].automation).toEqual(state.units[unitId].automation);
   });
 });

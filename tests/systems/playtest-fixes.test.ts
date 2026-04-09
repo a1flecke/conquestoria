@@ -4,6 +4,9 @@ import {
   getUnmovedUnits, HEAL_PASSIVE, HEAL_RESTING, HEAL_IN_CITY, HEAL_IN_TERRITORY,
 } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
+import { buildCouncilAgenda } from '@/systems/council-system';
+import { createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
 import type { NotificationEntry, GameMap, HexTile } from '@/core/types';
 
 // --- Combat balance helpers ---
@@ -193,5 +196,43 @@ describe('notification queue (#20)', () => {
     expect(info.type).toBe('info');
     expect(success.type).toBe('success');
     expect(warning.type).toBe('warning');
+  });
+});
+
+describe('slice 2 council guidance', () => {
+  it('does not strand a starving city without an obvious food recommendation', () => {
+    const state = createNewGame({
+      civType: 'generic',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Hungry City',
+      seed: 'hungry-city',
+    });
+    const settlerId = state.civilizations.player.units.find(id => state.units[id]?.type === 'settler');
+    const settler = settlerId ? state.units[settlerId] : undefined;
+    if (!settler) {
+      return;
+    }
+
+    const city = foundCity('player', settler.position, state.map);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+
+    state.cities[city.id].food = 0;
+    state.cities[city.id].population = 4;
+    state.cities[city.id].buildings = [];
+    for (const coord of state.cities[city.id].ownedTiles) {
+      const key = `${coord.q},${coord.r}`;
+      if (state.map.tiles[key]) {
+        state.map.tiles[key].terrain = 'desert';
+        state.map.tiles[key].improvement = 'none';
+        state.map.tiles[key].improvementTurnsLeft = 0;
+      }
+    }
+
+    const council = buildCouncilAgenda(state, 'player');
+    const serialized = JSON.stringify(council).toLowerCase();
+
+    expect(serialized).toContain('food');
   });
 });

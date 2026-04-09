@@ -5,6 +5,7 @@ import { processAITurn } from '@/ai/basic-ai';
 import { RenderLoop, type HexHighlight } from '@/renderer/render-loop';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
+import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
@@ -26,6 +27,9 @@ import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import { createCouncilPanel } from '@/ui/council-panel';
 import { createGameShell } from '@/ui/game-shell';
+import { createContextMenu } from '@/ui/context-menu';
+import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
+import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { showCampaignSetup } from '@/ui/campaign-setup';
 import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
 import { calculateCityYields } from '@/systems/resource-system';
@@ -57,6 +61,8 @@ import {
   verifyAgent,
 } from '@/systems/espionage-system';
 import { getCouncilInterrupt } from '@/systems/council-system';
+import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
+import { executeUnitMove } from '@/systems/unit-movement-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
 // --- App State ---
@@ -70,6 +76,7 @@ let persistedSettings: GameState['settings'] | undefined;
 const bus = new EventBus();
 const audio = new AudioManager();
 const advisorSystem = new AdvisorSystem(bus);
+const uiInteractions = createUiInteractionState();
 
 // --- Canvas Setup ---
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -609,61 +616,14 @@ function selectUnit(unitId: string): void {
   // Show unit info panel
   const panel = document.getElementById('info-panel');
   if (panel) {
-    const def = UNIT_DEFINITIONS[unit.type];
-    let actions = '';
-    if (def.canFoundCity) actions += '<button id="btn-found-city" style="padding:8px 16px;border-radius:8px;background:#e8c170;border:none;color:#1a1a2e;font-weight:bold;cursor:pointer;">Found City</button> ';
-    if (def.canBuildImprovements) {
-      const tile = gameState.map.tiles[hexKey(unit.position)];
-      if (tile && canBuildImprovement(tile, 'farm')) actions += '<button id="btn-build-farm" style="padding:8px 16px;border-radius:8px;background:#6b9b4b;border:none;color:white;cursor:pointer;">Build Farm</button> ';
-      if (tile && canBuildImprovement(tile, 'mine')) actions += '<button id="btn-build-mine" style="padding:8px 16px;border-radius:8px;background:#8b7355;border:none;color:white;cursor:pointer;">Build Mine</button> ';
-    }
-    if (canHeal(unit) && !unit.hasActed) {
-      actions += '<button id="btn-rest" style="padding:8px 16px;border-radius:8px;background:#4a90d9;border:none;color:white;cursor:pointer;">Rest (+15 HP)</button> ';
-    }
-
-    const civColor = currentCiv()?.color ?? '#e8c170';
-    panel.style.display = 'block';
-    panel.textContent = '';
-
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = `background:rgba(0,0,0,0.85);border-radius:12px;padding:12px 16px;border-left:4px solid ${civColor};`;
-
-    const topRow = document.createElement('div');
-    topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
-
-    const infoDiv = document.createElement('div');
-    const strong = document.createElement('strong');
-    strong.textContent = def.name;
-    infoDiv.appendChild(strong);
-    infoDiv.appendChild(document.createTextNode(` · HP: ${unit.health}/100 · Moves: ${unit.movementPointsLeft}/${def.movementPoints}`));
-
-    const closeBtn = document.createElement('span');
-    closeBtn.id = 'btn-deselect';
-    closeBtn.style.cssText = 'cursor:pointer;font-size:18px;opacity:0.6;';
-    closeBtn.textContent = '✕';
-
-    topRow.appendChild(infoDiv);
-    topRow.appendChild(closeBtn);
-
-    const descDiv = document.createElement('div');
-    descDiv.style.cssText = 'font-size:10px;opacity:0.6;margin-top:2px;';
-    descDiv.textContent = UNIT_DESCRIPTIONS[unit.type] ?? '';
-
-    const actionsDiv = document.createElement('div');
-    actionsDiv.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;';
-    // actions contains only hardcoded button HTML (no game-generated strings)
-    actionsDiv.innerHTML = actions;
-
-    wrapper.appendChild(topRow);
-    wrapper.appendChild(descDiv);
-    wrapper.appendChild(actionsDiv);
-    panel.appendChild(wrapper);
-
-    closeBtn.addEventListener('click', deselectUnit);
-    actionsDiv.querySelector('#btn-found-city')?.addEventListener('click', () => foundCityAction());
-    actionsDiv.querySelector('#btn-build-farm')?.addEventListener('click', () => buildImprovementAction('farm'));
-    actionsDiv.querySelector('#btn-build-mine')?.addEventListener('click', () => buildImprovementAction('mine'));
-    actionsDiv.querySelector('#btn-rest')?.addEventListener('click', () => restAction());
+    renderSelectedUnitInfo(panel, gameState, unitId, {
+      onClose: () => deselectUnit(),
+      onFoundCity: () => foundCityAction(),
+      onBuildFarm: () => buildImprovementAction('farm'),
+      onBuildMine: () => buildImprovementAction('mine'),
+      onRest: () => restAction(),
+      onCancelAutoExplore: () => cancelAutoExplore(unitId),
+    });
   }
 
   SFX.select();
@@ -674,7 +634,53 @@ function deselectUnit(): void {
   movementRange = [];
   renderLoop.clearHighlights();
   const panel = document.getElementById('info-panel');
-  if (panel) panel.style.display = 'none';
+  if (panel) {
+    panel.style.display = 'none';
+    panel.replaceChildren();
+  }
+}
+
+function startAutoExplore(unitId: string): void {
+  const unit = gameState.units[unitId];
+  if (!unit || unit.owner !== gameState.currentPlayer) return;
+
+  gameState.units[unitId] = {
+    ...unit,
+    automation: {
+      mode: 'auto-explore',
+      startedTurn: gameState.turn,
+      lastTargets: unit.automation?.lastTargets ?? [],
+    },
+  };
+
+  if (gameState.units[unitId].movementPointsLeft > 0 && !gameState.units[unitId].hasActed) {
+    applyAutoExploreOrder(gameState, unitId, { bus });
+  }
+
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  selectUnit(unitId);
+}
+
+function cancelAutoExplore(unitId: string): void {
+  const unit = gameState.units[unitId];
+  if (!unit?.automation) return;
+  delete gameState.units[unitId].automation;
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  if (selectedUnitId === unitId) {
+    selectUnit(unitId);
+  }
+}
+
+function openUnitContextMenu(unitId: string): void {
+  const panel = document.getElementById('info-panel');
+  if (!panel) return;
+
+  createContextMenu(panel, gameState, { unitId }, {
+    onStartAutoExplore: id => startAutoExplore(id),
+    onCancelAutoExplore: id => cancelAutoExplore(id),
+  }, uiInteractions);
 }
 
 function selectNextUnit(): void {
@@ -1033,72 +1039,12 @@ function handleHexTap(rawCoord: HexCoord): void {
       }
     } else {
       // Move unit
-      const targetTile = gameState.map.tiles[key];
-      const terrainCost = targetTile ? getMovementCost(targetTile.terrain) : 1;
-      gameState.units[selectedUnitId] = moveUnit(unit, coord, terrainCost);
+      executeUnitMove(gameState, selectedUnitId, coord, {
+        actor: 'player',
+        civId: gameState.currentPlayer,
+        bus,
+      });
       SFX.tap();
-
-      // Check for tribal village at destination
-      const villageAtDest = Object.values(gameState.tribalVillages).find(
-        v => hexKey(v.position) === key,
-      );
-      if (villageAtDest) {
-        let rngState = gameState.turn * 16807 + unit.id.charCodeAt(0);
-        const villageRng = () => {
-          rngState = (rngState * 48271) % 2147483647;
-          return rngState / 2147483647;
-        };
-        const result = visitVillage(gameState, villageAtDest.id, unit, villageRng);
-        bus.emit('village:visited', {
-          civId: gameState.currentPlayer,
-          position: villageAtDest.position,
-          outcome: result.outcome,
-          message: result.message,
-        });
-        showNotification(result.message, result.outcome === 'ambush' || result.outcome === 'illness' ? 'warning' : 'success');
-
-        if (result.outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
-        if (result.outcome === 'science') advisorSystem.resetMessage('scholar_village_science');
-        if (result.outcome === 'free_tech') advisorSystem.resetMessage('scholar_village_tech');
-        advisorSystem.check(gameState);
-      }
-
-      // Update visibility after move
-      const playerUnits = currentCiv().units
-        .map(id => gameState.units[id])
-        .filter((u): u is Unit => u !== undefined);
-      const cityPositions = currentCiv().cities
-        .map(id => gameState.cities[id]?.position)
-        .filter((p): p is HexCoord => p !== undefined);
-      const revealed = updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
-      syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer);
-
-      if (revealed.length > 0) {
-        bus.emit('fog:revealed', { tiles: revealed });
-
-        // Wonder discovery
-        for (const revealedCoord of revealed) {
-          const revTile = gameState.map.tiles[hexKey(revealedCoord)];
-          if (revTile?.wonder) {
-            const isFirst = processWonderDiscovery(gameState, gameState.currentPlayer, revTile.wonder);
-            const wonderDef = getWonderDefinition(revTile.wonder);
-            bus.emit('wonder:discovered', {
-              civId: gameState.currentPlayer,
-              wonderId: revTile.wonder,
-              position: revealedCoord,
-              isFirstDiscoverer: isFirst,
-            });
-            if (isFirst && wonderDef) {
-              showNotification(
-                `Discovered ${wonderDef.name}! +${wonderDef.discoveryBonus.amount} ${wonderDef.discoveryBonus.type}`,
-                'success',
-              );
-            } else if (wonderDef) {
-              showNotification(`Found ${wonderDef.name}!`, 'info');
-            }
-          }
-        }
-      }
 
       // Re-select to update movement range, or advance to next unit
       if (gameState.units[selectedUnitId]?.movementPointsLeft > 0) {
@@ -1140,6 +1086,17 @@ function handleHexLongPress(rawCoord: HexCoord): void {
     return;
   }
 
+  const unitAtHex = Object.values(gameState.units).find(unit =>
+    unit.owner === gameState.currentPlayer
+      && unit.position.q === coord.q
+      && unit.position.r === coord.r,
+  );
+  if (unitAtHex) {
+    selectUnit(unitAtHex.id);
+    openUnitContextMenu(unitAtHex.id);
+    return;
+  }
+
   const wonderInfo = tile.wonder ? ` · ⭐ ${getWonderDefinition(tile.wonder)?.name ?? tile.wonder}` : '';
   showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + tile.improvement : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
 }
@@ -1176,8 +1133,10 @@ async function endTurn(): Promise<void> {
       await autoSave(gameState);
 
       // Show handoff screen
+      uiInteractions.setBlockingOverlay('turn-handoff');
       showTurnHandoff(uiLayer, gameState, nextSlotId, nextPlayer?.name ?? 'Player', {
         onReady: () => {
+          uiInteractions.setBlockingOverlay(null);
           centerOnCurrentPlayer();
           renderLoop.setGameState(gameState);
           updateHUD();
@@ -1248,6 +1207,35 @@ bus.on('city:building-complete', ({ cityId, buildingId }) => {
   if (city && city.owner === gameState.currentPlayer) {
     showNotification(`${city.name}: ${buildingId} completed!`, 'success');
   }
+});
+
+bus.on('village:visited', ({ civId, outcome, message }) => {
+  if (outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
+  if (outcome === 'science') advisorSystem.resetMessage('scholar_village_science');
+  if (outcome === 'free_tech') advisorSystem.resetMessage('scholar_village_tech');
+  advisorSystem.check(gameState);
+
+  if (civId === gameState.currentPlayer) {
+    showNotification(message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
+  }
+});
+
+bus.on('wonder:discovered', ({ civId, wonderId, isFirstDiscoverer }) => {
+  if (civId !== gameState.currentPlayer) {
+    return;
+  }
+  const wonderDef = getWonderDefinition(wonderId);
+  if (!wonderDef) {
+    return;
+  }
+  if (isFirstDiscoverer) {
+    showNotification(
+      `Discovered ${wonderDef.name}! +${wonderDef.discoveryBonus.amount} ${wonderDef.discoveryBonus.type}`,
+      'success',
+    );
+    return;
+  }
+  showNotification(`Found ${wonderDef.name}!`, 'info');
 });
 
 bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
@@ -1688,7 +1676,18 @@ function startGame(): void {
       onHexLongPress: handleHexLongPress,
     };
     new TouchHandler(canvas, renderLoop.camera, callbacks);
-    new MouseHandler(canvas, renderLoop.camera, callbacks);
+    new MouseHandler(canvas, renderLoop.camera, callbacks, {
+      canInteract: () => !uiInteractions.isInteractionBlocked(),
+    });
+    installKeyboardShortcuts(document, {
+      onOpenCouncil: () => togglePanel('council'),
+      onOpenTech: () => togglePanel('tech'),
+      onEndTurn: () => {
+        void endTurn();
+      },
+    }, {
+      canHandle: () => !uiInteractions.isInteractionBlocked(),
+    });
     inputInitialized = true;
   }
 

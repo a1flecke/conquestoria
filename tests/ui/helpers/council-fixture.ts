@@ -92,8 +92,17 @@ export function makeCouncilFixture(options: CouncilFixtureOptions = {}): { state
       }
     }
     if (playerCity) {
-      playerCity.food = -1;
+      playerCity.population = 1;
+      playerCity.food = 0;
       playerCity.foodNeeded = 20;
+      for (const coord of playerCity.ownedTiles) {
+        const key = `${coord.q},${coord.r}`;
+        if (state.map.tiles[key]) {
+          state.map.tiles[key].terrain = 'desert';
+          state.map.tiles[key].improvement = 'none';
+          state.map.tiles[key].improvementTurnsLeft = 0;
+        }
+      }
     }
   }
 

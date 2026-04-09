@@ -167,6 +167,11 @@ export interface Unit {
   hasMoved: boolean;
   hasActed: boolean;         // used action this turn (build, found, etc.)
   isResting: boolean;        // player explicitly chose to rest/heal this turn
+  automation?: {
+    mode: 'auto-explore';
+    lastTargets: string[];
+    startedTurn: number;
+  };
 }
 
 export interface NotificationEntry {

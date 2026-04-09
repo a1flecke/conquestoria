@@ -6,6 +6,7 @@ import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
+import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 
 describe('processTurn', () => {
@@ -128,6 +129,27 @@ describe('processTurn', () => {
     const result = processTurn(state, bus);
 
     expect(result.civilizations[breakawayId].breakaway?.status).toBe('established');
+  });
+
+  it('applies auto-explore orders during turn processing', () => {
+    const { state, unitId } = makeAutoExploreFixture({ safeFogNorth: true });
+    const bus = new EventBus();
+
+    const result = processTurn(state, bus);
+
+    expect(result.units[unitId].position).toEqual({ q: 1, r: 0 });
+    expect((result.units[unitId] as any).automation).toBeDefined();
+  });
+
+  it('auto-explore processes village and wonder side effects during turn processing', () => {
+    const { state, unitId } = makeAutoExploreFixture({ villageNorth: true, wonderNorth: 'grand_canyon', safeFogNorth: true });
+    const bus = new EventBus();
+
+    const result = processTurn(state, bus);
+
+    expect(result.units[unitId].position).toEqual({ q: 1, r: 0 });
+    expect(Object.keys(result.discoveredWonders)).toContain('grand_canyon');
+    expect(Object.keys(result.tribalVillages)).toHaveLength(0);
   });
 
   it('moves a legendary wonder project from questing to ready_to_build once all steps complete', () => {

@@ -1,11 +1,11 @@
 import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
-import { resetUnitTurn, createUnit, healUnit } from '@/systems/unit-system';
+import { resetUnitTurn, createUnit, healUnit, moveUnit } from '@/systems/unit-system';
 import { processCity } from '@/systems/city-system';
 import { processResearch } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import { resolveCombat } from '@/systems/combat-system';
-import { moveUnit } from '@/systems/unit-system';
+import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance } from '@/systems/fog-of-war';
@@ -160,6 +160,13 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const unit = newState.units[unitId];
       if (unit) {
         newState.units[unitId] = resetUnitTurn(unit);
+      }
+    }
+
+    for (const unitId of civ.units) {
+      const unit = newState.units[unitId];
+      if (unit?.automation?.mode === 'auto-explore') {
+        applyAutoExploreOrder(newState, unitId, { bus });
       }
     }
 

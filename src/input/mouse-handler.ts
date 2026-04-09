@@ -5,13 +5,20 @@ export class MouseHandler {
   private camera: Camera;
   private callbacks: InputCallbacks;
   private canvas: HTMLCanvasElement;
+  private canInteract: () => boolean;
   private isDragging = false;
   private lastMouse = { x: 0, y: 0 };
 
-  constructor(canvas: HTMLCanvasElement, camera: Camera, callbacks: InputCallbacks) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    camera: Camera,
+    callbacks: InputCallbacks,
+    options: { canInteract?: () => boolean } = {},
+  ) {
     this.canvas = canvas;
     this.camera = camera;
     this.callbacks = callbacks;
+    this.canInteract = options.canInteract ?? (() => true);
 
     canvas.addEventListener('mousedown', this.onMouseDown);
     canvas.addEventListener('mousemove', this.onMouseMove);
@@ -50,6 +57,10 @@ export class MouseHandler {
   };
 
   private onMouseUp = (e: MouseEvent): void => {
+    if (!this.canInteract()) {
+      this.isDragging = false;
+      return;
+    }
     if (e.button === 0 && !this.isDragging) {
       const coord = this.camera.screenToHex(e.clientX, e.clientY);
       this.callbacks.onHexTap(coord);
@@ -64,6 +75,9 @@ export class MouseHandler {
 
   private onContextMenu = (e: MouseEvent): void => {
     e.preventDefault();
+    if (!this.canInteract()) {
+      return;
+    }
     const coord = this.camera.screenToHex(e.clientX, e.clientY);
     this.callbacks.onHexLongPress(coord);
   };
