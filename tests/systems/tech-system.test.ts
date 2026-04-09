@@ -103,6 +103,11 @@ describe('getAvailableTechs', () => {
     available = getAvailableTechs(state);
     expect(available.find(t => t.id === withPrereq.id)).toBeDefined();
   });
+
+  it('keeps early available techs deterministic for panel guidance', () => {
+    const state = createTechState();
+    expect(getAvailableTechs(state).map(t => t.id)).toContain('gathering');
+  });
 });
 
 describe('processResearch', () => {

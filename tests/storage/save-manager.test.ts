@@ -9,7 +9,8 @@ vi.mock('@/storage/db', () => ({
   dbGetAllKeys: vi.fn(async () => Array.from(dbState.keys())),
 }));
 
-import { autoSave, deleteSaveEntry, listSaves, loadMostRecentAutoSave, saveGame } from '@/storage/save-manager';
+import { createDefaultSettings } from '@/core/game-state';
+import { autoSave, deleteSaveEntry, listSaves, loadMostRecentAutoSave, loadSettings, saveGame, saveSettings } from '@/storage/save-manager';
 
 function makeLocalStorageMock() {
   const store: Record<string, string> = {};
@@ -303,5 +304,14 @@ describe('save-manager autosave listing', () => {
 
     expect(continued).toMatchObject({ gameId: 'game-a', turn: 9 });
     expect(dbState.has('autosave')).toBe(false);
+  });
+
+  it('persists council talk level through settings save/load', async () => {
+    const settings = createDefaultSettings('small', { councilTalkLevel: 'chaos' });
+
+    await saveSettings(settings);
+    const loaded = await loadSettings();
+
+    expect(loaded?.councilTalkLevel).toBe('chaos');
   });
 });

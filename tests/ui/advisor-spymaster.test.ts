@@ -71,6 +71,7 @@ function makeSpymasterTestState(): GameState {
         builder: false, explorer: false, chancellor: false,
         warchief: false, treasurer: false, scholar: false, spymaster: true, artisan: false,
       },
+      councilTalkLevel: 'normal',
     },
     tribalVillages: {},
     discoveredWonders: {},

@@ -1,4 +1,4 @@
-import type { GameState, TechTrack } from '@/core/types';
+import type { GameState, Tech, TechTrack } from '@/core/types';
 import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
 
 export interface TechPanelCallbacks {
@@ -6,154 +6,200 @@ export interface TechPanelCallbacks {
   onClose: () => void;
 }
 
+const TRACKS: TechTrack[] = [
+  'military', 'economy', 'science', 'civics', 'exploration',
+  'agriculture', 'medicine', 'philosophy', 'arts', 'maritime',
+  'metallurgy', 'construction', 'communication', 'espionage', 'spirituality',
+];
+
+const TRACK_ICONS: Record<TechTrack, string> = {
+  military: '⚔️',
+  economy: '💰',
+  science: '🔬',
+  civics: '📜',
+  exploration: '🧭',
+  agriculture: '🌾',
+  medicine: '🩺',
+  philosophy: '💭',
+  arts: '🎨',
+  maritime: '⚓',
+  metallurgy: '⛏️',
+  construction: '🏗️',
+  communication: '📯',
+  espionage: '🕵️',
+  spirituality: '🙏',
+};
+
+function titleCase(track: string): string {
+  return track.charAt(0).toUpperCase() + track.slice(1);
+}
+
+function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: number): HTMLDivElement | null {
+  if (!currentTech) {
+    return null;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;';
+
+  const heading = document.createElement('div');
+  heading.textContent = `Researching: ${currentTech.name}`;
+  heading.style.cssText = 'font-weight:bold;color:#e8c170;';
+  wrapper.appendChild(heading);
+
+  const summary = document.createElement('div');
+  summary.textContent = `${titleCase(currentTech.track)} · ${currentTech.unlocks[0] ?? 'New options for your empire'}`;
+  summary.style.cssText = 'font-size:12px;opacity:0.7;';
+  wrapper.appendChild(summary);
+
+  const why = document.createElement('div');
+  why.textContent = `Why next: ${currentTech.unlocks[0] ?? 'Keeps your current plan moving.'}`;
+  why.style.cssText = 'font-size:11px;opacity:0.8;margin-top:6px;';
+  wrapper.appendChild(why);
+
+  const progressBar = document.createElement('div');
+  progressBar.style.cssText = 'background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;';
+  const fill = document.createElement('div');
+  fill.style.cssText = `background:#e8c170;border-radius:4px;height:8px;width:${progress}%;`;
+  progressBar.appendChild(fill);
+  wrapper.appendChild(progressBar);
+
+  return wrapper;
+}
+
+function createTechItem(
+  tech: Tech,
+  opts: {
+    isCompleted: boolean;
+    isCurrent: boolean;
+    isAvailable: boolean;
+    onStartResearch: (techId: string) => void;
+    onClosePanel: () => void;
+  },
+): HTMLDivElement {
+  const item = document.createElement('div');
+  item.className = 'tech-item';
+  item.dataset.techId = tech.id;
+  item.dataset.state = opts.isCompleted ? 'completed' : opts.isCurrent ? 'current' : opts.isAvailable ? 'available' : 'locked';
+
+  let background = 'rgba(255,255,255,0.05)';
+  let border = 'transparent';
+  let opacity = '0.4';
+  let cursor = 'default';
+
+  if (opts.isCompleted) {
+    background = 'rgba(107,155,75,0.3)';
+    border = '#6b9b4b';
+    opacity = '1';
+  } else if (opts.isCurrent) {
+    background = 'rgba(232,193,112,0.2)';
+    border = '#e8c170';
+    opacity = '1';
+  } else if (opts.isAvailable) {
+    background = 'rgba(255,255,255,0.1)';
+    border = 'rgba(255,255,255,0.3)';
+    opacity = '1';
+    cursor = 'pointer';
+  }
+
+  item.style.cssText = `background:${background};border:1px solid ${border};border-radius:8px;padding:10px;margin-bottom:6px;opacity:${opacity};cursor:${cursor};`;
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-weight:bold;font-size:13px;';
+  title.textContent = `${tech.name}${opts.isCompleted ? ' ✓' : ''}${opts.isCurrent ? ' ⏳' : ''}`;
+  item.appendChild(title);
+
+  const detail = document.createElement('div');
+  detail.style.cssText = 'font-size:11px;opacity:0.7;';
+  detail.textContent = `${tech.unlocks[0] ?? 'New options'} · Cost: ${tech.cost}`;
+  item.appendChild(detail);
+
+  if (opts.isAvailable) {
+    item.addEventListener('click', () => {
+      opts.onStartResearch(tech.id);
+      opts.onClosePanel();
+    });
+  }
+
+  return item;
+}
+
 export function createTechPanel(
   container: HTMLElement,
   state: GameState,
   callbacks: TechPanelCallbacks,
 ): HTMLElement {
+  container.querySelector('#tech-panel')?.remove();
+
   const panel = document.createElement('div');
   panel.id = 'tech-panel';
+  panel.dataset.layout = 'tech-tree-grid';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
 
   const civ = state.civilizations[state.currentPlayer];
   const available = getAvailableTechs(civ.techState);
 
-  // Pre-compute current research data if active
-  let currentResearchProgress = 0;
-  let currentResearchHtml = '';
-  if (civ.techState.currentResearch) {
-    const currentTech = TECH_TREE.find(t => t.id === civ.techState.currentResearch);
-    if (currentTech) {
-      currentResearchProgress = Math.round((civ.techState.researchProgress / currentTech.cost) * 100);
-      currentResearchHtml = `
-        <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
-          <div style="font-weight:bold;color:#e8c170;">Researching: <span data-text="current-tech-name"></span></div>
-          <div style="font-size:12px;opacity:0.7;"><span data-text="current-tech-track"></span> · <span data-text="current-tech-unlocks"></span></div>
-          <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
-            <div style="background:#e8c170;border-radius:4px;height:8px;width:${currentResearchProgress}%;"></div>
-          </div>
-          <div style="font-size:11px;opacity:0.5;margin-top:4px;"><span data-text="current-tech-progress"></span>/<span data-text="current-tech-cost"></span></div>
-        </div>
-      `;
-    }
-  }
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
 
-  const tracks: TechTrack[] = [
-    'military', 'economy', 'science', 'civics', 'exploration',
-    'agriculture', 'medicine', 'philosophy', 'arts', 'maritime',
-    'metallurgy', 'construction', 'communication', 'espionage', 'spirituality',
-  ];
-  const trackIcons: Record<string, string> = {
-    military: '⚔️', economy: '💰', science: '🔬', civics: '📜', exploration: '🧭',
-    agriculture: '🌾', medicine: '🩺', philosophy: '💭', arts: '🎨', maritime: '⚓',
-    metallurgy: '⛏️', construction: '🏗️', communication: '📯', espionage: '🕵️', spirituality: '🙏',
-  };
+  const title = document.createElement('h2');
+  title.textContent = 'Research';
+  title.style.cssText = 'font-size:18px;color:#e8c170;margin:0;';
+  header.appendChild(title);
 
-  // Pre-collect tech items with indices for textContent injection
-  interface TechItem { trackLabel: string; techId: string; globalIdx: number; isCompleted: boolean; isCurrent: boolean; isAvailable: boolean; }
-  const techItems: TechItem[] = [];
-  let globalIdx = 0;
-
-  let tracksHtml = '';
-  for (const track of tracks) {
-    const trackTechs = TECH_TREE.filter(t => t.track === track);
-    const trackLabel = track.charAt(0).toUpperCase() + track.slice(1);
-    tracksHtml += `<div style="margin-bottom:16px;">
-      <h3 style="font-size:14px;color:#e0d6c8;margin:0 0 8px;">${trackIcons[track]} ${trackLabel}</h3>`;
-
-    for (const tech of trackTechs) {
-      const isCompleted = civ.techState.completed.includes(tech.id);
-      const isAvailable = available.some(t => t.id === tech.id);
-      const isCurrent = civ.techState.currentResearch === tech.id;
-
-      let bg = 'rgba(255,255,255,0.05)';
-      let border = 'transparent';
-      let opacity = '0.4';
-      let cursor = 'default';
-
-      if (isCompleted) { bg = 'rgba(107,155,75,0.3)'; border = '#6b9b4b'; opacity = '1'; }
-      else if (isCurrent) { bg = 'rgba(232,193,112,0.2)'; border = '#e8c170'; opacity = '1'; }
-      else if (isAvailable) { bg = 'rgba(255,255,255,0.1)'; border = 'rgba(255,255,255,0.3)'; opacity = '1'; cursor = 'pointer'; }
-
-      const completedMark = isCompleted ? ' ✓' : '';
-      const currentMark = isCurrent ? ' ⏳' : '';
-
-      tracksHtml += `
-        <div class="tech-item" data-tech-id="${tech.id}" style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px;margin-bottom:6px;opacity:${opacity};cursor:${cursor};">
-          <div style="font-weight:bold;font-size:13px;"><span data-text="tech-name-${globalIdx}"></span><span data-text="tech-marks-${globalIdx}"></span></div>
-          <div style="font-size:11px;opacity:0.7;"><span data-text="tech-unlocks-${globalIdx}"></span> · Cost: <span data-text="tech-cost-${globalIdx}"></span></div>
-        </div>
-      `;
-
-      techItems.push({ trackLabel, techId: tech.id, globalIdx, isCompleted, isCurrent, isAvailable });
-      globalIdx++;
-    }
-    tracksHtml += '</div>';
-  }
-
-  const html = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <h2 style="font-size:18px;color:#e8c170;margin:0;">Research</h2>
-      <span id="tech-close" style="cursor:pointer;font-size:24px;opacity:0.6;">✕</span>
-    </div>
-    ${currentResearchHtml}
-    ${tracksHtml}
-  `;
-
-  panel.innerHTML = html;
-
-  // Inject all dynamic text via textContent (XSS-safe)
-  const setText = (sel: string, text: string) => {
-    const el = panel.querySelector(`[data-text="${sel}"]`);
-    if (el) el.textContent = text;
-  };
-
-  if (civ.techState.currentResearch) {
-    const currentTech = TECH_TREE.find(t => t.id === civ.techState.currentResearch);
-    if (currentTech) {
-      setText('current-tech-name', currentTech.name);
-      setText('current-tech-track', currentTech.track);
-      setText('current-tech-unlocks', currentTech.unlocks[0] ?? '');
-      setText('current-tech-progress', String(civ.techState.researchProgress));
-      setText('current-tech-cost', String(currentTech.cost));
-    }
-  }
-
-  // Iterate the same order as when we built HTML to match indices
-  let techIdx = 0;
-  for (const track of tracks) {
-    const trackTechs = TECH_TREE.filter(t => t.track === track);
-    for (const tech of trackTechs) {
-      const isCompleted = civ.techState.completed.includes(tech.id);
-      const isCurrent = civ.techState.currentResearch === tech.id;
-      const completedMark = isCompleted ? ' ✓' : '';
-      const currentMark = isCurrent ? ' ⏳' : '';
-      setText(`tech-name-${techIdx}`, tech.name);
-      setText(`tech-marks-${techIdx}`, completedMark + currentMark);
-      setText(`tech-unlocks-${techIdx}`, tech.unlocks[0] ?? '');
-      setText(`tech-cost-${techIdx}`, String(tech.cost));
-      techIdx++;
-    }
-  }
-
-  container.appendChild(panel);
-
-  // Event listeners
-  panel.querySelector('#tech-close')?.addEventListener('click', () => {
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.id = 'tech-close';
+  close.textContent = '✕';
+  close.style.cssText = 'cursor:pointer;font-size:24px;opacity:0.6;background:none;border:0;color:white;';
+  close.addEventListener('click', () => {
     panel.remove();
     callbacks.onClose();
   });
+  header.appendChild(close);
 
-  panel.querySelectorAll('.tech-item').forEach(el => {
-    const techId = (el as HTMLElement).dataset.techId!;
-    const isAvailable = available.some(t => t.id === techId);
-    if (isAvailable) {
-      el.addEventListener('click', () => {
-        callbacks.onStartResearch(techId);
-        panel.remove();
-      });
+  panel.appendChild(header);
+
+  const currentTech = civ.techState.currentResearch
+    ? TECH_TREE.find(tech => tech.id === civ.techState.currentResearch)
+    : undefined;
+  const currentProgress = currentTech
+    ? Math.round((civ.techState.researchProgress / currentTech.cost) * 100)
+    : 0;
+  const summary = buildCurrentResearchSummary(currentTech, currentProgress);
+  if (summary) {
+    panel.appendChild(summary);
+  }
+
+  const grid = document.createElement('div');
+  grid.dataset.layout = 'tech-tree-grid';
+
+  for (const track of TRACKS) {
+    const trackBlock = document.createElement('section');
+    trackBlock.className = 'tech-track';
+    trackBlock.dataset.track = track;
+    trackBlock.style.cssText = 'margin-bottom:16px;';
+
+    const heading = document.createElement('h3');
+    heading.textContent = `${TRACK_ICONS[track]} ${titleCase(track)}`;
+    heading.style.cssText = 'font-size:14px;color:#e0d6c8;margin:0 0 8px;';
+    trackBlock.appendChild(heading);
+
+    const techs = TECH_TREE.filter(tech => tech.track === track);
+    for (const tech of techs) {
+      trackBlock.appendChild(createTechItem(tech, {
+        isCompleted: civ.techState.completed.includes(tech.id),
+        isCurrent: civ.techState.currentResearch === tech.id,
+        isAvailable: available.some(candidate => candidate.id === tech.id),
+        onStartResearch: callbacks.onStartResearch,
+        onClosePanel: () => panel.remove(),
+      }));
     }
-  });
 
+    grid.appendChild(trackBlock);
+  }
+
+  panel.appendChild(grid);
+  container.appendChild(panel);
   return panel;
 }

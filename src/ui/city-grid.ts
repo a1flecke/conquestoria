@@ -75,7 +75,7 @@ export function createCityGrid(
 
   let html = `
   <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:10px;padding:0 4px;line-height:1.4;">
-    <strong style="color:#e8c170;">City Layout</strong> — Tap empty slots to place buildings. Adjacent buildings can boost each other. Edge slots show the terrain they sit on.
+    <strong style="color:#e8c170;">Grid View</strong> — Tap empty slots to place buildings, tap built slots to learn what they do, and use adjacency to make clever little combos. Edge slots show the terrain they sit on so the board explains itself.
     ${suggestedBuilding ? `<div style="color:#e8c170;margin-top:4px;">Suggested: <strong>${suggestedBuilding}</strong></div>` : ''}
   </div>
   <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;max-width:380px;margin:0 auto;">`;

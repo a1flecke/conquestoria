@@ -8,6 +8,7 @@ import {
   getQuestIssuedMessageForPlayer,
   isQuestTargetKnownToPlayer,
 } from '@/systems/quest-system';
+import { getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
 import type { Quest } from '@/core/types';
 
 describe('quest system', () => {
@@ -372,6 +373,77 @@ describe('quest system', () => {
       expect(getQuestIssuedMessageForPlayer(state, 'player', 'Sparta', quest)).toBe(
         'Sparta asks: Clear 2 units near a foreign city',
       );
+    });
+
+    it('keeps city-issued quest origin generic until the issuing city is actually discovered', () => {
+      const quest = {
+        id: 'q-city',
+        type: 'defeat_units',
+        description: 'Clear 2 units from Rome',
+        cityId: 'rome',
+        target: { type: 'defeat_units', count: 2, nearPosition: { q: 6, r: 0 }, radius: 8, cityId: 'rome' },
+        reward: { relationshipBonus: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {
+          rome: {
+            id: 'rome',
+            owner: 'outsider',
+            name: 'Rome',
+            position: { q: 6, r: 0 },
+          },
+        },
+        civilizations: {
+          player: {
+            visibility: { tiles: {} },
+            knownCivilizations: ['outsider'],
+          },
+        },
+        minorCivs: {},
+      } as any;
+
+      expect(getQuestOriginLabel(state, quest, 'player')).toBe('foreign city');
+      expect(getQuestIssuedMessageForPlayer(state, 'player', 'Unknown city-state', quest)).not.toContain('Rome');
+    });
+
+    it('treats an undiscovered city-state quest as not visible yet', () => {
+      const quest = {
+        id: 'q-trade',
+        type: 'trade_route',
+        description: 'Establish a trade route to our city',
+        minorCivId: 'mc-sparta',
+        target: { type: 'trade_route', minorCivId: 'mc-sparta' },
+        reward: { relationshipBonus: 25, science: 20 },
+        progress: 0,
+        status: 'active',
+        turnIssued: 1,
+        expiresOnTurn: 21,
+      } as unknown as Quest;
+
+      const state = {
+        cities: {},
+        civilizations: {
+          player: {
+            visibility: { tiles: {} },
+            knownCivilizations: [],
+          },
+        },
+        minorCivs: {
+          'mc-sparta': {
+            id: 'mc-sparta',
+            definitionId: 'sparta',
+            cityId: 'mc-city',
+          },
+        },
+      } as any;
+
+      expect(getQuestOriginLabel(state, quest, 'player')).toContain('city-state');
+      expect(isQuestVisibleToPlayer(state, quest, 'player')).toBe(false);
     });
   });
 });

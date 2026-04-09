@@ -529,7 +529,7 @@ describe('resolveMissionResult', () => {
       barbarianCamps: {},
       minorCivs: {},
       tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
-      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
       tribalVillages: {},
       discoveredWonders: {},
       wonderDiscoverers: {},

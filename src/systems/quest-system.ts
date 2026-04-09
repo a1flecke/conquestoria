@@ -1,6 +1,9 @@
 import type { MinorCivArchetype, Quest, QuestReward, QuestTarget, QuestType, GameState } from '@/core/types';
 import { hexDistance } from './hex-utils';
-import { hasDiscoveredCity, hasDiscoveredMinorCiv } from './discovery-system';
+import {
+  getQuestDescriptionForPlayer as getQuestDescriptionForPlayerFromPresentation,
+  getQuestIssuedMessageForPlayer as getQuestIssuedMessageForPlayerFromPresentation,
+} from './quest-presentation';
 
 let questIdCounter = 0;
 
@@ -42,12 +45,12 @@ export function generateQuest(
   for (const candidate of candidates) {
     cumulative += candidate.weight;
     if (roll < cumulative) {
-      return makeQuest(candidate.type, candidate.target, currentTurn);
+      return makeQuest(candidate.type, candidate.target, currentTurn, minorCivId);
     }
   }
 
   const fallback = candidates[candidates.length - 1];
-  return makeQuest(fallback.type, fallback.target, currentTurn);
+  return makeQuest(fallback.type, fallback.target, currentTurn, minorCivId);
 }
 
 function buildQuestTarget(
@@ -80,7 +83,7 @@ function buildQuestTarget(
         && hexDistance(unit.position, cityPosition) <= 8
       ));
       if (nearbyHostiles.length < 2) return null;
-      return { type: 'defeat_units', count: 2, nearPosition: cityPosition, radius: 8 };
+      return { type: 'defeat_units', count: 2, nearPosition: cityPosition, radius: 8, cityId: city?.id };
     }
     case 'trade_route':
       return null;
@@ -89,7 +92,7 @@ function buildQuestTarget(
   }
 }
 
-function makeQuest(type: QuestType, target: QuestTarget, currentTurn: number): Quest {
+function makeQuest(type: QuestType, target: QuestTarget, currentTurn: number, minorCivId?: string): Quest {
   questIdCounter++;
   const reward = getRewardForType(type);
   return {
@@ -97,6 +100,8 @@ function makeQuest(type: QuestType, target: QuestTarget, currentTurn: number): Q
     type,
     description: getQuestDescription(type, target),
     target,
+    cityId: target.type === 'defeat_units' ? target.cityId : undefined,
+    minorCivId,
     reward,
     progress: 0,
     status: 'active',
@@ -155,17 +160,8 @@ export function isQuestTargetKnownToPlayer(
   playerId: string,
   quest: Quest,
 ): boolean {
-  const target = quest.target as QuestTarget & { cityId?: string };
-
-  if ('cityId' in target && target.cityId) {
-    return hasDiscoveredCity(state as GameState, playerId, target.cityId);
-  }
-
-  if (target.type === 'trade_route') {
-    return hasDiscoveredMinorCiv(state as GameState, playerId, target.minorCivId);
-  }
-
-  return true;
+  return !getQuestDescriptionForPlayerFromPresentation(state, playerId, quest).includes('foreign city')
+    && !getQuestDescriptionForPlayerFromPresentation(state, playerId, quest).includes('discovered city-state');
 }
 
 export function getQuestDescriptionForPlayer(
@@ -173,26 +169,7 @@ export function getQuestDescriptionForPlayer(
   playerId: string,
   quest: Quest,
 ): string {
-  switch (quest.target.type) {
-    case 'destroy_camp':
-      return 'Destroy a nearby barbarian camp';
-    case 'gift_gold':
-      return `Gift ${quest.target.amount} gold`;
-    case 'defeat_units': {
-      const target = quest.target as Extract<QuestTarget, { type: 'defeat_units' }> & { cityId?: string };
-      if (target.cityId && hasDiscoveredCity(state as GameState, playerId, target.cityId)) {
-        const city = (state as GameState).cities[target.cityId];
-        return `Clear ${target.count} units from ${city?.name ?? 'the target city'}`;
-      }
-      return `Clear ${target.count} units near a foreign city`;
-    }
-    case 'trade_route':
-      return hasDiscoveredMinorCiv(state as GameState, playerId, quest.target.minorCivId)
-        ? quest.description
-        : 'Establish a trade route to a discovered city-state';
-    default:
-      return 'Complete the assigned task';
-  }
+  return getQuestDescriptionForPlayerFromPresentation(state, playerId, quest);
 }
 
 export function getQuestIssuedMessageForPlayer(
@@ -201,5 +178,5 @@ export function getQuestIssuedMessageForPlayer(
   minorCivName: string,
   quest: Quest,
 ): string {
-  return `${minorCivName} asks: ${getQuestDescriptionForPlayer(state, playerId, quest)}`;
+  return getQuestIssuedMessageForPlayerFromPresentation(state, playerId, minorCivName, quest);
 }

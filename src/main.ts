@@ -16,15 +16,17 @@ import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { destroyCamp } from '@/systems/barbarian-system';
-import { autoSave, loadAutoSave, saveGame, loadGame, listSaves } from '@/storage/save-manager';
+import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioManager } from '@/audio/audio-manager';
 import { SFX } from '@/audio/sfx';
-import { createCivSelectPanel } from '@/ui/civ-select';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
+import { createCouncilPanel } from '@/ui/council-panel';
+import { createGameShell } from '@/ui/game-shell';
+import { showCampaignSetup } from '@/ui/campaign-setup';
 import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { visitVillage } from '@/systems/village-system';
@@ -33,7 +35,7 @@ import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
-import { collectEvent } from '@/core/hotseat-events';
+import { collectCouncilInterrupt, collectEvent } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
@@ -54,6 +56,7 @@ import {
   startMission,
   verifyAgent,
 } from '@/systems/espionage-system';
+import { getCouncilInterrupt } from '@/systems/council-system';
 import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
 
 // --- App State ---
@@ -62,6 +65,8 @@ let selectedUnitId: string | null = null;
 let movementRange: HexCoord[] = [];
 let currentCityIndex = 0;
 let inputInitialized = false;
+let councilPanelOpen = false;
+let persistedSettings: GameState['settings'] | undefined;
 const bus = new EventBus();
 const audio = new AudioManager();
 const advisorSystem = new AdvisorSystem(bus);
@@ -74,94 +79,20 @@ const renderLoop = new RenderLoop(canvas);
 // --- Resize ---
 window.addEventListener('resize', () => renderLoop.resizeCanvas());
 
-// --- UI Construction (minimal for M1, will be expanded) ---
 function createUI(): void {
-  // HUD
-  const hud = document.createElement('div');
-  hud.id = 'hud';
-  hud.style.cssText = 'position:absolute;top:0;left:0;right:0;padding:8px 12px;background:rgba(0,0,0,0.6);display:flex;justify-content:space-between;font-size:13px;z-index:10;';
-  uiLayer.appendChild(hud);
-
-  // Bottom bar
-  const bottomBar = document.createElement('div');
-  bottomBar.id = 'bottom-bar';
-  bottomBar.style.cssText = 'position:absolute;bottom:0;left:0;right:0;padding:8px 12px 24px;background:rgba(0,0,0,0.8);display:flex;justify-content:space-around;z-index:10;';
-
-  const endTurnBtn = createButton('End Turn', '⏭️', () => endTurn());
-  endTurnBtn.style.color = '#e8c170';
-
-  bottomBar.appendChild(createButton('Tech', '🔬', () => togglePanel('tech')));
-  bottomBar.appendChild(createButton('City', '🏛️', () => togglePanel('city')));
-  bottomBar.appendChild(createButton('Intel', '🕵️', () => togglePanel('espionage')));
-  bottomBar.appendChild(createButton('Diplo', '🤝', () => togglePanel('diplomacy')));
-  bottomBar.appendChild(createButton('Trade', '💰', () => togglePanel('marketplace')));
-  bottomBar.appendChild(endTurnBtn);
-  uiLayer.appendChild(bottomBar);
-
-  // Next Unit button (top-right)
-  const nextUnitBtn = document.createElement('button');
-  nextUnitBtn.id = 'btn-next-unit';
-  nextUnitBtn.textContent = '⏩';
-  nextUnitBtn.title = 'Select next unmoved unit';
-  nextUnitBtn.style.cssText = 'position:absolute;top:44px;right:12px;z-index:21;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:16px;padding:4px 10px;cursor:pointer;display:none;';
-  uiLayer.appendChild(nextUnitBtn);
-  nextUnitBtn.addEventListener('click', () => selectNextUnit());
-
-  // Notification log button
-  const logBtn = document.createElement('button');
-  logBtn.id = 'btn-notif-log';
-  logBtn.textContent = '📜';
-  logBtn.title = 'View message log';
-  logBtn.style.cssText = 'position:absolute;top:44px;right:52px;z-index:21;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
-  uiLayer.appendChild(logBtn);
-  logBtn.addEventListener('click', () => toggleNotificationLog());
-
-  const legendBtn = document.createElement('button');
-  legendBtn.id = 'btn-icon-legend';
-  legendBtn.textContent = '🗺️';
-  legendBtn.title = 'Toggle icon legend';
-  legendBtn.style.cssText = 'position:absolute;top:44px;right:92px;z-index:21;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
-  uiLayer.appendChild(legendBtn);
-  legendBtn.addEventListener('click', () => toggleIconLegend());
-
-  uiLayer.appendChild(createIconLegendOverlay());
-
-  // Notification area
-  const notifArea = document.createElement('div');
-  notifArea.id = 'notifications';
-  notifArea.style.cssText = 'position:absolute;top:40px;left:12px;right:80px;z-index:20;display:flex;flex-direction:column;gap:8px;';
-  uiLayer.appendChild(notifArea);
-
-  // Info panel (for selected unit/city)
-  const infoPanel = document.createElement('div');
-  infoPanel.id = 'info-panel';
-  infoPanel.style.cssText = 'position:absolute;bottom:80px;left:12px;right:12px;z-index:10;display:none;';
-  uiLayer.appendChild(infoPanel);
-}
-
-function createButton(label: string, icon: string, onClick: () => void): HTMLElement {
-  const btn = document.createElement('div');
-  btn.style.cssText = 'text-align:center;font-size:10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;';
-  btn.innerHTML = `<div style="width:40px;height:40px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin:0 auto 2px;">${icon}</div>${label}`;
-  let handled = false;
-  btn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!handled) {
-      handled = true;
-      onClick();
-      setTimeout(() => { handled = false; }, 300);
-    }
+  createGameShell(uiLayer, {
+    onOpenCouncil: () => togglePanel('council'),
+    onOpenTech: () => togglePanel('tech'),
+    onOpenCity: () => togglePanel('city'),
+    onOpenEspionage: () => togglePanel('espionage'),
+    onOpenDiplomacy: () => togglePanel('diplomacy'),
+    onOpenMarketplace: () => togglePanel('marketplace'),
+    onEndTurn: () => endTurn(),
+    onNextUnit: () => selectNextUnit(),
+    onOpenNotificationLog: () => toggleNotificationLog(),
+    onToggleIconLegend: () => toggleIconLegend(),
+    iconLegendOverlay: createIconLegendOverlay(),
   });
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!handled) {
-      handled = true;
-      onClick();
-      setTimeout(() => { handled = false; }, 300);
-    }
-  });
-  return btn;
 }
 
 // --- Game Logic ---
@@ -401,8 +332,22 @@ function togglePanel(panel: string): void {
   document.getElementById('espionage-panel')?.remove();
   document.getElementById('diplomacy-panel')?.remove();
   document.getElementById('marketplace-panel')?.remove();
+  document.getElementById('council-panel')?.remove();
+  councilPanelOpen = false;
 
-  if (panel === 'tech') {
+  if (panel === 'council') {
+    createCouncilPanel(uiLayer, gameState, {
+      onClose: () => {
+        document.getElementById('council-panel')?.remove();
+        councilPanelOpen = false;
+      },
+      onTalkLevelChange: (level) => {
+        gameState.settings.councilTalkLevel = level;
+        void saveSettings(gameState.settings);
+      },
+    });
+    councilPanelOpen = true;
+  } else if (panel === 'tech') {
     createTechPanel(uiLayer, gameState, {
       onStartResearch: (techId) => {
         currentCiv().techState = startResearch(
@@ -604,6 +549,36 @@ function togglePanel(panel: string): void {
       onClose: () => {},
     });
   }
+}
+
+function maybeShowCouncilInterrupt(): void {
+  if (!gameState) {
+    return;
+  }
+  const interrupt = getCouncilInterrupt(gameState, gameState.currentPlayer, gameState.settings.councilTalkLevel);
+  if (!interrupt) {
+    return;
+  }
+  if (gameState.hotSeat && gameState.pendingEvents && interrupt.civId !== gameState.currentPlayer) {
+    collectCouncilInterrupt(gameState.pendingEvents, interrupt.civId, interrupt, gameState.turn);
+    return;
+  }
+  showNotification(interrupt.summary, 'info');
+}
+
+function getPersistedSettingsOverrides(): Partial<GameState['settings']> {
+  if (!persistedSettings) {
+    return {};
+  }
+  return {
+    soundEnabled: persistedSettings.soundEnabled,
+    musicEnabled: persistedSettings.musicEnabled,
+    musicVolume: persistedSettings.musicVolume,
+    sfxVolume: persistedSettings.sfxVolume,
+    tutorialEnabled: persistedSettings.tutorialEnabled,
+    advisorsEnabled: persistedSettings.advisorsEnabled,
+    councilTalkLevel: persistedSettings.councilTalkLevel,
+  };
 }
 
 function selectUnit(unitId: string): void {
@@ -1518,6 +1493,7 @@ async function init(): Promise<void> {
   }
 
   createUI();
+  persistedSettings = await loadSettings();
 
   // Show save panel on start
   await createSavePanel(uiLayer, {
@@ -1579,6 +1555,9 @@ function migrateLegacySave(): void {
   // Add spymaster advisor if missing (M4a migration)
   if (gameState.settings.advisorsEnabled && !('spymaster' in gameState.settings.advisorsEnabled)) {
     (gameState.settings.advisorsEnabled as any).spymaster = true;
+  }
+  if (!gameState.settings.councilTalkLevel) {
+    gameState.settings.councilTalkLevel = persistedSettings?.councilTalkLevel ?? 'normal';
   }
   // Ensure pendingEvents exists for hot seat saves
   if (!gameState.pendingEvents) {
@@ -1649,15 +1628,25 @@ function showGameModeSelection(): void {
   };
 
   document.getElementById('mode-solo')?.addEventListener('click', () => {
-    const title = getRequestedTitle();
-    if (!title) return;
+    const title = (document.getElementById('new-game-title') as HTMLInputElement | null)?.value.trim() || 'New Campaign';
     modePanel.remove();
-    createCivSelectPanel(uiLayer, {
-      onSelect: (civId) => {
-        gameState = createNewGame(civId, undefined, undefined, title);
+    showCampaignSetup(uiLayer, {
+      initialTitle: title,
+      onStartSolo: (config) => {
+        gameState = createNewGame({
+          civType: config.civType,
+          mapSize: config.mapSize,
+          opponentCount: config.opponentCount,
+          gameTitle: config.gameTitle,
+          settingsOverrides: getPersistedSettingsOverrides(),
+        });
+        if (persistedSettings?.councilTalkLevel) {
+          gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
+        }
         startGame();
         showNotification('Your tribe has settled near a river...', 'info');
       },
+      onCancel: () => showGameModeSelection(),
     });
   });
 
@@ -1668,6 +1657,9 @@ function showGameModeSelection(): void {
     showHotSeatSetup(uiLayer, {
       onComplete: (config) => {
         gameState = createHotSeatGame(config, undefined, title);
+        if (persistedSettings?.councilTalkLevel) {
+          gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
+        }
         startGame();
         showNotification(`Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`, 'info');
       },
@@ -1684,6 +1676,7 @@ function startGame(): void {
 
   renderLoop.setGameState(gameState);
   updateHUD();
+  maybeShowCouncilInterrupt();
 
   // Auto-save immediately so closing before turn 1 doesn't lose the game
   autoSave(gameState).catch(() => {});

@@ -1,4 +1,4 @@
-import type { GameState, GameEvent } from './types';
+import type { CouncilInterrupt, GameState, GameEvent } from './types';
 
 export function collectEvent(
   pending: Record<string, GameEvent[]>,
@@ -7,6 +7,19 @@ export function collectEvent(
 ): void {
   if (!pending[civId]) pending[civId] = [];
   pending[civId].push(event);
+}
+
+export function collectCouncilInterrupt(
+  pending: Record<string, GameEvent[]>,
+  civId: string,
+  interrupt: CouncilInterrupt,
+  turn: number,
+): void {
+  collectEvent(pending, civId, {
+    type: 'council:interrupt',
+    message: interrupt.summary,
+    turn,
+  });
 }
 
 export function getEventsForPlayer(
