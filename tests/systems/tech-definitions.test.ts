@@ -2,23 +2,27 @@ import { describe, it, expect } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 describe('tech definitions', () => {
-  it('has exactly 122 techs after the Stage 5 espionage expansion', () => {
-    expect(TECH_TREE.length).toBe(122);
+  it('has exactly 125 techs after adding late-era Slice 3 scaffolding', () => {
+    expect(TECH_TREE.length).toBe(125);
   });
 
-  it('keeps 15 tracks while expanding espionage to 10 techs', () => {
+  it('keeps 15 tracks while expanding economy, science, and communication into era 5', () => {
     const tracks = new Map<string, number>();
     for (const tech of TECH_TREE) {
       tracks.set(tech.track, (tracks.get(tech.track) ?? 0) + 1);
     }
     expect(tracks.size).toBe(15);
     for (const [track, count] of tracks) {
-      const expected = track === 'espionage' ? 10 : 8;
+      const expected = track === 'espionage'
+        ? 10
+        : ['economy', 'science', 'communication'].includes(track)
+          ? 9
+          : 8;
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });
 
-  it('keeps 2 techs per era, with espionage extending into era 5', () => {
+  it('keeps the original 2-tech era rhythm through era 4 and adds only the planned era 5 scaffolding', () => {
     const trackEra = new Map<string, number>();
     for (const tech of TECH_TREE) {
       const key = `${tech.track}-${tech.era}`;
@@ -32,6 +36,9 @@ describe('tech definitions', () => {
       }
     }
     expect(trackEra.get('espionage-5'), 'espionage-5 should have 2 techs').toBe(2);
+    expect(trackEra.get('economy-5'), 'economy-5 should have 1 tech').toBe(1);
+    expect(trackEra.get('science-5'), 'science-5 should have 1 tech').toBe(1);
+    expect(trackEra.get('communication-5'), 'communication-5 should have 1 tech').toBe(1);
   });
 
   it('all prerequisites reference existing tech IDs', () => {
@@ -94,5 +101,16 @@ describe('tech definitions', () => {
     const ids = TECH_TREE.filter(t => t.track === 'espionage').map(t => t.id);
     expect(ids).toContain('digital-surveillance');
     expect(ids).toContain('cyber-warfare');
+  });
+
+  it('contains the late-era tech prerequisites for the remaining M4 wonder scaffolding', () => {
+    expect(TECH_TREE.find(t => t.id === 'mass-media')).toBeDefined();
+    expect(TECH_TREE.find(t => t.id === 'global-logistics')).toBeDefined();
+    expect(TECH_TREE.find(t => t.id === 'nuclear-theory')).toBeDefined();
+  });
+
+  it('has no orphan late-era nodes', () => {
+    const lateEra = TECH_TREE.filter(t => t.era >= 5);
+    expect(lateEra.every(t => t.prerequisites.length > 0)).toBe(true);
   });
 });
