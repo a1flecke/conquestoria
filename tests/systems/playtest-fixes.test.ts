@@ -236,3 +236,37 @@ describe('slice 2 council guidance', () => {
     expect(serialized).toContain('food');
   });
 });
+
+describe('slice 4 council wonder guidance', () => {
+  it('keeps to-win guidance actionable instead of recommending impossible wonder shells', () => {
+    const state = createNewGame('egypt', 'slice-4-council-guidance');
+    let cityId = state.civilizations.player.cities[0];
+    if (!cityId) {
+      const settler = state.civilizations.player.units
+        .map(id => state.units[id])
+        .find(unit => unit?.type === 'settler');
+      if (settler) {
+        const city = foundCity('player', settler.position, state.map);
+        state.cities[city.id] = city;
+        state.civilizations.player.cities.push(city.id);
+        cityId = city.id;
+      }
+    }
+    const city = cityId ? state.cities[cityId] : undefined;
+    state.civilizations.player.techState.completed = ['philosophy', 'pilgrimages'];
+    if (city) {
+      for (const coord of city.ownedTiles) {
+        const key = `${coord.q},${coord.r}`;
+        if (state.map.tiles[key]) {
+          state.map.tiles[key].resource = 'stone';
+        }
+      }
+    }
+
+    const council = buildCouncilAgenda(state, 'player');
+    const wonderCards = council.toWin.filter(card => card.cardType === 'wonder');
+
+    expect(wonderCards.some(card => card.title.includes('World Archive'))).toBe(false);
+    expect(wonderCards.some(card => card.title.includes('Oracle of Delphi'))).toBe(true);
+  });
+});

@@ -106,4 +106,36 @@ describe('council-panel', () => {
     expect(wonderCards.length).toBeLessThanOrEqual(3);
     expect(panel.textContent).toContain('Legendary');
   });
+
+  it('keeps to-win wonder advice limited to reachable opportunities', () => {
+    const { state, container } = makeCouncilFixture();
+    let cityId = state.civilizations.player.cities[0];
+    if (!cityId) {
+      const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
+      if (settler) {
+        const city = foundCity('player', settler.position, state.map);
+        state.cities[city.id] = city;
+        state.civilizations.player.cities.push(city.id);
+        cityId = city.id;
+      }
+    }
+    const city = cityId ? state.cities[cityId] : undefined;
+    state.civilizations.player.techState.completed = ['philosophy', 'pilgrimages'];
+    if (city) {
+      for (const coord of city.ownedTiles) {
+        const key = `${coord.q},${coord.r}`;
+        if (state.map.tiles[key]) {
+          state.map.tiles[key].resource = 'stone';
+        }
+      }
+    }
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+    });
+
+    expect(panel.textContent).toContain('Oracle of Delphi');
+    expect(panel.textContent).not.toContain('World Archive');
+  });
 });

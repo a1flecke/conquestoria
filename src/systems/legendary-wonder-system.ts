@@ -90,6 +90,20 @@ function findLegendaryWonderProjectEntry(
   );
 }
 
+function hasActiveLegendaryWonderBuildForCiv(
+  state: GameState,
+  civId: string,
+  wonderId: string,
+  excludeCityId?: string,
+): boolean {
+  return Object.values(state.legendaryWonderProjects ?? {}).some(project =>
+    project.ownerId === civId
+    && project.wonderId === wonderId
+    && project.phase === 'building'
+    && project.cityId !== excludeCityId,
+  );
+}
+
 function getDefaultQuestStepDescription(step: NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>['questSteps'][number]): string {
   switch (step.type) {
     case 'discover_wonder':
@@ -281,6 +295,22 @@ export function getEligibleLegendaryWonders(
 
       return hasCityRequirement(seededState, cityId, definition.cityRequirement);
     });
+}
+
+export function getReachableLegendaryWonderProjects(
+  state: GameState,
+  civId: string,
+  cityId: string,
+): LegendaryWonderProject[] {
+  const seededState = initializeLegendaryWonderProjectsForCity(state, civId, cityId);
+  const eligibleWonderIds = new Set(getEligibleLegendaryWonders(seededState, civId, cityId));
+
+  return Object.values(seededState.legendaryWonderProjects ?? {}).filter(project =>
+    project.ownerId === civId
+    && project.cityId === cityId
+    && eligibleWonderIds.has(project.wonderId)
+    && (project.phase === 'questing' || project.phase === 'ready_to_build'),
+  );
 }
 
 export function unlockLegendaryWonderProject(
@@ -482,7 +512,13 @@ export function startLegendaryWonderBuild(
   const projectEntry = findLegendaryWonderProjectEntry(seededState, civId, cityId, wonderId);
   const projectKey = projectEntry?.[0];
   const project = projectEntry?.[1];
-  if (!projectKey || !project || project.phase !== 'ready_to_build' || !isLegendaryWonderStillAvailable(seededState, wonderId)) {
+  if (
+    !projectKey
+    || !project
+    || project.phase !== 'ready_to_build'
+    || !isLegendaryWonderStillAvailable(seededState, wonderId)
+    || hasActiveLegendaryWonderBuildForCiv(seededState, civId, wonderId, cityId)
+  ) {
     return seededState;
   }
 

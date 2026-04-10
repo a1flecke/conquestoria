@@ -1055,6 +1055,20 @@ describe('processAITurn', () => {
     expect(legendaryQueues.length).toBeLessThanOrEqual(2);
   });
 
+  it('does not start the same legendary wonder in multiple cities for one civ', () => {
+    const state = makeLegendaryWonderOpportunityFixture();
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    const buildingProjects = Object.values(result.legendaryWonderProjects ?? {}).filter(project =>
+      project.ownerId === 'ai-1' && project.phase === 'building',
+    );
+    const wonderIds = buildingProjects.map(project => project.wonderId);
+
+    expect(new Set(wonderIds).size).toBe(wonderIds.length);
+  });
+
   it('records stronghold history when an ai civ clears a barbarian camp', () => {
     const state = makeAiBarbarianCampAttackState();
     const bus = new EventBus();

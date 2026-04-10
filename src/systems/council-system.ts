@@ -3,7 +3,10 @@ import { getQuestDescriptionForPlayer, getQuestOriginLabel, isQuestVisibleToPlay
 import { calculateCityYields } from '@/systems/resource-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
-import { initializeLegendaryWonderProjectsForAllCities } from '@/systems/legendary-wonder-system';
+import {
+  getReachableLegendaryWonderProjects,
+  initializeLegendaryWonderProjectsForAllCities,
+} from '@/systems/legendary-wonder-system';
 
 function getPrimaryCity(state: GameState, civId: string) {
   const firstCityId = state.civilizations[civId]?.cities[0];
@@ -29,9 +32,11 @@ function getWonderRecommendationCards(state: GameState, civId: string): CouncilC
     }
     return acc;
   }, {}) ?? {};
+  const reachableProjects = seededState.civilizations[civId]?.cities.flatMap(cityId =>
+    getReachableLegendaryWonderProjects(seededState, civId, cityId),
+  ) ?? [];
 
-  return Object.values(seededState.legendaryWonderProjects ?? {})
-    .filter(project => project.ownerId === civId && (project.phase === 'ready_to_build' || project.phase === 'questing'))
+  return reachableProjects
     .map(project => {
       const definition = getLegendaryWonderDefinition(project.wonderId);
       const completedSteps = project.questSteps.filter(step => step.completed).length;

@@ -153,6 +153,59 @@ describe('legendary-wonder-system', () => {
     expect(result.legendaryWonderProjects!['oracle-of-delphi'].phase).toBe('building');
   });
 
+  it('does not allow the same civilization to start the same wonder in two cities', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    state.cities['city-second'] = {
+      ...state.cities['city-river'],
+      id: 'city-second',
+      name: 'Second City',
+      owner: 'player',
+      position: { q: 3, r: 2 },
+      ownedTiles: [{ q: 3, r: 2 }],
+    };
+    state.map.tiles['3,2'] = {
+      ...state.map.tiles['2,2'],
+      coord: { q: 3, r: 2 },
+      owner: 'player',
+    };
+    state.civilizations.player.cities.push('city-second');
+
+    const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-second');
+    const riverProject = Object.entries(seededState.legendaryWonderProjects ?? {}).find(([, project]) =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'oracle-of-delphi',
+    );
+    const secondProject = Object.entries(seededState.legendaryWonderProjects ?? {}).find(([, project]) =>
+      project.ownerId === 'player' && project.cityId === 'city-second' && project.wonderId === 'oracle-of-delphi',
+    );
+
+    if (!riverProject || !secondProject) {
+      throw new Error('expected player oracle projects in both cities');
+    }
+
+    seededState.legendaryWonderProjects![riverProject[0]] = {
+      ...riverProject[1],
+      phase: 'ready_to_build',
+      questSteps: riverProject[1].questSteps.map(step => ({ ...step, completed: true })),
+    };
+    seededState.legendaryWonderProjects![secondProject[0]] = {
+      ...secondProject[1],
+      phase: 'ready_to_build',
+      questSteps: secondProject[1].questSteps.map(step => ({ ...step, completed: true })),
+    };
+
+    const firstStart = startLegendaryWonderBuild(seededState, 'player', 'city-river', 'oracle-of-delphi');
+    const secondStart = startLegendaryWonderBuild(firstStart, 'player', 'city-second', 'oracle-of-delphi');
+
+    const buildingProjects = Object.values(secondStart.legendaryWonderProjects ?? {}).filter(project =>
+      project.ownerId === 'player' && project.wonderId === 'oracle-of-delphi' && project.phase === 'building',
+    );
+
+    expect(buildingProjects).toHaveLength(1);
+    expect(buildingProjects[0].cityId).toBe('city-river');
+    expect(firstStart.cities['city-river'].productionQueue).toEqual(['legendary:oracle-of-delphi']);
+    expect(secondStart.cities['city-second'].productionQueue).toEqual([]);
+  });
+
   it('surfaces a build-start event to observers with stationed spies in the target city', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
     const bus = new EventBus();
