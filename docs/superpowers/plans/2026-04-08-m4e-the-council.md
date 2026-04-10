@@ -5628,25 +5628,75 @@ After merge, confirm ancestry and remove the worktree/branch.
 
 **Files:**
 - Create: `src/systems/council-memory.ts`
+- Modify: `src/main.ts`
 - Modify: `src/core/types.ts`
+- Modify: `src/core/hotseat-events.ts`
+- Modify: `src/storage/save-manager.ts`
 - Modify: `src/ui/advisor-system.ts`
 - Modify: `src/ui/council-panel.ts`
 - Create: `tests/systems/council-memory.test.ts`
 - Modify: `tests/ui/council-panel.test.ts`
 - Modify: `tests/ui/advisor-system.test.ts`
+- Modify: `tests/core/hotseat-events.test.ts`
+- Modify: `tests/storage/save-persistence.test.ts`
 
 - [ ] **Step 1: Add failing memory/disagreement tests**
 
 Create `tests/systems/council-memory.test.ts`:
 
 ```typescript
-it('records major recommendations and can recall them later without leaking hidden facts', () => {
-  const memory = rememberCouncilDecision(state, 'player', {
+it('stores structured council memory facts instead of rendered summary strings', () => {
+  const next = rememberCouncilDecision(state, 'player', {
     key: 'expand-west',
-    summary: 'Secure the western frontier',
+    advisor: 'chancellor',
+    kind: 'frontier-expansion',
     turn: 40,
+    subjects: {
+      cityId: 'city-west',
+      regionKey: 'frontier-west',
+    },
   });
-  expect(memory.entries[0].summary).toContain('western frontier');
+
+  expect(next.entries[0]).toMatchObject({
+    key: 'expand-west',
+    advisor: 'chancellor',
+    kind: 'frontier-expansion',
+    subjects: { cityId: 'city-west', regionKey: 'frontier-west' },
+  });
+  expect('summary' in next.entries[0]).toBe(false);
+});
+
+it('formats recalled council memory from current viewer knowledge instead of persisted prose', () => {
+  const memory = rememberCouncilDecision(state, 'player', {
+    key: 'watch-rival-harbor',
+    advisor: 'spymaster',
+    kind: 'watch-rival-city',
+    turn: 41,
+    subjects: {
+      civId: 'rival',
+      cityId: 'city-rival',
+    },
+  });
+
+  const formatted = formatCouncilMemoryEntry(memory.entries[0], state, 'player');
+  expect(formatted).not.toContain('city-rival');
+  expect(formatted).toContain('an undiscovered foreign city');
+});
+
+it('preserves council memory through save round-trip without changing viewer-safe formatting rules', () => {
+  const remembered = rememberCouncilDecision(state, 'player', {
+    key: 'build-archive',
+    advisor: 'scholar',
+    kind: 'wonder-plan',
+    turn: 52,
+    subjects: {
+      wonderId: 'world-archive',
+      cityId: 'city-river',
+    },
+  });
+
+  const roundTrip = JSON.parse(JSON.stringify(remembered)) as GameState['councilMemory'];
+  expect(roundTrip?.player.entries[0].subjects.wonderId).toBe('world-archive');
 });
 
 it('caps callback frequency so the council does not become exhausting', () => {
@@ -5660,10 +5710,30 @@ Extend `tests/ui/council-panel.test.ts` with disagreement rendering:
 expect(panel.textContent).toContain('The treasurer disagrees');
 ```
 
+Extend `tests/core/hotseat-events.test.ts`:
+
+```typescript
+it('queues advisor callbacks for the owning hot-seat player instead of showing them immediately to another viewer', () => {
+  const pending: PendingEvents = {};
+  collectAdvisorCallback(pending, 'player-1', {
+    advisor: 'chancellor',
+    message: 'We should have fortified the frontier.',
+  }, 18);
+
+  expect(pending['player-1']).toEqual([
+    {
+      type: 'advisor:callback',
+      message: 'We should have fortified the frontier.',
+      turn: 18,
+    },
+  ]);
+});
+```
+
 - [ ] **Step 2: Run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/council-memory.test.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-memory.test.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 3: Implement bounded memory**
@@ -5674,28 +5744,57 @@ Add:
 export interface CouncilMemoryEntry {
   key: string;
   advisor: AdvisorType;
-  summary: string;
+  kind: 'frontier-expansion' | 'city-development' | 'wonder-plan' | 'war-warning' | 'food-warning' | 'watch-rival-city';
   turn: number;
   civId: string;
+  subjects: {
+    cityId?: string;
+    civId?: string;
+    wonderId?: string;
+    regionKey?: string;
+  };
+  outcome?: 'pending' | 'followed' | 'ignored' | 'succeeded' | 'failed';
+  lastCallbackTurn?: number;
 }
 ```
 
-Store only major decisions, not every trivial move, and always format callbacks from current-player-visible information.
+Add a `CouncilMemoryState` keyed by civ/player in `GameState`, and keep it serializable.
+
+Store only major decisions, not every trivial move, and never persist rendered prose. `src/systems/council-memory.ts` must own both:
+
+- transition helpers such as `rememberCouncilDecision(...)`, `recordCouncilOutcome(...)`, and `shouldEmitCouncilCallback(...)`
+- viewer-safe formatting helpers such as `formatCouncilMemoryEntry(...)`
+
+Formatting rules:
+
+- never store city names or civ names in memory entries
+- always resolve city/civ labels at render time from the current viewer
+- use `formatCityReference(...)` and the existing privacy-safe label helpers instead of direct city names
+- if a referenced city is now undiscovered, unmet, or ambiguous for the current viewer, the callback must degrade to a generic but readable label
+- if a city was renamed or disambiguated after the memory was recorded, the callback must use the current label, not the old one
 
 - [ ] **Step 4: Wire lobbying/disagreements into the panel and advisor interrupts**
 
-Add a disagreement block in `council-panel.ts` and bounded callback emission in `advisor-system.ts`.
+Add a disagreement block in `council-panel.ts` and bounded callback emission in `advisor-system.ts`, but route the live display through `main.ts` and `hotseat-events.ts` the same way other player-facing notifications are routed.
+
+Rules:
+
+- advisor callbacks for the current viewer may show immediately
+- advisor callbacks for another hot-seat player must be queued into `pendingEvents`
+- disagreement/callback copy must be derived from structured memory on emission, not pre-rendered at storage time
+- callback cadence must be capped by era and by memory entry so one ignored decision cannot spam every turn
+- only major entries may become callbacks; tutorial chatter and low-stakes reminders must never be persisted as “memory”
 
 - [ ] **Step 5: Re-run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/council-memory.test.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-memory.test.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 6: Commit the memory/personality layer**
 
 ```bash
-git add src/systems/council-memory.ts src/core/types.ts src/ui/advisor-system.ts src/ui/council-panel.ts tests/systems/council-memory.test.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts
+git add src/systems/council-memory.ts src/core/types.ts src/core/hotseat-events.ts src/storage/save-manager.ts src/ui/advisor-system.ts src/ui/council-panel.ts src/main.ts tests/systems/council-memory.test.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts tests/core/hotseat-events.test.ts tests/storage/save-persistence.test.ts
 git commit -m "feat(m4e): add council memory and disagreements"
 ```
 
@@ -5705,11 +5804,13 @@ git commit -m "feat(m4e): add council memory and disagreements"
 - Create: `src/systems/civ-registry.ts`
 - Create: `src/systems/custom-civ-system.ts`
 - Create: `src/ui/custom-civ-panel.ts`
+- Modify: `src/systems/city-system.ts`
 - Modify: `src/core/types.ts`
 - Modify: `src/core/game-state.ts`
 - Modify: `src/main.ts`
 - Modify: `src/storage/save-manager.ts`
 - Modify: `src/systems/civ-definitions.ts`
+- Modify: `src/systems/council-system.ts`
 - Modify: `src/core/turn-manager.ts`
 - Modify: `src/ai/basic-ai.ts`
 - Modify: `src/systems/diplomacy-system.ts`
@@ -5726,6 +5827,9 @@ git commit -m "feat(m4e): add council memory and disagreements"
 - Modify: `tests/ui/campaign-setup.test.ts`
 - Create: `tests/ui/hotseat-setup.test.ts`
 - Modify: `tests/systems/civ-definitions.test.ts`
+- Modify: `tests/systems/espionage-system.test.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/systems/city-system.test.ts`
 - Modify: `tests/core/game-state.test.ts`
 - Modify: `tests/core/turn-manager.test.ts`
 - Modify: `tests/storage/save-manager.test.ts`
@@ -5740,6 +5844,14 @@ Create `tests/ui/custom-civ-panel.test.ts`:
 it('enforces a constrained trait budget and requires a city-name pool', () => {
   const panel = createCustomCivPanel(document.body, { onSave: () => {} });
   expect(panel.textContent).toContain('Trait budget');
+});
+
+it('keeps save disabled until the custom civ is fully valid', () => {
+  const onSave = vi.fn();
+  const panel = createCustomCivPanel(document.body, { onSave });
+
+  const save = panel.querySelector('[data-action="save-custom-civ"]') as HTMLButtonElement;
+  expect(save.disabled).toBe(true);
 });
 ```
 
@@ -5877,9 +5989,61 @@ it('passes custom civ definitions into solo campaign setup civ selection', () =>
 Extend `tests/systems/civ-definitions.test.ts`:
 
 ```typescript
-it('includes Wakanda and Avalon with distinct themed bonuses', () => {
-  expect(getCivDefinition('wakanda')).toBeDefined();
-  expect(getCivDefinition('avalon')).toBeDefined();
+it('includes Wakanda and Avalon with distinct themed bonuses that match Slice 5 identity goals', () => {
+  expect(getCivDefinition('wakanda')).toMatchObject({
+    id: 'wakanda',
+    bonusEffect: { type: 'espionage_growth', experienceBonus: 1 },
+  });
+  expect(getCivDefinition('avalon')).toMatchObject({
+    id: 'avalon',
+    bonusEffect: { type: 'wonder_rewards', rewardMultiplier: 1.25 },
+  });
+});
+```
+
+Extend `tests/systems/espionage-system.test.ts`:
+
+```typescript
+it('wakanda gains faster spy growth from successful operations', () => {
+  const state = makeEspionageFixture({ playerCivType: 'wakanda' });
+  const result = processEspionageTurn(state, new EventBus());
+  expect(result.espionage.player.spies['spy-1'].experience).toBeGreaterThan(state.espionage.player.spies['spy-1'].experience);
+});
+```
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('avalon amplifies legendary wonder rewards through the existing reward path', () => {
+  const state = makeLegendaryWonderFixture({ civType: 'avalon', oracleStepsCompleted: 2 });
+  state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+  state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+  state.cities['city-river'].productionProgress = 120;
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+  expect(result.civilizations.player.gold).toBeGreaterThan(state.civilizations.player.gold);
+});
+```
+
+Extend `tests/systems/city-system.test.ts`:
+
+```typescript
+it('founds a custom civ city from that civs saved city-name pool', () => {
+  const state = createNewGame({
+    civType: 'custom-sunfolk',
+    mapSize: 'small',
+    opponentCount: 1,
+    gameTitle: 'Custom Civ Naming',
+    customCivilizations: [customCiv],
+  });
+  const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler')!;
+  const city = foundCity('player', settler.position, state.map, {
+    civType: 'custom-sunfolk',
+    namingPool: customCiv.cityNames,
+    usedNames: new Set(),
+  });
+
+  expect(customCiv.cityNames).toContain(city.name);
 });
 ```
 
@@ -5942,7 +6106,7 @@ it('createNewGame can start from a saved custom civ registry', () => {
 - [ ] **Step 2: Run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/civ-registry.test.ts tests/systems/city-system.test.ts tests/systems/civ-definitions.test.ts tests/systems/espionage-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 3: Implement custom-civ validation, normalization, and runtime resolution**
@@ -6037,6 +6201,8 @@ export function normalizeCustomCivDefinition(def: CustomCivDefinition): CivDefin
     id: def.id,
     name: def.name,
     color: def.color,
+    leaderName: def.leaderName,
+    cityNames: [...def.cityNames],
     bonusName: trait.bonusName,
     bonusDescription: trait.bonusDescription,
     bonusEffect: trait.bonusEffect,
@@ -6053,6 +6219,24 @@ export function normalizeCustomCivDefinitions(defs: CustomCivDefinition[]): CivD
   return defs.map(normalizeCustomCivDefinition);
 }
 ```
+
+Before implementing the registry, extend the runtime `CivDefinition` type in `src/core/types.ts` so it can carry identity data end-to-end:
+
+```typescript
+export interface CivDefinition {
+  id: string;
+  name: string;
+  color: string;
+  leaderName?: string;
+  cityNames?: string[];
+  bonusName: string;
+  bonusDescription: string;
+  bonusEffect: CivBonusEffect;
+  personality: PersonalityTraits;
+}
+```
+
+This is required so custom civs, Wakanda, Avalon, and later naming-policy logic all resolve through one runtime identity model instead of splitting “bonus civ” from “naming civ”.
 
 Create `src/systems/civ-registry.ts`:
 
@@ -6083,7 +6267,11 @@ Validate:
 if (temperamentTraits.length < 1 || temperamentTraits.length > 2) {
   throw new Error('Custom civs require one primary trait and 1-2 temperament traits');
 }
+if (new Set(cityNames.map(name => name.trim().toLowerCase())).size !== cityNames.length) {
+  throw new Error('Custom civ city-name pools must use unique names');
+}
 if (cityNames.length < 6) throw new Error('Custom civs need a real city-name pool');
+if (!/^#[0-9a-fA-F]{6}$/.test(color)) throw new Error('Custom civs require a valid six-digit hex color');
 ```
 
 Persist custom civs in two places on purpose:
@@ -6109,6 +6297,7 @@ Also replace direct runtime `getCivDefinition(civ.civType)` lookups in these exa
 - `src/core/turn-manager.ts`
 - `src/ai/basic-ai.ts`
 - `src/main.ts`
+- `src/systems/council-system.ts`
 - `src/systems/diplomacy-system.ts`
 - `src/systems/espionage-system.ts`
 - `src/systems/fog-of-war.ts`
@@ -6155,6 +6344,19 @@ showHotSeatSetup(container, callbacks, { civDefinitions: playableCivs });
 
 Also update `save-persistence.test.ts` so a loaded campaign can still resolve a selected custom civ by ID after round-trip.
 
+At the same time, add built-in runtime identity data for Wakanda and Avalon:
+
+- Wakanda
+  - `leaderName: 'TChalla'`
+  - `cityNames`: curated Afro-futurist / royal Wakandan pool
+  - `bonusEffect: { type: 'espionage_growth', experienceBonus: 1 }`
+- Avalon
+  - `leaderName: 'Arthur'`
+  - `cityNames`: curated Arthurian / chivalric pool
+  - `bonusEffect: { type: 'wonder_rewards', rewardMultiplier: 1.25 }`
+
+Do not ship Wakanda and Avalon as decorative civ cards. Their planned tests must prove the bonuses reach live systems and their identity data reaches setup, runtime resolution, and later naming logic.
+
 Extend `tests/core/turn-manager.test.ts` with one runtime-regression case:
 
 ```typescript
@@ -6175,13 +6377,13 @@ it('processTurn can still resolve a saved custom civ definition after JSON round
 - [ ] **Step 5: Re-run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/civ-registry.test.ts tests/systems/city-system.test.ts tests/systems/civ-definitions.test.ts tests/systems/espionage-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 6: Commit the identity systems**
 
 ```bash
-git add src/systems/civ-registry.ts src/systems/custom-civ-system.ts src/ui/custom-civ-panel.ts src/core/types.ts src/core/game-state.ts src/core/turn-manager.ts src/ai/basic-ai.ts src/main.ts src/storage/save-manager.ts src/systems/civ-definitions.ts src/systems/diplomacy-system.ts src/systems/espionage-system.ts src/systems/fog-of-war.ts src/ui/civ-select.ts src/ui/campaign-setup.ts src/ui/hotseat-setup.ts src/ui/diplomacy-panel.ts src/ui/turn-handoff.ts tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/systems/civ-definitions.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+git add src/systems/civ-registry.ts src/systems/custom-civ-system.ts src/ui/custom-civ-panel.ts src/systems/city-system.ts src/core/types.ts src/core/game-state.ts src/core/turn-manager.ts src/ai/basic-ai.ts src/main.ts src/storage/save-manager.ts src/systems/civ-definitions.ts src/systems/council-system.ts src/systems/diplomacy-system.ts src/systems/espionage-system.ts src/systems/fog-of-war.ts src/ui/civ-select.ts src/ui/campaign-setup.ts src/ui/hotseat-setup.ts src/ui/diplomacy-panel.ts src/ui/turn-handoff.ts tests/systems/civ-registry.test.ts tests/systems/city-system.test.ts tests/systems/civ-definitions.test.ts tests/systems/espionage-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/campaign-setup.test.ts tests/ui/hotseat-setup.test.ts tests/core/game-state.test.ts tests/core/turn-manager.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 git commit -m "feat(m4e): add custom civs and final civ roster"
 ```
 
@@ -6189,10 +6391,19 @@ git commit -m "feat(m4e): add custom civs and final civ roster"
 
 **Files:**
 - Create: `src/systems/city-name-system.ts`
+- Modify: `src/systems/city-system.ts`
+- Modify: `src/core/game-state.ts`
+- Modify: `src/main.ts`
+- Modify: `src/ai/basic-ai.ts`
+- Modify: `src/storage/save-manager.ts`
 - Modify: `src/systems/civ-definitions.ts`
 - Modify: `src/systems/minor-civ-definitions.ts`
+- Modify: `src/systems/minor-civ-system.ts`
 - Modify: `src/systems/player-facing-labels.ts`
 - Create: `tests/systems/city-name-system.test.ts`
+- Modify: `tests/systems/city-system.test.ts`
+- Modify: `tests/systems/minor-civ-system.test.ts`
+- Modify: `tests/storage/save-persistence.test.ts`
 - Create: `tests/integration/m4e-acceptance.test.ts`
 - Modify: `tests/ui/council-panel.test.ts`
 
@@ -6211,19 +6422,71 @@ it('avoids duplicate global city names unless a deliberate lore exception exists
 });
 ```
 
+Extend `tests/systems/city-system.test.ts`:
+
+```typescript
+it('foundCity uses the naming system instead of the old shared CITY_NAMES pool', () => {
+  const used = new Set(['Rome']);
+  const city = foundCity('player', { q: 2, r: 2 }, map, {
+    civType: 'rome',
+    namingPool: ['Rome', 'Ostia', 'Ravenna'],
+    usedNames: used,
+  });
+
+  expect(city.name).toBe('Ostia');
+});
+```
+
+Extend `tests/storage/save-persistence.test.ts`:
+
+```typescript
+it('normalizes legacy duplicate or off-pool city names on load', () => {
+  const state = makeSaveFixture();
+  state.cities['city-1'].name = 'Rome';
+  state.cities['city-2'].name = 'Rome';
+
+  const loaded = migrateLegacyNamingState(JSON.parse(JSON.stringify(state)));
+  const names = Object.values(loaded.cities).map(city => city.name);
+
+  expect(new Set(names).size).toBe(names.length);
+});
+```
+
 Create `tests/integration/m4e-acceptance.test.ts`:
 
 ```typescript
 it('keeps council guidance trustworthy after all five slices land', () => {
-  expect(panel.textContent).not.toContain('Unknown leak');
-  expect(panel.textContent).toContain('Do Now');
+  const game = createNewGame({
+    civType: 'custom-sunfolk',
+    mapSize: 'small',
+    opponentCount: 1,
+    gameTitle: 'M4e Acceptance',
+    customCivilizations: [customCiv],
+  });
+
+  const council = renderCouncilForAcceptance(game);
+  const civSelect = renderCivSelectForAcceptance(game.settings);
+
+  expect(council.textContent).toContain('Do Now');
+  expect(council.textContent).not.toContain('Unknown leak');
+  expect(civSelect.textContent).toContain('Wakanda');
+  expect(civSelect.textContent).toContain('Avalon');
+});
+
+it('formats recalled council callbacks from current labels after naming normalization', () => {
+  const game = makeAcceptanceStateWithDuplicateNames();
+  const normalized = migrateLegacyNamingState(game);
+  const callbackText = renderCouncilCallbackForAcceptance(normalized, 'player');
+
+  expect(callbackText).not.toContain('city-river');
+  expect(callbackText).not.toContain('Unknown leak');
 });
 ```
 
 - [ ] **Step 2: Run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/city-name-system.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts tests/ui/civ-select.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/city-name-system.test.ts tests/systems/city-system.test.ts tests/systems/minor-civ-system.test.ts tests/storage/save-persistence.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts tests/ui/civ-select.test.ts
 ```
 
 - [ ] **Step 3: Implement the naming policy as a real system**
@@ -6240,7 +6503,21 @@ export function drawNextCityName(civType: string, usedNames: Set<string>): strin
 }
 ```
 
-Use it in city founding / civ definitions, and keep `player-facing-labels.ts` aligned with the final naming policy rather than the Slice 1 interim rule.
+This task must own the actual execution path, not just the policy helper.
+
+Implementation rules:
+
+- `src/systems/city-system.ts` must call the naming system when founding a city
+- `src/core/game-state.ts`, `src/main.ts`, `src/ai/basic-ai.ts`, and `src/systems/minor-civ-system.ts` must pass enough naming context that founded cities use the correct civ-specific pool
+- `src/storage/save-manager.ts` must run one deterministic legacy naming migration on load so old duplicate or off-pool names are normalized
+- `player-facing-labels.ts` must still disambiguate safely even after the naming fix, because captured/imported/legacy states may still require viewer-safe qualifiers
+
+Migration rules:
+
+- if a fantasy civ city name is not from that civ’s pool, rename it deterministically on first load
+- if two major cities collide nonsensically, keep the earliest valid name and rename the later one
+- if a pool is exhausted, fall back to `${civ display name} ${n}`
+- do not silently rename minor-civ display names unless they actually collide with another existing city-state or major-city label in the same state
 
 - [ ] **Step 4: Run the milestone-wide consolidation checks**
 
@@ -6252,18 +6529,20 @@ expect(techPanel.querySelector('[data-era="5"]')).toBeTruthy();
 expect(wonderPanel.textContent).toContain('Best fits right now');
 expect(civSelect.textContent).toContain('Wakanda');
 expect(civSelect.textContent).toContain('Avalon');
+expect(firstFoundedCustomCityName).toMatch(/Solara|Embergate|Sunspire|Goldmere|Dawnwatch|Auric/);
+expect(callbackText).not.toContain('city-river');
 ```
 
 - [ ] **Step 5: Re-run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/city-name-system.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts tests/ui/civ-select.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/city-name-system.test.ts tests/systems/city-system.test.ts tests/systems/minor-civ-system.test.ts tests/storage/save-persistence.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts tests/ui/civ-select.test.ts
 ```
 
 - [ ] **Step 6: Commit the naming fix and final consolidation**
 
 ```bash
-git add src/systems/city-name-system.ts src/systems/civ-definitions.ts src/systems/minor-civ-definitions.ts src/systems/player-facing-labels.ts tests/systems/city-name-system.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts
+git add src/systems/city-name-system.ts src/systems/city-system.ts src/core/game-state.ts src/main.ts src/ai/basic-ai.ts src/storage/save-manager.ts src/systems/civ-definitions.ts src/systems/minor-civ-definitions.ts src/systems/minor-civ-system.ts src/systems/player-facing-labels.ts tests/systems/city-name-system.test.ts tests/systems/city-system.test.ts tests/systems/minor-civ-system.test.ts tests/storage/save-persistence.test.ts tests/integration/m4e-acceptance.test.ts tests/ui/council-panel.test.ts tests/ui/civ-select.test.ts
 git commit -m "feat(m4e): finish naming integrity and final tuning"
 ```
 
@@ -6276,7 +6555,7 @@ git commit -m "feat(m4e): finish naming integrity and final tuning"
 - [ ] **Step 1: Run the final targeted suite**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/systems/auto-explore-system.test.ts tests/ui/desktop-controls.test.ts tests/ui/fog-leak.test.ts tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts tests/ui/wonder-panel.test.ts tests/systems/council-memory.test.ts tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/hotseat-setup.test.ts tests/systems/city-name-system.test.ts tests/integration/m4e-council-guidance.test.ts tests/integration/m4e-acceptance.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/ui/council-panel.test.ts tests/ui/advisor-system.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/systems/auto-explore-system.test.ts tests/ui/desktop-controls.test.ts tests/ui/fog-leak.test.ts tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts tests/ui/wonder-panel.test.ts tests/systems/council-memory.test.ts tests/systems/civ-registry.test.ts tests/systems/city-system.test.ts tests/systems/minor-civ-system.test.ts tests/systems/city-name-system.test.ts tests/systems/espionage-system.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/hotseat-setup.test.ts tests/integration/m4e-council-guidance.test.ts tests/integration/m4e-acceptance.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 2: Run the full suite and build**
@@ -6347,8 +6626,12 @@ These names must stay consistent across implementation:
 - `getQuestOriginLabel(...)`
 - `resolveCivDefinition(...)`
 - `getPlayableCivDefinitions(...)`
-- `CustomCivTraitId`
+- `CouncilMemoryEntry`
+- `formatCouncilMemoryEntry(...)`
+- `collectAdvisorCallback(...)`
+- `CustomCivPrimaryTraitId`
 - `CustomCivDefinition`
 - `drawNextCityName(...)`
+- `migrateLegacyNamingState(...)`
 
 If implementation needs different names, rename them consistently in every later task before coding.
