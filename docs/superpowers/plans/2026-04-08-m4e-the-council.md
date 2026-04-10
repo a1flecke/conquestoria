@@ -4298,6 +4298,474 @@ git add tests/systems/legendary-wonder-system.test.ts tests/systems/council-syst
 git commit -m "test(m4e): harden slice 4 wonder contract coverage"
 ```
 
+### Task 13O: Remove Legacy Step-ID Escape Hatches And Make Definitions The Only Rule Source
+
+**Root Cause Analysis**
+
+The Grand Canal regression is not really about one bad condition. It is a deeper contract problem:
+
+1. wonder definitions now carry richer typed quest metadata
+2. `evaluateLegendaryWonderStep()` still contains a legacy `switch (stepId)` escape hatch
+3. the escape hatch can silently override the meaning of a typed step after the catalog changes
+
+That means Slice 4 currently has **two independent rule sources** for the same quest:
+
+- typed definition metadata in `legendary-wonder-definitions.ts`
+- string-ID overrides in `legendary-wonder-system.ts`
+
+As long as both exist, every future wonder expansion risks reintroducing the same drift. The fix is not “patch `grow-river-city`.” The fix is to make definition metadata the only authority for quest semantics, and keep any remaining legacy compatibility branch list explicit and shrinking to zero.
+
+**Files:**
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `src/systems/legendary-wonder-definitions.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/systems/legendary-wonder-definitions.test.ts`
+
+- [ ] **Step 1: Add failing regressions that prove typed steps beat old ID assumptions**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('evaluates grand canal growth from the new buildings-in-multiple-cities rule, not legacy population logic', () => {
+  const state = makeLegendaryWonderFixture({
+    completedTechs: ['city-planning', 'printing'],
+    resources: ['stone'],
+  });
+  state.cities['city-river'].population = 7;
+  state.cities['city-river'].buildings = ['granary'];
+
+  let result = tickLegendaryWonderProjects(state, new EventBus());
+  let grandCanal = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'grand-canal',
+  );
+  expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')?.completed).toBe(false);
+
+  state.cities['city-river'].population = 5;
+  state.cities['city-river'].buildings = ['granary', 'herbalist', 'library'];
+
+  result = tickLegendaryWonderProjects(state, new EventBus());
+  grandCanal = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'grand-canal',
+  );
+  expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')?.completed).toBe(true);
+});
+```
+
+Extend `tests/systems/legendary-wonder-definitions.test.ts`:
+
+```typescript
+it('does not rely on legacy step-id semantics for grand canal growth', () => {
+  const grandCanal = getLegendaryWonderDefinitions().find(w => w.id === 'grand-canal');
+  expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')).toMatchObject({
+    type: 'buildings-in-multiple-cities',
+    targetCount: 1,
+  });
+});
+```
+
+- [ ] **Step 2: Run the focused regressions and confirm failure**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
+```
+
+Expected: FAIL because the legacy `grow-river-city` branch still uses `population >= 7`.
+
+- [ ] **Step 3: Collapse quest evaluation onto typed metadata**
+
+In `src/systems/legendary-wonder-system.ts`:
+
+- remove the `grow-river-city` special-case from the `switch (stepId)` block
+- keep only step-ID branches that are still true aliases for the same typed rule and do not contradict current metadata
+- prefer `step.type`, `step.targetCount`, `step.track`, `step.scope`, `step.routeRequirement`, and `step.minimumRouteDistance` for all current roster logic
+
+The critical shape after cleanup should look like:
+
+```typescript
+switch (stepId) {
+  case 'discover-natural-wonder':
+    return discoveredWonderCount >= 1;
+  case 'complete-four-communication-techs':
+    return civ.techState.completed.filter(techId => getTechById(techId)?.track === 'communication').length >= 4;
+}
+
+switch (step.type) {
+  case 'trade_route':
+  case 'trade-routes-established':
+    return matchingTradeRoutes.length >= (step.targetCount ?? 1);
+  case 'buildings-in-multiple-cities':
+    return builtUpCities.length >= (step.targetCount ?? 2);
+  // remaining typed branches...
+}
+```
+
+If a step still needs custom semantics beyond the existing type metadata, add explicit metadata to the definition instead of adding another ID override.
+
+- [ ] **Step 4: Re-run the focused regressions**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit the typed-rule cleanup**
+
+```bash
+git add src/systems/legendary-wonder-system.ts src/systems/legendary-wonder-definitions.ts tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
+git commit -m "fix(m4e): make wonder quest definitions authoritative"
+```
+
+### Task 13P: Normalize Wonder Projects Immediately At Creation Time, Not One Turn Later
+
+**Root Cause Analysis**
+
+The seeding bug comes from a split-brain lifecycle:
+
+1. `initializeLegendaryWonderProjectsForCity()` creates a new project shell
+2. that shell starts with every step marked incomplete
+3. only a later call to `tickLegendaryWonderProjects()` recomputes actual progress
+
+So the system knows the empire has already satisfied global conditions, but the project object does not. That is a user-visible state lag, and it affects:
+
+- wonder panel progress text
+- `ready_to_build` phase
+- `startLegendaryWonderBuild()` on the same turn
+- AI evaluation when a new city is founded or a condition flips mid-turn
+
+The correct model is:
+
+- project creation must immediately normalize to current truth
+- tick processing may advance truth later, but it must not be the first time the project becomes accurate
+
+**Files:**
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+
+- [ ] **Step 1: Add failing regressions for immediate normalization**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('seeds a newly created project with already-satisfied steps marked complete', () => {
+  const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 0 });
+  state.wonderDiscoverers = { 'natural-1': ['player'] };
+  state.marketplace = {
+    prices: {} as any,
+    priceHistory: {} as any,
+    fashionable: null,
+    fashionTurnsLeft: 0,
+    tradeRoutes: [
+      { fromCityId: 'city-river', toCityId: 'city-rival', goldPerTurn: 4, foreignCivId: 'rival' },
+    ],
+  };
+  state.legendaryWonderProjects = undefined;
+
+  const result = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+  const oracle = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'oracle-of-delphi',
+  );
+
+  expect(oracle?.questSteps.every(step => step.completed)).toBe(true);
+  expect(oracle?.phase).toBe('ready_to_build');
+});
+
+it('lets a player start a newly seeded wonder immediately when all conditions are already met', () => {
+  const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 0 });
+  state.wonderDiscoverers = { 'natural-1': ['player'] };
+  state.marketplace = {
+    prices: {} as any,
+    priceHistory: {} as any,
+    fashionable: null,
+    fashionTurnsLeft: 0,
+    tradeRoutes: [
+      { fromCityId: 'city-river', toCityId: 'city-rival', goldPerTurn: 4, foreignCivId: 'rival' },
+    ],
+  };
+  state.legendaryWonderProjects = undefined;
+
+  const started = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi');
+
+  const oracle = Object.values(started.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'oracle-of-delphi',
+  );
+  expect(oracle?.phase).toBe('building');
+});
+```
+
+Extend `tests/ui/wonder-panel.test.ts`:
+
+```typescript
+it('shows current quest progress immediately for a newly seeded wonder project', () => {
+  // newly seeded city project renders completed steps without waiting for end turn
+});
+```
+
+- [ ] **Step 2: Run the focused regressions and confirm failure**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts
+```
+
+Expected: FAIL because newly seeded projects still start at `0/N`.
+
+- [ ] **Step 3: Add one immediate normalization helper and use it everywhere new projects appear**
+
+In `src/systems/legendary-wonder-system.ts`, add:
+
+```typescript
+function createLegendaryWonderProject(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  definition: ReturnType<typeof getLegendaryWonderDefinition> extends infer T ? NonNullable<T> : never,
+): LegendaryWonderProject {
+  const seededProject: LegendaryWonderProject = {
+    wonderId: definition.id,
+    ownerId: civId,
+    cityId,
+    phase: 'questing',
+    investedProduction: 0,
+    transferableProduction: 0,
+    questSteps: definition.questSteps.map(step => ({
+      id: step.id,
+      description: step.description ?? getDefaultQuestStepDescription(step),
+      completed: false,
+    })),
+  };
+
+  const syncedProject = syncLegendaryWonderQuestSteps(state, seededProject);
+  return syncedProject.questSteps.every(step => step.completed)
+    ? { ...syncedProject, phase: 'ready_to_build' }
+    : syncedProject;
+}
+```
+
+Then replace the inlined project creation in `initializeLegendaryWonderProjectsForCity()` with that helper.
+
+Also make `startLegendaryWonderBuild()` seed and normalize before checking `project.phase !== 'ready_to_build'`, so “already complete on creation” works on the same turn.
+
+- [ ] **Step 4: Re-run the focused regressions**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit the immediate-normalization fix**
+
+```bash
+git add src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts
+git commit -m "fix(m4e): normalize wonder projects on creation"
+```
+
+### Task 13Q: Clean Up Every AI Wonder Loss In One Turn, Not Just The First One
+
+**Root Cause Analysis**
+
+The AI lost-race helper still assumes a world where one AI civ abandons at most one wonder race per turn. Slice 4 changed that assumption by allowing up to two active wonder builds. The helper now has a structural mismatch:
+
+- the data model allows multiple simultaneous lost-race transitions
+- the cleanup helper returns after the first one
+
+That creates stuck production queues, delayed refunds, and inconsistent AI recovery behavior. The real fix is to make wonder-loss cleanup a batch transition owned by the helper, not a one-project early return.
+
+**Files:**
+- Modify: `src/ai/basic-ai.ts`
+- Modify: `tests/ai/basic-ai.test.ts`
+
+- [ ] **Step 1: Add failing regressions for multi-loss cleanup**
+
+Extend `tests/ai/basic-ai.test.ts`:
+
+```typescript
+function makeLegendaryWonderAiFixture(options: { duplicateLostRace?: boolean } = {}): GameState {
+  // when duplicateLostRace is true, add a second ai city with
+  // productionQueue: ['legendary:oracle-of-delphi']
+  // and a second rival city already far ahead on that same wonder
+}
+
+it('processes every lost ai wonder race in the same turn', () => {
+  const state = makeLegendaryWonderAiFixture({ duplicateLostRace: true });
+  const bus = new EventBus();
+  const lostEvents: Array<{ wonderId: string; cityId: string }> = [];
+  bus.on('wonder:legendary-lost', event => lostEvents.push(event));
+
+  const result = processAITurn(state, 'ai-1', bus);
+
+  const lostProjects = Object.values(result.legendaryWonderProjects ?? {}).filter(project =>
+    project.ownerId === 'ai-1' && project.phase === 'lost_race',
+  );
+  expect(lostProjects).toHaveLength(2);
+  expect(result.cities['city-ai'].productionQueue[0]).not.toMatch(/^legendary:/);
+  expect(result.cities['city-ai-2'].productionQueue[0]).not.toMatch(/^legendary:/);
+  expect(lostEvents).toHaveLength(2);
+});
+
+it('does not leave a second ai city stuck on a dead legendary queue after the first abandonment', () => {
+  const state = makeLegendaryWonderAiFixture({ duplicateLostRace: true });
+  const result = processAITurn(state, 'ai-1', new EventBus());
+
+  expect(result.cities['city-ai-2'].productionQueue.some(item => item.startsWith('legendary:'))).toBe(false);
+});
+```
+
+- [ ] **Step 2: Run the focused AI regressions and confirm failure**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ai/basic-ai.test.ts
+```
+
+Expected: FAIL because only the first abandoned project is currently processed.
+
+- [ ] **Step 3: Convert AI wonder-loss cleanup from singular return to batched reduction**
+
+In `src/ai/basic-ai.ts`, replace the early-return loop in `abandonLostLegendaryWonderRace()` with a batched update:
+
+```typescript
+function abandonLostLegendaryWonderRace(state: GameState, civId: string): AbandonLegendaryWonderRaceResult {
+  if (!state.legendaryWonderProjects) {
+    return { state, lostEvents: [] };
+  }
+
+  let nextState = state;
+  const lostEvents: AbandonLegendaryWonderRaceResult['lostEvents'] = [];
+
+  for (const [projectKey, project] of Object.entries(nextState.legendaryWonderProjects ?? {})) {
+    if (project.ownerId !== civId || project.phase !== 'building') {
+      continue;
+    }
+
+    // existing rival-lead check
+    // if abandoned:
+    //   - update nextState cities/civilizations/project
+    //   - push one lost event
+    //   - continue scanning remaining projects
+  }
+
+  return { state: nextState, lostEvents };
+}
+```
+
+The helper must:
+
+- scan every building wonder project for that civ
+- abandon every race that meets the “far behind with real intel” rule
+- preserve separate fallback queues per city
+- emit one event per project transition only
+
+- [ ] **Step 4: Re-run the focused AI regressions**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ai/basic-ai.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit the AI batch cleanup**
+
+```bash
+git add src/ai/basic-ai.ts tests/ai/basic-ai.test.ts
+git commit -m "fix(m4e): batch ai wonder-loss cleanup"
+```
+
+### Task 13R: Add Wonder-Authoring Guardrails So New Wonders And Rules Don’t Reopen Slice 4 Bugs
+
+**Root Cause Analysis**
+
+The repeated review cycle shows Slice 4 is missing one final developer-facing layer: guardrails that make correct wonder authoring the easy path. Right now it is still too easy to:
+
+- add a new wonder step with semantics hidden in a future `stepId` branch
+- seed a new project shell without normalizing it
+- add a new AI wonder recovery path that only handles one project
+
+If we want new wonders and rules to be cheap to add later, the codebase needs a clearer contract:
+
+1. wonder definitions carry semantics through explicit metadata
+2. project creation always flows through one normalization helper
+3. AI loss cleanup is batched by design
+4. the regression pack must cover those classes permanently
+
+**Files:**
+- Modify: `AGENTS.md`
+- Modify: `.claude/rules/strategy-game-mechanics.md`
+- Modify: `scripts/run-wonder-regressions.sh`
+- Modify: `tests/systems/legendary-wonder-definitions.test.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/ai/basic-ai.test.ts`
+
+- [ ] **Step 1: Add authoring-contract regressions**
+
+Extend `tests/systems/legendary-wonder-definitions.test.ts`:
+
+```typescript
+it('uses explicit metadata for every route-flavored or scope-flavored wonder step', () => {
+  const definitions = getLegendaryWonderDefinitions();
+  for (const definition of definitions) {
+    for (const step of definition.questSteps) {
+      if (step.type === 'trade_route' || step.type === 'trade-routes-established') {
+        expect(step.routeRequirement ?? 'any').toBeDefined();
+      }
+      if (step.type === 'defeat_stronghold') {
+        expect(step.scope ?? 'any').toBeDefined();
+      }
+    }
+  }
+});
+```
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('creates newly seeded wonder projects through the shared normalization helper', () => {
+  // seed after global progress already exists and verify immediate accurate phase + questSteps
+});
+```
+
+Extend `tests/ai/basic-ai.test.ts`:
+
+```typescript
+it('ai wonder-loss cleanup remains multi-project safe after a second city is added mid-game', () => {
+  // found/insert second city, give two active races, verify one-turn cleanup of both
+});
+```
+
+- [ ] **Step 2: Extend the wonder regression script to keep these classes permanent**
+
+Update `scripts/run-wonder-regressions.sh` so it always includes:
+
+- `tests/systems/legendary-wonder-definitions.test.ts`
+- `tests/systems/legendary-wonder-system.test.ts`
+- `tests/ui/wonder-panel.test.ts`
+- `tests/ui/legendary-wonder-notifications.test.ts`
+- `tests/systems/council-system.test.ts`
+- `tests/ai/basic-ai.test.ts`
+- `tests/systems/playtest-fixes.test.ts`
+
+- [ ] **Step 3: Add repo guidance so future wonder work follows the right contracts**
+
+In `AGENTS.md` and `.claude/rules/strategy-game-mechanics.md`, add short rules:
+
+- “Do not encode new wonder semantics in `stepId` branches when metadata can express them.”
+- “Any new seeded wonder project must be normalized immediately, not first corrected on end-of-turn.”
+- “Any AI cleanup for wonder loss must process every eligible project in the turn, not early-return after the first.”
+- “If adding a new wonder rule, add a definition test and a system regression in the wonder regression pack.”
+
+- [ ] **Step 4: Re-run the wonder regression pack**
+
+```bash
+./scripts/run-wonder-regressions.sh
+```
+
+- [ ] **Step 5: Commit the authoring guardrails**
+
+```bash
+git add AGENTS.md .claude/rules/strategy-game-mechanics.md scripts/run-wonder-regressions.sh tests/systems/legendary-wonder-definitions.test.ts tests/systems/legendary-wonder-system.test.ts tests/ai/basic-ai.test.ts
+git commit -m "docs(m4e): harden wonder authoring guardrails"
+```
+
 ### Task 14: Release Gate For Slice 4
 
 **Files:**
