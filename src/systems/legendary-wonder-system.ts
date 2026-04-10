@@ -124,6 +124,41 @@ function getEffectiveLegendaryWonderInvestment(
   return project.investedProduction;
 }
 
+function getNormalizedLegendaryWonderProject(
+  state: GameState,
+  project: LegendaryWonderProject,
+): LegendaryWonderProject {
+  const syncedProject = syncLegendaryWonderQuestSteps(state, project);
+  if (syncedProject.phase === 'questing' && syncedProject.questSteps.every(step => step.completed)) {
+    return {
+      ...syncedProject,
+      phase: 'ready_to_build',
+    };
+  }
+  return syncedProject;
+}
+
+function createLegendaryWonderProject(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  definition: NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>,
+): LegendaryWonderProject {
+  return getNormalizedLegendaryWonderProject(state, {
+    wonderId: definition.id,
+    ownerId: civId,
+    cityId,
+    phase: 'questing',
+    investedProduction: 0,
+    transferableProduction: 0,
+    questSteps: definition.questSteps.map(step => ({
+      id: step.id,
+      description: step.description ?? getDefaultQuestStepDescription(step),
+      completed: false,
+    })),
+  });
+}
+
 function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderProject, stepId: string): boolean {
   const definition = getLegendaryWonderDefinition(project.wonderId);
   const step = definition?.questSteps.find(candidate => candidate.id === stepId);
@@ -157,8 +192,6 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
     case 'connect-two-cities':
     case 'establish-two-trade-links':
       return ownedTradeRoutes.length >= 2;
-    case 'grow-river-city':
-      return hasCityRequirement(state, city.id, 'river') && city.population >= 7;
     case 'complete-four-communication-techs':
       return civ.techState.completed.filter(techId => getTechById(techId)?.track === 'communication').length >= 4;
   }
@@ -227,19 +260,12 @@ export function initializeLegendaryWonderProjectsForCity(
       continue;
     }
 
-    legendaryWonderProjects[buildLegendaryWonderProjectKey(civId, cityId, definition.id)] = {
-      wonderId: definition.id,
-      ownerId: civId,
+    legendaryWonderProjects[buildLegendaryWonderProjectKey(civId, cityId, definition.id)] = createLegendaryWonderProject(
+      { ...state, legendaryWonderProjects },
+      civId,
       cityId,
-      phase: 'questing',
-      investedProduction: 0,
-      transferableProduction: 0,
-      questSteps: definition.questSteps.map(step => ({
-        id: step.id,
-        description: step.description ?? getDefaultQuestStepDescription(step),
-        completed: false,
-      })),
-    };
+      definition,
+    );
     changed = true;
   }
 

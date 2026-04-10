@@ -566,6 +566,86 @@ describe('legendary-wonder-system', () => {
     ]);
   });
 
+  it('evaluates grand canal growth from the new development rule, not legacy population logic', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['city-planning', 'printing'],
+      resources: ['stone'],
+    });
+    state.cities['city-river'].population = 7;
+    state.cities['city-river'].buildings = ['granary'];
+
+    let result = tickLegendaryWonderProjects(state, new EventBus());
+    let grandCanal = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'grand-canal',
+    );
+    expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')?.completed).toBe(false);
+
+    state.cities['city-river'].population = 5;
+    state.cities['city-river'].buildings = ['granary', 'herbalist', 'library'];
+
+    result = tickLegendaryWonderProjects(state, new EventBus());
+    grandCanal = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'grand-canal',
+    );
+    expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')?.completed).toBe(true);
+  });
+
+  it('seeds a new wonder project with already-satisfied steps marked complete and ready to build', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 0, resources: ['stone'] });
+    state.legendaryWonderProjects = undefined;
+    state.wonderDiscoverers = { 'natural-1': ['player'] };
+    state.marketplace = {
+      prices: {} as any,
+      priceHistory: {} as any,
+      fashionable: null,
+      fashionTurnsLeft: 0,
+      tradeRoutes: [
+        {
+          fromCityId: 'city-river',
+          toCityId: 'city-rival',
+          goldPerTurn: 4,
+          foreignCivId: 'rival',
+        },
+      ],
+    };
+
+    const result = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const oracle = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'oracle-of-delphi',
+    );
+
+    expect(oracle?.questSteps.every(step => step.completed)).toBe(true);
+    expect(oracle?.phase).toBe('ready_to_build');
+  });
+
+  it('lets a player start a newly seeded wonder immediately when all conditions are already met', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 0, resources: ['stone'] });
+    state.legendaryWonderProjects = undefined;
+    state.wonderDiscoverers = { 'natural-1': ['player'] };
+    state.marketplace = {
+      prices: {} as any,
+      priceHistory: {} as any,
+      fashionable: null,
+      fashionTurnsLeft: 0,
+      tradeRoutes: [
+        {
+          fromCityId: 'city-river',
+          toCityId: 'city-rival',
+          goldPerTurn: 4,
+          foreignCivId: 'rival',
+        },
+      ],
+    };
+
+    const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi');
+    const oracle = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'oracle-of-delphi',
+    );
+
+    expect(oracle?.phase).toBe('building');
+    expect(result.cities['city-river'].productionQueue[0]).toBe('legendary:oracle-of-delphi');
+  });
+
   it('requires a coastal trade route for tidecaller bastion', () => {
     const state = makeLegendaryWonderFixture();
     state.civilizations.player.techState.completed = ['caravels', 'fortresses'];

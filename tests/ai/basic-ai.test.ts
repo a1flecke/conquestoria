@@ -408,8 +408,8 @@ function makeAiBreakawayState(): GameState {
   } as GameState;
 }
 
-function makeLegendaryWonderAiFixture(): GameState {
-  return {
+function makeLegendaryWonderAiFixture(options: { duplicateLostRace?: boolean } = {}): GameState {
+  const state = {
     turn: 40,
     era: 4,
     currentPlayer: 'ai-1',
@@ -580,6 +580,84 @@ function makeLegendaryWonderAiFixture(): GameState {
       },
     },
   } as GameState;
+
+  if (options.duplicateLostRace) {
+    state.map.tiles['1,0'] = {
+      ...state.map.tiles['0,0'],
+      coord: { q: 1, r: 0 },
+      owner: 'ai-1',
+      hasRiver: false,
+    };
+    state.map.tiles['0,1'] = {
+      ...state.map.tiles['0,0'],
+      coord: { q: 0, r: 1 },
+      owner: 'ai-1',
+      hasRiver: false,
+    };
+    state.map.tiles['5,0'] = {
+      ...state.map.tiles['4,0'],
+      coord: { q: 5, r: 0 },
+      owner: 'player',
+      hasRiver: false,
+    };
+    state.map.tiles['4,1'] = {
+      ...state.map.tiles['4,0'],
+      coord: { q: 4, r: 1 },
+      owner: 'player',
+      hasRiver: false,
+    };
+    state.cities['city-ai-2'] = {
+      ...state.cities['city-ai'],
+      id: 'city-ai-2',
+      name: 'Second Capital',
+      position: { q: 0, r: 1 },
+      productionQueue: ['legendary:oracle-of-delphi'],
+      productionProgress: 60,
+      ownedTiles: [{ q: 0, r: 1 }, { q: 1, r: 0 }],
+    };
+    state.cities['city-player-2'] = {
+      ...state.cities['city-player'],
+      id: 'city-player-2',
+      name: 'Second Rival',
+      position: { q: 4, r: 1 },
+      ownedTiles: [{ q: 4, r: 1 }, { q: 5, r: 0 }],
+    };
+    state.civilizations['ai-1'].cities.push('city-ai-2');
+    state.civilizations.player.cities.push('city-player-2');
+    state.espionage!['ai-1'].spies['spy-ai-2'] = {
+      id: 'spy-ai-2',
+      owner: 'ai-1',
+      name: 'Agent Ember',
+      targetCivId: 'player',
+      targetCityId: 'city-player-2',
+      position: { q: 4, r: 1 },
+      status: 'stationed',
+      experience: 0,
+      currentMission: null,
+      cooldownTurns: 0,
+      promotionAvailable: false,
+    };
+    state.legendaryWonderProjects!['oracle-ai'] = {
+      wonderId: 'oracle-of-delphi',
+      ownerId: 'ai-1',
+      cityId: 'city-ai-2',
+      phase: 'building',
+      investedProduction: 60,
+      transferableProduction: 0,
+      questSteps: [],
+    };
+    state.legendaryWonderProjects!['oracle-rival'] = {
+      wonderId: 'oracle-of-delphi',
+      ownerId: 'player',
+      cityId: 'city-player-2',
+      phase: 'building',
+      investedProduction: 180,
+      transferableProduction: 0,
+      questSteps: [],
+    };
+  }
+
+  return state;
 }
 
 function makeLegendaryWonderOpportunityFixture(): GameState {
@@ -994,6 +1072,23 @@ describe('processAITurn', () => {
       cityId: 'city-ai',
       wonderId: 'grand-canal',
     }));
+  });
+
+  it('processes every lost ai wonder race in the same turn', () => {
+    const state = makeLegendaryWonderAiFixture({ duplicateLostRace: true });
+    const bus = new EventBus();
+    const lostEvents: Array<{ wonderId: string; cityId: string }> = [];
+    bus.on('wonder:legendary-lost', event => lostEvents.push(event));
+
+    const result = processAITurn(state, 'ai-1', bus);
+    const lostProjects = Object.values(result.legendaryWonderProjects ?? {}).filter(project =>
+      project.ownerId === 'ai-1' && project.phase === 'lost_race',
+    );
+
+    expect(lostProjects).toHaveLength(2);
+    expect(result.cities['city-ai'].productionQueue[0]).not.toMatch(/^legendary:/);
+    expect(result.cities['city-ai-2'].productionQueue[0]).not.toMatch(/^legendary:/);
+    expect(lostEvents).toHaveLength(2);
   });
 
   it('uses Stage 5 espionage remotely when an idle spy has cyber-warfare tech', () => {

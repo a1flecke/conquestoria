@@ -17,12 +17,17 @@ describe('legendary-wonder-definitions', () => {
 
   it('supports the new Slice 4 quest-step patterns in the expanded catalog', () => {
     const definitions = getLegendaryWonderDefinitions();
+    const grandCanal = definitions.find(w => w.id === 'grand-canal');
     const internet = definitions.find(w => w.id === 'internet');
     const stormSignalSpire = definitions.find(w => w.id === 'storm-signal-spire');
     const tidecaller = definitions.find(w => w.id === 'tidecaller-bastion');
     const gate = definitions.find(w => w.id === 'gate-of-the-world');
     const drydock = definitions.find(w => w.id === 'leviathan-drydock');
 
+    expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')).toMatchObject({
+      type: 'buildings-in-multiple-cities',
+      targetCount: 1,
+    });
     expect(internet?.questSteps.some(step => step.type === 'buildings-in-multiple-cities')).toBe(true);
     expect(internet?.questSteps.some(step => step.type === 'trade-routes-established')).toBe(true);
     expect(stormSignalSpire?.questSteps.some(step => step.type === 'map-discoveries')).toBe(true);
@@ -49,5 +54,18 @@ describe('legendary-wonder-definitions', () => {
       wonderId: 'internet',
       requiredTechs: ['mass-media', 'global-logistics'],
     });
+  });
+
+  it('uses explicit metadata for route and stronghold flavored wonder steps', () => {
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const step of definition.questSteps) {
+        if (step.type === 'trade_route' || step.type === 'trade-routes-established') {
+          expect(step.routeRequirement ?? 'any').toBeDefined();
+        }
+        if (step.type === 'defeat_stronghold') {
+          expect(step.scope ?? 'any').toBeDefined();
+        }
+      }
+    }
   });
 });

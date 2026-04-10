@@ -91,73 +91,93 @@ interface AbandonLegendaryWonderRaceResult {
   }>;
 }
 
+function getAiLegendaryWonderInvestment(state: GameState, project: NonNullable<GameState['legendaryWonderProjects']>[string]): number {
+  const city = state.cities[project.cityId];
+  if (project.phase === 'building' && city?.productionQueue[0] === `legendary:${project.wonderId}`) {
+    return city.productionProgress;
+  }
+  return project.investedProduction;
+}
+
 function abandonLostLegendaryWonderRace(state: GameState, civId: string): AbandonLegendaryWonderRaceResult {
   if (!state.legendaryWonderProjects) {
     return { state, lostEvents: [] };
   }
 
-  for (const [projectKey, project] of Object.entries(state.legendaryWonderProjects)) {
+  let nextState = state;
+  const lostEvents: AbandonLegendaryWonderRaceResult['lostEvents'] = [];
+
+  for (const [projectKey] of Object.entries(state.legendaryWonderProjects)) {
+    const project = nextState.legendaryWonderProjects?.[projectKey];
+    if (!project) {
+      continue;
+    }
     if (project.ownerId !== civId || project.phase !== 'building') {
       continue;
     }
 
-    const rivalProjects = Object.entries(state.legendaryWonderProjects).filter(([, rivalProject]) =>
+    const rivalProjects = Object.entries(nextState.legendaryWonderProjects ?? {}).filter(([, rivalProject]) =>
       rivalProject.wonderId === project.wonderId
       && rivalProject.ownerId !== civId
       && rivalProject.phase === 'building'
-      && hasStationedSpyIntel(state, civId, rivalProject.ownerId, rivalProject.cityId),
+      && hasStationedSpyIntel(nextState, civId, rivalProject.ownerId, rivalProject.cityId),
     );
 
     const rivalLeader = rivalProjects
-      .map(([, rivalProject]) => rivalProject)
+      .map(([, rivalProject]) => ({
+        project: rivalProject,
+        investedProduction: getAiLegendaryWonderInvestment(nextState, rivalProject),
+      }))
       .sort((left, right) => right.investedProduction - left.investedProduction)[0];
-    if (!rivalLeader || rivalLeader.investedProduction < project.investedProduction + 100) {
+    const projectInvestment = getAiLegendaryWonderInvestment(nextState, project);
+    if (!rivalLeader || rivalLeader.investedProduction < projectInvestment + 100) {
       continue;
     }
 
-    const city = state.cities[project.cityId];
+    const city = nextState.cities[project.cityId];
     const currentQueue = city?.productionQueue ?? [];
-    const compensation = loseLegendaryWonderRace(project.investedProduction);
-    const fallbackBuild = city ? chooseLegendaryWonderFallback(state, civId, city.id, personalitySafe(state, civId)) : 'warrior';
+    const compensation = loseLegendaryWonderRace(projectInvestment);
+    const fallbackBuild = city ? chooseLegendaryWonderFallback(nextState, civId, city.id, personalitySafe(nextState, civId)) : 'warrior';
+    const currentProjects = nextState.legendaryWonderProjects ?? {};
 
-    return {
-      state: {
-        ...state,
-        cities: city ? {
-          ...state.cities,
-          [city.id]: {
-            ...city,
-            productionQueue: [fallbackBuild, ...currentQueue.filter(item => item !== `legendary:${project.wonderId}`)],
-            productionProgress: compensation.transferableProduction,
-          },
-        } : state.cities,
-        civilizations: {
-          ...state.civilizations,
-          [civId]: {
-            ...state.civilizations[civId],
-            gold: state.civilizations[civId].gold + compensation.goldRefund,
-          },
+    nextState = {
+      ...nextState,
+      cities: city ? {
+        ...nextState.cities,
+        [city.id]: {
+          ...city,
+          productionQueue: [fallbackBuild, ...currentQueue.filter(item => item !== `legendary:${project.wonderId}`)],
+          productionProgress: compensation.transferableProduction,
         },
-        legendaryWonderProjects: {
-          ...state.legendaryWonderProjects,
-          [projectKey]: {
-            ...project,
-            phase: 'lost_race',
-            transferableProduction: compensation.transferableProduction,
-          },
+      } : nextState.cities,
+      civilizations: {
+        ...nextState.civilizations,
+        [civId]: {
+          ...nextState.civilizations[civId],
+          gold: nextState.civilizations[civId].gold + compensation.goldRefund,
         },
       },
-      lostEvents: [{
-        civId,
-        cityId: project.cityId,
-        wonderId: project.wonderId,
-        goldRefund: compensation.goldRefund,
-        transferableProduction: compensation.transferableProduction,
-      }],
+      legendaryWonderProjects: {
+        ...currentProjects,
+        [projectKey]: {
+          ...project,
+          phase: 'lost_race',
+          investedProduction: projectInvestment,
+          transferableProduction: compensation.transferableProduction,
+        },
+      },
     };
+
+    lostEvents.push({
+      civId,
+      cityId: project.cityId,
+      wonderId: project.wonderId,
+      goldRefund: compensation.goldRefund,
+      transferableProduction: compensation.transferableProduction,
+    });
   }
 
-  return { state, lostEvents: [] };
+  return { state: nextState, lostEvents };
 }
 
 function personalitySafe(state: GameState, civId: string): PersonalityTraits {

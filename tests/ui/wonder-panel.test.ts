@@ -137,6 +137,37 @@ describe('wonder-panel', () => {
     expect(panel.querySelectorAll('[data-section="all-city-wonders"]').length).toBe(1);
   });
 
+  it('shows current progress immediately for a newly seeded wonder that is already ready', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects = undefined;
+    state.wonderDiscoverers = { 'natural-1': ['player'] };
+    state.marketplace = {
+      prices: {} as any,
+      priceHistory: {} as any,
+      fashionable: null,
+      fashionTurnsLeft: 0,
+      tradeRoutes: [
+        {
+          fromCityId: 'city-river',
+          toCityId: 'city-rival',
+          goldPerTurn: 4,
+          foreignCivId: 'rival',
+        },
+      ],
+    };
+
+    const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const panel = createWonderPanel(container, seededState, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Oracle of Delphi');
+    expect(panel.textContent).toContain('Phase: ready to build');
+    expect(panel.textContent).toContain('Quest steps: 2/2 complete.');
+    expect(Array.from(panel.querySelectorAll('button')).some(button => button.textContent === 'Start Build')).toBe(true);
+  });
+
   it('does not reveal rival wonder races without earned intel', () => {
     const { container, state } = makeWonderPanelFixture();
 

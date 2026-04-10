@@ -23,6 +23,9 @@ Every 4X/Civ-like game needs these — if any are missing, implement them:
 - If a feature is globally unique but tracked per city or per actor, separate `seeded/prepared` state from `active entrant` state
 - Add tests that prevent the same owner from racing against itself unless the design explicitly allows it
 - Recommendation systems must not mistake “prepared shell exists” for “can start this now”
+- New quest or race semantics should live in explicit definition metadata before adding one-off string ID branches in evaluators
+- Newly seeded local race/project shells should be normalized immediately so same-turn UI and actions reflect current truth
+- If AI or turn-processing can resolve multiple race losses in one turn, cleanup helpers must process the full set rather than return after the first match
 
 ## Storage resilience
 - Primary storage (IndexedDB) MUST have a fallback (localStorage) for mobile Safari eviction

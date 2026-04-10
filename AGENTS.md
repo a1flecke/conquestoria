@@ -42,6 +42,11 @@ Viewer-scoped intel must be stored at the same granularity the player actually e
 
 Emit gameplay events from the mutation or an explicit before/after diff. Do not re-derive one-time events by scanning final state for a phase/value.
 
+When adding or changing legendary wonder rules:
+- encode new semantics in typed definition metadata before adding `stepId`-specific evaluator branches
+- normalize newly seeded wonder projects immediately so the same turn shows current progress and buildability
+- if AI or another non-player system can abandon or resolve multiple projects in one turn, process the full set instead of early-returning after the first match
+
 ## Commit & Pull Request Guidelines
 Recent history uses concise Conventional Commit style, often with scopes, for example `fix(m5): wire marketplace supply/demand from game state` or `docs: triage open issues`. Keep commit subjects imperative and specific. PRs should explain gameplay impact, list tests run, link the relevant issue or milestone, and include screenshots when UI or rendering changes are visible.
 
