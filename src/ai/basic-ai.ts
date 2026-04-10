@@ -80,9 +80,20 @@ function hasStationedSpyIntel(state: GameState, civId: string, targetCivId: stri
   );
 }
 
-function abandonLostLegendaryWonderRace(state: GameState, civId: string): GameState {
+interface AbandonLegendaryWonderRaceResult {
+  state: GameState;
+  lostEvents: Array<{
+    civId: string;
+    cityId: string;
+    wonderId: string;
+    goldRefund: number;
+    transferableProduction: number;
+  }>;
+}
+
+function abandonLostLegendaryWonderRace(state: GameState, civId: string): AbandonLegendaryWonderRaceResult {
   if (!state.legendaryWonderProjects) {
-    return state;
+    return { state, lostEvents: [] };
   }
 
   for (const [projectKey, project] of Object.entries(state.legendaryWonderProjects)) {
@@ -110,34 +121,43 @@ function abandonLostLegendaryWonderRace(state: GameState, civId: string): GameSt
     const fallbackBuild = city ? chooseLegendaryWonderFallback(state, civId, city.id, personalitySafe(state, civId)) : 'warrior';
 
     return {
-      ...state,
-      cities: city ? {
-        ...state.cities,
-        [city.id]: {
-          ...city,
-          productionQueue: [fallbackBuild, ...currentQueue.filter(item => item !== `legendary:${project.wonderId}`)],
-          productionProgress: compensation.transferableProduction,
+      state: {
+        ...state,
+        cities: city ? {
+          ...state.cities,
+          [city.id]: {
+            ...city,
+            productionQueue: [fallbackBuild, ...currentQueue.filter(item => item !== `legendary:${project.wonderId}`)],
+            productionProgress: compensation.transferableProduction,
+          },
+        } : state.cities,
+        civilizations: {
+          ...state.civilizations,
+          [civId]: {
+            ...state.civilizations[civId],
+            gold: state.civilizations[civId].gold + compensation.goldRefund,
+          },
         },
-      } : state.cities,
-      civilizations: {
-        ...state.civilizations,
-        [civId]: {
-          ...state.civilizations[civId],
-          gold: state.civilizations[civId].gold + compensation.goldRefund,
+        legendaryWonderProjects: {
+          ...state.legendaryWonderProjects,
+          [projectKey]: {
+            ...project,
+            phase: 'lost_race',
+            transferableProduction: compensation.transferableProduction,
+          },
         },
       },
-      legendaryWonderProjects: {
-        ...state.legendaryWonderProjects,
-        [projectKey]: {
-          ...project,
-          phase: 'lost_race',
-          transferableProduction: compensation.transferableProduction,
-        },
-      },
+      lostEvents: [{
+        civId,
+        cityId: project.cityId,
+        wonderId: project.wonderId,
+        goldRefund: compensation.goldRefund,
+        transferableProduction: compensation.transferableProduction,
+      }],
     };
   }
 
-  return state;
+  return { state, lostEvents: [] };
 }
 
 function personalitySafe(state: GameState, civId: string): PersonalityTraits {
@@ -251,19 +271,10 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: ownedBreakaway.id });
   }
 
-  newState = abandonLostLegendaryWonderRace(newState, civId);
-  const updatedProject = Object.values(newState.legendaryWonderProjects ?? {}).find(project =>
-    project.ownerId === civId && project.phase === 'lost_race',
-  );
-  if (updatedProject) {
-    const compensation = loseLegendaryWonderRace(updatedProject.investedProduction);
-    bus.emit('wonder:legendary-lost', {
-      civId,
-      cityId: updatedProject.cityId,
-      wonderId: updatedProject.wonderId,
-      goldRefund: compensation.goldRefund,
-      transferableProduction: compensation.transferableProduction,
-    });
+  const abandonment = abandonLostLegendaryWonderRace(newState, civId);
+  newState = abandonment.state;
+  for (const event of abandonment.lostEvents) {
+    bus.emit('wonder:legendary-lost', event);
   }
 
   // --- Handle settlers: found cities ---

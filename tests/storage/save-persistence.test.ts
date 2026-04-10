@@ -149,15 +149,33 @@ describe('save persistence (#38)', () => {
   it('round-trips legendary wonder intel through JSON serialization', () => {
     const state = {
       legendaryWonderIntel: {
-        observer: ['oracle-of-delphi:rival:city-rival'],
+        observer: [
+          {
+            projectKey: 'oracle-of-delphi:rival:city-rival',
+            wonderId: 'oracle-of-delphi',
+            civId: 'rival',
+            civName: 'Rival',
+            cityId: 'city-rival',
+            cityName: 'Rival Harbor',
+            revealedTurn: 41,
+            intelLevel: 'started',
+          },
+        ],
       },
     };
 
     const roundTrip = JSON.parse(JSON.stringify(state));
 
-    expect(roundTrip.legendaryWonderIntel.observer).toEqual([
-      'oracle-of-delphi:rival:city-rival',
-    ]);
+    expect(roundTrip.legendaryWonderIntel.observer[0]).toEqual({
+      projectKey: 'oracle-of-delphi:rival:city-rival',
+      wonderId: 'oracle-of-delphi',
+      civId: 'rival',
+      civName: 'Rival',
+      cityId: 'city-rival',
+      cityName: 'Rival Harbor',
+      revealedTurn: 41,
+      intelLevel: 'started',
+    });
   });
 
   it('round-trips campaign identity through JSON serialization', () => {

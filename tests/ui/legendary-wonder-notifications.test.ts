@@ -25,6 +25,22 @@ describe('legendary-wonder-notifications', () => {
     expect(hidden).toBeNull();
   });
 
+  it('race-revealed notifications stay coarse and do not expose progress details', () => {
+    const state = makeLegendaryWonderFixture();
+
+    const visible = getLegendaryWonderNotification(state, 'player', {
+      type: 'wonder:legendary-race-revealed',
+      observerId: 'player',
+      civId: 'rival',
+      cityId: 'city-rival',
+      wonderId: 'grand-canal',
+    });
+
+    expect(visible?.message).toContain('started');
+    expect(visible?.message).not.toContain('production');
+    expect(visible?.message).not.toContain('Quest steps');
+  });
+
   it('only shows completion notifications to the owning current player', () => {
     const state = makeLegendaryWonderFixture();
 

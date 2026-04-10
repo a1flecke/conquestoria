@@ -122,6 +122,17 @@ export interface LegendaryWonderHistory {
   destroyedStrongholds: DestroyedStrongholdRecord[];
 }
 
+export interface LegendaryWonderIntelEntry {
+  projectKey: string;
+  wonderId: string;
+  civId: string;
+  civName: string;
+  cityId: string;
+  cityName: string;
+  revealedTurn: number;
+  intelLevel: 'started';
+}
+
 // --- Tribal Villages ---
 
 export type VillageOutcomeType = 'gold' | 'food' | 'science' | 'free_unit' | 'free_tech' | 'ambush' | 'illness';
@@ -738,7 +749,7 @@ export interface GameState {
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
   completedLegendaryWonders?: Record<string, CompletedLegendaryWonder>;
   legendaryWonderHistory?: LegendaryWonderHistory;
-  legendaryWonderIntel?: Record<string, string[]>;
+  legendaryWonderIntel?: Record<string, LegendaryWonderIntelEntry[]>;
   espionage?: EspionageState;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];

@@ -1,5 +1,6 @@
-import type { GameState } from '@/core/types';
+import type { GameState, LegendaryWonderIntelEntry } from '@/core/types';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 
 export interface WonderPanelCallbacks {
   onStartBuild: (cityId: string, wonderId: string) => void;
@@ -141,6 +142,33 @@ function appendProjectCard(
   section.appendChild(article);
 }
 
+function appendRivalIntelCard(
+  intel: LegendaryWonderIntelEntry,
+  section: HTMLElement,
+): void {
+  const definition = getLegendaryWonderDefinition(intel.wonderId);
+  const article = document.createElement('article');
+  article.dataset.rivalIntelCard = intel.wonderId;
+
+  const header = document.createElement('h3');
+  header.textContent = definition?.name ?? intel.wonderId;
+  article.appendChild(header);
+
+  const source = document.createElement('p');
+  source.textContent = `${intel.civName} is pursuing this in ${intel.cityName}.`;
+  article.appendChild(source);
+
+  const reveal = document.createElement('p');
+  reveal.textContent = `Spy report from turn ${intel.revealedTurn}.`;
+  article.appendChild(reveal);
+
+  const limits = document.createElement('p');
+  limits.textContent = 'Current progress unknown without fresh infiltration.';
+  article.appendChild(limits);
+
+  section.appendChild(article);
+}
+
 function appendProjectSection(
   panel: HTMLElement,
   heading: string,
@@ -168,13 +196,28 @@ function appendProjectSection(
   panel.appendChild(section);
 }
 
-function getVisibleRivalWonderProjects(state: GameState): Array<NonNullable<GameState['legendaryWonderProjects']>[string]> {
-  const visibleProjectKeys = state.legendaryWonderIntel?.[state.currentPlayer] ?? [];
-  return visibleProjectKeys
-    .map(projectKey => state.legendaryWonderProjects?.[projectKey])
-    .filter((project): project is NonNullable<GameState['legendaryWonderProjects']>[string] =>
-      Boolean(project && project.ownerId !== state.currentPlayer && project.phase === 'building'),
-    );
+function appendRivalIntelSection(
+  panel: HTMLElement,
+  heading: string,
+  dataSection: string,
+  entries: LegendaryWonderIntelEntry[],
+): void {
+  if (entries.length === 0) {
+    return;
+  }
+
+  const section = document.createElement('section');
+  section.dataset.section = dataSection;
+
+  const header = document.createElement('h3');
+  header.textContent = heading;
+  section.appendChild(header);
+
+  for (const entry of entries) {
+    appendRivalIntelCard(entry, section);
+  }
+
+  panel.appendChild(section);
 }
 
 export function createWonderPanel(
@@ -211,7 +254,7 @@ export function createWonderPanel(
 
   const cityProjects = Object.values(state.legendaryWonderProjects ?? {})
     .filter(project => project.ownerId === state.currentPlayer && project.cityId === cityId);
-  const rivalProjects = getVisibleRivalWonderProjects(state);
+  const rivalIntel = getLegendaryWonderIntelForViewer(state, state.currentPlayer);
 
   if (cityProjects.length === 0) {
     const empty = document.createElement('p');
@@ -234,7 +277,7 @@ export function createWonderPanel(
     recommended: true,
   });
   appendProjectSection(panel, 'All ambitions in this city', 'all-city-wonders', laterProjects, state, callbacks);
-  appendProjectSection(panel, 'In progress elsewhere', 'rival-wonders', rivalProjects.slice(0, 3), state, callbacks);
+  appendRivalIntelSection(panel, 'In progress elsewhere', 'rival-wonders', rivalIntel.slice(0, 3));
 
   const close = document.createElement('button');
   close.textContent = 'Close';

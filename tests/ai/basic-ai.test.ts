@@ -978,6 +978,24 @@ describe('processAITurn', () => {
     ]);
   });
 
+  it('emits wonder-loss only on the turn an ai wonder race is abandoned', () => {
+    const state = makeLegendaryWonderAiFixture();
+    const bus = new EventBus();
+    const lostEvents: Array<{ civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number }> = [];
+    bus.on('wonder:legendary-lost', event => lostEvents.push(event));
+
+    const afterFirstTurn = processAITurn(state, 'ai-1', bus);
+    const afterSecondTurn = processAITurn(afterFirstTurn, 'ai-1', bus);
+
+    expect(afterSecondTurn.legendaryWonderProjects!['grand-canal'].phase).toBe('lost_race');
+    expect(lostEvents).toHaveLength(1);
+    expect(lostEvents[0]).toEqual(expect.objectContaining({
+      civId: 'ai-1',
+      cityId: 'city-ai',
+      wonderId: 'grand-canal',
+    }));
+  });
+
   it('uses Stage 5 espionage remotely when an idle spy has cyber-warfare tech', () => {
     const state = makeAiDefenseSpyState();
     const bus = new EventBus();

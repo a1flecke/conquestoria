@@ -261,7 +261,13 @@ describe('legendary-wonder-system', () => {
 
     expect(result.pendingEvents?.observer?.[0]?.message).toMatch(/oracle of delphi/i);
     expect(result.legendaryWonderIntel?.observer).toEqual(expect.arrayContaining([
-      expect.stringContaining('oracle-of-delphi'),
+      expect.objectContaining({
+        projectKey: expect.stringContaining('oracle-of-delphi'),
+        wonderId: 'oracle-of-delphi',
+        civId: 'player',
+        cityId: 'city-river',
+        intelLevel: 'started',
+      }),
     ]));
     expect(revealedEvents).toEqual([
       { observerId: 'observer', civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi' },

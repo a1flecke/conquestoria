@@ -48,3 +48,5 @@ paths:
 - Do not treat seeded placeholder records as actionable advice
 - Panels and dashboards that recommend actions must only surface opportunities the player can actually pursue now under tech, resource, city, and visibility rules
 - Prefer one shared system helper for “reachable opportunities” instead of duplicating eligibility filters in each panel
+- Recommendation sections may be selective. Browse/action sections may not become inaccessible because of recommendation ranking.
+- Persistent intel UI must render from viewer-safe snapshots, not from the richer source object if the player did not earn that detail.

@@ -90,7 +90,16 @@ describe('wonder-panel', () => {
       'astronomy',
     ];
     state.legendaryWonderIntel = {
-      player: ['grand-canal-rival'],
+      player: [{
+        projectKey: 'grand-canal-rival',
+        wonderId: 'grand-canal',
+        civId: 'rival',
+        civName: 'Rival',
+        cityId: 'city-rival',
+        cityName: 'city-rival',
+        revealedTurn: 40,
+        intelLevel: 'started',
+      }],
     };
     const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
 
@@ -104,7 +113,8 @@ describe('wonder-panel', () => {
 
     expect(panel.querySelectorAll('[data-section="recommended-wonders"]').length).toBe(1);
     expect(panel.textContent).toContain('Best fits right now');
-    expect(panel.querySelectorAll('[data-project-card]').length).toBe(cityProjectCount + 1);
+    expect(panel.querySelectorAll('[data-project-card]').length).toBe(cityProjectCount);
+    expect(panel.querySelectorAll('[data-rival-intel-card]').length).toBe(1);
     expect(panel.querySelectorAll('[data-recommended-project="true"]').length).toBeLessThanOrEqual(3);
     expect(panel.textContent).toContain('All ambitions in this city');
     expect(panel.textContent).toContain('In progress elsewhere');
@@ -142,16 +152,30 @@ describe('wonder-panel', () => {
   it('shows only rival wonder races revealed to the current player', () => {
     const { container, state } = makeWonderPanelFixture();
     state.legendaryWonderIntel = {
-      player: ['grand-canal-rival'],
+      player: [{
+        projectKey: 'grand-canal-rival',
+        wonderId: 'grand-canal',
+        civId: 'rival',
+        civName: 'Rival',
+        cityId: 'city-rival',
+        cityName: 'Rival Harbor',
+        revealedTurn: 41,
+        intelLevel: 'started',
+      }],
     };
 
     const panel = createWonderPanel(container, state, 'city-river', {
       onStartBuild: () => {},
       onClose: () => {},
     });
+    const rivalSection = panel.querySelector('[data-section="rival-wonders"]');
 
     expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(1);
-    expect(panel.textContent).toContain('Rival is pursuing this');
+    expect(rivalSection?.textContent).toContain('Rival is pursuing this');
+    expect(rivalSection?.textContent).toContain('Rival Harbor');
+    expect(rivalSection?.textContent).not.toContain('90/180');
+    expect(rivalSection?.textContent).not.toContain('Quest steps:');
+    expect(rivalSection?.textContent).not.toContain('Connect two cities');
   });
 
   it('does not show rival wonder intel revealed only to another hot-seat player', () => {
@@ -171,7 +195,16 @@ describe('wonder-panel', () => {
     };
     state.currentPlayer = 'player-2';
     state.legendaryWonderIntel = {
-      player: ['grand-canal-rival'],
+      player: [{
+        projectKey: 'grand-canal-rival',
+        wonderId: 'grand-canal',
+        civId: 'rival',
+        civName: 'Rival',
+        cityId: 'city-rival',
+        cityName: 'Rival Harbor',
+        revealedTurn: 41,
+        intelLevel: 'started',
+      }],
     };
 
     const panel = createWonderPanel(container, state, 'city-2', {
@@ -180,5 +213,33 @@ describe('wonder-panel', () => {
     });
 
     expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(0);
+  });
+
+  it('shows rival wonder spy intel without leaking exact progress or quest steps', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderIntel = {
+      player: [{
+        projectKey: 'grand-canal-rival',
+        wonderId: 'grand-canal',
+        civId: 'rival',
+        civName: 'Rival',
+        cityId: 'city-rival',
+        cityName: 'Rival Harbor',
+        revealedTurn: 41,
+        intelLevel: 'started',
+      }],
+    };
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const rivalSection = panel.querySelector('[data-section="rival-wonders"]');
+
+    expect(rivalSection?.textContent).toContain('Rival Harbor');
+    expect(rivalSection?.textContent).toContain('Grand Canal');
+    expect(rivalSection?.textContent).not.toContain('90/180 production');
+    expect(rivalSection?.textContent).not.toContain('Quest steps:');
+    expect(rivalSection?.textContent).not.toContain('Connect two cities');
   });
 });

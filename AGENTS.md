@@ -38,6 +38,10 @@ For globally unique content with local per-city state, test both invariants sepa
 - global uniqueness across different civilizations
 - no self-competition within the same civilization unless the spec explicitly allows it
 
+Viewer-scoped intel must be stored at the same granularity the player actually earned. Do not reuse richer live objects to render persistent intel surfaces.
+
+Emit gameplay events from the mutation or an explicit before/after diff. Do not re-derive one-time events by scanning final state for a phase/value.
+
 ## Commit & Pull Request Guidelines
 Recent history uses concise Conventional Commit style, often with scopes, for example `fix(m5): wire marketplace supply/demand from game state` or `docs: triage open issues`. Keep commit subjects imperative and specific. PRs should explain gameplay impact, list tests run, link the relevant issue or milestone, and include screenshots when UI or rendering changes are visible.
 

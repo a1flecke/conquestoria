@@ -3,6 +3,10 @@ import { EventBus } from '@/core/event-bus';
 import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 import { getTechById } from '@/systems/tech-system';
 import { hexDistance } from '@/systems/hex-utils';
+import {
+  recordLegendaryWonderIntel,
+  sanitizeLegendaryWonderIntel,
+} from '@/systems/legendary-wonder-intel';
 
 function hasCityRequirement(state: GameState, cityId: string, requirement: 'river' | 'coastal' | 'any'): boolean {
   const city = state.cities[cityId];
@@ -59,21 +63,6 @@ function sanitizeLegendaryWonderProjects(state: GameState): Record<string, Legen
     Object.entries(state.legendaryWonderProjects ?? {}).filter(([, project]) =>
       shouldKeepLegendaryWonderProject(state, project),
     ),
-  );
-}
-
-function sanitizeLegendaryWonderIntel(
-  state: GameState,
-  projects: Record<string, LegendaryWonderProject>,
-): Record<string, string[]> {
-  return Object.fromEntries(
-    Object.entries(state.legendaryWonderIntel ?? {}).map(([viewerId, projectKeys]) => [
-      viewerId,
-      projectKeys.filter(projectKey => {
-        const project = projects[projectKey];
-        return Boolean(project && project.phase === 'building');
-      }),
-    ]).filter(([, projectKeys]) => projectKeys.length > 0),
   );
 }
 
@@ -526,7 +515,7 @@ export function startLegendaryWonderBuild(
   const city = seededState.cities[cityId];
   const civilization = seededState.civilizations[civId];
   const pendingEvents = { ...(seededState.pendingEvents ?? {}) };
-  const legendaryWonderIntel = { ...(seededState.legendaryWonderIntel ?? {}) };
+  let legendaryWonderIntel = { ...(seededState.legendaryWonderIntel ?? {}) };
   const carriedProduction = city?.productionProgress ?? 0;
 
   for (const [observerId, espionageState] of Object.entries(seededState.espionage ?? {})) {
@@ -553,10 +542,23 @@ export function startLegendaryWonderBuild(
         turn: state.turn,
       },
     ];
-    legendaryWonderIntel[observerId] = Array.from(new Set([
-      ...(legendaryWonderIntel[observerId] ?? []),
-      projectKey,
-    ]));
+    legendaryWonderIntel = recordLegendaryWonderIntel(
+      {
+        ...seededState,
+        legendaryWonderIntel,
+      },
+      observerId,
+      {
+        projectKey,
+        wonderId: project.wonderId,
+        civId,
+        civName: civilization?.name ?? civId,
+        cityId,
+        cityName: city?.name ?? cityId,
+        revealedTurn: state.turn,
+        intelLevel: 'started',
+      },
+    );
     bus?.emit('wonder:legendary-race-revealed', {
       observerId,
       civId,
