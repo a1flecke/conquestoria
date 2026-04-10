@@ -44,7 +44,11 @@ Emit gameplay events from the mutation or an explicit before/after diff. Do not 
 
 When adding or changing legendary wonder rules:
 - encode new semantics in typed definition metadata before adding `stepId`-specific evaluator branches
+- do not use wonder step prose to imply host-city versus empire scope; encode it in metadata
+- do not use `map-discoveries` without explicit `discoveryTypes`; the evaluator must never infer discovery scope from quest text
+- if a gameplay event should advance wonder progress, record it in `legendaryWonderHistory` at the event source instead of reconstructing it later
 - normalize newly seeded wonder projects immediately so the same turn shows current progress and buildability
+- keep existing seeded projects in sync with current definition descriptions and completion truth so UI/save state does not drift from the roster
 - if AI or another non-player system can abandon or resolve multiple projects in one turn, process the full set instead of early-returning after the first match
 
 ## Commit & Pull Request Guidelines

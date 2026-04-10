@@ -86,6 +86,9 @@ export interface LegendaryWonderDefinition {
     radius?: number;
     routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
     minimumRouteDistance?: number;
+    cityScope?: 'host-city' | 'empire';
+    minimumBuildingsPerCity?: number;
+    discoveryTypes?: Array<'natural-wonder' | 'tribal-village'>;
   }>;
   reward: LegendaryWonderReward;
 }
@@ -120,8 +123,19 @@ export interface DestroyedStrongholdRecord {
   turn: number;
 }
 
+export type LegendaryWonderDiscoverySiteType = 'natural-wonder' | 'tribal-village';
+
+export interface LegendaryWonderDiscoveredSiteRecord {
+  civId: string;
+  siteId: string;
+  siteType: LegendaryWonderDiscoverySiteType;
+  position: HexCoord;
+  turn: number;
+}
+
 export interface LegendaryWonderHistory {
   destroyedStrongholds: DestroyedStrongholdRecord[];
+  discoveredSites: LegendaryWonderDiscoveredSiteRecord[];
 }
 
 export interface LegendaryWonderIntelEntry {

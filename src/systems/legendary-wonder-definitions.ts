@@ -35,7 +35,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'river',
     questSteps: [
       { id: 'connect-two-cities', type: 'trade-routes-established', targetCount: 2, description: 'Establish 2 trade routes.' },
-      { id: 'grow-river-city', type: 'buildings-in-multiple-cities', targetCount: 1, description: 'Develop this river city into a major civic center.' },
+      { id: 'grow-river-city', type: 'buildings-in-multiple-cities', targetCount: 1, cityScope: 'host-city', minimumBuildingsPerCity: 3, description: 'Develop this river city into a major civic center.' },
     ],
     reward: {
       summary: '+2 food and +2 gold in the host city each turn.',
@@ -85,8 +85,8 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: [],
     cityRequirement: 'river',
     questSteps: [
-      { id: 'tend-flourishing-gardens', type: 'buildings-in-multiple-cities', targetCount: 2, description: 'Develop 2 well-built cities to support the gardens.' },
-      { id: 'chart-sacred-landscapes', type: 'map-discoveries', targetCount: 2, description: 'Discover 2 natural wonders.' },
+      { id: 'tend-flourishing-gardens', type: 'buildings-in-multiple-cities', targetCount: 2, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 2 well-built cities to support the gardens.' },
+      { id: 'chart-sacred-landscapes', type: 'map-discoveries', targetCount: 2, discoveryTypes: ['natural-wonder'], description: 'Discover 2 natural wonders.' },
     ],
     reward: {
       summary: '+3 food and +1 science in the host city each turn.',
@@ -102,7 +102,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: ['iron'],
     cityRequirement: 'any',
     questSteps: [
-      { id: 'raise-two-industrial-cities', type: 'buildings-in-multiple-cities', targetCount: 2, description: 'Develop 2 industrial cities.' },
+      { id: 'raise-two-industrial-cities', type: 'buildings-in-multiple-cities', targetCount: 2, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 2 industrial cities.' },
       { id: 'break-a-frontier-stronghold', type: 'defeat_stronghold', scope: 'near-city', radius: 4, description: 'Destroy a barbarian stronghold threatening your frontier.' },
     ],
     reward: {
@@ -120,7 +120,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'coastal',
     questSteps: [
       { id: 'secure-coastal-trade', type: 'trade-routes-established', targetCount: 1, routeRequirement: 'coastal', description: 'Establish a coastal trade route.' },
-      { id: 'chart-distant-shores', type: 'map-discoveries', targetCount: 2, description: 'Discover 2 natural wonders or distant landmarks.' },
+      { id: 'chart-distant-shores', type: 'map-discoveries', targetCount: 2, discoveryTypes: ['natural-wonder', 'tribal-village'], description: 'Discover 2 natural wonders or distant landmarks.' },
     ],
     reward: {
       summary: '+2 production and +2 gold in the host city each turn.',
@@ -136,8 +136,8 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: [],
     cityRequirement: 'any',
     questSteps: [
-      { id: 'trace-two-celestial-sites', type: 'map-discoveries', targetCount: 2, description: 'Discover 2 remarkable sites.' },
-      { id: 'raise-scholarly-centers', type: 'buildings-in-multiple-cities', targetCount: 2, description: 'Develop 2 scholarly cities.' },
+      { id: 'trace-two-celestial-sites', type: 'map-discoveries', targetCount: 2, discoveryTypes: ['natural-wonder', 'tribal-village'], description: 'Discover 2 remarkable sites.' },
+      { id: 'raise-scholarly-centers', type: 'buildings-in-multiple-cities', targetCount: 2, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 2 scholarly cities.' },
     ],
     reward: {
       summary: '+2 science in the host city and +2 science empire-wide each turn.',
@@ -155,7 +155,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'any',
     questSteps: [
       { id: 'broker-three-routes', type: 'trade-routes-established', targetCount: 3, description: 'Maintain 3 active trade routes.' },
-      { id: 'raise-three-merchant-hubs', type: 'buildings-in-multiple-cities', targetCount: 3, description: 'Develop 3 prosperous cities.' },
+      { id: 'raise-three-merchant-hubs', type: 'buildings-in-multiple-cities', targetCount: 3, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 3 prosperous cities.' },
     ],
     reward: {
       summary: '+4 gold and +1 science empire-wide each turn.',
@@ -172,7 +172,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'any',
     questSteps: [
       { id: 'win-a-famous-victory', type: 'defeat_stronghold', scope: 'any', description: 'Break a major enemy stronghold.' },
-      { id: 'raise-two-glorious-cities', type: 'buildings-in-multiple-cities', targetCount: 2, description: 'Develop 2 celebrated cities.' },
+      { id: 'raise-two-glorious-cities', type: 'buildings-in-multiple-cities', targetCount: 2, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 2 celebrated cities.' },
     ],
     reward: {
       summary: '+2 production and +2 gold empire-wide each turn.',
@@ -188,7 +188,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: [],
     cityRequirement: 'coastal',
     questSteps: [
-      { id: 'discover-three-far-horizons', type: 'map-discoveries', targetCount: 3, description: 'Discover 3 remarkable sites.' },
+      { id: 'discover-three-far-horizons', type: 'map-discoveries', targetCount: 3, discoveryTypes: ['natural-wonder', 'tribal-village'], description: 'Discover 3 remarkable sites.' },
       { id: 'link-the-seas', type: 'trade-routes-established', targetCount: 2, routeRequirement: 'long-range', minimumRouteDistance: 8, description: 'Maintain 2 active long-range trade routes.' },
     ],
     reward: {
@@ -205,7 +205,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: ['stone'],
     cityRequirement: 'coastal',
     questSteps: [
-      { id: 'build-two-harbor-cities', type: 'buildings-in-multiple-cities', targetCount: 2, description: 'Develop 2 major port cities.' },
+      { id: 'build-two-harbor-cities', type: 'buildings-in-multiple-cities', targetCount: 2, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 2 major port cities.' },
       { id: 'prove-open-sea-command', type: 'trade-routes-established', targetCount: 1, routeRequirement: 'overseas', description: 'Maintain an active overseas trade route.' },
     ],
     reward: {
@@ -222,8 +222,8 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: [],
     cityRequirement: 'coastal',
     questSteps: [
-      { id: 'map-four-key-sites', type: 'map-discoveries', targetCount: 4, description: 'Discover 4 key sites across the world.' },
-      { id: 'build-three-broadcast-centers', type: 'buildings-in-multiple-cities', targetCount: 3, description: 'Develop 3 advanced cities.' },
+      { id: 'map-four-key-sites', type: 'map-discoveries', targetCount: 4, discoveryTypes: ['natural-wonder', 'tribal-village'], description: 'Discover 4 key sites across the world.' },
+      { id: 'build-three-broadcast-centers', type: 'buildings-in-multiple-cities', targetCount: 3, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 3 advanced cities.' },
     ],
     reward: {
       summary: '+3 gold and +2 science empire-wide each turn.',
@@ -240,7 +240,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'any',
     questSteps: [
       { id: 'complete-six-advanced-techs', type: 'research_count', targetCount: 6, description: 'Complete 6 advanced technologies.' },
-      { id: 'raise-three-research-centers', type: 'buildings-in-multiple-cities', targetCount: 3, description: 'Develop 3 research-capable cities.' },
+      { id: 'raise-three-research-centers', type: 'buildings-in-multiple-cities', targetCount: 3, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 3 research-capable cities.' },
     ],
     reward: {
       summary: '+120 research immediately and +2 science empire-wide each turn.',
@@ -257,7 +257,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: [],
     cityRequirement: 'any',
     questSteps: [
-      { id: 'network-three-cities', type: 'buildings-in-multiple-cities', targetCount: 3, description: 'Develop 3 connected urban centers.' },
+      { id: 'network-three-cities', type: 'buildings-in-multiple-cities', targetCount: 3, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 3 connected urban centers.' },
       { id: 'maintain-three-trade-links', type: 'trade-routes-established', targetCount: 3, description: 'Maintain 3 active trade routes.' },
     ],
     reward: {

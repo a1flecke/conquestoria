@@ -168,6 +168,46 @@ describe('wonder-panel', () => {
     expect(Array.from(panel.querySelectorAll('button')).some(button => button.textContent === 'Start Build')).toBe(true);
   });
 
+  it('shows grand canal as incomplete when only another city is developed', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.cities['city-river'].buildings = ['granary'];
+    state.cities['city-rival'].owner = 'player';
+    state.cities['city-rival'].buildings = ['granary', 'market', 'library'];
+    state.civilizations.player.cities = ['city-river', 'city-rival'];
+
+    const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const panel = createWonderPanel(container, seededState, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Grand Canal');
+    expect(rendered).toContain('Develop this river city into a major civic center.');
+    expect(rendered).not.toContain('Phase: ready to build');
+  });
+
+  it('shows remarkable-site progress from mixed discovery history immediately', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderHistory = {
+      destroyedStrongholds: [],
+      discoveredSites: [
+        { civId: 'player', siteId: 'crystal_caverns', siteType: 'natural-wonder', position: { q: 8, r: 2 }, turn: 12 },
+        { civId: 'player', siteId: 'village-3', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 15 },
+      ],
+    };
+
+    const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const panel = createWonderPanel(container, seededState, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Starvault Observatory');
+    expect(rendered).toContain('Discover 2 remarkable sites.');
+  });
+
   it('does not reveal rival wonder races without earned intel', () => {
     const { container, state } = makeWonderPanelFixture();
 

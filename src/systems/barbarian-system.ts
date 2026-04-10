@@ -74,6 +74,7 @@ export function applyCampDestruction(
   const nextState = structuredClone(state);
   delete nextState.barbarianCamps[campId];
   nextState.legendaryWonderHistory = {
+    discoveredSites: nextState.legendaryWonderHistory?.discoveredSites ?? [],
     destroyedStrongholds: [
       ...(nextState.legendaryWonderHistory?.destroyedStrongholds ?? []),
       { civId, campId, position: camp.position, turn },

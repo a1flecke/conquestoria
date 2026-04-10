@@ -51,7 +51,7 @@ describe('destroyCamp', () => {
 
   it('records the destroying civ and camp position when a barbarian camp falls', () => {
     const state = createNewGame('egypt', 'wonder-history');
-    state.legendaryWonderHistory = { destroyedStrongholds: [] };
+    state.legendaryWonderHistory = { destroyedStrongholds: [], discoveredSites: [] };
     state.barbarianCamps = {
       'camp-1': {
         id: 'camp-1',

@@ -68,4 +68,36 @@ describe('legendary-wonder-definitions', () => {
       }
     }
   });
+
+  it('declares explicit city-development scope metadata for every buildings-in-multiple-cities step', () => {
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const step of definition.questSteps) {
+        if (step.type === 'buildings-in-multiple-cities') {
+          expect(step.cityScope).toMatch(/^(host-city|empire)$/);
+          expect(step.minimumBuildingsPerCity ?? 3).toBeGreaterThanOrEqual(1);
+        }
+      }
+    }
+  });
+
+  it('marks grand canal growth as a host-city requirement', () => {
+    const grandCanal = getLegendaryWonderDefinitions().find(w => w.id === 'grand-canal');
+
+    expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')).toMatchObject({
+      type: 'buildings-in-multiple-cities',
+      cityScope: 'host-city',
+      targetCount: 1,
+      minimumBuildingsPerCity: 3,
+    });
+  });
+
+  it('requires discovery-type metadata on every map-discoveries step', () => {
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const step of definition.questSteps) {
+        if (step.type === 'map-discoveries') {
+          expect(step.discoveryTypes?.length).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
 });

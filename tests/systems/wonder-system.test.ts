@@ -106,6 +106,20 @@ describe('processWonderDiscovery', () => {
     expect(state.wonderDiscoverers['aurora_fields']).toEqual(['player', 'ai-1']);
   });
 
+  it('records natural wonder discoveries into legendary wonder history', () => {
+    const state = makeGameState();
+
+    processWonderDiscovery(state, 'player', 'crystal_caverns');
+
+    expect(state.legendaryWonderHistory?.discoveredSites).toContainEqual(
+      expect.objectContaining({
+        civId: 'player',
+        siteId: 'crystal_caverns',
+        siteType: 'natural-wonder',
+      }),
+    );
+  });
+
   it('science bonus falls back to gold when no active research', () => {
     const state = makeGameState();
     state.civilizations.player.techState.currentResearch = null;

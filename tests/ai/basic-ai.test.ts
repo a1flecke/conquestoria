@@ -946,7 +946,7 @@ function makeAiBarbarianCampAttackState(): GameState {
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
-    legendaryWonderHistory: { destroyedStrongholds: [] },
+    legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
     legendaryWonderProjects: {
       'sun-spire:ai-1:city-ai': {
         wonderId: 'sun-spire',

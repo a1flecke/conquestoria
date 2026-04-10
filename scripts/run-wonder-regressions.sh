@@ -6,6 +6,8 @@ cd "$(dirname "$0")/.."
 ./scripts/run-with-mise.sh yarn test --run \
   tests/systems/legendary-wonder-system.test.ts \
   tests/systems/legendary-wonder-definitions.test.ts \
+  tests/systems/wonder-system.test.ts \
+  tests/systems/village-system.test.ts \
   tests/systems/council-system.test.ts \
   tests/systems/playtest-fixes.test.ts \
   tests/ui/wonder-panel.test.ts \

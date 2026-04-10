@@ -1,4 +1,4 @@
-import type { GameState, LegendaryWonderProject, ResourceYield } from '@/core/types';
+import type { City, GameState, LegendaryWonderProject, ResourceYield } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 import { getTechById } from '@/systems/tech-system';
@@ -8,6 +8,7 @@ import {
   recordLegendaryWonderIntel,
   sanitizeLegendaryWonderIntel,
 } from '@/systems/legendary-wonder-intel';
+import { countLegendaryWonderDiscoverySites } from '@/systems/legendary-wonder-history';
 
 function hasCityRequirement(state: GameState, cityId: string, requirement: 'river' | 'coastal' | 'any'): boolean {
   const city = state.cities[cityId];
@@ -104,12 +105,22 @@ function getDefaultQuestStepDescription(step: NonNullable<ReturnType<typeof getL
       return `Complete ${step.targetCount ?? 1} technologies${step.track ? ` in ${step.track}` : ''}.`;
     case 'defeat_stronghold':
       return 'Destroy a barbarian stronghold.';
-    case 'buildings-in-multiple-cities':
-      return `Develop ${step.targetCount ?? 2} well-built cities.`;
+    case 'buildings-in-multiple-cities': {
+      const minimumBuildings = step.minimumBuildingsPerCity ?? 3;
+      if (step.cityScope === 'host-city' && (step.targetCount ?? 1) === 1) {
+        return `Develop this city with at least ${minimumBuildings} completed buildings.`;
+      }
+      return `Develop ${step.targetCount ?? 2} cities with at least ${minimumBuildings} completed buildings each.`;
+    }
     case 'trade-routes-established':
       return `Maintain ${step.targetCount ?? 1} trade routes.`;
-    case 'map-discoveries':
-      return `Discover ${step.targetCount ?? 2} remarkable sites.`;
+    case 'map-discoveries': {
+      const discoveryTypes = step.discoveryTypes ?? ['natural-wonder'];
+      if (discoveryTypes.length === 1 && discoveryTypes[0] === 'natural-wonder') {
+        return `Discover ${step.targetCount ?? 2} natural wonders.`;
+      }
+      return `Discover ${step.targetCount ?? 2} notable sites across the world.`;
+    }
   }
 }
 
@@ -180,8 +191,8 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
   ));
   const builtUpCities = civ.cities
     .map(cityRef => state.cities[cityRef])
-    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
-    .filter(candidate => candidate.buildings.length >= 3);
+    .filter((candidate): candidate is City => Boolean(candidate))
+    .filter(candidate => candidate.buildings.length >= (step.minimumBuildingsPerCity ?? 3));
 
   switch (stepId) {
     case 'discover-natural-wonder':
@@ -220,18 +231,31 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
           }
           return true;
         });
-    case 'buildings-in-multiple-cities':
+    case 'buildings-in-multiple-cities': {
+      const minimumBuildings = step.minimumBuildingsPerCity ?? 3;
+      const hostQualifies = city.buildings.length >= minimumBuildings;
+      if (step.cityScope === 'host-city' && !hostQualifies) {
+        return false;
+      }
       return builtUpCities.length >= (step.targetCount ?? 2);
+    }
     case 'map-discoveries':
-      return discoveredWonderCount >= (step.targetCount ?? 2);
+      return countLegendaryWonderDiscoverySites(
+        state,
+        project.ownerId,
+        step.discoveryTypes ?? ['natural-wonder'],
+      ) >= (step.targetCount ?? 2);
   }
 }
 
 function syncLegendaryWonderQuestSteps(state: GameState, project: LegendaryWonderProject): LegendaryWonderProject {
+  const definition = getLegendaryWonderDefinition(project.wonderId);
   return {
     ...project,
     questSteps: project.questSteps.map(step => ({
       ...step,
+      description: definition?.questSteps.find(candidate => candidate.id === step.id)?.description
+        ?? step.description,
       completed: step.completed || evaluateLegendaryWonderStep(state, project, step.id),
     })),
   };
@@ -257,6 +281,18 @@ export function initializeLegendaryWonderProjectsForCity(
 
     const existing = findLegendaryWonderProjectEntry({ ...state, legendaryWonderProjects }, civId, cityId, definition.id);
     if (existing) {
+      const refreshed = syncLegendaryWonderQuestSteps({ ...state, legendaryWonderProjects }, {
+        ...existing[1],
+        questSteps: existing[1].questSteps.map(step => ({
+          ...step,
+          description: definition.questSteps.find(candidate => candidate.id === step.id)?.description
+            ?? getDefaultQuestStepDescription(
+              definition.questSteps.find(candidate => candidate.id === step.id) ?? definition.questSteps[0],
+            ),
+        })),
+      });
+      legendaryWonderProjects[existing[0]] = refreshed;
+      changed = true;
       continue;
     }
 

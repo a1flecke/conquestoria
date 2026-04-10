@@ -3,6 +3,7 @@ import { WONDER_DEFINITIONS, getWonderDefinition } from './wonder-definitions';
 import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
 import { createRng } from './map-generator';
 import { applyResearchBonus } from './tech-system';
+import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';
 
 const WONDER_COUNTS = { small: 5, medium: 8, large: 15 } as const;
 
@@ -79,6 +80,9 @@ export function processWonderDiscovery(
   if (state.wonderDiscoverers[wonderId].includes(civId)) return false;
   state.wonderDiscoverers[wonderId].push(civId);
 
+  const wonderPosition = Object.values(state.map.tiles).find(tile => tile.wonder === wonderId)?.coord ?? { q: 0, r: 0 };
+  recordLegendaryWonderDiscoverySite(state, civId, wonderId, 'natural-wonder', wonderPosition);
+
   const isFirst = !(wonderId in state.discoveredWonders);
 
   if (isFirst) {
@@ -104,21 +108,12 @@ export function processWonderDiscovery(
           break;
         case 'production': {
           // Find the wonder's position on the map
-          let wonderPosition: HexCoord | null = null;
-          for (const tile of Object.values(state.map.tiles)) {
-            if (tile.wonder === wonderId) {
-              wonderPosition = tile.coord;
-              break;
-            }
-          }
-
           // Find nearest city to the wonder
           let nearestCity = null;
           let nearestDist = Infinity;
           for (const cityId of civ.cities) {
             const city = state.cities[cityId];
             if (!city) continue;
-            if (!wonderPosition) continue;
             const dist = hexDistance(wonderPosition, city.position);
             if (dist < nearestDist) {
               nearestDist = dist;

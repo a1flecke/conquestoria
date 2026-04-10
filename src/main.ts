@@ -1422,7 +1422,25 @@ function migrateLegacySave(): void {
   if (!gameState.discoveredWonders) (gameState as any).discoveredWonders = {};
   if (!gameState.wonderDiscoverers) (gameState as any).wonderDiscoverers = {};
   if (!gameState.legendaryWonderHistory) {
-    (gameState as any).legendaryWonderHistory = { destroyedStrongholds: [] };
+    (gameState as any).legendaryWonderHistory = { destroyedStrongholds: [], discoveredSites: [] };
+  }
+  const legendaryWonderHistory = gameState.legendaryWonderHistory!;
+  if (!legendaryWonderHistory.discoveredSites) {
+    legendaryWonderHistory.discoveredSites = [];
+    for (const [wonderId, discoverers] of Object.entries(gameState.wonderDiscoverers ?? {})) {
+      const wonderTile = Object.values(gameState.map.tiles).find(tile => tile.wonder === wonderId);
+      for (const civId of discoverers) {
+        if (!legendaryWonderHistory.discoveredSites.some(record => record.civId === civId && record.siteId === wonderId)) {
+          legendaryWonderHistory.discoveredSites.push({
+            civId,
+            siteId: wonderId,
+            siteType: 'natural-wonder',
+            position: wonderTile?.coord ?? { q: 0, r: 0 },
+            turn: gameState.turn,
+          });
+        }
+      }
+    }
   }
   if (!gameState.legendaryWonderIntel) {
     (gameState as any).legendaryWonderIntel = {};

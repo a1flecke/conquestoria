@@ -3,6 +3,7 @@ import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
 import { TECH_TREE, applyResearchBonus } from './tech-system';
 import { createRng } from './map-generator';
+import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';
 
 const VILLAGE_COUNTS = { small: 8, medium: 12, large: 20 } as const;
 
@@ -68,6 +69,8 @@ export function visitVillage(
 ): { outcome: VillageOutcomeType; message: string } {
   const village = state.tribalVillages[villageId];
   if (!village) return { outcome: 'gold', message: '' };
+
+  recordLegendaryWonderDiscoverySite(state, unit.owner, villageId, 'tribal-village', village.position);
 
   // Remove village
   delete state.tribalVillages[villageId];

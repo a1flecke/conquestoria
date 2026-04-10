@@ -24,7 +24,11 @@ Every 4X/Civ-like game needs these — if any are missing, implement them:
 - Add tests that prevent the same owner from racing against itself unless the design explicitly allows it
 - Recommendation systems must not mistake “prepared shell exists” for “can start this now”
 - New quest or race semantics should live in explicit definition metadata before adding one-off string ID branches in evaluators
+- Do not rely on wonder step prose for host-city versus empire scope; store that distinction in metadata
+- Do not use `map-discoveries` without explicit `discoveryTypes`; broader discovery quests must read a typed discovery ledger, not natural wonders by accident
+- If discovering or clearing something should advance wonder progress, record it in `legendaryWonderHistory` at the event source instead of reconstructing it from later snapshots
 - Newly seeded local race/project shells should be normalized immediately so same-turn UI and actions reflect current truth
+- Existing seeded projects should refresh definition-backed descriptions and completion truth when they are touched, so saves and panels cannot drift from the roster
 - If AI or turn-processing can resolve multiple race losses in one turn, cleanup helpers must process the full set rather than return after the first match
 
 ## Storage resilience

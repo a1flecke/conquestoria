@@ -337,12 +337,86 @@ describe('legendary-wonder-system', () => {
       },
     };
     state.barbarianCamps = {};
-    state.legendaryWonderHistory = { destroyedStrongholds: [] };
+    state.legendaryWonderHistory = { destroyedStrongholds: [], discoveredSites: [] };
 
     const result = tickLegendaryWonderProjects(state, new EventBus());
 
     expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.phase).toBe('questing');
     expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.questSteps[1]?.completed).toBe(false);
+  });
+
+  it('does not let another developed city satisfy grand canal host-city development', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['city-planning', 'printing'],
+      resources: ['stone'],
+    });
+
+    state.cities['city-river'].buildings = ['granary'];
+    state.cities['city-river'].population = 7;
+    state.cities['city-rival'].owner = 'player';
+    state.cities['city-rival'].buildings = ['granary', 'market', 'library'];
+    state.civilizations.player.cities = ['city-river', 'city-rival'];
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+    const grandCanal = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'grand-canal',
+    );
+
+    expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')?.completed).toBe(false);
+  });
+
+  it('still lets empire-wide city-development wonders count multiple qualifying cities anywhere in the empire', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['irrigation', 'masonry'],
+    });
+
+    state.cities['city-river'].buildings = ['granary', 'shrine', 'market'];
+    state.cities['city-rival'].owner = 'player';
+    state.cities['city-rival'].buildings = ['granary', 'library', 'market'];
+    state.civilizations.player.cities = ['city-river', 'city-rival'];
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+    const moonwell = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.wonderId === 'moonwell-gardens',
+    );
+
+    expect(moonwell?.questSteps.find(step => step.id === 'tend-flourishing-gardens')?.completed).toBe(true);
+  });
+
+  it('does not let village discoveries satisfy a natural-wonder-only quest', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: ['irrigation', 'masonry'] });
+    state.legendaryWonderHistory = {
+      destroyedStrongholds: [],
+      discoveredSites: [
+        { civId: 'player', siteId: 'village-1', siteType: 'tribal-village', position: { q: 2, r: 0 }, turn: 12 },
+        { civId: 'player', siteId: 'village-2', siteType: 'tribal-village', position: { q: 4, r: 0 }, turn: 16 },
+      ],
+    };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+    const moonwell = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.wonderId === 'moonwell-gardens',
+    );
+
+    expect(moonwell?.questSteps.find(step => step.id === 'chart-sacred-landscapes')?.completed).toBe(false);
+  });
+
+  it('lets remarkable-site wonders count a mix of natural wonders and tribal villages', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: ['astronomy', 'scholarship'] });
+    state.legendaryWonderHistory = {
+      destroyedStrongholds: [],
+      discoveredSites: [
+        { civId: 'player', siteId: 'wonder-1', siteType: 'natural-wonder', position: { q: 3, r: 0 }, turn: 8 },
+        { civId: 'player', siteId: 'village-1', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 11 },
+      ],
+    };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+    const starvault = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.wonderId === 'starvault-observatory',
+    );
+
+    expect(starvault?.questSteps.find(step => step.id === 'trace-two-celestial-sites')?.completed).toBe(true);
   });
 
   it('completes nearby stronghold quests only after the civ destroys a qualifying camp near the host city', () => {
@@ -362,6 +436,7 @@ describe('legendary-wonder-system', () => {
       },
     };
     state.legendaryWonderHistory = {
+      discoveredSites: [],
       destroyedStrongholds: [
         { civId: 'player', campId: 'camp-near', position: { q: 3, r: 2 }, turn: 40 },
       ],
@@ -389,6 +464,7 @@ describe('legendary-wonder-system', () => {
       },
     };
     state.legendaryWonderHistory = {
+      discoveredSites: [],
       destroyedStrongholds: [
         { civId: 'player', campId: 'camp-far', position: { q: 20, r: 20 }, turn: 40 },
       ],

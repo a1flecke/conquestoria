@@ -146,6 +146,23 @@ describe('save persistence (#38)', () => {
     });
   });
 
+  it('round-trips legendary wonder discovery history through JSON serialization', () => {
+    const state = {
+      legendaryWonderHistory: {
+        destroyedStrongholds: [],
+        discoveredSites: [
+          { civId: 'player', siteId: 'great-barrier-reef', siteType: 'natural-wonder', position: { q: 8, r: 2 }, turn: 12 },
+          { civId: 'player', siteId: 'village-3', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 15 },
+        ],
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderHistory.discoveredSites).toHaveLength(2);
+    expect(roundTrip.legendaryWonderHistory.discoveredSites[0].siteType).toBe('natural-wonder');
+  });
+
   it('round-trips legendary wonder intel through JSON serialization', () => {
     const state = {
       legendaryWonderIntel: {
