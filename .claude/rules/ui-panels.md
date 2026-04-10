@@ -43,3 +43,8 @@ paths:
 - Recommendation sections may be bounded, but they cannot be the only surface for starting lower-ranked items
 - If you intentionally truncate or collapse a catalog, provide an explicit tested affordance such as `Show all`, `More`, or a separate complete section
 - Add a regression that counts or otherwise proves all expected entries remain accessible from the live panel
+
+## Recommendation Surfaces
+- Do not treat seeded placeholder records as actionable advice
+- Panels and dashboards that recommend actions must only surface opportunities the player can actually pursue now under tech, resource, city, and visibility rules
+- Prefer one shared system helper for “reachable opportunities” instead of duplicating eligibility filters in each panel

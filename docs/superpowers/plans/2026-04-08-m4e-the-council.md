@@ -2892,6 +2892,217 @@ git add src/systems/barbarian-system.ts src/main.ts src/ai/basic-ai.ts tests/ai/
 git commit -m "fix(m4e): share stronghold progress across human and ai combat"
 ```
 
+### Task 13F: Enforce One Active Wonder Race Per Empire
+
+**Root Cause Analysis**
+
+The earlier uniqueness fix only enforced `global winner` uniqueness, not `single-empire entrant` uniqueness. Slice 4’s per-city project seeding made every city own a local project shell for the same wonder, but `startLegendaryWonderBuild()` still validated only:
+
+- the target city’s local project phase
+- global completion status
+
+That leaves a missing middle invariant: one civilization may prepare many local shells, but it may only have one active entrant per `wonderId` at a time. Without that rule, a civ can race against itself and then “lose” to its own completed wonder, which is nonsensical for both player and AI behavior. The underlying architectural mistake is that seeding and activation were treated as the same thing. They are not.
+
+**Files:**
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/ai/basic-ai.test.ts`
+
+- [ ] **Step 1: Add failing self-competition regressions**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('does not allow the same civilization to start the same wonder in two cities', () => {
+  const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+  state.cities['city-second'] = {
+    ...state.cities['city-river'],
+    id: 'city-second',
+    name: 'Second River',
+    owner: 'player',
+  };
+  state.civilizations.player.cities.push('city-second');
+  state = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-second');
+  state.legendaryWonderProjects!['oracle-of-delphi:player:city-second'] = {
+    ...state.legendaryWonderProjects!['oracle-of-delphi:player:city-second'],
+    phase: 'ready_to_build',
+  };
+  state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+
+  const afterFirstStart = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi');
+  const afterSecondStart = startLegendaryWonderBuild(afterFirstStart, 'player', 'city-second', 'oracle-of-delphi');
+
+  const buildingProjects = Object.values(afterSecondStart.legendaryWonderProjects ?? {}).filter(project =>
+    project.ownerId === 'player' && project.wonderId === 'oracle-of-delphi' && project.phase === 'building',
+  );
+
+  expect(buildingProjects).toHaveLength(1);
+  expect(buildingProjects[0].cityId).toBe('city-river');
+});
+```
+
+Extend `tests/ai/basic-ai.test.ts`:
+
+```typescript
+it('ai does not start the same legendary wonder in multiple cities', () => {
+  const state = makeLegendaryWonderOpportunityFixture();
+  const result = processAITurn(state, 'ai-1', new EventBus());
+
+  const byWonder = Object.values(result.legendaryWonderProjects ?? {}).filter(project =>
+    project.ownerId === 'ai-1' && project.phase === 'building',
+  );
+
+  const duplicateWonderIds = byWonder
+    .map(project => project.wonderId)
+    .filter((wonderId, index, all) => all.indexOf(wonderId) !== index);
+
+  expect(duplicateWonderIds).toEqual([]);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ai/basic-ai.test.ts
+```
+
+- [ ] **Step 3: Add one shared empire-level activation guard**
+
+In `src/systems/legendary-wonder-system.ts`, add:
+
+```typescript
+function hasActiveLegendaryWonderBuildForCiv(state: GameState, civId: string, wonderId: string, excludeCityId?: string): boolean {
+  return Object.values(state.legendaryWonderProjects ?? {}).some(project =>
+    project.ownerId === civId
+    && project.wonderId === wonderId
+    && project.phase === 'building'
+    && project.cityId !== excludeCityId,
+  );
+}
+```
+
+Use it in:
+- `startLegendaryWonderBuild()` to refuse a second same-civ start
+- any AI “start wonder” branch so the AI never queues a same-wonder duplicate start in another city during the same turn
+
+Do not solve this by deleting seeded project shells. Cities may still track local quest progress. The restriction applies only to active construction entry.
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ai/basic-ai.test.ts
+```
+
+- [ ] **Step 5: Commit the self-competition fix**
+
+```bash
+git add src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-system.test.ts tests/ai/basic-ai.test.ts
+git commit -m "fix(m4e): prevent same-civ wonder self-competition"
+```
+
+### Task 13G: Keep Council Wonder Advice Reachable, Not Merely Seeded
+
+**Root Cause Analysis**
+
+The Council bug comes from the same category error as the earlier panel issue: seeded projects were mistaken for actionable opportunities. `initializeLegendaryWonderProjectsForAllCities()` creates per-city quest shells for the whole wonder catalog so progress can be tracked later. That is correct. But `buildCouncilAgenda()` then reads those seeded shells directly and interprets every `questing` or `ready_to_build` project as a valid recommendation without checking:
+
+- tech prerequisites
+- city requirements
+- resource requirements
+- whether the project is actually reachable in that city now
+
+So the Council ends up telling the player to chase impossible late-era goals, which breaks the “actionable guidance” contract. The correct fix is one shared “reachable wonder opportunities” helper used by the Council, not another local filter in the presentation layer.
+
+**Files:**
+- Modify: `src/systems/council-system.ts`
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `tests/systems/council-system.test.ts`
+- Modify: `tests/ui/council-panel.test.ts`
+- Modify: `tests/systems/playtest-fixes.test.ts`
+
+- [ ] **Step 1: Add failing actionable-guidance regressions**
+
+Extend `tests/systems/council-system.test.ts`:
+
+```typescript
+it('does not recommend legendary wonders that are not yet eligible in the city', () => {
+  const { state } = makeCouncilFixture();
+  const agenda = buildCouncilAgenda(state, 'player');
+
+  const wonderCards = agenda.toWin.filter(card => card.cardType === 'wonder');
+
+  expect(wonderCards.every(card => !card.title.includes('World Archive'))).toBe(true);
+});
+
+it('prefers reachable legendary wonders over seeded but impossible ones', () => {
+  const { state } = makeCouncilFixture();
+  const agenda = buildCouncilAgenda(state, 'player');
+  const wonderCards = agenda.toWin.filter(card => card.cardType === 'wonder');
+
+  expect(wonderCards.some(card => card.title.includes('Oracle of Delphi'))).toBe(true);
+});
+```
+
+Extend `tests/ui/council-panel.test.ts`:
+
+```typescript
+it('keeps to-win wonder advice limited to reachable opportunities', () => {
+  expect(panel.textContent).not.toContain('World Archive');
+});
+```
+
+Extend `tests/systems/playtest-fixes.test.ts`:
+
+```typescript
+it('council to-win guidance stays actionable instead of recommending impossible wonder shells', () => {
+  const council = buildCouncilAgenda(state, 'player');
+  expect(council.toWin.every(card => card.cardType !== 'wonder' || card.actionLabel !== 'Track quest' || !card.title.includes('World Archive'))).toBe(true);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/ui/council-panel.test.ts tests/systems/playtest-fixes.test.ts
+```
+
+- [ ] **Step 3: Add one shared reachable-wonder helper**
+
+In `src/systems/legendary-wonder-system.ts`, add a helper that returns only wonders that the city can legitimately pursue now:
+
+```typescript
+export function getReachableLegendaryWonderProjects(
+  state: GameState,
+  civId: string,
+  cityId: string,
+): LegendaryWonderProject[] {
+  const eligibleWonderIds = new Set(getEligibleLegendaryWonders(state, civId, cityId));
+
+  return Object.values(initializeLegendaryWonderProjectsForCity(state, civId, cityId).legendaryWonderProjects ?? {})
+    .filter(project =>
+      project.ownerId === civId
+      && project.cityId === cityId
+      && eligibleWonderIds.has(project.wonderId)
+      && (project.phase === 'questing' || project.phase === 'ready_to_build')
+    );
+}
+```
+
+Then in `src/systems/council-system.ts`, build wonder cards only from that helper across the civ’s cities. Do not duplicate prerequisite filtering in Council code.
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/ui/council-panel.test.ts tests/systems/playtest-fixes.test.ts
+```
+
+- [ ] **Step 5: Commit the actionable Council fix**
+
+```bash
+git add src/systems/council-system.ts src/systems/legendary-wonder-system.ts tests/systems/council-system.test.ts tests/ui/council-panel.test.ts tests/systems/playtest-fixes.test.ts
+git commit -m "fix(m4e): keep council wonder advice actionable"
+```
+
 ### Task 14: Release Gate For Slice 4
 
 **Files:**

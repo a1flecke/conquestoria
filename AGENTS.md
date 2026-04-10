@@ -32,6 +32,12 @@ If a UI panel is the only place a player can inspect or trigger a full catalog o
 
 When a gameplay rule is attached to combat resolution, camp destruction, capture, or any other actor-agnostic state change, add parity coverage for the human path and at least one non-human path (`AI`, `turn-manager`, or another system caller). Do not treat a UI handler as the only execution path for game-state history or progression rules.
 
+If a system seeds local placeholders or project shells ahead of true eligibility, do not treat those seeded records as actionable by default. UI guidance, AI prioritization, and recommendation systems must use a shared helper that filters seeded state down to currently reachable opportunities.
+
+For globally unique content with local per-city state, test both invariants separately:
+- global uniqueness across different civilizations
+- no self-competition within the same civilization unless the spec explicitly allows it
+
 ## Commit & Pull Request Guidelines
 Recent history uses concise Conventional Commit style, often with scopes, for example `fix(m5): wire marketplace supply/demand from game state` or `docs: triage open issues`. Keep commit subjects imperative and specific. PRs should explain gameplay impact, list tests run, link the relevant issue or milestone, and include screenshots when UI or rendering changes are visible.
 

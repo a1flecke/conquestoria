@@ -19,6 +19,11 @@ Every 4X/Civ-like game needs these — if any are missing, implement them:
 - Early-game combat between same-tier units should resolve in 2-4 exchanges, not 5+
 - Write balance tests with statistical sampling (run N trials, assert average is in expected range)
 
+## Unique-race mechanics
+- If a feature is globally unique but tracked per city or per actor, separate `seeded/prepared` state from `active entrant` state
+- Add tests that prevent the same owner from racing against itself unless the design explicitly allows it
+- Recommendation systems must not mistake “prepared shell exists” for “can start this now”
+
 ## Storage resilience
 - Primary storage (IndexedDB) MUST have a fallback (localStorage) for mobile Safari eviction
 - Call `navigator.storage.persist()` on first use
