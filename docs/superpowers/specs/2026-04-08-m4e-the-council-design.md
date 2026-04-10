@@ -626,3 +626,27 @@ M4e is complete only when all of the following are true:
 13. All explicitly assigned M4e issues are resolved.
 14. Every slice lands as a complete, mergeable, playable value drop.
 15. The Council never leaks hidden cities, unmet civilizations, undiscovered city-states, or any other player-invisible information.
+
+---
+
+## Appendix A - Approved M4 Legendary Wonder Roster
+
+This appendix is the authoritative roster for the full M4 legendary quest-wonder catalog.
+
+Code that mirrors this list must stay in the same order and use the same IDs and display names. If this appendix changes, the roster module and exact-equality tests must be updated in the same branch.
+
+1. `oracle-of-delphi` — Oracle of Delphi
+2. `grand-canal` — Grand Canal
+3. `sun-spire` — Sun Spire
+4. `world-archive` — World Archive
+5. `moonwell-gardens` — Moonwell Gardens
+6. `ironroot-foundry` — Ironroot Foundry
+7. `tidecaller-bastion` — Tidecaller Bastion
+8. `starvault-observatory` — Starvault Observatory
+9. `whispering-exchange` — Whispering Exchange
+10. `hall-of-champions` — Hall of Champions
+11. `gate-of-the-world` — Gate of the World
+12. `leviathan-drydock` — Leviathan Drydock
+13. `storm-signal-spire` — Storm-Signal Spire
+14. `manhattan-project` — Manhattan Project
+15. `internet` — Internet

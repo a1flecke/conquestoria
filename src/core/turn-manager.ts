@@ -41,11 +41,12 @@ import { processBreakawayTurn } from '@/systems/breakaway-system';
 import {
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
+  initializeLegendaryWonderProjectsForAllCities,
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
-  let newState = structuredClone(state);
+  let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
 
   bus.emit('turn:end', { turn: newState.turn, playerId: newState.currentPlayer });
 

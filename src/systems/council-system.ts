@@ -2,6 +2,11 @@ import type { CouncilAgenda, CouncilCard, CouncilInterrupt, CouncilTalkLevel, Ga
 import { getQuestDescriptionForPlayer, getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
+import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import {
+  getReachableLegendaryWonderProjects,
+  initializeLegendaryWonderProjectsForAllCities,
+} from '@/systems/legendary-wonder-system';
 
 function getPrimaryCity(state: GameState, civId: string) {
   const firstCityId = state.civilizations[civId]?.cities[0];
@@ -16,6 +21,78 @@ function getFoodRecommendation(city: GameState['cities'][string]): string {
     return 'Queue a Granary next to steady food growth.';
   }
   return 'Work better farmland or build another food source before growth stalls.';
+}
+
+function getWonderRecommendationCards(state: GameState, civId: string): CouncilCard[] {
+  const seededState = initializeLegendaryWonderProjectsForAllCities(state);
+  const cityNames = seededState.civilizations[civId]?.cities.reduce<Record<string, string>>((acc, cityId) => {
+    const city = seededState.cities[cityId];
+    if (city) {
+      acc[cityId] = city.name;
+    }
+    return acc;
+  }, {}) ?? {};
+  const reachableProjects = seededState.civilizations[civId]?.cities.flatMap(cityId =>
+    getReachableLegendaryWonderProjects(seededState, civId, cityId),
+  ) ?? [];
+  const bestProjectByWonder = new Map<string, typeof reachableProjects[number]>();
+
+  for (const project of reachableProjects) {
+    const definition = getLegendaryWonderDefinition(project.wonderId);
+    const completedSteps = project.questSteps.filter(step => step.completed).length;
+    const totalSteps = project.questSteps.length;
+    const phaseBonus = project.phase === 'ready_to_build' ? 100 : 45;
+    const progressBonus = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 30) : 20;
+    const costPenalty = Math.floor((definition?.productionCost ?? 300) / 40);
+    const priority = phaseBonus + progressBonus - costPenalty;
+    const existing = bestProjectByWonder.get(project.wonderId);
+
+    if (!existing) {
+      bestProjectByWonder.set(project.wonderId, project);
+      continue;
+    }
+
+    const existingDefinition = getLegendaryWonderDefinition(existing.wonderId);
+    const existingCompleted = existing.questSteps.filter(step => step.completed).length;
+    const existingTotal = existing.questSteps.length;
+    const existingPhaseBonus = existing.phase === 'ready_to_build' ? 100 : 45;
+    const existingProgressBonus = existingTotal > 0 ? Math.round((existingCompleted / existingTotal) * 30) : 20;
+    const existingCostPenalty = Math.floor((existingDefinition?.productionCost ?? 300) / 40);
+    const existingPriority = existingPhaseBonus + existingProgressBonus - existingCostPenalty;
+
+    if (priority > existingPriority) {
+      bestProjectByWonder.set(project.wonderId, project);
+    }
+  }
+
+  return [...bestProjectByWonder.values()]
+    .map(project => {
+      const definition = getLegendaryWonderDefinition(project.wonderId);
+      const completedSteps = project.questSteps.filter(step => step.completed).length;
+      const totalSteps = project.questSteps.length;
+      const phaseBonus = project.phase === 'ready_to_build' ? 100 : 45;
+      const progressBonus = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 30) : 20;
+      const costPenalty = Math.floor((definition?.productionCost ?? 300) / 40);
+      const priority = phaseBonus + progressBonus - costPenalty;
+      const cityName = cityNames[project.cityId] ?? project.cityId;
+      const isReady = project.phase === 'ready_to_build';
+
+      return {
+        id: `wonder-${project.cityId}-${project.wonderId}`,
+        advisor: 'artisan' as const,
+        bucket: 'to-win' as const,
+        cardType: 'wonder' as const,
+        title: `Legendary Wonder: ${definition?.name ?? project.wonderId}`,
+        summary: isReady
+          ? `${cityName} can begin it now. A glorious vanity project with actual upside.`
+          : `${cityName} is ${completedSteps}/${totalSteps} steps in. Close enough to feel tantalizing, not overwhelming.`,
+        why: `${definition?.reward.summary ?? 'A major empire bonus.'} Keep the Council pointed at one grand story at a time.`,
+        priority,
+        actionLabel: isReady ? 'Build wonder' : 'Track quest',
+      };
+    })
+    .sort((left, right) => right.priority - left.priority)
+    .slice(0, 3);
 }
 
 export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgenda {
@@ -80,6 +157,8 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
     break;
   }
 
+  const wonderCards = getWonderRecommendationCards(state, civId);
+
   return {
     doNow: doNow.sort((a, b) => b.priority - a.priority),
     soon: [
@@ -94,6 +173,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
       },
     ],
     toWin: [
+      ...wonderCards,
       {
         id: 'pick-a-victory-lane',
         advisor: 'scholar',

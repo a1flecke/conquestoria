@@ -91,6 +91,25 @@ describe('visitVillage', () => {
     expect(state.tribalVillages['v1']).toBeUndefined();
   });
 
+  it('records tribal village visits into legendary wonder history once per civ and village', () => {
+    const state = makeGameState();
+    state.tribalVillages = {
+      'v1': { id: 'v1', position: { q: 5, r: 5 } },
+    };
+    const unit = Object.values(state.units).find(u => u.owner === 'player')!;
+    unit.position = { q: 5, r: 5 };
+
+    visitVillage(state, 'v1', unit, () => 0.2);
+
+    expect(state.legendaryWonderHistory?.discoveredSites).toContainEqual(
+      expect.objectContaining({
+        civId: 'player',
+        siteId: 'v1',
+        siteType: 'tribal-village',
+      }),
+    );
+  });
+
   it('gold outcome adds gold to civ', () => {
     const state = makeGameState();
     state.tribalVillages = {

@@ -228,6 +228,8 @@ export function createNewGame(
     tribalVillages,
     discoveredWonders: {},
     wonderDiscoverers: {},
+    legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+    legendaryWonderIntel: {},
     embargoes: [],
     defensiveLeagues: [],
     settings: createDefaultSettings(actualSize, config.settingsOverrides),
@@ -332,6 +334,8 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     tribalVillages,
     discoveredWonders: {},
     wonderDiscoverers: {},
+    legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+    legendaryWonderIntel: {},
     embargoes: [],
     defensiveLeagues: [],
     settings: createDefaultSettings(config.mapSize, {

@@ -16,7 +16,7 @@ import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
-import { destroyCamp } from '@/systems/barbarian-system';
+import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioManager } from '@/audio/audio-manager';
 import { SFX } from '@/audio/sfx';
@@ -48,7 +48,10 @@ import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-s
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
-import { startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
+import {
+  initializeLegendaryWonderProjectsForCity,
+  startLegendaryWonderBuild,
+} from '@/systems/legendary-wonder-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import {
   assignSpy,
@@ -390,6 +393,7 @@ function togglePanel(panel: string): void {
         }
       },
       onOpenWonderPanel: (selectedCityId) => {
+        gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);
         createWonderPanel(uiLayer, gameState, selectedCityId, {
           onStartBuild: (buildCityId, wonderId) => {
             gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
@@ -707,6 +711,7 @@ function foundCityAction(): void {
   const city = foundCity(cp, unit.position, gameState.map);
   gameState.cities[city.id] = city;
   currentCiv().cities.push(city.id);
+  gameState = initializeLegendaryWonderProjectsForCity(gameState, cp, city.id);
 
   // Mark tiles as owned
   for (const coord of city.ownedTiles) {
@@ -805,17 +810,14 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
     }
     showNotification('Enemy unit destroyed!', 'success');
 
-    for (const [campId, camp] of Object.entries(gameState.barbarianCamps)) {
-      if (hexKey(camp.position) === targetKey) {
-        const reward = destroyCamp(camp);
-        delete gameState.barbarianCamps[campId];
-        currentCiv().gold += reward;
-        showNotification(`Barbarian camp destroyed! +${reward} gold`, 'success');
-        advisorSystem.resetMessage('treasurer_camp_reward');
-        advisorSystem.check(gameState);
-        for (const mcId of Object.keys(gameState.minorCivs)) {
-          applyDiplomaticReaction(gameState, 'camp_destroyed_nearby', gameState.currentPlayer, mcId);
-        }
+    const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
+    if (destroyedCamp.campId) {
+      gameState = destroyedCamp.state;
+      showNotification(`Barbarian camp destroyed! +${destroyedCamp.reward} gold`, 'success');
+      advisorSystem.resetMessage('treasurer_camp_reward');
+      advisorSystem.check(gameState);
+      for (const mcId of Object.keys(gameState.minorCivs)) {
+        applyDiplomaticReaction(gameState, 'camp_destroyed_nearby', gameState.currentPlayer, mcId);
       }
     }
 
@@ -1419,6 +1421,30 @@ function migrateLegacySave(): void {
   if (!gameState.tribalVillages) (gameState as any).tribalVillages = {};
   if (!gameState.discoveredWonders) (gameState as any).discoveredWonders = {};
   if (!gameState.wonderDiscoverers) (gameState as any).wonderDiscoverers = {};
+  if (!gameState.legendaryWonderHistory) {
+    (gameState as any).legendaryWonderHistory = { destroyedStrongholds: [], discoveredSites: [] };
+  }
+  const legendaryWonderHistory = gameState.legendaryWonderHistory!;
+  if (!legendaryWonderHistory.discoveredSites) {
+    legendaryWonderHistory.discoveredSites = [];
+    for (const [wonderId, discoverers] of Object.entries(gameState.wonderDiscoverers ?? {})) {
+      const wonderTile = Object.values(gameState.map.tiles).find(tile => tile.wonder === wonderId);
+      for (const civId of discoverers) {
+        if (!legendaryWonderHistory.discoveredSites.some(record => record.civId === civId && record.siteId === wonderId)) {
+          legendaryWonderHistory.discoveredSites.push({
+            civId,
+            siteId: wonderId,
+            siteType: 'natural-wonder',
+            position: wonderTile?.coord ?? { q: 0, r: 0 },
+            turn: gameState.turn,
+          });
+        }
+      }
+    }
+  }
+  if (!gameState.legendaryWonderIntel) {
+    (gameState as any).legendaryWonderIntel = {};
+  }
   // Add wonder field to tiles if missing
   for (const tile of Object.values(gameState.map.tiles)) {
     if (!('wonder' in tile)) (tile as any).wonder = null;

@@ -20,7 +20,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production'], era: 3 },
   { id: 'trade-routes', name: 'Trade Routes', track: 'economy', cost: 85, prerequisites: ['currency'], unlocks: ['Enable trade routes between cities'], era: 4 },
   { id: 'banking', name: 'Banking', track: 'economy', cost: 95, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+20% gold in all cities'], era: 4 },
-  { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5 },
+  { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5, countsForEraAdvancement: false },
 
   // === SCIENCE TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'fire', name: 'Fire', track: 'science', cost: 15, prerequisites: [], unlocks: ['Unlock basic research'], era: 1 },
@@ -31,7 +31,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 70, prerequisites: ['writing'], unlocks: ['Unlock Temple building'], era: 3 },
   { id: 'astronomy', name: 'Astronomy', track: 'science', cost: 90, prerequisites: ['mathematics'], unlocks: ['Unlock Observatory building'], era: 4 },
   { id: 'medicine', name: 'Medicine', track: 'science', cost: 85, prerequisites: ['philosophy', 'pottery'], unlocks: ['City population grows faster'], era: 4 },
-  { id: 'nuclear-theory', name: 'Nuclear Theory', track: 'science', cost: 165, prerequisites: ['astronomy', 'medicine'], unlocks: ['Late-era atomic research and wonder prerequisites'], era: 5 },
+  { id: 'nuclear-theory', name: 'Nuclear Theory', track: 'science', cost: 165, prerequisites: ['astronomy', 'medicine'], unlocks: ['Late-era atomic research and wonder prerequisites'], era: 5, countsForEraAdvancement: false },
 
   // === CIVICS TRACK (8 techs, existing) ===
   { id: 'tribal-council', name: 'Tribal Council', track: 'civics', cost: 15, prerequisites: [], unlocks: ['Basic governance'], era: 1 },
@@ -132,7 +132,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'ciphers', name: 'Ciphers', track: 'communication', cost: 85, prerequisites: ['pictographs'], unlocks: ['Encoded messages'], era: 3 },
   { id: 'printing', name: 'Printing', track: 'communication', cost: 120, prerequisites: ['courier-networks'], unlocks: ['Newspaper'], era: 4 },
   { id: 'diplomats', name: 'Diplomats', track: 'communication', cost: 130, prerequisites: ['courier-networks', 'ciphers'], unlocks: ['Embassy'], era: 4 },
-  { id: 'mass-media', name: 'Mass Media', track: 'communication', cost: 150, prerequisites: ['printing', 'diplomats'], unlocks: ['Global broadcasts and late-era cultural coordination'], era: 5 },
+  { id: 'mass-media', name: 'Mass Media', track: 'communication', cost: 150, prerequisites: ['printing', 'diplomats'], unlocks: ['Global broadcasts and late-era cultural coordination'], era: 5, countsForEraAdvancement: false },
 
   // === ESPIONAGE TRACK (8 techs — M4a stages 1-2, expanded in later milestones) ===
   { id: 'espionage-scouting', name: 'Scouting Networks', track: 'espionage', cost: 40, prerequisites: [], unlocks: ['Recruit spies', 'Passive city surveillance', 'Scout Area mission', 'Monitor Troops mission'], era: 1 },
@@ -156,3 +156,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'pilgrimages', name: 'Pilgrimages', track: 'spirituality', cost: 120, prerequisites: ['temples'], unlocks: ['Pilgrimage route'], era: 4 },
   { id: 'theology-tech', name: 'Theology', track: 'spirituality', cost: 130, prerequisites: ['temples', 'priesthood'], unlocks: ['Cathedral'], era: 4 },
 ];
+
+export function getEraAdvancementTechs(era: number): Tech[] {
+  return TECH_TREE.filter(tech => tech.era === era && tech.countsForEraAdvancement !== false);
+}

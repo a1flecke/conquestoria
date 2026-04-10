@@ -1,7 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import { getLateEraWonderTechRequirements } from '@/systems/legendary-wonder-definitions';
+import { getApprovedM4LegendaryWonderRoster } from '@/systems/approved-legendary-wonder-roster';
+import {
+  getLateEraWonderTechRequirements,
+  getLegendaryWonderDefinitions,
+} from '@/systems/legendary-wonder-definitions';
 
 describe('legendary-wonder-definitions', () => {
+  it('matches the full approved M4 legendary wonder roster exactly', () => {
+    const approved = getApprovedM4LegendaryWonderRoster().map(w => w.id);
+    const shipped = getLegendaryWonderDefinitions().map(w => w.id);
+
+    expect(shipped).toEqual(approved);
+    expect(approved).toHaveLength(15);
+    expect(approved).toEqual(expect.arrayContaining(['manhattan-project', 'internet']));
+  });
+
+  it('supports the new Slice 4 quest-step patterns in the expanded catalog', () => {
+    const definitions = getLegendaryWonderDefinitions();
+    const grandCanal = definitions.find(w => w.id === 'grand-canal');
+    const internet = definitions.find(w => w.id === 'internet');
+    const stormSignalSpire = definitions.find(w => w.id === 'storm-signal-spire');
+    const tidecaller = definitions.find(w => w.id === 'tidecaller-bastion');
+    const gate = definitions.find(w => w.id === 'gate-of-the-world');
+    const drydock = definitions.find(w => w.id === 'leviathan-drydock');
+
+    expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')).toMatchObject({
+      type: 'buildings-in-multiple-cities',
+      targetCount: 1,
+    });
+    expect(internet?.questSteps.some(step => step.type === 'buildings-in-multiple-cities')).toBe(true);
+    expect(internet?.questSteps.some(step => step.type === 'trade-routes-established')).toBe(true);
+    expect(stormSignalSpire?.questSteps.some(step => step.type === 'map-discoveries')).toBe(true);
+    expect(tidecaller?.questSteps.find(step => step.id === 'secure-coastal-trade')).toMatchObject({
+      routeRequirement: 'coastal',
+    });
+    expect(gate?.questSteps.find(step => step.id === 'link-the-seas')).toMatchObject({
+      routeRequirement: 'long-range',
+      minimumRouteDistance: 8,
+    });
+    expect(drydock?.questSteps.find(step => step.id === 'prove-open-sea-command')).toMatchObject({
+      routeRequirement: 'overseas',
+    });
+  });
+
   it('maps the remaining late-era wonder scaffolding to real Slice 3 techs', () => {
     const requirements = getLateEraWonderTechRequirements();
 
@@ -13,5 +54,68 @@ describe('legendary-wonder-definitions', () => {
       wonderId: 'internet',
       requiredTechs: ['mass-media', 'global-logistics'],
     });
+  });
+
+  it('derives late-era wonder prerequisite summaries from the shipped definitions', () => {
+    const requirements = getLateEraWonderTechRequirements();
+    const definitions = Object.fromEntries(
+      getLegendaryWonderDefinitions().map(definition => [definition.id, definition]),
+    );
+
+    expect(requirements).toEqual([
+      {
+        wonderId: 'manhattan-project',
+        requiredTechs: definitions['manhattan-project'].requiredTechs,
+      },
+      {
+        wonderId: 'internet',
+        requiredTechs: definitions.internet.requiredTechs,
+      },
+    ]);
+  });
+
+  it('uses explicit metadata for route and stronghold flavored wonder steps', () => {
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const step of definition.questSteps) {
+        if (step.type === 'trade_route' || step.type === 'trade-routes-established') {
+          expect(step.routeRequirement ?? 'any').toBeDefined();
+        }
+        if (step.type === 'defeat_stronghold') {
+          expect(step.scope ?? 'any').toBeDefined();
+        }
+      }
+    }
+  });
+
+  it('declares explicit city-development scope metadata for every buildings-in-multiple-cities step', () => {
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const step of definition.questSteps) {
+        if (step.type === 'buildings-in-multiple-cities') {
+          expect(step.cityScope).toMatch(/^(host-city|empire)$/);
+          expect(step.minimumBuildingsPerCity ?? 3).toBeGreaterThanOrEqual(1);
+        }
+      }
+    }
+  });
+
+  it('marks grand canal growth as a host-city requirement', () => {
+    const grandCanal = getLegendaryWonderDefinitions().find(w => w.id === 'grand-canal');
+
+    expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')).toMatchObject({
+      type: 'buildings-in-multiple-cities',
+      cityScope: 'host-city',
+      targetCount: 1,
+      minimumBuildingsPerCity: 3,
+    });
+  });
+
+  it('requires discovery-type metadata on every map-discoveries step', () => {
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const step of definition.questSteps) {
+        if (step.type === 'map-discoveries') {
+          expect(step.discoveryTypes?.length).toBeGreaterThan(0);
+        }
+      }
+    }
   });
 });

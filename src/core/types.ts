@@ -71,7 +71,24 @@ export interface LegendaryWonderDefinition {
   cityRequirement: 'river' | 'coastal' | 'any';
   questSteps: Array<{
     id: string;
-    type: 'discover_wonder' | 'trade_route' | 'research_count' | 'defeat_stronghold';
+    type:
+      | 'discover_wonder'
+      | 'trade_route'
+      | 'research_count'
+      | 'defeat_stronghold'
+      | 'buildings-in-multiple-cities'
+      | 'trade-routes-established'
+      | 'map-discoveries';
+    description?: string;
+    targetCount?: number;
+    track?: TechTrack;
+    scope?: 'near-city' | 'any';
+    radius?: number;
+    routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
+    minimumRouteDistance?: number;
+    cityScope?: 'host-city' | 'empire';
+    minimumBuildingsPerCity?: number;
+    discoveryTypes?: Array<'natural-wonder' | 'tribal-village'>;
   }>;
   reward: LegendaryWonderReward;
 }
@@ -97,6 +114,39 @@ export interface CompletedLegendaryWonder {
   ownerId: string;
   cityId: string;
   turnCompleted: number;
+}
+
+export interface DestroyedStrongholdRecord {
+  civId: string;
+  campId: string;
+  position: HexCoord;
+  turn: number;
+}
+
+export type LegendaryWonderDiscoverySiteType = 'natural-wonder' | 'tribal-village';
+
+export interface LegendaryWonderDiscoveredSiteRecord {
+  civId: string;
+  siteId: string;
+  siteType: LegendaryWonderDiscoverySiteType;
+  position: HexCoord;
+  turn: number;
+}
+
+export interface LegendaryWonderHistory {
+  destroyedStrongholds: DestroyedStrongholdRecord[];
+  discoveredSites: LegendaryWonderDiscoveredSiteRecord[];
+}
+
+export interface LegendaryWonderIntelEntry {
+  projectKey: string;
+  wonderId: string;
+  civId: string;
+  civName: string;
+  cityId: string;
+  cityName: string;
+  revealedTurn: number;
+  intelLevel: 'started';
 }
 
 // --- Tribal Villages ---
@@ -238,6 +288,7 @@ export interface Tech {
   prerequisites: string[];   // tech IDs
   unlocks: string[];         // what this tech enables (descriptions)
   era: number;               // 1-3 for milestone 1
+  countsForEraAdvancement?: boolean;
 }
 
 export interface TechState {
@@ -627,6 +678,7 @@ export interface CouncilCard {
   id: string;
   advisor: AdvisorType;
   bucket: 'do-now' | 'soon' | 'to-win' | 'drama';
+  cardType?: 'standard' | 'wonder';
   title: string;
   summary: string;
   why: string;
@@ -713,6 +765,8 @@ export interface GameState {
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
   completedLegendaryWonders?: Record<string, CompletedLegendaryWonder>;
+  legendaryWonderHistory?: LegendaryWonderHistory;
+  legendaryWonderIntel?: Record<string, LegendaryWonderIntelEntry[]>;
   espionage?: EspionageState;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];

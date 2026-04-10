@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TECH_TREE } from '@/systems/tech-definitions';
+import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
 
 describe('tech definitions', () => {
   it('has exactly 125 techs after adding late-era Slice 3 scaffolding', () => {
@@ -107,6 +107,12 @@ describe('tech definitions', () => {
     expect(TECH_TREE.find(t => t.id === 'mass-media')).toBeDefined();
     expect(TECH_TREE.find(t => t.id === 'global-logistics')).toBeDefined();
     expect(TECH_TREE.find(t => t.id === 'nuclear-theory')).toBeDefined();
+  });
+
+  it('keeps era advancement paced by the original era-5 espionage pair', () => {
+    const ids = getEraAdvancementTechs(5).map(tech => tech.id);
+
+    expect(ids).toEqual(['digital-surveillance', 'cyber-warfare']);
   });
 
   it('has no orphan late-era nodes', () => {

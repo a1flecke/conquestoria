@@ -190,6 +190,16 @@ describe('era advancement', () => {
     const newEra = checkEraAdvancement(state);
     expect(newEra).toBe(1);
   });
+
+  it('does not require late-era scaffolding techs to advance into era 5', () => {
+    const state = createNewGame(undefined, 'era-five-test', 'small');
+    state.era = 4;
+    state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
+
+    const newEra = checkEraAdvancement(state);
+
+    expect(newEra).toBe(5);
+  });
 });
 
 describe('minor civ era upgrades', () => {

@@ -122,6 +122,79 @@ describe('save persistence (#38)', () => {
     expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].turnCompleted).toBe(40);
   });
 
+  it('round-trips legendary wonder history through JSON serialization', () => {
+    const state = {
+      legendaryWonderHistory: {
+        destroyedStrongholds: [
+          {
+            civId: 'player',
+            campId: 'camp-7',
+            position: { q: 4, r: -2 },
+            turn: 33,
+          },
+        ],
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderHistory.destroyedStrongholds).toContainEqual({
+      civId: 'player',
+      campId: 'camp-7',
+      position: { q: 4, r: -2 },
+      turn: 33,
+    });
+  });
+
+  it('round-trips legendary wonder discovery history through JSON serialization', () => {
+    const state = {
+      legendaryWonderHistory: {
+        destroyedStrongholds: [],
+        discoveredSites: [
+          { civId: 'player', siteId: 'great-barrier-reef', siteType: 'natural-wonder', position: { q: 8, r: 2 }, turn: 12 },
+          { civId: 'player', siteId: 'village-3', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 15 },
+        ],
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderHistory.discoveredSites).toHaveLength(2);
+    expect(roundTrip.legendaryWonderHistory.discoveredSites[0].siteType).toBe('natural-wonder');
+  });
+
+  it('round-trips legendary wonder intel through JSON serialization', () => {
+    const state = {
+      legendaryWonderIntel: {
+        observer: [
+          {
+            projectKey: 'oracle-of-delphi:rival:city-rival',
+            wonderId: 'oracle-of-delphi',
+            civId: 'rival',
+            civName: 'Rival',
+            cityId: 'city-rival',
+            cityName: 'Rival Harbor',
+            revealedTurn: 41,
+            intelLevel: 'started',
+          },
+        ],
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderIntel.observer[0]).toEqual({
+      projectKey: 'oracle-of-delphi:rival:city-rival',
+      wonderId: 'oracle-of-delphi',
+      civId: 'rival',
+      civName: 'Rival',
+      cityId: 'city-rival',
+      cityName: 'Rival Harbor',
+      revealedTurn: 41,
+      intelLevel: 'started',
+    });
+  });
+
   it('round-trips campaign identity through JSON serialization', () => {
     const state = {
       gameId: 'game-123',

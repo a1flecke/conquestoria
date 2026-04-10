@@ -1,4 +1,4 @@
-import type { BarbarianCamp, GameMap, HexCoord, Unit } from '@/core/types';
+import type { BarbarianCamp, GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
 
 // Seeded LCG — avoids Math.random() per project rules
@@ -57,6 +57,54 @@ export function resetCampId(): void {
 
 export function destroyCamp(camp: BarbarianCamp): number {
   return 15 + camp.strength * 2;
+}
+
+export function applyCampDestruction(
+  state: GameState,
+  civId: string,
+  campId: string,
+  turn: number,
+): { state: GameState; reward: number } {
+  const camp = state.barbarianCamps[campId];
+  if (!camp) {
+    return { state, reward: 0 };
+  }
+
+  const reward = destroyCamp(camp);
+  const nextState = structuredClone(state);
+  delete nextState.barbarianCamps[campId];
+  nextState.legendaryWonderHistory = {
+    discoveredSites: nextState.legendaryWonderHistory?.discoveredSites ?? [],
+    destroyedStrongholds: [
+      ...(nextState.legendaryWonderHistory?.destroyedStrongholds ?? []),
+      { civId, campId, position: camp.position, turn },
+    ],
+  };
+  nextState.civilizations[civId].gold += reward;
+
+  return { state: nextState, reward };
+}
+
+export function applyCampDestructionAtTarget(
+  state: GameState,
+  civId: string,
+  target: HexCoord,
+  turn: number,
+): { state: GameState; reward: number; campId: string | null } {
+  const campEntry = Object.entries(state.barbarianCamps).find(([, camp]) =>
+    hexKey(camp.position) === hexKey(target),
+  );
+  if (!campEntry) {
+    return { state, reward: 0, campId: null };
+  }
+
+  const [campId] = campEntry;
+  const destroyed = applyCampDestruction(state, civId, campId, turn);
+  return {
+    state: destroyed.state,
+    reward: destroyed.reward,
+    campId,
+  };
 }
 
 export interface BarbarianMoveOrder {

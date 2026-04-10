@@ -70,13 +70,15 @@ class MockDocument {
 }
 
 export function collectText(node: unknown): string {
-  const current = node as { textContent?: string; children?: unknown[] };
-  const childText = (current.children ?? []).map(collectText);
+  const current = node as { textContent?: string; children?: ArrayLike<unknown> };
+  const childText = Array.from(current.children ?? []).map(collectText);
   return [current.textContent, ...childText].filter(Boolean).join(' ');
 }
 
 export function makeWonderPanelFixture(): { container: HTMLElement; city: City; state: GameState } {
-  (globalThis as typeof globalThis & { document?: Document }).document = new MockDocument() as unknown as Document;
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    (globalThis as typeof globalThis & { document?: Document }).document = new MockDocument() as unknown as Document;
+  }
 
   const state = makeLegendaryWonderFixture({ completedTechs: ['philosophy', 'pilgrimages'], resources: ['stone'] });
   const city = state.cities['city-river'];
