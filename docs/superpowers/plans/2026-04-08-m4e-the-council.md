@@ -1883,6 +1883,8 @@ In `src/systems/tech-definitions.ts`, add explicit techs rather than generic pla
 { id: 'nuclear-theory', track: 'science', era: 5, prerequisites: ['advanced-physics'], unlocks: ['Manhattan Project'] }
 ```
 
+These nodes are part of the late-era prerequisite graph and tech-panel readability work. They are **not** automatically progression-gating techs for era advancement. Any Slice 3 implementation must keep era pacing routed through a dedicated advancement helper rather than raw era counts.
+
 - [ ] **Step 4: Re-run focused tests**
 
 ```bash
@@ -1977,6 +1979,159 @@ git push origin feature/m4e-slice3-late-era-foundations
 ```
 
 After merge, confirm ancestry and remove the worktree/branch.
+
+### Task 11A: Preserve Era Advancement Pacing When Adding Late-Era Scaffolding
+
+**Root Cause Analysis**
+
+The Slice 3 review found a deeper pacing contract bug, not just a one-line threshold mistake.
+
+The current era-advancement rule in `checkEraAdvancement()` assumes:
+
+- “all techs in `TECH_TREE` for era `N` are equally valid pacing signals for entering era `N`”
+
+That was accidentally safe before Slice 3 because era 5 only had the two real espionage technologies. After Slice 3 added scaffolding nodes for wonder prerequisites and panel readability, the same rule changed from:
+
+- `2 * 0.6 => 2` required era-5 techs
+
+to:
+
+- `5 * 0.6 => 3` required era-5 techs
+
+So the architectural problem is that the codebase currently conflates two different concepts:
+
+1. `tech belongs to this era for display / prerequisite graph purposes`
+2. `tech counts as a progression signal for era advancement pacing`
+
+Those are not the same. Slice 3 needs the first concept to expand. It must **not** silently change the second.
+
+I audited current callers after the review. In the current branch, the only live gameplay logic deriving pacing directly from raw era tech counts is `checkEraAdvancement()` in `src/systems/minor-civ-system.ts`. That makes the blast radius manageable, but it also means the plan should lock in one canonical helper now so later features do not repeat the same mistake in a different system.
+
+**Files:**
+- Modify: `src/core/types.ts`
+- Modify: `src/systems/tech-definitions.ts`
+- Modify: `src/systems/minor-civ-system.ts`
+- Modify: `tests/systems/tech-definitions.test.ts`
+- Modify: `tests/systems/minor-civ-system.test.ts`
+
+- [ ] **Step 1: Add failing pacing-preservation regressions**
+
+Extend `tests/systems/minor-civ-system.test.ts`:
+
+```typescript
+it('keeps era 5 advancement satisfied by the original two core era-5 techs', () => {
+  const state = createNewGame('egypt', 'slice-3-era-pacing');
+  state.era = 4;
+  state.civilizations.player.techState.completed = [
+    'digital-surveillance',
+    'cyber-warfare',
+  ];
+
+  expect(checkEraAdvancement(state)).toBe(5);
+});
+
+it('does not count late-era scaffolding techs as required pacing gates by themselves', () => {
+  const state = createNewGame('egypt', 'slice-3-era-pacing');
+  state.era = 4;
+  state.civilizations.player.techState.completed = [
+    'mass-media',
+    'global-logistics',
+  ];
+
+  expect(checkEraAdvancement(state)).toBe(4);
+});
+```
+
+Extend `tests/systems/tech-definitions.test.ts`:
+
+```typescript
+it('marks only the intended era-5 progression techs as counting toward era advancement', () => {
+  const eraFive = TECH_TREE.filter(tech => tech.era === 5);
+  const advancementTechs = eraFive.filter(tech => tech.countsForEraAdvancement !== false);
+
+  expect(advancementTechs.map(tech => tech.id).sort()).toEqual([
+    'cyber-warfare',
+    'digital-surveillance',
+  ]);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/tech-definitions.test.ts tests/systems/minor-civ-system.test.ts
+```
+
+Expected: FAIL because tech definitions do not distinguish display-era vs pacing-era, and `checkEraAdvancement()` still counts every era-5 node.
+
+- [ ] **Step 3: Add one canonical era-advancement eligibility flag**
+
+In `src/core/types.ts`, extend the tech definition type with:
+
+```typescript
+countsForEraAdvancement?: boolean;
+```
+
+Use this rule:
+
+- default `true` for existing techs unless explicitly marked otherwise
+- Slice 3 scaffolding nodes must opt out with `countsForEraAdvancement: false`
+- the two original real era-5 progression techs remain implicit `true`
+
+In `src/systems/tech-definitions.ts`, mark the Slice 3 scaffolding nodes:
+
+```typescript
+{ id: 'mass-media', ..., countsForEraAdvancement: false }
+{ id: 'global-logistics', ..., countsForEraAdvancement: false }
+{ id: 'nuclear-theory', ..., countsForEraAdvancement: false }
+```
+
+If any other Slice 3-added node exists only to complete the prerequisite graph or improve readability, mark it the same way.
+
+- [ ] **Step 4: Route era pacing through one helper, not raw `TECH_TREE.filter(...)`**
+
+In `src/systems/minor-civ-system.ts`, replace:
+
+```typescript
+const nextEraTechs = TECH_TREE.filter(t => t.era === nextEra);
+```
+
+with a dedicated helper such as:
+
+```typescript
+function getEraAdvancementTechs(era: number) {
+  return TECH_TREE.filter(tech =>
+    tech.era === era && tech.countsForEraAdvancement !== false,
+  );
+}
+```
+
+Then use that helper in `checkEraAdvancement()`.
+
+Keep the existing 60% threshold behavior intact. The change is **which techs are counted**, not the threshold formula.
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/tech-definitions.test.ts tests/systems/minor-civ-system.test.ts
+```
+
+- [ ] **Step 6: Add a narrow guardrail note to Slice 3**
+
+Update the Slice 3 task text in this plan to state explicitly:
+
+- late-era readability / scaffold nodes may expand the era graph
+- they must not silently change era-advancement pacing
+- any future pacing logic must use `getEraAdvancementTechs(...)`, not raw era filters
+
+This is documentation-only in the plan file, not a code change.
+
+- [ ] **Step 7: Commit the era-pacing preservation fix**
+
+```bash
+git add src/core/types.ts src/systems/tech-definitions.ts src/systems/minor-civ-system.ts tests/systems/tech-definitions.test.ts tests/systems/minor-civ-system.test.ts docs/superpowers/plans/2026-04-08-m4e-the-council.md
+git commit -m "fix(m4e): preserve late-era advancement pacing"
+```
 
 ---
 
@@ -3561,6 +3716,586 @@ If a feature emits events on state transition, add a regression proving the even
 ```bash
 git add AGENTS.md .claude/rules/ui-panels.md .claude/rules/end-to-end-wiring.md scripts/run-wonder-regressions.sh tests/ui/legendary-wonder-notifications.test.ts
 git commit -m "docs(m4e): harden wonder privacy and transition guardrails"
+```
+
+### Task 13K: Resolve Lost Wonder Races From Live Investment, Not Stale Project Snapshots
+
+**Root Cause Analysis**
+
+The latest compensation bug comes from a deeper state-model mismatch in `tickLegendaryWonderProjects()`.
+
+That loop currently mixes two different truth sources:
+
+- `LegendaryWonderProject.investedProduction`, which can be one tick old
+- `City.productionProgress`, which is the live turn-local truth for an actively building city
+
+When one project completes a wonder before a rival building project has been visited later in the loop, the winner path resolves rival losses from the stale project snapshot instead of from the rival city’s live production queue/progress. That creates three problems at once:
+
+1. under-refunded gold and carryover
+2. missing `wonder:legendary-lost` events when the stale project still says `0`
+3. a fragile resolution model that depends on iteration order instead of one canonical “active investment” source
+
+The central approach fix is:
+
+- active wonder-race resolution must use one shared helper that computes **effective current investment**
+- every path that resolves a wonder loss in the turn loop must use that helper
+
+Do not patch this by “pre-updating” some rival projects opportunistically. The loop still needs a canonical investment resolver or this drift will reappear in another phase-ordering bug.
+
+**Files:**
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+
+- [ ] **Step 1: Add failing live-investment regressions**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('uses live city production when awarding lost-race compensation to a rival wonder build', () => {
+  const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+  state.legendaryWonderProjects!['grand-canal'].phase = 'building';
+  state.legendaryWonderProjects!['grand-canal'].investedProduction = 145;
+  state.cities['city-river'].productionQueue = ['legendary:grand-canal'];
+  state.cities['city-river'].productionProgress = 150;
+
+  state.legendaryWonderProjects!['grand-canal-rival'].phase = 'building';
+  state.legendaryWonderProjects!['grand-canal-rival'].investedProduction = 0;
+  state.cities['city-rival'].productionQueue = ['legendary:grand-canal'];
+  state.cities['city-rival'].productionProgress = 96;
+
+  const lostEvents: Array<{ civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number }> = [];
+  const bus = new EventBus();
+  bus.on('wonder:legendary-lost', event => lostEvents.push(event));
+
+  const result = tickLegendaryWonderProjects(state, bus);
+
+  expect(result.legendaryWonderProjects!['grand-canal-rival'].phase).toBe('lost_race');
+  expect(result.legendaryWonderProjects!['grand-canal-rival'].transferableProduction).toBe(24);
+  expect(result.civilizations.rival.gold).toBe(224);
+  expect(lostEvents).toEqual([
+    {
+      civId: 'rival',
+      cityId: 'city-rival',
+      wonderId: 'grand-canal',
+      goldRefund: 24,
+      transferableProduction: 24,
+    },
+  ]);
+});
+
+it('does not let wonder-loss compensation depend on project iteration order', () => {
+  const forward = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+  const reverse = structuredClone(forward);
+
+  forward.legendaryWonderProjects = {
+    'grand-canal': {
+      ...forward.legendaryWonderProjects!['grand-canal'],
+      phase: 'building',
+      investedProduction: 145,
+    },
+    'grand-canal-rival': {
+      ...forward.legendaryWonderProjects!['grand-canal-rival'],
+      phase: 'building',
+      investedProduction: 0,
+    },
+  };
+  reverse.legendaryWonderProjects = {
+    'grand-canal-rival': {
+      ...reverse.legendaryWonderProjects!['grand-canal-rival'],
+      phase: 'building',
+      investedProduction: 0,
+    },
+    'grand-canal': {
+      ...reverse.legendaryWonderProjects!['grand-canal'],
+      phase: 'building',
+      investedProduction: 145,
+    },
+  };
+
+  forward.cities['city-river'].productionQueue = ['legendary:grand-canal'];
+  forward.cities['city-river'].productionProgress = 150;
+  forward.cities['city-rival'].productionQueue = ['legendary:grand-canal'];
+  forward.cities['city-rival'].productionProgress = 96;
+  reverse.cities['city-river'].productionQueue = ['legendary:grand-canal'];
+  reverse.cities['city-river'].productionProgress = 150;
+  reverse.cities['city-rival'].productionQueue = ['legendary:grand-canal'];
+  reverse.cities['city-rival'].productionProgress = 96;
+
+  const forwardResult = tickLegendaryWonderProjects(forward, new EventBus());
+  const reverseResult = tickLegendaryWonderProjects(reverse, new EventBus());
+
+  expect(forwardResult.legendaryWonderProjects!['grand-canal-rival'].transferableProduction)
+    .toBe(reverseResult.legendaryWonderProjects!['grand-canal-rival'].transferableProduction);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts
+```
+
+Expected: FAIL because rival loss compensation still uses stale `rivalProject.investedProduction`.
+
+- [ ] **Step 3: Add one canonical active-investment resolver**
+
+In `src/systems/legendary-wonder-system.ts`, add:
+
+```typescript
+function getEffectiveLegendaryWonderInvestment(
+  state: GameState,
+  project: LegendaryWonderProject,
+  cities: Record<string, City> = state.cities,
+): number {
+  const city = cities[project.cityId];
+  if (project.phase === 'building' && city?.productionQueue[0] === `legendary:${project.wonderId}`) {
+    return city.productionProgress;
+  }
+  return project.investedProduction;
+}
+```
+
+Use that helper in **both** places:
+
+- when syncing a `building` project’s `investedProduction`
+- when resolving rival losses inside the winner-completion branch
+
+Specifically, replace:
+
+```typescript
+const compensation = loseLegendaryWonderRace(rivalProject.investedProduction);
+```
+
+with:
+
+```typescript
+const rivalInvestment = getEffectiveLegendaryWonderInvestment(seededState, rivalProject, updatedCities);
+const compensation = loseLegendaryWonderRace(rivalInvestment);
+```
+
+and persist:
+
+```typescript
+updatedProjects[rivalProjectId] = {
+  ...rivalProject,
+  phase: 'lost_race',
+  investedProduction: rivalInvestment,
+  transferableProduction: compensation.transferableProduction,
+};
+```
+
+The `wonder:legendary-lost` emission must also key off `rivalInvestment > 0`, not the stale project field.
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts
+```
+
+- [ ] **Step 5: Commit the live-investment race-resolution fix**
+
+```bash
+git add src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-system.test.ts
+git commit -m "fix(m4e): resolve wonder losses from live investment"
+```
+
+### Task 13L: Make Trade-Route Wonder Quests Read Route Semantics, Not Generic Counts
+
+**Root Cause Analysis**
+
+The coastal-route quest bug is not just a missing `if` in the evaluator. It exposes two deeper issues:
+
+1. the wonder-step model is too coarse
+   - `trade-routes-established` only carries `targetCount`
+2. the trade-route runtime model is also too coarse
+   - `TradeRoute` knows endpoints and gold, but not whether the route is coastal, overseas, or long-range
+
+Right now the code compensates for that missing data with string-specific step IDs and generic route counts. That is brittle and guaranteed to drift as more route-flavored wonders appear.
+
+The correct fix is:
+
+- add explicit route-requirement metadata to wonder steps
+- add one shared trade-route classification helper that derives route traits from existing map/city data
+- evaluate every route-based wonder step through that helper instead of through step-ID special cases
+
+For Slice 4, we do **not** need a giant trade rewrite. We need enough explicit semantics to support the actual catalog:
+
+- `any`
+- `coastal`
+- `overseas`
+- `long-range`
+
+If the current `TradeRoute` shape does not carry enough information, the helper may derive it from:
+
+- source city coastalness
+- destination city coastalness
+- `foreignCivId`
+- city-to-city hex distance
+
+That is sufficient for this milestone and avoids inventing naval path simulation.
+
+**Files:**
+- Modify: `src/core/types.ts`
+- Modify: `src/systems/legendary-wonder-definitions.ts`
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Create: `src/systems/trade-route-classification.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/systems/legendary-wonder-definitions.test.ts`
+
+- [ ] **Step 1: Add failing route-semantics regressions**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('does not satisfy coastal-trade wonder steps with inland routes', () => {
+  const state = makeLegendaryWonderFixture({ completedTechs: ['cartography', 'banking'], resources: ['stone'] });
+  state.cities['city-river'].ownedTiles = [{ q: 2, r: 2 }];
+  state.map.tiles['2,2'].terrain = 'plains';
+  state.map.tiles['2,2'].hasRiver = false;
+  state.marketplace = {
+    prices: {},
+    priceHistory: {},
+    fashionable: null,
+    fashionTurnsLeft: 0,
+    tradeRoutes: [
+      { fromCityId: 'city-river', toCityId: 'city-rival', goldPerTurn: 5 },
+    ],
+  } as any;
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+  const project = Object.values(result.legendaryWonderProjects ?? {}).find(candidate =>
+    candidate.ownerId === 'player' && candidate.wonderId === 'tidecaller-bastion',
+  );
+
+  expect(project?.questSteps.find(step => step.id === 'secure-coastal-trade')?.completed).toBe(false);
+});
+
+it('requires overseas route semantics for open-sea-command wonder steps', () => {
+  const state = makeLegendaryWonderFixture({ completedTechs: ['navigation', 'cartography'], resources: ['stone'] });
+  state.marketplace = {
+    prices: {},
+    priceHistory: {},
+    fashionable: null,
+    fashionTurnsLeft: 0,
+    tradeRoutes: [
+      { fromCityId: 'city-river', toCityId: 'city-rival', goldPerTurn: 5, foreignCivId: 'rival' },
+    ],
+  } as any;
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+  const project = Object.values(result.legendaryWonderProjects ?? {}).find(candidate =>
+    candidate.ownerId === 'player' && candidate.wonderId === 'leviathan-drydock',
+  );
+
+  expect(project?.questSteps.find(step => step.id === 'prove-open-sea-command')?.completed).toBe(false);
+});
+```
+
+Extend `tests/systems/legendary-wonder-definitions.test.ts`:
+
+```typescript
+it('assigns explicit route requirement metadata to coastal and overseas wonder steps', () => {
+  const harbor = getLegendaryWonderDefinition('tidecaller-bastion');
+  const oceanic = getLegendaryWonderDefinition('leviathan-drydock');
+
+  expect(harbor?.questSteps.find(step => step.id === 'secure-coastal-trade')?.routeRequirement).toBe('coastal');
+  expect(oceanic?.questSteps.find(step => step.id === 'prove-open-sea-command')?.routeRequirement).toBe('overseas');
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
+```
+
+Expected: FAIL because the step metadata and route classifier do not exist yet.
+
+- [ ] **Step 3: Add explicit route-requirement metadata**
+
+In `src/core/types.ts`, extend the wonder step shape:
+
+```typescript
+routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
+minimumRouteDistance?: number;
+```
+
+In `src/systems/legendary-wonder-definitions.ts`, annotate the route-specific steps explicitly:
+
+```typescript
+{ id: 'secure-coastal-trade', type: 'trade-routes-established', targetCount: 1, routeRequirement: 'coastal', description: 'Establish a coastal trade route.' }
+{ id: 'link-the-seas', type: 'trade-routes-established', targetCount: 2, routeRequirement: 'long-range', minimumRouteDistance: 8, description: 'Maintain 2 active long-range trade routes.' }
+{ id: 'prove-open-sea-command', type: 'trade-routes-established', targetCount: 1, routeRequirement: 'overseas', description: 'Maintain an active overseas trade route.' }
+```
+
+Do the same for any other route-flavored wonder in the approved roster. Generic route steps should explicitly default to `routeRequirement: 'any'` or omit the field and let the evaluator default it.
+
+- [ ] **Step 4: Add one shared trade-route classifier**
+
+Create `src/systems/trade-route-classification.ts`:
+
+```typescript
+import type { GameState, TradeRoute } from '@/core/types';
+
+export interface ClassifiedTradeRoute {
+  route: TradeRoute;
+  distance: number;
+  isCoastal: boolean;
+  isOverseas: boolean;
+  isLongRange: boolean;
+}
+
+function isCoastalCity(state: GameState, cityId: string): boolean {
+  const city = state.cities[cityId];
+  if (!city) return false;
+  return city.ownedTiles.some(coord => {
+    const tile = state.map.tiles[`${coord.q},${coord.r}`];
+    return tile?.terrain === 'coast' || tile?.terrain === 'ocean';
+  });
+}
+
+export function classifyTradeRoute(state: GameState, route: TradeRoute): ClassifiedTradeRoute {
+  const fromCity = state.cities[route.fromCityId];
+  const toCity = state.cities[route.toCityId];
+  const distance = fromCity && toCity ? hexDistance(fromCity.position, toCity.position) : 0;
+  const fromCoastal = isCoastalCity(state, route.fromCityId);
+  const toCoastal = isCoastalCity(state, route.toCityId);
+
+  return {
+    route,
+    distance,
+    isCoastal: fromCoastal || toCoastal,
+    isOverseas: Boolean(route.foreignCivId && fromCoastal && toCoastal),
+    isLongRange: distance >= 8,
+  };
+}
+```
+
+In `src/systems/legendary-wonder-system.ts`, replace the generic trade-route count branch with route filtering:
+
+```typescript
+const classifiedRoutes = ownedTradeRoutes.map(route => classifyTradeRoute(state, route));
+
+function matchesRouteRequirement(route: ClassifiedTradeRoute, step: LegendaryWonderStep): boolean {
+  const requirement = step.routeRequirement ?? 'any';
+  if (requirement === 'coastal') return route.isCoastal;
+  if (requirement === 'overseas') return route.isOverseas;
+  if (requirement === 'long-range') return route.distance >= (step.minimumRouteDistance ?? 8);
+  return true;
+}
+```
+
+Use that matcher for both:
+
+- `trade_route`
+- `trade-routes-established`
+
+and stop encoding route semantics through special step IDs.
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
+```
+
+- [ ] **Step 6: Commit the route-semantics fix**
+
+```bash
+git add src/core/types.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts src/systems/trade-route-classification.ts tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
+git commit -m "fix(m4e): enforce route-specific wonder quests"
+```
+
+### Task 13M: Make Council Wonder Advice One Card Per Wonder, Not One Card Per City Shell
+
+**Root Cause Analysis**
+
+The duplicate Council cards are not just a missing dedupe call. They reveal a deeper mismatch between recommendation units and gameplay units.
+
+Current recommendation flow:
+
+- build reachable projects per city
+- map each reachable project directly to a Council card
+- sort
+- slice top 3
+
+But the gameplay rule is now:
+
+- one civilization may have many local project shells
+- it may only have one active entrant per `wonderId`
+
+That means the Council should recommend at the **wonder** level, not the **project shell** level. If multiple cities can pursue the same wonder, the Council must choose the single best host city for that wonder and surface one card.
+
+This is the same structural pattern as the earlier full-catalog fix:
+
+- browsing stays local/per-city
+- strategic recommendation must respect the actual global rule
+
+**Files:**
+- Modify: `src/systems/council-system.ts`
+- Modify: `tests/systems/council-system.test.ts`
+- Modify: `tests/ui/council-panel.test.ts`
+- Modify: `tests/systems/playtest-fixes.test.ts`
+
+- [ ] **Step 1: Add failing duplicate-card regressions**
+
+Extend `tests/systems/council-system.test.ts`:
+
+```typescript
+it('shows at most one council wonder card per wonder even when multiple cities can pursue it', () => {
+  const { state } = makeCouncilFixture();
+  // create or found a second eligible player city with the same wonder eligibility
+  // give both cities the same Oracle eligibility
+
+  const agenda = buildCouncilAgenda(state, 'player');
+  const wonderCards = agenda.toWin.filter(card => card.cardType === 'wonder');
+  const oracleCards = wonderCards.filter(card => card.title.includes('Oracle of Delphi'));
+
+  expect(oracleCards).toHaveLength(1);
+});
+
+it('uses the highest-priority city as the council host city for a duplicated wonder opportunity', () => {
+  const { state } = makeCouncilFixture();
+  // configure one player city to be closer to ready_to_build than the other
+
+  const agenda = buildCouncilAgenda(state, 'player');
+  const oracleCard = agenda.toWin.find(card => card.title.includes('Oracle of Delphi'));
+
+  expect(oracleCard?.summary).toContain('BestHostCityName');
+});
+```
+
+Extend `tests/ui/council-panel.test.ts`:
+
+```typescript
+it('does not spend multiple to-win slots on duplicate copies of the same wonder', () => {
+  const wonderTitles = Array.from(panel.querySelectorAll('[data-card-type="wonder"]')).map(card => card.textContent ?? '');
+  const oracleCards = wonderTitles.filter(text => text.includes('Oracle of Delphi'));
+  expect(oracleCards).toHaveLength(1);
+});
+```
+
+Extend `tests/systems/playtest-fixes.test.ts`:
+
+```typescript
+it('keeps council to-win guidance diverse when multiple cities share one wonder opportunity', () => {
+  const wonderTitles = council.toWin.filter(card => card.cardType === 'wonder').map(card => card.title);
+  expect(new Set(wonderTitles).size).toBe(wonderTitles.length);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/ui/council-panel.test.ts tests/systems/playtest-fixes.test.ts
+```
+
+Expected: FAIL because the current Council still slices per-city project cards directly.
+
+- [ ] **Step 3: Group reachable projects by wonder before card creation**
+
+In `src/systems/council-system.ts`, replace direct card creation from `reachableProjects` with:
+
+```typescript
+const bestProjectByWonder = new Map<string, LegendaryWonderProject>();
+
+for (const project of reachableProjects) {
+  const existing = bestProjectByWonder.get(project.wonderId);
+  if (!existing) {
+    bestProjectByWonder.set(project.wonderId, project);
+    continue;
+  }
+
+  const projectPriority = scoreWonderProjectForCouncil(state, project);
+  const existingPriority = scoreWonderProjectForCouncil(state, existing);
+  if (projectPriority > existingPriority) {
+    bestProjectByWonder.set(project.wonderId, project);
+  }
+}
+
+return Array.from(bestProjectByWonder.values())
+  .map(project => createWonderCouncilCard(...))
+  .sort(...)
+  .slice(0, 3);
+```
+
+Do not dedupe after card creation by title string. The dedupe key is `wonderId`, because that matches the actual game rule.
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/ui/council-panel.test.ts tests/systems/playtest-fixes.test.ts
+```
+
+- [ ] **Step 5: Commit the per-wonder Council recommendation fix**
+
+```bash
+git add src/systems/council-system.ts tests/systems/council-system.test.ts tests/ui/council-panel.test.ts tests/systems/playtest-fixes.test.ts
+git commit -m "fix(m4e): dedupe council wonder recommendations"
+```
+
+### Task 13N: Audit The Remaining Slice 4 Contract Boundaries
+
+**Root Cause Analysis**
+
+The repeated review cycle shows Slice 4 has three fragile boundaries:
+
+1. **local project state vs global race state**
+2. **generic step types vs specific wonder semantics**
+3. **per-city shells vs per-wonder strategic recommendations**
+
+Those are the places where additional regressions are most likely to still exist.
+
+This task is an explicit audit and regression hardening pass before the next MR review. It is not optional polish.
+
+**Files:**
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/systems/council-system.test.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+- Modify: `tests/ui/legendary-wonder-notifications.test.ts`
+- Modify: `scripts/run-wonder-regressions.sh`
+
+- [ ] **Step 1: Add audit regressions for the three remaining high-risk boundaries**
+
+Add one new regression per boundary:
+
+```typescript
+it('does not double-refund or double-notify a wonder loss after completion cleanup', () => {
+  // winner completes, loser moves to lost_race, next tick does not emit or refund again
+});
+
+it('coarse rival wonder intel does not become richer after later turns without a new reveal', () => {
+  // snapshot stored at reveal time, rival city later invests more, panel/notification text still stays coarse
+});
+
+it('council wonder recommendations stay unique by wonder even after a second city is founded mid-game', () => {
+  // add new eligible city after initial seeding and prove one card per wonder remains
+});
+```
+
+- [ ] **Step 2: Ensure the wonder regression script covers all reviewed bug classes**
+
+`scripts/run-wonder-regressions.sh` must include the suites that cover:
+
+- live-investment race resolution
+- route-semantics quest enforcement
+- same-civ uniqueness
+- per-wonder Council dedupe
+- rival intel privacy
+- transition-only AI loss events
+
+If any of those classes is only indirectly covered today, add the direct suite here.
+
+- [ ] **Step 3: Re-run the wonder regression pack**
+
+```bash
+./scripts/run-wonder-regressions.sh
+```
+
+- [ ] **Step 4: Commit the Slice 4 contract-audit coverage**
+
+```bash
+git add tests/systems/legendary-wonder-system.test.ts tests/systems/council-system.test.ts tests/ui/wonder-panel.test.ts tests/ui/legendary-wonder-notifications.test.ts scripts/run-wonder-regressions.sh
+git commit -m "test(m4e): harden slice 4 wonder contract coverage"
 ```
 
 ### Task 14: Release Gate For Slice 4
