@@ -4766,6 +4766,681 @@ git add AGENTS.md .claude/rules/strategy-game-mechanics.md scripts/run-wonder-re
 git commit -m "docs(m4e): harden wonder authoring guardrails"
 ```
 
+### Task 13S: Make City-Development Wonder Steps Explicit About Host-City Versus Empire Scope
+
+**Root Cause Analysis**
+
+The new Grand Canal regression is not a one-off evaluator bug. It exposes the same modeling weakness that caused the earlier route and discovery drift:
+
+1. `buildings-in-multiple-cities` is too coarse for the current roster
+2. the evaluator currently assumes every such step means “count any qualifying cities in the empire”
+3. at least one real wonder now means “the host city itself must qualify,” while others still mean empire-wide development
+
+So the central issue is not the `grand-canal` step ID. The central issue is that **host-city development rules and empire-wide development rules are being forced through the same metadata shape**. As long as that remains true, new wonders will keep depending on prose or hidden evaluator exceptions.
+
+The fix is to make city-development scope explicit in the definition metadata and make the evaluator read that metadata directly.
+
+**Files:**
+- Modify: `src/core/types.ts`
+- Modify: `src/systems/legendary-wonder-definitions.ts`
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `tests/systems/legendary-wonder-definitions.test.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+
+- [ ] **Step 1: Add failing regressions for host-city versus empire development**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('does not let another developed city satisfy grand canal host-city development', () => {
+  const state = makeLegendaryWonderFixture({
+    completedTechs: ['city-planning', 'printing'],
+    resources: ['stone'],
+  });
+
+  state.cities['city-river'].buildings = ['granary'];
+  state.cities['city-river'].population = 7;
+  state.cities['city-rival'].owner = 'player';
+  state.cities['city-rival'].buildings = ['granary', 'market', 'library'];
+  state.civilizations.player.cities = ['city-river', 'city-rival'];
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+  const grandCanal = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'grand-canal',
+  );
+
+  expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')?.completed).toBe(false);
+});
+
+it('still lets empire-wide city-development wonders count multiple qualifying cities anywhere in the empire', () => {
+  const state = makeLegendaryWonderFixture({
+    completedTechs: ['irrigation', 'masonry'],
+  });
+
+  state.cities['city-river'].buildings = ['granary', 'shrine', 'market'];
+  state.cities['city-rival'].owner = 'player';
+  state.cities['city-rival'].buildings = ['granary', 'library', 'market'];
+  state.civilizations.player.cities = ['city-river', 'city-rival'];
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+  const moonwell = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.wonderId === 'moonwell-gardens',
+  );
+
+  expect(moonwell?.questSteps.find(step => step.id === 'tend-flourishing-gardens')?.completed).toBe(true);
+});
+```
+
+Extend `tests/systems/legendary-wonder-definitions.test.ts`:
+
+```typescript
+it('declares explicit city-development scope metadata for every buildings-in-multiple-cities step', () => {
+  for (const definition of getLegendaryWonderDefinitions()) {
+    for (const step of definition.questSteps) {
+      if (step.type === 'buildings-in-multiple-cities') {
+        expect(step.cityScope).toMatch(/^(host-city|empire)$/);
+        expect(step.minimumBuildingsPerCity ?? 3).toBeGreaterThanOrEqual(1);
+      }
+    }
+  }
+});
+
+it('marks grand canal growth as a host-city requirement', () => {
+  const grandCanal = getLegendaryWonderDefinitions().find(w => w.id === 'grand-canal');
+  expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')).toMatchObject({
+    type: 'buildings-in-multiple-cities',
+    cityScope: 'host-city',
+    targetCount: 1,
+    minimumBuildingsPerCity: 3,
+  });
+});
+```
+
+Extend `tests/ui/wonder-panel.test.ts`:
+
+```typescript
+it('shows grand canal as incomplete when only another city is developed', () => {
+  const { container, state } = makeWonderPanelFixture();
+  state.cities['city-river'].buildings = ['granary'];
+  state.cities['city-rival'].owner = 'player';
+  state.cities['city-rival'].buildings = ['granary', 'market', 'library'];
+  state.civilizations.player.cities = ['city-river', 'city-rival'];
+
+  const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+  const panel = createWonderPanel(container, seededState, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  const rendered = collectText(panel);
+  expect(rendered).toContain('Grand Canal');
+  expect(rendered).toContain('Develop this river city into a major civic center.');
+  expect(rendered).not.toContain('Phase: ready to build');
+});
+```
+
+- [ ] **Step 2: Run the focused regressions and confirm failure**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts tests/ui/wonder-panel.test.ts
+```
+
+Expected: FAIL because `buildings-in-multiple-cities` still counts only empire-wide city totals.
+
+- [ ] **Step 3: Add explicit development-scope metadata**
+
+In `src/core/types.ts`, extend the wonder-step shape:
+
+```typescript
+export interface LegendaryWonderDefinition {
+  // existing fields...
+  questSteps: Array<{
+    id: string;
+    type:
+      | 'discover_wonder'
+      | 'trade_route'
+      | 'research_count'
+      | 'defeat_stronghold'
+      | 'buildings-in-multiple-cities'
+      | 'trade-routes-established'
+      | 'map-discoveries';
+    description?: string;
+    targetCount?: number;
+    track?: TechTrack;
+    scope?: 'near-city' | 'any';
+    radius?: number;
+    routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
+    minimumRouteDistance?: number;
+    cityScope?: 'host-city' | 'empire';
+    minimumBuildingsPerCity?: number;
+  }>;
+}
+```
+
+In `src/systems/legendary-wonder-definitions.ts`:
+
+- set `grand-canal` `grow-river-city` to `cityScope: 'host-city'` and `minimumBuildingsPerCity: 3`
+- set every empire-wide development wonder step to `cityScope: 'empire'`
+- set `minimumBuildingsPerCity` explicitly on every such step so the evaluator does not guess
+
+- [ ] **Step 4: Make the evaluator read development scope directly**
+
+In `src/systems/legendary-wonder-system.ts`, replace the current generic city-count branch with a scope-aware version:
+
+```typescript
+case 'buildings-in-multiple-cities': {
+  const minimumBuildings = step.minimumBuildingsPerCity ?? 3;
+  const qualifyingCities = civ.cities
+    .map(cityRef => state.cities[cityRef])
+    .filter((candidate): candidate is City => Boolean(candidate))
+    .filter(candidate => candidate.buildings.length >= minimumBuildings);
+
+  if (step.cityScope === 'host-city') {
+    const hostQualifies = city.buildings.length >= minimumBuildings;
+    if (!hostQualifies) {
+      return false;
+    }
+  }
+
+  return qualifyingCities.length >= (step.targetCount ?? 1);
+}
+```
+
+Also update `getDefaultQuestStepDescription(...)` so any step without explicit prose still reflects the precise rule:
+
+```typescript
+case 'buildings-in-multiple-cities': {
+  const minimumBuildings = step.minimumBuildingsPerCity ?? 3;
+  if (step.cityScope === 'host-city' && (step.targetCount ?? 1) === 1) {
+    return `Develop this city with at least ${minimumBuildings} completed buildings.`;
+  }
+  return `Develop ${step.targetCount ?? 2} cities with at least ${minimumBuildings} completed buildings each.`;
+}
+```
+
+- [ ] **Step 5: Re-run the focused regressions**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts tests/ui/wonder-panel.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit the development-scope fix**
+
+```bash
+git add src/core/types.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-definitions.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts
+git commit -m "fix(m4e): make wonder city-development scope explicit"
+```
+
+### Task 13T: Replace Natural-Wonder-Only Discovery Counting With A Durable Site-Discovery Ledger
+
+**Root Cause Analysis**
+
+The new “remarkable sites / distant landmarks / key sites” regression is not really about the wrong filter. It is a data-model hole:
+
+1. `map-discoveries` currently has no explicit notion of what kinds of discoveries count
+2. the evaluator falls back to `state.wonderDiscoverers`, because that is the only persisted discovery ledger available today
+3. that ledger only tracks natural wonders, so broader discovery goals silently become “discover natural wonders only”
+
+The deeper problem is that **discoverable-site progress is not being modeled as first-class wonder history**. The current system can only count the subset of discoveries that happen to already have their own persistence shape.
+
+The fix is to:
+
+- add explicit discovery-type metadata to wonder definitions
+- add a persistent discovery-site ledger under `legendaryWonderHistory`
+- write to that ledger at the actual discovery points
+- read from that ledger during wonder evaluation and immediate project seeding
+
+This also makes future wonder authoring safer, because adding a “discover sites” quest will no longer require hidden coupling to unrelated discovery state.
+
+**Files:**
+- Modify: `src/core/types.ts`
+- Modify: `src/core/game-state.ts`
+- Create: `src/systems/legendary-wonder-history.ts`
+- Modify: `src/systems/wonder-system.ts`
+- Modify: `src/systems/village-system.ts`
+- Modify: `src/systems/legendary-wonder-definitions.ts`
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/systems/legendary-wonder-definitions.test.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/systems/wonder-system.test.ts`
+- Modify: `tests/systems/village-system.test.ts`
+- Modify: `tests/storage/save-persistence.test.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+
+- [ ] **Step 1: Add failing regressions for discovery semantics and persistence**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('does not let village discoveries satisfy a natural-wonder-only quest', () => {
+  const state = makeLegendaryWonderFixture({ completedTechs: ['irrigation', 'masonry'] });
+  state.legendaryWonderHistory = {
+    destroyedStrongholds: [],
+    discoveredSites: [
+      { civId: 'player', siteId: 'village-1', siteType: 'tribal-village', position: { q: 2, r: 0 }, turn: 12 },
+      { civId: 'player', siteId: 'village-2', siteType: 'tribal-village', position: { q: 4, r: 0 }, turn: 16 },
+    ],
+  };
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+  const moonwell = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.wonderId === 'moonwell-gardens',
+  );
+
+  expect(moonwell?.questSteps.find(step => step.id === 'chart-sacred-landscapes')?.completed).toBe(false);
+});
+
+it('lets remarkable-site wonders count a mix of natural wonders and tribal villages', () => {
+  const state = makeLegendaryWonderFixture({ completedTechs: ['astronomy', 'scholarship'] });
+  state.legendaryWonderHistory = {
+    destroyedStrongholds: [],
+    discoveredSites: [
+      { civId: 'player', siteId: 'wonder-1', siteType: 'natural-wonder', position: { q: 3, r: 0 }, turn: 8 },
+      { civId: 'player', siteId: 'village-1', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 11 },
+    ],
+  };
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+  const starvault = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.wonderId === 'starvault-observatory',
+  );
+
+  expect(starvault?.questSteps.find(step => step.id === 'trace-two-celestial-sites')?.completed).toBe(true);
+});
+```
+
+Extend `tests/systems/wonder-system.test.ts`:
+
+```typescript
+it('records natural wonder discoveries into legendary wonder history', () => {
+  const state = makeWonderFixture();
+  processWonderDiscovery(state, 'player', 'great-barrier-reef');
+
+  expect(state.legendaryWonderHistory?.discoveredSites).toContainEqual(
+    expect.objectContaining({
+      civId: 'player',
+      siteId: 'great-barrier-reef',
+      siteType: 'natural-wonder',
+    }),
+  );
+});
+```
+
+Extend `tests/systems/village-system.test.ts`:
+
+```typescript
+it('records tribal village visits into legendary wonder history once per civ and village', () => {
+  const state = makeVillageFixture();
+  const villageId = Object.keys(state.tribalVillages)[0];
+  visitVillage(state, villageId, state.units['unit-player'], () => 0.2);
+
+  expect(state.legendaryWonderHistory?.discoveredSites).toContainEqual(
+    expect.objectContaining({
+      civId: 'player',
+      siteId: villageId,
+      siteType: 'tribal-village',
+    }),
+  );
+});
+```
+
+Extend `tests/storage/save-persistence.test.ts`:
+
+```typescript
+it('round-trips legendary wonder discovery history through JSON serialization', () => {
+  const state = {
+    legendaryWonderHistory: {
+      destroyedStrongholds: [],
+      discoveredSites: [
+        { civId: 'player', siteId: 'great-barrier-reef', siteType: 'natural-wonder', position: { q: 8, r: 2 }, turn: 12 },
+        { civId: 'player', siteId: 'village-3', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 15 },
+      ],
+    },
+  };
+
+  const roundTrip = JSON.parse(JSON.stringify(state));
+  expect(roundTrip.legendaryWonderHistory.discoveredSites).toHaveLength(2);
+  expect(roundTrip.legendaryWonderHistory.discoveredSites[0].siteType).toBe('natural-wonder');
+});
+```
+
+Extend `tests/ui/wonder-panel.test.ts`:
+
+```typescript
+it('shows remarkable-site progress from mixed discovery history immediately', () => {
+  const { container, state } = makeWonderPanelFixture();
+  state.legendaryWonderHistory = {
+    destroyedStrongholds: [],
+    discoveredSites: [
+      { civId: 'player', siteId: 'crystal_caverns', siteType: 'natural-wonder', position: { q: 8, r: 2 }, turn: 12 },
+      { civId: 'player', siteId: 'village-3', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 15 },
+    ],
+  };
+  const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+  const panel = createWonderPanel(container, seededState, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  const rendered = collectText(panel);
+  expect(rendered).toContain('Starvault Observatory');
+  expect(rendered).toContain('Discover 2 remarkable sites.');
+});
+```
+
+- [ ] **Step 2: Run the focused regressions and confirm failure**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-system.test.ts tests/systems/village-system.test.ts tests/storage/save-persistence.test.ts tests/ui/wonder-panel.test.ts
+```
+
+Expected: FAIL because `map-discoveries` still only reads `wonderDiscoverers` and there is no discovery-site ledger.
+
+- [ ] **Step 3: Add a persistent discovery-site history model**
+
+In `src/core/types.ts`, add:
+
+```typescript
+// extend the existing LegendaryWonderDefinition quest-step shape with:
+discoveryTypes?: Array<'natural-wonder' | 'tribal-village'>;
+
+export type LegendaryWonderDiscoverySiteType = 'natural-wonder' | 'tribal-village';
+
+export interface LegendaryWonderDiscoveredSiteRecord {
+  civId: string;
+  siteId: string;
+  siteType: LegendaryWonderDiscoverySiteType;
+  position: HexCoord;
+  turn: number;
+}
+
+export interface LegendaryWonderHistory {
+  destroyedStrongholds: DestroyedStrongholdRecord[];
+  discoveredSites: LegendaryWonderDiscoveredSiteRecord[];
+}
+```
+
+In `src/core/game-state.ts`, initialize:
+
+```typescript
+legendaryWonderHistory: {
+  destroyedStrongholds: [],
+  discoveredSites: [],
+},
+```
+
+In `src/main.ts`, update the load migration:
+
+```typescript
+if (!gameState.legendaryWonderHistory) {
+  (gameState as any).legendaryWonderHistory = { destroyedStrongholds: [], discoveredSites: [] };
+}
+if (!gameState.legendaryWonderHistory.discoveredSites) {
+  gameState.legendaryWonderHistory.discoveredSites = [];
+  for (const [wonderId, discoverers] of Object.entries(gameState.wonderDiscoverers ?? {})) {
+    const wonderTile = Object.values(gameState.map.tiles).find(tile => tile.wonder === wonderId);
+    for (const civId of discoverers) {
+      if (!gameState.legendaryWonderHistory.discoveredSites.some(record => record.civId === civId && record.siteId === wonderId)) {
+        gameState.legendaryWonderHistory.discoveredSites.push({
+          civId,
+          siteId: wonderId,
+          siteType: 'natural-wonder',
+          position: wonderTile?.coord ?? { q: 0, r: 0 },
+          turn: gameState.turn,
+        });
+      }
+    }
+  }
+}
+```
+
+This migration is intentionally one-way and partial: natural wonders can be backfilled from existing save data, but already-visited villages from pre-fix development saves cannot be reconstructed because the villages were removed from map state at visit time. That is acceptable here because Slice 4 is still pre-merge work, but the plan must not pretend otherwise.
+
+- [ ] **Step 4: Record and query discovery history through one helper module**
+
+Create `src/systems/legendary-wonder-history.ts`:
+
+```typescript
+import type {
+  GameState,
+  HexCoord,
+  LegendaryWonderDiscoverySiteType,
+} from '@/core/types';
+
+export function recordLegendaryWonderDiscoverySite(
+  state: GameState,
+  civId: string,
+  siteId: string,
+  siteType: LegendaryWonderDiscoverySiteType,
+  position: HexCoord,
+): void {
+  state.legendaryWonderHistory ??= { destroyedStrongholds: [], discoveredSites: [] };
+  state.legendaryWonderHistory.discoveredSites ??= [];
+
+  const exists = state.legendaryWonderHistory.discoveredSites.some(record =>
+    record.civId === civId && record.siteId === siteId && record.siteType === siteType,
+  );
+  if (exists) {
+    return;
+  }
+
+  state.legendaryWonderHistory.discoveredSites.push({
+    civId,
+    siteId,
+    siteType,
+    position,
+    turn: state.turn,
+  });
+}
+
+export function countLegendaryWonderDiscoverySites(
+  state: GameState,
+  civId: string,
+  allowedTypes: LegendaryWonderDiscoverySiteType[],
+): number {
+  const allowed = new Set(allowedTypes);
+  return (state.legendaryWonderHistory?.discoveredSites ?? []).filter(record =>
+    record.civId === civId && allowed.has(record.siteType),
+  ).length;
+}
+```
+
+Then wire the helper at the actual discovery points:
+
+- in `src/systems/wonder-system.ts`, call `recordLegendaryWonderDiscoverySite(...)` when a civ discovers a natural wonder
+- in `src/systems/village-system.ts`, call `recordLegendaryWonderDiscoverySite(...)` before the village is removed
+
+- [ ] **Step 5: Make discovery rules explicit in definitions and evaluator**
+
+In `src/systems/legendary-wonder-definitions.ts`:
+
+- set `moonwell-gardens` `chart-sacred-landscapes` to `discoveryTypes: ['natural-wonder']`
+- set broader “remarkable sites / distant landmarks / key sites” steps to `discoveryTypes: ['natural-wonder', 'tribal-village']`
+
+In `src/systems/legendary-wonder-system.ts`, replace the current `map-discoveries` branch:
+
+```typescript
+case 'map-discoveries':
+  return countLegendaryWonderDiscoverySites(
+    state,
+    project.ownerId,
+    step.discoveryTypes ?? ['natural-wonder'],
+  ) >= (step.targetCount ?? 2);
+```
+
+Also update `getDefaultQuestStepDescription(...)` so a step with no prose still reflects the configured discovery types:
+
+```typescript
+case 'map-discoveries': {
+  const discoveryTypes = step.discoveryTypes ?? ['natural-wonder'];
+  if (discoveryTypes.length === 1 && discoveryTypes[0] === 'natural-wonder') {
+    return `Discover ${step.targetCount ?? 2} natural wonders.`;
+  }
+  return `Discover ${step.targetCount ?? 2} notable sites across the world.`;
+}
+```
+
+- [ ] **Step 6: Re-run the focused regressions**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-system.test.ts tests/systems/village-system.test.ts tests/storage/save-persistence.test.ts tests/ui/wonder-panel.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Commit the discovery-ledger fix**
+
+```bash
+git add src/core/types.ts src/core/game-state.ts src/systems/legendary-wonder-history.ts src/systems/wonder-system.ts src/systems/village-system.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts src/main.ts tests/systems/legendary-wonder-definitions.test.ts tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-system.test.ts tests/systems/village-system.test.ts tests/storage/save-persistence.test.ts tests/ui/wonder-panel.test.ts
+git commit -m "fix(m4e): make wonder discovery progress explicit and persistent"
+```
+
+### Task 13U: Add Authoring Guardrails For Step-Scope Metadata And Discovery History
+
+**Root Cause Analysis**
+
+The repeated Slice 4 regressions now point to one central maintenance problem: adding a new wonder still has too many ways to “work by accident.”
+
+Today a future author can still:
+
+- write a host-city-specific step using only prose and a broad type
+- write a broader discovery step without declaring what discoveries count
+- add a new discovery source without recording it in wonder history
+- forget to test that the wonder panel and seeded-project flow reflect the new rule immediately
+
+That is why these issues keep resurfacing in review instead of being blocked at authoring time. The final fix is not more commentary. It is making the safe path obvious and the unsafe path noisy.
+
+**Files:**
+- Modify: `AGENTS.md`
+- Modify: `.claude/rules/strategy-game-mechanics.md`
+- Modify: `scripts/run-wonder-regressions.sh`
+- Modify: `tests/systems/legendary-wonder-definitions.test.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+
+- [ ] **Step 1: Add authoring-contract regressions**
+
+Extend `tests/systems/legendary-wonder-definitions.test.ts`:
+
+```typescript
+it('requires city-scope metadata on every multi-city development step', () => {
+  for (const definition of getLegendaryWonderDefinitions()) {
+    for (const step of definition.questSteps) {
+      if (step.type === 'buildings-in-multiple-cities') {
+        expect(step.cityScope).toMatch(/^(host-city|empire)$/);
+        expect(step.minimumBuildingsPerCity).toBeDefined();
+      }
+    }
+  }
+});
+
+it('requires discovery-type metadata on every map-discoveries step', () => {
+  for (const definition of getLegendaryWonderDefinitions()) {
+    for (const step of definition.questSteps) {
+      if (step.type === 'map-discoveries') {
+        expect(step.discoveryTypes?.length).toBeGreaterThan(0);
+      }
+    }
+  }
+});
+```
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('uses immediate seeded progress for host-city and discovery-type rules on the same turn', () => {
+  const state = makeLegendaryWonderFixture({ completedTechs: ['astronomy', 'scholarship'] });
+  state.legendaryWonderHistory = {
+    destroyedStrongholds: [],
+    discoveredSites: [
+      { civId: 'player', siteId: 'crystal_caverns', siteType: 'natural-wonder', position: { q: 8, r: 2 }, turn: 12 },
+      { civId: 'player', siteId: 'village-3', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 15 },
+    ],
+  };
+  state.legendaryWonderProjects = undefined;
+  state.cities['city-river'].buildings = ['granary', 'market', 'library'];
+
+  const seeded = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+  const grandCanal = Object.values(seeded.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'grand-canal',
+  );
+  const starvault = Object.values(seeded.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'starvault-observatory',
+  );
+
+  expect(grandCanal?.questSteps.find(step => step.id === 'grow-river-city')?.completed).toBe(true);
+  expect(starvault?.questSteps.find(step => step.id === 'trace-two-celestial-sites')?.completed).toBe(true);
+});
+```
+
+Extend `tests/ui/wonder-panel.test.ts`:
+
+```typescript
+it('renders discovery and host-city progress without relying on step prose or hidden evaluator state', () => {
+  const { container, state } = makeWonderPanelFixture();
+  state.legendaryWonderHistory = {
+    destroyedStrongholds: [],
+    discoveredSites: [
+      { civId: 'player', siteId: 'crystal_caverns', siteType: 'natural-wonder', position: { q: 8, r: 2 }, turn: 12 },
+      { civId: 'player', siteId: 'village-3', siteType: 'tribal-village', position: { q: 5, r: 1 }, turn: 15 },
+    ],
+  };
+  state.cities['city-river'].buildings = ['granary', 'market', 'library'];
+
+  const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+  const panel = createWonderPanel(container, seededState, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  const rendered = collectText(panel);
+  expect(rendered).toContain('Grand Canal');
+  expect(rendered).toContain('Starvault Observatory');
+  expect(rendered).not.toContain('Phase: ready to build Phase: locked');
+});
+```
+
+- [ ] **Step 2: Expand the wonder regression pack to keep these contracts permanent**
+
+Update `scripts/run-wonder-regressions.sh` so it always includes:
+
+- `tests/systems/legendary-wonder-definitions.test.ts`
+- `tests/systems/legendary-wonder-system.test.ts`
+- `tests/systems/wonder-system.test.ts`
+- `tests/systems/village-system.test.ts`
+- `tests/ui/wonder-panel.test.ts`
+- `tests/ui/legendary-wonder-notifications.test.ts`
+- `tests/systems/council-system.test.ts`
+- `tests/ai/basic-ai.test.ts`
+- `tests/storage/save-persistence.test.ts`
+- `tests/systems/playtest-fixes.test.ts`
+
+- [ ] **Step 3: Add repo guidance so future wonder rules carry explicit semantics**
+
+In `AGENTS.md` and `.claude/rules/strategy-game-mechanics.md`, add short rules:
+
+- “Do not use wonder step prose to imply host-city versus empire scope. Encode it in metadata.”
+- “Do not use `map-discoveries` without `discoveryTypes`; the evaluator must never infer discovery scope from text.”
+- “If a new gameplay event should advance wonder progress, record it in `legendaryWonderHistory` at the event source.”
+- “Any wonder step that becomes true on creation must be reflected immediately in the seeded project and panel, not on a later tick.”
+
+- [ ] **Step 4: Re-run the wonder regression pack**
+
+```bash
+./scripts/run-wonder-regressions.sh
+```
+
+- [ ] **Step 5: Commit the wonder-authoring guardrails**
+
+```bash
+git add AGENTS.md .claude/rules/strategy-game-mechanics.md scripts/run-wonder-regressions.sh tests/systems/legendary-wonder-definitions.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts
+git commit -m "docs(m4e): guard wonder step metadata and history"
+```
+
 ### Task 14: Release Gate For Slice 4
 
 **Files:**
