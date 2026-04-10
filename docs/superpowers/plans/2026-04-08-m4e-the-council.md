@@ -3103,6 +3103,466 @@ git add src/systems/council-system.ts src/systems/legendary-wonder-system.ts tes
 git commit -m "fix(m4e): keep council wonder advice actionable"
 ```
 
+### Task 13H: Replace Coarse Wonder Intel With Privacy-Safe Snapshot Presentation
+
+**Root Cause Analysis**
+
+The latest rival-progress leak exposed a deeper design flaw than a bad renderer branch. `legendaryWonderIntel` currently answers only one question:
+
+- “Has this viewer ever been told that project key exists?”
+
+But the wonder panel needs a different question:
+
+- “What exact facts is this viewer entitled to know right now about that rival race?”
+
+Those are not the same. The current ledger stores only project keys, so the panel falls back to the full live `LegendaryWonderProject`, which contains:
+
+- exact `investedProduction`
+- exact `questSteps`
+- phase changes after the original reveal
+
+That means one low-granularity intel bit is being used as permission to read a richer live object. That is the central model error.
+
+The fix is not another conditional in `wonder-panel.ts`. The fix is:
+
+1. store intel as a viewer-scoped snapshot with an explicit `intelLevel`
+2. render rival wonder cards from that snapshot, not from the full live project
+3. keep the snapshot intentionally coarse until the design explicitly adds richer espionage intel later
+
+For Slice 4, the only earned rival-race intel is:
+
+- which civ started which wonder
+- in which city
+- on which turn
+
+It does **not** include current production totals, current quest-step completion, or live progress tracking on later turns.
+
+This task **supersedes the temporary `string[]` project-key ledger from Task 13C**. Slice 4 is not merge-ready until the snapshot model below replaces that coarse interim shape everywhere.
+
+**Files:**
+- Create: `src/systems/legendary-wonder-intel.ts`
+- Modify: `src/core/types.ts`
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `src/ui/wonder-panel.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+- Modify: `tests/storage/save-persistence.test.ts`
+
+- [ ] **Step 1: Add failing rival-intel regressions**
+
+Extend `tests/ui/wonder-panel.test.ts`:
+
+```typescript
+it('shows rival wonder spy intel without leaking exact progress or quest steps', () => {
+  const { container, state } = makeWonderPanelFixture();
+  state.legendaryWonderIntel = {
+    player: [
+      {
+        projectKey: 'grand-canal-rival',
+        wonderId: 'grand-canal',
+        civId: 'rival',
+        civName: 'Rival',
+        cityId: 'city-rival',
+        cityName: 'Rival Harbor',
+        revealedTurn: 41,
+        intelLevel: 'started',
+      },
+    ],
+  };
+
+  const panel = createWonderPanel(container, state, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  expect(panel.textContent).toContain('Rival Harbor');
+  expect(panel.textContent).toContain('Grand Canal');
+  expect(panel.textContent).not.toContain('90/180 production');
+  expect(panel.textContent).not.toContain('Quest steps:');
+  expect(panel.textContent).not.toContain('Connect two cities');
+});
+```
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('stores a coarse started-only intel snapshot when a stationed spy reveals a wonder start', () => {
+  const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+  state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+  state.legendaryWonderIntel = {};
+  // same stationed spy setup as the existing reveal test
+
+  const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi', new EventBus());
+
+  expect(result.legendaryWonderIntel?.observer).toEqual([
+    expect.objectContaining({
+      wonderId: 'oracle-of-delphi',
+      civId: 'player',
+      cityId: 'city-river',
+      intelLevel: 'started',
+    }),
+  ]);
+});
+```
+
+Extend `tests/storage/save-persistence.test.ts`:
+
+```typescript
+it('round-trips structured legendary wonder intel snapshots through JSON serialization', () => {
+  const state = {
+    legendaryWonderIntel: {
+      observer: [
+        {
+          projectKey: 'oracle-of-delphi:rival:city-rival',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+          intelLevel: 'started',
+        },
+      ],
+    },
+  };
+
+  const roundTrip = JSON.parse(JSON.stringify(state));
+
+  expect(roundTrip.legendaryWonderIntel.observer[0].intelLevel).toBe('started');
+  expect(roundTrip.legendaryWonderIntel.observer[0].cityName).toBe('Rival Harbor');
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/storage/save-persistence.test.ts
+```
+
+Expected: FAIL because the intel ledger is still `string[]` and the panel still renders rival cards from live projects.
+
+- [ ] **Step 3: Introduce one explicit wonder-intel snapshot model**
+
+Create `src/systems/legendary-wonder-intel.ts` with:
+
+```typescript
+export interface LegendaryWonderIntelEntry {
+  projectKey: string;
+  wonderId: string;
+  civId: string;
+  civName: string;
+  cityId: string;
+  cityName: string;
+  revealedTurn: number;
+  intelLevel: 'started';
+}
+
+export function recordLegendaryWonderIntel(
+  state: GameState,
+  viewerId: string,
+  entry: LegendaryWonderIntelEntry,
+): Record<string, LegendaryWonderIntelEntry[]> {
+  const existing = state.legendaryWonderIntel?.[viewerId] ?? [];
+  return {
+    ...(state.legendaryWonderIntel ?? {}),
+    [viewerId]: [
+      ...existing.filter(candidate => candidate.projectKey !== entry.projectKey),
+      entry,
+    ],
+  };
+}
+
+export function sanitizeLegendaryWonderIntel(
+  state: GameState,
+  projects: Record<string, LegendaryWonderProject>,
+): Record<string, LegendaryWonderIntelEntry[]> {
+  return Object.fromEntries(
+    Object.entries(state.legendaryWonderIntel ?? {}).map(([viewerId, entries]) => [
+      viewerId,
+      entries.filter(entry => {
+        const project = projects[entry.projectKey];
+        return Boolean(project && project.phase === 'building');
+      }),
+    ]).filter(([, entries]) => entries.length > 0),
+  );
+}
+
+export function getLegendaryWonderIntelForViewer(
+  state: GameState,
+  viewerId: string,
+): LegendaryWonderIntelEntry[] {
+  return state.legendaryWonderIntel?.[viewerId] ?? [];
+}
+```
+
+In `src/core/types.ts`, replace the coarse ledger with:
+
+```typescript
+legendaryWonderIntel?: Record<string, LegendaryWonderIntelEntry[]>;
+```
+
+- [ ] **Step 4: Render rival wonder cards from snapshots, not live projects**
+
+In `src/systems/legendary-wonder-system.ts`, when a stationed spy reveals a wonder start, record:
+
+```typescript
+{
+  projectKey,
+  wonderId: project.wonderId,
+  civId,
+  civName: civilization?.name ?? civId,
+  cityId,
+  cityName: city?.name ?? cityId,
+  revealedTurn: state.turn,
+  intelLevel: 'started',
+}
+```
+
+In `src/ui/wonder-panel.ts`:
+
+- stop passing rival intel through `appendProjectCard()`
+- add a dedicated `appendRivalIntelCard(...)` renderer
+- show only:
+  - wonder name
+  - builder name
+  - city name
+  - reveal turn
+  - bounded copy such as `Current progress unknown without fresh infiltration.`
+
+Do **not** render:
+
+- `investedProduction`
+- `questSteps`
+- step descriptions
+- live phase changes beyond the stored snapshot meaning
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/storage/save-persistence.test.ts
+```
+
+- [ ] **Step 6: Commit the privacy-safe intel-model fix**
+
+```bash
+git add src/core/types.ts src/systems/legendary-wonder-intel.ts src/systems/legendary-wonder-system.ts src/ui/wonder-panel.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/storage/save-persistence.test.ts
+git commit -m "fix(m4e): limit rival wonder intel to earned snapshots"
+```
+
+### Task 13I: Make AI Wonder-Loss Notifications Transition-Owned Instead Of State-Scanned
+
+**Root Cause Analysis**
+
+The repeated AI wonder-loss notification is not really an AI bug. It is an event-model bug.
+
+`processAITurn()` currently:
+
+1. mutates state with `abandonLostLegendaryWonderRace(...)`
+2. then scans final state for any project already in `lost_race`
+3. emits `wonder:legendary-lost` if it finds one
+
+That means the event is tied to *steady state*, not *transition*. Any future turn that still contains the `lost_race` project can emit the same event again.
+
+The correct rule is:
+
+- event emission must happen at the moment a project transitions from `building` to `lost_race`
+- callers must never infer phase-change events by rescanning final state
+
+This is the same central approach we already rely on in `tickLegendaryWonderProjects()` for `ready`, `completed`, and race-loss resolution. The AI abandon path is the outlier and needs to match the rest of the system.
+
+**Files:**
+- Modify: `src/ai/basic-ai.ts`
+- Modify: `tests/ai/basic-ai.test.ts`
+
+- [ ] **Step 1: Add failing duplicate-notification regressions**
+
+Extend `tests/ai/basic-ai.test.ts`:
+
+```typescript
+it('emits wonder-loss only on the turn an ai wonder race is abandoned', () => {
+  const state = makeLegendaryWonderAiFixture();
+  const bus = new EventBus();
+  const lostEvents: Array<{ civId: string; cityId: string; wonderId: string }> = [];
+  bus.on('wonder:legendary-lost', event => lostEvents.push(event));
+
+  const afterFirstTurn = processAITurn(state, 'ai-1', bus);
+  const afterSecondTurn = processAITurn(afterFirstTurn, 'ai-1', bus);
+
+  expect(afterSecondTurn.legendaryWonderProjects!['grand-canal'].phase).toBe('lost_race');
+  expect(lostEvents).toHaveLength(1);
+  expect(lostEvents[0]).toEqual(expect.objectContaining({
+    civId: 'ai-1',
+    cityId: 'city-ai',
+    wonderId: 'grand-canal',
+  }));
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ai/basic-ai.test.ts
+```
+
+Expected: FAIL because the same `lost_race` project still emits on later AI turns.
+
+- [ ] **Step 3: Return transition payloads from the abandon helper**
+
+In `src/ai/basic-ai.ts`, change:
+
+```typescript
+function abandonLostLegendaryWonderRace(state: GameState, civId: string): GameState
+```
+
+to:
+
+```typescript
+interface AbandonLegendaryWonderRaceResult {
+  state: GameState;
+  lostEvents: Array<{
+    civId: string;
+    cityId: string;
+    wonderId: string;
+    goldRefund: number;
+    transferableProduction: number;
+  }>;
+}
+
+function abandonLostLegendaryWonderRace(state: GameState, civId: string): AbandonLegendaryWonderRaceResult
+```
+
+When the helper actually changes a project to `lost_race`, push exactly one event payload into `lostEvents`.
+
+If nothing transitions this turn, return:
+
+```typescript
+{ state, lostEvents: [] }
+```
+
+- [ ] **Step 4: Emit from the returned transition payloads only**
+
+In `processAITurn()`:
+
+```typescript
+const abandonment = abandonLostLegendaryWonderRace(newState, civId);
+newState = abandonment.state;
+for (const event of abandonment.lostEvents) {
+  bus.emit('wonder:legendary-lost', event);
+}
+```
+
+Delete the old final-state scan for `project.phase === 'lost_race'`.
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ai/basic-ai.test.ts
+```
+
+- [ ] **Step 6: Commit the transition-owned event fix**
+
+```bash
+git add src/ai/basic-ai.ts tests/ai/basic-ai.test.ts
+git commit -m "fix(m4e): emit ai wonder losses only on transition"
+```
+
+### Task 13J: Audit And Guardrail The Wonder Knowledge/Event Model
+
+**Root Cause Analysis**
+
+These Slice 4 follow-ups are not random. They come from two repeated bug classes:
+
+1. **knowledge inflation**
+   - a low-granularity “viewer knows something exists” signal gets reused as permission to read richer live state
+2. **transition inflation**
+   - a one-time event gets re-derived by scanning final state instead of being emitted from the actual transition
+
+Those two mistakes will keep resurfacing unless the repo guidance and targeted regression pack call them out explicitly.
+
+The goal of this task is not more gameplay code. It is to make the intended approach unmissable for future workers.
+
+**Files:**
+- Modify: `AGENTS.md`
+- Modify: `.claude/rules/ui-panels.md`
+- Modify: `.claude/rules/end-to-end-wiring.md`
+- Modify: `scripts/run-wonder-regressions.sh`
+- Modify: `tests/ui/legendary-wonder-notifications.test.ts`
+
+- [ ] **Step 1: Add one more focused notification regression**
+
+Extend `tests/ui/legendary-wonder-notifications.test.ts`:
+
+```typescript
+it('race-revealed notifications stay coarse and do not expose progress details', () => {
+  const state = makeLegendaryWonderFixture();
+
+  const visible = getLegendaryWonderNotification(state, 'player', {
+    type: 'wonder:legendary-race-revealed',
+    observerId: 'player',
+    civId: 'rival',
+    cityId: 'city-rival',
+    wonderId: 'grand-canal',
+  });
+
+  expect(visible?.message).toContain('started');
+  expect(visible?.message).not.toContain('production');
+  expect(visible?.message).not.toContain('Quest steps');
+});
+```
+
+- [ ] **Step 2: Extend the wonder regression pack**
+
+Update `scripts/run-wonder-regressions.sh` so it always includes:
+
+```bash
+tests/ui/legendary-wonder-notifications.test.ts
+tests/ai/basic-ai.test.ts
+tests/ui/wonder-panel.test.ts
+```
+
+The script must cover:
+
+- rival intel privacy
+- AI lost-event transition behavior
+- same-civ uniqueness
+- actionable Council guidance
+- full catalog accessibility
+
+- [ ] **Step 3: Add explicit repo guidance**
+
+Append to `AGENTS.md`:
+
+```markdown
+- Viewer-scoped intel must be stored at the same granularity the player actually earned. Do not reuse richer live objects to render persistent intel surfaces.
+- Emit gameplay events from the mutation or an explicit before/after diff. Do not re-derive one-time events by scanning final state for a phase/value.
+```
+
+Append to `.claude/rules/ui-panels.md`:
+
+```markdown
+Recommendation sections may be selective. Browse/action sections may not become inaccessible because of recommendation ranking.
+Persistent intel UI must render from viewer-safe snapshots, not from the richer source object if the player did not earn that detail.
+```
+
+Append to `.claude/rules/end-to-end-wiring.md`:
+
+```markdown
+If a feature emits events on state transition, add a regression proving the event fires exactly once across repeated turns/renders and does not recur from steady-state scans.
+```
+
+- [ ] **Step 4: Re-run the full wonder regression pack**
+
+```bash
+./scripts/run-wonder-regressions.sh
+```
+
+- [ ] **Step 5: Commit the guardrail updates**
+
+```bash
+git add AGENTS.md .claude/rules/ui-panels.md .claude/rules/end-to-end-wiring.md scripts/run-wonder-regressions.sh tests/ui/legendary-wonder-notifications.test.ts
+git commit -m "docs(m4e): harden wonder privacy and transition guardrails"
+```
+
 ### Task 14: Release Gate For Slice 4
 
 **Files:**
