@@ -40,6 +40,8 @@ import {
 import { BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
+import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 
 function getPersonality(civType: string): PersonalityTraits {
   const def = getCivDefinition(civType);
@@ -339,6 +341,14 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
             if (newState.civilizations[defCivId]) {
               newState.civilizations[defCivId].units =
                 newState.civilizations[defCivId].units.filter(id => id !== occupant.id);
+            }
+
+            const destroyedCamp = applyCampDestructionAtTarget(newState, civId, occupant.position, newState.turn);
+            if (destroyedCamp.campId) {
+              newState = destroyedCamp.state;
+              for (const mcId of Object.keys(newState.minorCivs)) {
+                applyDiplomaticReaction(newState, 'camp_destroyed_nearby', civId, mcId);
+              }
             }
           } else {
             newState.units[occupant.id].health -= result.defenderDamage;

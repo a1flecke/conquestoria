@@ -84,6 +84,28 @@ export function applyCampDestruction(
   return { state: nextState, reward };
 }
 
+export function applyCampDestructionAtTarget(
+  state: GameState,
+  civId: string,
+  target: HexCoord,
+  turn: number,
+): { state: GameState; reward: number; campId: string | null } {
+  const campEntry = Object.entries(state.barbarianCamps).find(([, camp]) =>
+    hexKey(camp.position) === hexKey(target),
+  );
+  if (!campEntry) {
+    return { state, reward: 0, campId: null };
+  }
+
+  const [campId] = campEntry;
+  const destroyed = applyCampDestruction(state, civId, campId, turn);
+  return {
+    state: destroyed.state,
+    reward: destroyed.reward,
+    campId,
+  };
+}
+
 export interface BarbarianMoveOrder {
   unitId: string;
   toCoord: HexCoord;

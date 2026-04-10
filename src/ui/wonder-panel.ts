@@ -228,13 +228,12 @@ export function createWonderPanel(
     .slice(0, 3);
   const recommendedIds = new Set(recommendedProjects.map(project => project.wonderId));
   const laterProjects = sortedCityProjects
-    .filter(project => !recommendedIds.has(project.wonderId))
-    .slice(0, 4);
+    .filter(project => !recommendedIds.has(project.wonderId));
 
   appendProjectSection(panel, 'Best fits right now', 'recommended-wonders', recommendedProjects, state, callbacks, {
     recommended: true,
   });
-  appendProjectSection(panel, 'Available later', 'later-wonders', laterProjects, state, callbacks);
+  appendProjectSection(panel, 'All ambitions in this city', 'all-city-wonders', laterProjects, state, callbacks);
   appendProjectSection(panel, 'In progress elsewhere', 'rival-wonders', rivalProjects.slice(0, 3), state, callbacks);
 
   const close = document.createElement('button');

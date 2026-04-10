@@ -98,13 +98,33 @@ describe('wonder-panel', () => {
       onStartBuild: () => {},
       onClose: () => {},
     });
+    const cityProjectCount = Object.values(seededState.legendaryWonderProjects ?? {}).filter(project =>
+      project.ownerId === seededState.currentPlayer && project.cityId === 'city-river',
+    ).length;
 
     expect(panel.querySelectorAll('[data-section="recommended-wonders"]').length).toBe(1);
     expect(panel.textContent).toContain('Best fits right now');
-    expect(panel.querySelectorAll('[data-project-card]').length).toBeLessThanOrEqual(8);
+    expect(panel.querySelectorAll('[data-project-card]').length).toBe(cityProjectCount + 1);
     expect(panel.querySelectorAll('[data-recommended-project="true"]').length).toBeLessThanOrEqual(3);
-    expect(panel.textContent).toContain('Available later');
+    expect(panel.textContent).toContain('All ambitions in this city');
     expect(panel.textContent).toContain('In progress elsewhere');
+  });
+
+  it('renders every selected-city wonder project exactly once', () => {
+    const { container, state } = makeWonderPanelFixture();
+    const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+
+    const panel = createWonderPanel(container, seededState, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    const cityProjectCount = Object.values(seededState.legendaryWonderProjects ?? {}).filter(project =>
+      project.ownerId === seededState.currentPlayer && project.cityId === 'city-river',
+    ).length;
+
+    expect(panel.querySelectorAll('[data-project-card]').length).toBe(cityProjectCount);
+    expect(panel.querySelectorAll('[data-section="all-city-wonders"]').length).toBe(1);
   });
 
   it('does not reveal rival wonder races without earned intel', () => {

@@ -3,6 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
 import { createEspionageCivState } from '@/systems/espionage-system';
+import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 
 function makeAiRebelState(): GameState {
   return {
@@ -740,6 +741,151 @@ function makeLegendaryWonderOpportunityFixture(): GameState {
   } as GameState;
 }
 
+function makeAiBarbarianCampAttackState(): GameState {
+  return {
+    turn: 22,
+    era: 3,
+    currentPlayer: 'ai-1',
+    gameOver: false,
+    winner: null,
+    map: {
+      width: 8,
+      height: 8,
+      tiles: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: 'ai-1',
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: null,
+        },
+        '1,0': {
+          coord: { q: 1, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: null,
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: null,
+        },
+      },
+      wrapsHorizontally: false,
+      rivers: [],
+    },
+    units: {
+      'unit-ai': {
+        id: 'unit-ai',
+        type: 'warrior',
+        owner: 'ai-1',
+        position: { q: 0, r: 0 },
+        movementPointsLeft: 2,
+        health: 100,
+        experience: 0,
+        hasMoved: false,
+        hasActed: false,
+        isResting: false,
+      },
+      'unit-barbarian': {
+        id: 'unit-barbarian',
+        type: 'warrior',
+        owner: 'barbarian',
+        position: { q: 1, r: 0 },
+        movementPointsLeft: 2,
+        health: 1,
+        experience: 0,
+        hasMoved: false,
+        hasActed: false,
+        isResting: false,
+      },
+    },
+    cities: {
+      'city-ai': {
+        id: 'city-ai',
+        name: 'Capital',
+        owner: 'ai-1',
+        position: { q: 0, r: 0 },
+        population: 5,
+        food: 0,
+        foodNeeded: 20,
+        buildings: ['granary', 'market'],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 0, r: 0 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+    },
+    civilizations: {
+      'ai-1': {
+        id: 'ai-1',
+        name: 'AI',
+        color: '#d94a4a',
+        isHuman: false,
+        civType: 'rome',
+        cities: ['city-ai'],
+        units: ['unit-ai'],
+        techState: {
+          completed: ['architecture-arts', 'theology-tech'],
+          currentResearch: null,
+          researchProgress: 0,
+          trackPriorities: {} as any,
+        },
+        gold: 0,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: {
+          relationships: {},
+          treaties: [],
+          events: [],
+          atWarWith: [],
+          treacheryScore: 0,
+          vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 1 },
+        },
+      },
+    },
+    barbarianCamps: {
+      'camp-1': {
+        id: 'camp-1',
+        position: { q: 1, r: 0 },
+        strength: 5,
+        spawnCooldown: 0,
+      },
+    },
+    minorCivs: {},
+    tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+    settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+    tribalVillages: {},
+    discoveredWonders: {},
+    wonderDiscoverers: {},
+    embargoes: [],
+    defensiveLeagues: [],
+    legendaryWonderHistory: { destroyedStrongholds: [] },
+    legendaryWonderProjects: {
+      'sun-spire:ai-1:city-ai': {
+        wonderId: 'sun-spire',
+        ownerId: 'ai-1',
+        cityId: 'city-ai',
+        phase: 'questing',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'complete-sacred-route', description: 'Establish a sacred trade route.', completed: true },
+          { id: 'defeat-nearby-stronghold', description: 'Clear a nearby barbarian stronghold.', completed: false },
+        ],
+      },
+    },
+  } as GameState;
+}
+
 describe('processAITurn', () => {
   it('does not throw on a fresh game', () => {
     const state = createNewGame(undefined, 'ai-test');
@@ -907,5 +1053,30 @@ describe('processAITurn', () => {
 
     expect(legendaryQueues.length).toBeGreaterThan(0);
     expect(legendaryQueues.length).toBeLessThanOrEqual(2);
+  });
+
+  it('records stronghold history when an ai civ clears a barbarian camp', () => {
+    const state = makeAiBarbarianCampAttackState();
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.legendaryWonderHistory?.destroyedStrongholds).toContainEqual(
+      expect.objectContaining({ civId: 'ai-1', campId: 'camp-1' }),
+    );
+    expect(result.barbarianCamps['camp-1']).toBeUndefined();
+  });
+
+  it('lets an ai civ satisfy stronghold-backed wonder quests after clearing a camp', () => {
+    const state = makeAiBarbarianCampAttackState();
+    const bus = new EventBus();
+
+    const afterCombat = processAITurn(state, 'ai-1', bus);
+    const afterTick = tickLegendaryWonderProjects(afterCombat, new EventBus());
+    const project = Object.values(afterTick.legendaryWonderProjects ?? {}).find(candidate =>
+      candidate.ownerId === 'ai-1' && candidate.wonderId === 'sun-spire',
+    );
+
+    expect(project?.questSteps.find(step => step.id === 'defeat-nearby-stronghold')?.completed).toBe(true);
   });
 });

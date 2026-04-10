@@ -16,7 +16,7 @@ import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
-import { applyCampDestruction } from '@/systems/barbarian-system';
+import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioManager } from '@/audio/audio-manager';
 import { SFX } from '@/audio/sfx';
@@ -810,17 +810,14 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
     }
     showNotification('Enemy unit destroyed!', 'success');
 
-    for (const [campId, camp] of Object.entries(gameState.barbarianCamps)) {
-      if (hexKey(camp.position) === targetKey) {
-        const destroyed = applyCampDestruction(gameState, gameState.currentPlayer, campId, gameState.turn);
-        gameState = destroyed.state;
-        const reward = destroyed.reward;
-        showNotification(`Barbarian camp destroyed! +${reward} gold`, 'success');
-        advisorSystem.resetMessage('treasurer_camp_reward');
-        advisorSystem.check(gameState);
-        for (const mcId of Object.keys(gameState.minorCivs)) {
-          applyDiplomaticReaction(gameState, 'camp_destroyed_nearby', gameState.currentPlayer, mcId);
-        }
+    const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
+    if (destroyedCamp.campId) {
+      gameState = destroyedCamp.state;
+      showNotification(`Barbarian camp destroyed! +${destroyedCamp.reward} gold`, 'success');
+      advisorSystem.resetMessage('treasurer_camp_reward');
+      advisorSystem.check(gameState);
+      for (const mcId of Object.keys(gameState.minorCivs)) {
+        applyDiplomaticReaction(gameState, 'camp_destroyed_nearby', gameState.currentPlayer, mcId);
       }
     }
 
