@@ -6,6 +6,8 @@ export interface LateEraWonderTechRequirement {
   requiredTechs: string[];
 }
 
+const LATE_ERA_WONDER_IDS = ['manhattan-project', 'internet'] as const;
+
 const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefinition> = {
   'oracle-of-delphi': {
     id: 'oracle-of-delphi',
@@ -293,20 +295,16 @@ export function getLegendaryWonderDefinition(wonderId: string): LegendaryWonderD
   return LEGENDARY_WONDER_DEFINITIONS_BY_ID[wonderId];
 }
 
-const LATE_ERA_WONDER_TECH_REQUIREMENTS: LateEraWonderTechRequirement[] = [
-  {
-    wonderId: 'manhattan-project',
-    requiredTechs: ['nuclear-theory'],
-  },
-  {
-    wonderId: 'internet',
-    requiredTechs: ['mass-media', 'global-logistics'],
-  },
-];
-
 export function getLateEraWonderTechRequirements(): LateEraWonderTechRequirement[] {
-  return LATE_ERA_WONDER_TECH_REQUIREMENTS.map(requirement => ({
-    wonderId: requirement.wonderId,
-    requiredTechs: [...requirement.requiredTechs],
-  }));
+  return LATE_ERA_WONDER_IDS.map(wonderId => {
+    const definition = getLegendaryWonderDefinition(wonderId);
+    if (!definition) {
+      throw new Error(`Missing late-era wonder definition for ${wonderId}`);
+    }
+
+    return {
+      wonderId,
+      requiredTechs: [...definition.requiredTechs],
+    };
+  });
 }

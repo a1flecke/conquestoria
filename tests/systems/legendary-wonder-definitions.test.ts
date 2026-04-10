@@ -56,6 +56,24 @@ describe('legendary-wonder-definitions', () => {
     });
   });
 
+  it('derives late-era wonder prerequisite summaries from the shipped definitions', () => {
+    const requirements = getLateEraWonderTechRequirements();
+    const definitions = Object.fromEntries(
+      getLegendaryWonderDefinitions().map(definition => [definition.id, definition]),
+    );
+
+    expect(requirements).toEqual([
+      {
+        wonderId: 'manhattan-project',
+        requiredTechs: definitions['manhattan-project'].requiredTechs,
+      },
+      {
+        wonderId: 'internet',
+        requiredTechs: definitions.internet.requiredTechs,
+      },
+    ]);
+  });
+
   it('uses explicit metadata for route and stronghold flavored wonder steps', () => {
     for (const definition of getLegendaryWonderDefinitions()) {
       for (const step of definition.questSteps) {

@@ -76,6 +76,23 @@ describe('wonder-panel', () => {
     expect(rendered).toContain('Reward');
   });
 
+  it('shows live missing-tech requirements for late-era wonders in the panel', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = [];
+
+    const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const panel = createWonderPanel(container, seededState, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Manhattan Project');
+    expect(rendered).toContain('Missing: tech nuclear-theory');
+    expect(rendered).toContain('Internet');
+    expect(rendered).toContain('Missing: tech mass-media, tech global-logistics');
+  });
+
   it('does not overwhelm the player with an undifferentiated list of wonders', () => {
     const { container, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = [

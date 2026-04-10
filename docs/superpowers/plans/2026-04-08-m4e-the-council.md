@@ -1954,6 +1954,159 @@ git add src/ui/tech-panel.ts src/systems/legendary-wonder-definitions.ts tests/u
 git commit -m "feat(m4e): wire late-era techs into wonders"
 ```
 
+### Task 10A: Lock Late-Era Wonder Tech Wiring To One Source Of Truth
+
+**Root Cause Analysis**
+
+The Slice 3 review comment points at a real contract risk even though the current branch already reads `LegendaryWonderDefinition.requiredTechs` in the live runtime.
+
+The deeper issue is duplicated source-of-truth data:
+
+- runtime eligibility and wonder-panel requirements read `definition.requiredTechs`
+- `getLateEraWonderTechRequirements()` returns a separate manually maintained table
+
+That means the codebase can look “wired” in one place while silently drifting in another. If someone updates `manhattan-project` or `internet` in `LEGENDARY_WONDER_DEFINITIONS` and forgets the mirror table, the helper tests can stay green while the shipped gameplay/UI contract changes underneath them. The fix is not to teach runtime to read the second table. The fix is to make the helper derive from the shipped definitions and add regressions that exercise the live wonder system and the wonder panel directly.
+
+**Files:**
+- Modify: `src/systems/legendary-wonder-definitions.ts`
+- Modify: `tests/systems/legendary-wonder-definitions.test.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+
+- [ ] **Step 1: Add failing late-era wonder wiring regressions**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('keeps manhattan project locked until nuclear-theory is researched', () => {
+  const state = makeLegendaryWonderFixture({
+    completedTechs: [],
+    resources: ['iron'],
+  });
+
+  let eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+  expect(eligible).not.toContain('manhattan-project');
+
+  state.civilizations.player.techState.completed.push('nuclear-theory');
+  eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+  expect(eligible).toContain('manhattan-project');
+});
+
+it('keeps internet locked until both mass-media and global-logistics are researched', () => {
+  const state = makeLegendaryWonderFixture({
+    completedTechs: [],
+    resources: [],
+  });
+
+  let eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+  expect(eligible).not.toContain('internet');
+
+  state.civilizations.player.techState.completed.push('mass-media');
+  eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+  expect(eligible).not.toContain('internet');
+
+  state.civilizations.player.techState.completed.push('global-logistics');
+  eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+  expect(eligible).toContain('internet');
+});
+```
+
+Extend `tests/ui/wonder-panel.test.ts`:
+
+```typescript
+it('shows live missing-tech requirements for late-era wonders in the panel', () => {
+  const { container, state } = makeWonderPanelFixture();
+  state.civilizations.player.techState.completed = [];
+
+  const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+  const panel = createWonderPanel(container, seededState, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  const rendered = collectText(panel);
+  expect(rendered).toContain('Manhattan Project');
+  expect(rendered).toContain('Missing: tech nuclear-theory');
+  expect(rendered).toContain('Internet');
+  expect(rendered).toContain('Missing: tech mass-media, tech global-logistics');
+});
+```
+
+Extend `tests/systems/legendary-wonder-definitions.test.ts`:
+
+```typescript
+it('derives late-era wonder prerequisite summaries from the shipped definitions', () => {
+  const requirements = getLateEraWonderTechRequirements();
+  const definitions = Object.fromEntries(
+    getLegendaryWonderDefinitions().map(definition => [definition.id, definition]),
+  );
+
+  expect(requirements).toEqual([
+    {
+      wonderId: 'manhattan-project',
+      requiredTechs: definitions['manhattan-project'].requiredTechs,
+    },
+    {
+      wonderId: 'internet',
+      requiredTechs: definitions.internet.requiredTechs,
+    },
+  ]);
+});
+```
+
+- [ ] **Step 2: Run the local regression set before any commit**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-definitions.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts
+```
+
+Expected:
+
+- FAIL if runtime eligibility stops honoring the late-era required techs
+- FAIL if the wonder panel stops surfacing the real late-era missing-tech requirements
+- FAIL if the late-era helper table drifts away from the shipped definitions
+
+- [ ] **Step 3: Remove the duplicate late-era prerequisite source**
+
+In `src/systems/legendary-wonder-definitions.ts`, replace the hand-maintained mirror table with a derived helper:
+
+```typescript
+const LATE_ERA_WONDER_IDS = ['manhattan-project', 'internet'] as const;
+
+export function getLateEraWonderTechRequirements(): LateEraWonderTechRequirement[] {
+  return LATE_ERA_WONDER_IDS.map(wonderId => {
+    const definition = getLegendaryWonderDefinition(wonderId);
+    if (!definition) {
+      throw new Error(`Missing late-era wonder definition for ${wonderId}`);
+    }
+
+    return {
+      wonderId,
+      requiredTechs: [...definition.requiredTechs],
+    };
+  });
+}
+```
+
+Do not add a second runtime lookup path. `requiredTechs` on the wonder definition remains the gameplay/UI source of truth. This helper becomes a derived reporting surface only.
+
+- [ ] **Step 4: Re-run the regression set**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-definitions.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit the drift-proof wiring**
+
+```bash
+git add src/systems/legendary-wonder-definitions.ts tests/systems/legendary-wonder-definitions.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts
+git commit -m "fix(m4e): lock late-era wonder tech wiring"
+```
+
 ### Task 11: Release Gate For Slice 3
 
 **Files:**
@@ -1962,7 +2115,7 @@ git commit -m "feat(m4e): wire late-era techs into wonders"
 - [ ] **Step 1: Run Slice 3 targeted verification**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/ui/tech-panel.test.ts tests/systems/legendary-wonder-system.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/ui/tech-panel.test.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 2: Run full suite and build**

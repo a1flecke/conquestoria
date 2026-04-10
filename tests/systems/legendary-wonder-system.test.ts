@@ -123,6 +123,40 @@ describe('legendary-wonder-system', () => {
     expect(eligible).not.toContain('grand-canal');
   });
 
+  it('keeps manhattan project locked until nuclear-theory is researched', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: [],
+      resources: ['iron'],
+    });
+
+    let eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+    expect(eligible).not.toContain('manhattan-project');
+
+    state.civilizations.player.techState.completed.push('nuclear-theory');
+    eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).toContain('manhattan-project');
+  });
+
+  it('keeps internet locked until both mass-media and global-logistics are researched', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: [],
+      resources: [],
+    });
+
+    let eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+    expect(eligible).not.toContain('internet');
+
+    state.civilizations.player.techState.completed.push('mass-media');
+    eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+    expect(eligible).not.toContain('internet');
+
+    state.civilizations.player.techState.completed.push('global-logistics');
+    eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).toContain('internet');
+  });
+
   it('unlocks construction only after every quest step is complete', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
 
