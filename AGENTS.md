@@ -16,6 +16,10 @@ For Codex command consistency, prefer:
 - `./scripts/run-with-mise.sh yarn test --run tests/path/to/file.test.ts`
 - `./scripts/run-with-mise.sh yarn build`
 
+For legendary wonder, quest-race, or wonder-panel changes, run:
+
+- `./scripts/run-wonder-regressions.sh`
+
 ## Coding Style & Naming Conventions
 Follow `.editorconfig`: UTF-8, LF endings, 2-space indentation, final newline. Write TypeScript modules with one clear responsibility per file. Prefer kebab-case filenames such as `city-system.ts` and `fog-of-war.ts`; keep tests named `*.test.ts`. Keep gameplay state serializable plain objects, not class instances. Use axial hex coordinates `(q, r)` throughout gameplay code and convert to pixels only inside renderer code. For DOM updates, use `textContent` or `createTextNode()` instead of `innerHTML`.
 
@@ -24,11 +28,17 @@ Vitest is the test runner. Add tests beside the relevant domain under `tests/`, 
 
 When fixing a bug or implementing from a plan/spec, add at least one regression test for the exact failure mode before changing production code. If you introduce a new owner/faction or neutral hostile actor such as `rebels`, add an interaction test covering AI or player handling of that owner. If a rule in a spec is conjunctive, such as "A and B must both be true", write a negative test proving that only `A` or only `B` is insufficient.
 
+If a UI panel is the only place a player can inspect or trigger a full catalog of actions, tests must prove every actionable item remains reachable. Recommendation or prioritization may reorder the surface, but it must not silently hide lower-ranked items unless there is an explicit secondary affordance such as `Show all` that is itself tested.
+
+When a gameplay rule is attached to combat resolution, camp destruction, capture, or any other actor-agnostic state change, add parity coverage for the human path and at least one non-human path (`AI`, `turn-manager`, or another system caller). Do not treat a UI handler as the only execution path for game-state history or progression rules.
+
 ## Commit & Pull Request Guidelines
 Recent history uses concise Conventional Commit style, often with scopes, for example `fix(m5): wire marketplace supply/demand from game state` or `docs: triage open issues`. Keep commit subjects imperative and specific. PRs should explain gameplay impact, list tests run, link the relevant issue or milestone, and include screenshots when UI or rendering changes are visible.
 
 ## Architecture Notes
 Respect the event-driven design: systems communicate through the event bus, while state mutations still happen directly in state-updating code. Hot-seat features must use `state.currentPlayer` rather than hardcoded player IDs, and bilateral diplomacy changes must update both sides.
+
+Shared gameplay consequences must live in canonical system helpers, not only in `main.ts` UI handlers. If the player, AI, and turn loop can all trigger the same outcome, the mutation path should be shared and the UI layer should only add viewer-specific notifications.
 
 ## Spec Fidelity
 When working from `docs/superpowers/specs/` or `docs/superpowers/plans/`, preserve the exact gameplay contract unless the user explicitly changes it. Do not broaden gated mission effects, relax resolution conditions, or leave bonus-effect fields partially wired. Review branch work against both `origin/main...HEAD` and the local uncommitted delta, not just untracked files, before claiming review coverage.

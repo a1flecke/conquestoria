@@ -2062,6 +2062,21 @@ git commit -m "feat(m4e): expand the legendary wonder catalog"
 
 ### Task 13: Keep The Expanded Wonder Set Readable, Actionable, And Safe
 
+**Root Cause Analysis**
+
+Slice 4’s first UX pass made one correct decision and one incorrect one:
+
+- correct: recommendations should be bounded so the player gets a readable “best next moves” view
+- incorrect: the same bounded subset was also used as the player’s only access path to the full city wonder catalog
+
+That is a category error. Recommendation is ranking. Accessibility is reachability. The wonder panel is the only player surface that can inspect and start a city’s legendary wonder projects, so it must never make lower-ranked projects unreachable. The correct design is:
+
+- keep a small, scored “best fits right now” section
+- keep a separate complete remainder section that still exposes every city-owned project
+- test the panel against catalog completeness, not only readability
+
+Council advice may stay bounded. The panel itself may not hide actionable projects.
+
 **Files:**
 - Modify: `src/ui/wonder-panel.ts`
 - Modify: `src/ui/council-panel.ts`
@@ -2070,7 +2085,7 @@ git commit -m "feat(m4e): expand the legendary wonder catalog"
 - Modify: `tests/ui/council-panel.test.ts`
 - Modify: `tests/ai/basic-ai.test.ts`
 
-- [ ] **Step 1: Add failing readability and AI tests**
+- [ ] **Step 1: Add failing readability, reachability, and AI tests**
 
 Extend `tests/ui/wonder-panel.test.ts`:
 
@@ -2078,6 +2093,27 @@ Extend `tests/ui/wonder-panel.test.ts`:
 it('does not overwhelm the player with an undifferentiated list of wonders', () => {
   expect(panel.querySelectorAll('[data-section="recommended-wonders"]').length).toBe(1);
   expect(panel.textContent).toContain('Best fits right now');
+});
+
+it('shows every city-owned legendary wonder project somewhere in the panel', () => {
+  const { container, state } = makeWonderPanelFixture();
+  const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+
+  const panel = createWonderPanel(container, seededState, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  const cityProjectCount = Object.values(seededState.legendaryWonderProjects ?? {}).filter(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river',
+  ).length;
+
+  expect(panel.querySelectorAll('[data-project-card]').length).toBe(cityProjectCount);
+});
+
+it('keeps recommendation cards bounded without hiding the rest of the city catalog', () => {
+  expect(panel.querySelectorAll('[data-recommended-project="true"]').length).toBeLessThanOrEqual(3);
+  expect(panel.querySelectorAll('[data-section="all-city-wonders"]').length).toBe(1);
 });
 ```
 
@@ -2104,9 +2140,16 @@ it('does not chase every new legendary wonder at once', () => {
 ./scripts/run-with-mise.sh yarn test --run tests/ui/wonder-panel.test.ts tests/ui/council-panel.test.ts tests/ai/basic-ai.test.ts
 ```
 
-- [ ] **Step 3: Implement curated surfacing**
+- [ ] **Step 3: Implement curated surfacing without truncation**
 
-Add explicit “best fits right now”, “available later”, and “in progress elsewhere” sections to `wonder-panel.ts`, and cap Council wonder recommendations to a small scored subset.
+Add explicit “best fits right now”, “all ambitions in this city”, and “in progress elsewhere” sections to `wonder-panel.ts`, and cap Council wonder recommendations to a small scored subset.
+
+Rules for the panel implementation:
+- The recommended section may stay capped.
+- The city-owned remainder section must include every non-recommended city project exactly once.
+- `Start Build` must stay reachable for any `ready_to_build` project even if it was not recommended.
+- The rival/intel section may stay separately scoped by earned intel.
+- Do not solve this with a hidden overflow and no affordance; the panel itself is already scrollable, so render the full city catalog.
 
 - [ ] **Step 4: Re-run focused tests**
 
@@ -2655,6 +2698,200 @@ git add src/core/types.ts src/systems/legendary-wonder-system.ts src/ui/wonder-p
 git commit -m "fix(m4e): gate rival wonder races behind earned intel"
 ```
 
+### Task 13D: Keep Wonder Recommendations Bounded Without Hiding The Full Catalog
+
+**Root Cause Analysis**
+
+The review found a deeper product mistake than “wrong `slice()` sizes.” The real failure is that the panel mixed up three different jobs:
+
+1. recommendation: show a lovable short list of the best next options
+2. browsing: let the player inspect every city wonder project
+3. action: let the player start any eligible wonder from the only wonder UI
+
+The current implementation lets recommendation logic decide what is browseable and startable. That is fundamentally wrong. Recommendation may be selective. Browsing and action reachability may not.
+
+**Files:**
+- Modify: `src/ui/wonder-panel.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+- Modify: `tests/ui/council-panel.test.ts`
+
+- [ ] **Step 1: Add failing full-catalog regressions**
+
+Extend `tests/ui/wonder-panel.test.ts`:
+
+```typescript
+it('renders every project owned by the selected city exactly once', () => {
+  const { container, state } = makeWonderPanelFixture();
+  const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+
+  const panel = createWonderPanel(container, seededState, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  const cityProjects = Object.values(seededState.legendaryWonderProjects ?? {}).filter(project =>
+    project.ownerId === 'player' && project.cityId === 'city-river',
+  );
+
+  expect(panel.querySelectorAll('[data-project-card]').length).toBe(cityProjects.length);
+});
+
+it('keeps lower-priority ready-to-build wonders reachable from the panel', () => {
+  const { container, state } = makeWonderPanelFixture();
+  const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+  const nonRecommendedReadyWonder = Object.values(seededState.legendaryWonderProjects ?? {})
+    .find(project => project.ownerId === 'player' && project.cityId === 'city-river' && project.phase === 'ready_to_build' && project.wonderId !== 'oracle-of-delphi');
+
+  expect(nonRecommendedReadyWonder).toBeDefined();
+
+  const panel = createWonderPanel(container, seededState, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  expect(panel.textContent).toContain(getLegendaryWonderDefinition(nonRecommendedReadyWonder!.wonderId)?.name ?? nonRecommendedReadyWonder!.wonderId);
+});
+```
+
+Extend `tests/ui/council-panel.test.ts`:
+
+```typescript
+it('keeps council wonder advice bounded without changing the full panel catalog', () => {
+  const wonderCards = panel.querySelectorAll('[data-card-type="wonder"]');
+  expect(wonderCards.length).toBeLessThanOrEqual(3);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/wonder-panel.test.ts tests/ui/council-panel.test.ts
+```
+
+- [ ] **Step 3: Refactor the panel around two different concepts**
+
+In `src/ui/wonder-panel.ts`:
+- keep the existing scored recommendation helper
+- render a bounded `recommended-wonders` section for the top subset
+- render a complete `all-city-wonders` section for every non-recommended project in the selected city
+- keep the rival section separate and still gated by earned intel
+
+Do not reintroduce a flat, overwhelming list. The fix is “bounded recommendations plus full browseable catalog,” not “dump everything in one bucket.”
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ui/wonder-panel.test.ts tests/ui/council-panel.test.ts
+```
+
+- [ ] **Step 5: Commit the catalog-access fix**
+
+```bash
+git add src/ui/wonder-panel.ts tests/ui/wonder-panel.test.ts tests/ui/council-panel.test.ts
+git commit -m "fix(m4e): keep the full wonder catalog reachable"
+```
+
+### Task 13E: Share Camp-Destruction Consequences Across Human And AI Combat
+
+**Root Cause Analysis**
+
+Task 13B fixed the history model but not the execution model. The current branch still records stronghold history only from the human `executeAttack()` UI path in `main.ts`. AI combat in `src/ai/basic-ai.ts` resolves defender death separately, so AI civs never write the same history when they clear camps. The architectural bug is that post-combat defender-death consequences are still split by actor:
+
+- human combat path in `main.ts`
+- AI combat path in `basic-ai.ts`
+- barbarian turn combat in `turn-manager.ts`
+
+Any gameplay rule attached to “defender died on this tile” will keep drifting until those consequences are centralized behind one shared system helper.
+
+**Files:**
+- Modify: `src/systems/barbarian-system.ts`
+- Modify: `src/ai/basic-ai.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/ai/basic-ai.test.ts`
+- Modify: `tests/systems/barbarian-system.test.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+
+- [ ] **Step 1: Add failing AI-parity regressions**
+
+Extend `tests/ai/basic-ai.test.ts`:
+
+```typescript
+it('records stronghold history when an ai civ clears a barbarian camp', () => {
+  const state = makeAiBarbarianCampAttackState();
+
+  const result = processAITurn(state, 'ai-1', new EventBus());
+
+  expect(result.legendaryWonderHistory?.destroyedStrongholds).toContainEqual(
+    expect.objectContaining({ civId: 'ai-1', campId: 'camp-1' }),
+  );
+  expect(result.barbarianCamps['camp-1']).toBeUndefined();
+});
+
+it('lets an ai civ satisfy stronghold-backed wonder quests after clearing a camp', () => {
+  const state = makeAiStrongholdWonderState();
+
+  const afterCombat = processAITurn(state, 'ai-1', new EventBus());
+  const afterTick = tickLegendaryWonderProjects(afterCombat, new EventBus());
+
+  const project = Object.values(afterTick.legendaryWonderProjects ?? {}).find(candidate =>
+    candidate.ownerId === 'ai-1' && candidate.wonderId === 'sun-spire',
+  );
+
+  expect(project?.questSteps.find(step => step.id === 'defeat-nearby-stronghold')?.completed).toBe(true);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ai/basic-ai.test.ts tests/systems/barbarian-system.test.ts tests/systems/legendary-wonder-system.test.ts
+```
+
+- [ ] **Step 3: Introduce one shared post-kill camp-resolution helper**
+
+Keep `applyCampDestruction()` as the canonical camp-removal/history/reward mutation. Then add one shared helper that checks whether a dead defender stood on a barbarian camp tile and applies camp destruction for the attacker:
+
+```typescript
+export function applyCampDestructionAtTarget(
+  state: GameState,
+  attackerOwnerId: string,
+  target: HexCoord,
+  turn: number,
+): { state: GameState; reward: number; campId: string | null } {
+  const campEntry = Object.entries(state.barbarianCamps).find(([, camp]) =>
+    hexKey(camp.position) === hexKey(target),
+  );
+  if (!campEntry) {
+    return { state, reward: 0, campId: null };
+  }
+
+  const [campId] = campEntry;
+  const destroyed = applyCampDestruction(state, attackerOwnerId, campId, turn);
+  return { ...destroyed, campId };
+}
+```
+
+- [ ] **Step 4: Route both human and AI combat through the same camp-resolution path**
+
+Use that shared helper in:
+- `src/main.ts` after defender death, preserving the current human notifications/advisor reactions
+- `src/ai/basic-ai.ts` after defender death, without UI notifications but with the same state mutation
+
+Do not duplicate the camp scan logic in both files again.
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/ai/basic-ai.test.ts tests/systems/barbarian-system.test.ts tests/systems/legendary-wonder-system.test.ts
+```
+
+- [ ] **Step 6: Commit the actor-parity fix**
+
+```bash
+git add src/systems/barbarian-system.ts src/main.ts src/ai/basic-ai.ts tests/ai/basic-ai.test.ts tests/systems/barbarian-system.test.ts tests/systems/legendary-wonder-system.test.ts
+git commit -m "fix(m4e): share stronghold progress across human and ai combat"
+```
+
 ### Task 14: Release Gate For Slice 4
 
 **Files:**
@@ -2663,7 +2900,7 @@ git commit -m "fix(m4e): gate rival wonder races behind earned intel"
 - [ ] **Step 1: Run Slice 4 targeted verification**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts tests/ui/wonder-panel.test.ts tests/ui/council-panel.test.ts tests/ui/legendary-wonder-notifications.test.ts tests/ai/basic-ai.test.ts tests/core/turn-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-wonder-regressions.sh
 ```
 
 - [ ] **Step 2: Run full suite and build**

@@ -37,3 +37,9 @@ paths:
 ## Tech Panel
 - Must list ALL tech tracks from the `TechTrack` type union — never hardcode a subset
 - Derive track list from the type definition or `TECH_TREE` data
+
+## Catalog Panels
+- If a panel is the only place a player can browse or trigger a catalog of game actions, it MUST keep the full actionable catalog reachable
+- Recommendation sections may be bounded, but they cannot be the only surface for starting lower-ranked items
+- If you intentionally truncate or collapse a catalog, provide an explicit tested affordance such as `Show all`, `More`, or a separate complete section
+- Add a regression that counts or otherwise proves all expected entries remain accessible from the live panel
