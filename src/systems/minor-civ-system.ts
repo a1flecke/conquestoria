@@ -1,7 +1,7 @@
 import type { GameState, MinorCivState, HexCoord, City, Unit, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
-import { TECH_TREE } from './tech-definitions';
+import { getEraAdvancementTechs } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import { hexDistance, hexKey, hexNeighbors } from './hex-utils';
@@ -497,7 +497,7 @@ const ERA_UNIT_MAP: Record<number, UnitType> = {
 
 export function checkEraAdvancement(state: GameState): number {
   const nextEra = state.era + 1;
-  const nextEraTechs = TECH_TREE.filter(t => t.era === nextEra);
+  const nextEraTechs = getEraAdvancementTechs(nextEra);
   if (nextEraTechs.length === 0) return state.era;
 
   const anyAdvanced = Object.values(state.civilizations).some(civ => {

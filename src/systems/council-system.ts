@@ -35,8 +35,37 @@ function getWonderRecommendationCards(state: GameState, civId: string): CouncilC
   const reachableProjects = seededState.civilizations[civId]?.cities.flatMap(cityId =>
     getReachableLegendaryWonderProjects(seededState, civId, cityId),
   ) ?? [];
+  const bestProjectByWonder = new Map<string, typeof reachableProjects[number]>();
 
-  return reachableProjects
+  for (const project of reachableProjects) {
+    const definition = getLegendaryWonderDefinition(project.wonderId);
+    const completedSteps = project.questSteps.filter(step => step.completed).length;
+    const totalSteps = project.questSteps.length;
+    const phaseBonus = project.phase === 'ready_to_build' ? 100 : 45;
+    const progressBonus = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 30) : 20;
+    const costPenalty = Math.floor((definition?.productionCost ?? 300) / 40);
+    const priority = phaseBonus + progressBonus - costPenalty;
+    const existing = bestProjectByWonder.get(project.wonderId);
+
+    if (!existing) {
+      bestProjectByWonder.set(project.wonderId, project);
+      continue;
+    }
+
+    const existingDefinition = getLegendaryWonderDefinition(existing.wonderId);
+    const existingCompleted = existing.questSteps.filter(step => step.completed).length;
+    const existingTotal = existing.questSteps.length;
+    const existingPhaseBonus = existing.phase === 'ready_to_build' ? 100 : 45;
+    const existingProgressBonus = existingTotal > 0 ? Math.round((existingCompleted / existingTotal) * 30) : 20;
+    const existingCostPenalty = Math.floor((existingDefinition?.productionCost ?? 300) / 40);
+    const existingPriority = existingPhaseBonus + existingProgressBonus - existingCostPenalty;
+
+    if (priority > existingPriority) {
+      bestProjectByWonder.set(project.wonderId, project);
+    }
+  }
+
+  return [...bestProjectByWonder.values()]
     .map(project => {
       const definition = getLegendaryWonderDefinition(project.wonderId);
       const completedSteps = project.questSteps.filter(step => step.completed).length;

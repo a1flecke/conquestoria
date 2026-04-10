@@ -119,7 +119,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: ['stone'],
     cityRequirement: 'coastal',
     questSteps: [
-      { id: 'secure-coastal-trade', type: 'trade-routes-established', targetCount: 1, description: 'Establish a coastal trade route.' },
+      { id: 'secure-coastal-trade', type: 'trade-routes-established', targetCount: 1, routeRequirement: 'coastal', description: 'Establish a coastal trade route.' },
       { id: 'chart-distant-shores', type: 'map-discoveries', targetCount: 2, description: 'Discover 2 natural wonders or distant landmarks.' },
     ],
     reward: {
@@ -189,7 +189,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'coastal',
     questSteps: [
       { id: 'discover-three-far-horizons', type: 'map-discoveries', targetCount: 3, description: 'Discover 3 remarkable sites.' },
-      { id: 'link-the-seas', type: 'trade-routes-established', targetCount: 2, description: 'Maintain 2 active long-range trade routes.' },
+      { id: 'link-the-seas', type: 'trade-routes-established', targetCount: 2, routeRequirement: 'long-range', minimumRouteDistance: 8, description: 'Maintain 2 active long-range trade routes.' },
     ],
     reward: {
       summary: '+2 gold and +2 science empire-wide each turn.',
@@ -206,7 +206,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'coastal',
     questSteps: [
       { id: 'build-two-harbor-cities', type: 'buildings-in-multiple-cities', targetCount: 2, description: 'Develop 2 major port cities.' },
-      { id: 'prove-open-sea-command', type: 'trade-routes-established', targetCount: 1, description: 'Maintain an active overseas trade route.' },
+      { id: 'prove-open-sea-command', type: 'trade-routes-established', targetCount: 1, routeRequirement: 'overseas', description: 'Maintain an active overseas trade route.' },
     ],
     reward: {
       summary: '+2 production and +2 gold in the host city each turn.',

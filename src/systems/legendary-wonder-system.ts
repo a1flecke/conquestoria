@@ -3,6 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 import { getTechById } from '@/systems/tech-system';
 import { hexDistance } from '@/systems/hex-utils';
+import { routeMatchesLegendaryWonderRequirement } from '@/systems/trade-route-classification';
 import {
   recordLegendaryWonderIntel,
   sanitizeLegendaryWonderIntel,
@@ -112,6 +113,17 @@ function getDefaultQuestStepDescription(step: NonNullable<ReturnType<typeof getL
   }
 }
 
+function getEffectiveLegendaryWonderInvestment(
+  state: GameState,
+  project: LegendaryWonderProject,
+): number {
+  const city = state.cities[project.cityId];
+  if (project.phase === 'building' && city?.productionQueue[0] === `legendary:${project.wonderId}`) {
+    return city.productionProgress;
+  }
+  return project.investedProduction;
+}
+
 function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderProject, stepId: string): boolean {
   const definition = getLegendaryWonderDefinition(project.wonderId);
   const step = definition?.questSteps.find(candidate => candidate.id === stepId);
@@ -125,6 +137,12 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
     .filter(discoverers => discoverers.includes(project.ownerId))
     .length;
   const ownedTradeRoutes = (state.marketplace?.tradeRoutes ?? []).filter(route => route.fromCityId === project.cityId || civ.cities.includes(route.fromCityId));
+  const matchingTradeRoutes = ownedTradeRoutes.filter(route => routeMatchesLegendaryWonderRequirement(
+    state,
+    route,
+    step.routeRequirement ?? 'any',
+    step.minimumRouteDistance ?? 0,
+  ));
   const builtUpCities = civ.cities
     .map(cityRef => state.cities[cityRef])
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
@@ -150,7 +168,7 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
       return discoveredWonderCount >= (step.targetCount ?? 1);
     case 'trade_route':
     case 'trade-routes-established':
-      return ownedTradeRoutes.length >= (step.targetCount ?? 1);
+      return matchingTradeRoutes.length >= (step.targetCount ?? 1);
     case 'research_count': {
       if (step.track) {
         const trackCount = civ.techState.completed.filter(techId => {
@@ -413,13 +431,15 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
             continue;
           }
 
-          const compensation = loseLegendaryWonderRace(rivalProject.investedProduction);
+          const rivalInvestment = getEffectiveLegendaryWonderInvestment(seededState, rivalProject);
+          const compensation = loseLegendaryWonderRace(rivalInvestment);
           const rivalCity = updatedCities[rivalProject.cityId];
           const rivalCivilization = updatedCivilizations[rivalProject.ownerId];
 
           updatedProjects[rivalProjectId] = {
             ...rivalProject,
             phase: 'lost_race',
+            investedProduction: rivalInvestment,
             transferableProduction: compensation.transferableProduction,
           };
 
@@ -438,7 +458,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
             };
           }
 
-          if (rivalProject.investedProduction > 0) {
+          if (rivalInvestment > 0) {
             _bus.emit('wonder:legendary-lost', {
               civId: rivalProject.ownerId,
               cityId: rivalProject.cityId,

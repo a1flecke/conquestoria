@@ -517,4 +517,201 @@ describe('legendary-wonder-system', () => {
     expect(sabotagedState.legendaryWonderProjects!['oracle-of-delphi'].investedProduction)
       .toBe(sabotagedState.cities['city-river'].productionProgress);
   });
+
+  it('uses live city production when resolving a lost wonder race', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const bus = new EventBus();
+    const lostEvents: Array<{ civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number }> = [];
+    bus.on('wonder:legendary-lost', event => lostEvents.push(event));
+
+    state.legendaryWonderProjects!['oracle-of-delphi'] = {
+      ...state.legendaryWonderProjects!['oracle-of-delphi'],
+      phase: 'building',
+      investedProduction: 110,
+      questSteps: state.legendaryWonderProjects!['oracle-of-delphi'].questSteps.map(step => ({ ...step, completed: true })),
+    };
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = 120;
+    state.legendaryWonderProjects!['oracle-rival'] = {
+      wonderId: 'oracle-of-delphi',
+      ownerId: 'rival',
+      cityId: 'city-rival',
+      phase: 'building',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: state.legendaryWonderProjects!['oracle-of-delphi'].questSteps.map(step => ({ ...step, completed: true })),
+    };
+    state.cities['city-rival'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-rival'].productionProgress = 80;
+
+    const result = tickLegendaryWonderProjects(state, bus);
+    const rivalProject = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'rival' && project.wonderId === 'oracle-of-delphi',
+    );
+
+    expect(rivalProject).toMatchObject({
+      phase: 'lost_race',
+      investedProduction: 80,
+      transferableProduction: 20,
+    });
+    expect(result.civilizations.rival.gold).toBe(220);
+    expect(lostEvents).toEqual([
+      {
+        civId: 'rival',
+        cityId: 'city-rival',
+        wonderId: 'oracle-of-delphi',
+        goldRefund: 20,
+        transferableProduction: 20,
+      },
+    ]);
+  });
+
+  it('requires a coastal trade route for tidecaller bastion', () => {
+    const state = makeLegendaryWonderFixture();
+    state.civilizations.player.techState.completed = ['caravels', 'fortresses'];
+    state.cities['city-river'].ownedTiles.push({ q: 2, r: 1 });
+    state.map.tiles['2,1'] = {
+      ...state.map.tiles['2,2'],
+      coord: { q: 2, r: 1 },
+      terrain: 'coast',
+      owner: 'player',
+    };
+    state.map.tiles['2,3'].resource = 'stone';
+    state.marketplace = {
+      prices: {} as any,
+      priceHistory: {} as any,
+      fashionable: null,
+      fashionTurnsLeft: 0,
+      tradeRoutes: [],
+    };
+    state.cities['city-inland'] = {
+      ...state.cities['city-river'],
+      id: 'city-inland',
+      name: 'Inland',
+      position: { q: 4, r: 1 },
+      ownedTiles: [{ q: 4, r: 1 }],
+      productionQueue: [],
+      productionProgress: 0,
+    };
+    state.cities['city-rival-inland'] = {
+      ...state.cities['city-rival'],
+      id: 'city-rival-inland',
+      name: 'Rival Inland',
+      position: { q: 6, r: 1 },
+      ownedTiles: [{ q: 6, r: 1 }],
+      productionQueue: [],
+      productionProgress: 0,
+    };
+    state.map.tiles['4,1'] = {
+      ...state.map.tiles['2,2'],
+      coord: { q: 4, r: 1 },
+      owner: 'player',
+      terrain: 'plains',
+    };
+    state.map.tiles['6,1'] = {
+      ...state.map.tiles['5,5'],
+      coord: { q: 6, r: 1 },
+      owner: 'rival',
+      terrain: 'plains',
+    };
+    state.civilizations.player.cities.push('city-inland');
+    state.civilizations.rival.cities.push('city-rival-inland');
+    state.marketplace.tradeRoutes = [
+      {
+        fromCityId: 'city-inland',
+        toCityId: 'city-rival-inland',
+        goldPerTurn: 4,
+        foreignCivId: 'rival',
+      },
+    ];
+
+    let result = tickLegendaryWonderProjects(state, new EventBus());
+    let tidecaller = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'tidecaller-bastion',
+    );
+    expect(tidecaller?.questSteps.find(step => step.id === 'secure-coastal-trade')?.completed).toBe(false);
+
+    state.cities['city-harbor'] = {
+      ...state.cities['city-river'],
+      id: 'city-harbor',
+      name: 'Harbor',
+      position: { q: 1, r: 1 },
+      ownedTiles: [{ q: 1, r: 1 }, { q: 1, r: 0 }],
+      productionQueue: [],
+      productionProgress: 0,
+    };
+    state.map.tiles['1,1'] = {
+      ...state.map.tiles['2,2'],
+      coord: { q: 1, r: 1 },
+      owner: 'player',
+    };
+    state.map.tiles['1,0'] = {
+      ...state.map.tiles['2,2'],
+      coord: { q: 1, r: 0 },
+      terrain: 'coast',
+      owner: 'player',
+    };
+    state.civilizations.player.cities.push('city-harbor');
+    state.marketplace.tradeRoutes = [
+      {
+        fromCityId: 'city-harbor',
+        toCityId: 'city-rival',
+        goldPerTurn: 5,
+        foreignCivId: 'rival',
+      },
+    ];
+
+    result = tickLegendaryWonderProjects(state, new EventBus());
+    tidecaller = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'tidecaller-bastion',
+    );
+    expect(tidecaller?.questSteps.find(step => step.id === 'secure-coastal-trade')?.completed).toBe(true);
+  });
+
+  it('requires an overseas trade route for leviathan drydock', () => {
+    const state = makeLegendaryWonderFixture();
+    state.civilizations.player.techState.completed = ['caravels', 'harbor-building'];
+    state.cities['city-river'].ownedTiles.push({ q: 2, r: 1 });
+    state.map.tiles['2,1'] = {
+      ...state.map.tiles['2,2'],
+      coord: { q: 2, r: 1 },
+      terrain: 'coast',
+      owner: 'player',
+    };
+    state.map.tiles['2,3'].resource = 'stone';
+    state.marketplace = {
+      prices: {} as any,
+      priceHistory: {} as any,
+      fashionable: null,
+      fashionTurnsLeft: 0,
+      tradeRoutes: [
+        {
+          fromCityId: 'city-river',
+          toCityId: 'city-river',
+          goldPerTurn: 3,
+        },
+      ],
+    };
+
+    let result = tickLegendaryWonderProjects(state, new EventBus());
+    let drydock = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'leviathan-drydock',
+    );
+    expect(drydock?.questSteps.find(step => step.id === 'prove-open-sea-command')?.completed).toBe(false);
+
+    state.marketplace.tradeRoutes = [
+      {
+        fromCityId: 'city-river',
+        toCityId: 'city-rival',
+        goldPerTurn: 6,
+        foreignCivId: 'rival',
+      },
+    ];
+
+    result = tickLegendaryWonderProjects(state, new EventBus());
+    drydock = Object.values(result.legendaryWonderProjects ?? {}).find(project =>
+      project.ownerId === 'player' && project.cityId === 'city-river' && project.wonderId === 'leviathan-drydock',
+    );
+    expect(drydock?.questSteps.find(step => step.id === 'prove-open-sea-command')?.completed).toBe(true);
+  });
 });

@@ -84,6 +84,8 @@ export interface LegendaryWonderDefinition {
     track?: TechTrack;
     scope?: 'near-city' | 'any';
     radius?: number;
+    routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
+    minimumRouteDistance?: number;
   }>;
   reward: LegendaryWonderReward;
 }
@@ -272,6 +274,7 @@ export interface Tech {
   prerequisites: string[];   // tech IDs
   unlocks: string[];         // what this tech enables (descriptions)
   era: number;               // 1-3 for milestone 1
+  countsForEraAdvancement?: boolean;
 }
 
 export interface TechState {

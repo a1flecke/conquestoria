@@ -19,10 +19,23 @@ describe('legendary-wonder-definitions', () => {
     const definitions = getLegendaryWonderDefinitions();
     const internet = definitions.find(w => w.id === 'internet');
     const stormSignalSpire = definitions.find(w => w.id === 'storm-signal-spire');
+    const tidecaller = definitions.find(w => w.id === 'tidecaller-bastion');
+    const gate = definitions.find(w => w.id === 'gate-of-the-world');
+    const drydock = definitions.find(w => w.id === 'leviathan-drydock');
 
     expect(internet?.questSteps.some(step => step.type === 'buildings-in-multiple-cities')).toBe(true);
     expect(internet?.questSteps.some(step => step.type === 'trade-routes-established')).toBe(true);
     expect(stormSignalSpire?.questSteps.some(step => step.type === 'map-discoveries')).toBe(true);
+    expect(tidecaller?.questSteps.find(step => step.id === 'secure-coastal-trade')).toMatchObject({
+      routeRequirement: 'coastal',
+    });
+    expect(gate?.questSteps.find(step => step.id === 'link-the-seas')).toMatchObject({
+      routeRequirement: 'long-range',
+      minimumRouteDistance: 8,
+    });
+    expect(drydock?.questSteps.find(step => step.id === 'prove-open-sea-command')).toMatchObject({
+      routeRequirement: 'overseas',
+    });
   });
 
   it('maps the remaining late-era wonder scaffolding to real Slice 3 techs', () => {

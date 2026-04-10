@@ -84,4 +84,52 @@ describe('council system', () => {
 
     expect(wonderCards.some(card => card.title.includes('Oracle of Delphi'))).toBe(true);
   });
+
+  it('deduplicates council wonder cards by wonder before taking the top recommendations', () => {
+    const { state } = makeCouncilFixture();
+    let baseCityId = state.civilizations.player.cities[0];
+    if (!baseCityId) {
+      const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
+      if (settler) {
+        const founded = foundCity('player', settler.position, state.map);
+        state.cities[founded.id] = founded;
+        state.civilizations.player.cities.push(founded.id);
+        baseCityId = founded.id;
+      }
+    }
+    const baseCity = baseCityId ? state.cities[baseCityId] : undefined;
+    if (!baseCity) {
+      throw new Error('expected a player city for council wonder dedupe');
+    }
+    state.civilizations.player.techState.completed = ['philosophy', 'pilgrimages', 'city-planning', 'printing'];
+    state.cities['city-b'] = {
+      ...baseCity,
+      id: 'city-b',
+      name: 'Second Rome',
+      position: { q: 6, r: 6 },
+      ownedTiles: [{ q: 6, r: 6 }, { q: 6, r: 7 }],
+      productionQueue: [],
+      productionProgress: 0,
+    };
+    state.map.tiles['6,6'] = {
+      ...state.map.tiles['2,2'],
+      coord: { q: 6, r: 6 },
+      owner: 'player',
+      hasRiver: true,
+    };
+    state.map.tiles['6,7'] = {
+      ...state.map.tiles['2,3'],
+      coord: { q: 6, r: 7 },
+      owner: 'player',
+      resource: 'stone',
+      hasRiver: true,
+    };
+    state.civilizations.player.cities.push('city-b');
+
+    const agenda = buildCouncilAgenda(state, 'player');
+    const wonderCards = agenda.toWin.filter(card => card.cardType === 'wonder');
+    const oracleCards = wonderCards.filter(card => card.title.includes('Oracle of Delphi'));
+
+    expect(oracleCards).toHaveLength(1);
+  });
 });
