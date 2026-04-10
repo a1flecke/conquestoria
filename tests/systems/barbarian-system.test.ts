@@ -2,6 +2,7 @@ import {
   spawnBarbarianCamp,
   processBarbarians,
   destroyCamp,
+  applyCampDestruction,
 } from '@/systems/barbarian-system';
 import type { GameMap, BarbarianCamp } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
@@ -46,6 +47,30 @@ describe('destroyCamp', () => {
     };
     const reward = destroyCamp(camp);
     expect(reward).toBeGreaterThan(0);
+  });
+
+  it('records the destroying civ and camp position when a barbarian camp falls', () => {
+    const state = createNewGame('egypt', 'wonder-history');
+    state.legendaryWonderHistory = { destroyedStrongholds: [] };
+    state.barbarianCamps = {
+      'camp-1': {
+        id: 'camp-1',
+        position: { q: 4, r: 4 },
+        strength: 5,
+        spawnCooldown: 0,
+      },
+    };
+
+    const result = applyCampDestruction(state, 'player', 'camp-1', 25);
+
+    expect(result.state.legendaryWonderHistory?.destroyedStrongholds).toContainEqual({
+      civId: 'player',
+      campId: 'camp-1',
+      position: { q: 4, r: 4 },
+      turn: 25,
+    });
+    expect(result.state.barbarianCamps['camp-1']).toBeUndefined();
+    expect(result.reward).toBeGreaterThan(0);
   });
 });
 

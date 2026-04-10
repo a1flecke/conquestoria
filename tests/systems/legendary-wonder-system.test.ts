@@ -35,6 +35,63 @@ describe('legendary-wonder-system', () => {
     expect(new Set(grandCanalProjects.map(project => project.cityId))).toEqual(new Set(['city-river', 'city-rival']));
   });
 
+  it('does not seed a legendary wonder that has already been completed globally', () => {
+    const state = makeLegendaryWonderFixture();
+    state.legendaryWonderProjects = undefined;
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': {
+        ownerId: 'player',
+        cityId: 'city-river',
+        turnCompleted: 32,
+      },
+    };
+
+    const result = initializeLegendaryWonderProjectsForCity(state, 'rival', 'city-rival');
+
+    expect(Object.values(result.legendaryWonderProjects ?? {}).some(project =>
+      project.cityId === 'city-rival' && project.wonderId === 'oracle-of-delphi',
+    )).toBe(false);
+  });
+
+  it('sanitizes stale projects for wonders that were already completed globally', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': {
+        ownerId: 'player',
+        cityId: 'city-river',
+        turnCompleted: 32,
+      },
+    };
+    state.cities['late-city'] = {
+      ...state.cities['city-river'],
+      id: 'late-city',
+      name: 'Late City',
+      owner: 'player',
+    };
+    state.civilizations.player.cities.push('late-city');
+    state.legendaryWonderProjects!['oracle-of-delphi:player:late-city'] = {
+      wonderId: 'oracle-of-delphi',
+      ownerId: 'player',
+      cityId: 'late-city',
+      phase: 'ready_to_build',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: [],
+    };
+
+    const started = startLegendaryWonderBuild(state, 'player', 'late-city', 'oracle-of-delphi');
+    const ticked = tickLegendaryWonderProjects(started, new EventBus());
+
+    expect(Object.values(ticked.legendaryWonderProjects ?? {}).some(project =>
+      project.cityId === 'late-city' && project.wonderId === 'oracle-of-delphi',
+    )).toBe(false);
+    expect(ticked.completedLegendaryWonders?.['oracle-of-delphi']).toEqual({
+      ownerId: 'player',
+      cityId: 'city-river',
+      turnCompleted: 32,
+    });
+  });
+
   it('requires all eligibility constraints, not only one of them', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: ['philosophy'], resources: [] });
 
@@ -150,6 +207,9 @@ describe('legendary-wonder-system', () => {
     const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi', bus);
 
     expect(result.pendingEvents?.observer?.[0]?.message).toMatch(/oracle of delphi/i);
+    expect(result.legendaryWonderIntel?.observer).toEqual(expect.arrayContaining([
+      expect.stringContaining('oracle-of-delphi'),
+    ]));
     expect(revealedEvents).toEqual([
       { observerId: 'observer', civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi' },
     ]);
@@ -196,6 +256,88 @@ describe('legendary-wonder-system', () => {
 
     expect(result.civilizations.player.techState.researchProgress).toBeGreaterThan(0);
     expect(result.completedLegendaryWonders?.['oracle-of-delphi']?.ownerId).toBe('player');
+  });
+
+  it('does not auto-complete stronghold quests just because no nearby camp exists', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['architecture-arts', 'theology-tech'],
+      resources: ['stone'],
+    });
+    state.legendaryWonderProjects = {
+      'sun-spire:player:city-river': {
+        wonderId: 'sun-spire',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'questing',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'complete-sacred-route', description: 'Establish a sacred trade route.', completed: true },
+          { id: 'defeat-nearby-stronghold', description: 'Clear a nearby barbarian stronghold.', completed: false },
+        ],
+      },
+    };
+    state.barbarianCamps = {};
+    state.legendaryWonderHistory = { destroyedStrongholds: [] };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.phase).toBe('questing');
+    expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.questSteps[1]?.completed).toBe(false);
+  });
+
+  it('completes nearby stronghold quests only after the civ destroys a qualifying camp near the host city', () => {
+    const state = makeLegendaryWonderFixture();
+    state.legendaryWonderProjects = {
+      'sun-spire:player:city-river': {
+        wonderId: 'sun-spire',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'questing',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'complete-sacred-route', description: 'Establish a sacred trade route.', completed: true },
+          { id: 'defeat-nearby-stronghold', description: 'Clear a nearby barbarian stronghold.', completed: false },
+        ],
+      },
+    };
+    state.legendaryWonderHistory = {
+      destroyedStrongholds: [
+        { civId: 'player', campId: 'camp-near', position: { q: 3, r: 2 }, turn: 40 },
+      ],
+    };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.questSteps[1]?.completed).toBe(true);
+  });
+
+  it('does not treat a distant stronghold kill as satisfying a nearby-stronghold step', () => {
+    const state = makeLegendaryWonderFixture();
+    state.legendaryWonderProjects = {
+      'sun-spire:player:city-river': {
+        wonderId: 'sun-spire',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'questing',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'complete-sacred-route', description: 'Establish a sacred trade route.', completed: true },
+          { id: 'defeat-nearby-stronghold', description: 'Clear a nearby barbarian stronghold.', completed: false },
+        ],
+      },
+    };
+    state.legendaryWonderHistory = {
+      destroyedStrongholds: [
+        { civId: 'player', campId: 'camp-far', position: { q: 20, r: 20 }, turn: 40 },
+      ],
+    };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.questSteps[1]?.completed).toBe(false);
   });
 
   it('preserves existing city production when starting a wonder build', () => {

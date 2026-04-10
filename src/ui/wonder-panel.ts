@@ -168,6 +168,15 @@ function appendProjectSection(
   panel.appendChild(section);
 }
 
+function getVisibleRivalWonderProjects(state: GameState): Array<NonNullable<GameState['legendaryWonderProjects']>[string]> {
+  const visibleProjectKeys = state.legendaryWonderIntel?.[state.currentPlayer] ?? [];
+  return visibleProjectKeys
+    .map(projectKey => state.legendaryWonderProjects?.[projectKey])
+    .filter((project): project is NonNullable<GameState['legendaryWonderProjects']>[string] =>
+      Boolean(project && project.ownerId !== state.currentPlayer && project.phase === 'building'),
+    );
+}
+
 export function createWonderPanel(
   container: HTMLElement,
   state: GameState,
@@ -202,8 +211,7 @@ export function createWonderPanel(
 
   const cityProjects = Object.values(state.legendaryWonderProjects ?? {})
     .filter(project => project.ownerId === state.currentPlayer && project.cityId === cityId);
-  const rivalProjects = Object.values(state.legendaryWonderProjects ?? {})
-    .filter(project => project.ownerId !== state.currentPlayer && project.phase === 'building');
+  const rivalProjects = getVisibleRivalWonderProjects(state);
 
   if (cityProjects.length === 0) {
     const empty = document.createElement('p');

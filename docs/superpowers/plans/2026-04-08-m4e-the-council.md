@@ -1989,7 +1989,7 @@ After merge, confirm ancestry and remove the worktree/branch.
 - Modify: `src/systems/legendary-wonder-definitions.ts`
 - Modify: `src/systems/legendary-wonder-system.ts`
 - Modify: `tests/systems/legendary-wonder-system.test.ts`
-- Modify: `tests/systems/wonder-definitions.test.ts`
+- Modify: `tests/systems/legendary-wonder-definitions.test.ts`
 - Modify: `docs/superpowers/specs/2026-04-08-m4e-the-council-design.md`
 
 - [ ] **Step 1: Lock the authoritative roster in docs before code**
@@ -2018,7 +2018,7 @@ it('supports at least one additional quest pattern beyond the original four', ()
 - [ ] **Step 3: Run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
 ```
 
 - [ ] **Step 4: Mirror the appendix into one code-owned roster module and implement every entry**
@@ -2050,13 +2050,13 @@ case 'map-discoveries':
 - [ ] **Step 6: Re-run focused tests**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
 ```
 
 - [ ] **Step 7: Commit the expanded wonder catalog**
 
 ```bash
-git add src/systems/approved-legendary-wonder-roster.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts
+git add src/systems/approved-legendary-wonder-roster.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts
 git commit -m "feat(m4e): expand the legendary wonder catalog"
 ```
 
@@ -2121,6 +2121,540 @@ git add src/ui/wonder-panel.ts src/ui/council-panel.ts src/ai/basic-ai.ts tests/
 git commit -m "feat(m4e): keep the wonder expansion readable"
 ```
 
+### Task 13A: Restore The Global Wonder Availability Invariant
+
+**Root Cause Analysis**
+
+Slice 4’s per-city project seeding is not itself the wrong approach. The actual mistake is that the implementation treated `legendaryWonderProjects` as if it were the only source of truth. The design has three different domains:
+
+1. `completedLegendaryWonders` is the global winner ledger.
+2. `legendaryWonderProjects` is local per-city progress for only unresolved races.
+3. UI/AI helpers derive from those two stores, not the other way around.
+
+The current branch seeds every definition for every city without checking the global winner ledger, and `startLegendaryWonderBuild()` / `tickLegendaryWonderProjects()` do not defensively re-check global closure. That means a later-founded city can reopen a closed race. The fix is not to abandon per-city projects; it is to enforce a shared `wonder is still available` invariant everywhere the system seeds, filters, starts, or completes a project, and to sanitize already-invalid saved state instead of trusting it.
+
+**Files:**
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/storage/save-persistence.test.ts`
+
+- [ ] **Step 1: Add failing global-uniqueness regressions**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('does not seed a wonder that has already been completed globally', () => {
+  const state = makeLegendaryWonderFixture();
+  state.legendaryWonderProjects = undefined;
+  state.completedLegendaryWonders = {
+    'oracle-of-delphi': { ownerId: 'player', cityId: 'city-river', turnCompleted: 32 },
+  };
+
+  const result = initializeLegendaryWonderProjectsForCity(state, 'rival', 'city-rival');
+
+  expect(Object.values(result.legendaryWonderProjects ?? {}).some(project =>
+    project.cityId === 'city-rival' && project.wonderId === 'oracle-of-delphi',
+  )).toBe(false);
+});
+
+it('does not allow a later city to restart a completed wonder race', () => {
+  const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+  state.completedLegendaryWonders = {
+    'oracle-of-delphi': { ownerId: 'player', cityId: 'city-river', turnCompleted: 32 },
+  };
+  state.legendaryWonderProjects = {
+    'oracle-of-delphi:player:late-city': {
+      wonderId: 'oracle-of-delphi',
+      ownerId: 'player',
+      cityId: 'late-city',
+      phase: 'ready_to_build',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: [],
+    },
+  };
+  state.cities['late-city'] = {
+    ...state.cities['city-river'],
+    id: 'late-city',
+    owner: 'player',
+    name: 'Late City',
+  };
+  state.civilizations.player.cities.push('late-city');
+
+  const started = startLegendaryWonderBuild(state, 'player', 'late-city', 'oracle-of-delphi');
+  const ticked = tickLegendaryWonderProjects(started, new EventBus());
+
+  expect(Object.values(ticked.legendaryWonderProjects ?? {}).some(project =>
+    project.cityId === 'late-city' && project.wonderId === 'oracle-of-delphi' && project.phase !== 'completed',
+  )).toBe(false);
+  expect(ticked.completedLegendaryWonders?.['oracle-of-delphi']).toEqual({
+    ownerId: 'player',
+    cityId: 'city-river',
+    turnCompleted: 32,
+  });
+});
+```
+
+Extend `tests/storage/save-persistence.test.ts`:
+
+```typescript
+it('preserves the completed-wonder ledger so reopened races cannot appear after reload', () => {
+  const state = makeLegendaryWonderFixture();
+  state.completedLegendaryWonders = {
+    'oracle-of-delphi': { ownerId: 'player', cityId: 'city-river', turnCompleted: 32 },
+  };
+
+  const roundTrip = JSON.parse(JSON.stringify(state));
+
+  expect(roundTrip.completedLegendaryWonders?.['oracle-of-delphi']?.cityId).toBe('city-river');
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/storage/save-persistence.test.ts
+```
+
+- [ ] **Step 3: Add one canonical availability/sanitization path**
+
+In `src/systems/legendary-wonder-system.ts`, add shared helpers:
+
+```typescript
+function isLegendaryWonderStillAvailable(state: GameState, wonderId: string): boolean {
+  return !state.completedLegendaryWonders?.[wonderId];
+}
+
+function sanitizeLegendaryWonderProjects(state: GameState): Record<string, LegendaryWonderProject> {
+  return Object.fromEntries(
+    Object.entries(state.legendaryWonderProjects ?? {}).filter(([, project]) =>
+      isLegendaryWonderStillAvailable(state, project.wonderId)
+      || project.phase === 'completed',
+    ),
+  );
+}
+```
+
+Use them in four places:
+- `initializeLegendaryWonderProjectsForCity()` must skip definitions that are no longer available.
+- `getEligibleLegendaryWonders()` must exclude globally completed wonders even if a stale local project exists.
+- `startLegendaryWonderBuild()` must refuse to start if the wonder has already been won.
+- `tickLegendaryWonderProjects()` must sanitize stale pre-existing projects before any quest or completion logic runs.
+
+Do not rely on seeding alone; the start and tick paths must be defensive so older/broken saves are self-healing.
+
+- [ ] **Step 4: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/storage/save-persistence.test.ts
+```
+
+- [ ] **Step 5: Commit the uniqueness fix**
+
+```bash
+git add src/systems/legendary-wonder-system.ts tests/systems/legendary-wonder-system.test.ts tests/storage/save-persistence.test.ts
+git commit -m "fix(m4e): keep completed wonders globally unique"
+```
+
+### Task 13B: Make Stronghold Quest Progress Event-Backed Instead Of Snapshot-Based
+
+**Root Cause Analysis**
+
+The current `defeat_stronghold` implementation is fundamentally wrong for quest semantics. It infers “a stronghold was defeated” from the current absence of nearby barbarian camps. That confuses state with history:
+
+- a late-founded city can auto-complete the step without any kill ever happening
+- a map that never spawned a nearby camp can still satisfy the step
+- the requirement drifts with map topology instead of player action
+
+The fix is to track actual stronghold-destruction history in game state and make `defeat_stronghold` steps read that history. The existing `defeat_stronghold` type is also too coarse. Slice 4 currently uses the same type for “clear a nearby stronghold,” “threatening your frontier,” and “win a famous victory.” Those are not the same rule. We need explicit metadata on the step definition so the evaluator knows whether it needs a nearby kill or any kill.
+
+**Files:**
+- Modify: `src/core/types.ts`
+- Modify: `src/systems/barbarian-system.ts`
+- Modify: `src/systems/legendary-wonder-definitions.ts`
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `src/main.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/systems/barbarian-system.test.ts`
+- Modify: `tests/storage/save-persistence.test.ts`
+
+- [ ] **Step 1: Add failing stronghold-history regressions**
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('does not auto-complete stronghold quests just because no nearby camp exists', () => {
+  const state = makeLegendaryWonderFixture({ completedTechs: ['architecture-arts', 'theology-tech'], resources: ['stone'] });
+  state.legendaryWonderProjects = {
+    'sun-spire:player:city-river': {
+      wonderId: 'sun-spire',
+      ownerId: 'player',
+      cityId: 'city-river',
+      phase: 'questing',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: [
+        { id: 'complete-sacred-route', description: 'Establish a sacred trade route.', completed: true },
+        { id: 'defeat-nearby-stronghold', description: 'Clear a nearby barbarian stronghold.', completed: false },
+      ],
+    },
+  };
+  state.barbarianCamps = {};
+  state.legendaryWonderHistory = { destroyedStrongholds: [] };
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+
+  expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.phase).toBe('questing');
+  expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.questSteps[1]?.completed).toBe(false);
+});
+
+it('completes nearby stronghold quests only after the civ destroys a qualifying camp near the host city', () => {
+  const state = makeLegendaryWonderFixture();
+  state.legendaryWonderHistory = {
+    destroyedStrongholds: [
+      { civId: 'player', campId: 'camp-near', position: { q: 3, r: 2 }, turn: 40 },
+    ],
+  };
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+
+  const project = Object.values(result.legendaryWonderProjects ?? {}).find(p => p.wonderId === 'sun-spire' && p.ownerId === 'player');
+  expect(project?.questSteps.find(step => step.id === 'defeat-nearby-stronghold')?.completed).toBe(true);
+});
+
+it('does not treat a distant stronghold kill as satisfying a nearby-stronghold wonder step', () => {
+  const state = makeLegendaryWonderFixture();
+  state.legendaryWonderHistory = {
+    destroyedStrongholds: [
+      { civId: 'player', campId: 'camp-far', position: { q: 20, r: 20 }, turn: 40 },
+    ],
+  };
+
+  const result = tickLegendaryWonderProjects(state, new EventBus());
+
+  const project = Object.values(result.legendaryWonderProjects ?? {}).find(p => p.wonderId === 'sun-spire' && p.ownerId === 'player');
+  expect(project?.questSteps.find(step => step.id === 'defeat-nearby-stronghold')?.completed).toBe(false);
+});
+```
+
+Create a regression in `tests/systems/barbarian-system.test.ts`:
+
+```typescript
+it('records the destroying civ and camp position when a barbarian camp falls', () => {
+  const state = createNewGame('egypt', 'wonder-history');
+  state.legendaryWonderHistory = { destroyedStrongholds: [] };
+  state.barbarianCamps = {
+    'camp-1': { id: 'camp-1', position: { q: 4, r: 4 }, strength: 5, spawnCooldown: 0 },
+  };
+
+  const result = applyCampDestruction(state, 'player', 'camp-1', 25);
+
+  expect(result.state.legendaryWonderHistory?.destroyedStrongholds).toContainEqual({
+    civId: 'player',
+    campId: 'camp-1',
+    position: { q: 4, r: 4 },
+    turn: 25,
+  });
+  expect(result.state.barbarianCamps['camp-1']).toBeUndefined();
+  expect(result.reward).toBeGreaterThan(0);
+});
+```
+
+Extend `tests/storage/save-persistence.test.ts`:
+
+```typescript
+it('round-trips legendary wonder stronghold history through JSON serialization', () => {
+  const state = {
+    legendaryWonderHistory: {
+      destroyedStrongholds: [
+        { civId: 'player', campId: 'camp-1', position: { q: 4, r: 4 }, turn: 25 },
+      ],
+    },
+  };
+
+  const roundTrip = JSON.parse(JSON.stringify(state));
+
+  expect(roundTrip.legendaryWonderHistory.destroyedStrongholds[0]).toEqual({
+    civId: 'player',
+    campId: 'camp-1',
+    position: { q: 4, r: 4 },
+    turn: 25,
+  });
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/barbarian-system.test.ts
+```
+
+- [ ] **Step 3: Add explicit stronghold history and step metadata**
+
+In `src/core/types.ts`, add:
+
+```typescript
+export interface DestroyedStrongholdRecord {
+  civId: string;
+  campId: string;
+  position: HexCoord;
+  turn: number;
+}
+
+export interface LegendaryWonderHistory {
+  destroyedStrongholds: DestroyedStrongholdRecord[];
+}
+```
+
+Add to `GameState`:
+
+```typescript
+legendaryWonderHistory?: LegendaryWonderHistory;
+```
+
+In `src/core/types.ts`, extend the `LegendaryWonderDefinition.questSteps` shape for `defeat_stronghold` steps:
+
+```typescript
+scope?: 'near-city' | 'any';
+radius?: number;
+```
+
+In `src/systems/legendary-wonder-definitions.ts`, make the three current uses explicit:
+- `sun-spire`: `scope: 'near-city', radius: 4`
+- `ironroot-foundry`: `scope: 'near-city', radius: 4`
+- `hall-of-champions`: `scope: 'any'`
+
+- [ ] **Step 4: Centralize camp destruction as a state change that records history**
+
+In `src/systems/barbarian-system.ts`, add a helper:
+
+```typescript
+export function applyCampDestruction(
+  state: GameState,
+  civId: string,
+  campId: string,
+  turn: number,
+): { state: GameState; reward: number } {
+  const camp = state.barbarianCamps[campId];
+  if (!camp) {
+    return { state, reward: 0 };
+  }
+
+  const reward = destroyCamp(camp);
+  const destroyedStrongholds = [
+    ...(state.legendaryWonderHistory?.destroyedStrongholds ?? []),
+    { civId, campId, position: camp.position, turn },
+  ];
+
+  const nextState = structuredClone(state);
+  delete nextState.barbarianCamps[campId];
+  nextState.legendaryWonderHistory = { destroyedStrongholds };
+  nextState.civilizations[civId].gold += reward;
+  return { state: nextState, reward };
+}
+```
+
+Then in `src/main.ts`, replace the inline deletion path with that helper and keep the existing notification/event emission:
+
+```typescript
+const destroyed = applyCampDestruction(gameState, gameState.currentPlayer, campId, gameState.turn);
+gameState = destroyed.state;
+const reward = destroyed.reward;
+bus.emit('barbarian:camp-destroyed', { campId, reward });
+```
+
+This keeps the history write, gold reward, and camp removal inseparable.
+
+- [ ] **Step 5: Replace snapshot inference with history-backed evaluation**
+
+In `src/systems/legendary-wonder-system.ts`, replace the current `defeat_stronghold` branch with history lookup:
+
+```typescript
+case 'defeat_stronghold': {
+  const history = state.legendaryWonderHistory?.destroyedStrongholds ?? [];
+  const matchingKills = history.filter(record => record.civId === project.ownerId);
+
+  if (step.scope === 'near-city') {
+    return matchingKills.some(record => hexDistance(record.position, city.position) <= (step.radius ?? 4));
+  }
+
+  return matchingKills.length >= (step.targetCount ?? 1);
+}
+```
+
+This must read action history only. It must not consult `state.barbarianCamps` for completion.
+
+- [ ] **Step 6: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/barbarian-system.test.ts tests/storage/save-persistence.test.ts
+```
+
+- [ ] **Step 7: Commit the stronghold-history fix**
+
+```bash
+git add src/core/types.ts src/systems/barbarian-system.ts src/systems/legendary-wonder-definitions.ts src/systems/legendary-wonder-system.ts src/main.ts tests/systems/legendary-wonder-system.test.ts tests/systems/barbarian-system.test.ts tests/storage/save-persistence.test.ts
+git commit -m "fix(m4e): make stronghold wonder quests event-backed"
+```
+
+### Task 13C: Add Durable, Viewer-Scoped Wonder Race Intel
+
+**Root Cause Analysis**
+
+The current panel leak is not just a bad `filter()`. Slice 4 introduced a new rival-race surface, but the codebase still has only an ephemeral reveal path: `startLegendaryWonderBuild()` emits a spy-earned event, and notifications consume it immediately. There is no persistent state answering “which rival wonder races is this player actually entitled to know about?” Without that ledger, the panel can either:
+
+- leak by reading all rival `building` projects directly, or
+- forget by hiding everything after the toast is gone
+
+The correct fix is a durable, viewer-scoped intel store keyed to the revealed project, and one shared helper that the panel and notifications use. The fundamental approach error was trying to build a persistent UI surface on top of a transient event.
+
+**Files:**
+- Modify: `src/core/types.ts`
+- Modify: `src/systems/legendary-wonder-system.ts`
+- Modify: `src/ui/wonder-panel.ts`
+- Modify: `src/ui/legendary-wonder-notifications.ts`
+- Modify: `tests/systems/legendary-wonder-system.test.ts`
+- Modify: `tests/ui/wonder-panel.test.ts`
+- Modify: `tests/ui/legendary-wonder-notifications.test.ts`
+- Modify: `tests/storage/save-persistence.test.ts`
+
+- [ ] **Step 1: Add failing privacy/intel regressions**
+
+Extend `tests/ui/wonder-panel.test.ts`:
+
+```typescript
+it('does not reveal rival wonder races without earned intel', () => {
+  const { container, state } = makeWonderPanelFixture();
+
+  const panel = createWonderPanel(container, state, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  expect(panel.textContent).not.toContain('Rival is pursuing this');
+  expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(0);
+});
+
+it('shows only rival wonder races revealed to the current player', () => {
+  const { container, state } = makeWonderPanelFixture();
+  state.legendaryWonderIntel = {
+    player: ['grand-canal-rival'],
+  };
+
+  const panel = createWonderPanel(container, state, 'city-river', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(1);
+  expect(panel.textContent).toContain('Rival is pursuing this');
+});
+
+it('does not show rival wonder intel revealed only to another hot-seat player', () => {
+  const { container, state } = makeWonderPanelFixture();
+  state.cities['city-2'] = {
+    ...state.cities['city-river'],
+    id: 'city-2',
+    owner: 'player-2',
+    name: 'Second City',
+  };
+  state.civilizations['player-2'] = {
+    ...state.civilizations.player,
+    id: 'player-2',
+    name: 'Second Player',
+    isHuman: true,
+    cities: ['city-2'],
+  };
+  state.currentPlayer = 'player-2';
+  state.legendaryWonderIntel = {
+    player: ['grand-canal-rival'],
+  };
+
+  const panel = createWonderPanel(container, state, 'city-2', {
+    onStartBuild: () => {},
+    onClose: () => {},
+  });
+
+  expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(0);
+});
+```
+
+Extend `tests/systems/legendary-wonder-system.test.ts`:
+
+```typescript
+it('stores durable rival-race intel when a stationed spy reveals a wonder start', () => {
+  const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+  state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+  state.legendaryWonderIntel = {};
+  // same stationed-spy setup as the existing reveal test
+
+  const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi', new EventBus());
+
+  expect(result.legendaryWonderIntel?.observer).toContain(
+    expect.stringContaining('oracle-of-delphi'),
+  );
+});
+```
+
+Extend `tests/storage/save-persistence.test.ts`:
+
+```typescript
+it('persists viewer-scoped legendary wonder race intel across save/load', () => {
+  const state = makeLegendaryWonderFixture();
+  state.legendaryWonderIntel = { player: ['grand-canal-rival'] };
+
+  const roundTrip = JSON.parse(JSON.stringify(state));
+
+  expect(roundTrip.legendaryWonderIntel?.player).toEqual(['grand-canal-rival']);
+});
+```
+
+- [ ] **Step 2: Run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/ui/legendary-wonder-notifications.test.ts tests/storage/save-persistence.test.ts
+```
+
+- [ ] **Step 3: Add one durable intel ledger**
+
+In `src/core/types.ts`, add:
+
+```typescript
+legendaryWonderIntel?: Record<string, string[]>;
+```
+
+The values are project keys already used in `legendaryWonderProjects`. Keep it simple and serializable. Do not invent a second project identifier system.
+
+In `startLegendaryWonderBuild()`, when a stationed spy reveals a build, record the exact project key for `observerId` in `legendaryWonderIntel` in addition to queuing the notification event.
+
+In `tickLegendaryWonderProjects()`, prune stale intel entries for projects that no longer exist or are no longer in `building` phase so the panel does not accumulate ghosts.
+
+- [ ] **Step 4: Gate every rival-race surface through the intel ledger**
+
+In `src/ui/wonder-panel.ts`, replace:
+
+```typescript
+const rivalProjects = Object.values(state.legendaryWonderProjects ?? {})
+  .filter(project => project.ownerId !== state.currentPlayer && project.phase === 'building');
+```
+
+with a helper that resolves only project keys present in `state.legendaryWonderIntel?.[state.currentPlayer]`.
+
+In `src/ui/legendary-wonder-notifications.ts`, keep the reveal toast current-player scoped as it is, but make the message derive from the same resolved project/city/wonder objects so the notification and panel cannot drift.
+
+- [ ] **Step 5: Re-run focused tests**
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/ui/legendary-wonder-notifications.test.ts tests/storage/save-persistence.test.ts
+```
+
+- [ ] **Step 6: Commit the privacy-safe rival-intel fix**
+
+```bash
+git add src/core/types.ts src/systems/legendary-wonder-system.ts src/ui/wonder-panel.ts src/ui/legendary-wonder-notifications.ts tests/systems/legendary-wonder-system.test.ts tests/ui/wonder-panel.test.ts tests/ui/legendary-wonder-notifications.test.ts tests/storage/save-persistence.test.ts
+git commit -m "fix(m4e): gate rival wonder races behind earned intel"
+```
+
 ### Task 14: Release Gate For Slice 4
 
 **Files:**
@@ -2129,7 +2663,7 @@ git commit -m "feat(m4e): keep the wonder expansion readable"
 - [ ] **Step 1: Run Slice 4 targeted verification**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts tests/ui/wonder-panel.test.ts tests/ui/council-panel.test.ts tests/ai/basic-ai.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts tests/ui/wonder-panel.test.ts tests/ui/council-panel.test.ts tests/ui/legendary-wonder-notifications.test.ts tests/ai/basic-ai.test.ts tests/core/turn-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 2: Run full suite and build**
@@ -2803,7 +3337,7 @@ git commit -m "feat(m4e): finish naming integrity and final tuning"
 - [ ] **Step 1: Run the final targeted suite**
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/systems/auto-explore-system.test.ts tests/ui/desktop-controls.test.ts tests/ui/fog-leak.test.ts tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/systems/wonder-definitions.test.ts tests/ui/wonder-panel.test.ts tests/systems/council-memory.test.ts tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/hotseat-setup.test.ts tests/systems/city-name-system.test.ts tests/integration/m4e-council-guidance.test.ts tests/integration/m4e-acceptance.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/council-system.test.ts tests/systems/victory-progress.test.ts tests/ui/council-panel.test.ts tests/ui/primary-action-bar.test.ts tests/ui/game-shell.test.ts tests/ui/campaign-setup.test.ts tests/ui/tech-panel.test.ts tests/core/hotseat-events.test.ts tests/systems/auto-explore-system.test.ts tests/ui/desktop-controls.test.ts tests/ui/fog-leak.test.ts tests/systems/tech-definitions.test.ts tests/systems/tech-system.test.ts tests/systems/legendary-wonder-system.test.ts tests/systems/legendary-wonder-definitions.test.ts tests/ui/wonder-panel.test.ts tests/systems/council-memory.test.ts tests/systems/civ-registry.test.ts tests/ui/custom-civ-panel.test.ts tests/ui/civ-select.test.ts tests/ui/hotseat-setup.test.ts tests/systems/city-name-system.test.ts tests/integration/m4e-council-guidance.test.ts tests/integration/m4e-acceptance.test.ts tests/storage/save-manager.test.ts tests/storage/save-persistence.test.ts
 ```
 
 - [ ] **Step 2: Run the full suite and build**

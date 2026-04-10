@@ -89,6 +89,9 @@ describe('wonder-panel', () => {
       'natural-philosophy',
       'astronomy',
     ];
+    state.legendaryWonderIntel = {
+      player: ['grand-canal-rival'],
+    };
     const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
 
     const panel = createWonderPanel(container, seededState, 'city-river', {
@@ -102,5 +105,60 @@ describe('wonder-panel', () => {
     expect(panel.querySelectorAll('[data-recommended-project="true"]').length).toBeLessThanOrEqual(3);
     expect(panel.textContent).toContain('Available later');
     expect(panel.textContent).toContain('In progress elsewhere');
+  });
+
+  it('does not reveal rival wonder races without earned intel', () => {
+    const { container, state } = makeWonderPanelFixture();
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).not.toContain('Rival is pursuing this');
+    expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(0);
+  });
+
+  it('shows only rival wonder races revealed to the current player', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderIntel = {
+      player: ['grand-canal-rival'],
+    };
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(1);
+    expect(panel.textContent).toContain('Rival is pursuing this');
+  });
+
+  it('does not show rival wonder intel revealed only to another hot-seat player', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.cities['city-2'] = {
+      ...state.cities['city-river'],
+      id: 'city-2',
+      owner: 'player-2',
+      name: 'Second City',
+    };
+    state.civilizations['player-2'] = {
+      ...state.civilizations.player,
+      id: 'player-2',
+      name: 'Second Player',
+      isHuman: true,
+      cities: ['city-2'],
+    };
+    state.currentPlayer = 'player-2';
+    state.legendaryWonderIntel = {
+      player: ['grand-canal-rival'],
+    };
+
+    const panel = createWonderPanel(container, state, 'city-2', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(0);
   });
 });

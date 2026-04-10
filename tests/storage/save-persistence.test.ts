@@ -122,6 +122,44 @@ describe('save persistence (#38)', () => {
     expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].turnCompleted).toBe(40);
   });
 
+  it('round-trips legendary wonder history through JSON serialization', () => {
+    const state = {
+      legendaryWonderHistory: {
+        destroyedStrongholds: [
+          {
+            civId: 'player',
+            campId: 'camp-7',
+            position: { q: 4, r: -2 },
+            turn: 33,
+          },
+        ],
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderHistory.destroyedStrongholds).toContainEqual({
+      civId: 'player',
+      campId: 'camp-7',
+      position: { q: 4, r: -2 },
+      turn: 33,
+    });
+  });
+
+  it('round-trips legendary wonder intel through JSON serialization', () => {
+    const state = {
+      legendaryWonderIntel: {
+        observer: ['oracle-of-delphi:rival:city-rival'],
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderIntel.observer).toEqual([
+      'oracle-of-delphi:rival:city-rival',
+    ]);
+  });
+
   it('round-trips campaign identity through JSON serialization', () => {
     const state = {
       gameId: 'game-123',

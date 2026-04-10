@@ -52,7 +52,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'any',
     questSteps: [
       { id: 'complete-sacred-route', type: 'trade_route', description: 'Establish a sacred trade route.' },
-      { id: 'defeat-nearby-stronghold', type: 'defeat_stronghold', description: 'Clear a nearby barbarian stronghold.' },
+      { id: 'defeat-nearby-stronghold', type: 'defeat_stronghold', scope: 'near-city', radius: 4, description: 'Clear a nearby barbarian stronghold.' },
     ],
     reward: {
       summary: '+2 production and +1 gold in the host city each turn.',
@@ -103,7 +103,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'any',
     questSteps: [
       { id: 'raise-two-industrial-cities', type: 'buildings-in-multiple-cities', targetCount: 2, description: 'Develop 2 industrial cities.' },
-      { id: 'break-a-frontier-stronghold', type: 'defeat_stronghold', description: 'Destroy a barbarian stronghold threatening your frontier.' },
+      { id: 'break-a-frontier-stronghold', type: 'defeat_stronghold', scope: 'near-city', radius: 4, description: 'Destroy a barbarian stronghold threatening your frontier.' },
     ],
     reward: {
       summary: '+3 production and +1 science in the host city each turn.',
@@ -171,7 +171,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: ['iron'],
     cityRequirement: 'any',
     questSteps: [
-      { id: 'win-a-famous-victory', type: 'defeat_stronghold', description: 'Break a major enemy stronghold.' },
+      { id: 'win-a-famous-victory', type: 'defeat_stronghold', scope: 'any', description: 'Break a major enemy stronghold.' },
       { id: 'raise-two-glorious-cities', type: 'buildings-in-multiple-cities', targetCount: 2, description: 'Develop 2 celebrated cities.' },
     ],
     reward: {

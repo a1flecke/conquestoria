@@ -82,6 +82,8 @@ export interface LegendaryWonderDefinition {
     description?: string;
     targetCount?: number;
     track?: TechTrack;
+    scope?: 'near-city' | 'any';
+    radius?: number;
   }>;
   reward: LegendaryWonderReward;
 }
@@ -107,6 +109,17 @@ export interface CompletedLegendaryWonder {
   ownerId: string;
   cityId: string;
   turnCompleted: number;
+}
+
+export interface DestroyedStrongholdRecord {
+  civId: string;
+  campId: string;
+  position: HexCoord;
+  turn: number;
+}
+
+export interface LegendaryWonderHistory {
+  destroyedStrongholds: DestroyedStrongholdRecord[];
 }
 
 // --- Tribal Villages ---
@@ -724,6 +737,8 @@ export interface GameState {
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
   completedLegendaryWonders?: Record<string, CompletedLegendaryWonder>;
+  legendaryWonderHistory?: LegendaryWonderHistory;
+  legendaryWonderIntel?: Record<string, string[]>;
   espionage?: EspionageState;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];

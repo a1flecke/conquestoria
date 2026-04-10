@@ -16,7 +16,7 @@ import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
-import { destroyCamp } from '@/systems/barbarian-system';
+import { applyCampDestruction } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioManager } from '@/audio/audio-manager';
 import { SFX } from '@/audio/sfx';
@@ -812,9 +812,9 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
 
     for (const [campId, camp] of Object.entries(gameState.barbarianCamps)) {
       if (hexKey(camp.position) === targetKey) {
-        const reward = destroyCamp(camp);
-        delete gameState.barbarianCamps[campId];
-        currentCiv().gold += reward;
+        const destroyed = applyCampDestruction(gameState, gameState.currentPlayer, campId, gameState.turn);
+        gameState = destroyed.state;
+        const reward = destroyed.reward;
         showNotification(`Barbarian camp destroyed! +${reward} gold`, 'success');
         advisorSystem.resetMessage('treasurer_camp_reward');
         advisorSystem.check(gameState);
@@ -1424,6 +1424,12 @@ function migrateLegacySave(): void {
   if (!gameState.tribalVillages) (gameState as any).tribalVillages = {};
   if (!gameState.discoveredWonders) (gameState as any).discoveredWonders = {};
   if (!gameState.wonderDiscoverers) (gameState as any).wonderDiscoverers = {};
+  if (!gameState.legendaryWonderHistory) {
+    (gameState as any).legendaryWonderHistory = { destroyedStrongholds: [] };
+  }
+  if (!gameState.legendaryWonderIntel) {
+    (gameState as any).legendaryWonderIntel = {};
+  }
   // Add wonder field to tiles if missing
   for (const tile of Object.values(gameState.map.tiles)) {
     if (!('wonder' in tile)) (tile as any).wonder = null;
