@@ -57,3 +57,38 @@ describe('plains movement (#85)', () => {
     expect(scout.movementPointsLeft).toBe(UNIT_DEFINITIONS.scout.movementPoints);
   });
 });
+
+describe('cross-civ movement bonus isolation (#85)', () => {
+  it('France and Germany warriors each have exactly 2 movement in hot-seat with Rome', async () => {
+    const { createHotSeatGame } = await import('@/core/game-state');
+    const { processTurn } = await import('@/core/turn-manager');
+    const { EventBus } = await import('@/core/event-bus');
+
+    const state = createHotSeatGame({
+      playerCount: 4,
+      mapSize: 'medium',
+      players: [
+        { slotId: 'p1', name: 'Alice', civType: 'france', isHuman: true },
+        { slotId: 'p2', name: 'Bob', civType: 'germany', isHuman: true },
+        { slotId: 'p3', name: 'Carol', civType: 'rome', isHuman: true },
+        { slotId: 'p4', name: 'Dave', civType: 'zulu', isHuman: true },
+      ],
+    }, 'issue-85-cross');
+
+    const bus = new EventBus();
+    const next = processTurn(state, bus);
+
+    const franceWarrior = Object.values(next.units).find(u => u.owner === 'p1' && u.type === 'warrior');
+    const germanyWarrior = Object.values(next.units).find(u => u.owner === 'p2' && u.type === 'warrior');
+    const romeWarrior = Object.values(next.units).find(u => u.owner === 'p3' && u.type === 'warrior');
+
+    expect(franceWarrior?.movementPointsLeft, 'France warrior').toBe(2);
+    expect(germanyWarrior?.movementPointsLeft, 'Germany warrior').toBe(2);
+    expect(romeWarrior?.movementPointsLeft, 'Rome warrior').toBe(2);
+
+    // Confirm no movement bonus stored on the units
+    expect(franceWarrior?.movementBonus, 'France warrior bonus').toBeUndefined();
+    expect(germanyWarrior?.movementBonus, 'Germany warrior bonus').toBeUndefined();
+    expect(romeWarrior?.movementBonus, 'Rome warrior bonus').toBeUndefined();
+  });
+});
