@@ -236,4 +236,33 @@ describe('save persistence (#38)', () => {
     expect(roundTrip.settings.advisorsEnabled.artisan).toBe(true);
     expect(roundTrip.espionage.player.spies['spy-1'].name).toBe('Agent Echo');
   });
+
+  it('round-trips council memory through JSON serialization', () => {
+    const state = {
+      councilMemory: {
+        player: {
+          entries: [
+            {
+              key: 'watch-rival-harbor',
+              advisor: 'spymaster',
+              kind: 'watch-rival-city',
+              turn: 41,
+              subjects: {
+                civId: 'ai-1',
+                cityId: 'city-rival',
+              },
+              outcome: 'pending',
+            },
+          ],
+          eraCallbackCount: 1,
+          callbackEra: 2,
+        },
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.councilMemory.player.entries[0].subjects.cityId).toBe('city-rival');
+    expect(roundTrip.councilMemory.player.eraCallbackCount).toBe(1);
+  });
 });

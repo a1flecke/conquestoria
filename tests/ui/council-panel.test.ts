@@ -138,4 +138,48 @@ describe('council-panel', () => {
     expect(panel.textContent).toContain('Oracle of Delphi');
     expect(panel.textContent).not.toContain('World Archive');
   });
+
+  it('renders remembered disagreements and callback-safe memory labels', () => {
+    const { state, container } = makeCouncilFixture({ metForeignCiv: true, discoveredForeignCity: false });
+    state.councilMemory = {
+      player: {
+        entries: [
+          {
+            key: 'watch-rival-harbor',
+            advisor: 'spymaster',
+            kind: 'watch-rival-city',
+            turn: 12,
+            subjects: { civId: 'ai-1', cityId: 'city-rome' },
+            outcome: 'pending',
+          },
+          {
+            key: 'war-vs-trade-rival',
+            advisor: 'chancellor',
+            kind: 'advisor-disagreement',
+            turn: 12,
+            subjects: {
+              civId: 'ai-1',
+              advisorFor: 'warchief',
+              advisorAgainst: 'treasurer',
+              forAction: 'Press the frontier',
+              againstAction: 'Fund markets instead',
+            },
+            outcome: 'pending',
+          },
+        ],
+        eraCallbackCount: 0,
+        callbackEra: state.era,
+      },
+    };
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+    });
+
+    expect(panel.textContent).toContain('Council Memory');
+    expect(panel.textContent).toContain('Council Disagreements');
+    expect(panel.textContent).toContain('an undiscovered foreign city');
+    expect(panel.textContent).not.toContain('Rome');
+  });
 });

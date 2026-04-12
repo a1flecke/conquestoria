@@ -340,6 +340,38 @@ export const CIV_DEFINITIONS: CivDefinition[] = [
       expansionDrive: 0.55,
     },
   },
+  {
+    id: 'wakanda',
+    name: 'Wakanda',
+    color: '#6b3fa0',
+    leaderName: 'TChalla',
+    cityNames: ['Birnin Zana', 'Birnin Bashenga', 'Birnin Djata', 'Birnin Kashin', 'Birnin Tchamba', 'Birnin Salan', 'Alkama Fields', 'Jabari Lands'],
+    bonusName: 'Shadow Ministries',
+    bonusDescription: 'Spies gain experience faster',
+    bonusEffect: { type: 'espionage_growth', experienceBonus: 1 },
+    personality: {
+      traits: ['diplomatic', 'trader'],
+      warLikelihood: 0.25,
+      diplomacyFocus: 0.8,
+      expansionDrive: 0.3,
+    },
+  },
+  {
+    id: 'avalon',
+    name: 'Avalon',
+    color: '#4a8fd9',
+    leaderName: 'Arthur',
+    cityNames: ['Camelot', 'Tintagel', 'Glastonbury', 'Avalon Isle', 'Caerleon', 'Lyonesse', 'Corbenic', 'Sarras'],
+    bonusName: 'Monuments of Glory',
+    bonusDescription: 'Legendary wonder rewards are 25% stronger',
+    bonusEffect: { type: 'wonder_rewards', rewardMultiplier: 1.25 },
+    personality: {
+      traits: ['diplomatic', 'expansionist'],
+      warLikelihood: 0.35,
+      diplomacyFocus: 0.7,
+      expansionDrive: 0.6,
+    },
+  },
   // === M4d New Civilizations ===
   {
     id: 'lothlorien',

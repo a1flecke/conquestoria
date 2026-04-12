@@ -904,4 +904,26 @@ describe('legendary-wonder-system', () => {
     );
     expect(drydock?.questSteps.find(step => step.id === 'prove-open-sea-command')?.completed).toBe(true);
   });
+
+  it('avalon amplifies legendary wonder completion rewards by 25% compared to a non-avalon civ', () => {
+    const baselineState = makeLegendaryWonderFixture({ civType: 'rome', oracleStepsCompleted: 2, resources: ['stone'] });
+    baselineState.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    baselineState.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    baselineState.cities['city-river'].productionProgress = 120;
+
+    const avalonState = makeLegendaryWonderFixture({ civType: 'avalon', oracleStepsCompleted: 2, resources: ['stone'] });
+    avalonState.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    avalonState.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    avalonState.cities['city-river'].productionProgress = 120;
+
+    const baselineResult = tickLegendaryWonderProjects(baselineState, new EventBus());
+    const avalonResult = tickLegendaryWonderProjects(avalonState, new EventBus());
+
+    const baselineGain = baselineResult.civilizations.player.techState.researchProgress - baselineState.civilizations.player.techState.researchProgress;
+    const avalonGain = avalonResult.civilizations.player.techState.researchProgress - avalonState.civilizations.player.techState.researchProgress;
+
+    expect(avalonGain).toBeGreaterThan(baselineGain);
+    expect(avalonGain).toBe(75);
+    expect(avalonGain).toBeCloseTo(baselineGain * 1.25, 0);
+  });
 });

@@ -1,5 +1,6 @@
 import type { CouncilCard, CouncilTalkLevel, GameState } from '@/core/types';
 import { buildCouncilAgenda } from '@/systems/council-system';
+import { formatCouncilMemoryEntry, getCouncilMemoryEntries } from '@/systems/council-memory';
 
 export interface CouncilPanelCallbacks {
   onClose: () => void;
@@ -42,6 +43,36 @@ function createBucket(title: string, cards: CouncilCard[]): HTMLElement {
   return section;
 }
 
+function createMemorySection(title: string, entries: ReturnType<typeof getCouncilMemoryEntries>, state: GameState): HTMLElement {
+  const section = document.createElement('section');
+  const heading = document.createElement('h3');
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  if (entries.length === 0) {
+    const empty = document.createElement('p');
+    empty.textContent = 'Nothing the council feels compelled to revisit just yet.';
+    section.appendChild(empty);
+    return section;
+  }
+
+  for (const entry of entries) {
+    const article = document.createElement('article');
+
+    const summary = document.createElement('p');
+    summary.textContent = formatCouncilMemoryEntry(entry, state, state.currentPlayer);
+    article.appendChild(summary);
+
+    const outcome = document.createElement('p');
+    outcome.textContent = `Outcome: ${entry.outcome ?? 'pending'}`;
+    article.appendChild(outcome);
+
+    section.appendChild(article);
+  }
+
+  return section;
+}
+
 export function createCouncilPanel(container: HTMLElement, state: GameState, callbacks: CouncilPanelCallbacks): HTMLDivElement {
   container.querySelector('#council-panel')?.remove();
 
@@ -71,6 +102,18 @@ export function createCouncilPanel(container: HTMLElement, state: GameState, cal
   panel.appendChild(createBucket('Soon', agenda.soon));
   panel.appendChild(createBucket('To Win', agenda.toWin));
   panel.appendChild(createBucket('Council Drama', agenda.drama));
+
+  const memoryEntries = getCouncilMemoryEntries(state, state.currentPlayer);
+  panel.appendChild(createMemorySection(
+    'Council Memory',
+    memoryEntries.filter(entry => entry.kind !== 'advisor-disagreement'),
+    state,
+  ));
+  panel.appendChild(createMemorySection(
+    'Council Disagreements',
+    memoryEntries.filter(entry => entry.kind === 'advisor-disagreement'),
+    state,
+  ));
 
   container.appendChild(panel);
   return panel;

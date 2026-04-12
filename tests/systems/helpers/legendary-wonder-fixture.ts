@@ -43,11 +43,13 @@ export function makeLegendaryWonderFixture({
   resources = [] as string[],
   oracleStepsCompleted = 0,
   hasRiver = true,
+  civType = 'egypt',
 }: {
   completedTechs?: string[];
   resources?: string[];
   oracleStepsCompleted?: number;
   hasRiver?: boolean;
+  civType?: string;
 } = {}): GameState {
   const playerId = 'player';
   const cityId = 'city-river';
@@ -99,7 +101,7 @@ export function makeLegendaryWonderFixture({
         name: 'Player',
         color: '#4a90d9',
         isHuman: true,
-        civType: 'egypt',
+        civType,
         cities: [cityId],
         units: [],
         techState: {

@@ -409,4 +409,37 @@ describe('AdvisorSystem', () => {
 
     expect(messages).toHaveLength(0);
   });
+
+  it('emits a bounded council-memory callback when no regular advisor line fires', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = makeState();
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: true, spymaster: false, artisan: false };
+    state.councilMemory = {
+      player: {
+        entries: [
+          {
+            key: 'build-archive',
+            advisor: 'scholar',
+            kind: 'wonder-plan',
+            turn: 5,
+            subjects: { wonderId: 'world-archive' },
+            outcome: 'followed',
+          },
+        ],
+        eraCallbackCount: 0,
+        callbackEra: state.era,
+      },
+    };
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+
+    advisor.check(state);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].advisor).toBe('scholar');
+    expect(messages[0].message).toMatch(/archive|council|wonder/i);
+    expect(state.councilMemory.player.entries[0].lastCallbackTurn).toBe(state.turn);
+  });
 });

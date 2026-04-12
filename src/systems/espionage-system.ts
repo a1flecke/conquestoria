@@ -10,7 +10,7 @@ import { createRng } from './map-generator'; // Reuse existing seeded RNG
 import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-system';
 import { createUnit } from './unit-system';
-import { getCivDefinition } from './civ-definitions';
+import { resolveCivDefinition } from './civ-registry';
 import { applySatelliteSurveillance } from './fog-of-war';
 
 const SPY_NAMES = [
@@ -863,7 +863,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
 
     state.espionage![civId] = pruneDetectedThreats(state.espionage![civId], state.turn);
     const civEspBefore: EspionageCivState = state.espionage![civId];
-    const civBonus = getCivDefinition(state.civilizations[civId]?.civType ?? '')?.bonusEffect;
+    const civBonus = resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect;
     const xpMultiplier = civBonus?.type === 'espionage_growth' ? 1 + civBonus.experienceBonus : 1;
     const spyTurnResult = processSpyTurn(civEspBefore, `${turnSeed}-${civId}`, xpMultiplier);
     const updatedEsp = spyTurnResult.state;

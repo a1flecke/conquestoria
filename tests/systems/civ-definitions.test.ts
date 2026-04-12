@@ -3,16 +3,16 @@ import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
 
 describe('civ-definitions', () => {
   it('defines exactly 27 civilizations', () => {
-    expect(CIV_DEFINITIONS).toHaveLength(27);
+    expect(CIV_DEFINITIONS).toHaveLength(29);
   });
 
   it('each civ has unique id, name, and color', () => {
     const ids = CIV_DEFINITIONS.map(c => c.id);
     const names = CIV_DEFINITIONS.map(c => c.name);
     const colors = CIV_DEFINITIONS.map(c => c.color);
-    expect(new Set(ids).size).toBe(27);
-    expect(new Set(names).size).toBe(27);
-    expect(new Set(colors).size).toBe(27);
+    expect(new Set(ids).size).toBe(29);
+    expect(new Set(names).size).toBe(29);
+    expect(new Set(colors).size).toBe(29);
   });
 
   it('getCivDefinition returns correct civ by id', () => {
@@ -175,5 +175,31 @@ describe('civ-definitions', () => {
       expect(civ.personality.diplomacyFocus).toBeGreaterThanOrEqual(0);
       expect(civ.personality.diplomacyFocus).toBeLessThanOrEqual(1);
     }
+  });
+
+  it('includes Wakanda with espionage growth bonus and identity data', () => {
+    const wakanda = getCivDefinition('wakanda');
+    expect(wakanda).toBeTruthy();
+    expect(wakanda!.name).toBe('Wakanda');
+    expect(wakanda!.bonusEffect).toEqual({ type: 'espionage_growth', experienceBonus: 1 });
+    expect(wakanda!.leaderName).toBe('TChalla');
+    expect(wakanda!.cityNames).toBeDefined();
+    expect(wakanda!.cityNames!.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('includes Avalon with wonder rewards bonus and identity data', () => {
+    const avalon = getCivDefinition('avalon');
+    expect(avalon).toBeTruthy();
+    expect(avalon!.name).toBe('Avalon');
+    expect(avalon!.bonusEffect).toEqual({ type: 'wonder_rewards', rewardMultiplier: 1.25 });
+    expect(avalon!.leaderName).toBe('Arthur');
+    expect(avalon!.cityNames).toBeDefined();
+    expect(avalon!.cityNames!.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('Wakanda and Avalon have distinct personalities', () => {
+    const wakanda = getCivDefinition('wakanda')!;
+    const avalon = getCivDefinition('avalon')!;
+    expect(wakanda.personality.traits).not.toEqual(avalon.personality.traits);
   });
 });

@@ -342,10 +342,32 @@ export interface CivDefinition {
   id: string;
   name: string;
   color: string;
+  leaderName?: string;
+  cityNames?: string[];
   bonusName: string;
   bonusDescription: string;
   bonusEffect: CivBonusEffect;
   personality: PersonalityTraits;
+}
+
+export type CustomCivPrimaryTraitId =
+  | 'trade-dominance'
+  | 'naval-supremacy'
+  | 'scholarly'
+  | 'expansionist'
+  | 'stealth'
+  | 'wonder-craft';
+
+export type CustomCivTemperamentTrait = PersonalityTrait;
+
+export interface CustomCivDefinition {
+  id: string;
+  name: string;
+  color: string;
+  leaderName: string;
+  cityNames: string[];
+  primaryTrait: CustomCivPrimaryTraitId;
+  temperamentTraits: CustomCivTemperamentTrait[];
 }
 
 // --- Diplomacy ---
@@ -705,6 +727,53 @@ export interface CouncilState {
   lastShownTurn: number;
 }
 
+export type CouncilMemoryOutcome =
+  | 'pending'
+  | 'followed'
+  | 'ignored'
+  | 'succeeded'
+  | 'failed'
+  | 'obsolete';
+
+export type CouncilMemoryKind =
+  | 'frontier-expansion'
+  | 'watch-rival-city'
+  | 'wonder-plan'
+  | 'city-development'
+  | 'advisor-disagreement';
+
+export type CouncilCallbackTone = 'reflective' | 'smug' | 'resentful';
+
+export interface CouncilMemorySubjects {
+  cityId?: string;
+  civId?: string;
+  regionKey?: string;
+  wonderId?: string;
+  advisorFor?: AdvisorType;
+  advisorAgainst?: AdvisorType;
+  forAction?: string;
+  againstAction?: string;
+}
+
+export interface CouncilMemoryEntry {
+  key: string;
+  advisor: AdvisorType;
+  kind: CouncilMemoryKind;
+  turn: number;
+  subjects: CouncilMemorySubjects;
+  outcome?: CouncilMemoryOutcome;
+  previousOutcome?: CouncilMemoryOutcome;
+  lastCallbackTurn?: number;
+}
+
+export interface CouncilMemoryLedger {
+  entries: CouncilMemoryEntry[];
+  eraCallbackCount: number;
+  callbackEra: number;
+}
+
+export type CouncilMemoryState = Record<string, CouncilMemoryLedger>;
+
 // --- Save Slots ---
 
 export interface SaveSlotMeta {
@@ -760,6 +829,7 @@ export interface GameState {
   marketplace?: MarketplaceState;
   hotSeat?: HotSeatConfig;
   pendingEvents?: Record<string, GameEvent[]>;
+  councilMemory?: CouncilMemoryState;
   tribalVillages: Record<string, TribalVillage>;
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
@@ -781,6 +851,7 @@ export interface GameSettings {
   tutorialEnabled: boolean;
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
+  customCivilizations?: CustomCivDefinition[];
 }
 
 // --- Events ---
@@ -830,7 +901,7 @@ export interface GameEvents {
   'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
   'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
-  'advisor:message': { advisor: AdvisorType; message: string; icon: string };
+  'advisor:message': { advisor: AdvisorType; message: string; icon: string; tone?: CouncilCallbackTone; memoryKey?: string };
   'trade:route-created': { route: TradeRoute };
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };

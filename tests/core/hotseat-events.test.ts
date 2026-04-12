@@ -55,4 +55,21 @@ describe('hotseat-events', () => {
     ]);
     expect(pending['player-1']).toBeUndefined();
   });
+
+  it('collects council callbacks for the intended viewer only', () => {
+    const pending: Record<string, GameEvent[]> = {};
+
+    collectEvent(pending, 'player-2', {
+      type: 'council:interrupt',
+      message: 'The scholar remembers the archive plan.',
+      turn: 9,
+    });
+
+    expect(getEventsForPlayer(pending, 'player-2')).toContainEqual({
+      type: 'council:interrupt',
+      message: 'The scholar remembers the archive plan.',
+      turn: 9,
+    });
+    expect(getEventsForPlayer(pending, 'player-1')).toEqual([]);
+  });
 });

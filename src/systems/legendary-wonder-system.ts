@@ -9,6 +9,7 @@ import {
   sanitizeLegendaryWonderIntel,
 } from '@/systems/legendary-wonder-intel';
 import { countLegendaryWonderDiscoverySites } from '@/systems/legendary-wonder-history';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 
 function hasCityRequirement(state: GameState, cityId: string, requirement: 'river' | 'coastal' | 'any'): boolean {
   const city = state.cities[cityId];
@@ -464,7 +465,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
           continue;
         }
 
-        applyLegendaryWonderReward(updatedCivilizations, project.ownerId, definition.reward);
+        applyLegendaryWonderReward(state, updatedCivilizations, project.ownerId, definition.reward);
         _bus.emit('wonder:legendary-completed', {
           civId: project.ownerId,
           cityId: project.cityId,
@@ -682,6 +683,7 @@ export function getLegendaryWonderProjectDefinition(state: GameState, wonderId: 
 }
 
 function applyLegendaryWonderReward(
+  state: GameState,
   civilizations: GameState['civilizations'],
   ownerId: string,
   reward: NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>['reward'],
@@ -691,12 +693,33 @@ function applyLegendaryWonderReward(
     return;
   }
 
+  const civBonus = resolveCivDefinition(state, civilization.civType ?? '')?.bonusEffect;
+  const wonderRewardMultiplier = civBonus?.type === 'wonder_rewards' ? civBonus.rewardMultiplier : 1;
+
   if (reward.instantResearch) {
     civilization.techState = {
       ...civilization.techState,
-      researchProgress: civilization.techState.researchProgress + reward.instantResearch,
+      researchProgress: civilization.techState.researchProgress + Math.round(reward.instantResearch * wonderRewardMultiplier),
     };
   }
+}
+
+function getWonderRewardMultiplier(state: GameState, civId: string): number {
+  const civBonus = resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect;
+  return civBonus?.type === 'wonder_rewards' ? civBonus.rewardMultiplier : 1;
+}
+
+function scaleYieldTotals(source: Partial<ResourceYield> | undefined, multiplier: number): Partial<ResourceYield> | undefined {
+  if (!source) {
+    return source;
+  }
+
+  return {
+    food: source.food !== undefined ? Math.round(source.food * multiplier) : undefined,
+    production: source.production !== undefined ? Math.round(source.production * multiplier) : undefined,
+    gold: source.gold !== undefined ? Math.round(source.gold * multiplier) : undefined,
+    science: source.science !== undefined ? Math.round(source.science * multiplier) : undefined,
+  };
 }
 
 function addYieldTotals(target: Partial<ResourceYield>, source?: Partial<ResourceYield>): Partial<ResourceYield> {
@@ -714,6 +737,7 @@ function addYieldTotals(target: Partial<ResourceYield>, source?: Partial<Resourc
 
 export function getLegendaryWonderCivYieldBonus(state: GameState, civId: string): Partial<ResourceYield> {
   let totals: Partial<ResourceYield> = {};
+  const multiplier = getWonderRewardMultiplier(state, civId);
 
   for (const [wonderId, completion] of Object.entries(state.completedLegendaryWonders ?? {})) {
     if (completion.ownerId !== civId) {
@@ -721,7 +745,7 @@ export function getLegendaryWonderCivYieldBonus(state: GameState, civId: string)
     }
 
     const definition = getLegendaryWonderDefinition(wonderId);
-    totals = addYieldTotals(totals, definition?.reward.civYieldBonus);
+    totals = addYieldTotals(totals, scaleYieldTotals(definition?.reward.civYieldBonus, multiplier));
   }
 
   return totals;
@@ -733,6 +757,7 @@ export function getLegendaryWonderCityYieldBonus(
   cityId: string,
 ): Partial<ResourceYield> {
   let totals: Partial<ResourceYield> = {};
+  const multiplier = getWonderRewardMultiplier(state, civId);
 
   for (const [wonderId, completion] of Object.entries(state.completedLegendaryWonders ?? {})) {
     if (completion.ownerId !== civId || completion.cityId !== cityId) {
@@ -740,7 +765,7 @@ export function getLegendaryWonderCityYieldBonus(
     }
 
     const definition = getLegendaryWonderDefinition(wonderId);
-    totals = addYieldTotals(totals, definition?.reward.cityYieldBonus);
+    totals = addYieldTotals(totals, scaleYieldTotals(definition?.reward.cityYieldBonus, multiplier));
   }
 
   return totals;

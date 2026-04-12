@@ -1,5 +1,6 @@
 // tests/systems/espionage-system.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
+import { EventBus } from '@/core/event-bus';
 import type {
   Spy, SpyMission, SpyMissionType, EspionageState,
   EspionageCivState, GameState,
@@ -17,6 +18,7 @@ import {
   getAvailableMissions,
   startMission,
   processSpyTurn,
+  processEspionageTurn,
   resolveMissionResult,
   handleSpyExpelled,
   handleSpyCaptured,
@@ -718,5 +720,114 @@ describe('espionage diplomatic consequences', () => {
         expiresOnTurn: 17,
       });
     });
+  });
+
+  it('wakanda gains faster spy growth from successful operations compared to a non-wakanda civ', () => {
+    function makeEspionageFixture(playerCivType: string): GameState {
+      return {
+        turn: 12,
+        era: 2,
+        currentPlayer: 'player',
+        gameOver: false,
+        winner: null,
+        map: { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] },
+        units: {},
+        cities: {
+          'city-player-1': {
+            id: 'city-player-1', name: 'Capital', owner: 'player', position: { q: 0, r: 0 }, population: 4,
+            food: 0, foodNeeded: 20, buildings: [], productionQueue: [], productionProgress: 0,
+            ownedTiles: [{ q: 0, r: 0 }], grid: [[null]], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+          },
+          'city-rival-1': {
+            id: 'city-rival-1', name: 'Rival City', owner: 'rival', position: { q: 1, r: 1 }, population: 4,
+            food: 0, foodNeeded: 20, buildings: [], productionQueue: [], productionProgress: 0,
+            ownedTiles: [{ q: 1, r: 1 }], grid: [[null]], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+          },
+        },
+        civilizations: {
+          player: {
+            id: 'player', name: 'Player', color: '#4a90d9', isHuman: true, civType: playerCivType,
+            cities: ['city-player-1'], units: [],
+            techState: { completed: ['spy-networks'], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+            gold: 0, visibility: { tiles: {} }, knownCivilizations: ['rival'], score: 0,
+            diplomacy: createDiplomacyState(['player', 'rival'], 'player'),
+          },
+          rival: {
+            id: 'rival', name: 'Rival', color: '#d94a4a', isHuman: false, civType: 'rome',
+            cities: ['city-rival-1'], units: [],
+            techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+            gold: 0, visibility: { tiles: {} }, knownCivilizations: ['player'], score: 0,
+            diplomacy: createDiplomacyState(['player', 'rival'], 'rival'),
+          },
+        },
+        barbarianCamps: {},
+        minorCivs: {},
+        tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+        settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal', customCivilizations: [] },
+        tribalVillages: {},
+        discoveredWonders: {},
+        wonderDiscoverers: {},
+        embargoes: [],
+        defensiveLeagues: [],
+        espionage: {
+          player: {
+            spies: {
+              'spy-1': {
+                id: 'spy-1',
+                owner: 'player',
+                name: 'Agent Echo',
+                targetCivId: 'rival',
+                targetCityId: 'city-rival-1',
+                position: { q: 1, r: 1 },
+                status: 'on_mission',
+                experience: 50,
+                currentMission: {
+                  type: 'monitor_diplomacy',
+                  turnsRemaining: 1,
+                  turnsTotal: 1,
+                  targetCivId: 'rival',
+                  targetCityId: 'city-rival-1',
+                },
+                cooldownTurns: 0,
+                promotion: 'handler',
+                promotionAvailable: false,
+                feedsFalseIntel: false,
+              },
+            },
+            maxSpies: 1,
+            counterIntelligence: {},
+          },
+          rival: createEspionageCivState(),
+        },
+      } as GameState;
+    }
+
+    let baselineResult: GameState | null = null;
+    let wakandaResult: GameState | null = null;
+
+    for (let turn = 12; turn < 40; turn++) {
+      const baselineState = makeEspionageFixture('rome');
+      const wakandaState = makeEspionageFixture('wakanda');
+      baselineState.turn = turn;
+      wakandaState.turn = turn;
+      const baselineAttempt = processEspionageTurn(baselineState, new EventBus());
+      const wakandaAttempt = processEspionageTurn(wakandaState, new EventBus());
+      const baselineSpy = baselineAttempt.espionage?.player.spies['spy-1'];
+      const wakandaSpy = wakandaAttempt.espionage?.player.spies['spy-1'];
+      if (baselineSpy?.status === 'stationed' && wakandaSpy?.status === 'stationed') {
+        baselineResult = baselineAttempt;
+        wakandaResult = wakandaAttempt;
+        break;
+      }
+    }
+
+    expect(baselineResult).toBeTruthy();
+    expect(wakandaResult).toBeTruthy();
+
+    const baselineGain = baselineResult!.espionage!.player.spies['spy-1'].experience - 50;
+    const wakandaGain = wakandaResult!.espionage!.player.spies['spy-1'].experience - 50;
+
+    expect(wakandaGain).toBeGreaterThan(baselineGain);
+    expect(wakandaGain - baselineGain).toBe(10);
   });
 });

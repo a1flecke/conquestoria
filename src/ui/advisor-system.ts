@@ -2,6 +2,7 @@ import type { GameState, TutorialStep, AdvisorType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
+import { getNextCouncilCallback, markCouncilCallbackDelivered } from '@/systems/council-memory';
 
 interface AdvisorMessage {
   id: string;
@@ -611,6 +612,7 @@ export class AdvisorSystem {
 
   check(state: GameState): void {
     if (!state.settings.tutorialEnabled && !this.hasAdvisorsEnabled(state)) return;
+    let emittedMessage = false;
 
     for (const msg of ADVISOR_MESSAGES) {
       if (this.shownIds.has(msg.id)) continue;
@@ -645,9 +647,35 @@ export class AdvisorSystem {
           message: msg.message,
           icon: msg.icon,
         });
+        emittedMessage = true;
         break; // One message at a time
       }
     }
+
+    if (emittedMessage) {
+      return;
+    }
+
+    const callback = getNextCouncilCallback(state, state.currentPlayer);
+    if (!callback) {
+      return;
+    }
+    if (!state.settings.advisorsEnabled[callback.advisor]) {
+      return;
+    }
+    const disabledUntil = state.civilizations[state.currentPlayer]?.advisorDisabledUntil?.[callback.advisor];
+    if (disabledUntil !== undefined && disabledUntil >= state.turn) {
+      return;
+    }
+
+    markCouncilCallbackDelivered(state, state.currentPlayer, callback.key);
+    this.bus.emit('advisor:message', {
+      advisor: callback.advisor,
+      message: callback.message,
+      icon: '💭',
+      tone: callback.tone,
+      memoryKey: callback.key,
+    });
   }
 
   resetMessage(id: string): void {

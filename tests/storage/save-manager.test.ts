@@ -11,7 +11,18 @@ vi.mock('@/storage/db', () => ({
 
 import { createDefaultSettings } from '@/core/game-state';
 import { autoSave, deleteSaveEntry, listSaves, loadGame, loadMostRecentAutoSave, loadSettings, saveGame, saveSettings } from '@/storage/save-manager';
+import type { CustomCivDefinition } from '@/core/types';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
+
+const customCiv: CustomCivDefinition = {
+  id: 'custom-sunfolk',
+  name: 'Sunfolk',
+  color: '#d9a441',
+  leaderName: 'Aurelia',
+  cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+  primaryTrait: 'scholarly',
+  temperamentTraits: ['diplomatic', 'trader'],
+};
 
 function makeLocalStorageMock() {
   const store: Record<string, string> = {};
@@ -267,6 +278,13 @@ describe('save-manager autosave listing', () => {
     expect(saves.find(save => save.id === 'autosave')).toBeDefined();
     expect(continued?.turn).toBe(legacyState.turn);
     expect(dbState.has('meta:autosave:game-a:9')).toBe(false);
+  });
+
+  it('persists custom civilization definitions through settings save/load', async () => {
+    const baseSettings = createDefaultSettings('small', (await loadSettings()) ?? {});
+    await saveSettings({ ...baseSettings, customCivilizations: [customCiv] });
+    const loaded = await loadSettings();
+    expect(loaded?.customCivilizations?.[0].name).toBe(customCiv.name);
   });
 
   it('retires the legacy autosave only after a loadable real autosave exists', async () => {
