@@ -1,7 +1,6 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
-import { getPlayableCivDefinitions } from '@/systems/civ-registry';
 import type { CustomCivDefinition } from '@/core/types';
 import { createDefaultSettings } from '@/core/game-state';
 import * as saveManager from '@/storage/save-manager';
@@ -64,9 +63,6 @@ describe('hotseat-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [customCiv],
-        }),
         initialCustomCivilizations: [customCiv],
       },
     );
@@ -87,9 +83,6 @@ describe('hotseat-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [customCiv],
-        }),
         initialCustomCivilizations: [customCiv],
       },
     );
@@ -134,9 +127,6 @@ describe('hotseat-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [customCiv],
-        }),
         initialCustomCivilizations: [customCiv],
       },
     );
@@ -174,7 +164,6 @@ describe('hotseat-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({}),
         initialCustomCivilizations: [],
       },
     );
@@ -215,9 +204,6 @@ describe('hotseat-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [customCiv],
-        }),
         initialCustomCivilizations: [customCiv],
       },
     );
@@ -268,9 +254,6 @@ describe('hotseat-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [staleCustomCiv],
-        }),
         initialCustomCivilizations: [staleCustomCiv],
       },
     );
@@ -320,9 +303,6 @@ describe('hotseat-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [staleCustomCiv],
-        }),
         initialCustomCivilizations: [staleCustomCiv],
       },
     );

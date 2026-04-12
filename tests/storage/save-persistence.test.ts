@@ -339,4 +339,51 @@ describe('save persistence (#38)', () => {
 
     expect(new Set(names).size).toBe(names.length);
   });
+
+  it('preserves the older city name when duplicate legacy ids reach double digits', () => {
+    const state = createNewGame('rome', 'legacy-double-digit-seed');
+    state.cities = {
+      'city-2': {
+        id: 'city-2',
+        name: 'Rome',
+        owner: 'player',
+        position: { q: 2, r: 2 },
+        population: 2,
+        food: 0,
+        foodNeeded: 15,
+        buildings: [],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 2, r: 2 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+      'city-10': {
+        id: 'city-10',
+        name: 'Rome',
+        owner: 'player',
+        position: { q: 10, r: 10 },
+        population: 2,
+        food: 0,
+        foodNeeded: 15,
+        buildings: [],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 10, r: 10 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+    };
+
+    const loaded = migrateLegacyNamingState(JSON.parse(JSON.stringify(state)) as GameState);
+
+    expect(loaded.cities['city-2'].name).toBe('Rome');
+    expect(loaded.cities['city-10'].name).not.toBe('Rome');
+  });
 });

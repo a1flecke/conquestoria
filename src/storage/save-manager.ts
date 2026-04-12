@@ -48,12 +48,26 @@ function getCityNamingInfo(state: GameState, ownerId: string): { civType: string
   return { civType: ownerId, civName: 'City' };
 }
 
+function getLegacyCitySequence(cityId: string): number | null {
+  const match = /^city-(\d+)$/.exec(cityId);
+  return match ? Number(match[1]) : null;
+}
+
+function compareLegacyCityIds(leftId: string, rightId: string): number {
+  const leftSequence = getLegacyCitySequence(leftId);
+  const rightSequence = getLegacyCitySequence(rightId);
+  if (leftSequence !== null && rightSequence !== null && leftSequence !== rightSequence) {
+    return leftSequence - rightSequence;
+  }
+  return leftId.localeCompare(rightId);
+}
+
 export function migrateLegacyNamingState(state: GameState): GameState {
   if (!state.cities || !state.civilizations) {
     return state;
   }
 
-  const sortedCities = Object.entries(state.cities).sort(([leftId], [rightId]) => leftId.localeCompare(rightId));
+  const sortedCities = Object.entries(state.cities).sort(([leftId], [rightId]) => compareLegacyCityIds(leftId, rightId));
   const usedNames = new Set<string>();
 
   for (const [, city] of sortedCities) {

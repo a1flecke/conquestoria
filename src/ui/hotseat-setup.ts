@@ -1,4 +1,4 @@
-import type { CivDefinition, CustomCivDefinition, HotSeatConfig, HotSeatPlayer } from '@/core/types';
+import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from './civ-select';
 import { createCustomCivPanel } from './custom-civ-panel';
@@ -14,7 +14,6 @@ interface HotSeatSetupCallbacks {
 }
 
 interface HotSeatSetupOptions {
-  civDefinitions?: CivDefinition[];
   initialCustomCivilizations?: CustomCivDefinition[];
 }
 

@@ -1,4 +1,4 @@
-import type { CivDefinition, CustomCivDefinition, SoloSetupConfig } from '@/core/types';
+import type { CustomCivDefinition, SoloSetupConfig } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createCustomCivPanel } from '@/ui/custom-civ-panel';
@@ -15,7 +15,6 @@ export interface CampaignSetupCallbacks {
 }
 
 export interface CampaignSetupOptions {
-  civDefinitions?: CivDefinition[];
   initialCustomCivilizations?: CustomCivDefinition[];
 }
 

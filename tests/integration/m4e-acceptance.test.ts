@@ -46,7 +46,6 @@ function startSoloCampaignFromSetup(savedCustomCivilizations: CustomCivDefinitio
       onCancel: () => {},
     },
     {
-      civDefinitions: getPlayableCivDefinitions({ customCivilizations: savedCustomCivilizations }),
       initialCustomCivilizations: savedCustomCivilizations,
     },
   );

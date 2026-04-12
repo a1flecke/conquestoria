@@ -32,7 +32,7 @@ import { createContextMenu } from '@/ui/context-menu';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { showCampaignSetup } from '@/ui/campaign-setup';
-import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { visitVillage } from '@/systems/village-system';
@@ -1567,7 +1567,6 @@ function showGameModeSelection(): void {
       },
       onCancel: () => showGameModeSelection(),
     }, {
-      civDefinitions: getPlayableCivDefinitions({ customCivilizations: savedCustomCivilizations }),
       initialCustomCivilizations: savedCustomCivilizations,
     });
   });
@@ -1594,7 +1593,6 @@ function showGameModeSelection(): void {
         showGameModeSelection();
       },
     }, {
-      civDefinitions: getPlayableCivDefinitions({ customCivilizations: savedCustomCivilizations }),
       initialCustomCivilizations: savedCustomCivilizations,
     });
   });

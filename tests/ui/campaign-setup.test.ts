@@ -2,7 +2,6 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { showCampaignSetup } from '@/ui/campaign-setup';
-import { getPlayableCivDefinitions } from '@/systems/civ-registry';
 import type { CustomCivDefinition } from '@/core/types';
 import { createDefaultSettings } from '@/core/game-state';
 import * as saveManager from '@/storage/save-manager';
@@ -92,9 +91,6 @@ describe('campaign-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [customCiv],
-        }),
         initialCustomCivilizations: [customCiv],
       },
     );
@@ -122,9 +118,6 @@ describe('campaign-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [customCiv],
-        }),
         initialCustomCivilizations: [customCiv],
       },
     );
@@ -158,7 +151,6 @@ describe('campaign-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({}),
         initialCustomCivilizations: [],
       },
     );
@@ -211,9 +203,6 @@ describe('campaign-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [originalCustomCiv],
-        }),
         initialCustomCivilizations: [originalCustomCiv],
       },
     );
@@ -262,9 +251,6 @@ describe('campaign-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [staleCustomCiv],
-        }),
         initialCustomCivilizations: [staleCustomCiv],
       },
     );
@@ -312,9 +298,6 @@ describe('campaign-setup', () => {
         onCancel: () => {},
       },
       {
-        civDefinitions: getPlayableCivDefinitions({
-          customCivilizations: [staleCustomCiv],
-        }),
         initialCustomCivilizations: [staleCustomCiv],
       },
     );
@@ -350,7 +333,6 @@ describe('campaign-setup', () => {
         },
       },
       {
-        civDefinitions: getPlayableCivDefinitions({ customCivilizations: latestCustomCivilizations }),
         initialCustomCivilizations: latestCustomCivilizations,
       },
     );
@@ -371,7 +353,6 @@ describe('campaign-setup', () => {
         },
       },
       {
-        civDefinitions: getPlayableCivDefinitions({ customCivilizations: latestCustomCivilizations }),
         initialCustomCivilizations: latestCustomCivilizations,
       },
     );
