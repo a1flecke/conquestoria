@@ -1,12 +1,21 @@
-import type { SoloSetupConfig } from '@/core/types';
+import type { CustomCivDefinition, SoloSetupConfig } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from '@/ui/civ-select';
-import { getCivDefinition } from '@/systems/civ-definitions';
+import { createCustomCivPanel } from '@/ui/custom-civ-panel';
+import { getPlayableCivDefinitions } from '@/systems/civ-registry';
+import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions } from '@/systems/custom-civ-system';
+import { createDefaultSettings } from '@/core/game-state';
+import { loadSettings, saveSettings } from '@/storage/save-manager';
 
 export interface CampaignSetupCallbacks {
   onStartSolo: (config: SoloSetupConfig) => void;
   onCancel: () => void;
+  onCustomCivilizationsChanged?: (customCivilizations: CustomCivDefinition[]) => void;
   initialTitle?: string;
+}
+
+export interface CampaignSetupOptions {
+  initialCustomCivilizations?: CustomCivDefinition[];
 }
 
 function createLabeledSelect(labelText: string, id: string): { wrapper: HTMLDivElement; select: HTMLSelectElement } {
@@ -24,7 +33,7 @@ function createLabeledSelect(labelText: string, id: string): { wrapper: HTMLDivE
   return { wrapper, select };
 }
 
-export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSetupCallbacks): HTMLElement {
+export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSetupCallbacks, options?: CampaignSetupOptions): HTMLElement {
   container.querySelector('#campaign-setup')?.remove();
 
   const panel = document.createElement('div');
@@ -87,13 +96,63 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   mapSizeField.select.addEventListener('change', refreshOpponentOptions);
 
   let selectedCivId: string | null = null;
-  chooseCivButton.addEventListener('click', () => {
-    createCivSelectPanel(panel, {
-      onSelect: (civId) => {
-        selectedCivId = civId;
-        civSummary.textContent = `Civilization: ${getCivDefinition(civId)?.name ?? civId}`;
-      },
+  let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
+  let civDefinitions = getPlayableCivDefinitions({ customCivilizations });
+
+  const replaceSetupOverlay = (render: () => void): void => {
+    panel.querySelector('#custom-civ-panel')?.remove();
+    panel.querySelector('#civ-select')?.remove();
+    render();
+  };
+
+  const selectCivilization = (civId: string): void => {
+    selectedCivId = civId;
+    civSummary.textContent = `Civilization: ${civDefinitions.find(def => def.id === civId)?.name ?? civId}`;
+  };
+
+  const openCivPicker = (): void => {
+    replaceSetupOverlay(() => {
+      createCivSelectPanel(panel, {
+        onSelect: selectCivilization,
+        onCreateCustomCiv: () => {
+          openCustomCivEditor();
+        },
+      }, {
+        civDefinitions,
+      });
     });
+  };
+
+  const openCustomCivEditor = (): void => {
+    replaceSetupOverlay(() => {
+      createCustomCivPanel(panel, {
+        onSave: async (definition) => {
+          const loaded = (await loadSettings()) ?? createDefaultSettings('small');
+          const authoritativeCustomCivilizations = mergeCustomCivDefinitions(
+            customCivilizations,
+            loaded.customCivilizations ?? [],
+          );
+          const existingDefinition = authoritativeCustomCivilizations.find(def => def.id === definition.id);
+          const resolvedDefinition = existingDefinition && !customCivDefinitionsEqual(existingDefinition, definition)
+            ? { ...definition, id: buildCustomCivId(definition.name, authoritativeCustomCivilizations) }
+            : definition;
+          customCivilizations = mergeCustomCivDefinitions(authoritativeCustomCivilizations, [resolvedDefinition]);
+          await saveSettings({ ...loaded, customCivilizations });
+          callbacks.onCustomCivilizationsChanged?.([...customCivilizations]);
+          civDefinitions = getPlayableCivDefinitions({ customCivilizations });
+          openCivPicker();
+        },
+        onCancel: () => {
+          openCivPicker();
+        },
+      }, {
+        existingDefinitions: customCivilizations,
+      });
+    });
+  };
+
+  chooseCivButton.addEventListener('click', () => {
+    openCivPicker();
   });
 
   const buttonRow = document.createElement('div');
@@ -125,6 +184,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       mapSize: mapSizeField.select.value as 'small' | 'medium' | 'large',
       opponentCount: Number(opponentsField.select.value),
       gameTitle,
+      customCivilizations,
     });
   });
   buttonRow.appendChild(startButton);

@@ -7,10 +7,10 @@ function getCustomCivDefinitions(customCivilizations: CustomCivDefinition[] | un
 }
 
 export function resolveCivDefinition(
-  stateLike: { settings: { customCivilizations?: CustomCivDefinition[] } },
+  stateLike: { settings?: { customCivilizations?: CustomCivDefinition[] } },
   civId: string,
 ): CivDefinition | undefined {
-  const custom = getCustomCivDefinitions(stateLike.settings.customCivilizations)
+  const custom = getCustomCivDefinitions(stateLike.settings?.customCivilizations)
     .find(definition => definition.id === civId);
   return custom ?? getCivDefinition(civId);
 }

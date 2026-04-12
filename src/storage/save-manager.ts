@@ -1,4 +1,7 @@
 import type { GameState, SaveSlotMeta } from '@/core/types';
+import { drawNextCityName } from '@/systems/city-name-system';
+import { resolveCivDefinition } from '@/systems/civ-registry';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
 
 const SAVE_PREFIX = 'save:';
@@ -16,6 +19,75 @@ function ensureGameIdentity(state: GameState): GameState {
     const civType = state.hotSeat ? 'Hot Seat' : (state.civilizations[state.currentPlayer]?.civType ?? 'Unknown');
     state.gameTitle = `Recovered ${civType} Campaign`;
   }
+  return state;
+}
+
+function getCityNamingInfo(state: GameState, ownerId: string): { civType: string; civName: string; namingPool?: string[] } {
+  const majorCiv = state.civilizations[ownerId];
+  if (majorCiv) {
+    const definition = resolveCivDefinition(state, majorCiv.civType ?? '');
+    return {
+      civType: majorCiv.civType ?? ownerId,
+      civName: definition?.name ?? majorCiv.name,
+      namingPool: definition?.cityNames,
+    };
+  }
+
+  if (ownerId.startsWith('mc-')) {
+    const minorDefinitionId = ownerId.slice(3);
+    const minorDefinition = MINOR_CIV_DEFINITIONS.find(def => def.id === minorDefinitionId);
+    if (minorDefinition) {
+      return {
+        civType: minorDefinition.id,
+        civName: minorDefinition.name,
+        namingPool: [minorDefinition.name],
+      };
+    }
+  }
+
+  return { civType: ownerId, civName: 'City' };
+}
+
+function getLegacyCitySequence(cityId: string): number | null {
+  const match = /^city-(\d+)$/.exec(cityId);
+  return match ? Number(match[1]) : null;
+}
+
+function compareLegacyCityIds(leftId: string, rightId: string): number {
+  const leftSequence = getLegacyCitySequence(leftId);
+  const rightSequence = getLegacyCitySequence(rightId);
+  if (leftSequence !== null && rightSequence !== null && leftSequence !== rightSequence) {
+    return leftSequence - rightSequence;
+  }
+  return leftId.localeCompare(rightId);
+}
+
+export function migrateLegacyNamingState(state: GameState): GameState {
+  if (!state.cities || !state.civilizations) {
+    return state;
+  }
+
+  const sortedCities = Object.entries(state.cities).sort(([leftId], [rightId]) => compareLegacyCityIds(leftId, rightId));
+  const usedNames = new Set<string>();
+
+  for (const [, city] of sortedCities) {
+    const namingInfo = getCityNamingInfo(state, city.owner);
+    const pool = namingInfo.namingPool ?? [];
+    const nameIsAllowed = pool.length === 0 || pool.includes(city.name);
+    const nameIsUnique = !usedNames.has(city.name);
+
+    if (nameIsAllowed && nameIsUnique) {
+      usedNames.add(city.name);
+      continue;
+    }
+
+    city.name = drawNextCityName(namingInfo.civType, usedNames, {
+      namingPool: namingInfo.namingPool,
+      civName: namingInfo.civName,
+    });
+    usedNames.add(city.name);
+  }
+
   return state;
 }
 
@@ -78,13 +150,13 @@ async function listPersistedMetas(): Promise<SaveSlotMeta[]> {
 async function loadLegacyAutoSave(): Promise<GameState | undefined> {
   const idbSave = await dbGet<GameState>(LEGACY_AUTO_SAVE_KEY);
   if (idbSave) {
-    return ensureGameIdentity(idbSave);
+    return migrateLegacyNamingState(ensureGameIdentity(idbSave));
   }
 
   try {
     const raw = localStorage.getItem(LOCALSTORAGE_AUTOSAVE_KEY);
     if (raw) {
-      return ensureGameIdentity(JSON.parse(raw) as GameState);
+      return migrateLegacyNamingState(ensureGameIdentity(JSON.parse(raw) as GameState));
     }
   } catch {
     console.warn('[save] localStorage fallback parse failed');
@@ -146,7 +218,7 @@ async function loadMostRecentPersistedAutosave(): Promise<GameState | undefined>
   }
 
   const state = await dbGet<GameState>(getSaveStorageKey(newestMeta.id, 'autosave'));
-  return state ? ensureGameIdentity(state) : undefined;
+  return state ? migrateLegacyNamingState(ensureGameIdentity(state)) : undefined;
 }
 
 async function retireLegacyAutosaveIfRealAutosavesExist(): Promise<boolean> {
@@ -231,11 +303,11 @@ export async function loadGame(slotId: string): Promise<GameState | undefined> {
       return loadLegacyAutoSave();
     }
     const save = await dbGet<GameState>(getSaveStorageKey(slotId, 'autosave'));
-    return save ? ensureGameIdentity(save) : undefined;
+    return save ? migrateLegacyNamingState(ensureGameIdentity(save)) : undefined;
   }
 
   const save = await dbGet<GameState>(getSaveStorageKey(slotId, 'manual'));
-  return save ? ensureGameIdentity(save) : undefined;
+  return save ? migrateLegacyNamingState(ensureGameIdentity(save)) : undefined;
 }
 
 export async function deleteSaveEntry(entryId: string, kind: 'manual' | 'autosave'): Promise<void> {

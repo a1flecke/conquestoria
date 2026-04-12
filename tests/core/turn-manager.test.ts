@@ -1,13 +1,25 @@
 import { processTurn } from '@/core/turn-manager';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
+import type { CustomCivDefinition, GameState } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
+
+const customCiv: CustomCivDefinition = {
+  id: 'custom-sunfolk',
+  name: 'Sunfolk',
+  color: '#d9a441',
+  leaderName: 'Aurelia',
+  cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+  primaryTrait: 'scholarly',
+  temperamentTraits: ['diplomatic', 'trader'],
+};
 
 describe('processTurn', () => {
   it('increments the turn counter', () => {
@@ -310,5 +322,19 @@ describe('processTurn', () => {
     expect(result.civilizations.player.techState.researchProgress).toBeGreaterThan(
       control.civilizations.player.techState.researchProgress,
     );
+  });
+
+  it('processTurn can still resolve a saved custom civ definition after JSON round-trip', () => {
+    const state = createNewGame({
+      civType: 'custom-sunfolk',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Runtime Custom Civ',
+      customCivilizations: [customCiv],
+    });
+
+    const roundTrip = JSON.parse(JSON.stringify(state)) as GameState;
+    expect(resolveCivDefinition(roundTrip, 'custom-sunfolk')?.name).toBe('Sunfolk');
+    expect(() => processTurn(roundTrip, new EventBus())).not.toThrow();
   });
 });

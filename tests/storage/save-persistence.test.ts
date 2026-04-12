@@ -1,4 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createNewGame } from '@/core/game-state';
+import { resolveCivDefinition } from '@/systems/civ-registry';
+const dbState = new Map<string, unknown>();
+
+vi.mock('@/storage/db', () => ({
+  dbGet: vi.fn(async (key: string) => dbState.get(key)),
+  dbPut: vi.fn(async (key: string, value: unknown) => { dbState.set(key, value); }),
+  dbDelete: vi.fn(async (key: string) => { dbState.delete(key); }),
+  dbGetAllKeys: vi.fn(async () => Array.from(dbState.keys())),
+}));
+
+import { loadGame, migrateLegacyNamingState, saveGame } from '@/storage/save-manager';
+import type { CustomCivDefinition, GameState } from '@/core/types';
 
 // --- Minimal in-memory localStorage mock ---
 function makeLocalStorageMock() {
@@ -12,12 +25,22 @@ function makeLocalStorageMock() {
 }
 
 const LOCALSTORAGE_AUTOSAVE_KEY = 'conquestoria-autosave';
+const customCiv: CustomCivDefinition = {
+  id: 'custom-sunfolk',
+  name: 'Sunfolk',
+  color: '#d9a441',
+  leaderName: 'Aurelia',
+  cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+  primaryTrait: 'scholarly',
+  temperamentTraits: ['diplomatic', 'trader'],
+};
 
 describe('save persistence (#38)', () => {
   let ls: ReturnType<typeof makeLocalStorageMock>;
 
   beforeEach(() => {
     ls = makeLocalStorageMock();
+    dbState.clear();
   });
 
   it('stores and retrieves a save', () => {
@@ -264,5 +287,103 @@ describe('save persistence (#38)', () => {
 
     expect(roundTrip.councilMemory.player.entries[0].subjects.cityId).toBe('city-rival');
     expect(roundTrip.councilMemory.player.eraCallbackCount).toBe(1);
+  });
+
+  it('round-trips a custom civ campaign through saveGame/loadGame and still resolves the selected civ after load', async () => {
+    const state = createNewGame({
+      civType: 'custom-sunfolk',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Saved Custom Civ',
+      customCivilizations: [customCiv],
+    });
+
+    await saveGame('slot-custom-civ', 'Saved Custom Civ', state);
+    const roundTrip = await loadGame('slot-custom-civ') as GameState;
+    const resolved = resolveCivDefinition(roundTrip, roundTrip.civilizations.player.civType);
+
+    expect(roundTrip.settings.customCivilizations).toEqual([customCiv]);
+    expect(resolved?.id).toBe('custom-sunfolk');
+    expect(resolved?.name).toBe('Sunfolk');
+    expect(resolved?.bonusEffect).toEqual({ type: 'extra_tech_speed', speedMultiplier: 1.15 });
+  });
+
+  it('normalizes legacy duplicate or off-pool city names on load', () => {
+    const state = createNewGame('rome', 'legacy-naming-seed');
+    state.cities['city-1'] = {
+      id: 'city-1',
+      name: 'Rome',
+      owner: 'player',
+      position: { q: 2, r: 2 },
+      population: 2,
+      food: 0,
+      foodNeeded: 15,
+      buildings: [],
+      productionQueue: [],
+      productionProgress: 0,
+      ownedTiles: [{ q: 2, r: 2 }],
+      grid: [[null]],
+      gridSize: 3,
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+    };
+    state.cities['city-2'] = {
+      ...state.cities['city-1'],
+      id: 'city-2',
+      position: { q: 4, r: 4 },
+    };
+
+    const loaded = migrateLegacyNamingState(JSON.parse(JSON.stringify(state)) as GameState);
+    const names = Object.values(loaded.cities).map(city => city.name);
+
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('preserves the older city name when duplicate legacy ids reach double digits', () => {
+    const state = createNewGame('rome', 'legacy-double-digit-seed');
+    state.cities = {
+      'city-2': {
+        id: 'city-2',
+        name: 'Rome',
+        owner: 'player',
+        position: { q: 2, r: 2 },
+        population: 2,
+        food: 0,
+        foodNeeded: 15,
+        buildings: [],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 2, r: 2 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+      'city-10': {
+        id: 'city-10',
+        name: 'Rome',
+        owner: 'player',
+        position: { q: 10, r: 10 },
+        population: 2,
+        food: 0,
+        foodNeeded: 15,
+        buildings: [],
+        productionQueue: [],
+        productionProgress: 0,
+        ownedTiles: [{ q: 10, r: 10 }],
+        grid: [[null]],
+        gridSize: 3,
+        unrestLevel: 0,
+        unrestTurns: 0,
+        spyUnrestBonus: 0,
+      },
+    };
+
+    const loaded = migrateLegacyNamingState(JSON.parse(JSON.stringify(state)) as GameState);
+
+    expect(loaded.cities['city-2'].name).toBe('Rome');
+    expect(loaded.cities['city-10'].name).not.toBe('Rome');
   });
 });

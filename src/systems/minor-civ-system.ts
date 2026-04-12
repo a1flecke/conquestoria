@@ -7,6 +7,7 @@ import { applyResearchBonus } from './tech-system';
 import { hexDistance, hexKey, hexNeighbors } from './hex-utils';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { foundCity } from './city-system';
+import { collectUsedCityNames } from './city-name-system';
 import { generateQuest, checkQuestCompletion, processQuestExpiry, awardQuestReward } from './quest-system';
 import { resolveCombat } from './combat-system';
 import { hasDiscoveredMinorCiv } from './discovery-system';
@@ -77,7 +78,12 @@ export function placeMinorCivs(
     placedPositions.push(pos);
 
     // Create city with archetype buildings
-    const city = foundCity(`mc-${def.id}`, pos, state.map);
+    const city = foundCity(`mc-${def.id}`, pos, state.map, {
+      civType: def.id,
+      namingPool: [def.name],
+      civName: def.name,
+      usedNames: new Set([...collectUsedCityNames(state), ...Object.values(result.cities).map(city => city.name)]),
+    });
     city.population = 3;
     const archetypeBuilding = def.archetype === 'militaristic' ? 'barracks'
       : def.archetype === 'mercantile' ? 'marketplace'
@@ -450,7 +456,12 @@ export function checkCampEvolution(
     const def = unusedDefs[0];
     const majorCivIds = Object.keys(state.civilizations);
 
-    const city = foundCity(`mc-${def.id}`, camp.position, state.map);
+    const city = foundCity(`mc-${def.id}`, camp.position, state.map, {
+      civType: def.id,
+      namingPool: [def.name],
+      civName: def.name,
+      usedNames: collectUsedCityNames(state),
+    });
     city.population = 3;
 
     const garrison = createUnit('warrior', `mc-${def.id}`, camp.position);

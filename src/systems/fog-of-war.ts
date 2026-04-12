@@ -2,7 +2,7 @@ import type { VisibilityMap, VisibilityState, HexCoord, Unit, GameMap, GameState
 import { hexKey, hexesInRange, hexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderVisionBonus } from './wonder-system';
-import { getCivDefinition } from './civ-definitions';
+import { resolveCivDefinition } from './civ-registry';
 
 export function createVisibilityMap(): VisibilityMap {
   return { tiles: {} };
@@ -150,7 +150,7 @@ export function isForestConcealedUnit(
     return false;
   }
 
-  const ownerBonus = getCivDefinition(state.civilizations[unit.owner]?.civType ?? '')?.bonusEffect;
+  const ownerBonus = resolveCivDefinition(state, state.civilizations[unit.owner]?.civType ?? '')?.bonusEffect;
   if (ownerBonus?.type !== 'forest_guardians' || !ownerBonus.concealmentInForest) {
     return false;
   }

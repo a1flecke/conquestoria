@@ -37,6 +37,38 @@ describe('foundCity', () => {
     expect(city.ownedTiles.length).toBeGreaterThanOrEqual(1);
     expect(city.ownedTiles).toContainEqual(landTile.coord);
   });
+
+  it('foundCity uses the naming system instead of the old shared CITY_NAMES pool', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const city = foundCity('player', { q: 2, r: 2 }, map, {
+      civType: 'rome',
+      namingPool: ['Rome', 'Ostia', 'Ravenna'],
+      usedNames: new Set(['Rome']),
+    });
+
+    expect(city.name).toBe('Ostia');
+  });
+
+  it('does not use the legacy cityNameIndex counter for name selection', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const used1 = new Set<string>();
+    const city1 = foundCity('player', { q: 0, r: 0 }, map, {
+      civType: 'rome',
+      namingPool: ['Rome', 'Ostia', 'Ravenna', 'Antium', 'Capua', 'Neapolis'],
+      usedNames: used1,
+    });
+    used1.add(city1.name);
+
+    const city2 = foundCity('player', { q: 2, r: 2 }, map, {
+      civType: 'rome',
+      namingPool: ['Rome', 'Ostia', 'Ravenna', 'Antium', 'Capua', 'Neapolis'],
+      usedNames: used1,
+    });
+
+    expect(city1.name).not.toBe(city2.name);
+    expect(['Rome', 'Ostia', 'Ravenna', 'Antium', 'Capua', 'Neapolis']).toContain(city1.name);
+    expect(['Rome', 'Ostia', 'Ravenna', 'Antium', 'Capua', 'Neapolis']).toContain(city2.name);
+  });
 });
 
 describe('getAvailableBuildings', () => {

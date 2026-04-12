@@ -33,7 +33,7 @@ import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/sy
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
-import { getCivDefinition } from '@/systems/civ-definitions';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
 import { processEspionageTurn } from '@/systems/espionage-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
@@ -57,7 +57,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
     const currentCivState = newState.civilizations[civId];
-    const civDef = getCivDefinition(civ.civType ?? '');
+    const civDef = resolveCivDefinition(newState, civ.civType ?? '');
     // Process cities: food, growth, production
     let totalScience = 0;
     let totalGold = 0;
@@ -458,7 +458,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       .map(id => newState.units[id])
       .filter(u => u && u.type !== 'settler' && u.type !== 'worker').length;
     if (checkIndependenceThreshold(vassalMilitary, overlordMilitary, vassalDip.vassalage.protectionScore)) {
-      const overlordDef = getCivDefinition(overlord.civType ?? '');
+      const overlordDef = resolveCivDefinition(newState, overlord.civType ?? '');
       const accepts = (overlordDef?.personality.diplomacyFocus ?? 0.5) > 0.5;
       const { vassalState, overlordState } = petitionIndependence(
         vassalDip, overlord.diplomacy, civId, overlordId, accepts,

@@ -83,6 +83,50 @@ function trimAndFilter(values: string[]): string[] {
   return values.map(value => value.trim()).filter(Boolean);
 }
 
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export function buildCustomCivId(name: string, existingDefinitions: CustomCivDefinition[]): string {
+  const baseSlug = slugify(name) || 'civilization';
+  const baseId = `custom-${baseSlug}`;
+  const existingIds = new Set(existingDefinitions.map(def => def.id));
+  if (!existingIds.has(baseId)) {
+    return baseId;
+  }
+  let suffix = 2;
+  while (existingIds.has(`${baseId}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${baseId}-${suffix}`;
+}
+
+export function mergeCustomCivDefinitions(...definitionSets: CustomCivDefinition[][]): CustomCivDefinition[] {
+  const merged = new Map<string, CustomCivDefinition>();
+  for (const definitions of definitionSets) {
+    for (const definition of definitions) {
+      merged.set(definition.id, definition);
+    }
+  }
+  return Array.from(merged.values());
+}
+
+export function customCivDefinitionsEqual(a: CustomCivDefinition, b: CustomCivDefinition): boolean {
+  return a.id === b.id
+    && a.name === b.name
+    && a.color === b.color
+    && a.leaderName === b.leaderName
+    && a.primaryTrait === b.primaryTrait
+    && a.temperamentTraits.length === b.temperamentTraits.length
+    && a.temperamentTraits.every((trait, index) => trait === b.temperamentTraits[index])
+    && a.cityNames.length === b.cityNames.length
+    && a.cityNames.every((name, index) => name === b.cityNames[index]);
+}
+
 export function validateCustomCivDefinition(definition: CustomCivDefinition): void {
   if (BUILT_IN_IDS.has(definition.id)) {
     throw new Error('Custom civilization ID collides with a built-in civilization');

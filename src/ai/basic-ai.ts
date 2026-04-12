@@ -2,11 +2,12 @@ import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
+import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
-import { getCivDefinition } from '@/systems/civ-definitions';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { chooseTech, chooseProduction } from './ai-strategy';
@@ -43,8 +44,8 @@ import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definit
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 
-function getPersonality(civType: string): PersonalityTraits {
-  const def = getCivDefinition(civType);
+function getPersonality(state: GameState, civType: string): PersonalityTraits {
+  const def = resolveCivDefinition(state, civType);
   return def?.personality ?? {
     traits: [],
     warLikelihood: 0.5,
@@ -181,7 +182,7 @@ function abandonLostLegendaryWonderRace(state: GameState, civId: string): Abando
 }
 
 function personalitySafe(state: GameState, civId: string): PersonalityTraits {
-  return getPersonality(state.civilizations[civId]?.civType ?? 'generic');
+  return getPersonality(state, state.civilizations[civId]?.civType ?? 'generic');
 }
 
 function chooseLegendaryWonderFallback(
@@ -200,7 +201,7 @@ function chooseLegendaryWonderFallback(
     return 'walls';
   }
 
-  const civDef = getCivDefinition(civilization.civType ?? '');
+  const civDef = resolveCivDefinition(state, civilization.civType ?? '');
   const yields = calculateCityYields(city, state.map, civDef?.bonusEffect);
   const availableBuildings = getAvailableBuildings(city, civilization.techState.completed).map(building => building.id);
   const atWar = civilization.diplomacy.atWarWith.length > 0;
@@ -268,7 +269,8 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   const civ = newState.civilizations[civId];
   if (!civ) return newState;
 
-  const personality = getPersonality(civ.civType ?? 'generic');
+  const personality = getPersonality(newState, civ.civType ?? 'generic');
+  const civDef = resolveCivDefinition(newState, civ.civType ?? '');
   const ownedBreakaway = Object.values(newState.civilizations).find(other =>
     other.breakaway?.originOwnerId === civId
     && other.breakaway.status === 'secession'
@@ -305,7 +307,12 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   for (const settler of settlers) {
     const tile = newState.map.tiles[hexKey(settler.position)];
     if (tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain' && tile.terrain !== 'coast') {
-      const city = foundCity(civId, settler.position, newState.map);
+      const city = foundCity(civId, settler.position, newState.map, {
+        civType: civ.civType,
+        namingPool: civDef?.cityNames,
+        civName: civDef?.name ?? civ.name,
+        usedNames: collectUsedCityNames(newState),
+      });
       newState.cities[city.id] = city;
       civ.cities.push(city.id);
       newState = initializeLegendaryWonderProjectsForCity(newState, civId, city.id);
@@ -350,8 +357,8 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           const atWar = civ.diplomacy?.atWarWith.includes(occupant.owner) ?? false;
           if (!isBarbarian && !isRebel && !atWar) continue;
           const seed = newState.turn * 16807 + unit.id.charCodeAt(0);
-          const attackerBonus = getCivDefinition(civ.civType ?? '')?.bonusEffect;
-          const defenderBonus = getCivDefinition(newState.civilizations[occupant.owner]?.civType ?? '')?.bonusEffect;
+          const attackerBonus = resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect;
+          const defenderBonus = resolveCivDefinition(newState, newState.civilizations[occupant.owner]?.civType ?? '')?.bonusEffect;
           const result = resolveCombat(
             unit,
             occupant,
@@ -684,7 +691,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
             newState.espionage![civId],
             spy.id,
             mission,
-            getCivDefinition(civ.civType ?? '')?.bonusEffect,
+            resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect,
           );
         }
         continue;
@@ -700,7 +707,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           newState.espionage![civId],
           spy.id,
           mission,
-          getCivDefinition(civ.civType ?? '')?.bonusEffect,
+          resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect,
           target.civId,
           target.cityId,
         );
@@ -771,7 +778,7 @@ export function chooseAiMission(
   const available = getAvailableMissions(civ.techState.completed);
   if (available.length === 0) return null;
 
-  const personality = getPersonality(civ.civType ?? 'generic');
+  const personality = getPersonality(state, civ.civType ?? 'generic');
   const traits = new Set(personality.traits);
 
   let preferredOrder: SpyMissionType[];
