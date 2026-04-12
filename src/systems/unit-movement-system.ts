@@ -2,8 +2,8 @@ import type { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord, VillageOutcomeType } from '@/core/types';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
-import { hexKey } from '@/systems/hex-utils';
-import { moveUnit, getMovementCost } from '@/systems/unit-system';
+import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
+import { moveUnit, getMovementCost, findPath } from '@/systems/unit-system';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 
@@ -60,8 +60,20 @@ export function executeUnitMove(
   }
 
   const from = { ...unit.position };
-  const tile = state.map.tiles[hexKey(to)];
-  const cost = tile ? getMovementCost(tile.terrain) : 1;
+
+  // Calculate total path cost
+  let cost = 0;
+  const path = findPath(from, to, state.map);
+  if (path) {
+    for (let i = 1; i < path.length; i++) { // Start from 1 to exclude the starting tile's cost
+      const tile = state.map.tiles[hexKey(path[i])];
+      cost += tile ? getMovementCost(tile.terrain) : 1;
+    }
+  } else {
+    // Fallback for single-step moves or if pathfinding fails unexpectedly
+    const tile = state.map.tiles[hexKey(to)];
+    cost = tile ? getMovementCost(tile.terrain) : 1;
+  }
   state.units[unitId] = moveUnit(unit, to, cost);
   options.bus?.emit('unit:move', { unitId, from, to });
 
