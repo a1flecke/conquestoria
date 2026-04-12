@@ -1349,6 +1349,28 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
 // Track which camps have already triggered a "spotted" notification this session
 const notifiedBarbarianCamps = new Set<string>();
 
+bus.on('combat:resolved', ({ result }) => {
+  // Only notify the current player when one of their units was involved in combat
+  // they may not have initiated (barbarian attacks during processTurn).
+  const cp = gameState.currentPlayer;
+  const attacker = gameState.units[result.attackerId];
+  const defender = gameState.units[result.defenderId];
+
+  // Only surface if the current player's unit was the defender (they couldn't see it coming)
+  if (!defender || defender.owner !== cp) return;
+
+  const attackerOwner = attacker?.owner ?? 'Unknown';
+  const attackerLabel = attackerOwner === 'barbarian' ? 'Barbarians' :
+    (gameState.civilizations[attackerOwner]?.name ?? attackerOwner);
+  const defenderType = UNIT_DEFINITIONS[defender.type]?.name ?? defender.type;
+
+  if (!result.defenderSurvived) {
+    showNotification(`${defenderType} was destroyed by ${attackerLabel}!`, 'warning');
+  } else {
+    showNotification(`${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`, 'warning');
+  }
+});
+
 bus.on('barbarian:spawned', ({ campId, unitId }) => {
   // Only notify the first time we see a raider from this camp
   if (notifiedBarbarianCamps.has(campId)) return;
