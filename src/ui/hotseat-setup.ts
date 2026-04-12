@@ -253,6 +253,7 @@ export function showHotSeatSetup(
         disabledCivs: chosenCivs,
         headerText: `${players[playerIdx].name}, choose your civilization`,
         civDefinitions,
+        primaryActionText: playerIdx + 1 < players.length ? 'Next Player' : 'Start Game',
       });
     });
   }
