@@ -31,3 +31,20 @@ paths:
 ## Production Bonuses
 - `applyProductionBonus()` must be called when processing city production
 - Civ-specific bonuses come from `getCivDefinition(civ.civType).bonusEffect`
+
+## Immutable Turn Processing
+- Systems that process a turn (faction, minor-civ, diplomacy, wonder tick, etc.) MUST return a new `GameState`; never mutate `state.cities[id] = ...`, `state.units[id] = ...`, `state.civilizations[id] = ...`, or nested fields on those objects.
+- Use spread-copy: `{ ...state, cities: { ...state.cities, [id]: { ...city, field: newValue } } }`.
+- If you need to chain updates, thread a `let nextState = state;` through the loop and reassign; do not reach into the input state.
+- Helpers that spawn entities (rebels, free units, barbarians) must return the new `units` map; never write through `state.units[...] = ...`.
+
+## Diplomacy Lifecycle
+- When a new civ is introduced mid-game (breakaway, rebellion statehood), every existing civ's `diplomacy.relationships` must get an entry for the new civ id, and the new civ's `relationships` must get an entry for every existing civ id.
+- When a civ is removed (reabsorbed, eliminated), every other civ's `diplomacy.relationships` AND `diplomacy.atWarWith` AND active treaties involving that id must be scrubbed in the same operation. Dangling ids cause silent lookup failures downstream.
+
+## No Dead Return Fields
+- If a function's return type declares a field, populate it with real data.
+- Do not return a placeholder (`0`, `null`, `''`) with a `// computed elsewhere` comment. Either compute it, or remove the field from the return type.
+
+## Spawn Occupancy
+- Any code that adds a unit to the map (rebel spawns, free unit rewards, barbarian raids, scenario seeding) MUST check `state.map.tiles[key]` exists AND no existing unit occupies that tile. If no free adjacent tile is found, skip the spawn — never stack.
