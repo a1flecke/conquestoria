@@ -61,7 +61,17 @@ const baseCustomCiv: CustomCivDefinition = {
   temperamentTraits: ['diplomatic', 'trader'],
 };
 
+function click(root: ParentNode, selector: string): void {
+  const element = root.querySelector(selector) as HTMLElement | null;
+  if (!element) throw new Error(`Missing element: ${selector}`);
+  element.click();
+}
+
 describe('campaign-setup', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
   it('requires map size, civ selection, opponent count, and campaign title before starting a solo game', () => {
     const container = document.createElement('div');
     const onStart = vi.fn();
@@ -359,5 +369,14 @@ describe('campaign-setup', () => {
 
     clickButtonWithText('Choose civilization');
     expect(document.body.textContent).toContain('Sunfolk');
+  });
+
+  it('shows a confirmation CTA when choosing a civilization inside solo setup', () => {
+    const container = document.createElement('div');
+
+    showCampaignSetup(container, { onStartSolo: () => {}, onCancel: () => {} });
+    click(container, '[data-action="choose-civ"]');
+
+    expect((container.querySelector('#civ-start') as HTMLButtonElement | null)?.textContent).toBe('Confirm Civilization');
   });
 });

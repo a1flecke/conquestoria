@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import type { CustomCivDefinition } from '@/core/types';
@@ -21,6 +22,30 @@ async function flushAsyncWork(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
   await new Promise(resolve => setTimeout(resolve, 0));
+}
+
+function click(selector: string): void {
+  const element = document.querySelector(selector) as HTMLElement | null;
+  if (!element) throw new Error(`Missing element: ${selector}`);
+  element.click();
+}
+
+function setInputValue(selector: string, value: string): void {
+  const input = document.querySelector(selector) as HTMLInputElement | null;
+  if (!input) throw new Error(`Missing input: ${selector}`);
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function chooseCiv(civId: string): void {
+  click(`.civ-card[data-civ-id="${civId}"]`);
+  click('#civ-start');
+}
+
+function primaryCivActionLabel(): string {
+  const button = document.querySelector('#civ-start') as HTMLButtonElement | null;
+  if (!button) throw new Error('Missing #civ-start button');
+  return button.textContent ?? '';
 }
 
 function fillAndSaveCustomCiv(name: string): void {
@@ -67,9 +92,9 @@ describe('hotseat-setup', () => {
       },
     );
 
-    (document.querySelector('[data-size="small"]') as HTMLElement).click();
-    (document.querySelector('[data-count="2"]') as HTMLElement).click();
-    (document.querySelector('#hs-names-next') as HTMLButtonElement).click();
+    click('[data-size="small"]');
+    click('[data-count="2"]');
+    click('#hs-names-next');
 
     expect(document.body.textContent).toContain('Sunfolk');
   });
@@ -87,22 +112,22 @@ describe('hotseat-setup', () => {
       },
     );
 
-    (document.querySelector('[data-size="small"]') as HTMLElement).click();
-    (document.querySelector('[data-count="2"]') as HTMLElement).click();
-    (document.querySelector('#hs-names-next') as HTMLButtonElement).click();
+    click('[data-size="small"]');
+    click('[data-count="2"]');
+    click('#hs-names-next');
 
     const civCard = Array.from(document.querySelectorAll('.civ-card'))
       .find(node => node.textContent?.includes('Sunfolk'));
     expect(civCard).toBeTruthy();
     civCard?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    (document.querySelector('#civ-start') as HTMLButtonElement)?.click();
-    (document.querySelector('#hs-civ-ready') as HTMLButtonElement).click();
+    click('#civ-start');
+    click('#hs-civ-ready');
 
     const secondPlayerCiv = Array.from(document.querySelectorAll('.civ-card'))
       .find(node => !node.textContent?.includes('Sunfolk'));
     expect(secondPlayerCiv).toBeTruthy();
     secondPlayerCiv?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+    click('#civ-start');
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
@@ -131,22 +156,22 @@ describe('hotseat-setup', () => {
       },
     );
 
-    (document.querySelector('[data-size="small"]') as HTMLElement).click();
-    (document.querySelector('[data-count="2"]') as HTMLElement).click();
-    (document.querySelector('#hs-names-next') as HTMLButtonElement).click();
+    click('[data-size="small"]');
+    click('[data-count="2"]');
+    click('#hs-names-next');
 
     const firstPlayerCiv = Array.from(document.querySelectorAll('.civ-card'))
       .find(node => node.textContent?.includes('Sunfolk'));
     expect(firstPlayerCiv).toBeTruthy();
     firstPlayerCiv?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+    click('#civ-start');
 
-    (document.querySelector('#hs-civ-ready') as HTMLButtonElement).click();
+    click('#hs-civ-ready');
     const secondPlayerCiv = Array.from(document.querySelectorAll('.civ-card'))
       .find(node => !node.textContent?.includes('Sunfolk'));
     expect(secondPlayerCiv).toBeTruthy();
     secondPlayerCiv?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+    click('#civ-start');
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
@@ -168,24 +193,24 @@ describe('hotseat-setup', () => {
       },
     );
 
-    (document.querySelector('[data-size="small"]') as HTMLElement).click();
-    (document.querySelector('[data-count="2"]') as HTMLElement).click();
-    (document.querySelector('#hs-names-next') as HTMLButtonElement).click();
-    (document.querySelector('[data-action="create-custom-civ"]') as HTMLButtonElement).click();
+    click('[data-size="small"]');
+    click('[data-count="2"]');
+    click('#hs-names-next');
+    click('[data-action="create-custom-civ"]');
     fillAndSaveCustomCiv('Sunfolk');
     await flushAsyncWork();
 
     expect(document.querySelectorAll('#civ-select')).toHaveLength(1);
-    (document.querySelector('[data-action="create-custom-civ"]') as HTMLButtonElement).click();
+    click('[data-action="create-custom-civ"]');
     expect(document.querySelectorAll('#custom-civ-panel')).toHaveLength(1);
-    (document.querySelector('[data-action="cancel-custom-civ"]') as HTMLButtonElement).click();
+    click('[data-action="cancel-custom-civ"]');
     expect(document.querySelectorAll('#custom-civ-panel')).toHaveLength(0);
 
     const civCard = Array.from(document.querySelectorAll('.civ-card'))
       .find(node => node.textContent?.includes('Sunfolk'));
     expect(civCard).toBeTruthy();
     civCard?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+    click('#civ-start');
 
     expect(document.querySelector('#hs-civ-ready')).toBeTruthy();
     expect(onComplete).not.toHaveBeenCalled();
@@ -208,10 +233,10 @@ describe('hotseat-setup', () => {
       },
     );
 
-    (document.querySelector('[data-size="small"]') as HTMLElement).click();
-    (document.querySelector('[data-count="2"]') as HTMLElement).click();
-    (document.querySelector('#hs-names-next') as HTMLButtonElement).click();
-    (document.querySelector('[data-action="create-custom-civ"]') as HTMLButtonElement).click();
+    click('[data-size="small"]');
+    click('[data-count="2"]');
+    click('#hs-names-next');
+    click('[data-action="create-custom-civ"]');
     fillAndSaveCustomCiv('Sunfolk');
     await flushAsyncWork();
 
@@ -258,10 +283,10 @@ describe('hotseat-setup', () => {
       },
     );
 
-    (document.querySelector('[data-size="small"]') as HTMLElement).click();
-    (document.querySelector('[data-count="2"]') as HTMLElement).click();
-    (document.querySelector('#hs-names-next') as HTMLButtonElement).click();
-    (document.querySelector('[data-action="create-custom-civ"]') as HTMLButtonElement).click();
+    click('[data-size="small"]');
+    click('[data-count="2"]');
+    click('#hs-names-next');
+    click('[data-action="create-custom-civ"]');
     fillAndSaveCustomCiv('Sunfolk');
     await flushAsyncWork();
 
@@ -307,10 +332,10 @@ describe('hotseat-setup', () => {
       },
     );
 
-    (document.querySelector('[data-size="small"]') as HTMLElement).click();
-    (document.querySelector('[data-count="2"]') as HTMLElement).click();
-    (document.querySelector('#hs-names-next') as HTMLButtonElement).click();
-    (document.querySelector('[data-action="create-custom-civ"]') as HTMLButtonElement).click();
+    click('[data-size="small"]');
+    click('[data-count="2"]');
+    click('#hs-names-next');
+    click('[data-action="create-custom-civ"]');
     fillAndSaveCustomCiv('Moonfolk');
     await flushAsyncWork();
 
@@ -325,5 +350,92 @@ describe('hotseat-setup', () => {
         name: 'Moonfolk',
       }),
     ]));
+  });
+
+  it('does not finish after the first human chooses a civilization', () => {
+    const onComplete = vi.fn();
+
+    showHotSeatSetup(document.body, {
+      onComplete,
+      onCancel: () => {},
+    });
+
+    click('.map-size-card[data-size="small"]');
+    click('.count-card[data-count="2"]');
+    setInputValue('.player-name-input[data-idx="0"]', 'Alice');
+    setInputValue('.player-name-input[data-idx="1"]', 'Bob');
+    click('#hs-names-next');
+
+    chooseCiv('egypt');
+
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('Pass the device to');
+    expect(document.body.textContent).toContain('Bob');
+  });
+
+  it('lets the second human choose a different civilization and completes with both picks', () => {
+    const onComplete = vi.fn();
+
+    showHotSeatSetup(document.body, {
+      onComplete,
+      onCancel: () => {},
+    });
+
+    click('.map-size-card[data-size="small"]');
+    click('.count-card[data-count="2"]');
+    setInputValue('.player-name-input[data-idx="0"]', 'Alice');
+    setInputValue('.player-name-input[data-idx="1"]', 'Bob');
+    click('#hs-names-next');
+
+    chooseCiv('egypt');
+    click('#hs-civ-ready');
+
+    expect(document.body.textContent).toContain('Bob, choose your civilization');
+    expect((document.querySelector('.civ-card[data-civ-id="egypt"]') as HTMLElement).style.cssText).toContain('pointer-events: none;');
+
+    chooseCiv('rome');
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    const config = onComplete.mock.calls[0][0];
+    const humanPlayers = config.players.filter((player: { isHuman: boolean }) => player.isHuman);
+    expect(humanPlayers).toEqual([
+      expect.objectContaining({ name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true }),
+      expect.objectContaining({ name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true }),
+    ]);
+  });
+
+  it('shows Next Player as the civ-pick CTA for non-final human players', () => {
+    showHotSeatSetup(document.body, {
+      onComplete: () => {},
+      onCancel: () => {},
+    });
+
+    click('.map-size-card[data-size="small"]');
+    click('.count-card[data-count="2"]');
+    setInputValue('.player-name-input[data-idx="0"]', 'Alice');
+    setInputValue('.player-name-input[data-idx="1"]', 'Bob');
+    click('#hs-names-next');
+
+    expect(document.body.textContent).toContain('Alice, choose your civilization');
+    expect(primaryCivActionLabel()).toBe('Next Player');
+  });
+
+  it('shows Start Game as the civ-pick CTA for the final human player', () => {
+    showHotSeatSetup(document.body, {
+      onComplete: () => {},
+      onCancel: () => {},
+    });
+
+    click('.map-size-card[data-size="small"]');
+    click('.count-card[data-count="2"]');
+    setInputValue('.player-name-input[data-idx="0"]', 'Alice');
+    setInputValue('.player-name-input[data-idx="1"]', 'Bob');
+    click('#hs-names-next');
+
+    chooseCiv('egypt');
+    click('#hs-civ-ready');
+
+    expect(document.body.textContent).toContain('Bob, choose your civilization');
+    expect(primaryCivActionLabel()).toBe('Start Game');
   });
 });

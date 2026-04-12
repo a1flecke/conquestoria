@@ -11,6 +11,7 @@ export interface CivSelectOptions {
   disabledCivs?: string[];
   headerText?: string;
   civDefinitions?: CivDefinition[];
+  primaryActionText?: string;
 }
 
 function createButton(label: string): HTMLButtonElement {
@@ -35,6 +36,7 @@ export function createCivSelectPanel(
   const disabledCivs = options?.disabledCivs ?? [];
   const headerText = options?.headerText ?? 'Choose Your Civilization';
   const civDefinitions = options?.civDefinitions ?? CIV_DEFINITIONS;
+  const primaryActionText = options?.primaryActionText ?? 'Start Game';
   const panel = document.createElement('div');
   panel.id = 'civ-select';
   panel.style.position = 'absolute';
@@ -170,7 +172,7 @@ export function createCivSelectPanel(
     actionBar.appendChild(createCustomButton);
   }
 
-  const startButton = createButton('Start Game');
+  const startButton = createButton(primaryActionText);
   startButton.id = 'civ-start';
   startButton.style.background = 'rgba(232,193,112,0.3)';
   startButton.style.border = '2px solid #e8c170';

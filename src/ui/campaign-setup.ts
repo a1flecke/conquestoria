@@ -119,6 +119,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
         },
       }, {
         civDefinitions,
+        primaryActionText: 'Confirm Civilization',
       });
     });
   };
