@@ -50,3 +50,23 @@ paths:
 - Prefer one shared system helper for “reachable opportunities” instead of duplicating eligibility filters in each panel
 - Recommendation sections may be selective. Browse/action sections may not become inaccessible because of recommendation ranking.
 - Persistent intel UI must render from viewer-safe snapshots, not from the richer source object if the player did not earn that detail.
+
+## Cities[0] Is Never The Answer (Extended)
+The "cycle through all cities" rule applies to EVERY surface that gives city-scoped advice, not just the main city panel. This includes:
+- Advisor triggers (`src/ui/advisor-system.ts`)
+- Council agenda cards (`src/systems/council-system.ts`)
+- Tutorial hints (`src/ui/tutorial.ts`)
+- Turn summaries and HUD chips
+
+Use `Object.values(state.cities).filter(c => c.owner === civId)` and then pick the relevant city (hungriest, most under-garrisoned, etc.) — never `civ.cities[0]`.
+
+Exceptions: AI internal decisions that legitimately mean "capital" (e.g., `src/ai/basic-ai.ts` capital-distance heuristics, `src/systems/faction-system.ts` unrest-from-distance). Those may use `cities[0]` with a `// capital = cities[0] by convention` comment, so the hook script can tell intent from accident.
+
+## Privacy And Discovery
+- `getMinorCivPresentationForPlayer`, `getQuest*ForPlayer`, `getLegendaryWonderIntel*`, and any other `*ForPlayer` helper must mask EVERY player-visible field — name, color, icon, flavor text — behind the `known` / `discovered` check. Returning the real color while masking the name is a leak.
+- UI code must prefer `*ForPlayer` helpers; never read `state.minorCivs[id].color` etc. directly from a viewer-side render path.
+
+## No Silent Destructive UI
+- Never silently replace a player-visible list (production queue, research queue, unit stack, trade route roster) when the player takes an action.
+- If starting a new activity would discard scheduled work, preserve it (prepend/append the new item, keep the tail) or prompt for explicit confirmation.
+- Regression tests must assert that pre-existing queue entries survive the operation.

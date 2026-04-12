@@ -9,6 +9,19 @@ Civilization-building strategy game. TypeScript + Canvas 2D + Vite.
 - `yarn test` — Run tests with vitest
 - `yarn test:watch` — Run tests in watch mode
 
+## Rules Index
+
+Detailed rules live in `.claude/rules/` and auto-apply based on the files you edit:
+- `.claude/rules/game-systems.md` — RNG, events-vs-state, diplomacy, unit types, **immutable turn processing**, **diplomacy lifecycle**, **no dead return fields**, **spawn occupancy**
+- `.claude/rules/ui-panels.md` — hot-seat `currentPlayer`, **cities[0] is never the answer**, **privacy and discovery**, **no silent destructive UI**, XSS-safe rendering
+- `.claude/rules/strategy-game-mechanics.md` — combat, tech gating, victory
+- `.claude/rules/end-to-end-wiring.md` — computed-data-must-render
+- `.claude/rules/spec-fidelity.md` — spec conjunctions and gating preservation
+
+A PostToolUse hook (`.claude/hooks/check-src-edit.sh`) greps every Write/Edit under `src/` for known rule violations and returns feedback in the same turn.
+
+Before pushing or merging, run the `code-review:code-review` skill. A PreToolUse hook will remind you if the branch is ahead of `origin/main`.
+
 ## Architecture
 - Event-driven: systems communicate via EventBus, not direct imports
 - All game state is a single serializable plain object (no class instances)
