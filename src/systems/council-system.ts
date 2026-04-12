@@ -1,7 +1,7 @@
 import type { CouncilAgenda, CouncilCard, CouncilInterrupt, CouncilTalkLevel, GameState } from '@/core/types';
 import { getQuestDescriptionForPlayer, getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
-import { getCivDefinition } from '@/systems/civ-definitions';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import {
   getReachableLegendaryWonderProjects,
@@ -97,7 +97,7 @@ function getWonderRecommendationCards(state: GameState, civId: string): CouncilC
 
 export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgenda {
   const primaryCity = getPrimaryCity(state, civId);
-  const civBonus = getCivDefinition(state.civilizations[civId]?.civType ?? '')?.bonusEffect;
+  const civBonus = resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect;
   const doNow: CouncilCard[] = [
     {
       id: 'survey-frontier',

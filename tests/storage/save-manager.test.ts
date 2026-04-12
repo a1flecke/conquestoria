@@ -287,6 +287,27 @@ describe('save-manager autosave listing', () => {
     expect(loaded?.customCivilizations?.[0].name).toBe(customCiv.name);
   });
 
+  it('preserves same-name custom civilizations with distinct ids through settings save/load', async () => {
+    const secondSunfolk: CustomCivDefinition = {
+      ...customCiv,
+      id: 'custom-sunfolk-2',
+    };
+    const baseSettings = createDefaultSettings('small', (await loadSettings()) ?? {});
+
+    await saveSettings({ ...baseSettings, customCivilizations: [customCiv] });
+    await saveSettings({
+      ...baseSettings,
+      customCivilizations: [customCiv, secondSunfolk],
+    });
+
+    const loaded = await loadSettings();
+
+    expect(loaded?.customCivilizations).toEqual([customCiv, secondSunfolk]);
+    expect(new Set(loaded?.customCivilizations?.map(def => def.id))).toEqual(
+      new Set(['custom-sunfolk', 'custom-sunfolk-2']),
+    );
+  });
+
   it('retires the legacy autosave only after a loadable real autosave exists', async () => {
     dbState.set('autosave', {
       turn: 3,

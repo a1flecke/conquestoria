@@ -14,7 +14,7 @@ import {
   REABSORB_RELATIONSHIP_MINIMUM,
   tryReabsorbBreakaway,
 } from '@/systems/breakaway-system';
-import { getCivDefinition } from '@/systems/civ-definitions';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 
 export function createDiplomacyState(
   allCivIds: string[],
@@ -350,8 +350,8 @@ export function applyDiplomaticAction(
     case 'trade_agreement':
     case 'open_borders':
     case 'alliance': {
-      const actorTreatyBonus = getCivDefinition(actor.civType ?? '')?.bonusEffect;
-      const targetTreatyBonus = getCivDefinition(target.civType ?? '')?.bonusEffect;
+      const actorTreatyBonus = resolveCivDefinition(state, actor.civType ?? '')?.bonusEffect;
+      const targetTreatyBonus = resolveCivDefinition(state, target.civType ?? '')?.bonusEffect;
       const relationshipBonus =
         (actorTreatyBonus?.type === 'allied_kingdoms' ? actorTreatyBonus.treatyRelationshipBonus : 0) +
         (targetTreatyBonus?.type === 'allied_kingdoms' ? targetTreatyBonus.treatyRelationshipBonus : 0);

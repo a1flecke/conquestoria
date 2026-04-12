@@ -1,5 +1,15 @@
 import { createNewGame, createHotSeatGame, MAP_DIMENSIONS } from '@/core/game-state';
-import type { HotSeatConfig } from '@/core/types';
+import type { CustomCivDefinition, HotSeatConfig } from '@/core/types';
+
+const customCiv: CustomCivDefinition = {
+  id: 'custom-sunfolk',
+  name: 'Sunfolk',
+  color: '#d9a441',
+  leaderName: 'Aurelia',
+  cityNames: ['Solara', 'Embergate', 'Sunspire', 'Goldmere', 'Dawnwatch', 'Auric'],
+  primaryTrait: 'scholarly',
+  temperamentTraits: ['diplomatic', 'trader'],
+};
 
 describe('createNewGame', () => {
   it('creates a valid initial game state', () => {
@@ -98,6 +108,36 @@ describe('createNewGame', () => {
     });
 
     expect(state.settings.councilTalkLevel).toBe('quiet');
+  });
+
+  it('createNewGame can start from a saved custom civ registry', () => {
+    const state = createNewGame({
+      civType: 'custom-sunfolk',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Custom Civ Test',
+      customCivilizations: [customCiv],
+    });
+
+    expect(state.civilizations.player.civType).toBe('custom-sunfolk');
+    expect(state.civilizations.player.name).toBe('Sunfolk');
+  });
+
+  it('AI opponents can be assigned Wakanda or Avalon from the playable civ pool', () => {
+    const aiCivTypes = new Set<string>();
+    for (let i = 0; i < 20; i++) {
+      const state = createNewGame({
+        civType: 'rome',
+        mapSize: 'small',
+        opponentCount: 3,
+        gameTitle: `AI Pool Test ${i}`,
+        seed: `ai-pool-${i}`,
+      });
+      for (const [civId, civ] of Object.entries(state.civilizations)) {
+        if (civId !== 'player') aiCivTypes.add(civ.civType);
+      }
+    }
+    expect(aiCivTypes.has('wakanda') || aiCivTypes.has('avalon')).toBe(true);
   });
 });
 

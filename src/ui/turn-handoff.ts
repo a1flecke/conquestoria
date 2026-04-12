@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { generateSummary, clearEventsForPlayer } from '@/core/hotseat-events';
-import { getCivDefinition } from '@/systems/civ-definitions';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 
 interface HandoffCallbacks {
   onReady: () => void;
@@ -17,7 +17,7 @@ export function showTurnHandoff(
   if (existing) existing.remove();
 
   const civ = state.civilizations[nextCivId];
-  const civDef = getCivDefinition(civ?.civType ?? '');
+  const civDef = resolveCivDefinition(state, civ?.civType ?? '');
   const color = civ?.color ?? civDef?.color ?? '#e8c170';
 
   const overlay = document.createElement('div');

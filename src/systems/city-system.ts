@@ -1,15 +1,16 @@
 import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect } from '@/core/types';
 import { hexKey, hexesInRange } from './hex-utils';
+import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 
 let nextCityId = 1;
-let cityNameIndex = 0;
+export const CITY_NAMES = DEFAULT_CITY_NAMES;
 
-export const CITY_NAMES = [
-  'Alexandria', 'Thebes', 'Memphis', 'Carthage', 'Athens',
-  'Sparta', 'Rome', 'Babylon', 'Persepolis', 'Chang\'an',
-  'Kyoto', 'Delhi', 'Cusco', 'Tenochtitlan', 'London',
-  'Paris', 'Constantinople', 'Samarkand', 'Timbuktu', 'Angkor',
-];
+export interface FoundCityOptions {
+  civType?: string;
+  namingPool?: string[];
+  usedNames?: Set<string>;
+  civName?: string;
+}
 
 export const BUILDINGS: Record<string, Building> = {
   // Food
@@ -58,9 +59,11 @@ export const TRAINABLE_UNITS: Array<{ type: UnitType; name: string; cost: number
   { type: 'trireme', name: 'Trireme', cost: 70, techRequired: 'triremes' },
 ];
 
-export function foundCity(owner: string, position: HexCoord, map: GameMap): City {
-  const name = CITY_NAMES[cityNameIndex % CITY_NAMES.length];
-  cityNameIndex++;
+export function foundCity(owner: string, position: HexCoord, map: GameMap, options: FoundCityOptions = {}): City {
+  const name = drawNextCityName(options.civType ?? owner, options.usedNames ?? new Set<string>(), {
+    namingPool: options.namingPool,
+    civName: options.civName,
+  });
 
   // Claim nearby land tiles (radius 1)
   const nearby = hexesInRange(position, 1);
@@ -97,7 +100,6 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap): City
 
 export function resetCityId(): void {
   nextCityId = 1;
-  cityNameIndex = 0;
 }
 
 export function getAvailableBuildings(city: City, completedTechs: string[]): Building[] {

@@ -1,13 +1,30 @@
+import type { CivDefinition } from '@/core/types';
 import { CIV_DEFINITIONS } from '@/systems/civ-definitions';
 import { createRng } from '@/systems/map-generator';
 
 export interface CivSelectCallbacks {
   onSelect: (civId: string) => void;
+  onCreateCustomCiv?: () => void;
 }
 
 export interface CivSelectOptions {
   disabledCivs?: string[];
   headerText?: string;
+  civDefinitions?: CivDefinition[];
+}
+
+function createButton(label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.style.minHeight = '44px';
+  button.style.minWidth = '44px';
+  button.style.padding = '10px 20px';
+  button.style.borderRadius = '8px';
+  button.style.border = '1px solid rgba(255,255,255,0.2)';
+  button.style.cursor = 'pointer';
+  button.style.fontSize = '13px';
+  return button;
 }
 
 export function createCivSelectPanel(
@@ -17,98 +34,172 @@ export function createCivSelectPanel(
 ): HTMLElement {
   const disabledCivs = options?.disabledCivs ?? [];
   const headerText = options?.headerText ?? 'Choose Your Civilization';
+  const civDefinitions = options?.civDefinitions ?? CIV_DEFINITIONS;
   const panel = document.createElement('div');
   panel.id = 'civ-select';
-  panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.98);z-index:50;overflow-y:auto;padding:16px;display:flex;flex-direction:column;align-items:center;';
+  panel.style.position = 'absolute';
+  panel.style.top = '0';
+  panel.style.left = '0';
+  panel.style.right = '0';
+  panel.style.bottom = '0';
+  panel.style.background = 'rgba(15,15,25,0.98)';
+  panel.style.zIndex = '50';
+  panel.style.overflowY = 'auto';
+  panel.style.padding = '16px';
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  panel.style.alignItems = 'center';
 
   let selectedCiv: string | null = null;
 
-  let html = `
-    <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;" data-text="header"></h1>
-    <p style="font-size:13px;opacity:0.6;margin-bottom:24px;text-align:center;">Each civilization has a unique bonus that shapes your strategy.</p>
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:400px;width:100%;">
-  `;
+  const header = document.createElement('h1');
+  header.dataset.text = 'header';
+  header.textContent = headerText;
+  header.style.fontSize = '22px';
+  header.style.color = '#e8c170';
+  header.style.margin = '24px 0 8px';
+  header.style.textAlign = 'center';
+  panel.appendChild(header);
 
-  for (const civ of CIV_DEFINITIONS) {
+  const subhead = document.createElement('p');
+  subhead.textContent = 'Each civilization has a unique bonus that shapes your strategy.';
+  subhead.style.fontSize = '13px';
+  subhead.style.opacity = '0.6';
+  subhead.style.marginBottom = '24px';
+  subhead.style.textAlign = 'center';
+  panel.appendChild(subhead);
+
+  const grid = document.createElement('div');
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = 'repeat(2,1fr)';
+  grid.style.gap = '12px';
+  grid.style.maxWidth = '400px';
+  grid.style.width = '100%';
+  panel.appendChild(grid);
+
+  const cards: HTMLElement[] = [];
+  for (const civ of civDefinitions) {
+    const card = document.createElement('div');
+    card.className = 'civ-card';
+    card.dataset.civId = civ.id;
+    card.style.background = 'rgba(255,255,255,0.08)';
+    card.style.border = '2px solid transparent';
+    card.style.borderRadius = '12px';
+    card.style.padding = '14px';
+    card.style.cursor = 'pointer';
+    card.style.transition = 'border-color 0.2s';
+    card.style.minHeight = '44px';
+    card.style.minWidth = '44px';
+
     const isDisabled = disabledCivs.includes(civ.id);
-    const disabledStyle = isDisabled ? 'opacity:0.3;pointer-events:none;' : '';
-    html += `
-      <div class="civ-card" data-civ-id="${civ.id}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:14px;cursor:pointer;transition:border-color 0.2s;${disabledStyle}">
-        <div style="width:100%;height:4px;background:${civ.color};border-radius:2px;margin-bottom:10px;"></div>
-        <div style="font-weight:bold;font-size:15px;color:${civ.color};" data-civ-name="${civ.id}"></div>
-        <div style="font-size:12px;color:#e8c170;margin-top:4px;" data-civ-bonus-name="${civ.id}"></div>
-        <div style="font-size:11px;opacity:0.7;margin-top:4px;" data-civ-bonus-desc="${civ.id}"></div>
-        <div style="font-size:10px;opacity:0.4;margin-top:6px;" data-civ-traits="${civ.id}"></div>
-      </div>
-    `;
-  }
+    if (isDisabled) {
+      card.style.opacity = '0.3';
+      card.style.pointerEvents = 'none';
+    }
 
-  html += '</div>';
-  html += `
-    <div style="margin-top:20px;display:flex;gap:12px;">
-      <button id="civ-random" style="padding:10px 20px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;cursor:pointer;font-size:13px;">Random</button>
-      <button id="civ-start" style="padding:10px 24px;background:rgba(232,193,112,0.3);border:2px solid #e8c170;border-radius:8px;color:#e8c170;cursor:pointer;font-size:14px;font-weight:bold;opacity:0.4;" disabled>Start Game</button>
-    </div>
-  `;
+    const accent = document.createElement('div');
+    accent.style.width = '100%';
+    accent.style.height = '4px';
+    accent.style.background = civ.color;
+    accent.style.borderRadius = '2px';
+    accent.style.marginBottom = '10px';
+    card.appendChild(accent);
 
-  panel.innerHTML = html;
+    const name = document.createElement('div');
+    name.textContent = civ.name;
+    name.style.fontWeight = 'bold';
+    name.style.fontSize = '15px';
+    name.style.color = civ.color;
+    card.appendChild(name);
 
-  // Safely inject text content to avoid XSS
-  const headerEl = panel.querySelector('[data-text="header"]');
-  if (headerEl) headerEl.textContent = headerText;
+    const bonusName = document.createElement('div');
+    bonusName.textContent = civ.bonusName;
+    bonusName.style.fontSize = '12px';
+    bonusName.style.color = '#e8c170';
+    bonusName.style.marginTop = '4px';
+    card.appendChild(bonusName);
 
-  for (const civ of CIV_DEFINITIONS) {
-    const nameEl = panel.querySelector(`[data-civ-name="${civ.id}"]`);
-    if (nameEl) nameEl.textContent = civ.name;
-    const bonusNameEl = panel.querySelector(`[data-civ-bonus-name="${civ.id}"]`);
-    if (bonusNameEl) bonusNameEl.textContent = civ.bonusName;
-    const bonusDescEl = panel.querySelector(`[data-civ-bonus-desc="${civ.id}"]`);
-    if (bonusDescEl) bonusDescEl.textContent = civ.bonusDescription;
-    const traitsEl = panel.querySelector(`[data-civ-traits="${civ.id}"]`);
-    if (traitsEl) traitsEl.textContent = civ.personality.traits.join(', ');
-  }
-  container.appendChild(panel);
+    const bonusDescription = document.createElement('div');
+    bonusDescription.textContent = civ.bonusDescription;
+    bonusDescription.style.fontSize = '11px';
+    bonusDescription.style.opacity = '0.7';
+    bonusDescription.style.marginTop = '4px';
+    card.appendChild(bonusDescription);
 
-  const cards = panel.querySelectorAll('.civ-card');
-  const startBtn = panel.querySelector('#civ-start') as HTMLButtonElement;
+    const traits = document.createElement('div');
+    traits.textContent = civ.personality.traits.join(', ');
+    traits.style.fontSize = '10px';
+    traits.style.opacity = '0.4';
+    traits.style.marginTop = '6px';
+    card.appendChild(traits);
 
-  cards.forEach(card => {
     card.addEventListener('click', () => {
-      const civId = (card as HTMLElement).dataset.civId!;
-      selectedCiv = civId;
-
-      cards.forEach(c => {
-        (c as HTMLElement).style.borderColor = 'transparent';
-      });
-      (card as HTMLElement).style.borderColor = '#e8c170';
-
-      startBtn.disabled = false;
-      startBtn.style.opacity = '1';
+      selectedCiv = civ.id;
+      for (const otherCard of cards) {
+        otherCard.style.borderColor = 'transparent';
+      }
+      card.style.borderColor = '#e8c170';
+      startButton.disabled = false;
+      startButton.style.opacity = '1';
     });
-  });
 
-  panel.querySelector('#civ-random')?.addEventListener('click', () => {
-    const available = CIV_DEFINITIONS.filter(c => !disabledCivs.includes(c.id));
+    cards.push(card);
+    grid.appendChild(card);
+  }
+
+  const actionBar = document.createElement('div');
+  actionBar.style.marginTop = '20px';
+  actionBar.style.display = 'flex';
+  actionBar.style.gap = '12px';
+  actionBar.style.flexWrap = 'wrap';
+  actionBar.style.justifyContent = 'center';
+  panel.appendChild(actionBar);
+
+  const randomButton = createButton('Random');
+  randomButton.id = 'civ-random';
+  randomButton.style.background = 'rgba(255,255,255,0.1)';
+  randomButton.style.color = 'white';
+  actionBar.appendChild(randomButton);
+
+  if (callbacks.onCreateCustomCiv) {
+    const createCustomButton = createButton('Create Custom Civilization');
+    createCustomButton.dataset.action = 'create-custom-civ';
+    createCustomButton.style.background = 'rgba(74,144,217,0.2)';
+    createCustomButton.style.color = '#dbeafe';
+    createCustomButton.addEventListener('click', () => callbacks.onCreateCustomCiv?.());
+    actionBar.appendChild(createCustomButton);
+  }
+
+  const startButton = createButton('Start Game');
+  startButton.id = 'civ-start';
+  startButton.style.background = 'rgba(232,193,112,0.3)';
+  startButton.style.border = '2px solid #e8c170';
+  startButton.style.color = '#e8c170';
+  startButton.style.fontSize = '14px';
+  startButton.style.fontWeight = 'bold';
+  startButton.style.opacity = '0.4';
+  startButton.disabled = true;
+  actionBar.appendChild(startButton);
+
+  randomButton.addEventListener('click', () => {
+    const available = civDefinitions.filter(civ => !disabledCivs.includes(civ.id));
     if (available.length === 0) return;
     const pickRng = createRng(`civ-pick-${Date.now()}`);
     const randomIdx = Math.floor(pickRng() * available.length);
     selectedCiv = available[randomIdx].id;
-
-    cards.forEach(c => {
-      const id = (c as HTMLElement).dataset.civId;
-      (c as HTMLElement).style.borderColor = id === selectedCiv ? '#e8c170' : 'transparent';
-    });
-
-    startBtn.disabled = false;
-    startBtn.style.opacity = '1';
-  });
-
-  startBtn.addEventListener('click', () => {
-    if (selectedCiv) {
-      panel.remove();
-      callbacks.onSelect(selectedCiv);
+    for (const card of cards) {
+      card.style.borderColor = card.dataset.civId === selectedCiv ? '#e8c170' : 'transparent';
     }
+    startButton.disabled = false;
+    startButton.style.opacity = '1';
   });
 
+  startButton.addEventListener('click', () => {
+    if (!selectedCiv) return;
+    panel.remove();
+    callbacks.onSelect(selectedCiv);
+  });
+
+  container.appendChild(panel);
   return panel;
 }

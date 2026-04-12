@@ -7,6 +7,13 @@ import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-syst
 import { spawnBarbarianCamp, resetCampId } from '@/systems/barbarian-system';
 import { resetCityId } from '@/systems/city-system';
 import { _resetSpyIdCounter } from '@/systems/espionage-system';
+import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
+import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createMarketplaceState } from '@/systems/trade-system';
+import { placeWonders } from '@/systems/wonder-system';
+import { placeVillages } from '@/systems/village-system';
+import { placeMinorCivs } from '@/systems/minor-civ-system';
+import { initializeEspionage } from '@/systems/espionage-system';
 
 function hashSeed(s: string): number {
   let h = 0;
@@ -15,13 +22,6 @@ function hashSeed(s: string): number {
   }
   return Math.abs(h) || 1;
 }
-import { CIV_DEFINITIONS, getCivDefinition } from '@/systems/civ-definitions';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
-import { createMarketplaceState } from '@/systems/trade-system';
-import { placeWonders } from '@/systems/wonder-system';
-import { placeVillages } from '@/systems/village-system';
-import { placeMinorCivs } from '@/systems/minor-civ-system';
-import { initializeEspionage } from '@/systems/espionage-system';
 
 export const MAP_DIMENSIONS = {
   small: { width: 30, height: 30, maxPlayers: 3 },
@@ -59,8 +59,8 @@ function createGameId(seed: string): string {
   return `game-${hashSeed(seed)}-${Date.now()}`;
 }
 
-function getDiplomacyStartBonus(civType: string | undefined): number {
-  const civDef = getCivDefinition(civType ?? '');
+function getDiplomacyStartBonus(settings: GameSettings, civType: string | undefined): number {
+  const civDef = resolveCivDefinition({ settings }, civType ?? '');
   return civDef?.bonusEffect.type === 'diplomacy_start_bonus'
     ? (civDef.bonusEffect as { type: 'diplomacy_start_bonus'; bonus: number }).bonus
     : 0;
@@ -80,6 +80,7 @@ function normalizeSoloSetupConfig(
       opponentCount: arg1.opponentCount,
       gameTitle: arg1.gameTitle,
       settingsOverrides: arg1.settingsOverrides,
+      customCivilizations: arg1.customCivilizations,
     };
   }
 
@@ -119,8 +120,12 @@ export function createNewGame(
   placeWonders(map, startPositions, actualSize, gameSeed);
   const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
 
-  const playerCivDef = getCivDefinition(config.civType ?? '');
-  const aiCivPool = [...CIV_DEFINITIONS.filter(c => c.id !== (config.civType ?? ''))];
+  const settings = createDefaultSettings(actualSize, {
+    ...config.settingsOverrides,
+    customCivilizations: config.customCivilizations,
+  });
+  const playerCivDef = resolveCivDefinition({ settings }, config.civType ?? '');
+  const aiCivPool = [...getPlayableCivDefinitions(settings).filter(c => c.id !== (config.civType ?? ''))];
   const civSelectRng = createRng(gameSeed + '-civ-select');
   for (let i = aiCivPool.length - 1; i > 0; i--) {
     const j = Math.floor(civSelectRng() * (i + 1));
@@ -130,7 +135,7 @@ export function createNewGame(
 
   const allCivIds = ['player', ...aiCivDefs.map((_, index) => `ai-${index + 1}`)];
 
-  const playerStartBonus = getDiplomacyStartBonus(config.civType);
+  const playerStartBonus = getDiplomacyStartBonus(settings, config.civType);
 
   // Create player civilization
   const playerCiv: Civilization = {
@@ -169,7 +174,7 @@ export function createNewGame(
       visibility: createVisibilityMap(),
       knownCivilizations: [],
       score: 0,
-      diplomacy: createDiplomacyState(allCivIds, civId, getDiplomacyStartBonus(aiCivDef.id)),
+      diplomacy: createDiplomacyState(allCivIds, civId, getDiplomacyStartBonus(settings, aiCivDef.id)),
     };
   }
 
@@ -232,7 +237,7 @@ export function createNewGame(
     legendaryWonderIntel: {},
     embargoes: [],
     defensiveLeagues: [],
-    settings: createDefaultSettings(actualSize, config.settingsOverrides),
+    settings,
   };
 
   // Place minor civilizations
@@ -269,13 +274,17 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
   const tribalVillages = placeVillages(map, startPositions, config.mapSize, gameSeed);
 
   const allSlotIds = config.players.map(p => p.slotId);
+  const settings = createDefaultSettings(config.mapSize, {
+    tutorialEnabled: false,
+    customCivilizations: config.customCivilizations,
+  });
 
   const civilizations: Record<string, Civilization> = {};
   const units: Record<string, Unit> = {};
 
   for (let i = 0; i < config.players.length; i++) {
     const player = config.players[i];
-    const civDef = getCivDefinition(player.civType);
+    const civDef = resolveCivDefinition({ settings }, player.civType);
     const startBonus = civDef?.bonusEffect.type === 'diplomacy_start_bonus'
       ? (civDef.bonusEffect as { type: 'diplomacy_start_bonus'; bonus: number }).bonus
       : 0;
@@ -338,9 +347,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     legendaryWonderIntel: {},
     embargoes: [],
     defensiveLeagues: [],
-    settings: createDefaultSettings(config.mapSize, {
-      tutorialEnabled: false,
-    }),
+    settings,
   };
 
   // Place minor civilizations

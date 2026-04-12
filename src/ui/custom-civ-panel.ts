@@ -1,5 +1,6 @@
 import type { CustomCivDefinition } from '@/core/types';
 import {
+  buildCustomCivId,
   CUSTOM_CIV_PRIMARY_TRAITS,
   validateCustomCivDefinition,
 } from '@/systems/custom-civ-system';
@@ -19,28 +20,6 @@ const TEMPERAMENT_TRAITS = [
   { id: 'expansionist', label: 'Expansionist' },
   { id: 'trader', label: 'Trader' },
 ] as const;
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function buildCustomCivId(name: string, existingDefinitions: CustomCivDefinition[]): string {
-  const baseSlug = slugify(name) || 'civilization';
-  const baseId = `custom-${baseSlug}`;
-  const existingIds = new Set(existingDefinitions.map(def => def.id));
-  if (!existingIds.has(baseId)) {
-    return baseId;
-  }
-  let suffix = 2;
-  while (existingIds.has(`${baseId}-${suffix}`)) {
-    suffix += 1;
-  }
-  return `${baseId}-${suffix}`;
-}
 
 function createLabeledSection(title: string, sectionId?: string): HTMLDivElement {
   const section = document.createElement('div');

@@ -644,6 +644,7 @@ export interface HotSeatConfig {
   playerCount: number;
   mapSize: 'small' | 'medium' | 'large';
   players: HotSeatPlayer[];
+  customCivilizations?: CustomCivDefinition[];
 }
 
 export interface SoloSetupConfig {
@@ -653,6 +654,7 @@ export interface SoloSetupConfig {
   gameTitle: string;
   settingsOverrides?: Partial<GameSettings>;
   seed?: string;
+  customCivilizations?: CustomCivDefinition[];
 }
 
 export interface GameEvent {

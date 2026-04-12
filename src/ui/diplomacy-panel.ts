@@ -1,6 +1,6 @@
 import type { GameState, DiplomaticAction } from '@/core/types';
 import { canReabsorbBreakaway, getRelationship, isAtWar, getAvailableActions } from '@/systems/diplomacy-system';
-import { getCivDefinition } from '@/systems/civ-definitions';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv, hasMetCivilization } from '@/systems/discovery-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
@@ -60,7 +60,7 @@ export function createDiplomacyPanel(
     if (civId === state.currentPlayer) continue;
 
     const hasMet = hasMetCivilization(state, state.currentPlayer, civId);
-    const civDef = getCivDefinition(civ.civType ?? '');
+    const civDef = resolveCivDefinition(state, civ.civType ?? '');
     const relationship = getRelationship(playerDiplomacy, civId);
     const atWar = isAtWar(playerDiplomacy, civId);
     const actions = hasMet

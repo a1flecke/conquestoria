@@ -1,5 +1,5 @@
 import { EventBus } from '@/core/event-bus';
-import { createNewGame, createHotSeatGame } from '@/core/game-state';
+import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import { processAITurn } from '@/ai/basic-ai';
 import { RenderLoop, type HexHighlight } from '@/renderer/render-loop';
@@ -9,6 +9,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
+import { collectUsedCityNames } from '@/systems/city-name-system';
 import { startResearch } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
@@ -31,6 +32,7 @@ import { createContextMenu } from '@/ui/context-menu';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { showCampaignSetup } from '@/ui/campaign-setup';
+import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
 import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { visitVillage } from '@/systems/village-system';
@@ -45,7 +47,6 @@ import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentati
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
-import { getCivDefinition } from '@/systems/civ-definitions';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import {
@@ -77,6 +78,27 @@ let currentCityIndex = 0;
 let inputInitialized = false;
 let councilPanelOpen = false;
 let persistedSettings: GameState['settings'] | undefined;
+
+function mergePersistedSettings(loadedSettings?: GameState['settings']): GameState['settings'] {
+  const baseSettings = loadedSettings ?? persistedSettings ?? createDefaultSettings('small');
+  const customCivilizations = loadedSettings?.customCivilizations ?? persistedSettings?.customCivilizations ?? [];
+
+  return {
+    ...createDefaultSettings('small', baseSettings),
+    ...baseSettings,
+    customCivilizations: [...customCivilizations],
+  };
+}
+
+async function refreshPersistedSettings(): Promise<GameState['settings']> {
+  const loadedSettings = (await loadSettings()) ?? persistedSettings;
+  persistedSettings = mergePersistedSettings(loadedSettings);
+  return persistedSettings;
+}
+
+function currentCivDef() {
+  return resolveCivDefinition(gameState, currentCiv().civType ?? '');
+}
 const bus = new EventBus();
 const audio = new AudioManager();
 const advisorSystem = new AdvisorSystem(bus);
@@ -522,7 +544,7 @@ function togglePanel(panel: string): void {
           gameState.espionage![gameState.currentPlayer],
           spyId,
           mission as any,
-          getCivDefinition(currentCiv().civType ?? '')?.bonusEffect,
+          currentCivDef()?.bonusEffect,
           targetCivId,
           targetCityId,
         );
@@ -708,7 +730,13 @@ function foundCityAction(): void {
   if (!unit || unit.type !== 'settler') return;
 
   const cp = gameState.currentPlayer;
-  const city = foundCity(cp, unit.position, gameState.map);
+  const civDef = currentCivDef();
+  const city = foundCity(cp, unit.position, gameState.map, {
+    civType: currentCiv().civType,
+    namingPool: civDef?.cityNames,
+    civName: civDef?.name ?? currentCiv().name,
+    usedNames: collectUsedCityNames(gameState),
+  });
   gameState.cities[city.id] = city;
   currentCiv().cities.push(city.id);
   gameState = initializeLegendaryWonderProjectsForCity(gameState, cp, city.id);
@@ -780,8 +808,8 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
   }
 
   const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
-  const attackerBonus = getCivDefinition(currentCiv().civType ?? '')?.bonusEffect;
-  const defenderBonus = getCivDefinition(gameState.civilizations[defender.owner]?.civType ?? '')?.bonusEffect;
+  const attackerBonus = currentCivDef()?.bonusEffect;
+  const defenderBonus = resolveCivDefinition(gameState, gameState.civilizations[defender.owner]?.civType ?? '')?.bonusEffect;
   const result = resolveCombat(
     attacker,
     gameState.units[defenderId] ?? defender,
@@ -1505,8 +1533,17 @@ function showGameModeSelection(): void {
     return title;
   };
 
-  document.getElementById('mode-solo')?.addEventListener('click', () => {
+  const updatePersistedCustomCivilizations = (customCivilizations: GameState['settings']['customCivilizations'] = []): void => {
+    persistedSettings = {
+      ...mergePersistedSettings(persistedSettings),
+      customCivilizations: [...customCivilizations],
+    };
+  };
+
+  document.getElementById('mode-solo')?.addEventListener('click', async () => {
     const title = (document.getElementById('new-game-title') as HTMLInputElement | null)?.value.trim() || 'New Campaign';
+    const currentSettings = await refreshPersistedSettings();
+    const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
     modePanel.remove();
     showCampaignSetup(uiLayer, {
       initialTitle: title,
@@ -1517,6 +1554,7 @@ function showGameModeSelection(): void {
           opponentCount: config.opponentCount,
           gameTitle: config.gameTitle,
           settingsOverrides: getPersistedSettingsOverrides(),
+          customCivilizations: config.customCivilizations,
         });
         if (persistedSettings?.councilTalkLevel) {
           gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
@@ -1524,13 +1562,21 @@ function showGameModeSelection(): void {
         startGame();
         showNotification('Your tribe has settled near a river...', 'info');
       },
+      onCustomCivilizationsChanged: (customCivilizations) => {
+        updatePersistedCustomCivilizations(customCivilizations);
+      },
       onCancel: () => showGameModeSelection(),
+    }, {
+      civDefinitions: getPlayableCivDefinitions({ customCivilizations: savedCustomCivilizations }),
+      initialCustomCivilizations: savedCustomCivilizations,
     });
   });
 
-  document.getElementById('mode-hotseat')?.addEventListener('click', () => {
+  document.getElementById('mode-hotseat')?.addEventListener('click', async () => {
     const title = getRequestedTitle();
     if (!title) return;
+    const currentSettings = await refreshPersistedSettings();
+    const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
     modePanel.remove();
     showHotSeatSetup(uiLayer, {
       onComplete: (config) => {
@@ -1541,9 +1587,15 @@ function showGameModeSelection(): void {
         startGame();
         showNotification(`Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`, 'info');
       },
+      onCustomCivilizationsChanged: (customCivilizations) => {
+        updatePersistedCustomCivilizations(customCivilizations);
+      },
       onCancel: () => {
         showGameModeSelection();
       },
+    }, {
+      civDefinitions: getPlayableCivDefinitions({ customCivilizations: savedCustomCivilizations }),
+      initialCustomCivilizations: savedCustomCivilizations,
     });
   });
 }

@@ -59,6 +59,14 @@ describe('minor civ placement', () => {
     }
   });
 
+  it('keeps minor-civ city labels globally unique during placement', () => {
+    const state = createNewGame(undefined, 'mc-unique-test', 'medium');
+    const result = placeMinorCivs(state, 'medium', 'mc-unique-test');
+    const names = Object.values(result.minorCivs).map(mc => result.cities[mc.cityId].name);
+
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it('does not place on impassable terrain', () => {
     const state = createNewGame(undefined, 'mc-terrain-test', 'small');
     const result = placeMinorCivs(state, 'small', 'mc-terrain-test');

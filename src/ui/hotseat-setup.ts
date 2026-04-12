@@ -1,16 +1,27 @@
-import type { HotSeatConfig, HotSeatPlayer } from '@/core/types';
+import type { CivDefinition, CustomCivDefinition, HotSeatConfig, HotSeatPlayer } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from './civ-select';
-import { CIV_DEFINITIONS } from '@/systems/civ-definitions';
+import { createCustomCivPanel } from './custom-civ-panel';
+import { createDefaultSettings } from '@/core/game-state';
+import { getPlayableCivDefinitions } from '@/systems/civ-registry';
+import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions } from '@/systems/custom-civ-system';
+import { loadSettings, saveSettings } from '@/storage/save-manager';
 
 interface HotSeatSetupCallbacks {
   onComplete: (config: HotSeatConfig) => void;
   onCancel: () => void;
+  onCustomCivilizationsChanged?: (customCivilizations: CustomCivDefinition[]) => void;
+}
+
+interface HotSeatSetupOptions {
+  civDefinitions?: CivDefinition[];
+  initialCustomCivilizations?: CustomCivDefinition[];
 }
 
 export function showHotSeatSetup(
   container: HTMLElement,
   callbacks: HotSeatSetupCallbacks,
+  options?: HotSeatSetupOptions,
 ): void {
   const existing = document.getElementById('hotseat-setup');
   if (existing) existing.remove();
@@ -23,6 +34,14 @@ export function showHotSeatSetup(
   let playerCount = 0;
   const players: HotSeatPlayer[] = [];
   const chosenCivs: string[] = [];
+  let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
+  let civDefinitions = getPlayableCivDefinitions({ customCivilizations });
+
+  const replaceSetupOverlay = (render: () => void): void => {
+    panel.querySelector('#custom-civ-panel')?.remove();
+    panel.querySelector('#civ-select')?.remove();
+    render();
+  };
 
   showMapSizeStage();
 
@@ -187,20 +206,55 @@ export function showHotSeatSetup(
 
   function showCivSelector(playerIdx: number) {
     panel.innerHTML = '';
-    createCivSelectPanel(panel, {
-      onSelect: (civId: string) => {
-        players[playerIdx].civType = civId;
-        chosenCivs.push(civId);
 
-        if (playerIdx + 1 < players.length) {
-          showCivPickStage(playerIdx + 1);
-        } else {
-          finalize();
-        }
-      },
-    }, {
-      disabledCivs: chosenCivs,
-      headerText: `${players[playerIdx].name}, choose your civilization`,
+    const openCustomCivEditor = (): void => {
+      replaceSetupOverlay(() => {
+        createCustomCivPanel(panel, {
+          onSave: async (definition) => {
+            const loaded = (await loadSettings()) ?? createDefaultSettings(selectedMapSize ?? 'small');
+            const authoritativeCustomCivilizations = mergeCustomCivDefinitions(
+              customCivilizations,
+              loaded.customCivilizations ?? [],
+            );
+            const existingDefinition = authoritativeCustomCivilizations.find(def => def.id === definition.id);
+            const resolvedDefinition = existingDefinition && !customCivDefinitionsEqual(existingDefinition, definition)
+              ? { ...definition, id: buildCustomCivId(definition.name, authoritativeCustomCivilizations) }
+              : definition;
+            customCivilizations = mergeCustomCivDefinitions(authoritativeCustomCivilizations, [resolvedDefinition]);
+            await saveSettings({ ...loaded, customCivilizations });
+            callbacks.onCustomCivilizationsChanged?.([...customCivilizations]);
+            civDefinitions = getPlayableCivDefinitions({ customCivilizations });
+            showCivSelector(playerIdx);
+          },
+          onCancel: () => {
+            showCivSelector(playerIdx);
+          },
+        }, {
+          existingDefinitions: customCivilizations,
+        });
+      });
+    };
+
+    replaceSetupOverlay(() => {
+      createCivSelectPanel(panel, {
+        onSelect: (civId: string) => {
+          players[playerIdx].civType = civId;
+          chosenCivs.push(civId);
+
+          if (playerIdx + 1 < players.length) {
+            showCivPickStage(playerIdx + 1);
+          } else {
+            finalize();
+          }
+        },
+        onCreateCustomCiv: () => {
+          openCustomCivEditor();
+        },
+      }, {
+        disabledCivs: chosenCivs,
+        headerText: `${players[playerIdx].name}, choose your civilization`,
+        civDefinitions,
+      });
     });
   }
 
@@ -208,7 +262,7 @@ export function showHotSeatSetup(
     // Add AI players to fill remaining map slots
     const max = MAP_DIMENSIONS[selectedMapSize!].maxPlayers;
     const aiCount = Math.max(1, max - playerCount); // at least 1 AI
-    const availableCivs = CIV_DEFINITIONS.filter(c => !chosenCivs.includes(c.id));
+    const availableCivs = civDefinitions.filter(c => !chosenCivs.includes(c.id));
 
     for (let i = 0; i < aiCount && i < availableCivs.length; i++) {
       players.push({
@@ -223,6 +277,7 @@ export function showHotSeatSetup(
       playerCount: players.length,
       mapSize: selectedMapSize!,
       players,
+      customCivilizations,
     };
 
     panel.remove();
