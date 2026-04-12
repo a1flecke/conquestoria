@@ -1,0 +1,38 @@
+---
+paths:
+  - "src/systems/**"
+  - "src/core/**"
+---
+
+# Strategy Game Mechanics Checklist
+
+## Core mechanics that MUST exist
+Every 4X/Civ-like game needs these — if any are missing, implement them:
+- **Healing**: Units must recover HP. Auto-heal for idle units + explicit Rest action for player control
+- **Unit identity**: Every unit type must have a human-readable description. Enemy units must show owner name, faction color, and diplomatic relationship
+- **Combat preview**: Show expected outcome BEFORE committing to an attack (strength comparison, terrain bonuses, odds assessment)
+- **Unit cycling**: After a unit acts, auto-select the next unmoved unit. Provide a "Next Unit" button for manual cycling
+- **Persistent notifications**: Important game events must be accessible after they disappear — use a notification log, not just toasts
+
+## Balance across eras
+- Combat damage, unit costs, and production rates must be tested at EACH era/age, not just the current one
+- Early-game combat between same-tier units should resolve in 2-4 exchanges, not 5+
+- Write balance tests with statistical sampling (run N trials, assert average is in expected range)
+
+## Unique-race mechanics
+- If a feature is globally unique but tracked per city or per actor, separate `seeded/prepared` state from `active entrant` state
+- Add tests that prevent the same owner from racing against itself unless the design explicitly allows it
+- Recommendation systems must not mistake “prepared shell exists” for “can start this now”
+- New quest or race semantics should live in explicit definition metadata before adding one-off string ID branches in evaluators
+- Do not rely on wonder step prose for host-city versus empire scope; store that distinction in metadata
+- Do not use `map-discoveries` without explicit `discoveryTypes`; broader discovery quests must read a typed discovery ledger, not natural wonders by accident
+- If discovering or clearing something should advance wonder progress, record it in `legendaryWonderHistory` at the event source instead of reconstructing it from later snapshots
+- Newly seeded local race/project shells should be normalized immediately so same-turn UI and actions reflect current truth
+- Existing seeded projects should refresh definition-backed descriptions and completion truth when they are touched, so saves and panels cannot drift from the roster
+- If AI or turn-processing can resolve multiple race losses in one turn, cleanup helpers must process the full set rather than return after the first match
+
+## Storage resilience
+- Primary storage (IndexedDB) MUST have a fallback (localStorage) for mobile Safari eviction
+- Call `navigator.storage.persist()` on first use
+- Provide manual export/import as a last-resort backup
+- Auto-save on game creation, not just on turn end — a player who closes before turn 1 must not lose their game
