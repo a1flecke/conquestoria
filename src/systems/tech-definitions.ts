@@ -4,16 +4,16 @@ export const TECH_TREE: Tech[] = [
   // === MILITARY TRACK (8 techs, existing) ===
   { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 20, prerequisites: [], unlocks: ['Warriors deal +2 damage'], era: 1 },
   { id: 'archery', name: 'Archery', track: 'military', cost: 35, prerequisites: ['stone-weapons'], unlocks: ['Unlock Archer unit'], era: 1 },
-  { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 50, prerequisites: ['stone-weapons'], unlocks: ['Unlock Barracks building', 'swordsman'], era: 2 },
+  { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 50, prerequisites: ['stone-weapons'], unlocks: ['Unlock Swordsman unit'], era: 2 },
   { id: 'horseback-riding', name: 'Horseback Riding', track: 'military', cost: 55, prerequisites: ['animal-husbandry'], unlocks: ['Unlock Stable, mounted units'], era: 2 },
   { id: 'fortification', name: 'Fortification', track: 'military', cost: 60, prerequisites: ['bronze-working'], unlocks: ['Unlock Walls building', 'pikeman'], era: 3 },
   { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 80, prerequisites: ['bronze-working', 'mining-tech'], unlocks: ['Stronger melee units'], era: 3 },
-  { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 90, prerequisites: ['iron-forging', 'engineering'], unlocks: ['Unlock Catapult unit'], era: 4 },
+  { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 90, prerequisites: ['iron-forging', 'engineering'], unlocks: ['Siege weapon doctrine'], era: 4 },
   { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus', 'musketeer'], era: 4 },
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
-  { id: 'gathering', name: 'Gathering', track: 'economy', cost: 15, prerequisites: [], unlocks: ['Unlock Granary building'], era: 1 },
-  { id: 'pottery', name: 'Pottery', track: 'economy', cost: 25, prerequisites: ['gathering'], unlocks: ['Unlock Herbalist building'], era: 1 },
+  { id: 'gathering', name: 'Gathering', track: 'economy', cost: 15, prerequisites: [], unlocks: ['Foundational economy knowledge'], era: 1 },
+  { id: 'pottery', name: 'Pottery', track: 'economy', cost: 25, prerequisites: ['gathering'], unlocks: ['Foundational ceramics knowledge'], era: 1 },
   { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 35, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource'], era: 2 },
   { id: 'irrigation', name: 'Irrigation', track: 'economy', cost: 45, prerequisites: ['pottery'], unlocks: ['Farms yield +1 food'], era: 2 },
   { id: 'currency', name: 'Currency', track: 'economy', cost: 60, prerequisites: ['pottery'], unlocks: ['Unlock Marketplace building'], era: 3 },
@@ -25,7 +25,7 @@ export const TECH_TREE: Tech[] = [
   // === SCIENCE TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'fire', name: 'Fire', track: 'science', cost: 15, prerequisites: [], unlocks: ['Unlock basic research'], era: 1 },
   { id: 'writing', name: 'Writing', track: 'science', cost: 30, prerequisites: ['fire'], unlocks: ['Unlock Library building'], era: 1 },
-  { id: 'wheel', name: 'The Wheel', track: 'science', cost: 40, prerequisites: ['fire'], unlocks: ['Unlock Workshop building'], era: 2 },
+  { id: 'wheel', name: 'The Wheel', track: 'science', cost: 40, prerequisites: ['fire'], unlocks: ['Foundational mechanics knowledge'], era: 2 },
   { id: 'mathematics', name: 'Mathematics', track: 'science', cost: 60, prerequisites: ['writing'], unlocks: ['Unlock Archive building'], era: 2 },
   { id: 'engineering', name: 'Engineering', track: 'science', cost: 80, prerequisites: ['mathematics', 'wheel'], unlocks: ['Unlock Aqueduct, Forge'], era: 3 },
   { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 70, prerequisites: ['writing'], unlocks: ['Unlock Temple building'], era: 3 },
