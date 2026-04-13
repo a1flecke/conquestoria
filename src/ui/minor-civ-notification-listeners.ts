@@ -1,5 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
-import type { GameEvent, GameState, NotificationEntry } from '@/core/types';
+import type { GameEvent, GameState } from '@/core/types';
+import type { NotificationEntry } from '@/ui/notification-log';
 import { collectEvent } from '@/core/hotseat-events';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 

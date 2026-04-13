@@ -224,12 +224,6 @@ export interface Unit {
   };
 }
 
-export interface NotificationEntry {
-  message: string;
-  type: 'info' | 'success' | 'warning';
-  turn: number;
-}
-
 // --- Cities ---
 
 export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | 'military' | 'culture';

@@ -68,7 +68,13 @@ import {
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
-import type { GameState, HexCoord, Unit, DiplomaticAction, NotificationEntry } from '@/core/types';
+import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
+import {
+  appendNotification,
+  createNotificationLog,
+  getNotificationsForPlayer,
+  type NotificationEntry,
+} from '@/ui/notification-log';
 
 // --- App State ---
 let gameState: GameState;
@@ -198,14 +204,19 @@ function updateHUD(): void {
 
 // --- Notification queue ---
 const notificationQueue: Array<{ message: string; type: 'info' | 'success' | 'warning' }> = [];
-const notificationLog: NotificationEntry[] = [];
+const notificationLog = createNotificationLog();
 let isShowingNotification = false;
 let currentDismissTimer: ReturnType<typeof setTimeout> | null = null;
 
 function showNotification(message: string, type: 'info' | 'success' | 'warning' = 'info'): void {
   notificationQueue.push({ message, type });
-  notificationLog.push({ message, type, turn: gameState?.turn ?? 0 });
-  if (notificationLog.length > 50) notificationLog.shift();
+  if (gameState) {
+    appendNotification(notificationLog, gameState.currentPlayer, {
+      message,
+      type,
+      turn: gameState.turn,
+    });
+  }
   if (!isShowingNotification) displayNextNotification();
 }
 
@@ -278,14 +289,18 @@ function toggleNotificationLog(): void {
   header.appendChild(closeBtn);
   panel.appendChild(header);
 
-  if (notificationLog.length === 0) {
+  const entries = gameState
+    ? getNotificationsForPlayer(notificationLog, gameState.currentPlayer)
+    : [];
+
+  if (entries.length === 0) {
     const empty = document.createElement('div');
     empty.style.cssText = 'font-size:11px;opacity:0.5;text-align:center;';
     empty.textContent = 'No messages yet';
     panel.appendChild(empty);
   } else {
-    for (let i = notificationLog.length - 1; i >= 0; i--) {
-      const entry = notificationLog[i];
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const entry = entries[i];
       const row = document.createElement('div');
       row.style.cssText = 'font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);';
       const turnSpan = document.createElement('span');

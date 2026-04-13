@@ -1,4 +1,5 @@
-import type { GameState, NotificationEntry } from '@/core/types';
+import type { GameState } from '@/core/types';
+import type { NotificationEntry } from '@/ui/notification-log';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 
 type LegendaryWonderNotificationEvent =

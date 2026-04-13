@@ -7,7 +7,8 @@ import { resolveCombat } from '@/systems/combat-system';
 import { buildCouncilAgenda } from '@/systems/council-system';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import type { NotificationEntry, GameMap, HexTile } from '@/core/types';
+import type { GameMap, HexTile } from '@/core/types';
+import type { NotificationEntry } from '@/ui/notification-log';
 
 // --- Combat balance helpers ---
 const makePlainsTile = (q: number, r: number): HexTile => ({

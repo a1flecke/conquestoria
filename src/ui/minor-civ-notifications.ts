@@ -1,4 +1,5 @@
-import type { GameState, NotificationEntry, Quest } from '@/core/types';
+import type { GameState, Quest } from '@/core/types';
+import type { NotificationEntry } from '@/ui/notification-log';
 import { getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
 import {
   formatMinorCivEventMessageForPlayer,
