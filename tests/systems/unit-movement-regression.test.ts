@@ -10,7 +10,6 @@ describe('Unit Movement Regression', () => {
     const intermediatePos: HexCoord = { q: 1, r: 0 };
     const destPos: HexCoord = { q: 2, r: 0 }; // 2 tiles away from start
 
-    // Define a map with varying terrain costs if needed, for now all plains
     const terrainType: TerrainType = 'plains';
     const tileCost = getMovementCost(terrainType);
 
@@ -27,12 +26,12 @@ describe('Unit Movement Regression', () => {
           color: 'red',
           units: ['unit-1'],
           cities: [],
-          visibility: { tiles: {} },
-          techState: { completed: [], currentTech: null, progress: 0 },
-          diplomacy: { relationships: {}, atWarWith: [] },
-          isAI: false,
-          isEliminated: false,
+          isHuman: true,
+          score: 0,
           gold: 0,
+          visibility: { tiles: {} },
+          techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: { military: 'medium', economy: 'medium', science: 'medium', civics: 'medium', exploration: 'medium', agriculture: 'medium', medicine: 'medium', philosophy: 'medium', arts: 'medium', maritime: 'medium', metallurgy: 'medium', construction: 'medium', communication: 'medium', espionage: 'medium', spirituality: 'medium' } },
+          diplomacy: { relationships: {}, atWarWith: [], treaties: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 }, events: [] },
         }
       },
       map: {
@@ -40,10 +39,11 @@ describe('Unit Movement Regression', () => {
         height: 10,
         wrapsHorizontally: false,
         tiles: {
-          [hexKey(startPos)]: { terrain: terrainType },
-          [hexKey(intermediatePos)]: { terrain: terrainType },
-          [hexKey(destPos)]: { terrain: terrainType },
+          [hexKey(startPos)]: { coord: startPos, terrain: terrainType, elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          [hexKey(intermediatePos)]: { coord: intermediatePos, terrain: terrainType, elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          [hexKey(destPos)]: { coord: destPos, terrain: terrainType, elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
         },
+        rivers: [],
       },
       cities: {},
       tribalVillages: {},
@@ -53,15 +53,11 @@ describe('Unit Movement Regression', () => {
     const initialMovementPoints = unitBefore.movementPointsLeft;
     expect(initialMovementPoints).toBe(2);
 
-    // Act: Move 2 tiles away
     executeUnitMove(state as GameState, 'unit-1', destPos, { actor: 'player', civId: 'player' });
 
     const unitAfter = state.units!['unit-1'];
-    
-    // Expected movement cost for a 2-tile path (each tile is 'plains', cost 1)
     const expectedPathCost = 2 * tileCost;
 
-    // The unit should have moved 2 tiles, costing 2 movement points
     expect(unitAfter.movementPointsLeft).toBe(initialMovementPoints - expectedPathCost);
     expect(unitAfter.position).toEqual(destPos);
     expect(unitAfter.hasMoved).toBe(true);
@@ -87,12 +83,12 @@ describe('Unit Movement Regression', () => {
           color: 'red',
           units: ['unit-2'],
           cities: [],
-          visibility: { tiles: {} },
-          techState: { completed: [], currentTech: null, progress: 0 },
-          diplomacy: { relationships: {}, atWarWith: [] },
-          isAI: false,
-          isEliminated: false,
+          isHuman: true,
+          score: 0,
           gold: 0,
+          visibility: { tiles: {} },
+          techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: { military: 'medium', economy: 'medium', science: 'medium', civics: 'medium', exploration: 'medium', agriculture: 'medium', medicine: 'medium', philosophy: 'medium', arts: 'medium', maritime: 'medium', metallurgy: 'medium', construction: 'medium', communication: 'medium', espionage: 'medium', spirituality: 'medium' } },
+          diplomacy: { relationships: {}, atWarWith: [], treaties: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 }, events: [] },
         }
       },
       map: {
@@ -100,9 +96,10 @@ describe('Unit Movement Regression', () => {
         height: 10,
         wrapsHorizontally: false,
         tiles: {
-          [hexKey(startPos)]: { terrain: terrainType },
-          [hexKey(destPos)]: { terrain: terrainType },
+          [hexKey(startPos)]: { coord: startPos, terrain: terrainType, elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          [hexKey(destPos)]: { coord: destPos, terrain: terrainType, elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
         },
+        rivers: [],
       },
       cities: {},
       tribalVillages: {},
@@ -112,15 +109,11 @@ describe('Unit Movement Regression', () => {
     const initialMovementPoints = unitBefore.movementPointsLeft;
     expect(initialMovementPoints).toBe(2);
 
-    // Act: Move 1 tile away
     executeUnitMove(state as GameState, 'unit-2', destPos, { actor: 'player', civId: 'player' });
 
     const unitAfter = state.units!['unit-2'];
-    
-    // Expected movement cost for a 1-tile path (each tile is 'plains', cost 1)
     const expectedPathCost = 1 * tileCost;
 
-    // The unit should have moved 1 tile, costing 1 movement point
     expect(unitAfter.movementPointsLeft).toBe(initialMovementPoints - expectedPathCost);
     expect(unitAfter.position).toEqual(destPos);
     expect(unitAfter.hasMoved).toBe(true);
