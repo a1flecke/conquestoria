@@ -359,6 +359,7 @@ function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
 }
 
 function openCityPanelForCity(city: import('@/core/types').City): void {
+  if (city.owner !== gameState.currentPlayer) return;
   const playerCities = currentCiv().cities;
   const idx = playerCities.indexOf(city.id);
   if (idx !== -1) currentCityIndex = (idx + 1) % playerCities.length;
@@ -394,10 +395,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       const currentIdx = cities.indexOf(city.id);
       const prevIdx = (currentIdx - 1 + cities.length) % cities.length;
       const prevCity = gameState.cities[cities[prevIdx]];
-      if (prevCity) {
-        document.getElementById('city-panel')?.remove();
-        openCityPanelForCity(prevCity);
-      }
+      if (prevCity) openCityPanelForCity(prevCity);
     },
     onNextCity: () => {
       const cities = currentCiv().cities;
@@ -405,10 +403,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       const currentIdx = cities.indexOf(city.id);
       const nextIdx = (currentIdx + 1) % cities.length;
       const nextCity = gameState.cities[cities[nextIdx]];
-      if (nextCity) {
-        document.getElementById('city-panel')?.remove();
-        openCityPanelForCity(nextCity);
-      }
+      if (nextCity) openCityPanelForCity(nextCity);
     },
   });
 }
@@ -458,7 +453,6 @@ function togglePanel(panel: string): void {
     const cityId = playerCities[currentCityIndex];
     const city = gameState.cities[cityId];
     if (!city) return;
-    currentCityIndex = (currentCityIndex + 1) % playerCities.length;
     openCityPanelForCity(city);
   } else if (panel === 'espionage') {
     const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
@@ -1125,7 +1119,13 @@ function handleHexTap(rawCoord: HexCoord): void {
     c => c.owner === gameState.currentPlayer && hexKey(c.position) === key,
   );
   if (cityAtHex) {
+    document.getElementById('tech-panel')?.remove();
     document.getElementById('city-panel')?.remove();
+    document.getElementById('espionage-panel')?.remove();
+    document.getElementById('diplomacy-panel')?.remove();
+    document.getElementById('marketplace-panel')?.remove();
+    document.getElementById('council-panel')?.remove();
+    deselectUnit();
     openCityPanelForCity(cityAtHex);
     return;
   }
