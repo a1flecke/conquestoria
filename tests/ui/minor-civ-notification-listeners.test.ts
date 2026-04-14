@@ -15,7 +15,7 @@ function discoverMinorCiv(state: GameState, viewerCivId: string, minorCivId: str
 }
 
 describe('minor-civ notification listeners', () => {
-  it('shows destroyed notifications only for the current player while queuing per-viewer hot-seat events', () => {
+  it('routes destroyed notifications to every civ with viewer-specific redaction', () => {
     const state = createHotSeatGame({
       playerCount: 2,
       mapSize: 'small',
@@ -30,27 +30,30 @@ describe('minor-civ notification listeners', () => {
     discoverMinorCiv(state, 'player-1', minorCivId);
 
     const bus = new EventBus();
-    const showNotification = vi.fn();
-    registerMinorCivNotificationListeners(bus, () => state, { showNotification });
+    const appendToCivLog = vi.fn();
+    registerMinorCivNotificationListeners(bus, () => state, { appendToCivLog });
 
     bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: 'player-1' });
 
-    expect(showNotification).toHaveBeenCalledTimes(1);
-    expect(showNotification.mock.calls[0]?.[0]).not.toBe('A city-state has fallen!');
+    const calls = appendToCivLog.mock.calls as Array<[string, string, string]>;
+    const byCiv = Object.fromEntries(calls.map(([civId, msg]) => [civId, msg]));
+    expect(byCiv['player-1']).toBeDefined();
+    expect(byCiv['player-1']).not.toBe('A city-state has fallen!');
+    expect(byCiv['player-2']).toBe('A city-state has fallen!');
     expect(state.pendingEvents?.['player-1']?.[0]?.message).not.toBe('A city-state has fallen!');
     expect(state.pendingEvents?.['player-2']?.[0]?.message).toBe('A city-state has fallen!');
   });
 
-  it('only surfaces targeted quest-complete notifications to the affected player', () => {
+  it('routes quest-completed notifications to the affected major civ only, even when that civ is not current player', () => {
     const state = createNewGame(undefined, 'mc-quest-complete-listener', 'small');
     state.pendingEvents = {};
     const minorCivId = getFirstMinorCivId(state);
-    discoverMinorCiv(state, 'player', minorCivId);
     const otherMajorId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    discoverMinorCiv(state, otherMajorId, minorCivId);
 
     const bus = new EventBus();
-    const showNotification = vi.fn();
-    registerMinorCivNotificationListeners(bus, () => state, { showNotification });
+    const appendToCivLog = vi.fn();
+    registerMinorCivNotificationListeners(bus, () => state, { appendToCivLog });
 
     bus.emit('minor-civ:quest-completed', {
       majorCivId: otherMajorId,
@@ -69,6 +72,8 @@ describe('minor-civ notification listeners', () => {
       reward: { relationshipBonus: 20, gold: 50, science: 10 },
     });
 
-    expect(showNotification).not.toHaveBeenCalled();
+    const calls = appendToCivLog.mock.calls as Array<[string, string, string]>;
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![0]).toBe(otherMajorId);
   });
 });

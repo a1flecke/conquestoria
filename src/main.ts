@@ -53,7 +53,6 @@ import {
   initializeLegendaryWonderProjectsForCity,
   startLegendaryWonderBuild,
 } from '@/systems/legendary-wonder-system';
-import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import {
   assignSpy,
   assignSpyDefensive,
@@ -75,6 +74,13 @@ import {
   getNotificationsForPlayer,
   type NotificationEntry,
 } from '@/ui/notification-log';
+import {
+  routeCombatResolved,
+  routeLegendaryWonder,
+  routePeaceMade,
+  routeWarDeclared,
+  type NotificationSink,
+} from '@/ui/notification-routing';
 
 // --- App State ---
 let gameState: GameState;
@@ -219,6 +225,17 @@ function showNotification(message: string, type: 'info' | 'success' | 'warning' 
   }
   if (!isShowingNotification) displayNextNotification();
 }
+
+// Appends to a specific civ's log. If that civ is the active player, also
+// surfaces a toast. Used by routers that fan out global/bilateral events.
+const appendToCivLog: NotificationSink = (civId, message, type) => {
+  if (!gameState) return;
+  appendNotification(notificationLog, civId, { message, type, turn: gameState.turn });
+  if (civId === gameState.currentPlayer) {
+    notificationQueue.push({ message, type });
+    if (!isShowingNotification) displayNextNotification();
+  }
+};
 
 function displayNextNotification(): void {
   const area = document.getElementById('notifications');
@@ -1285,76 +1302,35 @@ bus.on('wonder:discovered', ({ civId, wonderId, isFirstDiscoverer }) => {
 });
 
 bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
-  const notification = getLegendaryWonderNotification(gameState, gameState.currentPlayer, {
-    type: 'wonder:legendary-ready',
-    civId,
-    cityId,
-    wonderId,
-  });
-  if (notification) {
-    showNotification(notification.message, notification.type);
-  }
+  routeLegendaryWonder(gameState, { type: 'wonder:legendary-ready', civId, cityId, wonderId }, appendToCivLog);
 });
 
 bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId }) => {
-  const notification = getLegendaryWonderNotification(gameState, gameState.currentPlayer, {
-    type: 'wonder:legendary-completed',
-    civId,
-    cityId,
-    wonderId,
-  });
-  if (notification) {
-    showNotification(notification.message, notification.type);
-  }
+  routeLegendaryWonder(gameState, { type: 'wonder:legendary-completed', civId, cityId, wonderId }, appendToCivLog);
 });
 
 bus.on('wonder:legendary-lost', ({ civId, cityId, wonderId, goldRefund, transferableProduction }) => {
-  const notification = getLegendaryWonderNotification(gameState, gameState.currentPlayer, {
-    type: 'wonder:legendary-lost',
-    civId,
-    cityId,
-    wonderId,
-    goldRefund,
-    transferableProduction,
-  });
-  if (notification) {
-    showNotification(notification.message, notification.type);
-  }
+  routeLegendaryWonder(
+    gameState,
+    { type: 'wonder:legendary-lost', civId, cityId, wonderId, goldRefund, transferableProduction },
+    appendToCivLog,
+  );
 });
 
 bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId }) => {
-  const notification = getLegendaryWonderNotification(gameState, gameState.currentPlayer, {
-    type: 'wonder:legendary-race-revealed',
-    observerId,
-    civId,
-    cityId,
-    wonderId,
-  });
-  if (notification) {
-    showNotification(notification.message, notification.type);
-  }
+  routeLegendaryWonder(
+    gameState,
+    { type: 'wonder:legendary-race-revealed', observerId, civId, cityId, wonderId },
+    appendToCivLog,
+  );
 });
 
 bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
-  if (defenderId === gameState.currentPlayer) {
-    const attacker = gameState.civilizations[attackerId];
-    const attackerName = attacker?.name ?? 'Unknown';
-    const rel = gameState.civilizations[gameState.currentPlayer]?.diplomacy?.relationships[attackerId] ?? 0;
-    let reason = 'rising tensions';
-    if (rel <= -50) reason = 'deep hostility';
-    else if (rel <= -20) reason = 'deteriorating relations';
-    else if (rel < 0) reason = 'territorial disputes';
-    showNotification(`${attackerName} has declared war! (Reason: ${reason})`, 'warning');
-  }
+  routeWarDeclared(gameState, attackerId, defenderId, appendToCivLog);
 });
 
 bus.on('diplomacy:peace-made', ({ civA, civB }) => {
-  const cp = gameState.currentPlayer;
-  const otherId = civA === cp ? civB : civA;
-  if (civA === cp || civB === cp) {
-    const other = gameState.civilizations[otherId];
-    showNotification(`Peace with ${other?.name ?? 'Unknown'}!`, 'success');
-  }
+  routePeaceMade(gameState, civA, civB, appendToCivLog);
 });
 
 bus.on('advisor:message', ({ advisor, message, icon }) => {
@@ -1365,25 +1341,7 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
 const notifiedBarbarianCamps = new Set<string>();
 
 bus.on('combat:resolved', ({ result }) => {
-  // Only notify the current player when one of their units was involved in combat
-  // they may not have initiated (barbarian attacks during processTurn).
-  const cp = gameState.currentPlayer;
-  const attacker = gameState.units[result.attackerId];
-  const defender = gameState.units[result.defenderId];
-
-  // Only surface if the current player's unit was the defender (they couldn't see it coming)
-  if (!defender || defender.owner !== cp) return;
-
-  const attackerOwner = attacker?.owner ?? 'Unknown';
-  const attackerLabel = attackerOwner === 'barbarian' ? 'Barbarians' :
-    (gameState.civilizations[attackerOwner]?.name ?? attackerOwner);
-  const defenderType = UNIT_DEFINITIONS[defender.type]?.name ?? defender.type;
-
-  if (!result.defenderSurvived) {
-    showNotification(`${defenderType} was destroyed by ${attackerLabel}!`, 'warning');
-  } else {
-    showNotification(`${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`, 'warning');
-  }
+  routeCombatResolved(gameState, result, appendToCivLog);
 });
 
 bus.on('barbarian:spawned', ({ campId, unitId }) => {
@@ -1398,7 +1356,7 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
   }
 });
 
-registerMinorCivNotificationListeners(bus, () => gameState, { showNotification });
+registerMinorCivNotificationListeners(bus, () => gameState, { appendToCivLog });
 
 // --- Initialization ---
 async function init(): Promise<void> {
