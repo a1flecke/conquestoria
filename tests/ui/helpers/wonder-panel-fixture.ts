@@ -9,6 +9,7 @@ class MockElement {
   id = '';
   textContent = '';
   innerHTML = '';
+  private _listeners: Map<string, Array<() => void>> = new Map();
 
   constructor(tagName: string = 'div') {
     this.tagName = tagName.toUpperCase();
@@ -25,7 +26,16 @@ class MockElement {
 
   remove(): void {}
 
-  addEventListener(): void {}
+  addEventListener(event: string, handler: () => void): void {
+    if (!this._listeners.has(event)) this._listeners.set(event, []);
+    this._listeners.get(event)!.push(handler);
+  }
+
+  click(): void {
+    for (const handler of this._listeners.get('click') ?? []) {
+      handler();
+    }
+  }
 
   querySelector(selector?: string): MockElement | null {
     if (!selector) {
@@ -34,7 +44,15 @@ class MockElement {
 
     const idMatch = selector.match(/^#(.+)$/);
     if (idMatch) {
-      return new MockElement();
+      // Return a shared element tracked by id so listeners registered on it survive
+      const id = idMatch[1];
+      const existing = this.children.find(c => c.id === id);
+      if (existing) return existing;
+      // Create a proxy element stored by id for later retrieval
+      const el = new MockElement();
+      el.id = id;
+      this.children.push(el);
+      return el;
     }
 
     const dataTextMatch = selector.match(/^\[data-text="(.+)"\]$/);
