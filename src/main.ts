@@ -1120,6 +1120,16 @@ function handleHexTap(rawCoord: HexCoord): void {
     return;
   }
 
+  // Check if tapping a player-owned city hex
+  const cityAtHex = Object.values(gameState.cities).find(
+    c => c.owner === gameState.currentPlayer && hexKey(c.position) === key,
+  );
+  if (cityAtHex) {
+    document.getElementById('city-panel')?.remove();
+    openCityPanelForCity(cityAtHex);
+    return;
+  }
+
   // Tapping empty hex — deselect
   deselectUnit();
   SFX.tap();
