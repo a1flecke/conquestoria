@@ -1,6 +1,7 @@
 import type { GameState } from '@/core/types';
 import type { NotificationEntry } from '@/ui/notification-log';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { hasMetCivilization } from '@/systems/discovery-system';
 
 type LegendaryWonderNotificationEvent =
   | { type: 'wonder:legendary-ready'; civId: string; cityId: string; wonderId: string }
@@ -34,6 +35,18 @@ export function getLegendaryWonderNotification(
   }
 
   if (event.civId !== currentPlayer) {
+    // Observers see wonder completions (class-2 global event) once they've met the builder.
+    if (event.type === 'wonder:legendary-completed') {
+      const builder = state.civilizations[event.civId];
+      const builderLabel = hasMetCivilization(state, currentPlayer, event.civId)
+        ? (builder?.name ?? event.civId)
+        : 'A rival civilization';
+      return {
+        message: `${builderLabel} completed ${wonder?.name ?? event.wonderId}!`,
+        type: 'info',
+        turn: state.turn,
+      };
+    }
     return null;
   }
 

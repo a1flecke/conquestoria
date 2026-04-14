@@ -75,6 +75,7 @@ import {
   type NotificationEntry,
 } from '@/ui/notification-log';
 import {
+  routeBarbarianSpawned,
   routeCombatResolved,
   routeLegendaryWonder,
   routePeaceMade,
@@ -1337,23 +1338,25 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
   showNotification(`${icon} ${message}`, 'info');
 });
 
-// Track which camps have already triggered a "spotted" notification this session
-const notifiedBarbarianCamps = new Set<string>();
+// Per-civ dedup: each civ sees a "raiders spotted!" entry only the first time
+// its visibility covers any raider from a given camp.
+const notifiedBarbarianCampsPerCiv = new Map<string, Set<string>>();
 
 bus.on('combat:resolved', ({ result }) => {
   routeCombatResolved(gameState, result, appendToCivLog);
 });
 
 bus.on('barbarian:spawned', ({ campId, unitId }) => {
-  // Only notify the first time we see a raider from this camp
-  if (notifiedBarbarianCamps.has(campId)) return;
   const unit = gameState.units[unitId];
   if (!unit) return;
-  const vis = currentCiv()?.visibility;
-  if (vis && isVisible(vis, unit.position)) {
-    notifiedBarbarianCamps.add(campId);
-    showNotification('Barbarian raiders spotted!', 'warning');
-  }
+  routeBarbarianSpawned(
+    gameState,
+    unit.position,
+    campId,
+    notifiedBarbarianCampsPerCiv,
+    appendToCivLog,
+    (vis, pos) => isVisible(vis as Parameters<typeof isVisible>[0], pos),
+  );
 });
 
 registerMinorCivNotificationListeners(bus, () => gameState, { appendToCivLog });
