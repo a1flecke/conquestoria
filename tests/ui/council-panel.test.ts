@@ -183,3 +183,62 @@ describe('council-panel', () => {
     expect(panel.textContent).not.toContain('Rome');
   });
 });
+
+describe('council-panel visual structure', () => {
+  it('exposes a header element containing both an h2 title and a close button', () => {
+    const { state, container } = makeCouncilFixture();
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+    });
+    const header = panel.querySelector('header');
+    expect(header).toBeTruthy();
+    expect(header?.querySelector('h2')).toBeTruthy();
+    expect(header?.querySelector('button')).toBeTruthy();
+  });
+
+  it('marks exactly one talk-level button with aria-pressed=true matching state.settings.councilTalkLevel', () => {
+    const { state, container } = makeCouncilFixture();
+    state.settings.councilTalkLevel = 'chatty';
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+    });
+
+    const buttons = Array.from(panel.querySelectorAll('button[data-talk-level]')) as HTMLButtonElement[];
+    expect(buttons.length).toBe(4);
+    const pressed = buttons.filter(b => b.getAttribute('aria-pressed') === 'true');
+    expect(pressed.length).toBe(1);
+    expect(pressed[0].dataset.talkLevel).toBe('chatty');
+  });
+
+  it('updates aria-pressed immediately on click before the next render', () => {
+    const { state, container } = makeCouncilFixture();
+    state.settings.councilTalkLevel = 'normal';
+
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+    });
+
+    const quietBtn = panel.querySelector('button[data-talk-level="quiet"]') as HTMLButtonElement;
+    quietBtn.click();
+    expect(quietBtn.getAttribute('aria-pressed')).toBe('true');
+    const others = Array.from(panel.querySelectorAll('button[data-talk-level]:not([data-talk-level="quiet"])'));
+    for (const o of others) {
+      expect(o.getAttribute('aria-pressed')).toBe('false');
+    }
+  });
+
+  it('renders the four agenda buckets as <section> elements with distinct headings', () => {
+    const { state, container } = makeCouncilFixture();
+    const panel = createCouncilPanel(container, state, {
+      onClose: () => {},
+      onTalkLevelChange: () => {},
+    });
+    const sections = panel.querySelectorAll('section');
+    const headings = Array.from(sections).map(s => s.querySelector('h3')?.textContent ?? '');
+    expect(headings).toEqual(expect.arrayContaining(['Do Now', 'Soon', 'To Win', 'Council Drama']));
+  });
+});
