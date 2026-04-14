@@ -7,6 +7,8 @@ export interface CityPanelCallbacks {
   onBuild: (cityId: string, itemId: string) => void;
   onOpenWonderPanel: (cityId: string) => void;
   onClose: () => void;
+  onPrevCity?: () => void;
+  onNextCity?: () => void;
 }
 
 export function createCityPanel(
@@ -85,13 +87,23 @@ export function createCityPanel(
     `;
   }
 
+  const navHtml = (callbacks.onPrevCity || callbacks.onNextCity)
+    ? `<div style="display:flex;align-items:center;gap:8px;">
+        <span id="city-prev" style="cursor:pointer;font-size:20px;opacity:0.7;padding:4px 8px;background:rgba(255,255,255,0.1);border-radius:6px;">&#8249;</span>
+        <span id="city-next" style="cursor:pointer;font-size:20px;opacity:0.7;padding:4px 8px;background:rgba(255,255,255,0.1);border-radius:6px;">&#8250;</span>
+      </div>`
+    : '';
+
   const html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div>
         <h2 style="font-size:18px;color:#e8c170;margin:0;"><span data-text="city-name"></span></h2>
         <div style="font-size:12px;opacity:0.7;">Population: <span data-text="city-pop"></span></div>
       </div>
-      <span id="city-close" style="cursor:pointer;font-size:24px;opacity:0.6;">✕</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${navHtml}
+        <span id="city-close" style="cursor:pointer;font-size:24px;opacity:0.6;">&#x2715;</span>
+      </div>
     </div>
 
     <div style="display:flex;gap:16px;margin-bottom:16px;font-size:13px;">
@@ -169,6 +181,19 @@ export function createCityPanel(
     panel.remove();
     callbacks.onClose();
   });
+
+  if (callbacks.onPrevCity) {
+    panel.querySelector('#city-prev')?.addEventListener('click', () => {
+      panel.remove();
+      callbacks.onPrevCity!();
+    });
+  }
+  if (callbacks.onNextCity) {
+    panel.querySelector('#city-next')?.addEventListener('click', () => {
+      panel.remove();
+      callbacks.onNextCity!();
+    });
+  }
 
   panel.querySelectorAll('.build-item').forEach(el => {
     el.addEventListener('click', () => {
