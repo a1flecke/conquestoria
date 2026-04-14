@@ -20,6 +20,7 @@ Conquestoria is an event-driven 4X/Civ-like game. It uses a single serializable 
 - **Tech Stack**: TypeScript, Canvas 2D, Vite, Vitest, Mise.
 - **Storage**: IndexedDB (primary) with localStorage fallback.
 - **UI**: Canvas for map; DOM/CSS for panels. Use `textContent` for dynamic text (XSS safety).
+- **Typing**: NEVER bypass TypeScript's type system (e.g., with `as unknown` or `@ts-ignore`). Always ensure full type adherence.
 
 ## Required Verification
 After editing `src/`, always run:
