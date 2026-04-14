@@ -358,6 +358,61 @@ function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
   updateHUD();
 }
 
+function openCityPanelForCity(city: import('@/core/types').City): void {
+  const playerCities = currentCiv().cities;
+  const idx = playerCities.indexOf(city.id);
+  if (idx !== -1) currentCityIndex = (idx + 1) % playerCities.length;
+
+  createCityPanel(uiLayer, city, gameState, {
+    onBuild: (cityId, itemId) => {
+      const targetCity = gameState.cities[cityId];
+      if (targetCity) {
+        targetCity.productionQueue = [itemId];
+        targetCity.productionProgress = 0;
+        renderLoop.setGameState(gameState);
+        showNotification(`${targetCity.name}: building ${itemId}`, 'info');
+      }
+    },
+    onOpenWonderPanel: (selectedCityId) => {
+      gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);
+      createWonderPanel(uiLayer, gameState, selectedCityId, {
+        onStartBuild: (buildCityId, wonderId) => {
+          gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
+          const targetCity = gameState.cities[buildCityId];
+          if (targetCity) {
+            renderLoop.setGameState(gameState);
+            showNotification(`${targetCity.name}: preparing ${wonderId}`, 'info');
+          }
+        },
+        onClose: () => {},
+      });
+    },
+    onClose: () => {},
+    onPrevCity: () => {
+      const cities = currentCiv().cities;
+      if (cities.length <= 1) return;
+      const currentIdx = cities.indexOf(city.id);
+      const prevIdx = (currentIdx - 1 + cities.length) % cities.length;
+      const prevCity = gameState.cities[cities[prevIdx]];
+      if (prevCity) {
+        document.getElementById('city-panel')?.remove();
+        openCityPanelForCity(prevCity);
+      }
+    },
+    onNextCity: () => {
+      const cities = currentCiv().cities;
+      if (cities.length <= 1) return;
+      const currentIdx = cities.indexOf(city.id);
+      const nextIdx = (currentIdx + 1) % cities.length;
+      const nextCity = gameState.cities[cities[nextIdx]];
+      if (nextCity) {
+        document.getElementById('city-panel')?.remove();
+        openCityPanelForCity(nextCity);
+      }
+    },
+  });
+}
+
 function togglePanel(panel: string): void {
   // Remove any existing panel
   document.getElementById('tech-panel')?.remove();
@@ -404,32 +459,7 @@ function togglePanel(panel: string): void {
     const city = gameState.cities[cityId];
     if (!city) return;
     currentCityIndex = (currentCityIndex + 1) % playerCities.length;
-    createCityPanel(uiLayer, city, gameState, {
-      onBuild: (cityId, itemId) => {
-        const targetCity = gameState.cities[cityId];
-        if (targetCity) {
-          targetCity.productionQueue = [itemId];
-          targetCity.productionProgress = 0;
-          renderLoop.setGameState(gameState);
-          showNotification(`${targetCity.name}: building ${itemId}`, 'info');
-        }
-      },
-      onOpenWonderPanel: (selectedCityId) => {
-        gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);
-        createWonderPanel(uiLayer, gameState, selectedCityId, {
-          onStartBuild: (buildCityId, wonderId) => {
-            gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
-            const targetCity = gameState.cities[buildCityId];
-            if (targetCity) {
-              renderLoop.setGameState(gameState);
-              showNotification(`${targetCity.name}: preparing ${wonderId}`, 'info');
-            }
-          },
-          onClose: () => {},
-        });
-      },
-      onClose: () => {},
-    });
+    openCityPanelForCity(city);
   } else if (panel === 'espionage') {
     const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
       const choices = Object.values(gameState.cities)
