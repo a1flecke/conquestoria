@@ -41,23 +41,26 @@ describe('legendary-wonder-notifications', () => {
     expect(visible?.message).not.toContain('Quest steps');
   });
 
-  it('only shows completion notifications to the owning current player', () => {
+  it('gives the builder a city-scoped completion message and observers a redacted civ-scoped message', () => {
     const state = makeLegendaryWonderFixture();
 
-    const visible = getLegendaryWonderNotification(state, 'player', {
+    const builderView = getLegendaryWonderNotification(state, 'player', {
       type: 'wonder:legendary-completed',
       civId: 'player',
       cityId: 'city-river',
       wonderId: 'oracle-of-delphi',
     });
-    const hidden = getLegendaryWonderNotification(state, 'rival', {
+    const observerView = getLegendaryWonderNotification(state, 'rival', {
       type: 'wonder:legendary-completed',
       civId: 'player',
       cityId: 'city-river',
       wonderId: 'oracle-of-delphi',
     });
 
-    expect(visible?.message).toMatch(/completed/i);
-    expect(hidden).toBeNull();
+    expect(builderView?.message).toMatch(/completed/i);
+    expect(builderView?.type).toBe('success');
+    // Observer has not met the builder in the fixture — name is redacted.
+    expect(observerView?.message).toMatch(/A rival civilization completed/);
+    expect(observerView?.type).toBe('info');
   });
 });

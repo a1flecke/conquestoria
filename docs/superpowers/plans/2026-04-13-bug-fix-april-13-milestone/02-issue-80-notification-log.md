@@ -2,265 +2,129 @@
 
 **See [README.md](README.md) for shared diagnosis context.**
 
-**Direct cause:** `src/main.ts:201` `notificationLog: NotificationEntry[]` is a single global array. Both players write to it; the log panel renders all entries.
+**Direct cause:** `src/main.ts` kept a single global `notificationLog: NotificationEntry[]`. Both players wrote and read the same array.
 
-**Fix:** Extract a tiny module that scopes the log per civId, then wire `main.ts` to it.
+**Root-cause reframing (approach B):** Scoping the log per civ is necessary but not sufficient. Events fall into three classes:
+
+1. **Private** — only the acting civ should see them (UI clicks, your tech completion, your city grew). Toast to current player, append to current player's log.
+2. **Global with redaction** — every civ should get a log entry, but the message is redacted based on the viewer's discovery state (wonder completions, civ destroyed). Use the existing `*ForPlayer` helpers per viewer.
+3. **Encounter / bilateral** — only civs with a stake or visibility see them (combat against your unit, war/peace between two civs, barbarian raid inside your fog). Append to affected civs' logs regardless of who is the current player.
+
+Per-civ storage already landed in Task 1–3 on this branch. Remaining work routes the class-2 and class-3 events to the correct civs' logs.
 
 ---
 
-## Task 1: Per-player log module test (RED)
+## Task 4: Add `appendToCivLog` helper (GREEN)
 
 **Files:**
-- Create: `tests/ui/notification-log.test.ts`
+- Modify: `src/main.ts` (add helper near `showNotification`)
 
-- [ ] **Step 1: Write the test**
+- [ ] **Step 1: Add helper**
 
 ```ts
-import { describe, expect, it } from 'vitest';
-import {
-  appendNotification,
-  createNotificationLog,
-  getNotificationsForPlayer,
-} from '@/ui/notification-log';
+function appendToCivLog(civId: string, message: string, type: NotificationEntry['type'] = 'info'): void {
+  if (!gameState) return;
+  appendNotification(notificationLog, civId, { message, type, turn: gameState.turn });
+  if (civId === gameState.currentPlayer) {
+    notificationQueue.push({ message, type });
+    if (!isShowingNotification) displayNextNotification();
+  }
+}
+```
 
-describe('notification log hot-seat scoping', () => {
-  it('appends to the active player only', () => {
-    const log = createNotificationLog();
-    appendNotification(log, 'player', { message: 'P1 trained warrior', type: 'info', turn: 1 });
-    appendNotification(log, 'ai-1', { message: 'P2 researched archery', type: 'info', turn: 1 });
-    expect(getNotificationsForPlayer(log, 'player').map(e => e.message)).toEqual(['P1 trained warrior']);
-    expect(getNotificationsForPlayer(log, 'ai-1').map(e => e.message)).toEqual(['P2 researched archery']);
-  });
+Rule for callers: use `showNotification` when the event is triggered by the current player's direct action. Use `appendToCivLog(civId, …)` when fanning out to a specific affected civ.
 
-  it('caps each player log at 50 entries independently', () => {
-    const log = createNotificationLog();
-    for (let i = 0; i < 60; i++) {
-      appendNotification(log, 'player', { message: `m${i}`, type: 'info', turn: i });
-    }
-    appendNotification(log, 'ai-1', { message: 'only-one', type: 'info', turn: 0 });
-    const p1 = getNotificationsForPlayer(log, 'player');
-    expect(p1.length).toBe(50);
-    expect(p1[0].message).toBe('m10');
-    expect(p1[49].message).toBe('m59');
-    expect(getNotificationsForPlayer(log, 'ai-1').length).toBe(1);
-  });
+---
 
-  it('returns an empty array for a civId with no entries', () => {
-    const log = createNotificationLog();
-    expect(getNotificationsForPlayer(log, 'never-seen')).toEqual([]);
-  });
+## Task 5: Route global / bilateral events per civ (GREEN)
+
+**Files:**
+- Modify: `src/main.ts` — listeners for `wonder:legendary-*`, `diplomacy:war-declared`, `diplomacy:peace-made`, `combat:resolved`
+- Modify: `src/ui/minor-civ-notification-listeners.ts` — extend options with `appendToCivLog`
+
+### Step 1 — Wonder legendary events
+
+For each of `wonder:legendary-ready`, `-completed`, `-lost`: iterate `Object.keys(gameState.civilizations)`, call `getLegendaryWonderNotification(gameState, civId, event)` for each, and if it returns a notification call `appendToCivLog(civId, notification.message, notification.type)`.
+
+The existing helper already redacts per viewer (returns `null` for non-builder on non-race events, so only the builder gets their own-wonder messages — that's the current contract; leave it alone). For the `-completed` event we additionally want every civ to see "A rival completed X" — add an `observer` branch to `getLegendaryWonderNotification` later as a follow-up if desired. **Scope for this task: swap the current-player-only routing for per-civ routing; do not broaden the helper contract.**
+
+### Step 2 — War / peace bilateral
+
+```ts
+bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
+  const attackerName = gameState.civilizations[attackerId]?.name ?? 'Unknown';
+  const defenderName = gameState.civilizations[defenderId]?.name ?? 'Unknown';
+  appendToCivLog(defenderId, `${attackerName} has declared war!`, 'warning');
+  appendToCivLog(attackerId, `You declared war on ${defenderName}.`, 'warning');
+});
+
+bus.on('diplomacy:peace-made', ({ civA, civB }) => {
+  const a = gameState.civilizations[civA]?.name ?? 'Unknown';
+  const b = gameState.civilizations[civB]?.name ?? 'Unknown';
+  appendToCivLog(civA, `Peace with ${b}!`, 'success');
+  appendToCivLog(civB, `Peace with ${a}!`, 'success');
 });
 ```
 
-- [ ] **Step 2: Run and verify it fails**
+### Step 3 — Combat against defender
 
-```bash
-yarn test tests/ui/notification-log.test.ts
+Route to `defender.owner` instead of only current player:
+
+```ts
+bus.on('combat:resolved', ({ result }) => {
+  const defender = gameState.units[result.defenderId];
+  if (!defender) return;
+  const attacker = gameState.units[result.attackerId];
+  const attackerOwner = attacker?.owner ?? 'Unknown';
+  const attackerLabel = attackerOwner === 'barbarian' ? 'Barbarians'
+    : (gameState.civilizations[attackerOwner]?.name ?? attackerOwner);
+  const defenderType = UNIT_DEFINITIONS[defender.type]?.name ?? defender.type;
+  const msg = result.defenderSurvived
+    ? `${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`
+    : `${defenderType} was destroyed by ${attackerLabel}!`;
+  appendToCivLog(defender.owner, msg, 'warning');
+});
 ```
 
-Expected: FAIL — module `@/ui/notification-log` does not exist.
+### Step 4 — Minor-civ listeners
+
+Extend the `MinorCivNotificationListenerOptions` interface with `appendToCivLog`. In each listener, after computing `notification` for the target major civ, call `options.appendToCivLog(majorCivId, notification.message, notification.type)` instead of only toasting when `majorCivId === currentPlayer`. `appendToCivLog` handles both the append and the optional toast.
+
+For the already-fan-out events (`minor-civ:evolved`, `-destroyed`) keep the existing per-civ loop but swap `collectEvent`/`showNotification` to `appendToCivLog(civId, …)`. This unifies the path.
 
 ---
 
-## Task 2: Implement the module (GREEN)
+## Task 6: Regression tests (RED→GREEN)
 
 **Files:**
-- Create: `src/ui/notification-log.ts`
+- Create: `tests/ui/notification-routing.test.ts`
 
-- [ ] **Step 1: Write the module**
+Test three scenarios with fake state + direct calls to the helpers (don't spin up full main.ts):
 
-```ts
-// src/ui/notification-log.ts
-export interface NotificationEntry {
-  message: string;
-  type: 'info' | 'success' | 'warning';
-  turn: number;
-}
+1. A war declaration writes an entry to BOTH attacker and defender logs.
+2. A combat-resolved event writes to the defender's owner log even when current player is a third civ.
+3. A wonder-legendary-completed event writes to the builder's log and (when extended) to observers' logs — lock whatever contract was chosen in Task 5.
 
-export type NotificationLog = Record<string, NotificationEntry[]>;
-
-const MAX_PER_PLAYER = 50;
-
-export function createNotificationLog(): NotificationLog {
-  return {};
-}
-
-export function appendNotification(log: NotificationLog, civId: string, entry: NotificationEntry): void {
-  const list = log[civId] ?? (log[civId] = []);
-  list.push(entry);
-  if (list.length > MAX_PER_PLAYER) list.shift();
-}
-
-export function getNotificationsForPlayer(log: NotificationLog, civId: string): NotificationEntry[] {
-  return log[civId] ?? [];
-}
-```
-
-- [ ] **Step 2: Run regression**
-
-```bash
-yarn test tests/ui/notification-log.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 3: Decide on `NotificationEntry` location**
-
-Check whether `NotificationEntry` is currently exported from `src/core/types.ts`:
-
-```bash
-grep -n "NotificationEntry" src/core/types.ts src/main.ts
-```
-
-- If it lives in `src/core/types.ts`, **delete it from there** and have `src/main.ts` import it from `@/ui/notification-log` instead. Single source of truth.
-- If it lives only in `src/main.ts`, no change to `types.ts` is needed.
+For scenarios 1–2, extract the per-listener bodies into small pure functions (`routeWarDeclared`, `routeCombatResolved`) in a new `src/ui/notification-routing.ts` so tests don't need the bus. Wire `main.ts` listeners to those functions.
 
 ---
 
-## Task 3: Wire main.ts to per-player log (GREEN)
+## Task 7: Manual smoke + commit
 
-**Files:**
-- Modify: `src/main.ts:200-208` (the `notificationLog` declaration and `showNotification`)
-- Modify: `src/main.ts:281-298` (the `toggleNotificationLog` rendering loop)
+- [ ] 2-player hotseat: P1 declares war on P2 → switch turn → P2's log has "P1 declared war!".
+- [ ] P1 attacks P2's unit → switch turn → P2's log shows the combat entry.
+- [ ] P1 completes a wonder → switch turn → P2's log shows their (redacted) wonder entry.
 
-- [ ] **Step 1: Replace the global log declaration**
+Commit:
 
-Find:
-
-```ts
-const notificationLog: NotificationEntry[] = [];
 ```
-
-Replace with:
-
-```ts
-import {
-  appendNotification,
-  createNotificationLog,
-  getNotificationsForPlayer,
-  type NotificationEntry,
-} from '@/ui/notification-log';
-// (Place the import at the top of the file with the other @/ui imports;
-// remove the corresponding NotificationEntry import from @/core/types if it existed.)
-
-const notificationLog = createNotificationLog();
-```
-
-- [ ] **Step 2: Replace `showNotification` body**
-
-Find:
-
-```ts
-function showNotification(message: string, type: 'info' | 'success' | 'warning' = 'info'): void {
-  notificationQueue.push({ message, type });
-  notificationLog.push({ message, type, turn: gameState?.turn ?? 0 });
-  if (notificationLog.length > 50) notificationLog.shift();
-  if (!isShowingNotification) displayNextNotification();
-}
-```
-
-Replace with:
-
-```ts
-function showNotification(message: string, type: 'info' | 'success' | 'warning' = 'info'): void {
-  notificationQueue.push({ message, type });
-  if (gameState) {
-    appendNotification(notificationLog, gameState.currentPlayer, {
-      message,
-      type,
-      turn: gameState.turn,
-    });
-  }
-  if (!isShowingNotification) displayNextNotification();
-}
-```
-
-- [ ] **Step 3: Replace the log rendering loop**
-
-In `toggleNotificationLog` (around line 281-298), find:
-
-```ts
-if (notificationLog.length === 0) {
-  // empty branch
-} else {
-  for (let i = notificationLog.length - 1; i >= 0; i--) {
-    const entry = notificationLog[i];
-    // … render row …
-  }
-}
-```
-
-Replace with:
-
-```ts
-const entries = gameState
-  ? getNotificationsForPlayer(notificationLog, gameState.currentPlayer)
-  : [];
-
-if (entries.length === 0) {
-  const empty = document.createElement('div');
-  empty.style.cssText = 'font-size:11px;opacity:0.5;text-align:center;';
-  empty.textContent = 'No messages yet';
-  panel.appendChild(empty);
-} else {
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const entry = entries[i];
-    const row = document.createElement('div');
-    row.style.cssText = 'font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);';
-    const turnSpan = document.createElement('span');
-    turnSpan.style.cssText = `color:${colors[entry.type]};opacity:0.7;margin-right:4px;`;
-    turnSpan.textContent = `T${entry.turn}`;
-    row.appendChild(turnSpan);
-    row.appendChild(document.createTextNode(entry.message));
-    panel.appendChild(row);
-  }
-}
-```
-
-(Preserve any surrounding code — `colors`, panel/header construction — exactly as it is. Only the empty/non-empty rendering changes.)
-
-- [ ] **Step 4: Run full suite + build**
-
-```bash
-yarn test
-yarn build
-```
-
-Both must pass.
-
-- [ ] **Step 5: Manual smoke test**
-
-```bash
-yarn dev
-```
-
-1. Start a 2-player hotseat game (Player 1 = `player`, Player 2 = `ai-1`).
-2. As P1: train a unit. Toast appears. End turn.
-3. As P2: research a tech. Toast appears. Open the message log. **Verify only P2's message is shown.**
-4. End turn back to P1. Open the log. **Verify only P1's message is shown.**
-
-If either log shows the other player's entries, the wiring is wrong — re-check that `gameState.currentPlayer` is being passed to both `appendNotification` and `getNotificationsForPlayer`.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/ui/notification-log.ts src/main.ts src/core/types.ts tests/ui/notification-log.test.ts
-git commit -m "$(cat <<'EOF'
-fix(hotseat): scope notification log per civ to stop cross-player leakage (#80)
-
-The notification log was a single global array; in hot-seat both
-players wrote to and read from the same list, so Player 2's actions
-appeared in Player 1's log. Extract a NotificationLog keyed by civId
-and route reads/writes through gameState.currentPlayer.
-
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
-EOF
-)"
+fix(hotseat): route global and bilateral events to each affected civ's log (#80)
 ```
 
 ---
 
 ## Self-check
-- Did you remove the duplicate `NotificationEntry` definition (single source of truth)?
-- Does the manual smoke test confirm logs are isolated per player?
-- The transient toast queue (`notificationQueue`) is intentionally still a single array — it only ever contains the active player's notifications because `showNotification` is only called during their turn. Do not change it.
+- Private events still use `showNotification` (unchanged scope).
+- Global/bilateral events write to every affected civ's log, not just `currentPlayer`'s.
+- Redaction still flows through the existing `*ForPlayer` helpers — we did not add new leak paths.
+- Tests lock both the positive route (affected civ gets the entry) and a negative (unaffected civ does not).
