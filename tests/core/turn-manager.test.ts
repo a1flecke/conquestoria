@@ -236,26 +236,26 @@ describe('processTurn', () => {
     const startPos = state.units[playerCiv.units[0]].position;
     const city = foundCity('player', startPos, state.map);
     city.buildings = ['workshop'];
-    city.productionQueue = ['warrior'];
-    city.productionProgress = 20;
+    city.productionQueue = ['worker'];
+    city.productionProgress = 4;
     state.cities[city.id] = city;
     playerCiv.cities.push(city.id);
     state.cities[city.id].productionDisabledTurns = 3;
 
     const turn1 = processTurn(state, bus);
-    expect(turn1.cities[city.id].productionProgress).toBe(20);
+    expect(turn1.cities[city.id].productionProgress).toBe(4);
     expect(turn1.cities[city.id].productionDisabledTurns).toBe(2);
 
     const turn2 = processTurn(turn1, bus);
-    expect(turn2.cities[city.id].productionProgress).toBe(20);
+    expect(turn2.cities[city.id].productionProgress).toBe(4);
     expect(turn2.cities[city.id].productionDisabledTurns).toBe(1);
 
     const turn3 = processTurn(turn2, bus);
     expect(turn3.cities[city.id].productionDisabledTurns).toBe(0);
-    expect(turn3.cities[city.id].productionProgress).toBe(20);
+    expect(turn3.cities[city.id].productionProgress).toBe(4);
 
     const turn4 = processTurn(turn3, bus);
-    expect(turn4.cities[city.id].productionProgress).toBeGreaterThan(20);
+    expect(turn4.cities[city.id].productionProgress).toBeGreaterThan(4);
   });
 
   it('applies misinformation research penalties for exactly 10 turns', () => {

@@ -5,6 +5,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "setup:hooks": "git config core.hooksPath .githooks",
     "test": "vitest run",
     "test:watch": "vitest"
   },

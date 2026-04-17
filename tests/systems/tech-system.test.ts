@@ -130,8 +130,8 @@ describe('processResearch', () => {
     const state = createTechState();
     const available = getAvailableTechs(state);
     const updated = startResearch({ ...state }, available[0].id);
-    const result = processResearch(updated, 10);
-    expect(result.state.researchProgress).toBe(10);
+    const result = processResearch(updated, 1);
+    expect(result.state.researchProgress).toBe(1);
     expect(result.completedTech).toBeNull();
   });
 
