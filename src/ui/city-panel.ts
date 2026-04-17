@@ -5,6 +5,8 @@ import { createCityGrid } from './city-grid';
 
 export interface CityPanelCallbacks {
   onBuild: (cityId: string, itemId: string) => void;
+  onMoveQueueItem?: (cityId: string, fromIndex: number, toIndex: number) => void;
+  onRemoveQueueItem?: (cityId: string, index: number) => void;
   onOpenWonderPanel: (cityId: string) => void;
   onClose: () => void;
   onPrevCity?: () => void;
@@ -87,6 +89,23 @@ export function createCityPanel(
     `;
   }
 
+  let queueRowsHtml = '';
+  for (let idx = 0; idx < city.productionQueue.length; idx++) {
+    queueRowsHtml += `
+      <div data-queue-index="${idx}" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;">
+        <div>
+          <div style="font-weight:bold;" data-text="queue-name-${idx}"></div>
+          <div style="font-size:11px;opacity:0.7;">Queue slot ${idx + 1}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button type="button" data-queue-action="up" data-queue-index="${idx}">↑</button>
+          <button type="button" data-queue-action="down" data-queue-index="${idx}">↓</button>
+          <button type="button" data-queue-action="remove" data-queue-index="${idx}">✕</button>
+        </div>
+      </div>
+    `;
+  }
+
   const navHtml = (callbacks.onPrevCity || callbacks.onNextCity)
     ? `<div style="display:flex;align-items:center;gap:8px;">
         <span id="city-prev" style="cursor:pointer;font-size:20px;opacity:0.7;padding:4px 8px;background:rgba(255,255,255,0.1);border-radius:6px;">&#8249;</span>
@@ -120,6 +139,7 @@ export function createCityPanel(
     </div>
     <div id="city-list-view">
       ${currentProductionHtml}
+      ${city.productionQueue.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Queue</h3>${queueRowsHtml}</div>` : ''}
       ${cityWonderProject ? `<div style="margin-bottom:12px;font-size:12px;opacity:0.75;">Wonder carryover: ${cityWonderProject.transferableProduction}</div>` : ''}
       ${city.buildings.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>${buildingPlaceholders}</div>` : ''}
       <div><h3 style="font-size:14px;margin:0 0 8px;">Build</h3>
@@ -175,7 +195,23 @@ export function createCityPanel(
     setText(`unit-name-${i}`, u.name);
   });
 
+  city.productionQueue.forEach((itemId, index) => {
+    setText(`queue-name-${index}`, BUILDINGS[itemId]?.name ?? TRAINABLE_UNITS.find(unit => unit.type === itemId)?.name ?? itemId);
+  });
+
   container.appendChild(panel);
+
+  const reopenPanel = () => {
+    const refreshedCity = state.cities[city.id];
+    if (!refreshedCity) {
+      panel.remove();
+      callbacks.onClose();
+      return;
+    }
+
+    panel.remove();
+    createCityPanel(container, refreshedCity, state, callbacks);
+  };
 
   panel.querySelector('#city-close')?.addEventListener('click', () => {
     panel.remove();
@@ -199,7 +235,36 @@ export function createCityPanel(
     el.addEventListener('click', () => {
       const itemId = (el as HTMLElement).dataset.itemId!;
       callbacks.onBuild(city.id, itemId);
-      panel.remove();
+      reopenPanel();
+    });
+  });
+
+  panel.querySelectorAll('[data-queue-action]').forEach(el => {
+    el.addEventListener('click', event => {
+      event.stopPropagation();
+      const action = (el as HTMLElement).dataset.queueAction;
+      const index = Number((el as HTMLElement).dataset.queueIndex);
+
+      if (!Number.isInteger(index)) {
+        return;
+      }
+
+      if (action === 'remove') {
+        callbacks.onRemoveQueueItem?.(city.id, index);
+        reopenPanel();
+        return;
+      }
+
+      if (action === 'up' && index > 0) {
+        callbacks.onMoveQueueItem?.(city.id, index, index - 1);
+        reopenPanel();
+        return;
+      }
+
+      if (action === 'down' && index < city.productionQueue.length - 1) {
+        callbacks.onMoveQueueItem?.(city.id, index, index + 1);
+        reopenPanel();
+      }
     });
   });
 

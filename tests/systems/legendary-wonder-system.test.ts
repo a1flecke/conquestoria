@@ -512,7 +512,7 @@ describe('legendary-wonder-system', () => {
   it('preserves existing city production when starting a wonder build', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
-    state.cities['city-river'].productionQueue = ['library'];
+    state.cities['city-river'].productionQueue = ['library', 'warrior'];
     state.cities['city-river'].productionProgress = 35;
 
     const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi');
@@ -520,6 +520,7 @@ describe('legendary-wonder-system', () => {
     expect(result.legendaryWonderProjects!['oracle-of-delphi'].phase).toBe('building');
     expect(result.legendaryWonderProjects!['oracle-of-delphi'].investedProduction).toBe(35);
     expect(result.legendaryWonderProjects!['oracle-of-delphi'].transferableProduction).toBe(0);
+    expect(result.cities['city-river'].productionQueue).toEqual(['legendary:oracle-of-delphi', 'library', 'warrior']);
   });
 
   it('exposes passive city and civ bonuses from completed legendary wonders', () => {

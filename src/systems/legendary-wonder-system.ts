@@ -658,7 +658,7 @@ export function startLegendaryWonderBuild(
       ...seededState.cities,
       [cityId]: {
         ...city,
-        productionQueue: [`legendary:${wonderId}`],
+        productionQueue: [`legendary:${wonderId}`, ...city.productionQueue.filter(item => item !== `legendary:${wonderId}`)].slice(0, 3),
         productionProgress: carriedProduction,
       },
     } : state.cities,

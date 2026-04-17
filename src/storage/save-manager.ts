@@ -22,6 +22,20 @@ function ensureGameIdentity(state: GameState): GameState {
   return state;
 }
 
+function migrateLegacyPlanningState(state: GameState): GameState {
+  for (const city of Object.values(state.cities ?? {})) {
+    city.productionQueue ??= [];
+    if (city.productionQueue.length > 3) {
+      city.productionQueue = city.productionQueue.slice(0, 3);
+    }
+  }
+  return state;
+}
+
+function normalizeLoadedState(state: GameState): GameState {
+  return migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)));
+}
+
 function getCityNamingInfo(state: GameState, ownerId: string): { civType: string; civName: string; namingPool?: string[] } {
   const majorCiv = state.civilizations[ownerId];
   if (majorCiv) {
@@ -150,13 +164,13 @@ async function listPersistedMetas(): Promise<SaveSlotMeta[]> {
 async function loadLegacyAutoSave(): Promise<GameState | undefined> {
   const idbSave = await dbGet<GameState>(LEGACY_AUTO_SAVE_KEY);
   if (idbSave) {
-    return migrateLegacyNamingState(ensureGameIdentity(idbSave));
+    return normalizeLoadedState(idbSave);
   }
 
   try {
     const raw = localStorage.getItem(LOCALSTORAGE_AUTOSAVE_KEY);
     if (raw) {
-      return migrateLegacyNamingState(ensureGameIdentity(JSON.parse(raw) as GameState));
+      return normalizeLoadedState(JSON.parse(raw) as GameState);
     }
   } catch {
     console.warn('[save] localStorage fallback parse failed');
@@ -218,7 +232,7 @@ async function loadMostRecentPersistedAutosave(): Promise<GameState | undefined>
   }
 
   const state = await dbGet<GameState>(getSaveStorageKey(newestMeta.id, 'autosave'));
-  return state ? migrateLegacyNamingState(ensureGameIdentity(state)) : undefined;
+  return state ? normalizeLoadedState(state) : undefined;
 }
 
 async function retireLegacyAutosaveIfRealAutosavesExist(): Promise<boolean> {
@@ -291,7 +305,7 @@ export async function loadSettings(): Promise<GameState['settings'] | undefined>
 // --- Multi-slot saves ---
 
 export async function saveGame(slotId: string, name: string, state: GameState): Promise<void> {
-  const resolved = ensureGameIdentity(state);
+  const resolved = normalizeLoadedState(state);
   const meta = buildSaveMeta(slotId, name, resolved, 'manual');
   await dbPut(getSaveStorageKey(slotId, 'manual'), resolved);
   await dbPut(getMetaStorageKey(slotId), meta);
@@ -303,11 +317,11 @@ export async function loadGame(slotId: string): Promise<GameState | undefined> {
       return loadLegacyAutoSave();
     }
     const save = await dbGet<GameState>(getSaveStorageKey(slotId, 'autosave'));
-    return save ? migrateLegacyNamingState(ensureGameIdentity(save)) : undefined;
+    return save ? normalizeLoadedState(save) : undefined;
   }
 
   const save = await dbGet<GameState>(getSaveStorageKey(slotId, 'manual'));
-  return save ? migrateLegacyNamingState(ensureGameIdentity(save)) : undefined;
+  return save ? normalizeLoadedState(save) : undefined;
 }
 
 export async function deleteSaveEntry(entryId: string, kind: 'manual' | 'autosave'): Promise<void> {

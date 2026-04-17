@@ -99,4 +99,21 @@ describe('city-panel navigation', () => {
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
     expect(rendered).toContain('turns');
   });
+
+  it('renders production queue rows with move and remove controls', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.productionQueue = ['warrior', 'shrine', 'worker'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onMoveQueueItem: () => {},
+      onRemoveQueueItem: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    } as any);
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).toContain('Queue');
+    expect(rendered).toContain('data-queue-action="remove"');
+  });
 });
