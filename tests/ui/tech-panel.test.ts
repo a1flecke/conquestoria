@@ -37,4 +37,13 @@ describe('tech-panel', () => {
     expect(panel.querySelector('[data-era="5"]')).toBeTruthy();
     expect(panel.textContent).toContain('Late Era Foundations');
   });
+
+  it('shows ETA language for the active research summary', () => {
+    const state = createNewGame(undefined, 'tech-eta-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+
+    const panel = createTechPanel(document.body, state, { onStartResearch: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).toContain('Turns remaining');
+  });
 });

@@ -2,7 +2,7 @@ import type { Tech } from '@/core/types';
 
 export const TECH_TREE: Tech[] = [
   // === MILITARY TRACK (8 techs, existing) ===
-  { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 20, prerequisites: [], unlocks: ['Warriors deal +2 damage'], era: 1 },
+  { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 10, prerequisites: [], unlocks: ['Warriors deal +2 damage'], era: 1, pacing: { band: 'starter', role: 'foundational-military', impact: 1.05, scope: 'military', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1 } },
   { id: 'archery', name: 'Archery', track: 'military', cost: 35, prerequisites: ['stone-weapons'], unlocks: ['Unlock Archer unit'], era: 1 },
   { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 50, prerequisites: ['stone-weapons'], unlocks: ['Unlock Swordsman unit'], era: 2 },
   { id: 'horseback-riding', name: 'Horseback Riding', track: 'military', cost: 55, prerequisites: ['animal-husbandry'], unlocks: ['Unlock Stable, mounted units'], era: 2 },
@@ -12,7 +12,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus', 'musketeer'], era: 4 },
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
-  { id: 'gathering', name: 'Gathering', track: 'economy', cost: 15, prerequisites: [], unlocks: ['Foundational economy knowledge'], era: 1 },
+  { id: 'gathering', name: 'Gathering', track: 'economy', cost: 8, prerequisites: [], unlocks: ['Foundational economy knowledge'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
   { id: 'pottery', name: 'Pottery', track: 'economy', cost: 25, prerequisites: ['gathering'], unlocks: ['Foundational ceramics knowledge'], era: 1 },
   { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 35, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource'], era: 2 },
   { id: 'irrigation', name: 'Irrigation', track: 'economy', cost: 45, prerequisites: ['pottery'], unlocks: ['Farms yield +1 food'], era: 2 },
@@ -23,7 +23,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5, countsForEraAdvancement: false },
 
   // === SCIENCE TRACK (9 techs, with Slice 3 late-era scaffolding) ===
-  { id: 'fire', name: 'Fire', track: 'science', cost: 15, prerequisites: [], unlocks: ['Unlock basic research'], era: 1 },
+  { id: 'fire', name: 'Fire', track: 'science', cost: 8, prerequisites: [], unlocks: ['Unlock basic research'], era: 1, pacing: { band: 'starter', role: 'foundational-science', impact: 1, scope: 'empire', snowball: 1.15, urgency: 1.1, situationality: 1, unlockBreadth: 1.1 } },
   { id: 'writing', name: 'Writing', track: 'science', cost: 30, prerequisites: ['fire'], unlocks: ['Unlock Library building'], era: 1 },
   { id: 'wheel', name: 'The Wheel', track: 'science', cost: 40, prerequisites: ['fire'], unlocks: ['Foundational mechanics knowledge'], era: 2 },
   { id: 'mathematics', name: 'Mathematics', track: 'science', cost: 60, prerequisites: ['writing'], unlocks: ['Unlock Archive building'], era: 2 },
@@ -34,7 +34,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'nuclear-theory', name: 'Nuclear Theory', track: 'science', cost: 165, prerequisites: ['astronomy', 'medicine'], unlocks: ['Late-era atomic research and wonder prerequisites'], era: 5, countsForEraAdvancement: false },
 
   // === CIVICS TRACK (8 techs, existing) ===
-  { id: 'tribal-council', name: 'Tribal Council', track: 'civics', cost: 15, prerequisites: [], unlocks: ['Basic governance'], era: 1 },
+  { id: 'tribal-council', name: 'Tribal Council', track: 'civics', cost: 8, prerequisites: [], unlocks: ['Basic governance'], era: 1, pacing: { band: 'starter', role: 'foundational-civics', impact: 1, scope: 'empire', snowball: 1, urgency: 1, situationality: 1, unlockBreadth: 1.05 } },
   { id: 'code-of-laws', name: 'Code of Laws', track: 'civics', cost: 30, prerequisites: ['tribal-council'], unlocks: ['Unlock Monument building'], era: 1 },
   { id: 'early-empire', name: 'Early Empire', track: 'civics', cost: 45, prerequisites: ['code-of-laws'], unlocks: ['Cities claim +1 tile radius'], era: 2 },
   { id: 'state-workforce', name: 'State Workforce', track: 'civics', cost: 55, prerequisites: ['early-empire'], unlocks: ['Unlock Lumbermill, Quarry'], era: 2 },
@@ -44,7 +44,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'political-philosophy', name: 'Political Philosophy', track: 'civics', cost: 100, prerequisites: ['civil-service', 'philosophy'], unlocks: ['Unlock alliances'], era: 4 },
 
   // === EXPLORATION TRACK (8 techs, existing) ===
-  { id: 'pathfinding', name: 'Pathfinding', track: 'exploration', cost: 15, prerequisites: [], unlocks: ['Scouts get +1 vision'], era: 1 },
+  { id: 'pathfinding', name: 'Pathfinding', track: 'exploration', cost: 8, prerequisites: [], unlocks: ['Scouts get +1 vision'], era: 1, pacing: { band: 'starter', role: 'foundational-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   { id: 'cartography', name: 'Cartography', track: 'exploration', cost: 30, prerequisites: ['pathfinding'], unlocks: ['Reveal map edges'], era: 1 },
   { id: 'sailing', name: 'Sailing', track: 'exploration', cost: 45, prerequisites: ['pathfinding'], unlocks: ['Units can embark on coast'], era: 2 },
   { id: 'celestial-navigation', name: 'Celestial Navigation', track: 'exploration', cost: 55, prerequisites: ['sailing', 'fire'], unlocks: ['Units can cross ocean'], era: 2 },

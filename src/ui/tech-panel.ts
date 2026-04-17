@@ -1,5 +1,7 @@
 import type { GameState, Tech, TechTrack } from '@/core/types';
 import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
+import { calculateCityYields } from '@/systems/resource-system';
+import { estimateTurnsToComplete } from '@/systems/pacing-model';
 
 export interface TechPanelCallbacks {
   onStartResearch: (techId: string) => void;
@@ -38,7 +40,7 @@ function getEraLabel(era: number): string {
   return era === 5 ? 'Late Era Foundations' : `Era ${era}`;
 }
 
-function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: number): HTMLDivElement | null {
+function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: number, turnsRemaining: number | null): HTMLDivElement | null {
   if (!currentTech) {
     return null;
   }
@@ -52,7 +54,9 @@ function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: nu
   wrapper.appendChild(heading);
 
   const summary = document.createElement('div');
-  summary.textContent = `${titleCase(currentTech.track)} · ${currentTech.unlocks[0] ?? 'New options for your empire'}`;
+  summary.textContent = turnsRemaining === null
+    ? `${titleCase(currentTech.track)} · ${currentTech.unlocks[0] ?? 'New options for your empire'}`
+    : `${titleCase(currentTech.track)} · Turns remaining: ${turnsRemaining}`;
   summary.style.cssText = 'font-size:12px;opacity:0.7;';
   wrapper.appendChild(summary);
 
@@ -77,6 +81,7 @@ function createTechItem(
     isCompleted: boolean;
     isCurrent: boolean;
     isAvailable: boolean;
+    turnsToResearch: number | null;
     onStartResearch: (techId: string) => void;
     onClosePanel: () => void;
   },
@@ -115,7 +120,8 @@ function createTechItem(
 
   const detail = document.createElement('div');
   detail.style.cssText = 'font-size:11px;opacity:0.7;';
-  detail.textContent = `${tech.unlocks[0] ?? 'New options'} · Cost: ${tech.cost}`;
+  const etaText = opts.turnsToResearch === null ? 'ETA unknown' : `${opts.turnsToResearch} turns`;
+  detail.textContent = `${tech.unlocks[0] ?? 'New options'} · ${etaText} · Cost: ${tech.cost}`;
   item.appendChild(detail);
 
   if (opts.isAvailable) {
@@ -135,6 +141,7 @@ function buildEraSection(
   available: Tech[],
   callbacks: TechPanelCallbacks,
   panel: HTMLElement,
+  outputPerTurn: number,
 ): HTMLElement {
   const section = document.createElement('div');
   section.dataset.era = String(era);
@@ -152,6 +159,9 @@ function buildEraSection(
       isCompleted: civ.techState.completed.includes(tech.id),
       isCurrent: civ.techState.currentResearch === tech.id,
       isAvailable: available.some(candidate => candidate.id === tech.id),
+      turnsToResearch: available.some(candidate => candidate.id === tech.id)
+        ? estimateTurnsToComplete({ cost: tech.cost, outputPerTurn })
+        : null,
       onStartResearch: callbacks.onStartResearch,
       onClosePanel: () => panel.remove(),
     }));
@@ -174,6 +184,13 @@ export function createTechPanel(
 
   const civ = state.civilizations[state.currentPlayer];
   const available = getAvailableTechs(civ.techState);
+  const sciencePerTurn = Math.max(
+    1,
+    civ.cities
+      .map(cityId => state.cities[cityId])
+      .filter((city): city is NonNullable<typeof state.cities[string]> => city !== undefined)
+      .reduce((total, city) => total + calculateCityYields(city, state.map).science, 0),
+  );
 
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
@@ -202,7 +219,13 @@ export function createTechPanel(
   const currentProgress = currentTech
     ? Math.round((civ.techState.researchProgress / currentTech.cost) * 100)
     : 0;
-  const summary = buildCurrentResearchSummary(currentTech, currentProgress);
+  const turnsRemaining = currentTech
+    ? estimateTurnsToComplete({
+      cost: Math.max(0, currentTech.cost - civ.techState.researchProgress),
+      outputPerTurn: sciencePerTurn,
+    })
+    : null;
+  const summary = buildCurrentResearchSummary(currentTech, currentProgress, turnsRemaining);
   if (summary) {
     panel.appendChild(summary);
   }
@@ -225,7 +248,7 @@ export function createTechPanel(
     const eras = [...new Set(techs.map(tech => tech.era))].sort((a, b) => a - b);
     for (const era of eras) {
       const eraTechs = techs.filter(tech => tech.era === era);
-      trackBlock.appendChild(buildEraSection(era, eraTechs, civ, available, callbacks, panel));
+      trackBlock.appendChild(buildEraSection(era, eraTechs, civ, available, callbacks, panel, sciencePerTurn));
     }
 
     grid.appendChild(trackBlock);
