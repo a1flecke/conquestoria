@@ -9,6 +9,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
+import { enqueueCityProduction, moveQueuedId, removeQueuedId } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { startResearch } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
@@ -401,11 +402,34 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
     onBuild: (cityId, itemId) => {
       const targetCity = gameState.cities[cityId];
       if (targetCity) {
-        targetCity.productionQueue = [itemId];
-        targetCity.productionProgress = 0;
-        renderLoop.setGameState(gameState);
-        showNotification(`${targetCity.name}: building ${itemId}`, 'info');
+        try {
+          gameState.cities[cityId] = enqueueCityProduction(targetCity, itemId);
+          renderLoop.setGameState(gameState);
+          showNotification(`${targetCity.name}: queued ${itemId}`, 'info');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Queue limit reached';
+          showNotification(`${targetCity.name}: ${message}`, 'warning');
+        }
       }
+    },
+    onMoveQueueItem: (cityId, fromIndex, toIndex) => {
+      const targetCity = gameState.cities[cityId];
+      if (!targetCity) return;
+      gameState.cities[cityId] = {
+        ...targetCity,
+        productionQueue: moveQueuedId(targetCity.productionQueue, fromIndex, toIndex),
+      };
+      renderLoop.setGameState(gameState);
+    },
+    onRemoveQueueItem: (cityId, index) => {
+      const targetCity = gameState.cities[cityId];
+      if (!targetCity) return;
+      gameState.cities[cityId] = {
+        ...targetCity,
+        productionQueue: removeQueuedId(targetCity.productionQueue, index),
+        productionProgress: index === 0 ? 0 : targetCity.productionProgress,
+      };
+      renderLoop.setGameState(gameState);
     },
     onOpenWonderPanel: (selectedCityId) => {
       gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);

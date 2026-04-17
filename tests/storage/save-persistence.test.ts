@@ -308,6 +308,34 @@ describe('save persistence (#38)', () => {
     expect(resolved?.bonusEffect).toEqual({ type: 'extra_tech_speed', speedMultiplier: 1.15 });
   });
 
+  it('trims legacy production queues to three items on load', async () => {
+    const state = createNewGame('rome', 'legacy-queue-seed');
+    state.cities['city-1'] = {
+      id: 'city-1',
+      name: 'Rome',
+      owner: 'player',
+      position: { q: 2, r: 2 },
+      population: 2,
+      food: 0,
+      foodNeeded: 15,
+      buildings: [],
+      productionQueue: ['warrior', 'shrine', 'worker', 'library'],
+      productionProgress: 0,
+      ownedTiles: [{ q: 2, r: 2 }],
+      grid: [[null]],
+      gridSize: 3,
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+    };
+    state.civilizations.player.cities = ['city-1'];
+
+    await saveGame('slot-legacy-queue', 'Legacy Queue Save', state);
+    const loaded = await loadGame('slot-legacy-queue');
+
+    expect(loaded?.cities['city-1'].productionQueue).toEqual(['warrior', 'shrine', 'worker']);
+  });
+
   it('normalizes legacy duplicate or off-pool city names on load', () => {
     const state = createNewGame('rome', 'legacy-naming-seed');
     state.cities['city-1'] = {
