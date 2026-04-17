@@ -242,6 +242,7 @@ export interface Building {
   description: string;
   techRequired?: string | null;
   adjacencyBonuses?: AdjacencyBonus[];
+  pacing?: PacingMetadata;
 }
 
 export interface City {
@@ -274,6 +275,27 @@ export type TechTrack =
 
 export type TechStatus = 'locked' | 'available' | 'researching' | 'completed';
 
+export type PacingBand =
+  | 'starter'
+  | 'core'
+  | 'specialist'
+  | 'infrastructure'
+  | 'power-spike'
+  | 'marquee';
+
+export type PacingContentType = 'building' | 'unit' | 'tech' | 'wonder';
+
+export interface PacingMetadata {
+  band: PacingBand;
+  role: string;
+  impact: number;
+  scope: 'city' | 'military' | 'empire';
+  snowball: number;
+  urgency: number;
+  situationality: number;
+  unlockBreadth: number;
+}
+
 export interface Tech {
   id: string;
   name: string;
@@ -283,6 +305,7 @@ export interface Tech {
   unlocks: string[];         // what this tech enables (descriptions)
   era: number;               // 1-3 for milestone 1
   countsForEraAdvancement?: boolean;
+  pacing?: PacingMetadata;
 }
 
 export interface TechState {

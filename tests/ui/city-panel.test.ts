@@ -87,4 +87,16 @@ describe('city-panel navigation', () => {
     nextBtn?.click?.();
     expect(onNext).toHaveBeenCalledOnce();
   });
+
+  it('shows ETA text for buildable units and buildings', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).toContain('turns');
+  });
 });
