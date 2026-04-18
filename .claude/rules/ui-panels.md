@@ -37,6 +37,8 @@ paths:
 ## Tech Panel
 - Must list ALL tech tracks from the `TechTrack` type union — never hardcode a subset
 - Derive track list from the type definition or `TECH_TREE` data
+- If a panel action mutates state that the same panel renders, the visible panel must refresh immediately or render from a shared reactive helper. Updating only global state/HUD while leaving the open panel stale is a bug.
+- Derived UI labels such as `next layer`, `reachable`, `recommended`, or `available soon` must come from one shared helper with both positive and negative coverage. If the label implies conjunctive reachability, tests must prove partially-met prerequisites stay hidden.
 
 ## Catalog Panels
 - If a panel is the only place a player can browse or trigger a catalog of game actions, it MUST keep the full actionable catalog reachable
@@ -70,3 +72,5 @@ Exceptions: AI internal decisions that legitimately mean "capital" (e.g., `src/a
 - Never silently replace a player-visible list (production queue, research queue, unit stack, trade route roster) when the player takes an action.
 - If starting a new activity would discard scheduled work, preserve it (prepend/append the new item, keep the tail) or prompt for explicit confirmation.
 - Regression tests must assert that pre-existing queue entries survive the operation.
+- Queue UIs must show the active item, the queued follow-ups, and visible ETA/order feedback if the order matters to the player.
+- Reorder/remove interactions must have regression coverage that clicks through the control and verifies the rendered queue state afterward, not just the underlying array mutation.
