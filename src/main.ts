@@ -8,8 +8,8 @@ import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
-import { foundCity, getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
-import { enqueueCityProduction, enqueueResearch, getIdleCityIds, moveQueuedId, needsResearchChoice, removeQueuedId } from '@/systems/planning-system';
+import { foundCity } from '@/systems/city-system';
+import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
@@ -31,7 +31,7 @@ import { createGameShell } from '@/ui/game-shell';
 import { createContextMenu } from '@/ui/context-menu';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
-import { createRequiredChoicePanel } from '@/ui/required-choice-panel';
+import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { showCampaignSetup } from '@/ui/campaign-setup';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
@@ -472,6 +472,14 @@ function closeRequiredChoicePanel(): void {
   uiInteractions.setBlockingOverlay(null);
 }
 
+function refreshRequiredChoicesAfterAction(): void {
+  document.getElementById('required-choice-panel')?.remove();
+  closePlanningPanels(document);
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  showRequiredChoicesIfNeeded();
+}
+
 function showRequiredChoicesIfNeeded(): boolean {
   const civId = gameState.currentPlayer;
   const idleCityIds = getIdleCityIds(gameState, civId);
@@ -486,6 +494,8 @@ function showRequiredChoicesIfNeeded(): boolean {
   if (existing) {
     return true;
   }
+
+  closePlanningPanels(document);
 
   const civ = currentCiv();
   const sciencePerTurn = Math.max(
@@ -503,25 +513,22 @@ function showRequiredChoicesIfNeeded(): boolean {
     }))
     : [];
 
-  const cityChoices = idleCityIds.map(cityId => {
-    const city = gameState.cities[cityId];
-    const completedTechs = civ.techState.completed;
-    const buildingChoice = getAvailableBuildings(city, completedTechs)[0];
-    const unitChoice = TRAINABLE_UNITS.find(unit => !unit.techRequired || completedTechs.includes(unit.techRequired));
-    const chosen = buildingChoice
-      ? { itemId: buildingChoice.id, label: buildingChoice.name, cost: buildingChoice.productionCost }
-      : unitChoice
-        ? { itemId: unitChoice.type, label: unitChoice.name, cost: unitChoice.cost }
-        : { itemId: 'warrior', label: 'Warrior', cost: 8 };
-    const productionPerTurn = Math.max(1, calculateCityYields(city, gameState.map).production);
-    return {
-      cityId,
-      cityName: city.name,
-      itemId: chosen.itemId,
-      label: chosen.label,
-      turns: estimateTurnsToComplete({ cost: chosen.cost, outputPerTurn: productionPerTurn }),
-    };
-  });
+  const cityChoices = idleCityIds
+    .map(cityId => {
+      const city = gameState.cities[cityId];
+      const choice = getRecommendedIdleCityChoice(gameState, civId, cityId);
+      if (!city || !choice) {
+        return null;
+      }
+      return {
+        cityId,
+        cityName: city.name,
+        itemId: choice.itemId,
+        label: choice.label,
+        turns: choice.turns,
+      };
+    })
+    .filter((choice): choice is NonNullable<typeof choice> => choice !== null);
 
   uiInteractions.setBlockingOverlay('required-choice');
   createRequiredChoicePanel(uiLayer, {
@@ -529,19 +536,15 @@ function showRequiredChoicesIfNeeded(): boolean {
     cityChoices,
     onChooseResearch: (techId) => {
       currentCiv().techState = enqueueResearch(currentCiv().techState, techId);
-      closeRequiredChoicePanel();
-      renderLoop.setGameState(gameState);
-      updateHUD();
       showNotification(`Researching ${techId}...`, 'info');
+      refreshRequiredChoicesAfterAction();
     },
     onChooseCityBuild: (cityId, itemId) => {
       const city = gameState.cities[cityId];
       if (!city) return;
       gameState.cities[cityId] = enqueueCityProduction(city, itemId);
-      closeRequiredChoicePanel();
-      renderLoop.setGameState(gameState);
-      updateHUD();
       showNotification(`${city.name}: queued ${itemId}`, 'info');
+      refreshRequiredChoicesAfterAction();
     },
     onOpenTech: () => {
       closeRequiredChoicePanel();
