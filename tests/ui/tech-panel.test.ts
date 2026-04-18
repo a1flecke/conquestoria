@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { enqueueResearch } from '@/systems/planning-system';
 import { startResearch } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
 
@@ -69,6 +70,7 @@ describe('tech-panel', () => {
 
   it('keeps deep locked items out of the default view while keeping a show-all affordance', () => {
     const state = createNewGame(undefined, 'tech-layer-test');
+    state.civilizations.player.techState.completed.push('gathering', 'pottery', 'fire', 'writing');
     const panel = createTechPanel(document.body, state, {
       onQueueResearch: () => {},
       onMoveQueuedResearch: () => {},
@@ -77,6 +79,7 @@ describe('tech-panel', () => {
     });
 
     expect(panel.querySelector('[data-action="show-all-techs"]')).toBeTruthy();
+    expect(panel.querySelector('[data-tech-id="banking"]')).toBeFalsy();
   });
 
   it('renders research queue controls', () => {
@@ -93,5 +96,37 @@ describe('tech-panel', () => {
 
     expect(panel.textContent).toContain('Research Queue');
     expect(panel.querySelector('[data-queue-action="remove"]')).toBeTruthy();
+    expect(panel.textContent).toContain('Starts in');
+  });
+
+  it('refreshes the visible research state after queue interactions', () => {
+    const state = createNewGame(undefined, 'tech-refresh-test');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: (techId) => {
+        state.civilizations.player.techState = enqueueResearch(state.civilizations.player.techState, techId);
+      },
+      onMoveQueuedResearch: (fromIndex, toIndex) => {
+        const queue = [...state.civilizations.player.techState.researchQueue];
+        const [moved] = queue.splice(fromIndex, 1);
+        if (moved) {
+          queue.splice(toIndex, 0, moved);
+        }
+        state.civilizations.player.techState = {
+          ...state.civilizations.player.techState,
+          researchQueue: queue,
+        };
+      },
+      onRemoveQueuedResearch: (index) => {
+        state.civilizations.player.techState = {
+          ...state.civilizations.player.techState,
+          researchQueue: state.civilizations.player.techState.researchQueue.filter((_, queueIndex) => queueIndex !== index),
+        };
+      },
+      onClose: () => {},
+    });
+
+    (panel.querySelector('[data-tech-id="fire"]') as HTMLDivElement | null)?.click();
+
+    expect(document.body.querySelector('#tech-panel')?.textContent).toContain('Researching: Fire');
   });
 });
