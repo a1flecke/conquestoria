@@ -45,6 +45,8 @@ If you touch files in these areas, read the matching rule file before editing:
 
 Use `CLAUDE.md` for repo-wide architecture, command, and gameplay conventions.
 
+When writing or updating implementation plans for interactive UI, queueing, or recommendation surfaces, also read `docs/superpowers/plans/README.md` and include its guardrail sections in the plan.
+
 ## Required Verification
 After editing files under `src/`, run:
 
@@ -74,6 +76,12 @@ Vitest is the test runner. Add tests beside the relevant domain under `tests/`, 
 When fixing a bug or implementing from a plan/spec, add at least one regression test for the exact failure mode before changing production code. If you introduce a new owner/faction or neutral hostile actor such as `rebels`, add an interaction test covering AI or player handling of that owner. If a rule in a spec is conjunctive, such as "A and B must both be true", write a negative test proving that only `A` or only `B` is insufficient.
 
 If a UI panel is the only place a player can inspect or trigger a full catalog of actions, tests must prove every actionable item remains reachable. Recommendation or prioritization may reorder the surface, but it must not silently hide lower-ranked items unless there is an explicit secondary affordance such as `Show all` that is itself tested.
+
+If a panel action changes state that the same panel renders, add a regression that performs the interaction and asserts the visible panel updates immediately. Do not treat HUD updates or underlying state mutation as sufficient proof for panel correctness.
+
+If you add a derived UI helper or label such as `next layer`, `reachable`, `recommended`, or `available soon`, add a negative test that proves items outside that semantic boundary remain hidden.
+
+If you add or modify a player-visible queue, tests must verify both data integrity and rendered behavior: active item, queued order, ETA text when relevant, and visible post-action state after reorder/remove.
 
 When a gameplay rule is attached to combat resolution, camp destruction, capture, or any other actor-agnostic state change, add parity coverage for the human path and at least one non-human path (`AI`, `turn-manager`, or another system caller). Do not treat a UI handler as the only execution path for game-state history or progression rules.
 
