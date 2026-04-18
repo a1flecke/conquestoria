@@ -13,7 +13,12 @@ describe('tech-panel', () => {
       : state.civilizations.player.techState.completed[0];
     state.civilizations.player.techState = startResearch(state.civilizations.player.techState, firstAvailable);
 
-    const panel = createTechPanel(document.body, state, { onStartResearch: () => {}, onClose: () => {} });
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
 
     expect(panel.textContent).toContain('Research');
     expect(panel.querySelectorAll('.tech-track').length).toBeGreaterThan(3);
@@ -23,7 +28,12 @@ describe('tech-panel', () => {
 
   it('remains usable without horizontal-strip scanning', () => {
     const state = createNewGame(undefined, 'tech-panel-grid');
-    const panel = createTechPanel(document.body, state, { onStartResearch: () => {}, onClose: () => {} });
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
 
     expect(panel.querySelector('[data-layout="tech-tree-grid"]')).toBeTruthy();
   });
@@ -32,7 +42,12 @@ describe('tech-panel', () => {
     const state = createNewGame(undefined, 'tech-panel-late-era');
     state.civilizations.player.techState.completed.push('printing', 'diplomats', 'trade-routes', 'banking', 'astronomy', 'medicine');
 
-    const panel = createTechPanel(document.body, state, { onStartResearch: () => {}, onClose: () => {} });
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
 
     expect(panel.querySelector('[data-era="5"]')).toBeTruthy();
     expect(panel.textContent).toContain('Late Era Foundations');
@@ -42,8 +57,41 @@ describe('tech-panel', () => {
     const state = createNewGame(undefined, 'tech-eta-test');
     state.civilizations.player.techState.currentResearch = 'fire';
 
-    const panel = createTechPanel(document.body, state, { onStartResearch: () => {}, onClose: () => {} });
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
 
     expect(panel.textContent).toContain('Turns remaining');
+  });
+
+  it('keeps deep locked items out of the default view while keeping a show-all affordance', () => {
+    const state = createNewGame(undefined, 'tech-layer-test');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-action="show-all-techs"]')).toBeTruthy();
+  });
+
+  it('renders research queue controls', () => {
+    const state = createNewGame(undefined, 'tech-queue-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Research Queue');
+    expect(panel.querySelector('[data-queue-action="remove"]')).toBeTruthy();
   });
 });

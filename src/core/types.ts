@@ -311,6 +311,7 @@ export interface Tech {
 export interface TechState {
   completed: string[];       // tech IDs
   currentResearch: string | null;
+  researchQueue: string[];
   researchProgress: number;
   trackPriorities: Record<TechTrack, 'high' | 'medium' | 'low' | 'ignore'>;
 }

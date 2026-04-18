@@ -9,9 +9,8 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
-import { enqueueCityProduction, moveQueuedId, removeQueuedId } from '@/systems/planning-system';
+import { enqueueCityProduction, enqueueResearch, moveQueuedId, removeQueuedId } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
-import { startResearch } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
@@ -489,14 +488,33 @@ function togglePanel(panel: string): void {
     councilPanelOpen = true;
   } else if (panel === 'tech') {
     createTechPanel(uiLayer, gameState, {
-      onStartResearch: (techId) => {
-        currentCiv().techState = startResearch(
-          currentCiv().techState,
-          techId,
-        );
+      onQueueResearch: (techId) => {
+        try {
+          currentCiv().techState = enqueueResearch(currentCiv().techState, techId);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Queue limit reached';
+          showNotification(message, 'warning');
+          return;
+        }
         renderLoop.setGameState(gameState);
         updateHUD();
-        showNotification(`Researching ${techId}...`, 'info');
+        showNotification(`Queued research: ${techId}`, 'info');
+      },
+      onMoveQueuedResearch: (fromIndex, toIndex) => {
+        currentCiv().techState = {
+          ...currentCiv().techState,
+          researchQueue: moveQueuedId(currentCiv().techState.researchQueue, fromIndex, toIndex),
+        };
+        renderLoop.setGameState(gameState);
+        updateHUD();
+      },
+      onRemoveQueuedResearch: (index) => {
+        currentCiv().techState = {
+          ...currentCiv().techState,
+          researchQueue: removeQueuedId(currentCiv().techState.researchQueue, index),
+        };
+        renderLoop.setGameState(gameState);
+        updateHUD();
       },
       onClose: () => {},
     });

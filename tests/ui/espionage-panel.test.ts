@@ -98,7 +98,7 @@ function makeEspUiState(): GameState {
         id: 'player', name: 'Player', color: '#4a90d9',
         isHuman: true, civType: 'egypt',
         cities: ['city-player-1'], units: [],
-        techState: { completed: ['espionage-scouting'], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+        techState: { completed: ['espionage-scouting'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
         gold: 100, visibility: { tiles: {} }, score: 50,
         diplomacy: {
           relationships: { 'ai-egypt': -10 }, treaties: [], events: [], atWarWith: [],
@@ -110,7 +110,7 @@ function makeEspUiState(): GameState {
         id: 'ai-egypt', name: 'Egypt', color: '#c4a94d',
         isHuman: false, civType: 'egypt',
         cities: ['city-egypt-1'], units: [],
-        techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
         gold: 150, visibility: { tiles: {} }, score: 100,
         diplomacy: {
           relationships: { player: -10 }, treaties: [], events: [], atWarWith: [],

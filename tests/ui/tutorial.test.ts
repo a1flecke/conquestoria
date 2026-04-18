@@ -16,7 +16,7 @@ function makeTutorialState(overrides: Partial<GameState> = {}): GameState {
         units: [],
         gold: 0,
         diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { isVassal: false, isOverlord: false, vassals: [], overlord: null, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
-        techState: { completed: [], currentResearch: null, researchProgress: 0 },
+        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
         visibility: { tiles: {}, sharedVision: [] },
       },
     },
