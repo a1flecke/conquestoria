@@ -151,6 +151,18 @@ MR review theme:
 
 - “Is the pacing model inspectable, deterministic, and actually reflected in the current costs?”
 
+### Slice 7: Audit Accuracy And Full-Catalog Inspection Fixes
+
+Player value:
+
+- the local pacing audit reports believable era targets instead of misleading approximations
+- the audit surface can actually identify what is too slow or too fast
+- the debug panel can inspect the full catalog rather than a misleading first-page subset
+
+MR review theme:
+
+- “Does the pacing tooling tell the truth about the full roster, and can a designer actually use it to rebalance content?”
+
 ---
 
 ## Task 1: Faster Opening And Visible ETAs
@@ -1587,6 +1599,256 @@ git commit -m "feat(balance): add local pacing audit and debug tools"
 
 ---
 
+## Task 7: Audit Accuracy And Full-Catalog Inspection Fixes
+
+**Goal:** Fix the local pacing audit so it derives accurate eras for gated content, reports recommended-cost/outlier signals, and exposes the full catalog in the debug UI with regression coverage.
+
+**Why this task delivers value:** The pacing tools stop giving misleading advice and become trustworthy enough to guide real balancing decisions across the whole roster.
+
+**Files:**
+- Modify: `src/systems/pacing-audit.ts`
+- Modify: `src/ui/pacing-debug-panel.ts`
+- Modify: `src/main.ts`
+- Test: `tests/systems/pacing-audit.test.ts`
+- Test: `tests/ui/pacing-debug-panel.test.ts`
+
+**Player Truth Table**
+
+- Before: the designer opens the pacing debug panel with the backtick key
+- Must visibly change immediately: the panel appears and exposes audit information for the roster, not just a tiny hidden subset
+- Click: a `Show all` or equivalent full-catalog affordance
+- Must visibly change immediately: the rest of the audit rows become inspectable in the same panel
+- Read: a given row
+- Must visibly show: current cost, recommended cost, estimated turns, target window, and whether the row is an outlier/bottleneck
+
+**Misleading UI Risks**
+
+- A row with the wrong era produces the wrong target window and therefore a misleading balancing recommendation
+- Showing only the first `12` rows without an explicit full-catalog affordance makes the panel look representative when it is not
+- Showing estimated turns without recommended cost or outlier status makes the audit look analytical while still hiding the core balancing signal
+
+**Interaction Replay Checklist**
+
+- Open the debug panel with backtick
+- Close the panel with backtick
+- Reopen the panel and verify it rebuilds cleanly
+- Inspect a known late-era gated building or unit and verify its audit era matches its unlock tech era
+- Expand from default view to full-catalog view and verify later rows become reachable
+- Verify the panel renders outlier text or visual state for at least one intentionally off-target row
+
+- [ ] **Step 1: Write the failing accuracy and UI coverage tests**
+
+Extend `tests/systems/pacing-audit.test.ts`:
+
+```typescript
+import { describe, expect, it } from 'vitest';
+import { buildPacingAudit } from '@/systems/pacing-audit';
+
+describe('pacing-audit', () => {
+  it('returns audit rows for current techs, units, and buildings', () => {
+    const rows = buildPacingAudit();
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some(row => row.id === 'warrior')).toBe(true);
+    expect(rows.some(row => row.id === 'fire')).toBe(true);
+    expect(rows.some(row => row.id === 'workshop')).toBe(true);
+  });
+
+  it('derives late unlock eras from the unlocking tech instead of a boolean tech-required shortcut', () => {
+    const rows = buildPacingAudit();
+    expect(rows.find(row => row.id === 'walls')?.era).toBe(3);
+    expect(rows.find(row => row.id === 'observatory')?.era).toBe(4);
+    expect(rows.find(row => row.id === 'musketeer')?.era).toBe(4);
+  });
+
+  it('reports recommended cost and outlier status for each row', () => {
+    const row = buildPacingAudit().find(candidate => candidate.id === 'herbalist');
+    expect(row).toBeDefined();
+    expect(row?.recommendedCost).toBeGreaterThan(0);
+    expect(typeof row?.outlier).toBe('boolean');
+    expect(typeof row?.outlierReason).toBe('string');
+  });
+});
+```
+
+Create `tests/ui/pacing-debug-panel.test.ts`:
+
+```typescript
+// @vitest-environment jsdom
+
+import { describe, expect, it } from 'vitest';
+import { createNewGame } from '@/core/game-state';
+import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
+
+describe('pacing-debug-panel', () => {
+  it('shows summary fields needed for balancing decisions', () => {
+    const state = createNewGame(undefined, 'pacing-debug-panel-seed', 'small');
+    const panel = createPacingDebugPanel(document.body, state);
+
+    expect(panel.textContent).toContain('Pacing Debug');
+    expect(panel.textContent).toContain('Recommended');
+    expect(panel.textContent).toContain('Target');
+  });
+
+  it('can reveal the full catalog instead of only the initial subset', () => {
+    const state = createNewGame(undefined, 'pacing-debug-show-all-seed', 'small');
+    const panel = createPacingDebugPanel(document.body, state);
+
+    const showAllButton = panel.querySelector('[data-action=\"show-all-audit\"]') as HTMLButtonElement | null;
+    expect(showAllButton).not.toBeNull();
+    showAllButton?.click();
+
+    expect(panel.textContent).toContain('Digital Surveillance');
+  });
+});
+```
+
+- [ ] **Step 2: Run tests and verify failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/pacing-audit.test.ts tests/ui/pacing-debug-panel.test.ts
+```
+
+Expected: FAIL because the current audit does not report accurate unlock eras, does not emit recommended-cost/outlier fields, and the debug panel has no full-catalog affordance.
+
+- [ ] **Step 3: Fix audit era derivation and add actionable audit fields**
+
+Update `src/systems/pacing-audit.ts` to:
+
+```typescript
+import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getTargetTurnWindow, estimateTurnsToComplete } from '@/systems/pacing-model';
+import { TECH_TREE } from '@/systems/tech-definitions';
+
+function getUnlockEra(techId?: string | null): number {
+  if (!techId) {
+    return 1;
+  }
+  return TECH_TREE.find(tech => tech.id === techId)?.era ?? 1;
+}
+
+function buildAuditSignals(currentCost: number, estimatedTurns: number, target: { min: number; max: number }, outputPerTurn: number) {
+  const recommendedTurns = Math.round((target.min + target.max) / 2);
+  const recommendedCost = recommendedTurns * outputPerTurn;
+  const outlier = estimatedTurns < target.min || estimatedTurns > target.max;
+  const outlierReason = estimatedTurns > target.max
+    ? 'Slower than target window'
+    : estimatedTurns < target.min
+      ? 'Faster than target window'
+      : 'Within target window';
+
+  return {
+    recommendedCost,
+    outlier,
+    outlierReason,
+  };
+}
+
+export interface PacingAuditRow {
+  id: string;
+  label: string;
+  contentType: 'building' | 'unit' | 'tech';
+  era: number;
+  band: string;
+  currentCost: number;
+  estimatedTurns: number;
+  recommendedCost: number;
+  target: { min: number; max: number };
+  outlier: boolean;
+  outlierReason: string;
+}
+```
+
+Then build rows using the real unlock era:
+
+```typescript
+const era = getUnlockEra(building.techRequired);
+const target = getTargetTurnWindow({ era, band: building.pacing?.band ?? 'core', contentType: 'building' });
+const estimatedTurns = estimateTurnsToComplete({ cost: building.productionCost, outputPerTurn: 4 });
+const signals = buildAuditSignals(building.productionCost, estimatedTurns, target, 4);
+```
+
+Apply the same pattern to units and techs.
+
+- [ ] **Step 4: Make the debug panel inspectable for the full roster**
+
+Update `src/ui/pacing-debug-panel.ts`:
+
+```typescript
+import type { GameState } from '@/core/types';
+import { buildPacingAudit } from '@/systems/pacing-audit';
+
+export function createPacingDebugPanel(container: HTMLElement, _state: GameState): HTMLElement {
+  container.querySelector('#pacing-debug-panel')?.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'pacing-debug-panel';
+  panel.style.cssText = 'position:absolute;top:12px;right:12px;z-index:45;background:rgba(0,0,0,0.88);color:white;padding:12px;border-radius:10px;width:360px;max-height:70vh;overflow:auto;';
+
+  const rows = buildPacingAudit();
+  let showAll = false;
+
+  const title = document.createElement('h3');
+  title.textContent = 'Pacing Debug';
+  title.style.cssText = 'margin:0 0 10px;font-size:16px;color:#e8c170;';
+  panel.appendChild(title);
+
+  const showAllButton = document.createElement('button');
+  showAllButton.type = 'button';
+  showAllButton.dataset.action = 'show-all-audit';
+  showAllButton.textContent = 'Show all rows';
+  showAllButton.style.cssText = 'margin-bottom:10px;';
+  panel.appendChild(showAllButton);
+
+  const list = document.createElement('div');
+  panel.appendChild(list);
+
+  const renderRows = () => {
+    list.textContent = '';
+    (showAll ? rows : rows.slice(0, 12)).forEach(row => {
+      const entry = document.createElement('div');
+      entry.style.cssText = `font-size:12px;margin-bottom:8px;padding:8px;border-radius:8px;background:${row.outlier ? 'rgba(120,40,40,0.4)' : 'rgba(255,255,255,0.06)'};`;
+      entry.textContent = `${row.label} · ${row.estimatedTurns} turns · Recommended ${row.recommendedCost} · Target ${row.target.min}-${row.target.max} · ${row.outlierReason}`;
+      list.appendChild(entry);
+    });
+  };
+
+  showAllButton.addEventListener('click', () => {
+    showAll = true;
+    showAllButton.remove();
+    renderRows();
+  });
+
+  renderRows();
+  container.appendChild(panel);
+  return panel;
+}
+```
+
+This preserves a compact default while making the full catalog reachable and clearly labeling the core balancing signals.
+
+- [ ] **Step 5: Run targeted tests, rule checks, and build**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/pacing-audit.test.ts tests/ui/pacing-debug-panel.test.ts tests/integration/pacing-simulation.test.ts
+scripts/check-src-rule-violations.sh src/systems/pacing-audit.ts src/ui/pacing-debug-panel.ts src/main.ts
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/systems/pacing-audit.ts src/ui/pacing-debug-panel.ts src/main.ts tests/systems/pacing-audit.test.ts tests/ui/pacing-debug-panel.test.ts tests/integration/pacing-simulation.test.ts docs/superpowers/plans/2026-04-16-game-pacing-overhaul.md
+git commit -m "fix(balance): make pacing audit actionable"
+```
+
+---
+
 ## Verification Checklist Per Task
 
 For every task above, complete all of the following before moving on:
@@ -1613,6 +1875,7 @@ For every task above, complete all of the following before moving on:
 - Forced player choice for idle production/research: Task 4
 - Forced-choice flow review fixes for idle planning: Task 5
 - Browser-only local audit/debug tooling: Task 6
+- Audit accuracy and full-catalog inspection fixes: Task 7
 
 ### User-Value Check
 
@@ -1624,6 +1887,7 @@ Every task now ends in something the player will notice:
 - Task 4: no more accidental idle turns
 - Task 5: smoother and more trustworthy forced-choice guidance
 - Task 6: visible local pacing/debug inspection and safer broader tuning
+- Task 7: truthful audit signals and full-roster debug inspection
 
 ### Reviewability Check
 

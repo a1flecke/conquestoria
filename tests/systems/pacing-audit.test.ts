@@ -9,4 +9,19 @@ describe('pacing-audit', () => {
     expect(rows.some(row => row.id === 'fire')).toBe(true);
     expect(rows.some(row => row.id === 'workshop')).toBe(true);
   });
+
+  it('derives later unlock eras from the unlocking tech definitions', () => {
+    const rows = buildPacingAudit();
+    expect(rows.find(row => row.id === 'walls')?.era).toBe(3);
+    expect(rows.find(row => row.id === 'observatory')?.era).toBe(4);
+    expect(rows.find(row => row.id === 'musketeer')?.era).toBe(4);
+  });
+
+  it('reports recommended cost and outlier signals', () => {
+    const row = buildPacingAudit().find(candidate => candidate.id === 'herbalist');
+    expect(row).toBeDefined();
+    expect(row?.recommendedCost).toBeGreaterThan(0);
+    expect(typeof row?.outlier).toBe('boolean');
+    expect(typeof row?.outlierReason).toBe('string');
+  });
 });

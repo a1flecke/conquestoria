@@ -13,12 +13,38 @@ export function createPacingDebugPanel(container: HTMLElement, _state: GameState
   title.style.cssText = 'margin:0 0 10px;font-size:16px;color:#e8c170;';
   panel.appendChild(title);
 
-  buildPacingAudit().slice(0, 12).forEach(row => {
-    const entry = document.createElement('div');
-    entry.textContent = `${row.label}: ${row.estimatedTurns} turns (target ${row.target.min}-${row.target.max})`;
-    entry.style.cssText = 'font-size:12px;margin-bottom:6px;';
-    panel.appendChild(entry);
+  const rows = buildPacingAudit();
+  let showAll = false;
+
+  const showAllButton = document.createElement('button');
+  showAllButton.type = 'button';
+  showAllButton.dataset.action = 'show-all-audit';
+  showAllButton.textContent = 'Show all rows';
+  showAllButton.style.cssText = 'margin-bottom:10px;';
+  if (rows.length > 12) {
+    panel.appendChild(showAllButton);
+  }
+
+  const list = document.createElement('div');
+  panel.appendChild(list);
+
+  const renderRows = () => {
+    list.textContent = '';
+    (showAll ? rows : rows.slice(0, 12)).forEach(row => {
+      const entry = document.createElement('div');
+      entry.style.cssText = `font-size:12px;margin-bottom:8px;padding:8px;border-radius:8px;background:${row.outlier ? 'rgba(120,40,40,0.4)' : 'rgba(255,255,255,0.06)'};`;
+      entry.textContent = `${row.label} · ${row.estimatedTurns} turns · Recommended ${row.recommendedCost} · Target ${row.target.min}-${row.target.max} · ${row.outlierReason}`;
+      list.appendChild(entry);
+    });
+  };
+
+  showAllButton.addEventListener('click', () => {
+    showAll = true;
+    showAllButton.remove();
+    renderRows();
   });
+
+  renderRows();
 
   container.appendChild(panel);
   return panel;
