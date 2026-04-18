@@ -33,6 +33,7 @@ import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { showCampaignSetup } from '@/ui/campaign-setup';
+import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
 import { calculateCityYields } from '@/systems/resource-system';
@@ -94,6 +95,7 @@ let currentCityIndex = 0;
 let inputInitialized = false;
 let councilPanelOpen = false;
 let persistedSettings: GameState['settings'] | undefined;
+let pacingDebugOpen = false;
 
 function mergePersistedSettings(loadedSettings?: GameState['settings']): GameState['settings'] {
   const baseSettings = loadedSettings ?? persistedSettings ?? createDefaultSettings('small');
@@ -127,6 +129,17 @@ const renderLoop = new RenderLoop(canvas);
 
 // --- Resize ---
 window.addEventListener('resize', () => renderLoop.resizeCanvas());
+window.addEventListener('keydown', event => {
+  if (event.key !== '`') {
+    return;
+  }
+
+  pacingDebugOpen = !pacingDebugOpen;
+  document.getElementById('pacing-debug-panel')?.remove();
+  if (pacingDebugOpen && gameState) {
+    createPacingDebugPanel(uiLayer, gameState);
+  }
+});
 
 function createUI(): void {
   createGameShell(uiLayer, {
