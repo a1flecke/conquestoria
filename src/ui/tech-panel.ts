@@ -82,10 +82,51 @@ function getNextLayerTechIds(civ: GameState['civilizations'][string]): Set<strin
   const completedIds = new Set(civ.techState.completed);
   return new Set(
     TECH_TREE
-      .filter(tech => !availableIds.has(tech.id) && !completedIds.has(tech.id))
-      .filter(tech => tech.prerequisites.some(prereq => availableIds.has(prereq) || civ.techState.currentResearch === prereq))
+      .filter(tech => !availableIds.has(tech.id) && !completedIds.has(tech.id) && civ.techState.currentResearch !== tech.id)
+      .filter(tech => tech.prerequisites.length > 0)
+      .filter(tech => tech.prerequisites.every(prereq =>
+        completedIds.has(prereq)
+        || availableIds.has(prereq)
+        || civ.techState.currentResearch === prereq))
+      .filter(tech => tech.prerequisites.some(prereq => !completedIds.has(prereq)))
       .map(tech => tech.id),
   );
+}
+
+function getQueuedResearchTiming(
+  civ: GameState['civilizations'][string],
+  sciencePerTurn: number,
+): Map<string, { startTurns: number; finishTurns: number }> {
+  let elapsedTurns = 0;
+  const timing = new Map<string, { startTurns: number; finishTurns: number }>();
+
+  if (civ.techState.currentResearch) {
+    const currentTech = TECH_TREE.find(tech => tech.id === civ.techState.currentResearch);
+    if (currentTech) {
+      elapsedTurns = estimateTurnsToComplete({
+        cost: Math.max(0, currentTech.cost - civ.techState.researchProgress),
+        outputPerTurn: sciencePerTurn,
+      });
+    }
+  }
+
+  civ.techState.researchQueue.forEach(techId => {
+    const tech = TECH_TREE.find(candidate => candidate.id === techId);
+    if (!tech) {
+      return;
+    }
+
+    const startTurns = elapsedTurns;
+    const finishTurns = startTurns + estimateTurnsToComplete({
+      cost: tech.cost,
+      outputPerTurn: sciencePerTurn,
+    });
+
+    timing.set(techId, { startTurns, finishTurns });
+    elapsedTurns = finishTurns;
+  });
+
+  return timing;
 }
 
 function createTechItem(
@@ -124,6 +165,11 @@ function createTechItem(
     cursor = 'pointer';
   }
 
+  if (opts.isNextLayer && !opts.isAvailable && !opts.isCurrent && !opts.isCompleted) {
+    opacity = '0.75';
+    border = 'rgba(232,193,112,0.2)';
+  }
+
   item.style.cssText = `background:${background};border:1px solid ${border};border-radius:8px;padding:10px;margin-bottom:6px;opacity:${opacity};cursor:${cursor};`;
 
   const title = document.createElement('div');
@@ -136,11 +182,6 @@ function createTechItem(
   const etaText = opts.turnsToResearch === null ? 'ETA unknown' : `${opts.turnsToResearch} turns`;
   detail.textContent = `${tech.unlocks[0] ?? 'New options'} · ${etaText} · Cost: ${tech.cost}`;
   item.appendChild(detail);
-
-  if (opts.isNextLayer && !opts.isAvailable && !opts.isCurrent && !opts.isCompleted) {
-    opacity = '0.75';
-    border = 'rgba(232,193,112,0.2)';
-  }
 
   if (opts.isAvailable) {
     item.addEventListener('click', () => {
@@ -223,6 +264,7 @@ export function createTechPanel(
       .filter((city): city is NonNullable<typeof state.cities[string]> => city !== undefined)
       .reduce((total, city) => total + calculateCityYields(city, state.map).science, 0),
   );
+  const queueTiming = getQueuedResearchTiming(civ, sciencePerTurn);
 
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
@@ -277,6 +319,7 @@ export function createTechPanel(
   } else {
     civ.techState.researchQueue.forEach((techId, index) => {
       const tech = TECH_TREE.find(candidate => candidate.id === techId);
+      const timing = queueTiming.get(techId);
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;';
 
@@ -285,7 +328,9 @@ export function createTechPanel(
       label.textContent = tech?.name ?? techId;
       label.style.cssText = 'font-weight:bold;';
       const slot = document.createElement('div');
-      slot.textContent = `Queue slot ${index + 1}`;
+      slot.textContent = timing
+        ? `Queue slot ${index + 1} · Starts in ${timing.startTurns} turns · Finishes in ${timing.finishTurns} turns`
+        : `Queue slot ${index + 1}`;
       slot.style.cssText = 'font-size:11px;opacity:0.7;';
       labelWrap.appendChild(label);
       labelWrap.appendChild(slot);
@@ -367,6 +412,17 @@ export function createTechPanel(
   panel.appendChild(grid);
   container.appendChild(panel);
 
+  const reopenPanel = () => {
+    panel.remove();
+    createTechPanel(container, state, callbacks);
+  };
+
+  panel.querySelectorAll('[data-state="available"]').forEach(el => {
+    el.addEventListener('click', () => {
+      reopenPanel();
+    });
+  });
+
   panel.querySelectorAll('[data-queue-action]').forEach(el => {
     el.addEventListener('click', event => {
       event.stopPropagation();
@@ -379,16 +435,19 @@ export function createTechPanel(
 
       if (action === 'remove') {
         callbacks.onRemoveQueuedResearch(index);
+        reopenPanel();
         return;
       }
 
       if (action === 'up' && index > 0) {
         callbacks.onMoveQueuedResearch(index, index - 1);
+        reopenPanel();
         return;
       }
 
       if (action === 'down' && index < civ.techState.researchQueue.length - 1) {
         callbacks.onMoveQueuedResearch(index, index + 1);
+        reopenPanel();
       }
     });
   });
