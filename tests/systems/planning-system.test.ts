@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
 import { createTechState } from '@/systems/tech-system';
-import { enqueueCityProduction, enqueueResearch, moveQueuedId, removeQueuedId } from '@/systems/planning-system';
+import {
+  enqueueCityProduction,
+  enqueueResearch,
+  getRecommendedIdleCityChoice,
+  moveQueuedId,
+  removeQueuedId,
+} from '@/systems/planning-system';
 
 describe('planning-system city queues', () => {
   it('appends new city builds up to a limit of three', () => {
@@ -25,5 +33,21 @@ describe('planning-system city queues', () => {
 
     expect(started.currentResearch).toBe('fire');
     expect(queued.researchQueue).toEqual(['writing']);
+  });
+
+  it('recommends a truly fast opening option instead of the first registered building', () => {
+    const state = createNewGame(undefined, 'idle-choice-seed', 'small');
+    const playerId = state.currentPlayer;
+    const settlerId = state.civilizations[playerId].units.find(unitId => state.units[unitId]?.type === 'settler');
+    expect(settlerId).toBeDefined();
+
+    const city = foundCity(playerId, state.units[settlerId!].position, state.map);
+    state.cities[city.id] = city;
+    state.civilizations[playerId].cities.push(city.id);
+
+    const choice = getRecommendedIdleCityChoice(state, playerId, city.id);
+
+    expect(choice).not.toBeNull();
+    expect(choice?.itemId).not.toBe('herbalist');
   });
 });

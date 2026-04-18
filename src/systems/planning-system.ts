@@ -1,5 +1,6 @@
 import type { City, GameState, TechState } from '@/core/types';
 import { getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
+import { calculateCityYields } from '@/systems/resource-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 
 const MAX_QUEUE_ITEMS = 3;
@@ -93,4 +94,51 @@ export function needsResearchChoice(state: GameState, civId: string): boolean {
     return false;
   }
   return getAvailableTechs(civ.techState).length > 0;
+}
+
+export function getRecommendedIdleCityChoice(
+  state: GameState,
+  civId: string,
+  cityId: string,
+): { itemId: string; label: string; cost: number; turns: number } | null {
+  const civ = state.civilizations[civId];
+  const city = state.cities[cityId];
+  if (!civ || !city) {
+    return null;
+  }
+
+  const completedTechs = civ.techState.completed ?? [];
+  const productionPerTurn = Math.max(1, calculateCityYields(city, state.map).production);
+  const candidates = [
+    ...getAvailableBuildings(city, completedTechs).map(building => ({
+      itemId: building.id,
+      label: building.name,
+      cost: building.productionCost,
+      turns: Math.ceil(building.productionCost / productionPerTurn),
+      priority: building.pacing?.band === 'starter' ? 0 : 1,
+    })),
+    ...TRAINABLE_UNITS
+      .filter(unit => !unit.techRequired || completedTechs.includes(unit.techRequired))
+      .map(unit => ({
+        itemId: unit.type,
+        label: unit.name,
+        cost: unit.cost,
+        turns: Math.ceil(unit.cost / productionPerTurn),
+        priority: unit.pacing?.band === 'starter' ? 0 : 1,
+      })),
+  ];
+
+  const best = candidates
+    .sort((left, right) => left.turns - right.turns || left.cost - right.cost || left.priority - right.priority)[0];
+
+  if (!best) {
+    return null;
+  }
+
+  return {
+    itemId: best.itemId,
+    label: best.label,
+    cost: best.cost,
+    turns: best.turns,
+  };
 }

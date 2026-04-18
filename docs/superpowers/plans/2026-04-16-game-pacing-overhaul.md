@@ -128,7 +128,19 @@ MR review theme:
 
 - “Can the player still move smoothly, but no longer waste turns by accident?”
 
-### Slice 5: Local Balance Audit And Debug View
+### Slice 5: Required-Choice Flow Review Fixes
+
+Player value:
+
+- the forced-choice flow stays active until all required production and research picks are resolved
+- quick-pick actions no longer drop the player back onto stale city or tech panels
+- idle city recommendations actually prefer the fastest momentum-preserving options
+
+MR review theme:
+
+- “Does the required-choice flow stay truthful, uninterrupted, and genuinely helpful?”
+
+### Slice 6: Local Balance Audit And Debug View
 
 Player value:
 
@@ -1108,7 +1120,278 @@ git commit -m "feat(turn-flow): block accidental idle turns with required choice
 
 ---
 
-## Task 5: Local Balance Audit And Debug View
+## Task 5: Required-Choice Flow Review Fixes
+
+**Goal:** Fix the Task 4 chooser so it stays active until all blockers are resolved, cannot reveal stale underlying planning panels, and recommends truly fast next-step city picks.
+
+**Why this task delivers value:** The blocker becomes smoother and more trustworthy, and its quick recommendations actually reinforce the faster-opening pacing instead of fighting it.
+
+**Files:**
+- Modify: `src/main.ts`
+- Modify: `src/systems/planning-system.ts`
+- Test: `tests/integration/end-turn-gating.test.ts`
+- Test: `tests/systems/planning-system.test.ts`
+- Test: `tests/ui/required-choice-panel.test.ts`
+
+**Player Truth Table**
+
+- Before: the player has idle research and/or one or more idle cities, and may already have the tech or city panel open
+- Click: `End Turn`
+- Must visibly change immediately: stale planning panels are removed, the required-choice overlay appears, and normal map interaction is blocked
+- Click: a quick research or production choice
+- Must visibly change immediately: the overlay refreshes to show only the remaining blockers
+- Final state: the overlay disappears only after no valid idle production or research choices remain
+
+**Misleading UI Risks**
+
+- The chooser text promises a `quick next step`, so recommendations cannot be based on registry insertion order
+- The chooser is a forced flow, so dismissing it while blockers remain would make the UI misleading even if the raw game state is correct
+- If stale tech or city panels survive underneath the overlay, the player can see outdated queue or research state immediately after acting
+
+**Interaction Replay Checklist**
+
+- End turn with missing research only
+- End turn with one idle city only
+- End turn with missing research plus multiple idle cities
+- Pick one quick action and verify the chooser stays open for remaining blockers
+- Open the city panel, then end turn, then verify no stale city panel remains under the chooser
+- Open the tech panel, then end turn, then verify no stale tech panel remains under the chooser
+- Verify the quick city recommendation in a fresh Era 1 city prefers a truly fast item instead of the first registered building
+
+- [ ] **Step 1: Write the failing regression tests**
+
+Extend `tests/integration/end-turn-gating.test.ts`:
+
+```typescript
+import { describe, expect, it } from 'vitest';
+import { createNewGame } from '@/core/game-state';
+import { getIdleCityIds, getRecommendedIdleCityChoice, needsResearchChoice } from '@/systems/planning-system';
+import { foundCity } from '@/systems/city-system';
+
+describe('end-turn gating', () => {
+  it('detects when the player has no active research but valid options exist', () => {
+    const state = createNewGame(undefined, 'end-turn-gating-seed', 'small');
+    expect(needsResearchChoice(state, state.currentPlayer)).toBe(true);
+  });
+
+  it('still reports blockers after only one of multiple idle choices is resolved', () => {
+    const state = createNewGame(undefined, 'end-turn-multi-blocker-seed', 'small');
+    const player = state.currentPlayer;
+    const settlerId = state.civilizations[player].units.find(unitId => state.units[unitId]?.type === 'settler')!;
+    const basePos = state.units[settlerId].position;
+
+    const firstCity = foundCity(player, basePos, state.map);
+    const secondCity = foundCity(player, { q: basePos.q + 2, r: basePos.r }, state.map);
+    state.cities[firstCity.id] = firstCity;
+    state.cities[secondCity.id] = secondCity;
+    state.civilizations[player].cities.push(firstCity.id, secondCity.id);
+
+    expect(getIdleCityIds(state, player)).toHaveLength(2);
+    expect(needsResearchChoice(state, player)).toBe(true);
+
+    state.civilizations[player].techState.currentResearch = 'fire';
+
+    expect(getIdleCityIds(state, player)).toHaveLength(2);
+    expect(needsResearchChoice(state, player)).toBe(false);
+  });
+});
+```
+
+Extend `tests/systems/planning-system.test.ts`:
+
+```typescript
+import { describe, expect, it } from 'vitest';
+import { createNewGame } from '@/core/game-state';
+import { getRecommendedIdleCityChoice } from '@/systems/planning-system';
+import { foundCity } from '@/systems/city-system';
+
+describe('planning-system idle recommendations', () => {
+  it('recommends a truly fast opening option instead of the first registered building', () => {
+    const state = createNewGame(undefined, 'idle-choice-seed', 'small');
+    const player = state.currentPlayer;
+    const settlerId = state.civilizations[player].units.find(unitId => state.units[unitId]?.type === 'settler')!;
+    const city = foundCity(player, state.units[settlerId].position, state.map);
+    state.cities[city.id] = city;
+    state.civilizations[player].cities.push(city.id);
+
+    const choice = getRecommendedIdleCityChoice(state, player, city.id);
+
+    expect(choice).not.toBeNull();
+    expect(choice?.itemId).not.toBe('herbalist');
+  });
+});
+```
+
+Extend `tests/ui/required-choice-panel.test.ts`:
+
+```typescript
+it('can be recreated cleanly for the next required choice after one action resolves', () => {
+  const first = createRequiredChoicePanel(document.body, {
+    researchChoices: [{ techId: 'fire', label: 'Fire', turns: 4 }],
+    cityChoices: [{ cityId: 'city-1', cityName: 'Roma', itemId: 'warrior', label: 'Warrior', turns: 3 }],
+    onChooseResearch: vi.fn(),
+    onChooseCityBuild: vi.fn(),
+    onOpenTech: vi.fn(),
+    onOpenCity: vi.fn(),
+  });
+
+  expect(first.textContent).toContain('Fire');
+
+  const second = createRequiredChoicePanel(document.body, {
+    researchChoices: [],
+    cityChoices: [{ cityId: 'city-2', cityName: 'Neapolis', itemId: 'shrine', label: 'Shrine', turns: 2 }],
+    onChooseResearch: vi.fn(),
+    onChooseCityBuild: vi.fn(),
+    onOpenTech: vi.fn(),
+    onOpenCity: vi.fn(),
+  });
+
+  expect(document.querySelectorAll('#required-choice-panel')).toHaveLength(1);
+  expect(second.textContent).toContain('Neapolis');
+  expect(second.textContent).not.toContain('Fire');
+});
+```
+
+- [ ] **Step 2: Run tests and verify failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/integration/end-turn-gating.test.ts tests/systems/planning-system.test.ts tests/ui/required-choice-panel.test.ts
+```
+
+Expected: FAIL because the chooser still dismisses after one quick action, recommendation logic is registry-ordered, and there is no shared recommendation helper yet.
+
+- [ ] **Step 3: Add a shared idle-city recommendation helper**
+
+Extend `src/systems/planning-system.ts`:
+
+```typescript
+import { calculateCityYields } from '@/systems/resource-system';
+
+export function getRecommendedIdleCityChoice(
+  state: GameState,
+  civId: string,
+  cityId: string,
+): { itemId: string; label: string; cost: number; turns: number } | null {
+  const civ = state.civilizations[civId];
+  const city = state.cities[cityId];
+  if (!civ || !city) {
+    return null;
+  }
+
+  const productionPerTurn = Math.max(1, calculateCityYields(city, state.map).production);
+  const completedTechs = civ.techState.completed ?? [];
+  const buildingCandidates = getAvailableBuildings(city, completedTechs).map(building => ({
+    itemId: building.id,
+    label: building.name,
+    cost: building.productionCost,
+    turns: Math.ceil(building.productionCost / productionPerTurn),
+    priority: building.pacing?.band === 'starter' ? 0 : 1,
+  }));
+  const unitCandidates = TRAINABLE_UNITS
+    .filter(unit => !unit.techRequired || completedTechs.includes(unit.techRequired))
+    .map(unit => ({
+      itemId: unit.type,
+      label: unit.name,
+      cost: unit.cost,
+      turns: Math.ceil(unit.cost / productionPerTurn),
+      priority: unit.pacing?.band === 'starter' ? 0 : 1,
+    }));
+
+  const best = [...buildingCandidates, ...unitCandidates]
+    .sort((left, right) => left.turns - right.turns || left.cost - right.cost || left.priority - right.priority)[0];
+
+  return best ?? null;
+}
+```
+
+- [ ] **Step 4: Keep the chooser active until all blockers are cleared**
+
+In `src/main.ts`, add helpers:
+
+```typescript
+function closePlanningPanels(): void {
+  document.getElementById('tech-panel')?.remove();
+  document.getElementById('city-panel')?.remove();
+}
+
+function refreshRequiredChoicesAfterAction(): void {
+  document.getElementById('required-choice-panel')?.remove();
+  closePlanningPanels();
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  const stillBlocked = showRequiredChoicesIfNeeded();
+  if (!stillBlocked) {
+    uiInteractions.setBlockingOverlay(null);
+  }
+}
+```
+
+Then update `showRequiredChoicesIfNeeded()` to:
+
+```typescript
+closePlanningPanels();
+
+const cityChoices = idleCityIds
+  .map(cityId => {
+    const city = gameState.cities[cityId];
+    const choice = getRecommendedIdleCityChoice(gameState, civId, cityId);
+    if (!city || !choice) {
+      return null;
+    }
+    return {
+      cityId,
+      cityName: city.name,
+      itemId: choice.itemId,
+      label: choice.label,
+      turns: choice.turns,
+    };
+  })
+  .filter((choice): choice is NonNullable<typeof choice> => choice !== null);
+```
+
+Update the quick-pick callbacks:
+
+```typescript
+onChooseResearch: (techId) => {
+  currentCiv().techState = enqueueResearch(currentCiv().techState, techId);
+  showNotification(`Researching ${techId}...`, 'info');
+  refreshRequiredChoicesAfterAction();
+},
+onChooseCityBuild: (cityId, itemId) => {
+  const city = gameState.cities[cityId];
+  if (!city) return;
+  gameState.cities[cityId] = enqueueCityProduction(city, itemId);
+  showNotification(`${city.name}: queued ${itemId}`, 'info');
+  refreshRequiredChoicesAfterAction();
+},
+```
+
+This keeps the forced-choice flow active until every valid idle research/production blocker is resolved and guarantees stale planning panels are gone before the chooser reappears.
+
+- [ ] **Step 5: Run targeted tests, rule checks, and build**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/integration/end-turn-gating.test.ts tests/systems/planning-system.test.ts tests/ui/required-choice-panel.test.ts
+scripts/check-src-rule-violations.sh src/systems/planning-system.ts src/main.ts
+./scripts/run-with-mise.sh yarn build
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/systems/planning-system.ts src/main.ts tests/integration/end-turn-gating.test.ts tests/systems/planning-system.test.ts tests/ui/required-choice-panel.test.ts docs/superpowers/plans/2026-04-16-game-pacing-overhaul.md
+git commit -m "fix(turn-flow): tighten required-choice guidance"
+```
+
+---
+
+## Task 6: Local Balance Audit And Debug View
 
 **Goal:** Add deterministic, local-only pacing audit/debug tools and use them to validate the current retuned catalog.
 
@@ -1328,7 +1611,8 @@ For every task above, complete all of the following before moving on:
 - Research 3-item queue with reorder/remove: Task 3
 - Issue `#56` tech tree redesign: Task 3
 - Forced player choice for idle production/research: Task 4
-- Browser-only local audit/debug tooling: Task 5
+- Forced-choice flow review fixes for idle planning: Task 5
+- Browser-only local audit/debug tooling: Task 6
 
 ### User-Value Check
 
@@ -1338,7 +1622,8 @@ Every task now ends in something the player will notice:
 - Task 2: city queues and smoother city momentum
 - Task 3: research queues and a better tech tree
 - Task 4: no more accidental idle turns
-- Task 5: visible local pacing/debug inspection and safer broader tuning
+- Task 5: smoother and more trustworthy forced-choice guidance
+- Task 6: visible local pacing/debug inspection and safer broader tuning
 
 ### Reviewability Check
 

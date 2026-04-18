@@ -14,6 +14,11 @@ function buildSectionTitle(text: string): HTMLHeadingElement {
   return heading;
 }
 
+export function closePlanningPanels(container: ParentNode = document): void {
+  container.querySelector('#tech-panel')?.remove();
+  container.querySelector('#city-panel')?.remove();
+}
+
 export function createRequiredChoicePanel(
   container: HTMLElement,
   config: RequiredChoiceConfig,
