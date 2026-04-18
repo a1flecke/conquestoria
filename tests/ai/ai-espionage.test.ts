@@ -36,7 +36,7 @@ function makeAiTestState(): GameState {
         id: 'player', name: 'Player', color: '#4a90d9',
         isHuman: true, civType: 'egypt',
         cities: ['city-player-1'], units: [],
-        techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
         gold: 100, visibility: { tiles: {} }, score: 50,
         diplomacy: {
           relationships: { 'ai-egypt': -10 }, treaties: [], events: [], atWarWith: [],
@@ -50,7 +50,7 @@ function makeAiTestState(): GameState {
         cities: ['city-egypt-1'], units: [],
         techState: {
           completed: ['espionage-scouting', 'espionage-informants'],
-          currentResearch: null, researchProgress: 0, trackPriorities: {} as any,
+          currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any,
         },
         gold: 150, visibility: { tiles: {} }, score: 100,
         diplomacy: {

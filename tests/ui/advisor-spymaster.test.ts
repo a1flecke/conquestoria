@@ -38,6 +38,7 @@ function makeSpymasterTestState(): GameState {
         techState: {
           completed: ['espionage-scouting'],
           currentResearch: null, researchProgress: 0,
+          researchQueue: [],
           trackPriorities: {} as any,
         },
         gold: 100, visibility: { tiles: {} }, score: 50,
@@ -52,7 +53,7 @@ function makeSpymasterTestState(): GameState {
         id: 'ai-egypt', name: 'Egypt', color: '#c4a94d',
         isHuman: false, civType: 'egypt',
         cities: ['city-egypt-1'], units: [],
-        techState: { completed: [], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
         gold: 150, visibility: { tiles: {} }, score: 100,
         diplomacy: {
           relationships: { player: -30 }, treaties: [], events: [], atWarWith: [],

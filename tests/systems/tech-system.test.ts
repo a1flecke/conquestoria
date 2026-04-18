@@ -81,6 +81,7 @@ describe('createTechState', () => {
     const state = createTechState();
     expect(state.completed).toEqual([]);
     expect(state.currentResearch).toBeNull();
+    expect(state.researchQueue).toEqual([]);
     expect(state.researchProgress).toBe(0);
   });
 });
@@ -147,6 +148,21 @@ describe('processResearch', () => {
     expect(result.state.completed).toContain(tech.id);
     expect(result.state.currentResearch).toBeNull();
     expect(result.state.researchProgress).toBe(0);
+  });
+
+  it('advances into queued research after a tech completes', () => {
+    const state = createTechState();
+    const updated = {
+      ...startResearch(state, 'fire'),
+      researchQueue: ['writing'],
+      researchProgress: 7,
+    };
+
+    const result = processResearch(updated, 1);
+
+    expect(result.completedTech).toBe('fire');
+    expect(result.state.currentResearch).toBe('writing');
+    expect(result.state.researchQueue).toEqual([]);
   });
 });
 

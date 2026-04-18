@@ -7,6 +7,7 @@ export function createTechState(): TechState {
   return {
     completed: [],
     currentResearch: null,
+    researchQueue: [],
     researchProgress: 0,
     trackPriorities: {
       military: 'medium', economy: 'medium', science: 'medium',
@@ -53,11 +54,13 @@ export function processResearch(state: TechState, sciencePoints: number): Resear
   const newProgress = state.researchProgress + sciencePoints;
 
   if (newProgress >= tech.cost) {
+    const [nextQueuedResearch, ...remainingQueue] = state.researchQueue;
     return {
       state: {
         ...state,
         completed: [...state.completed, tech.id],
-        currentResearch: null,
+        currentResearch: nextQueuedResearch ?? null,
+        researchQueue: remainingQueue,
         researchProgress: 0,
       },
       completedTech: tech.id,

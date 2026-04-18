@@ -4,7 +4,9 @@ import { calculateCityYields } from '@/systems/resource-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 
 export interface TechPanelCallbacks {
-  onStartResearch: (techId: string) => void;
+  onQueueResearch: (techId: string) => void;
+  onMoveQueuedResearch: (fromIndex: number, toIndex: number) => void;
+  onRemoveQueuedResearch: (index: number) => void;
   onClose: () => void;
 }
 
@@ -75,15 +77,26 @@ function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: nu
   return wrapper;
 }
 
+function getNextLayerTechIds(civ: GameState['civilizations'][string]): Set<string> {
+  const availableIds = new Set(getAvailableTechs(civ.techState).map(tech => tech.id));
+  const completedIds = new Set(civ.techState.completed);
+  return new Set(
+    TECH_TREE
+      .filter(tech => !availableIds.has(tech.id) && !completedIds.has(tech.id))
+      .filter(tech => tech.prerequisites.some(prereq => availableIds.has(prereq) || civ.techState.currentResearch === prereq))
+      .map(tech => tech.id),
+  );
+}
+
 function createTechItem(
   tech: Tech,
   opts: {
     isCompleted: boolean;
     isCurrent: boolean;
     isAvailable: boolean;
+    isNextLayer: boolean;
     turnsToResearch: number | null;
-    onStartResearch: (techId: string) => void;
-    onClosePanel: () => void;
+    onQueueResearch: (techId: string) => void;
   },
 ): HTMLDivElement {
   const item = document.createElement('div');
@@ -124,10 +137,14 @@ function createTechItem(
   detail.textContent = `${tech.unlocks[0] ?? 'New options'} · ${etaText} · Cost: ${tech.cost}`;
   item.appendChild(detail);
 
+  if (opts.isNextLayer && !opts.isAvailable && !opts.isCurrent && !opts.isCompleted) {
+    opacity = '0.75';
+    border = 'rgba(232,193,112,0.2)';
+  }
+
   if (opts.isAvailable) {
     item.addEventListener('click', () => {
-      opts.onStartResearch(tech.id);
-      opts.onClosePanel();
+      opts.onQueueResearch(tech.id);
     });
   }
 
@@ -139,9 +156,10 @@ function buildEraSection(
   techs: Tech[],
   civ: GameState['civilizations'][string],
   available: Tech[],
+  nextLayerIds: Set<string>,
   callbacks: TechPanelCallbacks,
-  panel: HTMLElement,
   outputPerTurn: number,
+  showAll: boolean,
 ): HTMLElement {
   const section = document.createElement('div');
   section.dataset.era = String(era);
@@ -155,16 +173,29 @@ function buildEraSection(
   section.appendChild(heading);
 
   for (const tech of techs) {
+    const isVisibleByDefault = civ.techState.currentResearch === tech.id
+      || available.some(candidate => candidate.id === tech.id)
+      || nextLayerIds.has(tech.id)
+      || civ.techState.completed.includes(tech.id);
+
+    if (!showAll && !isVisibleByDefault) {
+      continue;
+    }
+
     section.appendChild(createTechItem(tech, {
       isCompleted: civ.techState.completed.includes(tech.id),
       isCurrent: civ.techState.currentResearch === tech.id,
       isAvailable: available.some(candidate => candidate.id === tech.id),
+      isNextLayer: nextLayerIds.has(tech.id),
       turnsToResearch: available.some(candidate => candidate.id === tech.id)
         ? estimateTurnsToComplete({ cost: tech.cost, outputPerTurn })
         : null,
-      onStartResearch: callbacks.onStartResearch,
-      onClosePanel: () => panel.remove(),
+      onQueueResearch: callbacks.onQueueResearch,
     }));
+  }
+
+  if (!section.querySelector('.tech-item')) {
+    return document.createElement('div');
   }
 
   return section;
@@ -184,6 +215,7 @@ export function createTechPanel(
 
   const civ = state.civilizations[state.currentPlayer];
   const available = getAvailableTechs(civ.techState);
+  const nextLayerIds = getNextLayerTechIds(civ);
   const sciencePerTurn = Math.max(
     1,
     civ.cities
@@ -230,31 +262,136 @@ export function createTechPanel(
     panel.appendChild(summary);
   }
 
+  const queueSection = document.createElement('div');
+  queueSection.style.cssText = 'background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;';
+  const queueHeading = document.createElement('div');
+  queueHeading.textContent = 'Research Queue';
+  queueHeading.style.cssText = 'font-weight:bold;color:#e8c170;margin-bottom:8px;';
+  queueSection.appendChild(queueHeading);
+
+  if (civ.techState.researchQueue.length === 0) {
+    const empty = document.createElement('div');
+    empty.textContent = 'No queued follow-up techs.';
+    empty.style.cssText = 'font-size:12px;opacity:0.7;';
+    queueSection.appendChild(empty);
+  } else {
+    civ.techState.researchQueue.forEach((techId, index) => {
+      const tech = TECH_TREE.find(candidate => candidate.id === techId);
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;';
+
+      const labelWrap = document.createElement('div');
+      const label = document.createElement('div');
+      label.textContent = tech?.name ?? techId;
+      label.style.cssText = 'font-weight:bold;';
+      const slot = document.createElement('div');
+      slot.textContent = `Queue slot ${index + 1}`;
+      slot.style.cssText = 'font-size:11px;opacity:0.7;';
+      labelWrap.appendChild(label);
+      labelWrap.appendChild(slot);
+      row.appendChild(labelWrap);
+
+      const controls = document.createElement('div');
+      controls.style.cssText = 'display:flex;gap:6px;';
+      const up = document.createElement('button');
+      up.type = 'button';
+      up.dataset.queueAction = 'up';
+      up.dataset.queueIndex = String(index);
+      up.textContent = '↑';
+      const down = document.createElement('button');
+      down.type = 'button';
+      down.dataset.queueAction = 'down';
+      down.dataset.queueIndex = String(index);
+      down.textContent = '↓';
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.dataset.queueAction = 'remove';
+      remove.dataset.queueIndex = String(index);
+      remove.textContent = '✕';
+      controls.appendChild(up);
+      controls.appendChild(down);
+      controls.appendChild(remove);
+      row.appendChild(controls);
+      queueSection.appendChild(row);
+    });
+  }
+
+  panel.appendChild(queueSection);
+
+  const showAllButton = document.createElement('button');
+  showAllButton.type = 'button';
+  showAllButton.dataset.action = 'show-all-techs';
+  showAllButton.textContent = 'Show all techs';
+  showAllButton.style.cssText = 'margin-bottom:12px;';
+  panel.appendChild(showAllButton);
+
   const grid = document.createElement('div');
   grid.dataset.layout = 'tech-tree-grid';
 
-  for (const track of TRACKS) {
-    const trackBlock = document.createElement('section');
-    trackBlock.className = 'tech-track';
-    trackBlock.dataset.track = track;
-    trackBlock.style.cssText = 'margin-bottom:16px;';
+  const renderGrid = (showAll: boolean) => {
+    grid.textContent = '';
 
-    const heading = document.createElement('h3');
-    heading.textContent = `${TRACK_ICONS[track]} ${titleCase(track)}`;
-    heading.style.cssText = 'font-size:14px;color:#e0d6c8;margin:0 0 8px;';
-    trackBlock.appendChild(heading);
+    for (const track of TRACKS) {
+      const trackBlock = document.createElement('section');
+      trackBlock.className = 'tech-track';
+      trackBlock.dataset.track = track;
+      trackBlock.style.cssText = 'margin-bottom:16px;';
 
-    const techs = TECH_TREE.filter(tech => tech.track === track);
-    const eras = [...new Set(techs.map(tech => tech.era))].sort((a, b) => a - b);
-    for (const era of eras) {
-      const eraTechs = techs.filter(tech => tech.era === era);
-      trackBlock.appendChild(buildEraSection(era, eraTechs, civ, available, callbacks, panel, sciencePerTurn));
+      const heading = document.createElement('h3');
+      heading.textContent = `${TRACK_ICONS[track]} ${titleCase(track)}`;
+      heading.style.cssText = 'font-size:14px;color:#e0d6c8;margin:0 0 8px;';
+      trackBlock.appendChild(heading);
+
+      const techs = TECH_TREE.filter(tech => tech.track === track);
+      const eras = [...new Set(techs.map(tech => tech.era))].sort((a, b) => a - b);
+      for (const era of eras) {
+        const eraTechs = techs.filter(tech => tech.era === era);
+        const section = buildEraSection(era, eraTechs, civ, available, nextLayerIds, callbacks, sciencePerTurn, showAll);
+        if (section.childNodes.length > 0) {
+          trackBlock.appendChild(section);
+        }
+      }
+
+      if (trackBlock.querySelector('.tech-item')) {
+        grid.appendChild(trackBlock);
+      }
     }
+  };
 
-    grid.appendChild(trackBlock);
-  }
+  renderGrid(false);
+  showAllButton.addEventListener('click', () => {
+    renderGrid(true);
+    showAllButton.remove();
+  });
 
   panel.appendChild(grid);
   container.appendChild(panel);
+
+  panel.querySelectorAll('[data-queue-action]').forEach(el => {
+    el.addEventListener('click', event => {
+      event.stopPropagation();
+      const action = (el as HTMLElement).dataset.queueAction;
+      const index = Number((el as HTMLElement).dataset.queueIndex);
+
+      if (!Number.isInteger(index)) {
+        return;
+      }
+
+      if (action === 'remove') {
+        callbacks.onRemoveQueuedResearch(index);
+        return;
+      }
+
+      if (action === 'up' && index > 0) {
+        callbacks.onMoveQueuedResearch(index, index - 1);
+        return;
+      }
+
+      if (action === 'down' && index < civ.techState.researchQueue.length - 1) {
+        callbacks.onMoveQueuedResearch(index, index + 1);
+      }
+    });
+  });
+
   return panel;
 }

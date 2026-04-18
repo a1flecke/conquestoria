@@ -1,4 +1,4 @@
-import type { City } from '@/core/types';
+import type { City, TechState } from '@/core/types';
 
 const MAX_QUEUE_ITEMS = 3;
 
@@ -39,4 +39,27 @@ export function moveQueuedId<T>(items: T[], fromIndex: number, toIndex: number):
 
 export function removeQueuedId<T>(items: T[], index: number): T[] {
   return items.filter((_, currentIndex) => currentIndex !== index);
+}
+
+export function enqueueResearch(state: TechState, techId: string): TechState {
+  if (state.completed.includes(techId) || state.currentResearch === techId || state.researchQueue.includes(techId)) {
+    return state;
+  }
+
+  if (!state.currentResearch) {
+    return {
+      ...state,
+      currentResearch: techId,
+      researchProgress: 0,
+    };
+  }
+
+  if (1 + state.researchQueue.length >= MAX_QUEUE_ITEMS) {
+    throw new Error('Queue limit reached');
+  }
+
+  return {
+    ...state,
+    researchQueue: [...state.researchQueue, techId],
+  };
 }

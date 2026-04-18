@@ -336,6 +336,16 @@ describe('save persistence (#38)', () => {
     expect(loaded?.cities['city-1'].productionQueue).toEqual(['warrior', 'shrine', 'worker']);
   });
 
+  it('adds an empty research queue when loading older saves', async () => {
+    const state = createNewGame('rome', 'legacy-research-queue-seed');
+    delete (state.civilizations.player.techState as Partial<typeof state.civilizations.player.techState>).researchQueue;
+
+    await saveGame('slot-legacy-research-queue', 'Legacy Research Queue Save', state);
+    const loaded = await loadGame('slot-legacy-research-queue');
+
+    expect(loaded?.civilizations.player.techState.researchQueue).toEqual([]);
+  });
+
   it('normalizes legacy duplicate or off-pool city names on load', () => {
     const state = createNewGame('rome', 'legacy-naming-seed');
     state.cities['city-1'] = {

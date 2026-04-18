@@ -29,6 +29,18 @@ function migrateLegacyPlanningState(state: GameState): GameState {
       city.productionQueue = city.productionQueue.slice(0, 3);
     }
   }
+
+  for (const civ of Object.values(state.civilizations ?? {})) {
+    civ.techState ??= {
+      completed: [],
+      currentResearch: null,
+      researchQueue: [],
+      researchProgress: 0,
+      trackPriorities: {} as GameState['civilizations'][string]['techState']['trackPriorities'],
+    };
+    civ.techState.researchQueue ??= [];
+  }
+
   return state;
 }
 

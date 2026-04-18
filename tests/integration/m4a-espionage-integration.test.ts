@@ -50,6 +50,7 @@ function makeTestGameState(): GameState {
         techState: {
           completed: ['espionage-scouting', 'espionage-informants'],
           currentResearch: null, researchProgress: 0,
+          researchQueue: [],
           trackPriorities: {} as any,
         },
         gold: 100,
@@ -69,6 +70,7 @@ function makeTestGameState(): GameState {
         techState: {
           completed: ['agriculture-farming'],
           currentResearch: 'science-writing', researchProgress: 30,
+          researchQueue: [],
           trackPriorities: {} as any,
         },
         gold: 150,
@@ -238,7 +240,7 @@ describe('hot seat espionage safety', () => {
       id: 'player-2', name: 'Rome', color: '#dc2626',
       isHuman: true, civType: 'rome',
       cities: ['city-rome-1'], units: [],
-      techState: { completed: ['espionage-scouting'], currentResearch: null, researchProgress: 0, trackPriorities: {} as any },
+      techState: { completed: ['espionage-scouting'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
       gold: 100, visibility: { tiles: {} }, score: 50,
       diplomacy: { relationships: { player: 0 }, treaties: [], events: [], atWarWith: [] },
     } as any;
