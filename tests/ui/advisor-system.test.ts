@@ -242,6 +242,30 @@ describe('AdvisorSystem', () => {
     expect(messages[0].message).toContain('fortune');
   });
 
+  it('shows build-unit guidance when a later city is idle', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithCity();
+    state.settings.advisorsEnabled = { builder: true, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    state.tutorial.active = true;
+    state.tutorial.completedSteps = ['welcome', 'found_city', 'explore', 'build_improvement', 'research_tech'];
+
+    const secondCity = foundCity('player', { q: 3, r: 0 }, state.map);
+    secondCity.productionQueue = [];
+    state.cities[secondCity.id] = secondCity;
+    state.civilizations.player.cities.push(secondCity.id);
+
+    const firstCityId = state.civilizations.player.cities[0];
+    state.cities[firstCityId].productionQueue = ['warrior'];
+
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+
+    advisor.check(state);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].message).toContain('queue up a Warrior');
+  });
+
   it('getAdvisorMessageIds includes new advisor IDs', () => {
     const ids = getAdvisorMessageIds();
     expect(ids).toContain('welcome');

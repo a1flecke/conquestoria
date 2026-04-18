@@ -1,4 +1,6 @@
-import type { City, TechState } from '@/core/types';
+import type { City, GameState, TechState } from '@/core/types';
+import { getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getAvailableTechs } from '@/systems/tech-system';
 
 const MAX_QUEUE_ITEMS = 3;
 
@@ -62,4 +64,33 @@ export function enqueueResearch(state: TechState, techId: string): TechState {
     ...state,
     researchQueue: [...state.researchQueue, techId],
   };
+}
+
+export function getIdleCityIds(state: GameState, civId: string): string[] {
+  const civ = state.civilizations[civId];
+  if (!civ) {
+    return [];
+  }
+
+  const completedTechs = civ.techState.completed ?? [];
+  return Object.values(state.cities)
+    .filter(city => city.owner === civId)
+    .filter(city => city.productionQueue.length === 0)
+    .filter(city => {
+      const buildableBuildings = getAvailableBuildings(city, completedTechs).length > 0;
+      const buildableUnits = TRAINABLE_UNITS.some(unit => !unit.techRequired || completedTechs.includes(unit.techRequired));
+      return buildableBuildings || buildableUnits;
+    })
+    .map(city => city.id);
+}
+
+export function needsResearchChoice(state: GameState, civId: string): boolean {
+  const civ = state.civilizations[civId];
+  if (!civ) {
+    return false;
+  }
+  if (civ.techState.currentResearch) {
+    return false;
+  }
+  return getAvailableTechs(civ.techState).length > 0;
 }
