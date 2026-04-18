@@ -61,4 +61,32 @@ describe('tutorial hot-seat support', () => {
     // Should not trigger found_city because the city belongs to player-1, not currentPlayer (player-2)
     expect(emitted).toBe(false);
   });
+
+  it('build_unit tutorial triggers when any current-player city is idle, not just the first one', () => {
+    const bus = new EventBus();
+    const tutorial = new TutorialSystem(bus);
+    const emittedSteps: string[] = [];
+    bus.on('tutorial:step', ({ step }) => emittedSteps.push(step));
+
+    const state = makeTutorialState({
+      tutorial: {
+        active: true,
+        currentStep: 'research_tech',
+        completedSteps: ['welcome', 'found_city', 'explore', 'build_improvement', 'research_tech'],
+      } as any,
+      cities: {
+        'city-1': { id: 'city-1', owner: 'player-2', name: 'Busy', position: { q: 0, r: 0 }, population: 1, buildings: [], productionQueue: ['warrior'], productionProgress: 0, grid: [], gridSize: 3, food: 0, housing: 5 } as any,
+        'city-2': { id: 'city-2', owner: 'player-2', name: 'Idle', position: { q: 1, r: 0 }, population: 1, buildings: [], productionQueue: [], productionProgress: 0, grid: [], gridSize: 3, food: 0, housing: 5 } as any,
+      },
+      civilizations: {
+        'player-2': {
+          ...makeTutorialState().civilizations['player-2'],
+          cities: ['city-1', 'city-2'],
+        },
+      } as any,
+    });
+
+    tutorial.check(state);
+    expect(emittedSteps).toContain('build_unit');
+  });
 });

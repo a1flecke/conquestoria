@@ -3,6 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { getNextCouncilCallback, markCouncilCallbackDelivered } from '@/systems/council-memory';
+import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
 
 interface AdvisorMessage {
   id: string;
@@ -45,10 +46,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'builder',
     icon: '🏗️',
     message: 'Your city can train units. Open the city panel and queue up a Warrior to defend your borders.',
-    trigger: (state) => {
-      const cities = Object.values(state.cities).filter(c => c.owner === state.currentPlayer);
-      return cities.length > 0 && cities[0].productionQueue.length === 0;
-    },
+    trigger: (state) => getIdleCityIds(state, state.currentPlayer).length > 0,
     tutorialStep: 'build_unit',
   },
 
@@ -66,10 +64,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     advisor: 'scholar',
     icon: '📚',
     message: 'Knowledge is power! Open the Tech panel and choose something to research. Each discovery unlocks new possibilities.',
-    trigger: (state) => {
-      const civ = state.civilizations[state.currentPlayer];
-      return civ?.techState.currentResearch === null && state.turn >= 2;
-    },
+    trigger: (state) => needsResearchChoice(state, state.currentPlayer) && state.turn >= 2,
     tutorialStep: 'research_tech',
   },
   {
@@ -310,7 +305,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       const civ = state.civilizations[state.currentPlayer];
       if (!civ) return false;
       if (civ.techState.completed.length === 0) return false;
-      return civ.techState.currentResearch === null && state.turn >= 2;
+      return needsResearchChoice(state, state.currentPlayer) && state.turn >= 2;
     },
   },
   {

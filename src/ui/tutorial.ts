@@ -1,5 +1,6 @@
 import type { GameState, TutorialStep } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
+import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
 
 interface TutorialMessage {
   step: TutorialStep;
@@ -37,16 +38,13 @@ const TUTORIAL_MESSAGES: TutorialMessage[] = [
     step: 'research_tech',
     advisor: 'explorer',
     message: 'Knowledge is power! Open the Tech panel and choose something to research. Each discovery unlocks new possibilities.',
-    trigger: (state) => state.civilizations[state.currentPlayer]?.techState.currentResearch === null && state.turn >= 2,
+    trigger: (state) => needsResearchChoice(state, state.currentPlayer) && state.turn >= 2,
   },
   {
     step: 'build_unit',
     advisor: 'builder',
     message: 'Your city can train units. Open the city panel and queue up a Warrior to defend your borders.',
-    trigger: (state) => {
-      const cities = Object.values(state.cities).filter(c => c.owner === state.currentPlayer);
-      return cities.length > 0 && cities[0].productionQueue.length === 0;
-    },
+    trigger: (state) => getIdleCityIds(state, state.currentPlayer).length > 0,
   },
   {
     step: 'combat',

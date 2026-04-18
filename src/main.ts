@@ -8,8 +8,8 @@ import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
-import { foundCity } from '@/systems/city-system';
-import { enqueueCityProduction, enqueueResearch, moveQueuedId, removeQueuedId } from '@/systems/planning-system';
+import { foundCity, getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
+import { enqueueCityProduction, enqueueResearch, getIdleCityIds, moveQueuedId, needsResearchChoice, removeQueuedId } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
@@ -31,13 +31,16 @@ import { createGameShell } from '@/ui/game-shell';
 import { createContextMenu } from '@/ui/context-menu';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
+import { createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { showCampaignSetup } from '@/ui/campaign-setup';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
 import { calculateCityYields } from '@/systems/resource-system';
+import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
+import { getAvailableTechs } from '@/systems/tech-system';
 import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
@@ -462,6 +465,97 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       if (nextCity) openCityPanelForCity(nextCity);
     },
   });
+}
+
+function closeRequiredChoicePanel(): void {
+  document.getElementById('required-choice-panel')?.remove();
+  uiInteractions.setBlockingOverlay(null);
+}
+
+function showRequiredChoicesIfNeeded(): boolean {
+  const civId = gameState.currentPlayer;
+  const idleCityIds = getIdleCityIds(gameState, civId);
+  const missingResearch = needsResearchChoice(gameState, civId);
+  const existing = document.getElementById('required-choice-panel');
+
+  if (!idleCityIds.length && !missingResearch) {
+    closeRequiredChoicePanel();
+    return false;
+  }
+
+  if (existing) {
+    return true;
+  }
+
+  const civ = currentCiv();
+  const sciencePerTurn = Math.max(
+    1,
+    civ.cities
+      .map(cityId => gameState.cities[cityId])
+      .filter((city): city is NonNullable<typeof gameState.cities[string]> => city !== undefined)
+      .reduce((total, city) => total + calculateCityYields(city, gameState.map).science, 0),
+  );
+  const researchChoices = missingResearch
+    ? getAvailableTechs(civ.techState).slice(0, 3).map(tech => ({
+      techId: tech.id,
+      label: tech.name,
+      turns: estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: sciencePerTurn }),
+    }))
+    : [];
+
+  const cityChoices = idleCityIds.map(cityId => {
+    const city = gameState.cities[cityId];
+    const completedTechs = civ.techState.completed;
+    const buildingChoice = getAvailableBuildings(city, completedTechs)[0];
+    const unitChoice = TRAINABLE_UNITS.find(unit => !unit.techRequired || completedTechs.includes(unit.techRequired));
+    const chosen = buildingChoice
+      ? { itemId: buildingChoice.id, label: buildingChoice.name, cost: buildingChoice.productionCost }
+      : unitChoice
+        ? { itemId: unitChoice.type, label: unitChoice.name, cost: unitChoice.cost }
+        : { itemId: 'warrior', label: 'Warrior', cost: 8 };
+    const productionPerTurn = Math.max(1, calculateCityYields(city, gameState.map).production);
+    return {
+      cityId,
+      cityName: city.name,
+      itemId: chosen.itemId,
+      label: chosen.label,
+      turns: estimateTurnsToComplete({ cost: chosen.cost, outputPerTurn: productionPerTurn }),
+    };
+  });
+
+  uiInteractions.setBlockingOverlay('required-choice');
+  createRequiredChoicePanel(uiLayer, {
+    researchChoices,
+    cityChoices,
+    onChooseResearch: (techId) => {
+      currentCiv().techState = enqueueResearch(currentCiv().techState, techId);
+      closeRequiredChoicePanel();
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(`Researching ${techId}...`, 'info');
+    },
+    onChooseCityBuild: (cityId, itemId) => {
+      const city = gameState.cities[cityId];
+      if (!city) return;
+      gameState.cities[cityId] = enqueueCityProduction(city, itemId);
+      closeRequiredChoicePanel();
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(`${city.name}: queued ${itemId}`, 'info');
+    },
+    onOpenTech: () => {
+      closeRequiredChoicePanel();
+      togglePanel('tech');
+    },
+    onOpenCity: (cityId) => {
+      const city = gameState.cities[cityId];
+      if (!city) return;
+      closeRequiredChoicePanel();
+      openCityPanelForCity(city);
+    },
+  });
+
+  return true;
 }
 
 function togglePanel(panel: string): void {
@@ -1249,6 +1343,11 @@ function handleHexLongPress(rawCoord: HexCoord): void {
 
 async function endTurn(): Promise<void> {
   try {
+    if (showRequiredChoicesIfNeeded()) {
+      showNotification('Choose production and research before ending the turn.', 'info');
+      return;
+    }
+
     SFX.endTurn();
     deselectUnit();
 
