@@ -154,7 +154,7 @@ export function createCivSelectPanel(
     actionBar.appendChild(cancelButton);
   }
 
-  const randomButton = createButton('Random');
+  const randomButton = createButton('Surprise Me');
   randomButton.id = 'civ-random';
   randomButton.style.background = 'rgba(255,255,255,0.1)';
   randomButton.style.color = 'white';

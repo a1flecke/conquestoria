@@ -79,4 +79,21 @@ describe('civ-select', () => {
     (panel.querySelector('[data-action="create-custom-civ"]') as HTMLButtonElement).click();
     expect(onCreateCustomCiv).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps the full civ catalog reachable and presents the refreshed action labels', () => {
+    const civDefinitions = getPlayableCivDefinitions({ customCivilizations: [customCiv] });
+    const panel = createCivSelectPanel(document.body, {
+      onSelect: () => {},
+      onCreateCustomCiv: () => {},
+      onCancel: () => {},
+    }, {
+      civDefinitions,
+      primaryActionText: 'Confirm Civilization',
+    });
+
+    expect(panel.querySelectorAll('.civ-card').length).toBe(civDefinitions.length);
+    expect(panel.textContent).toContain('Surprise Me');
+    expect(panel.textContent).toContain('Create Custom Civilization');
+    expect(panel.textContent).toContain('Confirm Civilization');
+  });
 });
