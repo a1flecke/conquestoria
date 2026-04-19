@@ -457,9 +457,6 @@ export function getSpyActions(state: GameState, spyId: string): SpyAction[] {
       }
       actions.push('recall');
       break;
-    case 'traveling':
-      actions.push('recall');
-      break;
     case 'captured':
     case 'cooldown':
     case 'on_mission':
