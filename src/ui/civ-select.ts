@@ -1,10 +1,12 @@
 import type { CivDefinition } from '@/core/types';
 import { CIV_DEFINITIONS } from '@/systems/civ-definitions';
 import { createRng } from '@/systems/map-generator';
+import { createSetupShell } from '@/ui/setup-shell';
 
 export interface CivSelectCallbacks {
   onSelect: (civId: string) => void;
   onCreateCustomCiv?: () => void;
+  onCancel?: () => void;
 }
 
 export interface CivSelectOptions {
@@ -37,53 +39,31 @@ export function createCivSelectPanel(
   const headerText = options?.headerText ?? 'Choose Your Civilization';
   const civDefinitions = options?.civDefinitions ?? CIV_DEFINITIONS;
   const primaryActionText = options?.primaryActionText ?? 'Start Game';
-  const panel = document.createElement('div');
-  panel.id = 'civ-select';
-  panel.style.position = 'absolute';
-  panel.style.top = '0';
-  panel.style.left = '0';
-  panel.style.right = '0';
-  panel.style.bottom = '0';
-  panel.style.background = 'rgba(15,15,25,0.98)';
-  panel.style.zIndex = '50';
-  panel.style.overflowY = 'auto';
-  panel.style.padding = '16px';
-  panel.style.display = 'flex';
-  panel.style.flexDirection = 'column';
-  panel.style.alignItems = 'center';
+  const shell = createSetupShell({
+    panelId: 'civ-select',
+    eyebrow: 'Solo Campaign',
+    title: headerText,
+    subtitle: 'Each civilization has a distinct bonus that shapes your opening strategy.',
+  });
+  const panel = shell.surface;
 
   let selectedCiv: string | null = null;
 
-  const header = document.createElement('h1');
-  header.dataset.text = 'header';
-  header.textContent = headerText;
-  header.style.fontSize = '22px';
-  header.style.color = '#e8c170';
-  header.style.margin = '24px 0 8px';
-  header.style.textAlign = 'center';
-  panel.appendChild(header);
-
-  const subhead = document.createElement('p');
-  subhead.textContent = 'Each civilization has a unique bonus that shapes your strategy.';
-  subhead.style.fontSize = '13px';
-  subhead.style.opacity = '0.6';
-  subhead.style.marginBottom = '24px';
-  subhead.style.textAlign = 'center';
-  panel.appendChild(subhead);
-
   const grid = document.createElement('div');
-  grid.style.display = 'grid';
-  grid.style.gridTemplateColumns = 'repeat(2,1fr)';
-  grid.style.gap = '12px';
-  grid.style.maxWidth = '400px';
-  grid.style.width = '100%';
-  panel.appendChild(grid);
+  Object.assign(grid.style, {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2,1fr)',
+    gap: '12px',
+    width: '100%',
+  });
+  shell.body.appendChild(grid);
 
   const cards: HTMLElement[] = [];
   for (const civ of civDefinitions) {
     const card = document.createElement('div');
     card.className = 'civ-card';
     card.dataset.civId = civ.id;
+    card.dataset.selected = 'false';
     card.style.background = 'rgba(255,255,255,0.08)';
     card.style.border = '2px solid transparent';
     card.style.borderRadius = '12px';
@@ -139,8 +119,12 @@ export function createCivSelectPanel(
       selectedCiv = civ.id;
       for (const otherCard of cards) {
         otherCard.style.borderColor = 'transparent';
+        otherCard.dataset.selected = 'false';
+        otherCard.setAttribute('aria-pressed', 'false');
       }
       card.style.borderColor = '#e8c170';
+       card.dataset.selected = 'true';
+       card.setAttribute('aria-pressed', 'true');
       startButton.disabled = false;
       startButton.style.opacity = '1';
     });
@@ -150,12 +134,25 @@ export function createCivSelectPanel(
   }
 
   const actionBar = document.createElement('div');
-  actionBar.style.marginTop = '20px';
-  actionBar.style.display = 'flex';
-  actionBar.style.gap = '12px';
-  actionBar.style.flexWrap = 'wrap';
-  actionBar.style.justifyContent = 'center';
-  panel.appendChild(actionBar);
+  Object.assign(actionBar.style, {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  });
+  shell.actions.appendChild(actionBar);
+
+  if (callbacks.onCancel) {
+    const cancelButton = createButton('Back');
+    cancelButton.dataset.action = 'cancel-civ-select';
+    cancelButton.style.background = 'transparent';
+    cancelButton.style.color = '#f4f1e8';
+    cancelButton.addEventListener('click', () => {
+      panel.remove();
+      callbacks.onCancel?.();
+    });
+    actionBar.appendChild(cancelButton);
+  }
 
   const randomButton = createButton('Random');
   randomButton.id = 'civ-random';
@@ -190,7 +187,10 @@ export function createCivSelectPanel(
     const randomIdx = Math.floor(pickRng() * available.length);
     selectedCiv = available[randomIdx].id;
     for (const card of cards) {
-      card.style.borderColor = card.dataset.civId === selectedCiv ? '#e8c170' : 'transparent';
+      const selected = card.dataset.civId === selectedCiv;
+      card.style.borderColor = selected ? '#e8c170' : 'transparent';
+      card.dataset.selected = selected ? 'true' : 'false';
+      card.setAttribute('aria-pressed', selected ? 'true' : 'false');
     }
     startButton.disabled = false;
     startButton.style.opacity = '1';

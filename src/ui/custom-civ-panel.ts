@@ -4,6 +4,7 @@ import {
   CUSTOM_CIV_PRIMARY_TRAITS,
   validateCustomCivDefinition,
 } from '@/systems/custom-civ-system';
+import { createSetupSection } from '@/ui/setup-shell';
 
 export interface CustomCivPanelCallbacks {
   onSave: (def: CustomCivDefinition) => void;
@@ -75,17 +76,24 @@ export function createCustomCivPanel(
   panel.style.maxHeight = 'calc(100vh - 108px)';
   panel.style.fontFamily = 'inherit';
 
+  const header = document.createElement('div');
+  header.dataset.role = 'setup-panel-header';
+  header.style.display = 'flex';
+  header.style.flexDirection = 'column';
+  header.style.gap = '8px';
+  panel.appendChild(header);
+
   const title = document.createElement('h2');
   title.textContent = 'Create Custom Civilization';
   title.style.margin = '0';
   title.style.fontSize = '1.1em';
-  panel.appendChild(title);
+  header.appendChild(title);
 
   const subtitle = document.createElement('p');
   subtitle.textContent = 'Shape a balanced custom civilization with one signature specialty and up to two temperament traits.';
   subtitle.style.margin = '0';
   subtitle.style.fontSize = '0.9em';
-  panel.appendChild(subtitle);
+  header.appendChild(subtitle);
 
   const state = {
     civName: '',
@@ -108,21 +116,35 @@ export function createCustomCivPanel(
   validationMessage.style.color = '#f2c572';
   panel.appendChild(validationMessage);
 
+  const basicsSection = createSetupSection({
+    title: 'Identity',
+    description: 'Name your civilization, choose a leader, and set its banner color.',
+    role: 'custom-civ-basics',
+  });
+  panel.appendChild(basicsSection.section);
+
   const civNameSection = createLabeledSection('Civilization Name');
   const civNameInput = createTextInput('civ-name');
   civNameSection.appendChild(civNameInput);
-  panel.appendChild(civNameSection);
+  basicsSection.content.appendChild(civNameSection);
 
   const leaderNameSection = createLabeledSection('Leader Name');
   const leaderNameInput = createTextInput('leader-name');
   leaderNameSection.appendChild(leaderNameInput);
-  panel.appendChild(leaderNameSection);
+  basicsSection.content.appendChild(leaderNameSection);
 
   const colorSection = createLabeledSection('Civilization Color');
   const colorInput = createTextInput('civ-color', 'color');
   colorInput.value = state.color;
   colorSection.appendChild(colorInput);
-  panel.appendChild(colorSection);
+  basicsSection.content.appendChild(colorSection);
+
+  const traitsSection = createSetupSection({
+    title: 'Traits',
+    description: 'Pick one signature strength and up to two temperament traits.',
+    role: 'custom-civ-traits',
+  });
+  panel.appendChild(traitsSection.section);
 
   const primaryTraitSection = createLabeledSection('Primary Trait', 'primary-trait');
   primaryTraitSection.style.display = 'flex';
@@ -147,7 +169,7 @@ export function createCustomCivPanel(
     primaryButtons.set(trait.id, button);
     primaryTraitSection.appendChild(button);
   }
-  panel.appendChild(primaryTraitSection);
+  traitsSection.content.appendChild(primaryTraitSection);
 
   const temperamentSection = createLabeledSection('Temperament Traits', 'temperament-traits');
   temperamentSection.style.display = 'flex';
@@ -177,7 +199,14 @@ export function createCustomCivPanel(
     temperamentButtons.set(trait.id, button);
     temperamentSection.appendChild(button);
   }
-  panel.appendChild(temperamentSection);
+  traitsSection.content.appendChild(temperamentSection);
+
+  const cityNamesShell = createSetupSection({
+    title: 'City Names',
+    description: 'Provide at least six settlement names, one per line.',
+    role: 'custom-civ-city-names',
+  });
+  panel.appendChild(cityNamesShell.section);
 
   const cityNamesSection = createLabeledSection('City Names');
   const cityNamesInput = document.createElement('textarea');
@@ -191,7 +220,7 @@ export function createCustomCivPanel(
   cityNamesInput.style.padding = '10px 12px';
   cityNamesInput.style.fontFamily = 'inherit';
   cityNamesSection.appendChild(cityNamesInput);
-  panel.appendChild(cityNamesSection);
+  cityNamesShell.content.appendChild(cityNamesSection);
 
   const actionBar = document.createElement('div');
   actionBar.style.display = 'flex';
