@@ -293,10 +293,22 @@ export function createCustomCivPanel(
       validateCustomCivDefinition(definition);
       saveButton.disabled = false;
       saveButton.dataset.ready = 'true';
+      saveButton.style.opacity = '1';
+      saveButton.style.cursor = 'pointer';
+      saveButton.style.background = '#d9a441';
+      saveButton.style.color = '#1f1400';
+      saveButton.style.boxShadow = '0 10px 24px rgba(217,164,65,0.28)';
+      validationMessage.style.color = '#9fe0a8';
       validationMessage.textContent = 'Ready to save.';
     } catch (error) {
       saveButton.disabled = true;
       saveButton.dataset.ready = 'false';
+      saveButton.style.opacity = '0.45';
+      saveButton.style.cursor = 'not-allowed';
+      saveButton.style.background = 'rgba(255,255,255,0.12)';
+      saveButton.style.color = 'rgba(244,241,232,0.68)';
+      saveButton.style.boxShadow = 'none';
+      validationMessage.style.color = '#f2c572';
       validationMessage.textContent = error instanceof Error ? error.message : 'Complete the form to save.';
     }
   }

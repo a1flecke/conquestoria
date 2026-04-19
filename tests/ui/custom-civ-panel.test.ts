@@ -31,6 +31,8 @@ describe('custom-civ-panel', () => {
     expect(save.disabled).toBe(true);
     expect(save.dataset.ready).toBe('false');
     expect(validation.textContent).toBeTruthy();
+    expect(save.style.opacity).toBe('0.45');
+    expect(save.style.cursor).toBe('not-allowed');
   });
 
   it('enables save after all required fields are filled', () => {
@@ -44,6 +46,8 @@ describe('custom-civ-panel', () => {
     expect(save.disabled).toBe(false);
     expect(save.dataset.ready).toBe('true');
     expect(validation.textContent).toContain('Ready to save');
+    expect(save.style.opacity).toBe('1');
+    expect(save.style.cursor).toBe('pointer');
   });
 
   it('calls onSave with a valid CustomCivDefinition when save is clicked', () => {

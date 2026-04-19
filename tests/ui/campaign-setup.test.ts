@@ -98,20 +98,40 @@ describe('campaign-setup', () => {
     expect(startButton.dataset.ready).toBe('true');
   });
 
-  it('renders map-size cards and keeps the selected size visibly in sync', () => {
+  it('updates the visible map-size and opponent cards together, preserving valid counts and snapping invalid ones', () => {
     showCampaignSetup(document.body, {
       onStartSolo: () => {},
       onCancel: () => {},
     });
 
     const sizeCards = Array.from(document.querySelectorAll('[data-size]')) as HTMLButtonElement[];
+    const opponentsSelect = document.querySelector('#campaign-opponents') as HTMLSelectElement;
     expect(sizeCards.map(card => card.dataset.size)).toEqual(['small', 'medium', 'large']);
     expect(document.querySelector('[data-size="small"]')?.getAttribute('data-selected')).toBe('true');
+    expect(Array.from(document.querySelectorAll('[data-opponent-count]')).map(card => card.getAttribute('data-opponent-count'))).toEqual(['1', '2']);
+    expect(opponentsSelect.value).toBe('1');
 
     click(document, '[data-size="large"]');
 
     expect(document.querySelector('[data-size="small"]')?.getAttribute('data-selected')).toBe('false');
     expect(document.querySelector('[data-size="large"]')?.getAttribute('data-selected')).toBe('true');
+    expect(Array.from(document.querySelectorAll('[data-opponent-count]')).map(card => card.getAttribute('data-opponent-count'))).toEqual([
+      '1', '2', '3', '4', '5', '6', '7',
+    ]);
+
+    click(document, '[data-opponent-count="2"]');
+    expect(opponentsSelect.value).toBe('2');
+
+    click(document, '[data-size="medium"]');
+    expect(opponentsSelect.value).toBe('2');
+    expect(document.querySelector('[data-opponent-count="2"]')?.getAttribute('data-selected')).toBe('true');
+
+    click(document, '[data-opponent-count="4"]');
+    expect(opponentsSelect.value).toBe('4');
+
+    click(document, '[data-size="small"]');
+    expect(opponentsSelect.value).toBe('2');
+    expect(document.querySelector('[data-opponent-count="2"]')?.getAttribute('data-selected')).toBe('true');
   });
 
   it('keeps campaign setup visible when the civ picker is dismissed through the back action', () => {

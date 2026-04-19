@@ -53,6 +53,13 @@ function createChoiceButton(label: string): HTMLButtonElement {
   return button;
 }
 
+function syncChoiceButtonState(button: HTMLButtonElement, selected: boolean): void {
+  button.dataset.selected = selected ? 'true' : 'false';
+  button.style.borderColor = selected ? '#e8c170' : 'rgba(255,255,255,0.18)';
+  button.style.background = selected ? 'rgba(232,193,112,0.16)' : 'rgba(255,255,255,0.08)';
+  button.style.color = selected ? '#f7f1d7' : '#f4f1e8';
+}
+
 export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSetupCallbacks, options?: CampaignSetupOptions): HTMLElement {
   container.querySelector('#campaign-setup')?.remove();
 
@@ -142,11 +149,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   const mapSizeCards = new Map<'small' | 'medium' | 'large', HTMLButtonElement>();
   const syncMapSizeCards = (): void => {
     for (const [size, button] of mapSizeCards.entries()) {
-      const selected = mapSizeField.select.value === size;
-      button.dataset.selected = selected ? 'true' : 'false';
-      button.style.borderColor = selected ? '#e8c170' : 'rgba(255,255,255,0.18)';
-      button.style.background = selected ? 'rgba(232,193,112,0.16)' : 'rgba(255,255,255,0.08)';
-      button.style.color = selected ? '#f7f1d7' : '#f4f1e8';
+      syncChoiceButtonState(button, mapSizeField.select.value === size);
     }
   };
   for (const size of ['small', 'medium', 'large'] as const) {
@@ -167,8 +170,26 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   });
   hero.appendChild(opponentSection.section);
 
+  const opponentCardRow = document.createElement('div');
+  Object.assign(opponentCardRow.style, {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    gap: '10px',
+  });
+  opponentSection.content.appendChild(opponentCardRow);
+
   const opponentsField = createLabeledSelect('Opponents', 'campaign-opponents');
+  opponentsField.wrapper.hidden = true;
   opponentSection.content.appendChild(opponentsField.wrapper);
+
+  const syncOpponentCards = (): void => {
+    for (const button of opponentCardRow.querySelectorAll('[data-opponent-count]')) {
+      syncChoiceButtonState(
+        button as HTMLButtonElement,
+        (button as HTMLButtonElement).dataset.opponentCount === opponentsField.select.value,
+      );
+    }
+  };
 
   const refreshOpponentOptions = (): void => {
     const mapSize = mapSizeField.select.value as 'small' | 'medium' | 'large';
@@ -181,12 +202,31 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       option.textContent = String(count);
       opponentsField.select.appendChild(option);
     }
-    opponentsField.select.value = currentValue && Number(currentValue) <= maxOpponents ? currentValue : '1';
+
+    const normalizedValue = !currentValue
+      ? 1
+      : Math.max(1, Math.min(Number(currentValue), maxOpponents));
+    opponentsField.select.value = String(normalizedValue);
+
+    opponentCardRow.textContent = '';
+    for (let count = 1; count <= maxOpponents; count++) {
+      const button = createChoiceButton(String(count));
+      button.dataset.opponentCount = String(count);
+      button.addEventListener('click', () => {
+        opponentsField.select.value = String(count);
+        syncOpponentCards();
+      });
+      opponentCardRow.appendChild(button);
+    }
+    syncOpponentCards();
   };
 
   refreshOpponentOptions();
   syncMapSizeCards();
-  mapSizeField.select.addEventListener('change', refreshOpponentOptions);
+  mapSizeField.select.addEventListener('change', () => {
+    refreshOpponentOptions();
+    syncMapSizeCards();
+  });
 
   let selectedCivId: string | null = null;
   let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
