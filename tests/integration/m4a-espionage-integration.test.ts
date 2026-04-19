@@ -3,8 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import {
   createEspionageCivState,
-  recruitSpy,
-  assignSpy,
   startMission,
   processEspionageTurn,
   initializeEspionage,
@@ -12,7 +10,23 @@ import {
   verifyAgent,
   _resetSpyIdCounter,
 } from '@/systems/espionage-system';
-import type { GameState, EspionageState } from '@/core/types';
+import type { GameState, EspionageState, Spy } from '@/core/types';
+
+// MR1: legacy fixture helper — spies are now created via city production, not recruitSpy
+function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
+  return {
+    id, owner, name: `Agent ${id}`, unitType: 'spy_scout',
+    targetCivId: null, targetCityId: null, position: null,
+    status: 'idle', experience: 0, currentMission: null,
+    cooldownTurns: 0, promotion: undefined, promotionAvailable: false,
+    feedsFalseIntel: false,
+    ...overrides,
+  };
+}
+
+function addSpy(esp: ReturnType<typeof createEspionageCivState>, spy: Spy): ReturnType<typeof createEspionageCivState> {
+  return { ...esp, spies: { ...esp.spies, [spy.id]: spy } };
+}
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
@@ -125,11 +139,10 @@ describe('espionage integration', () => {
     it('processes all civs spy turns and transitions traveling to stationed', () => {
       const state = makeTestGameState();
       state.espionage = initializeEspionage(state);
-      const { state: s1, spy } = recruitSpy(state.espionage['player'], 'player', 'seed-1');
-      state.espionage['player'] = s1;
-      state.espionage['player'] = assignSpy(
-        state.espionage['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-      );
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+      });
+      state.espionage['player'] = addSpy(state.espionage['player'], spy);
 
       const newState = processEspionageTurn(state, bus);
       const updatedSpy = newState.espionage!['player'].spies[spy.id];
@@ -139,13 +152,11 @@ describe('espionage integration', () => {
     it('applies diplomatic penalty on spy capture', () => {
       const state = makeTestGameState();
       state.espionage = initializeEspionage(state);
-      const { state: s1, spy } = recruitSpy(state.espionage['player'], 'player', 'seed-1');
-      state.espionage['player'] = s1;
-      state.espionage['player'] = assignSpy(
-        state.espionage['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-      );
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'on_mission', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+      });
+      state.espionage['player'] = addSpy(state.espionage['player'], spy);
       // Force spy to on_mission with 1 turn left
-      state.espionage['player'].spies[spy.id].status = 'on_mission';
       state.espionage['player'].spies[spy.id].currentMission = {
         type: 'gather_intel', turnsRemaining: 1, turnsTotal: 3,
         targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1',
@@ -179,12 +190,10 @@ describe('espionage integration', () => {
       const state = makeTestGameState();
       state.espionage = initializeEspionage(state);
       state.civilizations['ai-egypt'].techState.completed.push('counter-intelligence');
-      const { state: s1, spy } = recruitSpy(state.espionage['player'], 'player', 'seed-1');
-      state.espionage['player'] = s1;
-      state.espionage['player'] = assignSpy(
-        state.espionage['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-      );
-      state.espionage['player'].spies[spy.id].status = 'captured';
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'captured', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+      });
+      state.espionage['player'] = addSpy(state.espionage['player'], spy);
 
       const updated = processEspionageTurn(state, bus);
 
@@ -199,15 +208,14 @@ describe('espionage integration', () => {
     it('processes all civs spies each turn', () => {
       const state = makeTestGameState();
       state.espionage = initializeEspionage(state);
-      // Both civs have spies
-      const { state: ps, spy: pSpy } = recruitSpy(state.espionage['player'], 'player', 'p-seed');
-      state.espionage['player'] = ps;
-      const { state: es, spy: eSpy } = recruitSpy(state.espionage['ai-egypt'], 'ai-egypt', 'e-seed');
-      state.espionage['ai-egypt'] = es;
-
-      // Both stationed (travel is now physical movement)
-      state.espionage['player'] = assignSpy(state.espionage['player'], pSpy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
-      state.espionage['ai-egypt'] = assignSpy(state.espionage['ai-egypt'], eSpy.id, 'player', 'city-egypt-1', { q: 5, r: 3 });
+      const pSpy = makeTestSpy('spy-p', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+      });
+      const eSpy = makeTestSpy('spy-e', 'ai-egypt', {
+        status: 'stationed', targetCivId: 'player', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+      });
+      state.espionage['player'] = addSpy(state.espionage['player'], pSpy);
+      state.espionage['ai-egypt'] = addSpy(state.espionage['ai-egypt'], eSpy);
 
       const newState = processEspionageTurn(state, bus);
       // All spies should transition
@@ -255,9 +263,11 @@ describe('hot seat espionage safety', () => {
       'ai-egypt': createEspionageCivState(),
     };
 
-    // Player 1 recruits and assigns spy to player 2
-    const { state: pEsp, spy: pSpy } = recruitSpy(state.espionage['player'], 'player', 'p-seed');
-    state.espionage['player'] = assignSpy(pEsp, pSpy.id, 'player-2', 'city-rome-1', { q: 8, r: 1 });
+    // Player 1's spy stationed at player 2's city
+    const pSpy = makeTestSpy('spy-p', 'player', {
+      status: 'stationed', targetCivId: 'player-2', targetCityId: 'city-rome-1', position: { q: 8, r: 1 },
+    });
+    state.espionage['player'] = addSpy(state.espionage['player'], pSpy);
 
     // When it's player 2's turn, player 1's spy data should not be accessible
     state.currentPlayer = 'player-2';
@@ -282,12 +292,14 @@ describe('hot seat espionage safety', () => {
     state.currentPlayer = 'player';
     state.espionage = initializeEspionage(state);
 
-    // Both player and AI have traveling spies
-    const { state: pEsp, spy: pSpy } = recruitSpy(state.espionage!['player'], 'player', 'p-seed');
-    state.espionage!['player'] = assignSpy(pEsp, pSpy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
-
-    const { state: aEsp, spy: aSpy } = recruitSpy(state.espionage!['ai-egypt'], 'ai-egypt', 'a-seed');
-    state.espionage!['ai-egypt'] = assignSpy(aEsp, aSpy.id, 'player', 'city-egypt-1', { q: 5, r: 3 });
+    const pSpy = makeTestSpy('spy-p', 'player', {
+      status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    const aSpy = makeTestSpy('spy-a', 'ai-egypt', {
+      status: 'stationed', targetCivId: 'player', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    state.espionage!['player'] = addSpy(state.espionage!['player'], pSpy);
+    state.espionage!['ai-egypt'] = addSpy(state.espionage!['ai-egypt'], aSpy);
 
     const newState = processEspionageTurn(state, bus);
 
@@ -312,14 +324,11 @@ describe('M4a full integration', () => {
     bus.on('espionage:mission-succeeded', (d) => events.push({ type: 'succeeded', ...d }));
     bus.on('espionage:mission-failed', (d) => events.push({ type: 'failed', ...d }));
 
-    // 1. Recruit
-    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'lifecycle-seed');
-    state.espionage!['player'] = esp1;
-
-    // 2. Assign — spy is stationed immediately (travel is now physical unit movement)
-    state.espionage!['player'] = assignSpy(
-      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-    );
+    // 1+2. Create spy already stationed (city production + physical movement, MR1 foundation)
+    const spy = makeTestSpy('spy-lifecycle', 'player', {
+      status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
     expect(state.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
     // 3. Process turn — spy already stationed, no travel transition needed
@@ -343,13 +352,12 @@ describe('M4a full integration', () => {
     const state = makeTestGameState();
     state.espionage = initializeEspionage(state);
 
-    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'multi-seed');
-    state.espionage!['player'] = esp1;
-    state.espionage!['player'] = assignSpy(
-      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-    );
+    const spy = makeTestSpy('spy-multi', 'player', {
+      status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
 
-    // Turn 1: traveling → stationed
+    // Turn 1: spy already stationed
     let s = processEspionageTurn(state, bus);
     expect(s.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
@@ -388,13 +396,11 @@ describe('M4a full integration', () => {
     // Player has no visibility
     state.civilizations['player'].visibility.tiles = {};
 
-    // Recruit and station spy
-    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'passive-seed');
-    state.espionage!['player'] = esp1;
-    state.espionage!['player'] = assignSpy(
-      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-    );
-    // Arrive
+    // Spy stationed at target city
+    const spy = makeTestSpy('spy-passive', 'player', {
+      status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
     let s = processEspionageTurn(state, bus);
     expect(s.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
@@ -414,12 +420,10 @@ describe('M4a full integration', () => {
       if (d.result && (d.result as any).passive) troopReports.push(d);
     });
 
-    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'troop-seed');
-    state.espionage!['player'] = esp1;
-    state.espionage!['player'] = assignSpy(
-      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-    );
-    state.espionage!['player'].spies[spy.id].status = 'stationed';
+    const spy = makeTestSpy('spy-troop', 'player', {
+      status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
 
     // Egypt has a unit near the city (already in makeTestGameState)
     processEspionageTurn(state, bus);
@@ -431,12 +435,10 @@ describe('M4a full integration', () => {
     const state = makeTestGameState();
     state.espionage = initializeEspionage(state);
 
-    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'destroyed-seed');
-    state.espionage!['player'] = esp1;
-    state.espionage!['player'] = assignSpy(
-      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-    );
-    state.espionage!['player'].spies[spy.id].status = 'stationed';
+    const spy = makeTestSpy('spy-dest', 'player', {
+      status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
 
     // Remove the target city (simulating capture/destruction)
     delete state.cities['city-egypt-1'];
@@ -458,11 +460,10 @@ describe('M4a full integration', () => {
     const state = makeTestGameState();
     state.espionage = initializeEspionage(state);
 
-    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'transit-seed');
-    state.espionage!['player'] = esp1;
-    state.espionage!['player'] = assignSpy(
-      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-    );
+    const spy = makeTestSpy('spy-transit', 'player', {
+      status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
     expect(state.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
     // Destroy city while spy is stationed
@@ -489,8 +490,8 @@ describe('M4a full integration', () => {
   it('espionage state survives serialization (structuredClone)', () => {
     const state = makeTestGameState();
     state.espionage = initializeEspionage(state);
-    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'serial-seed');
-    state.espionage!['player'] = esp1;
+    const spy = makeTestSpy('spy-serial', 'player');
+    state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
 
     const cloned = structuredClone(state);
     expect(cloned.espionage!['player'].spies[spy.id].id).toBe(spy.id);
@@ -503,16 +504,14 @@ describe('M4a full integration', () => {
       _resetSpyIdCounter();
       const state = makeTestGameState();
       state.espionage = initializeEspionage(state);
-      const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'determ-seed');
-      state.espionage!['player'] = esp1;
-      state.espionage!['player'] = assignSpy(
-        state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-      );
-      state.espionage!['player'].spies[spy.id].status = 'on_mission';
-      state.espionage!['player'].spies[spy.id].currentMission = {
-        type: 'scout_area', turnsRemaining: 1, turnsTotal: 1,
-        targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1',
-      };
+      const spy = makeTestSpy('spy-determ', 'player', {
+        status: 'on_mission', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+        currentMission: {
+          type: 'scout_area', turnsRemaining: 1, turnsTotal: 1,
+          targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1',
+        },
+      });
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       return state;
     };
 
@@ -539,12 +538,10 @@ describe('M4a full integration', () => {
   it('handles double-agent deception and verify-agent exposure deterministically', () => {
     const state = makeTestGameState();
     state.espionage = initializeEspionage(state);
-    const { state: esp1, spy } = recruitSpy(state.espionage['player'], 'player', 'double-agent-seed');
-    state.espionage['player'] = esp1;
-    state.espionage['player'].spies[spy.id].status = 'captured';
-
-    state.espionage['player'].spies[spy.id].targetCivId = 'ai-egypt';
-    state.espionage['player'].spies[spy.id].targetCityId = 'city-egypt-1';
+    const spy = makeTestSpy('spy-double', 'player', {
+      status: 'captured', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1',
+    });
+    state.espionage['player'] = addSpy(state.espionage['player'], spy);
 
     state.espionage = turnCapturedSpy(state.espionage, 'ai-egypt', 'player', spy.id, state.turn);
     expect(state.espionage['player'].spies[spy.id].feedsFalseIntel).toBe(true);
@@ -585,12 +582,10 @@ describe('turn manager espionage integration', () => {
   it('processTurn calls processEspionageTurn and updates spy state', () => {
     const state = makeTestGameState();
     state.espionage = initializeEspionage(state);
-    const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'tm-seed');
-    state.espionage!['player'] = esp1;
-    state.espionage!['player'] = assignSpy(
-      state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
-    );
-    // Spy is stationed immediately upon assignment (travel is now physical unit movement)
+    const spy = makeTestSpy('spy-tm', 'player', {
+      status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+    });
+    state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
     expect(state.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
     const bus = new EventBus();

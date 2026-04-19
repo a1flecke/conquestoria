@@ -1,6 +1,6 @@
 // src/ui/espionage-panel.ts
 import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion } from '../core/types';
-import { canRecruitSpy, getAvailableMissions, missionRequiresPlacedSpy } from '../systems/espionage-system';
+import { getAvailableMissions, missionRequiresPlacedSpy } from '../systems/espionage-system';
 
 export interface MissionCatalogEntry {
   id: SpyMissionType;
@@ -24,7 +24,6 @@ export interface SpySummary {
 export interface EspionagePanelData {
   spies: Spy[];
   spySummaries: SpySummary[];
-  canRecruit: boolean;
   maxSpies: number;
   activeSpyCount: number;
   availableMissions: string[];
@@ -49,8 +48,6 @@ export type SpyAction = 'assign' | 'assign_defensive' | 'start_mission' | 'recal
 
 export interface EspionagePanelCallbacks {
   onClose: () => void;
-  onRecruit?: () => void;
-  onAssign?: (spyId: string) => void;
   onAssignDefensive?: (spyId: string) => void;
   onStartMission?: (spyId: string) => void;
   onRecall?: (spyId: string) => void;
@@ -251,9 +248,7 @@ function appendSpyCard(
     actionRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
     for (const action of actions) {
       const actionLabel = action.replace(/_/g, ' ');
-      if (action === 'assign' && callbacks.onAssign) {
-        appendActionButton(actionRow, actionLabel, action, () => callbacks.onAssign?.(spy.id));
-      } else if (action === 'assign_defensive' && callbacks.onAssignDefensive) {
+      if (action === 'assign_defensive' && callbacks.onAssignDefensive) {
         appendActionButton(actionRow, actionLabel, action, () => callbacks.onAssignDefensive?.(spy.id));
       } else if (action === 'start_mission' && callbacks.onStartMission) {
         appendActionButton(actionRow, actionLabel, action, () => callbacks.onStartMission?.(spy.id));
@@ -327,14 +322,11 @@ export function createEspionagePanel(
   appendSectionHeader(
     titleWrap,
     'Espionage',
-    `Spies ${data.activeSpyCount}/${data.maxSpies} · ${data.canRecruit ? 'Recruitment available' : 'No recruitment available'}`,
+    `Spies ${data.activeSpyCount}/${data.maxSpies}`,
   );
   headerRow.appendChild(titleWrap);
   const headerActions = createEl('div');
   headerActions.style.cssText = 'display:flex;gap:8px;align-items:center;';
-  if (data.canRecruit && callbacks.onRecruit) {
-    appendActionButton(headerActions, 'Recruit', 'recruit-spy', () => callbacks.onRecruit?.());
-  }
   appendActionButton(headerActions, 'Close', 'close-panel', () => callbacks.onClose());
   headerRow.appendChild(headerActions);
   panel.appendChild(headerRow);
@@ -380,7 +372,6 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     return {
       spies: [],
       spySummaries: [],
-      canRecruit: false,
       maxSpies: 0,
       activeSpyCount: 0,
       availableMissions: [],
@@ -430,7 +421,6 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
   return {
     spies,
     spySummaries,
-    canRecruit: canRecruitSpy(civEsp),
     maxSpies: civEsp.maxSpies,
     activeSpyCount,
     availableMissions,

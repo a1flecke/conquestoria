@@ -1,7 +1,7 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
-import { foundCity } from '@/systems/city-system';
+import { foundCity, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
@@ -22,13 +22,11 @@ import {
   inviteToLeague,
 } from '@/systems/diplomacy-system';
 import {
-  canRecruitSpy,
   getAvailableMissions,
-  recruitSpy,
-  assignSpy,
   assignSpyDefensive,
   missionRequiresPlacedSpy,
   startMission,
+  isSpyUnitType,
 } from '@/systems/espionage-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
 import {
@@ -632,28 +630,23 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
-  // AI espionage decisions
+  // AI espionage decisions — queue spy units in cities (physical-spy model)
   if (shouldAiRecruitSpy(newState, civId)) {
     const espState = newState.espionage?.[civId];
     if (espState) {
-      const { state: newEsp, spy } = recruitSpy(espState, civId, `ai-recruit-${newState.turn}-${civId}`);
-      newState.espionage![civId] = newEsp;
-
-      const capitalId = civ.cities[0];
-      const capital = capitalId ? newState.cities[capitalId] : undefined;
-      if (capital && shouldAiStationDefensiveSpy(newState, civId)) {
-        newState.espionage![civId] = assignSpyDefensive(
-          newState.espionage![civId],
-          spy.id,
-          capital.id,
-          capital.position,
-        );
-      } else {
-        const target = chooseAiSpyTarget(newState, civId);
-        if (target) {
-          newState.espionage![civId] = assignSpy(
-            newState.espionage![civId], spy.id, target.civId, target.cityId, target.position,
-          );
+      const activeSpies = Object.values(espState.spies).filter(s => s.status !== 'captured').length;
+      if (activeSpies < espState.maxSpies) {
+        const availableSpyTypes = getTrainableUnitsForCiv(civ.techState.completed)
+          .filter(u => isSpyUnitType(u.type));
+        if (availableSpyTypes.length > 0) {
+          const bestType = availableSpyTypes[availableSpyTypes.length - 1];
+          for (const cityId of civ.cities) {
+            const city = newState.cities[cityId];
+            if (city && city.productionQueue.length === 0) {
+              newState.cities[cityId] = { ...city, productionQueue: [bestType.type] };
+              break;
+            }
+          }
         }
       }
     }
@@ -737,7 +730,8 @@ export function shouldAiRecruitSpy(state: GameState, aiCivId: string): boolean {
   if (!hasEspTech) return false;
   const espState = state.espionage?.[aiCivId];
   if (!espState) return false;
-  return canRecruitSpy(espState);
+  const activeSpies = Object.values(espState.spies).filter(s => s.status !== 'captured').length;
+  return activeSpies < espState.maxSpies;
 }
 
 export function chooseAiSpyTarget(

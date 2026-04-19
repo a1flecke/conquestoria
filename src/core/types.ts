@@ -529,7 +529,7 @@ export interface Spy {
   promotionAvailable: boolean;       // true when XP >= 60 and no promotion yet (unused for now, for future UI)
   turnedBy?: string;
   feedsFalseIntel?: boolean;
-  unitType?: UnitType;                  // physical unit type — needed to recreate unit on expulsion
+  unitType: UnitType;                   // physical unit type — needed to recreate unit on expulsion
   disguiseAs?: DisguiseType | null;
   infiltrationCityId?: string | null;  // city spy is currently inside
   cityVisionTurnsLeft?: number;        // turns of full city-tile vision remaining

@@ -6,7 +6,7 @@ import {
   chooseAiMission,
 } from '@/ai/basic-ai';
 import type { GameState } from '@/core/types';
-import { createEspionageCivState, recruitSpy, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { createEspionageCivState, createSpyFromUnit, _resetSpyIdCounter } from '@/systems/espionage-system';
 
 function makeAiTestState(): GameState {
   return {
@@ -71,7 +71,7 @@ function makeAiTestState(): GameState {
     wonderDiscoverers: {},
     espionage: {
       player: createEspionageCivState(),
-      'ai-egypt': createEspionageCivState(),
+      'ai-egypt': { ...createEspionageCivState(), maxSpies: 2 }, // espionage-scouting + espionage-informants
     },
   } as unknown as GameState;
 }
@@ -95,8 +95,10 @@ describe('AI espionage decisions', () => {
 
     it('returns false when at max spies', () => {
       const state = makeAiTestState();
-      const { state: espState } = recruitSpy(state.espionage!['ai-egypt'], 'ai-egypt', 'seed-1');
-      state.espionage!['ai-egypt'] = espState;
+      // maxSpies: 2 (espionage-scouting + espionage-informants) — fill both slots
+      const { state: esp1 } = createSpyFromUnit(state.espionage!['ai-egypt'], 'unit-spy-1', 'ai-egypt', 'spy_scout', 'seed-1');
+      const { state: esp2 } = createSpyFromUnit(esp1, 'unit-spy-2', 'ai-egypt', 'spy_informant', 'seed-2');
+      state.espionage!['ai-egypt'] = esp2;
       expect(shouldAiRecruitSpy(state, 'ai-egypt')).toBe(false);
     });
   });

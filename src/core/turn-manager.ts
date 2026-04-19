@@ -35,7 +35,7 @@ import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
-import { processEspionageTurn } from '@/systems/espionage-system';
+import { processEspionageTurn, isSpyUnitType, createSpyFromUnit } from '@/systems/espionage-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import {
@@ -78,7 +78,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       totalScience += yields.science;
       totalGold += yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
-      const result = processCity(city, newState.map, yields.food, effectiveProduction, civDef?.bonusEffect);
+      const result = processCity(city, newState.map, yields.food, effectiveProduction, civDef?.bonusEffect, civ.techState.completed);
       newState.cities[cityId] = result.city;
 
       if (result.grew) {
@@ -92,6 +92,18 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         const newUnit = createUnit(result.completedUnit, civId, city.position, civDef?.bonusEffect);
         newState.units[newUnit.id] = newUnit;
         newState.civilizations[civId].units.push(newUnit.id);
+
+        if (isSpyUnitType(result.completedUnit) && newState.espionage?.[civId]) {
+          const { state: updatedEsp, spy } = createSpyFromUnit(
+            newState.espionage[civId],
+            newUnit.id,
+            civId,
+            result.completedUnit,
+            `spy-unit-${newUnit.id}-${newState.turn}`,
+          );
+          newState.espionage[civId] = updatedEsp;
+          bus.emit('espionage:spy-recruited', { civId, spy });
+        }
       }
     }
 
