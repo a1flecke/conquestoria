@@ -848,3 +848,39 @@ describe('core type additions MR1', () => {
     expect(d).toBe('barbarian');
   });
 });
+
+describe('spy unit definitions', () => {
+  const SPY_TYPES = ['spy_scout','spy_informant','spy_agent','spy_operative','spy_hacker'] as const;
+
+  for (const t of SPY_TYPES) {
+    it(`UNIT_DEFINITIONS has entry for ${t}`, async () => {
+      const { UNIT_DEFINITIONS } = await import('@/systems/unit-system');
+      expect(UNIT_DEFINITIONS[t]).toBeDefined();
+    });
+    it(`UNIT_DESCRIPTIONS has entry for ${t}`, async () => {
+      const { UNIT_DESCRIPTIONS } = await import('@/systems/unit-system');
+      expect(UNIT_DESCRIPTIONS[t]).toBeTruthy();
+    });
+  }
+
+  it('spy_scout is in TRAINABLE_UNITS with espionage-scouting', async () => {
+    const { TRAINABLE_UNITS } = await import('@/systems/city-system');
+    const e = TRAINABLE_UNITS.find(u => u.type === 'spy_scout')!;
+    expect(e.techRequired).toBe('espionage-scouting');
+    expect(e.obsoletedByTech).toBe('espionage-informants');
+  });
+
+  it('spy_informant is obsoleted by spy-networks', async () => {
+    const { TRAINABLE_UNITS } = await import('@/systems/city-system');
+    const e = TRAINABLE_UNITS.find(u => u.type === 'spy_informant')!;
+    expect(e.obsoletedByTech).toBe('spy-networks');
+  });
+
+  it('getTrainableUnitsForCiv hides spy_scout when espionage-informants researched', async () => {
+    const { getTrainableUnitsForCiv } = await import('@/systems/city-system');
+    const visible = getTrainableUnitsForCiv(['espionage-scouting','espionage-informants']);
+    const types = visible.map(u => u.type);
+    expect(types).not.toContain('spy_scout');
+    expect(types).toContain('spy_informant');
+  });
+});
