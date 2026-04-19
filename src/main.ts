@@ -33,6 +33,7 @@ import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { showCampaignSetup } from '@/ui/campaign-setup';
+import { showGameModeSelect } from '@/ui/game-mode-select';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
@@ -1691,40 +1692,7 @@ function migrateLegacySave(): void {
 }
 
 function showGameModeSelection(): void {
-  const modePanel = document.createElement('div');
-  modePanel.id = 'mode-select';
-  modePanel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.98);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;';
-  modePanel.innerHTML = `
-    <h1 style="font-size:22px;color:#e8c170;margin-bottom:24px;">New Game</h1>
-    <div style="width:100%;max-width:320px;margin-bottom:20px;">
-      <input id="new-game-title" type="text" placeholder="Campaign title" value="New Campaign" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;font-size:14px;" />
-    </div>
-    <div style="display:flex;gap:16px;">
-      <div id="mode-solo" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:24px;cursor:pointer;text-align:center;min-width:140px;transition:border-color 0.2s;">
-        <div style="font-size:28px;margin-bottom:8px;">&#x1f3ae;</div>
-        <div style="font-weight:bold;font-size:16px;color:#e8c170;">Solo</div>
-        <div style="font-size:11px;opacity:0.6;margin-top:4px;">You vs AI</div>
-      </div>
-      <div id="mode-hotseat" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:24px;cursor:pointer;text-align:center;min-width:140px;transition:border-color 0.2s;">
-        <div style="font-size:28px;margin-bottom:8px;">&#x1f46a;</div>
-        <div style="font-weight:bold;font-size:16px;color:#e8c170;">Hot Seat</div>
-        <div style="font-size:11px;opacity:0.6;margin-top:4px;">Pass the device</div>
-      </div>
-    </div>
-  `;
-
-  uiLayer.appendChild(modePanel);
-
-  const getRequestedTitle = (): string | null => {
-    const input = document.getElementById('new-game-title') as HTMLInputElement | null;
-    const title = input?.value.trim() ?? '';
-    if (!title) {
-      showNotification('Campaign title is required', 'warning');
-      return null;
-    }
-    return title;
-  };
-
+  let modePanel: HTMLElement;
   const updatePersistedCustomCivilizations = (customCivilizations: GameState['settings']['customCivilizations'] = []): void => {
     persistedSettings = {
       ...mergePersistedSettings(persistedSettings),
@@ -1732,61 +1700,63 @@ function showGameModeSelection(): void {
     };
   };
 
-  document.getElementById('mode-solo')?.addEventListener('click', async () => {
-    const title = (document.getElementById('new-game-title') as HTMLInputElement | null)?.value.trim() || 'New Campaign';
-    const currentSettings = await refreshPersistedSettings();
-    const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
-    modePanel.remove();
-    showCampaignSetup(uiLayer, {
-      initialTitle: title,
-      onStartSolo: (config) => {
-        gameState = createNewGame({
-          civType: config.civType,
-          mapSize: config.mapSize,
-          opponentCount: config.opponentCount,
-          gameTitle: config.gameTitle,
-          settingsOverrides: getPersistedSettingsOverrides(),
-          customCivilizations: config.customCivilizations,
-        });
-        if (persistedSettings?.councilTalkLevel) {
-          gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
-        }
-        startGame();
-        showNotification('Your tribe has settled near a river...', 'info');
-      },
-      onCustomCivilizationsChanged: (customCivilizations) => {
-        updatePersistedCustomCivilizations(customCivilizations);
-      },
-      onCancel: () => showGameModeSelection(),
-    }, {
-      initialCustomCivilizations: savedCustomCivilizations,
-    });
-  });
-
-  document.getElementById('mode-hotseat')?.addEventListener('click', async () => {
-    const title = getRequestedTitle();
-    if (!title) return;
-    const currentSettings = await refreshPersistedSettings();
-    const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
-    modePanel.remove();
-    showHotSeatSetup(uiLayer, {
-      onComplete: (config) => {
-        gameState = createHotSeatGame(config, undefined, title);
-        if (persistedSettings?.councilTalkLevel) {
-          gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
-        }
-        startGame();
-        showNotification(`Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`, 'info');
-      },
-      onCustomCivilizationsChanged: (customCivilizations) => {
-        updatePersistedCustomCivilizations(customCivilizations);
-      },
-      onCancel: () => {
-        showGameModeSelection();
-      },
-    }, {
-      initialCustomCivilizations: savedCustomCivilizations,
-    });
+  modePanel = showGameModeSelect(uiLayer, {
+    initialTitle: 'New Campaign',
+    onTitleRequired: () => {
+      showNotification('Campaign title is required', 'warning');
+    },
+    onChooseSolo: async (title) => {
+      const currentSettings = await refreshPersistedSettings();
+      const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
+      modePanel.remove();
+      showCampaignSetup(uiLayer, {
+        initialTitle: title,
+        onStartSolo: (config) => {
+          gameState = createNewGame({
+            civType: config.civType,
+            mapSize: config.mapSize,
+            opponentCount: config.opponentCount,
+            gameTitle: config.gameTitle,
+            settingsOverrides: getPersistedSettingsOverrides(),
+            customCivilizations: config.customCivilizations,
+          });
+          if (persistedSettings?.councilTalkLevel) {
+            gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
+          }
+          startGame();
+          showNotification('Your tribe has settled near a river...', 'info');
+        },
+        onCustomCivilizationsChanged: (customCivilizations) => {
+          updatePersistedCustomCivilizations(customCivilizations);
+        },
+        onCancel: () => showGameModeSelection(),
+      }, {
+        initialCustomCivilizations: savedCustomCivilizations,
+      });
+    },
+    onChooseHotSeat: async (title) => {
+      const currentSettings = await refreshPersistedSettings();
+      const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
+      modePanel.remove();
+      showHotSeatSetup(uiLayer, {
+        onComplete: (config) => {
+          gameState = createHotSeatGame(config, undefined, title);
+          if (persistedSettings?.councilTalkLevel) {
+            gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
+          }
+          startGame();
+          showNotification(`Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`, 'info');
+        },
+        onCustomCivilizationsChanged: (customCivilizations) => {
+          updatePersistedCustomCivilizations(customCivilizations);
+        },
+        onCancel: () => {
+          showGameModeSelection();
+        },
+      }, {
+        initialCustomCivilizations: savedCustomCivilizations,
+      });
+    },
   });
 }
 
