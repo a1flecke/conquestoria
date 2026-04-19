@@ -162,7 +162,7 @@ export function assignSpy(
       ...state.spies,
       [spyId]: {
         ...spy,
-        status: 'traveling',
+        status: 'stationed',
         targetCivId,
         targetCityId,
         position: { ...targetPosition },
@@ -389,13 +389,6 @@ export function processSpyTurn(
         updated.status = 'idle';
         updated.cooldownTurns = 0;
       }
-      newState.spies[spyId] = updated;
-      continue;
-    }
-
-    if (updated.status === 'traveling') {
-      updated.status = 'stationed';
-      events.push({ type: 'spy_arrived', spyId });
       newState.spies[spyId] = updated;
       continue;
     }
@@ -834,7 +827,7 @@ export function initializeEspionage(state: GameState): EspionageState {
         maxSpies = Math.max(maxSpies, spyCount);
       }
     }
-    civState.maxSpies = Math.max(1, maxSpies);
+    civState.maxSpies = maxSpies;
     espionage[civId] = civState;
   }
   return espionage;
@@ -930,13 +923,11 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                     ]),
                   )
                   : state.legendaryWonderProjects;
-                state.cities[spyTarget.targetCityId] = {
-                  ...tc,
-                  productionProgress,
+                state = {
+                  ...state,
+                  cities: { ...state.cities, [spyTarget.targetCityId]: { ...tc, productionProgress } },
+                  ...(updatedProjects ? { legendaryWonderProjects: updatedProjects } : {}),
                 };
-                if (updatedProjects) {
-                  state.legendaryWonderProjects = updatedProjects;
-                }
               }
             }
           }
@@ -945,9 +936,9 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             const originalSpy = civEspBefore.spies[evt.spyId];
             const targetCity = originalSpy?.targetCityId ? state.cities[originalSpy.targetCityId] : null;
             if (targetCity) {
-              state.cities[targetCity.id] = {
-                ...targetCity,
-                productionDisabledTurns: result.productionDisabledTurns as number,
+              state = {
+                ...state,
+                cities: { ...state.cities, [targetCity.id]: { ...targetCity, productionDisabledTurns: result.productionDisabledTurns as number } },
               };
             }
           }
@@ -956,8 +947,17 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             const originalSpy = civEspBefore.spies[evt.spyId];
             const targetCiv = originalSpy?.targetCivId ? state.civilizations[originalSpy.targetCivId] : null;
             if (targetCiv) {
-              targetCiv.researchPenaltyTurns = result.researchPenaltyTurns as number;
-              targetCiv.researchPenaltyMultiplier = result.researchPenaltyMultiplier as number;
+              state = {
+                ...state,
+                civilizations: {
+                  ...state.civilizations,
+                  [originalSpy!.targetCivId!]: {
+                    ...targetCiv,
+                    researchPenaltyTurns: result.researchPenaltyTurns as number,
+                    researchPenaltyMultiplier: result.researchPenaltyMultiplier as number,
+                  },
+                },
+              };
             }
           }
 
@@ -967,9 +967,9 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             if (spyTarget?.targetCityId) {
               const tc = state.cities[spyTarget.targetCityId];
               if (tc) {
-                state.cities[spyTarget.targetCityId] = {
-                  ...tc,
-                  spyUnrestBonus: Math.min(50, tc.spyUnrestBonus + (result.unrestInjected as number)),
+                state = {
+                  ...state,
+                  cities: { ...state.cities, [spyTarget.targetCityId]: { ...tc, spyUnrestBonus: Math.min(50, tc.spyUnrestBonus + (result.unrestInjected as number)) } },
                 };
               }
             }
@@ -1030,7 +1030,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             const key = `${pos.q},${pos.r}`;
             if (state.map.tiles[key]) {
               const hostileUnit = createUnit('warrior', 'rebels', pos);
-              state.units[hostileUnit.id] = hostileUnit;
+              state = { ...state, units: { ...state.units, [hostileUnit.id]: hostileUnit } };
               bus.emit('unit:created', { unit: hostileUnit });
             }
           }
@@ -1107,9 +1107,9 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
       }
     }
 
-    // Clean up spies targeting destroyed cities (traveling or on_mission)
+    // Clean up spies targeting destroyed cities (stationed or on_mission)
     for (const spy of Object.values(state.espionage![civId].spies)) {
-      if ((spy.status === 'traveling' || spy.status === 'on_mission') && spy.targetCityId) {
+      if ((spy.status === 'stationed' || spy.status === 'on_mission') && spy.targetCityId) {
         const targetCity = state.cities[spy.targetCityId];
         if (!targetCity) {
           state.espionage![civId].spies[spy.id] = {
@@ -1184,17 +1184,19 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
           maxSpies = Math.max(maxSpies, spyCount);
         }
       }
-      state.espionage![civId].maxSpies = Math.max(1, maxSpies);
+      state = { ...state, espionage: { ...state.espionage!, [civId]: { ...state.espionage![civId], maxSpies } } };
     }
   }
 
   // Decay spy unrest bonus 5 per turn
-  for (const cityId of Object.keys(state.cities)) {
-    const city = state.cities[cityId];
-    if (city.spyUnrestBonus > 0) {
-      state.cities[cityId] = { ...city, spyUnrestBonus: Math.max(0, city.spyUnrestBonus - 5) };
-    }
-  }
+  const decayedCities = Object.fromEntries(
+    Object.entries(state.cities).map(([cityId, city]) =>
+      city.spyUnrestBonus > 0
+        ? [cityId, { ...city, spyUnrestBonus: Math.max(0, city.spyUnrestBonus - 5) }]
+        : [cityId, city],
+    ),
+  );
+  state = { ...state, cities: decayedCities };
 
   return state;
 }

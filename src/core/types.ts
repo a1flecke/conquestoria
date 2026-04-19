@@ -192,7 +192,11 @@ export interface VisibilityMap {
 
 // --- Units ---
 
-export type UnitType = 'settler' | 'worker' | 'scout' | 'warrior' | 'archer' | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme';
+export type UnitType =
+  | 'settler' | 'worker' | 'scout' | 'warrior' | 'archer'
+  | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
+  | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
+  | 'scout_hound';
 
 export interface UnitDefinition {
   type: UnitType;
@@ -203,6 +207,7 @@ export interface UnitDefinition {
   canFoundCity: boolean;
   canBuildImprovements: boolean;
   productionCost: number;
+  spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
 }
 
 export interface Unit {
@@ -226,7 +231,7 @@ export interface Unit {
 
 // --- Cities ---
 
-export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | 'military' | 'culture';
+export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | 'military' | 'culture' | 'espionage';
 
 export interface AdjacencyBonus {
   adjacentTo: string;
@@ -461,7 +466,16 @@ export interface DefensiveLeague {
 
 // --- Espionage ---
 
-export type SpyStatus = 'idle' | 'traveling' | 'stationed' | 'on_mission' | 'captured' | 'cooldown';
+export type SpyStatus =
+  | 'idle'         // unit is on the map, available
+  | 'stationed'    // infiltrated enemy city, off map
+  | 'embedded'     // inside own city doing counter-espionage
+  | 'on_mission'   // running a mission, off map
+  | 'cooldown'     // between missions or after expulsion, may be on map
+  | 'captured'     // caught, awaiting verdict
+  | 'interrogated';// being held for interrogation
+
+export type DisguiseType = 'barbarian' | 'warrior' | 'scout' | 'archer' | 'worker';
 
 export type SpyMissionType =
   // Stage 1 (espionage-scouting tech)
@@ -515,6 +529,12 @@ export interface Spy {
   promotionAvailable: boolean;       // true when XP >= 60 and no promotion yet (unused for now, for future UI)
   turnedBy?: string;
   feedsFalseIntel?: boolean;
+  unitType?: UnitType;                  // physical unit type — needed to recreate unit on expulsion
+  disguiseAs?: DisguiseType | null;
+  infiltrationCityId?: string | null;  // city spy is currently inside
+  cityVisionTurnsLeft?: number;        // turns of full city-tile vision remaining
+  cooldownMode?: 'stay_low' | 'passive_observe';
+  stolenTechFrom?: Record<string, string[]>; // civId -> techIds already stolen
 }
 
 export interface DetectedSpyThreat {
@@ -524,14 +544,41 @@ export interface DetectedSpyThreat {
   expiresOnTurn: number;
 }
 
+export type InterrogationIntelType =
+  | 'spy_identity' | 'city_location' | 'production_queue'
+  | 'wonder_in_progress' | 'map_area' | 'tech_hint';
+
+export interface InterrogationIntel {
+  type: InterrogationIntelType;
+  data: Record<string, unknown>;
+}
+
+export interface InterrogationRecord {
+  id: string;
+  spyId: string;
+  spyOwner: string;
+  turnsRemaining: number;
+  extractedIntel: InterrogationIntel[];
+}
+
 export interface EspionageCivState {
   spies: Record<string, Spy>;
   maxSpies: number;                // scales with espionage tech
   counterIntelligence: Record<string, number>; // cityId -> detection score (0-100)
   detectedThreats?: Record<string, DetectedSpyThreat>;
+  activeInterrogations?: Record<string, InterrogationRecord>;
+  recentDetections?: Array<{ position: HexCoord; turn: number; wasDisguised: boolean }>;
 }
 
 export type EspionageState = Record<string, EspionageCivState>;
+
+export interface TrainableUnitEntry {
+  type: UnitType;
+  name: string;
+  cost: number;
+  techRequired?: string;
+  obsoletedByTech?: string;
+}
 
 // --- Civilizations ---
 
