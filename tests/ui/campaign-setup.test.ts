@@ -95,6 +95,36 @@ describe('campaign-setup', () => {
 
     expect(document.querySelector('[data-role="selected-civ-summary"]')?.textContent).not.toContain('No civilization selected');
     expect(startButton.disabled).toBe(false);
+    expect(startButton.dataset.ready).toBe('true');
+  });
+
+  it('renders map-size cards and keeps the selected size visibly in sync', () => {
+    showCampaignSetup(document.body, {
+      onStartSolo: () => {},
+      onCancel: () => {},
+    });
+
+    const sizeCards = Array.from(document.querySelectorAll('[data-size]')) as HTMLButtonElement[];
+    expect(sizeCards.map(card => card.dataset.size)).toEqual(['small', 'medium', 'large']);
+    expect(document.querySelector('[data-size="small"]')?.getAttribute('data-selected')).toBe('true');
+
+    click(document, '[data-size="large"]');
+
+    expect(document.querySelector('[data-size="small"]')?.getAttribute('data-selected')).toBe('false');
+    expect(document.querySelector('[data-size="large"]')?.getAttribute('data-selected')).toBe('true');
+  });
+
+  it('keeps campaign setup visible when the civ picker is dismissed through the back action', () => {
+    showCampaignSetup(document.body, {
+      onStartSolo: () => {},
+      onCancel: () => {},
+    });
+
+    clickButtonWithText('Choose civilization');
+    click(document, '[data-action="cancel-civ-select"]');
+
+    expect(document.querySelector('#campaign-setup')).toBeTruthy();
+    expect(document.querySelector('#civ-select')).toBeNull();
   });
 
   it('requires map size, civ selection, opponent count, and campaign title before starting a solo game', () => {

@@ -34,6 +34,25 @@ function createLabeledSelect(labelText: string, id: string): { wrapper: HTMLDivE
   return { wrapper, select };
 }
 
+function createChoiceButton(label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  Object.assign(button.style, {
+    minHeight: '44px',
+    minWidth: '44px',
+    padding: '12px 16px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.18)',
+    background: 'rgba(255,255,255,0.08)',
+    color: '#f4f1e8',
+    cursor: 'pointer',
+    fontSize: '14px',
+    textTransform: 'capitalize',
+  });
+  button.textContent = label;
+  return button;
+}
+
 export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSetupCallbacks, options?: CampaignSetupOptions): HTMLElement {
   container.querySelector('#campaign-setup')?.remove();
 
@@ -102,7 +121,16 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   });
   hero.appendChild(mapSection.section);
 
+  const mapSizeCardRow = document.createElement('div');
+  Object.assign(mapSizeCardRow.style, {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: '10px',
+  });
+  mapSection.content.appendChild(mapSizeCardRow);
+
   const mapSizeField = createLabeledSelect('Map size', 'campaign-map-size');
+  mapSizeField.wrapper.hidden = true;
   for (const size of ['small', 'medium', 'large'] as const) {
     const option = document.createElement('option');
     option.value = size;
@@ -110,6 +138,28 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     mapSizeField.select.appendChild(option);
   }
   mapSection.content.appendChild(mapSizeField.wrapper);
+
+  const mapSizeCards = new Map<'small' | 'medium' | 'large', HTMLButtonElement>();
+  const syncMapSizeCards = (): void => {
+    for (const [size, button] of mapSizeCards.entries()) {
+      const selected = mapSizeField.select.value === size;
+      button.dataset.selected = selected ? 'true' : 'false';
+      button.style.borderColor = selected ? '#e8c170' : 'rgba(255,255,255,0.18)';
+      button.style.background = selected ? 'rgba(232,193,112,0.16)' : 'rgba(255,255,255,0.08)';
+      button.style.color = selected ? '#f7f1d7' : '#f4f1e8';
+    }
+  };
+  for (const size of ['small', 'medium', 'large'] as const) {
+    const button = createChoiceButton(size);
+    button.dataset.size = size;
+    button.addEventListener('click', () => {
+      mapSizeField.select.value = size;
+      refreshOpponentOptions();
+      syncMapSizeCards();
+    });
+    mapSizeCards.set(size, button);
+    mapSizeCardRow.appendChild(button);
+  }
 
   const opponentSection = createSetupSection({
     title: 'Opponents',
@@ -135,6 +185,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   };
 
   refreshOpponentOptions();
+  syncMapSizeCards();
   mapSizeField.select.addEventListener('change', refreshOpponentOptions);
 
   let selectedCivId: string | null = null;
@@ -148,6 +199,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       ? `Leading civilization: ${selectedDefinition.name}`
       : 'No civilization selected yet';
     startButton.disabled = !selectedCivId || !gameTitle;
+    startButton.dataset.ready = startButton.disabled ? 'false' : 'true';
   };
 
   const replaceSetupOverlay = (render: () => void): void => {
