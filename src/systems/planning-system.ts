@@ -2,15 +2,17 @@ import type { City, GameState, TechState } from '@/core/types';
 import { getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getAvailableTechs } from '@/systems/tech-system';
+import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 
-const MAX_QUEUE_ITEMS = 3;
+const MAX_CITY_QUEUE_ITEMS = 4;
+const MAX_RESEARCH_QUEUE_ITEMS = 3;
 
 export function enqueueCityProduction(city: City, itemId: string): City {
   if (city.productionQueue.includes(itemId)) {
     return city;
   }
 
-  if (city.productionQueue.length >= MAX_QUEUE_ITEMS) {
+  if (city.productionQueue.length >= MAX_CITY_QUEUE_ITEMS) {
     throw new Error('Queue limit reached');
   }
 
@@ -40,6 +42,17 @@ export function moveQueuedId<T>(items: T[], fromIndex: number, toIndex: number):
   return next;
 }
 
+export function reorderCityProduction(city: City, fromIndex: number, toIndex: number): City {
+  const productionQueue = moveQueuedId(city.productionQueue, fromIndex, toIndex);
+  const activeItemChanged = productionQueue[0] !== city.productionQueue[0];
+
+  return {
+    ...city,
+    productionQueue,
+    productionProgress: activeItemChanged ? 0 : city.productionProgress,
+  };
+}
+
 export function removeQueuedId<T>(items: T[], index: number): T[] {
   return items.filter((_, currentIndex) => currentIndex !== index);
 }
@@ -57,7 +70,7 @@ export function enqueueResearch(state: TechState, techId: string): TechState {
     };
   }
 
-  if (1 + state.researchQueue.length >= MAX_QUEUE_ITEMS) {
+  if (state.researchQueue.length >= MAX_RESEARCH_QUEUE_ITEMS) {
     throw new Error('Queue limit reached');
   }
 
@@ -115,7 +128,7 @@ export function getRecommendedIdleCityChoice(
       label: building.name,
       cost: building.productionCost,
       turns: Math.ceil(building.productionCost / productionPerTurn),
-      priority: building.pacing?.band === 'starter' ? 0 : 1,
+      priority: resolveBuildingPacingBand(building) === 'starter' ? 0 : 1,
     })),
     ...TRAINABLE_UNITS
       .filter(unit => !unit.techRequired || completedTechs.includes(unit.techRequired))
@@ -124,7 +137,7 @@ export function getRecommendedIdleCityChoice(
         label: unit.name,
         cost: unit.cost,
         turns: Math.ceil(unit.cost / productionPerTurn),
-        priority: unit.pacing?.band === 'starter' ? 0 : 1,
+        priority: resolveUnitPacingBand(unit) === 'starter' ? 0 : 1,
       })),
   ];
 

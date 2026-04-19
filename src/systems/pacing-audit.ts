@@ -1,5 +1,11 @@
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
-import { getTargetTurnWindow, estimateTurnsToComplete } from '@/systems/pacing-model';
+import {
+  getTargetTurnWindow,
+  estimateTurnsToComplete,
+  resolveBuildingPacingBand,
+  resolveTechPacingBand,
+  resolveUnitPacingBand,
+} from '@/systems/pacing-model';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 export interface PacingAuditRow {
@@ -51,7 +57,7 @@ export function buildPacingAudit(): PacingAuditRow[] {
   return [
     ...Object.values(BUILDINGS).map(building => {
       const era = getUnlockEra(building.techRequired);
-      const band = building.pacing?.band ?? 'core';
+      const band = resolveBuildingPacingBand(building);
       const target = getTargetTurnWindow({
         era,
         band,
@@ -70,7 +76,7 @@ export function buildPacingAudit(): PacingAuditRow[] {
     }),
     ...TRAINABLE_UNITS.map(unit => {
       const era = getUnlockEra(unit.techRequired);
-      const band = unit.pacing?.band ?? 'core';
+      const band = resolveUnitPacingBand(unit);
       const target = getTargetTurnWindow({
         era,
         band,
@@ -88,7 +94,7 @@ export function buildPacingAudit(): PacingAuditRow[] {
       };
     }),
     ...TECH_TREE.map(tech => {
-      const band = tech.pacing?.band ?? 'core';
+      const band = resolveTechPacingBand(tech);
       const outputPerTurn = tech.era === 1 ? 3 : 8;
       const target = getTargetTurnWindow({
         era: tech.era,

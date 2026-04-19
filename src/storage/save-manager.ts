@@ -25,8 +25,8 @@ function ensureGameIdentity(state: GameState): GameState {
 function migrateLegacyPlanningState(state: GameState): GameState {
   for (const city of Object.values(state.cities ?? {})) {
     city.productionQueue ??= [];
-    if (city.productionQueue.length > 3) {
-      city.productionQueue = city.productionQueue.slice(0, 3);
+    if (city.productionQueue.length > 4) {
+      city.productionQueue = city.productionQueue.slice(0, 4);
     }
   }
 

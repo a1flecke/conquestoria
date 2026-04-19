@@ -308,6 +308,22 @@ describe('legendary-wonder-system', () => {
     ]);
   });
 
+  it('preserves every queued city item when a legendary wonder starts, even from a full queue', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+    state.cities['city-river'].productionQueue = ['library', 'warrior', 'worker', 'shrine'];
+
+    const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi', new EventBus());
+
+    expect(result.cities['city-river'].productionQueue).toEqual([
+      'legendary:oracle-of-delphi',
+      'library',
+      'warrior',
+      'worker',
+      'shrine',
+    ]);
+  });
+
   it('tracks invested production from the active city queue while a legendary wonder is building', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';

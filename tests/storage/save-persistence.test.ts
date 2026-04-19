@@ -308,7 +308,7 @@ describe('save persistence (#38)', () => {
     expect(resolved?.bonusEffect).toEqual({ type: 'extra_tech_speed', speedMultiplier: 1.15 });
   });
 
-  it('trims legacy production queues to three items on load', async () => {
+  it('trims legacy production queues to the active item plus three follow-ups on load', async () => {
     const state = createNewGame('rome', 'legacy-queue-seed');
     state.cities['city-1'] = {
       id: 'city-1',
@@ -333,7 +333,7 @@ describe('save persistence (#38)', () => {
     await saveGame('slot-legacy-queue', 'Legacy Queue Save', state);
     const loaded = await loadGame('slot-legacy-queue');
 
-    expect(loaded?.cities['city-1'].productionQueue).toEqual(['warrior', 'shrine', 'worker']);
+    expect(loaded?.cities['city-1'].productionQueue).toEqual(['warrior', 'shrine', 'worker', 'library']);
   });
 
   it('adds an empty research queue when loading older saves', async () => {

@@ -8,17 +8,36 @@ import {
   getRecommendedIdleCityChoice,
   moveQueuedId,
   removeQueuedId,
+  reorderCityProduction,
 } from '@/systems/planning-system';
 
 describe('planning-system city queues', () => {
-  it('appends new city builds up to a limit of three', () => {
+  it('appends new city builds up to the active item plus three follow-ups', () => {
     const city = { productionQueue: ['warrior'] } as any;
     const queued = enqueueCityProduction(city, 'shrine');
     expect(queued.productionQueue).toEqual(['warrior', 'shrine']);
   });
 
+  it('allows three follow-up city queue items beyond the active build', () => {
+    const city = { productionQueue: ['warrior', 'shrine', 'worker'] } as any;
+    const queued = enqueueCityProduction(city, 'library');
+    expect(queued.productionQueue).toEqual(['warrior', 'shrine', 'worker', 'library']);
+  });
+
   it('reorders queue items without dropping them', () => {
     expect(moveQueuedId(['warrior', 'shrine', 'worker'], 2, 0)).toEqual(['worker', 'warrior', 'shrine']);
+  });
+
+  it('resets progress when reordering changes the active production item', () => {
+    const city = {
+      productionQueue: ['warrior', 'shrine', 'worker'],
+      productionProgress: 7,
+    } as any;
+
+    const reordered = reorderCityProduction(city, 1, 0);
+
+    expect(reordered.productionQueue).toEqual(['shrine', 'warrior', 'worker']);
+    expect(reordered.productionProgress).toBe(0);
   });
 
   it('removes queue items cleanly', () => {
@@ -33,6 +52,17 @@ describe('planning-system city queues', () => {
 
     expect(started.currentResearch).toBe('fire');
     expect(queued.researchQueue).toEqual(['writing']);
+  });
+
+  it('allows three queued follow-up techs beyond the active research', () => {
+    const techState = createTechState();
+
+    const started = enqueueResearch(techState, 'fire');
+    const first = enqueueResearch(started, 'writing');
+    const second = enqueueResearch(first, 'wheel');
+    const third = enqueueResearch(second, 'gathering');
+
+    expect(third.researchQueue).toEqual(['writing', 'wheel', 'gathering']);
   });
 
   it('recommends a truly fast opening option instead of the first registered building', () => {
