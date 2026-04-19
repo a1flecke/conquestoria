@@ -111,6 +111,7 @@ export function createCustomCivPanel(
   panel.appendChild(traitBudget);
 
   const validationMessage = document.createElement('p');
+  validationMessage.dataset.role = 'custom-civ-validation';
   validationMessage.style.margin = '0';
   validationMessage.style.fontSize = '0.85em';
   validationMessage.style.color = '#f2c572';
@@ -291,9 +292,11 @@ export function createCustomCivPanel(
       const definition = buildDefinition();
       validateCustomCivDefinition(definition);
       saveButton.disabled = false;
+      saveButton.dataset.ready = 'true';
       validationMessage.textContent = 'Ready to save.';
     } catch (error) {
       saveButton.disabled = true;
+      saveButton.dataset.ready = 'false';
       validationMessage.textContent = error instanceof Error ? error.message : 'Complete the form to save.';
     }
   }

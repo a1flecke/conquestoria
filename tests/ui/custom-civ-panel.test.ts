@@ -27,7 +27,10 @@ describe('custom-civ-panel', () => {
     const panel = createCustomCivPanel(document.body, { onSave, onCancel: () => {} });
 
     const save = panel.querySelector('[data-action="save-custom-civ"]') as HTMLButtonElement;
+    const validation = panel.querySelector('[data-role="custom-civ-validation"]') as HTMLElement;
     expect(save.disabled).toBe(true);
+    expect(save.dataset.ready).toBe('false');
+    expect(validation.textContent).toBeTruthy();
   });
 
   it('enables save after all required fields are filled', () => {
@@ -37,7 +40,10 @@ describe('custom-civ-panel', () => {
     fillRequiredFields(panel);
 
     const save = panel.querySelector('[data-action="save-custom-civ"]') as HTMLButtonElement;
+    const validation = panel.querySelector('[data-role="custom-civ-validation"]') as HTMLElement;
     expect(save.disabled).toBe(false);
+    expect(save.dataset.ready).toBe('true');
+    expect(validation.textContent).toContain('Ready to save');
   });
 
   it('calls onSave with a valid CustomCivDefinition when save is clicked', () => {
