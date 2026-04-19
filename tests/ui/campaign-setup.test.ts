@@ -72,6 +72,31 @@ describe('campaign-setup', () => {
     document.body.innerHTML = '';
   });
 
+  it('shows a setup header, selected civ summary, and enables start only after a civ is confirmed', () => {
+    const onStartSolo = vi.fn();
+
+    showCampaignSetup(document.body, {
+      onStartSolo,
+      onCancel: () => {},
+    });
+
+    expect(document.body.textContent).toContain('Build Your Campaign');
+    expect(document.querySelector('[data-role="setup-hero"]')).toBeTruthy();
+    expect(document.querySelector('[data-role="selected-civ-summary"]')?.textContent).toContain('No civilization selected');
+
+    const startButton = Array.from(document.querySelectorAll('button'))
+      .find(button => button.textContent === 'Start Campaign') as HTMLButtonElement;
+    expect(startButton.disabled).toBe(true);
+
+    clickButtonWithText('Choose civilization');
+    const firstCard = document.querySelector('.civ-card') as HTMLElement;
+    firstCard.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+
+    expect(document.querySelector('[data-role="selected-civ-summary"]')?.textContent).not.toContain('No civilization selected');
+    expect(startButton.disabled).toBe(false);
+  });
+
   it('requires map size, civ selection, opponent count, and campaign title before starting a solo game', () => {
     const container = document.createElement('div');
     const onStart = vi.fn();

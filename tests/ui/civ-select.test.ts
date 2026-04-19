@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { getPlayableCivDefinitions } from '@/systems/civ-registry';
 import type { CustomCivDefinition } from '@/core/types';
@@ -15,6 +15,31 @@ const customCiv: CustomCivDefinition = {
 };
 
 describe('civ-select', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('marks the chosen civ card as selected and exposes a back action', () => {
+    const onCancel = vi.fn();
+    const panel = createCivSelectPanel(document.body, {
+      onSelect: () => {},
+      onCancel,
+    }, {
+      civDefinitions: getPlayableCivDefinitions({ customCivilizations: [customCiv] }),
+      headerText: 'Choose your civilization',
+      primaryActionText: 'Confirm Civilization',
+    });
+
+    const card = Array.from(panel.querySelectorAll('.civ-card'))
+      .find(node => node.textContent?.includes('Sunfolk')) as HTMLElement;
+    card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(card.dataset.selected).toBe('true');
+    expect((panel.querySelector('#civ-start') as HTMLButtonElement).textContent).toBe('Confirm Civilization');
+    (panel.querySelector('[data-action="cancel-civ-select"]') as HTMLButtonElement).click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
   it('renders saved custom civs in the real civ picker and allows selecting them', () => {
     const onSelect = vi.fn();
     const panel = createCivSelectPanel(document.body, { onSelect }, {

@@ -7,6 +7,15 @@ describe('custom-civ-panel', () => {
     document.body.innerHTML = '';
   });
 
+  it('renders a setup-style header and grouped editor sections', () => {
+    const panel = createCustomCivPanel(document.body, { onSave: () => {}, onCancel: () => {} });
+
+    expect(panel.querySelector('[data-role="setup-panel-header"]')).toBeTruthy();
+    expect(panel.querySelector('[data-role="custom-civ-basics"]')).toBeTruthy();
+    expect(panel.querySelector('[data-role="custom-civ-traits"]')).toBeTruthy();
+    expect(panel.querySelector('[data-role="custom-civ-city-names"]')).toBeTruthy();
+  });
+
   it('renders a trait budget display and primary trait picker', () => {
     const panel = createCustomCivPanel(document.body, { onSave: () => {}, onCancel: () => {} });
     expect(panel.textContent).toContain('Trait budget');
