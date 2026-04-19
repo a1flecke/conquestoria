@@ -1,4 +1,4 @@
-import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect } from '@/core/types';
+import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry } from '@/core/types';
 import { hexKey, hexesInRange } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 
@@ -46,7 +46,7 @@ export const BUILDINGS: Record<string, Building> = {
   forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', adjacencyBonuses: [] },
 };
 
-export const TRAINABLE_UNITS: Array<{ type: UnitType; name: string; cost: number; techRequired?: string; pacing?: Building['pacing'] }> = [
+export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
   { type: 'warrior', name: 'Warrior', cost: 8, pacing: { band: 'starter', role: 'early-military', impact: 1, scope: 'military', snowball: 1, urgency: 1.2, situationality: 1, unlockBreadth: 1 } },
   { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery' },
   { type: 'scout', name: 'Scout', cost: 6, pacing: { band: 'starter', role: 'early-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
@@ -57,7 +57,21 @@ export const TRAINABLE_UNITS: Array<{ type: UnitType; name: string; cost: number
   { type: 'musketeer', name: 'Musketeer', cost: 90, techRequired: 'tactics' },
   { type: 'galley', name: 'Galley', cost: 40, techRequired: 'galleys' },
   { type: 'trireme', name: 'Trireme', cost: 70, techRequired: 'triremes' },
+  { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants' },
+  { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks' },
+  { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography' },
+  { type: 'spy_operative', name: 'Operative', cost: 90, techRequired: 'cryptography', obsoletedByTech: 'cyber-warfare' },
+  { type: 'spy_hacker', name: 'Cyber Operative', cost: 110, techRequired: 'cyber-warfare' },
+  { type: 'scout_hound', name: 'Scout Hound', cost: 55, techRequired: 'lookouts' },
 ];
+
+export function getTrainableUnitsForCiv(completedTechs: string[]): TrainableUnitEntry[] {
+  return TRAINABLE_UNITS.filter(u => {
+    if (u.techRequired && !completedTechs.includes(u.techRequired)) return false;
+    if (u.obsoletedByTech && completedTechs.includes(u.obsoletedByTech)) return false;
+    return true;
+  });
+}
 
 export function foundCity(owner: string, position: HexCoord, map: GameMap, options: FoundCityOptions = {}): City {
   const name = drawNextCityName(options.civType ?? owner, options.usedNames ?? new Set<string>(), {

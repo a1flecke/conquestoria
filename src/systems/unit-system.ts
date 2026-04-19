@@ -60,6 +60,37 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 3, strength: 25, canFoundCity: false,
     canBuildImprovements: false, productionCost: 70,
   },
+  spy_scout: {
+    type: 'spy_scout', name: 'Scout Agent', movementPoints: 2,
+    visionRange: 2, strength: 3, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 30,
+  },
+  spy_informant: {
+    type: 'spy_informant', name: 'Informant', movementPoints: 2,
+    visionRange: 2, strength: 4, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 50,
+  },
+  spy_agent: {
+    type: 'spy_agent', name: 'Field Agent', movementPoints: 3,
+    visionRange: 3, strength: 5, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 70,
+  },
+  spy_operative: {
+    type: 'spy_operative', name: 'Operative', movementPoints: 3,
+    visionRange: 3, strength: 6, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 90,
+  },
+  spy_hacker: {
+    type: 'spy_hacker', name: 'Cyber Operative', movementPoints: 2,
+    visionRange: 2, strength: 5, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 110,
+  },
+  scout_hound: {
+    type: 'scout_hound', name: 'Scout Hound', movementPoints: 3,
+    visionRange: 3, strength: 8, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 55,
+    spyDetectionChance: 0.35,
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -165,6 +196,12 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   musketeer: 'Gunpowder infantry, requires Tactics',
   galley: 'Coastal vessel for transport and exploration',
   trireme: 'Warship with strong naval combat capabilities',
+  spy_scout: 'Lightly trained scout agent. Move to an enemy city and attempt to infiltrate. Era 1: infiltration and scouting resolve in one action.',
+  spy_informant: 'Experienced informant. Infiltrates cities for multi-turn intelligence operations. Unlocks disguise.',
+  spy_agent: 'Skilled field operative. Conducts sabotage, tech theft, and disruption missions.',
+  spy_operative: 'Elite spy. Capable of high-stakes operations — assassination, forgery, arms smuggling.',
+  spy_hacker: 'Cyber operative. Remote and digital warfare missions; hardest to detect.',
+  scout_hound: 'Detection unit. Patrols territory and has a 35% chance per turn to reveal disguised or stealthed spy units within vision range.',
 };
 
 export function getUnmovedUnits(
