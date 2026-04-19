@@ -139,6 +139,7 @@ export type DisguiseType = 'barbarian' | 'warrior' | 'scout' | 'archer' | 'worke
 
 Add fields to `Spy` interface (after `feedsFalseIntel`):
 ```typescript
+  unitType: UnitType;                  // physical unit type — needed to recreate unit on expulsion
   disguiseAs?: DisguiseType | null;
   infiltrationCityId?: string | null;  // city spy is currently inside
   cityVisionTurnsLeft?: number;        // turns of full city-tile vision remaining
@@ -201,7 +202,19 @@ yarn test tests/systems/espionage-system.test.ts
 
 Expected: type tests pass; expect some breakage in tests that reference `'traveling'` status — those will be fixed in subsequent steps.
 
-- [ ] **Step 5: Fix references to `'traveling'` status**
+- [ ] **Step 5: Fix `initializeEspionage` maxSpies guard**
+
+In `src/systems/espionage-system.ts`, line ~837, change:
+```typescript
+civState.maxSpies = Math.max(1, maxSpies);
+```
+to:
+```typescript
+civState.maxSpies = maxSpies;
+```
+A civ with no espionage techs should start with 0 max spies and earn the cap by researching techs. The `Math.max(1, ...)` guard was a safety net from the abstract recruit era — remove it.
+
+- [ ] **Step 6: Fix references to `'traveling'` status**
 
 Search and update any code that uses `spy.status === 'traveling'` or `SpyStatus` comparisons that include `'traveling'`. In `src/systems/espionage-system.ts`, the `processSpyTurn` function handles `'traveling' → 'stationed'`. Since movement is now physical, **delete** the `'traveling'` branch entirely. In `main.ts`, find any `assignSpy` calls from the panel and remove/update them (the "Assign" flow is replaced by physical movement + Infiltrate in MR 4).
 
@@ -301,7 +314,7 @@ spy_hacker: {
 scout_hound: {
   type: 'scout_hound', name: 'Scout Hound',
   movementPoints: 3, visionRange: 3, strength: 8,
-  canFoundCity: false, canBuildImprovements: false, productionCost: 45,
+  canFoundCity: false, canBuildImprovements: false, productionCost: 55,
   spyDetectionChance: 0.35,
 },
 ```
@@ -314,7 +327,7 @@ spy_informant: 'Experienced informant. Infiltrates cities for multi-turn intelli
 spy_agent: 'Skilled field operative. Conducts sabotage, tech theft, and disruption missions.',
 spy_operative: 'Elite spy. Capable of high-stakes operations — assassination, forgery, arms smuggling.',
 spy_hacker: 'Cyber operative. Remote and digital warfare missions; hardest to detect.',
-scout_hound: 'Detection unit. Patrols territory and has a 35% chance per turn to reveal disguised or stealthed spy units within vision range.',
+scout_hound: 'Detection unit. Patrols territory and has a 35% chance per turn to reveal disguised or stealthed spy units within vision range. Moving an enemy unit into a tile occupied by a spy triggers combat — spies have low strength and usually lose.',
 ```
 
 - [ ] **Step 4: Add `obsoletedByTech` to `TRAINABLE_UNITS` and add `getTrainableUnitsForCiv` to `src/systems/city-system.ts`**
@@ -342,7 +355,7 @@ export const TRAINABLE_UNITS: TrainableUnitEntry[] = [
   { type: 'spy_operative', name: 'Operative', cost: 90, techRequired: 'cryptography', obsoletedByTech: 'cyber-warfare' },
   { type: 'spy_hacker', name: 'Cyber Operative', cost: 110, techRequired: 'cyber-warfare' },
   // Detection units
-  { type: 'scout_hound', name: 'Scout Hound', cost: 45, techRequired: 'lookouts' },
+  { type: 'scout_hound', name: 'Scout Hound', cost: 55, techRequired: 'lookouts' },
 ];
 ```
 
@@ -419,13 +432,11 @@ git commit -m "feat(espionage): spy unit types and detection unit defined; TRAIN
 Create `tests/integration/spy-lifecycle.test.ts`:
 
 ```typescript
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { createEspionageCivState, createSpyFromUnit, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { processTurn } from '@/core/turn-manager';
 import type { GameState } from '@/core/types';
-
-beforeEach(() => { _resetSpyIdCounter(); });
 
 function makeSpyTrainingState(): GameState {
   return {
@@ -551,6 +562,7 @@ export function createSpyFromUnit(
   state: EspionageCivState,
   unitId: string,
   owner: string,
+  unitType: UnitType,
   seed: string,
 ): { state: EspionageCivState; spy: Spy } {
   const rng = createRng(seed);
@@ -559,6 +571,7 @@ export function createSpyFromUnit(
     id: unitId,
     owner,
     name: `Agent ${SPY_NAMES[nameIndex]}`,
+    unitType,
     targetCivId: null,
     targetCityId: null,
     position: null,
@@ -599,6 +612,7 @@ if (result.completedUnit) {
       newState.espionage[civId],
       newUnit.id,
       civId,
+      result.completedUnit,
       `spy-unit-${newUnit.id}-${newState.turn}`,
     );
     newState.espionage[civId] = updatedEsp;
@@ -968,13 +982,11 @@ Create `tests/systems/espionage-stealth.test.ts`:
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
 import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
-import { createEspionageCivState, createSpyFromUnit, setDisguise, _resetSpyIdCounter } from '@/systems/espionage-system';
-
-beforeEach(() => { _resetSpyIdCounter(); });
+import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
 
 function makeStealthState(disguise?: string) {
   let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
-  const { state: esp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'stealth-seed');
+  const { state: esp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'stealth-seed');
   civEsp = disguise
     ? setDisguise(esp, 'unit-1', disguise as any)
     : esp;
@@ -1058,13 +1070,17 @@ export function setDisguise(
 // src/systems/espionage-stealth.ts
 import type { Unit, GameState, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { isSpyUnitType } from './espionage-system';
+import { hexDistance } from './hex-utils';
 
-function hasNearbyOwnSpy(units: Record<string, Unit>, viewerCivId: string, spyPosition: { q: number; r: number }): boolean {
+// Own spy units AND detection units (scout_hound) both see through all disguises.
+function hasNearbyDetector(units: Record<string, Unit>, viewerCivId: string, spyPosition: { q: number; r: number }): boolean {
   for (const u of Object.values(units)) {
     if (u.owner !== viewerCivId) continue;
-    if (!UNIT_DEFINITIONS[u.type]?.spyDetectionChance) continue;
-    const dist = Math.max(Math.abs(u.position.q - spyPosition.q), Math.abs(u.position.r - spyPosition.r));
-    if (dist <= (UNIT_DEFINITIONS[u.type].visionRange ?? 2)) return true;
+    const def = UNIT_DEFINITIONS[u.type];
+    const isDetector = !!def?.spyDetectionChance || isSpyUnitType(u.type);
+    if (!isDetector) continue;
+    if (hexDistance(u.position, spyPosition) <= (def?.visionRange ?? 2)) return true;
   }
   return false;
 }
@@ -1098,8 +1114,8 @@ export function getVisibleUnitsForPlayer(
       continue;
     }
 
-    // Spy and scout_hound units see through all disguises
-    const detectByUnit = hasNearbyOwnSpy(units, viewerCivId, unit.position);
+    // Own spy units and scout_hound units see through all disguises
+    const detectByUnit = hasNearbyDetector(units, viewerCivId, unit.position);
     if (detectByUnit) {
       result[id] = unit;
       continue;
@@ -1141,9 +1157,9 @@ if (isSpyUnitType(unit.type) && !unit.hasActed && callbacks.onSetDisguise) {
   const ownerTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
   
   const disguiseOptions: Array<{ label: string; value: DisguiseType | null; tech?: string }> = [
-    { label: 'No Disguise', value: null },
-    { label: 'As Barbarian', value: 'barbarian', tech: 'disguise' },
-    { label: 'As Warrior', value: 'warrior', tech: 'disguise' },
+    { label: 'No Disguise', value: null },        // always available; removing disguise is free
+    { label: 'As Barbarian', value: 'barbarian', tech: 'espionage-informants' },
+    { label: 'As Warrior', value: 'warrior', tech: 'espionage-informants' },
     { label: 'As Scout', value: 'scout', tech: 'spy-networks' },
     { label: 'As Archer', value: 'archer', tech: 'spy-networks' },
     { label: 'As Worker', value: 'worker', tech: 'cryptography' },
@@ -1177,7 +1193,10 @@ onSetDisguise: (unitId, disguise) => {
   gameState.espionage![gameState.currentPlayer] = setDisguise(
     gameState.espionage![gameState.currentPlayer], unitId, disguise,
   );
-  gameState.units[unitId] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+  if (disguise !== null) {
+    // Putting on a disguise costs the spy's turn; removing one is free.
+    gameState.units[unitId] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+  }
   renderLoop.setGameState(gameState);
   showNotification(disguise ? `Spy disguised as ${disguise}.` : 'Disguise removed.', 'info');
 },
@@ -1211,7 +1230,7 @@ git commit -m "feat(espionage): disguise system — spy units can disguise as co
 - Create: `tests/systems/espionage-infiltration.test.ts`
 
 **Infiltration success formula:**
-- Base rate: `spy_scout` = 0.55, `spy_informant` = 0.65, `spy_agent` = 0.70, `spy_operative` = 0.75, `spy_hacker` = 0.65 (cyber)
+- Base rate: `spy_scout` = 0.55, `spy_informant` = 0.65, `spy_agent` = 0.70, `spy_operative` = 0.75, `spy_hacker` = 0.80 (digital cover = harder to detect)
 - Modifier: `-0.004 × cityCI` (counter-intelligence score of target city)
 - Modifier: `+0.003 × spyExperience`
 - Clamp: `[0.10, 0.90]`
@@ -1224,10 +1243,8 @@ Create `tests/systems/espionage-infiltration.test.ts`:
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { createEspionageCivState, createSpyFromUnit, attemptInfiltration, getInfiltrationSuccessChance, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { createEspionageCivState, createSpyFromUnit, attemptInfiltration, getInfiltrationSuccessChance } from '@/systems/espionage-system';
 import { createRng } from '@/systems/map-generator';
-
-beforeEach(() => { _resetSpyIdCounter(); });
 
 describe('getInfiltrationSuccessChance', () => {
   it('spy_scout with 0 XP against 0 CI: ~0.55', () => {
@@ -1249,7 +1266,7 @@ describe('getInfiltrationSuccessChance', () => {
 describe('attemptInfiltration', () => {
   function makeSpy() {
     let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
-    const { state } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'seed');
+    const { state } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed');
     return state;
   }
 
@@ -1292,7 +1309,7 @@ const INFILTRATION_BASE: Partial<Record<UnitType, number>> = {
   spy_informant: 0.65,
   spy_agent: 0.70,
   spy_operative: 0.75,
-  spy_hacker: 0.65,
+  spy_hacker: 0.80,  // digital cover is hardest to detect; scales best with XP
 };
 
 export function getInfiltrationSuccessChance(
@@ -1417,11 +1434,11 @@ private drawInfiltratedSpyIndicators(): void {
 Also: when spy has `cityVisionTurnsLeft > 0`, reveal the target city tile in the player's visibility map each turn:
 
 ```typescript
-// In turn-manager.ts, in the vision decrement block:
+// In turn-manager.ts, in the vision decrement block (use newState, not state):
 if (spy.cityVisionTurnsLeft && spy.cityVisionTurnsLeft > 0 && spy.infiltrationCityId) {
-  const city = state.cities[spy.infiltrationCityId];
-  if (city && state.civilizations[civId]?.visibility?.tiles) {
-    state.civilizations[civId].visibility.tiles[`${city.position.q},${city.position.r}`] = 'visible';
+  const city = newState.cities[spy.infiltrationCityId];
+  if (city && newState.civilizations[civId]?.visibility?.tiles) {
+    newState.civilizations[civId].visibility.tiles[`${city.position.q},${city.position.r}`] = 'visible';
   }
 }
 ```
@@ -1462,6 +1479,12 @@ onInfiltrate: (unitId) => {
   );
   if (!targetCity) { showNotification('No enemy city at this location.', 'info'); return; }
 
+  // D4: one spy per enemy city — block if a spy is already inside
+  const alreadyInside = Object.values(gameState.espionage![gameState.currentPlayer].spies)
+    .some(s => s.infiltrationCityId === targetCity.id &&
+               (s.status === 'stationed' || s.status === 'on_mission' || s.status === 'cooldown'));
+  if (alreadyInside) { showNotification('You already have a spy in that city.', 'info'); return; }
+
   const cityCI = gameState.espionage![targetCity.owner]?.counterIntelligence[targetCity.id] ?? 0;
   const seed = `infiltrate-${unitId}-${gameState.turn}`;
   const result = attemptInfiltration(
@@ -1471,23 +1494,64 @@ onInfiltrate: (unitId) => {
   gameState.espionage![gameState.currentPlayer] = result.civEsp;
 
   if (result.removeUnitFromMap) {
+    // Era 2+: spy removed from map, stationed inside city
     delete gameState.units[unitId];
     gameState.civilizations[gameState.currentPlayer].units =
       gameState.civilizations[gameState.currentPlayer].units.filter(id => id !== unitId);
     showNotification(`Spy successfully infiltrated ${targetCity.name}. Open Intel panel to issue orders.`, 'success');
     bus.emit('espionage:spy-infiltrated', { civId: gameState.currentPlayer, spyId: unitId, cityId: targetCity.id });
+  } else if (result.era1ScoutResult !== undefined) {
+    // Era 1 (spy_scout): infiltration + scout resolve together; spy stays on map with cooldown
+    const scoutMissionResult = resolveMissionResult('scout_area', targetCity.owner, targetCity.id, gameState, gameState.currentPlayer, unitId);
+    const cooldown = 3;
+    gameState.espionage![gameState.currentPlayer].spies[unitId] = {
+      ...gameState.espionage![gameState.currentPlayer].spies[unitId],
+      status: 'cooldown',
+      cooldownTurns: cooldown,
+      infiltrationCityId: null,
+      cityVisionTurnsLeft: 0,
+    };
+    gameState.units[unitId] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+    showNotification(`Scout Agent gathered basic intel on ${targetCity.name}. Next infiltration in ${cooldown} turns.`, 'success');
   } else if (result.caught) {
     showNotification(`Spy was caught attempting to infiltrate ${targetCity.name}!`, 'warning');
-    // Capture flow handled in MR 6
     bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: gameState.currentPlayer, spyId: unitId, cityId: targetCity.id });
   } else {
     showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low for ${result.civEsp.spies[unitId]?.cooldownTurns ?? 3} turns.`, 'info');
+    gameState.units[unitId] = { ...unit, hasActed: true, movementPointsLeft: 0 };
   }
 
-  // Spend the unit's turn
-  if (gameState.units[unitId]) {
-    gameState.units[unitId] = { ...gameState.units[unitId], hasActed: true, movementPointsLeft: 0 };
-  }
+  renderLoop.setGameState(gameState);
+},
+
+// Voluntary exfiltration: recall a stationed spy back to the map (owner's capital)
+onExfiltrate: (spyId) => {
+  const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
+  const spy = ownerEsp?.spies[spyId];
+  if (!spy || spy.status !== 'stationed') return;
+
+  const capital = gameState.cities[gameState.civilizations[gameState.currentPlayer]?.cities[0]];
+  if (!capital) { showNotification('Cannot exfiltrate — no capital found.', 'warning'); return; }
+
+  const newUnit = createUnit(spy.unitType, gameState.currentPlayer, capital.position);
+  gameState.units[newUnit.id] = newUnit;
+  gameState.civilizations[gameState.currentPlayer].units.push(newUnit.id);
+
+  // Rekey the spy record under the new unit ID, preserve experience and history
+  const updatedSpy: Spy = {
+    ...spy,
+    id: newUnit.id,
+    status: 'cooldown',
+    cooldownTurns: 8,   // shorter than expulsion (15) since voluntary
+    infiltrationCityId: null,
+    cityVisionTurnsLeft: 0,
+  };
+  const { [spyId]: _old, ...remainingSpies } = ownerEsp!.spies;
+  gameState.espionage![gameState.currentPlayer] = {
+    ...ownerEsp!,
+    spies: { ...remainingSpies, [newUnit.id]: updatedSpy },
+  };
+  showNotification(`Spy exfiltrated. Available again in ${updatedSpy.cooldownTurns} turns.`, 'info');
   renderLoop.setGameState(gameState);
 },
 ```
@@ -1498,6 +1562,51 @@ Add the new events to `GameEventMap` in `types.ts`:
 'espionage:spy-caught-infiltrating': { capturingCivId: string; spyOwner: string; spyId: string; cityId: string };
 ```
 
+Wire the capture notification so the spy owner learns of the capture on their next turn. In `main.ts`, add alongside the verdict handler:
+```typescript
+bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, cityId }) => {
+  // Verdict choice for the capturing player
+  if (capturingCivId === gameState.currentPlayer) {
+    showEspionageCaptureChoice(spyId, spyOwner, cityId);
+  }
+  // Notification for the spy owner (fires immediately but is persistent in the notification log)
+  if (spyOwner === gameState.currentPlayer) {
+    const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
+    const city = gameState.cities[cityId];
+    showNotification(
+      `${spy?.name ?? 'Your spy'} was caught trying to infiltrate ${city?.name ?? 'an enemy city'}! Awaiting verdict.`,
+      'warning',
+    );
+  }
+});
+```
+
+Add `onExfiltrate` callback to `SelectedUnitInfoCallbacks`:
+```typescript
+onExfiltrate?: (spyId: string) => void;
+```
+
+In `renderSelectedUnitInfo`, show an Exfiltrate button for stationed spies:
+```typescript
+if (isSpyUnitType(unit.type) === false) {
+  // check by spy record instead since stationed spy has no unit on map
+}
+// For the espionage panel's spy list: show [Exfiltrate] button next to stationed spies
+// In espionage-panel.ts, for each stationed spy in the spy summaries section:
+if (spy.status === 'stationed' && callbacks.onExfiltrate) {
+  spyRow.appendChild(makeButton('Exfiltrate (8 turn cooldown)', '#374151', () => callbacks.onExfiltrate!(spy.id)));
+}
+```
+
+Add city-capture cleanup for stationed spies. In `src/systems/espionage-system.ts`, update `cleanupSpiesTargetingDestroyedCities` (already exists, line ~1110) to also handle `'stationed'` status:
+```typescript
+// Extend the existing cleanup function's check from:
+if ((spy.status === 'traveling' || spy.status === 'on_mission') && spy.targetCityId) {
+// To:
+if ((spy.status === 'on_mission' || spy.status === 'stationed') && spy.targetCityId) {
+```
+When a stationed spy's city is captured, the spy is automatically exfiltrated with a `cooldown` of 5 (shorter than voluntary exfiltrate since the city was taken, not a choice). Emit `espionage:spy-auto-exfiltrated` to notify the owning player.
+
 - [ ] **Step 8: Run full test suite**
 
 ```bash
@@ -1507,8 +1616,8 @@ yarn test
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/systems/espionage-system.ts src/core/turn-manager.ts src/renderer/render-loop.ts src/ui/selected-unit-info.ts src/main.ts src/core/types.ts tests/systems/espionage-infiltration.test.ts
-git commit -m "feat(espionage): infiltration system — % chance, city vision, spy removed from map on success, era-1 single-roll behavior"
+git add src/systems/espionage-system.ts src/core/turn-manager.ts src/renderer/render-loop.ts src/ui/selected-unit-info.ts src/ui/espionage-panel.ts src/main.ts src/core/types.ts tests/systems/espionage-infiltration.test.ts
+git commit -m "feat(espionage): infiltration — % chance, city vision, era-1 single-roll, exfiltrate action, city-capture cleanup"
 ```
 
 ---
@@ -1627,17 +1736,104 @@ if (spy.status === 'cooldown' && spy.infiltrationCityId && spy.cooldownTurns > 0
 }
 ```
 
-- [ ] **Step 5: Run full test suite**
+- [ ] **Step 5: Add `cooldownMode` UI to espionage panel**
+
+In `src/ui/espionage-panel.ts`, for any spy with `status === 'cooldown'` and `infiltrationCityId` set (they're lying low inside an enemy city), show a toggle:
+
+```typescript
+// In the spy summary row for cooldown-inside-city spies:
+const modeLabel = spy.cooldownMode === 'passive_observe' ? 'Passive Observe (higher risk)' : 'Stay Low (safer)';
+const toggleBtn = makeButton(`Mode: ${modeLabel}`, '#374151', () => callbacks.onToggleCooldownMode?.(spy.id));
+spyRow.appendChild(toggleBtn);
+```
+
+Add `onToggleCooldownMode?: (spyId: string) => void` to the panel callbacks. Wire in `main.ts`:
+```typescript
+onToggleCooldownMode: (spyId) => {
+  const spy = gameState.espionage?.[gameState.currentPlayer]?.spies[spyId];
+  if (!spy || spy.status !== 'cooldown') return;
+  const next: 'stay_low' | 'passive_observe' =
+    spy.cooldownMode === 'passive_observe' ? 'stay_low' : 'passive_observe';
+  gameState.espionage![gameState.currentPlayer].spies[spyId] = { ...spy, cooldownMode: next };
+  renderLoop.setGameState(gameState);
+},
+```
+
+Add tooltip: "Stay Low: 2% detection risk per turn. Passive Observe: 4% but grants basic intel at cooldown end."
+
+- [ ] **Step 6: Add AI infiltration and mission logic to `src/ai/basic-ai.ts`**
+
+The AI currently trains spy units but does nothing with them. Add logic to:
+
+1. Move idle spy units toward the nearest enemy city:
+```typescript
+const idleSpyUnits = civ.units
+  .map(id => newState.units[id])
+  .filter(u => u && isSpyUnitType(u.type) && !u.hasActed);
+
+for (const spyUnit of idleSpyUnits) {
+  // Find nearest enemy city not already infiltrated by this civ
+  const targets = Object.values(newState.cities)
+    .filter(c => c.owner !== civId && isAtWar(civ.diplomacy, c.owner) === false)
+    .sort((a, b) => hexDistance(spyUnit.position, a.position) - hexDistance(spyUnit.position, b.position));
+  if (targets.length === 0) continue;
+  const target = targets[0];
+  // Move toward target (one step)
+  const path = findPath(spyUnit.position, target.position, newState.map, newState.units);
+  if (path && path.length > 1) {
+    newState = moveUnit(newState, spyUnit.id, path[1], bus);
+  }
+}
+```
+
+2. Attempt infiltration when spy is on enemy city tile:
+```typescript
+for (const spyUnit of idleSpyUnits) {
+  const cityHere = Object.values(newState.cities).find(
+    c => c.owner !== civId && c.position.q === spyUnit.position.q && c.position.r === spyUnit.position.r,
+  );
+  if (!cityHere || !newState.espionage?.[civId]) continue;
+  // Check no spy already inside
+  const alreadyIn = Object.values(newState.espionage[civId].spies)
+    .some(s => s.infiltrationCityId === cityHere.id &&
+              (s.status === 'stationed' || s.status === 'on_mission'));
+  if (alreadyIn) continue;
+  const cityCI = newState.espionage[cityHere.owner]?.counterIntelligence[cityHere.id] ?? 0;
+  const seed = `ai-infiltrate-${spyUnit.id}-${newState.turn}`;
+  const result = attemptInfiltration(newState.espionage[civId], spyUnit.id, spyUnit.type as UnitType, cityHere.id, cityHere.position, cityCI, seed);
+  newState.espionage[civId] = result.civEsp;
+  if (result.removeUnitFromMap) {
+    delete newState.units[spyUnit.id];
+    newState.civilizations[civId].units = newState.civilizations[civId].units.filter(id => id !== spyUnit.id);
+  }
+}
+```
+
+3. Issue missions for stationed spies (era 2+):
+```typescript
+for (const spy of Object.values(newState.espionage?.[civId]?.spies ?? {})) {
+  if (spy.status !== 'stationed' || !spy.targetCivId || !spy.targetCityId) continue;
+  const available = getAvailableMissions(civ.techState.completed)
+    .filter(m => m !== 'scout_area'); // AI prioritizes impactful missions
+  if (available.length === 0) continue;
+  const mission = available[Math.floor(rng() * available.length)];
+  newState = startMissionForSpy(newState, civId, spy.id, mission, bus);
+}
+```
+
+Import `attemptInfiltration`, `getAvailableMissions`, `isSpyUnitType` at the top of `basic-ai.ts`.
+
+- [ ] **Step 7: Run full test suite**
 
 ```bash
 yarn test
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/systems/espionage-system.ts src/ui/espionage-panel.ts src/core/turn-manager.ts tests/systems/espionage-infiltration.test.ts
-git commit -m "feat(espionage): mission system — % odds in UI, steal-tech deduplication, passive cooldown detection"
+git add src/systems/espionage-system.ts src/ui/espionage-panel.ts src/ai/basic-ai.ts src/core/turn-manager.ts tests/systems/espionage-infiltration.test.ts
+git commit -m "feat(espionage): mission system — % odds, steal-tech dedup, cooldown mode UI, AI infiltration + mission logic"
 ```
 
 ---
@@ -1668,10 +1864,8 @@ Create `tests/systems/espionage-capture.test.ts`:
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { expelSpy, executeSpy, startInterrogation, processInterrogation, getSpyCaptureRelationshipPenalty, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { expelSpy, executeSpy, startInterrogation, processInterrogation, getSpyCaptureRelationshipPenalty } from '@/systems/espionage-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
-
-beforeEach(() => { _resetSpyIdCounter(); });
 
 describe('relational penalty by distance', () => {
   it('returns 0 when spy is more than 5 hexes from any city', () => {
@@ -1688,17 +1882,18 @@ describe('relational penalty by distance', () => {
 describe('expelSpy', () => {
   it('sets spy cooldownTurns to 15 and status to cooldown', () => {
     let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
-    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'seed'));
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
     const result = expelSpy(civEsp, 'unit-1', 15);
     expect(result.spies['unit-1'].status).toBe('cooldown');
     expect(result.spies['unit-1'].cooldownTurns).toBe(15);
+    expect(result.spies['unit-1'].stolenTechFrom).toEqual({}); // cleared on expulsion
   });
 });
 
 describe('executeSpy', () => {
   it('removes spy record entirely', () => {
     let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
-    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'seed'));
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
     const result = executeSpy(civEsp, 'unit-1');
     expect(result.spies['unit-1']).toBeUndefined();
   });
@@ -1707,21 +1902,20 @@ describe('executeSpy', () => {
 describe('interrogation', () => {
   it('starts with 4 turns remaining', () => {
     let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
-    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'seed'));
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
     const result = startInterrogation(civEsp, 'unit-1', 'player');
     const record = Object.values(result.activeInterrogations ?? {})[0]!;
     expect(record.turnsRemaining).toBe(4);
   });
 
-  it('after 4 turns all intel types have been attempted', () => {
+  it('after 4 turns the record is removed', () => {
     let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
-    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'seed'));
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
     let state = startInterrogation(civEsp, 'unit-1', 'player');
     for (let i = 0; i < 4; i++) {
       state = processInterrogation(state, `interro-seed-${i}`, {} as any).state;
     }
-    const records = Object.values(state.activeInterrogations ?? {});
-    expect(records).toHaveLength(0); // interrogation complete, record removed
+    expect(Object.values(state.activeInterrogations ?? {})).toHaveLength(0);
   });
 });
 ```
@@ -1762,6 +1956,8 @@ export function expelSpy(
         targetCivId: null,
         targetCityId: null,
         currentMission: null,
+        stolenTechFrom: {},   // reset on expulsion — if they re-infiltrate they can steal again
+        disguiseAs: null,
       },
     },
   };
@@ -1904,28 +2100,166 @@ function resolveInterrogationIntel(
 }
 ```
 
-- [ ] **Step 4: Add recall window and verdict UI to `src/ui/espionage-panel.ts`**
+- [ ] **Step 4: Add verdict UI to `src/ui/espionage-panel.ts` and apply interrogation intel**
 
-Add a `capturedSpies` section to the panel: when a spy's status is `'captured'`, show a notice to the *owning* player: "Agent Shadow has been caught! You can recall before the verdict is announced. [Recall now — costs relationship]". This recall option disappears after 1 turn.
+Add a `capturedSpies` section to the panel. When a spy's status is `'captured'`, the *owning* player's panel shows: "Agent Shadow was caught in [City]! Awaiting verdict."
 
-On the *capturing* civ's side (via notification), show the verdict choice: [Expel] [Execute] [Interrogate]. This is a notification that appears in the main notification system with persistent buttons.
+For the captor's side: `showEspionageCaptureChoice` creates a persistent panel with:
+- Spy's **true identity always shown** (D1): "You have captured [spy name], a [unit type] belonging to [Civ Name]." The captor always sees through any disguise.
+- Three buttons: [Expel] [Execute — confirm?] [Interrogate]
+
+Execute requires a confirmation step (second click with red "Confirm Execution" button) since it's permanent and causes extra relationship damage.
+
+Add an interrogation progress section: for each active `InterrogationRecord` in `captorEsp.activeInterrogations`, show:
+```html
+<div class="interrogation-progress">
+  <span>Interrogating: [spy name] (owner: [civ]) — [N] turns remaining</span>
+  <span>Intel extracted: [count] items</span>
+  <button>View Intel</button>
+</div>
+```
+
+The "View Intel" button opens a list of all `extractedIntel` items rendered as human-readable text:
+- `spy_identity` → "Enemy spy [name] is currently [status] in [city/location]"
+- `city_location` → "Revealed city [name] at position Q,R"
+- `production_queue` → "[City] is producing: [item list]"
+- `wonder_in_progress` → "[City] is building wonder [id]"
+- `map_area` → "Received map data for [N] tiles (may be outdated)"
+- `tech_hint` → "Research hint: [tech name] (+5% progress)"
+
+**Apply intel to game state when interrogation completes.** In `turn-manager.ts`, wire `processInterrogation` after the espionage turn loop:
+
+```typescript
+// After processEspionageTurn:
+for (const [captorId, captorEsp] of Object.entries(newState.espionage ?? {})) {
+  if (!captorEsp.activeInterrogations || Object.keys(captorEsp.activeInterrogations).length === 0) continue;
+  const seed = `interro-${captorId}-${newState.turn}`;
+  const { state: updatedEsp, complete, newIntel } = processInterrogation(captorEsp, seed, newState);
+  newState.espionage![captorId] = updatedEsp;
+
+  // Apply intel to game state
+  for (const intel of newIntel) {
+    if (intel.type === 'map_area') {
+      const tiles = intel.data.tiles as Array<{ q: number; r: number }>;
+      if (newState.civilizations[captorId]?.visibility?.tiles) {
+        for (const t of tiles) {
+          newState.civilizations[captorId].visibility.tiles[`${t.q},${t.r}`] = 'explored'; // stale — shown shadowed
+        }
+      }
+    }
+    if (intel.type === 'tech_hint') {
+      const bonus = intel.data.researchBonus as number;
+      newState.civilizations[captorId].techState = {
+        ...newState.civilizations[captorId].techState,
+        researchProgress: (newState.civilizations[captorId].techState.researchProgress ?? 0) + Math.floor(bonus * 100),
+      };
+    }
+  }
+
+  if (newIntel.length > 0) bus.emit('espionage:intel-extracted', { captorId, intel: newIntel });
+}
+```
+
+Add `'espionage:intel-extracted'` to `GameEventMap` in `types.ts`.
 
 - [ ] **Step 5: Wire all three verdicts in `src/main.ts`**
 
-Add event listeners for `'espionage:spy-caught-infiltrating'` and the existing `'espionage:spy-captured'`:
-
 ```typescript
-bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, cityId }) => {
-  if (capturingCivId !== gameState.currentPlayer) return;
-  // Show verdict choice to capturing player
-  showEspionageCaptureChoice(spyId, spyOwner, cityId);
+function showEspionageCaptureChoice(spyId: string, spyOwner: string, cityId: string): void {
+  const captorEsp = gameState.espionage?.[gameState.currentPlayer];
+  const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
+  if (!captorEsp || !spy) return;
+  const city = gameState.cities[cityId];
+  const spyOwnerName = gameState.civilizations[spyOwner]?.name ?? spyOwner;
+
+  // D1: always reveal true identity to captor regardless of disguise
+  const captureMessage = `You have captured ${spy.name}, a ${spy.unitType} belonging to ${spyOwnerName}.`;
+
+  const distanceToCity = 0; // infiltrated = inside city
+  const relPenalty = getSpyCaptureRelationshipPenalty(distanceToCity);
+
+  createPersistentChoiceNotification(captureMessage, [
+    {
+      label: `Expel (${relPenalty} relations)`,
+      onClick: () => {
+        // 1. Update spy record to cooldown
+        const updatedOwnerEsp = expelSpy(gameState.espionage![spyOwner], spyId, 15);
+        // 2. Recreate the physical unit at spy owner's capital
+        const capital = gameState.cities[gameState.civilizations[spyOwner]?.cities[0]];
+        if (capital) {
+          const newUnit = createUnit(spy.unitType, spyOwner, capital.position);
+          gameState.units[newUnit.id] = newUnit;
+          gameState.civilizations[spyOwner].units.push(newUnit.id);
+          // 3. Rekey spy record: delete old key, add new key = new unit id
+          const { [spyId]: _old, ...rest } = updatedOwnerEsp.spies;
+          gameState.espionage![spyOwner] = {
+            ...updatedOwnerEsp,
+            spies: { ...rest, [newUnit.id]: { ...updatedOwnerEsp.spies[spyId], id: newUnit.id } },
+          };
+        } else {
+          gameState.espionage![spyOwner] = updatedOwnerEsp;
+        }
+        // 4. Apply relationship penalty
+        gameState.civilizations[gameState.currentPlayer].diplomacy = modifyRelationship(
+          gameState.civilizations[gameState.currentPlayer].diplomacy, spyOwner, relPenalty,
+        );
+        showNotification(`${spy.name} expelled. Will return to their capital after 15 turns.`, 'info');
+        renderLoop.setGameState(gameState);
+      },
+    },
+    {
+      label: 'Execute',
+      danger: true,
+      confirm: `Execute ${spy.name}? This cannot be undone and will severely damage relations with ${spyOwnerName}.`,
+      onClick: () => {
+        gameState.espionage![spyOwner] = executeSpy(gameState.espionage![spyOwner], spyId);
+        gameState.civilizations[gameState.currentPlayer].diplomacy = modifyRelationship(
+          gameState.civilizations[gameState.currentPlayer].diplomacy, spyOwner, relPenalty * 2,
+        );
+        bus.emit('espionage:spy-executed', { executingCivId: gameState.currentPlayer, spyOwner, spyId, spyName: spy.name });
+        showNotification(`${spy.name} has been executed.`, 'warning');
+        renderLoop.setGameState(gameState);
+      },
+    },
+    {
+      label: 'Interrogate (4 turns)',
+      onClick: () => {
+        gameState.espionage![gameState.currentPlayer] = startInterrogation(captorEsp, spyId, spyOwner);
+        showNotification(`${spy.name} is being interrogated. Check the Intel panel for results.`, 'info');
+        renderLoop.setGameState(gameState);
+      },
+    },
+  ]);
+}
+```
+
+Add `'espionage:spy-executed'` to `GameEventMap`. Listen for it to notify the spy owner:
+```typescript
+bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
+  if (spyOwner === gameState.currentPlayer) {
+    showNotification(`${spyName} was executed by ${gameState.civilizations[executingCivId]?.name ?? 'an enemy'}.`, 'error');
+  }
 });
 ```
 
-Wire `showEspionageCaptureChoice` as a function that creates a persistent notification with three buttons that call:
-- **Expel:** `expelSpy(captorEsp, spyId)` + recreate unit at spy owner capital + `modifyRelationship` with distance-scaled penalty
-- **Execute:** `executeSpy(captorEsp, spyId)` + `delete gameState.units[spyId]` if it exists + larger relationship hit + notification to spy owner "Agent Shadow was executed"
-- **Interrogate:** `startInterrogation(captorEsp, spyId, spyOwner)` + process intel each turn via `processInterrogation` in turn manager
+AI verdict logic (D7): add to `src/ai/basic-ai.ts` in the espionage block:
+```typescript
+// AI capture verdict: based on relationship score and temperament
+const capturedSpies = Object.values(espState.spies).filter(s => s.status === 'captured');
+for (const capturedSpy of capturedSpies) {
+  const rel = civ.diplomacy.relationships[capturedSpy.owner]?.score ?? 50;
+  const atWar = civ.diplomacy.atWarWith.includes(capturedSpy.owner);
+  let verdict: 'expel' | 'execute' | 'interrogate';
+  if (atWar) {
+    verdict = rng() < 0.5 ? 'execute' : 'interrogate'; // wartime: execute or extract info
+  } else if (rel < 30) {
+    verdict = rng() < 0.4 ? 'interrogate' : 'expel';   // hostile: prefer interrogate
+  } else {
+    verdict = 'expel';                                   // neutral/friendly: expel with penalty
+  }
+  // Apply verdict... (same logic as showEspionageCaptureChoice but without UI)
+}
+```
 
 - [ ] **Step 6: Run full test suite**
 
@@ -1936,8 +2270,8 @@ yarn test
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/systems/espionage-system.ts src/ui/espionage-panel.ts src/main.ts src/core/types.ts tests/systems/espionage-capture.test.ts
-git commit -m "feat(espionage): capture system — expel/execute/interrogate with distance-scaled relational penalties and intel extraction"
+git add src/systems/espionage-system.ts src/ui/espionage-panel.ts src/main.ts src/ai/basic-ai.ts src/core/turn-manager.ts src/core/types.ts tests/systems/espionage-capture.test.ts
+git commit -m "feat(espionage): capture system — expel/execute/interrogate, identity reveal, AI verdict logic, intel application"
 ```
 
 ---
@@ -1950,21 +2284,34 @@ git commit -m "feat(espionage): capture system — expel/execute/interrogate wit
 
 **Key mechanics:**
 - `onEmbed` action in `selected-unit-info` when spy is in own city
-- `embedSpy`: sets status to `'embedded'`, removes from map
-- Embedded spy: passive CI boost each turn, plus active "Sweep" action
+- `embedSpy`: sets status to `'embedded'`, removes unit from `state.units`
+- Embedded spy has an on-map indicator: 🛡 rendered on the city tile (visible only to the owner)
+- Embedded spy: passive CI boost on embed + per-turn contribution, plus active "Sweep" action
 - Sweep (% chance): detects enemy spies in the same city, reveals true identity if disguised
 - Auto-reveals disguised enemy units within vision range (whether embedded or on-map)
+- **Unembed:** Player can recall embedded spy. Unit is recreated at city position with `cooldown` of 5 turns.
 - If obsoleted while embedded: auto-expires without diplomatic damage, notification sent
 
 **Files:**
-- Modify: `src/systems/espionage-system.ts` — `embedSpy`, `attemptSweep`, CI contribution from embedded spies
-- Modify: `src/ui/selected-unit-info.ts` — Embed + Sweep actions
-- Modify: `src/core/turn-manager.ts` — process embedded spy contributions
+- Modify: `src/systems/espionage-system.ts` — `embedSpy`, `unembedSpy`, `attemptSweep`, `setCounterIntelligence`, CI per-turn contribution
+- Modify: `src/renderer/render-loop.ts` — draw 🛡 indicator for embedded spies on own cities
+- Modify: `src/ui/selected-unit-info.ts` — Embed + Sweep actions (via espionage panel, not unit panel since unit is off map)
+- Modify: `src/ui/espionage-panel.ts` — show [Unembed] button for embedded spies; show [Sweep] action
+- Modify: `src/core/turn-manager.ts` — process embedded spy per-turn CI contributions
 - Tests: add to `tests/systems/espionage-capture.test.ts`
 
 **Core functions:**
 
 ```typescript
+// Helper used in embedSpy and CI building accumulation
+function setCounterIntelligence(
+  state: EspionageCivState,
+  cityId: string,
+  value: number,
+): EspionageCivState {
+  return { ...state, counterIntelligence: { ...state.counterIntelligence, [cityId]: value } };
+}
+
 export function embedSpy(
   state: EspionageCivState,
   spyId: string,
@@ -1973,13 +2320,30 @@ export function embedSpy(
 ): EspionageCivState {
   const spy = state.spies[spyId];
   if (!spy || spy.status !== 'idle') throw new Error('Spy must be idle to embed');
+  // One-time CI boost on embed
   const baseCi = 15;
   const expBonus = Math.floor(spy.experience * 0.3);
-  const ciScore = Math.min(100, (state.counterIntelligence[cityId] ?? 0) + baseCi + expBonus);
+  const newCi = Math.min(100, (state.counterIntelligence[cityId] ?? 0) + baseCi + expBonus);
+  const withCi = setCounterIntelligence(state, cityId, newCi);
+  return {
+    ...withCi,
+    spies: { ...withCi.spies, [spyId]: { ...spy, status: 'embedded', targetCityId: cityId, position: { ...cityPosition } } },
+  };
+}
+
+// Recall embedded spy: recreate unit at the city, cooldown 5 turns
+export function unembedSpy(
+  state: EspionageCivState,
+  spyId: string,
+): EspionageCivState {
+  const spy = state.spies[spyId];
+  if (!spy || spy.status !== 'embedded') return state;
   return {
     ...state,
-    spies: { ...state.spies, [spyId]: { ...spy, status: 'embedded', targetCityId: cityId, position: { ...cityPosition } } },
-    counterIntelligence: { ...state.counterIntelligence, [cityId]: ciScore },
+    spies: {
+      ...state.spies,
+      [spyId]: { ...spy, status: 'cooldown', cooldownTurns: 5, targetCityId: null },
+    },
   };
 }
 
@@ -2003,6 +2367,55 @@ export function attemptSweep(
   }
   return { state, detectedSpyIds: detected };
 }
+```
+
+**Embedded spy map indicator** in `src/renderer/render-loop.ts`:
+
+Add a `drawEmbeddedSpyIndicators()` private method alongside `drawInfiltratedSpyIndicators()`. Renders a small 🛡 on own city tiles where an embedded spy is stationed (visible only to the owning player):
+
+```typescript
+private drawEmbeddedSpyIndicators(): void {
+  if (!this.state) return;
+  const civEsp = this.state.espionage?.[this.state.currentPlayer];
+  if (!civEsp) return;
+  for (const spy of Object.values(civEsp.spies)) {
+    if (spy.status !== 'embedded' || !spy.targetCityId) continue;
+    const city = this.state.cities[spy.targetCityId];
+    if (!city || city.owner !== this.state.currentPlayer) continue;
+    const pixel = hexToPixel(city.position, this.camera.hexSize);
+    const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+    const size = this.camera.hexSize * this.camera.zoom;
+    this.ctx.font = `${size * 0.3}px system-ui`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText('🛡', screen.x - size * 0.5, screen.y - size * 0.4);
+  }
+}
+```
+
+Call `this.drawEmbeddedSpyIndicators()` in `render()` after `drawInfiltratedSpyIndicators()`.
+
+**Unembed wiring** in `main.ts` (called from espionage panel):
+```typescript
+onUnembed: (spyId) => {
+  const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
+  const spy = ownerEsp?.spies[spyId];
+  if (!spy || spy.status !== 'embedded' || !spy.targetCityId) return;
+  const city = gameState.cities[spy.targetCityId];
+  if (!city) return;
+  // Recreate unit at city position
+  const newUnit = createUnit(spy.unitType, gameState.currentPlayer, city.position);
+  gameState.units[newUnit.id] = newUnit;
+  gameState.civilizations[gameState.currentPlayer].units.push(newUnit.id);
+  // Rekey spy record with new unit ID
+  const { [spyId]: _old, ...rest } = ownerEsp!.spies;
+  const unembedded = unembedSpy(ownerEsp!, spyId);
+  const rekeyed = { ...unembedded.spies[spyId], id: newUnit.id };
+  const { [spyId]: _old2, ...rest2 } = unembedded.spies;
+  gameState.espionage![gameState.currentPlayer] = { ...unembedded, spies: { ...rest2, [newUnit.id]: rekeyed } };
+  showNotification(`Spy recalled from ${city.name}. Available in 5 turns.`, 'info');
+  renderLoop.setGameState(gameState);
+},
 ```
 
 ---
@@ -2049,7 +2462,12 @@ export function canUpgradeUnit(
   if (!currentEntry?.obsoletedByTech || !completedTechs.includes(currentEntry.obsoletedByTech)) {
     return { canUpgrade: false, targetType: null, cost: 0 };
   }
-  const nextEntry = TRAINABLE_UNITS.find(u => u.techRequired === currentEntry.obsoletedByTech && !u.obsoletedByTech || (u.obsoletedByTech && !completedTechs.includes(u.obsoletedByTech)));
+  // Find the next unit in this upgrade chain: requires the same tech that obsoleted us,
+  // and is not itself obsolete. Parentheses are critical here — && binds tighter than ||.
+  const nextEntry = TRAINABLE_UNITS.find(u =>
+    u.techRequired === currentEntry.obsoletedByTech &&
+    (!u.obsoletedByTech || !completedTechs.includes(u.obsoletedByTech))
+  );
   if (!nextEntry) return { canUpgrade: false, targetType: null, cost: 0 };
   return { canUpgrade: true, targetType: nextEntry.type, cost: getUpgradeCost(nextEntry.type) };
 }
@@ -2211,19 +2629,33 @@ export function getTrainableUnitsForCiv(completedTechs: string[], civType?: stri
 | Must build espionage units | 1 | ✓ No more abstract recruit button |
 | New units per era | 8 | ✓ 5 unit tiers with obsolescence |
 | Units infiltrate cities | 4 | ✓ % chance, removed from map on success |
-| Stealth (invisible, disguised) | 3 | ✓ Disguise as common units; scout hound detection |
+| Stealth (invisible, disguised) | 3 | ✓ Disguise as common units; own spy/hound detection |
 | Espionage buildings | 9 | ✓ Safehouse, Intelligence Agency, Security Bureau |
+| Voluntary exfiltration | 4 | ✓ Exfiltrate action; city-capture auto-exfil |
+| Captor sees true spy identity | 6 | ✓ D1: verdict modal always shows true owner+type |
+| Enemy spy tile = combat | 1 | ✓ D2: spies are attackable units with low strength |
+| Cooldown spies can move | 4 | ✓ D3: cooldown on-map; infiltrate button gated |
+| One spy per city | 4 | ✓ D4: occupancy check before infiltration |
+| Embedded spy visible on map | 7 | ✓ D5: 🛡 indicator on own city; unembed action |
+| map_area intel = fog reveal | 6 | ✓ D6: one-time 'explored' tile reveal applied |
+| AI verdict by situation | 6 | ✓ D7: AI chooses based on relationship + war state |
 
 ## Placeholder Scan
 
-- MR 7 (embedding), MR 8 (upgrades), MR 9 (buildings), MR 10 (unique units): function signatures and approach are fully specified; individual TDD steps follow the identical pattern established in MRs 1-6. No implementation is deferred without a concrete spec.
-- `era1ScoutResult` in `attemptInfiltration` returns `tilesToReveal: []` — caller in `main.ts` must resolve this using `resolveMissionResult('scout_area', ...)` with the target city. This should be wired in the MR 4 `onInfiltrate` handler.
+- MR 7 (embedding), MR 8 (upgrades), MR 9 (buildings), MR 10 (unique units): function signatures and approach are fully specified; TDD steps follow the pattern established in MRs 1-6.
+- `era1ScoutResult` is now fully wired in MR 4 `onInfiltrate` handler — calls `resolveMissionResult('scout_area', ...)` and applies cooldown.
+- `processInterrogation` is now wired in `turn-manager.ts` with full intel application (fog reveal for `map_area`, research progress for `tech_hint`).
+- `setCounterIntelligence` is defined in MR 7 as a module-private helper in `espionage-system.ts`, used by `embedSpy` (MR 7) and `applyBuildingCI` (MR 9).
 
 ## Type Consistency Check
 
-- `isSpyUnitType` defined in `espionage-system.ts` (Task 3), used in `turn-manager.ts` (Task 3) and `detection-system.ts` (Task 5) — consistent.
-- `createSpyFromUnit(civEsp, unitId, owner, seed)` defined Task 3, used in tests and `turn-manager.ts` — consistent.
-- `attemptInfiltration(civEsp, spyId, unitType, cityId, position, cityCI, seed)` defined Task 7, used in `main.ts` onInfiltrate — consistent.
-- `expelSpy / executeSpy / startInterrogation / processInterrogation` all defined Task 9, used in `main.ts` capture handler — consistent.
+- `isSpyUnitType` defined in `espionage-system.ts` (Task 3), used in `turn-manager.ts` (Task 3), `detection-system.ts` (Task 5), and `espionage-stealth.ts` (Task 6) — consistent.
+- `createSpyFromUnit(civEsp, unitId, owner, unitType, seed)` defined Task 3, used in tests and `turn-manager.ts` — 5-argument signature consistent throughout.
+- `attemptInfiltration(civEsp, spyId, unitType, cityId, position, cityCI, seed)` defined Task 7, used in `main.ts` `onInfiltrate` and `basic-ai.ts` AI block — consistent.
+- `expelSpy / executeSpy / startInterrogation / processInterrogation` all defined Task 9, used in `main.ts` capture handler and `turn-manager.ts` — consistent.
 - `getTrainableUnitsForCiv(completedTechs, civType?)` introduced Task 2, extended Task 14 — consistent.
-- `cleanupDeadSpyUnit(espionage, owner, unitId)` defined Task 4, used in both combat death branches — consistent.
+- `cleanupDeadSpyUnit(espionage, owner, unitId)` defined Task 4, used in combat death branches — consistent.
+- `spy.unitType: UnitType` added to `Spy` interface (Task 1), set in `createSpyFromUnit` (Task 3), consumed by expel/unembed/exfiltrate handlers to recreate the physical unit — consistent.
+- Spy ID rekey pattern (expel, unembed, exfiltrate): old spy key removed, new key = `newUnit.id`. All usages follow the same spread pattern — consistent.
+- `hasNearbyDetector` replaces `hasNearbyOwnSpy` (Task 6); checks both `spyDetectionChance` and `isSpyUnitType` — consistent.
+- Hex distances throughout use `hexDistance` from `hex-utils.ts` (axial formula), not Chebyshev — consistent.
