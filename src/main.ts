@@ -59,13 +59,10 @@ import {
   startLegendaryWonderBuild,
 } from '@/systems/legendary-wonder-system';
 import {
-  assignSpy,
   assignSpyDefensive,
-  canRecruitSpy,
   getAvailableMissions,
   missionRequiresPlacedSpy,
   recallSpy,
-  recruitSpy,
   startMission,
   verifyAgent,
 } from '@/systems/espionage-system';
@@ -694,33 +691,6 @@ function togglePanel(panel: string): void {
 
     uiLayer.appendChild(createEspionagePanel(gameState, {
       onClose: () => document.getElementById('espionage-panel')?.remove(),
-      onRecruit: () => {
-        const civEsp = gameState.espionage?.[gameState.currentPlayer];
-        if (!civEsp || !canRecruitSpy(civEsp)) {
-          showNotification('No spy recruitment slots available.', 'warning');
-          return;
-        }
-        const recruited = recruitSpy(civEsp, gameState.currentPlayer, `player-recruit-${gameState.turn}`);
-        gameState.espionage![gameState.currentPlayer] = recruited.state;
-        renderLoop.setGameState(gameState);
-        updateHUD();
-        togglePanel('espionage');
-        showNotification(`${recruited.spy.name} recruited.`, 'success');
-      },
-      onAssign: (spyId) => {
-        const target = chooseForeignCityTarget();
-        if (!target) return;
-        gameState.espionage![gameState.currentPlayer] = assignSpy(
-          gameState.espionage![gameState.currentPlayer],
-          spyId,
-          target.civId,
-          target.cityId,
-          target.position,
-        );
-        renderLoop.setGameState(gameState);
-        togglePanel('espionage');
-        showNotification(`Spy assigned to ${target.cityId}.`, 'info');
-      },
       onAssignDefensive: (spyId) => {
         const target = chooseFriendlyCityTarget();
         if (!target) return;

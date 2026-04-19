@@ -157,6 +157,7 @@ export function processCity(
   foodYield: number,
   productionYield: number = 0,
   bonusEffect?: CivBonusEffect,
+  completedTechs: string[] = [],
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -185,6 +186,23 @@ export function processCity(
   let newProgress = city.productionProgress;
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
+
+  // Drop queued unit types that aren't trainable for this civ's tech state
+  if (completedTechs.length > 0 && newQueue.length > 0) {
+    const trainable = getTrainableUnitsForCiv(completedTechs);
+    const trainableTypes = new Set(trainable.map(u => u.type));
+    const BUILDING_IDS = new Set(Object.keys(BUILDINGS));
+    const filtered = newQueue.filter(item =>
+      BUILDING_IDS.has(item) ||
+      trainableTypes.has(item as UnitType) ||
+      item.startsWith('legendary:'),
+    );
+    if (filtered.length !== newQueue.length) {
+      newQueue.length = 0;
+      newQueue.push(...filtered);
+      if (filtered.length === 0) newProgress = 0;
+    }
+  }
 
   if (newQueue.length > 0) {
     newProgress += productionYield;

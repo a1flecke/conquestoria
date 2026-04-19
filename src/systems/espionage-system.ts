@@ -68,20 +68,15 @@ const MISSION_DURATIONS = {
 export function createEspionageCivState(): EspionageCivState {
   return {
     spies: {},
-    maxSpies: 1,
+    maxSpies: 0,
     counterIntelligence: {},
     detectedThreats: {},
+    activeInterrogations: {},
+    recentDetections: [],
   };
 }
 
 // --- Queries ---
-
-export function canRecruitSpy(state: EspionageCivState): boolean {
-  const activeSpies = Object.values(state.spies).filter(
-    s => s.status !== 'captured',
-  ).length;
-  return activeSpies < state.maxSpies;
-}
 
 export function getSpySuccessChance(
   spyExperience: number,
@@ -111,19 +106,28 @@ export function getMissionDuration(missionType: SpyMissionType): number {
 
 // --- Mutations ---
 
-export function recruitSpy(
+const SPY_UNIT_TYPES = new Set<UnitType>([
+  'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker',
+]);
+
+export function isSpyUnitType(type: UnitType): boolean {
+  return SPY_UNIT_TYPES.has(type);
+}
+
+export function createSpyFromUnit(
   state: EspionageCivState,
+  unitId: string,
   owner: string,
+  unitType: UnitType,
   seed: string,
 ): { state: EspionageCivState; spy: Spy } {
   const rng = createRng(seed);
   const nameIndex = Math.floor(rng() * SPY_NAMES.length);
-  const id = `spy-${nextSpyId++}`;
-
   const spy: Spy = {
-    id,
+    id: unitId,
     owner,
     name: `Agent ${SPY_NAMES[nameIndex]}`,
+    unitType,
     targetCivId: null,
     targetCityId: null,
     position: null,
@@ -134,40 +138,28 @@ export function recruitSpy(
     promotion: undefined,
     promotionAvailable: false,
     feedsFalseIntel: false,
+    disguiseAs: null,
+    infiltrationCityId: null,
+    cityVisionTurnsLeft: 0,
+    stolenTechFrom: {},
   };
-
   return {
-    state: {
-      ...state,
-      spies: { ...state.spies, [id]: spy },
-    },
+    state: { ...state, spies: { ...state.spies, [unitId]: spy } },
     spy,
   };
 }
 
-export function assignSpy(
-  state: EspionageCivState,
-  spyId: string,
-  targetCivId: string,
-  targetCityId: string,
-  targetPosition: HexCoord,
-): EspionageCivState {
-  const spy = state.spies[spyId];
-  if (!spy) throw new Error(`Spy ${spyId} not found`);
-  if (spy.status !== 'idle') throw new Error('Spy is not available');
-
+export function cleanupDeadSpyUnit(
+  espionage: EspionageState,
+  owner: string,
+  unitId: string,
+): EspionageState {
+  const civEsp = espionage[owner];
+  if (!civEsp?.spies[unitId]) return espionage;
+  const { [unitId]: _removed, ...remainingSpies } = civEsp.spies;
   return {
-    ...state,
-    spies: {
-      ...state.spies,
-      [spyId]: {
-        ...spy,
-        status: 'stationed',
-        targetCivId,
-        targetCityId,
-        position: { ...targetPosition },
-      },
-    },
+    ...espionage,
+    [owner]: { ...civEsp, spies: remainingSpies },
   };
 }
 

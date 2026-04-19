@@ -6,8 +6,24 @@ import {
   getEspionagePanelViewModel,
   getSpyActions,
 } from '@/ui/espionage-panel';
-import { createEspionageCivState, recruitSpy, assignSpy, _resetSpyIdCounter } from '@/systems/espionage-system';
-import type { GameState } from '@/core/types';
+import { createEspionageCivState, _resetSpyIdCounter } from '@/systems/espionage-system';
+import type { GameState, Spy } from '@/core/types';
+
+// MR1: legacy fixture helper — spies are now created via city production, not recruitSpy
+function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
+  return {
+    id, owner, name: `Agent ${id}`, unitType: 'spy_scout',
+    targetCivId: null, targetCityId: null, position: null,
+    status: 'idle', experience: 0, currentMission: null,
+    cooldownTurns: 0, promotion: undefined, promotionAvailable: false,
+    feedsFalseIntel: false,
+    ...overrides,
+  };
+}
+
+function addSpy(esp: ReturnType<typeof createEspionageCivState>, spy: Spy): ReturnType<typeof createEspionageCivState> {
+  return { ...esp, spies: { ...esp.spies, [spy.id]: spy } };
+}
 
 class MockElement {
   tagName: string;
@@ -123,7 +139,7 @@ function makeEspUiState(): GameState {
     tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
     settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
     tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
-    espionage: { player: createEspionageCivState(), 'ai-egypt': createEspionageCivState() },
+    espionage: { player: { ...createEspionageCivState(), maxSpies: 1 }, 'ai-egypt': createEspionageCivState() },
   } as unknown as GameState;
 }
 
@@ -140,17 +156,11 @@ describe('espionage-panel', () => {
   describe('getEspionagePanelData', () => {
     it('returns spy list for current player only', () => {
       const state = makeEspUiState();
-      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
-      state.espionage!['player'] = esp;
+      const spy = makeTestSpy('spy-1', 'player');
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       const data = getEspionagePanelData(state);
       expect(data.spies).toHaveLength(1);
       expect(data.spies[0].id).toBe(spy.id);
-    });
-
-    it('includes canRecruit flag', () => {
-      const state = makeEspUiState();
-      const data = getEspionagePanelData(state);
-      expect(data.canRecruit).toBe(true);
     });
 
     it('includes maxSpies and current count', () => {
@@ -175,13 +185,11 @@ describe('espionage-panel', () => {
 
     it('marks promotion-ready spies and defensive coverage', () => {
       const state = makeEspUiState();
-      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
-      state.espionage!['player'] = esp;
-      state.espionage!['player'].spies[spy.id].status = 'stationed';
-      state.espionage!['player'].spies[spy.id].targetCityId = 'city-player-1';
-      state.espionage!['player'].spies[spy.id].targetCivId = null;
-      state.espionage!['player'].spies[spy.id].experience = 60;
-      state.espionage!['player'].spies[spy.id].promotionAvailable = true;
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCityId: 'city-player-1', targetCivId: null,
+        experience: 60, promotionAvailable: true,
+      });
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
 
       const data = getEspionagePanelData(state);
       expect(data.defendingCityIds).toContain('city-player-1');
@@ -230,10 +238,9 @@ describe('espionage-panel', () => {
 
     it('never exposes other players spy data', () => {
       const state = makeEspUiState();
-      const { state: esp } = recruitSpy(state.espionage!['ai-egypt'], 'ai-egypt', 'ai-seed');
-      state.espionage!['ai-egypt'] = esp;
+      const aiSpy = makeTestSpy('spy-ai-1', 'ai-egypt');
+      state.espionage!['ai-egypt'] = addSpy(state.espionage!['ai-egypt'], aiSpy);
       const data = getEspionagePanelData(state);
-      // Should only show current player's spies
       expect(data.spies.every(s => s.owner === state.currentPlayer)).toBe(true);
     });
   });
@@ -241,8 +248,8 @@ describe('espionage-panel', () => {
   describe('getSpyActions', () => {
     it('returns assign action for idle spy', () => {
       const state = makeEspUiState();
-      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
-      state.espionage!['player'] = esp;
+      const spy = makeTestSpy('spy-1', 'player');
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       const actions = getSpyActions(state, spy.id);
       expect(actions).toContain('assign');
       expect(actions).toContain('assign_defensive');
@@ -251,19 +258,18 @@ describe('espionage-panel', () => {
     it('offers remote mission starts from idle spies once Stage 5 is unlocked', () => {
       const state = makeEspUiState();
       state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
-      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
-      state.espionage!['player'] = esp;
-
+      const spy = makeTestSpy('spy-1', 'player');
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       const actions = getSpyActions(state, spy.id);
-
       expect(actions).toContain('start_mission');
     });
 
     it('returns mission and recall actions for stationed spy', () => {
       const state = makeEspUiState();
-      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
-      state.espionage!['player'] = assignSpy(esp, spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
-      state.espionage!['player'].spies[spy.id].status = 'stationed';
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+      });
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       const actions = getSpyActions(state, spy.id);
       expect(actions).toContain('start_mission');
       expect(actions).toContain('recall');
@@ -271,23 +277,20 @@ describe('espionage-panel', () => {
 
     it('returns no actions for captured spy', () => {
       const state = makeEspUiState();
-      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
-      state.espionage!['player'] = esp;
-      state.espionage!['player'].spies[spy.id].status = 'captured';
+      const spy = makeTestSpy('spy-1', 'player', { status: 'captured' });
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       const actions = getSpyActions(state, spy.id);
       expect(actions).toHaveLength(0);
     });
 
     it('offers verify-agent for turned spies', () => {
       const state = makeEspUiState();
-      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
-      state.espionage!['player'] = assignSpy(esp, spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
-      state.espionage!['player'].spies[spy.id].status = 'stationed';
-      state.espionage!['player'].spies[spy.id].turnedBy = 'ai-egypt';
-      state.espionage!['player'].spies[spy.id].feedsFalseIntel = true;
-
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1', position: { q: 5, r: 3 },
+        turnedBy: 'ai-egypt', feedsFalseIntel: true,
+      });
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       const actions = getSpyActions(state, spy.id);
-
       expect(actions).toContain('verify_agent');
     });
   });
@@ -303,13 +306,11 @@ describe('espionage-panel', () => {
       ];
       state.civilizations.player.advisorDisabledUntil = { chancellor: 12 };
 
-      const { state: esp, spy } = recruitSpy(state.espionage!['player'], 'player', 'seed-1');
-      state.espionage!['player'] = esp;
-      state.espionage!['player'].spies[spy.id].status = 'stationed';
-      state.espionage!['player'].spies[spy.id].targetCityId = 'city-player-1';
-      state.espionage!['player'].spies[spy.id].targetCivId = null;
-      state.espionage!['player'].spies[spy.id].experience = 61;
-      state.espionage!['player'].spies[spy.id].promotionAvailable = true;
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCityId: 'city-player-1', targetCivId: null,
+        experience: 61, promotionAvailable: true,
+      });
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
 
       const panel = createEspionagePanel(state) as unknown;
       expect((panel as { id?: string }).id).toBe('espionage-panel');
