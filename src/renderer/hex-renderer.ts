@@ -1,7 +1,8 @@
-import type { GameMap, HexCoord, HexTile, TerrainType } from '@/core/types';
+import type { GameMap, HexCoord, HexTile, TerrainType, VisibilityMap } from '@/core/types';
 import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY } from '@/systems/hex-utils';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+import { shouldRenderOwnedTileBorder } from './render-visibility';
 
 // --- Terrain labels ---
 
@@ -54,9 +55,10 @@ function drawTileAtScreen(
   tile: HexTile,
   isVillage: boolean,
   currentPlayer: string | undefined,
+  viewerVisibility: VisibilityMap | undefined,
   zoom: number,
 ): void {
-  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer);
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility);
   if (shouldShowTerrainLabel(zoom)) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -73,6 +75,7 @@ export function drawHexMap(
   camera: Camera,
   villagePositions?: Set<string>,
   currentPlayer?: string,
+  viewerVisibility?: VisibilityMap,
 ): void {
   const size = camera.hexSize;
 
@@ -88,7 +91,7 @@ export function drawHexMap(
       const pixel = hexToPixel(renderCoord, size);
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const scaledSize = size * camera.zoom;
-      drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, camera.zoom);
+      drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, camera.zoom);
     }
   }
 }
@@ -179,6 +182,7 @@ function drawHex(
   tile: HexTile,
   isVillage: boolean = false,
   currentPlayer?: string,
+  viewerVisibility?: VisibilityMap,
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -243,7 +247,7 @@ function drawHex(
   }
 
   // Draw ownership indicator
-  if (tile.owner && currentPlayer) {
+  if (tile.owner && currentPlayer && shouldRenderOwnedTileBorder(viewerVisibility, currentPlayer, tile.owner, tile.coord)) {
     ctx.strokeStyle = tile.owner === currentPlayer ? 'rgba(74,144,217,0.5)' : 'rgba(217,74,74,0.5)';
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -277,9 +281,20 @@ export function drawMinorCivTerritory(
   camera: Camera,
   mapWidth?: number,
   wrapsHorizontally = false,
+  viewerVisibility?: VisibilityMap,
+  viewerCivId?: string,
+  territoryOwnerId?: string,
 ): void {
   const hexes = hexesInRange(center, 2);
   for (const hex of hexes) {
+    if (
+      territoryOwnerId
+      && viewerCivId
+      && !shouldRenderOwnedTileBorder(viewerVisibility, viewerCivId, territoryOwnerId, hex)
+    ) {
+      continue;
+    }
+
     const renderCoords = wrapsHorizontally && mapWidth
       ? getHorizontalWrapRenderCoords(hex, mapWidth, camera)
       : [hex];
