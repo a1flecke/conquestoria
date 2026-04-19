@@ -1702,6 +1702,7 @@ function showGameModeSelection(): void {
 
   modePanel = showGameModeSelect(uiLayer, {
     initialTitle: 'New Campaign',
+    onCancel: () => {},
     onTitleRequired: () => {
       showNotification('Campaign title is required', 'warning');
     },

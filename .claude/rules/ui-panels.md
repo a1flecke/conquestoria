@@ -46,6 +46,12 @@ paths:
 - If you intentionally truncate or collapse a catalog, provide an explicit tested affordance such as `Show all`, `More`, or a separate complete section
 - Add a regression that counts or otherwise proves all expected entries remain accessible from the live panel
 
+## Extracted UI Flows
+- If you replace an existing launcher, setup screen, or modal with a shared `src/ui/*` helper, the live caller must delegate to that helper in the same PR. Do not leave the old `main.ts` or inline DOM path active beside a new dead module.
+- When extracting a flow that already has validation, warnings, or block-on-invalid-input behavior, preserve the intended behavior unless the user or spec explicitly changes it. Do not preserve inherited bugs just because they were already present.
+- If you discover an inherited UX or validation bug while extracting the flow, either fix it in the same change or stop and get a user decision to defer it into a GitHub issue with concrete reproduction details and enough implementation context to fix it later.
+- Add click-through regression coverage for both the invalid path and the valid path when a player-visible input gates progression. A render-only test is not enough.
+
 ## Recommendation Surfaces
 - Do not treat seeded placeholder records as actionable advice
 - Panels and dashboards that recommend actions must only surface opportunities the player can actually pursue now under tech, resource, city, and visibility rules
