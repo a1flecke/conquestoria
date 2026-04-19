@@ -12,6 +12,12 @@ const UNIT_ICONS: Record<string, string> = {
   swordsman: '🗡️',
   pikeman: '🔱',
   musketeer: '🔫',
+  spy_scout: '🕵️',
+  spy_informant: '🕵️',
+  spy_agent: '🕵️',
+  spy_operative: '🕵️',
+  spy_hacker: '💻',
+  scout_hound: '🐕',
 };
 
 const OWNER_COLORS: Record<string, string> = {
