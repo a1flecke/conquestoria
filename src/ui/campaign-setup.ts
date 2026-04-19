@@ -6,6 +6,7 @@ import { getPlayableCivDefinitions } from '@/systems/civ-registry';
 import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions } from '@/systems/custom-civ-system';
 import { createDefaultSettings } from '@/core/game-state';
 import { loadSettings, saveSettings } from '@/storage/save-manager';
+import { createSetupSection, createSetupShell } from '@/ui/setup-shell';
 
 export interface CampaignSetupCallbacks {
   onStartSolo: (config: SoloSetupConfig) => void;
@@ -36,35 +37,70 @@ function createLabeledSelect(labelText: string, id: string): { wrapper: HTMLDivE
 export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSetupCallbacks, options?: CampaignSetupOptions): HTMLElement {
   container.querySelector('#campaign-setup')?.remove();
 
-  const panel = document.createElement('div');
-  panel.id = 'campaign-setup';
-  panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.98);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;';
+  const shell = createSetupShell({
+    panelId: 'campaign-setup',
+    eyebrow: 'Solo Campaign',
+    title: 'Build Your Campaign',
+    subtitle: 'Choose your civilization, world size, and rival count before your people settle their first city.',
+  });
+  const panel = shell.surface;
 
-  const title = document.createElement('h1');
-  title.textContent = 'Build Your Campaign';
-  panel.appendChild(title);
+  const hero = document.createElement('div');
+  hero.dataset.role = 'setup-hero';
+  hero.style.display = 'flex';
+  hero.style.flexDirection = 'column';
+  hero.style.gap = '16px';
+  shell.body.appendChild(hero);
+
+  const titleSection = createSetupSection({
+    title: 'Campaign Title',
+    description: 'Name this campaign before your first settlers arrive.',
+  });
+  hero.appendChild(titleSection.section);
 
   const titleLabel = document.createElement('label');
   titleLabel.htmlFor = 'campaign-title';
   titleLabel.textContent = 'Campaign title';
-  panel.appendChild(titleLabel);
+  titleSection.content.appendChild(titleLabel);
 
   const titleInput = document.createElement('input');
   titleInput.id = 'campaign-title';
   titleInput.type = 'text';
   titleInput.value = callbacks.initialTitle ?? 'New Campaign';
-  panel.appendChild(titleInput);
+  Object.assign(titleInput.style, {
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.18)',
+    background: 'rgba(255,255,255,0.08)',
+    color: '#f4f1e8',
+    fontSize: '14px',
+  });
+  titleSection.content.appendChild(titleInput);
+
+  const civSection = createSetupSection({
+    title: 'Civilization',
+    description: 'Pick the culture you want to lead into the first age.',
+    role: 'selected-civ-summary',
+  });
+  hero.appendChild(civSection.section);
 
   const civSummary = document.createElement('div');
-  civSummary.dataset.role = 'selected-civ';
   civSummary.textContent = 'No civilization selected yet';
-  panel.appendChild(civSummary);
+  civSection.content.appendChild(civSummary);
 
   const chooseCivButton = document.createElement('button');
   chooseCivButton.type = 'button';
   chooseCivButton.dataset.action = 'choose-civ';
   chooseCivButton.textContent = 'Choose civilization';
-  panel.appendChild(chooseCivButton);
+  chooseCivButton.style.alignSelf = 'flex-start';
+  civSection.content.appendChild(chooseCivButton);
+
+  const mapSection = createSetupSection({
+    title: 'Map size',
+    description: 'Choose the world footprint for this campaign.',
+  });
+  hero.appendChild(mapSection.section);
 
   const mapSizeField = createLabeledSelect('Map size', 'campaign-map-size');
   for (const size of ['small', 'medium', 'large'] as const) {
@@ -73,10 +109,16 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     option.textContent = size;
     mapSizeField.select.appendChild(option);
   }
-  panel.appendChild(mapSizeField.wrapper);
+  mapSection.content.appendChild(mapSizeField.wrapper);
+
+  const opponentSection = createSetupSection({
+    title: 'Opponents',
+    description: 'Decide how many rival civilizations share the world with you.',
+  });
+  hero.appendChild(opponentSection.section);
 
   const opponentsField = createLabeledSelect('Opponents', 'campaign-opponents');
-  panel.appendChild(opponentsField.wrapper);
+  opponentSection.content.appendChild(opponentsField.wrapper);
 
   const refreshOpponentOptions = (): void => {
     const mapSize = mapSizeField.select.value as 'small' | 'medium' | 'large';
@@ -99,6 +141,15 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
   let civDefinitions = getPlayableCivDefinitions({ customCivilizations });
 
+  const syncCampaignReadiness = (): void => {
+    const gameTitle = titleInput.value.trim();
+    const selectedDefinition = civDefinitions.find(def => def.id === selectedCivId);
+    civSummary.textContent = selectedDefinition
+      ? `Leading civilization: ${selectedDefinition.name}`
+      : 'No civilization selected yet';
+    startButton.disabled = !selectedCivId || !gameTitle;
+  };
+
   const replaceSetupOverlay = (render: () => void): void => {
     panel.querySelector('#custom-civ-panel')?.remove();
     panel.querySelector('#civ-select')?.remove();
@@ -107,13 +158,14 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
 
   const selectCivilization = (civId: string): void => {
     selectedCivId = civId;
-    civSummary.textContent = `Civilization: ${civDefinitions.find(def => def.id === civId)?.name ?? civId}`;
+    syncCampaignReadiness();
   };
 
   const openCivPicker = (): void => {
     replaceSetupOverlay(() => {
       createCivSelectPanel(panel, {
         onSelect: selectCivilization,
+        onCancel: () => {},
         onCreateCustomCiv: () => {
           openCustomCivEditor();
         },
@@ -141,6 +193,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
           await saveSettings({ ...loaded, customCivilizations });
           callbacks.onCustomCivilizationsChanged?.([...customCivilizations]);
           civDefinitions = getPlayableCivDefinitions({ customCivilizations });
+          syncCampaignReadiness();
           openCivPicker();
         },
         onCancel: () => {
@@ -171,6 +224,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   const startButton = document.createElement('button');
   startButton.type = 'button';
   startButton.textContent = 'Start Campaign';
+  startButton.disabled = true;
   startButton.addEventListener('click', () => {
     if (!selectedCivId) {
       return;
@@ -190,7 +244,10 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   });
   buttonRow.appendChild(startButton);
 
-  panel.appendChild(buttonRow);
+  shell.actions.appendChild(buttonRow);
+
+  titleInput.addEventListener('input', syncCampaignReadiness);
+  syncCampaignReadiness();
   container.appendChild(panel);
   return panel;
 }
