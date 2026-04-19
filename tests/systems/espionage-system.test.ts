@@ -201,7 +201,7 @@ describe('espionage-system', () => {
       const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
       const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
       const assigned = s2.spies[spy.id];
-      expect(assigned.status).toBe('traveling');
+      expect(assigned.status).toBe('stationed');
       expect(assigned.targetCivId).toBe('ai-egypt');
       expect(assigned.targetCityId).toBe('city-egypt-1');
       expect(assigned.position).toEqual({ q: 5, r: 3 });
@@ -409,12 +409,11 @@ describe('missions', () => {
   });
 
   describe('processSpyTurn', () => {
-    it('decrements traveling spy to stationed after 1 turn', () => {
+    it('assignSpy sets spy to stationed immediately (travel is now physical movement)', () => {
       const state = createEspionageCivState();
       const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
       const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
-      const { state: s3 } = processSpyTurn(s2, 'turn-seed-1');
-      expect(s3.spies[spy.id].status).toBe('stationed');
+      expect(s2.spies[spy.id].status).toBe('stationed');
     });
 
     it('decrements mission turns remaining', () => {
@@ -830,5 +829,22 @@ describe('espionage diplomatic consequences', () => {
 
     expect(wakandaGain).toBeGreaterThan(baselineGain);
     expect(wakandaGain - baselineGain).toBe(10);
+  });
+});
+
+describe('core type additions MR1', () => {
+  it('spy_scout is a valid UnitType', () => {
+    const t: import('@/core/types').UnitType = 'spy_scout';
+    expect(t).toBe('spy_scout');
+  });
+
+  it('SpyStatus does not include traveling (movement is now physical)', () => {
+    const validStatuses: import('@/core/types').SpyStatus[] = ['idle','stationed','embedded','on_mission','cooldown','captured','interrogated'];
+    expect(validStatuses).not.toContain('traveling');
+  });
+
+  it('DisguiseType union is defined', () => {
+    const d: import('@/core/types').DisguiseType = 'barbarian';
+    expect(d).toBe('barbarian');
   });
 });

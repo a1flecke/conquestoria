@@ -205,10 +205,9 @@ describe('espionage integration', () => {
       const { state: es, spy: eSpy } = recruitSpy(state.espionage['ai-egypt'], 'ai-egypt', 'e-seed');
       state.espionage['ai-egypt'] = es;
 
-      // Both traveling
+      // Both stationed (travel is now physical movement)
       state.espionage['player'] = assignSpy(state.espionage['player'], pSpy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
-      state.espionage['ai-egypt'].spies[eSpy.id].status = 'traveling';
-      state.espionage['ai-egypt'].spies[eSpy.id].targetCivId = 'player';
+      state.espionage['ai-egypt'] = assignSpy(state.espionage['ai-egypt'], eSpy.id, 'player', 'city-egypt-1', { q: 5, r: 3 });
 
       const newState = processEspionageTurn(state, bus);
       // All spies should transition
@@ -288,9 +287,7 @@ describe('hot seat espionage safety', () => {
     state.espionage!['player'] = assignSpy(pEsp, pSpy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
 
     const { state: aEsp, spy: aSpy } = recruitSpy(state.espionage!['ai-egypt'], 'ai-egypt', 'a-seed');
-    state.espionage!['ai-egypt'] = aEsp;
-    state.espionage!['ai-egypt'].spies[aSpy.id].status = 'traveling';
-    state.espionage!['ai-egypt'].spies[aSpy.id].targetCivId = 'player';
+    state.espionage!['ai-egypt'] = assignSpy(aEsp, aSpy.id, 'player', 'city-egypt-1', { q: 5, r: 3 });
 
     const newState = processEspionageTurn(state, bus);
 
@@ -319,16 +316,14 @@ describe('M4a full integration', () => {
     const { state: esp1, spy } = recruitSpy(state.espionage!['player'], 'player', 'lifecycle-seed');
     state.espionage!['player'] = esp1;
 
-    // 2. Assign
+    // 2. Assign — spy is stationed immediately (travel is now physical unit movement)
     state.espionage!['player'] = assignSpy(
       state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
     );
-    expect(state.espionage!['player'].spies[spy.id].status).toBe('traveling');
+    expect(state.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
-    // 3. Process turn → spy arrives
+    // 3. Process turn — spy already stationed, no travel transition needed
     let newState = processEspionageTurn(state, bus);
-    expect(newState.espionage!['player'].spies[spy.id].status).toBe('stationed');
-    expect(events.some(e => e.type === 'arrived')).toBe(true);
 
     // 4. Start mission
     newState.espionage!['player'] = startMission(
@@ -468,9 +463,9 @@ describe('M4a full integration', () => {
     state.espionage!['player'] = assignSpy(
       state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
     );
-    expect(state.espionage!['player'].spies[spy.id].status).toBe('traveling');
+    expect(state.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
-    // Destroy city while spy is traveling
+    // Destroy city while spy is stationed
     delete state.cities['city-egypt-1'];
 
     const newState = processEspionageTurn(state, bus);
@@ -568,7 +563,7 @@ describe('game creation espionage initialization', () => {
     expect(state.espionage!['player']).toBeDefined();
     expect(state.espionage!['ai-1']).toBeDefined();
     expect(state.espionage!['player'].spies).toBeDefined();
-    expect(state.espionage!['player'].maxSpies).toBeGreaterThanOrEqual(1);
+    expect(state.espionage!['player'].maxSpies).toBeGreaterThanOrEqual(0); // 0 until espionage tech researched
   });
 
   it('createHotSeatGame initializes espionage state for all players', () => {
@@ -595,12 +590,12 @@ describe('turn manager espionage integration', () => {
     state.espionage!['player'] = assignSpy(
       state.espionage!['player'], spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 },
     );
-    expect(state.espionage!['player'].spies[spy.id].status).toBe('traveling');
+    // Spy is stationed immediately upon assignment (travel is now physical unit movement)
+    expect(state.espionage!['player'].spies[spy.id].status).toBe('stationed');
 
     const bus = new EventBus();
     const newState = processTurn(state, bus);
 
-    // Spy should have transitioned from traveling to stationed
     expect(newState.espionage!['player'].spies[spy.id].status).toBe('stationed');
   });
 });
