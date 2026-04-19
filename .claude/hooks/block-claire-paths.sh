@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
-# PreToolUse hook — blocks file operations on paths containing '.claire' (typo for '.claude').
-# See: https://github.com/anthropics/claude-code/issues/31493
+# PreToolUse hook — blocks file operations whose path contains '.claire'
+# (typo for '.claude'). See https://github.com/anthropics/claude-code/issues/31493
+#
+# Hook contract: tool input arrives as JSON on stdin (NOT in CLAUDE_TOOL_INPUT).
+# See .claude/rules/hooks-and-tooling.md.
 
-TOOL_INPUT="${CLAUDE_TOOL_INPUT:-}"
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
-if echo "$TOOL_INPUT" | grep -q '\.claire'; then
-  echo "ERROR: Path contains '.claire' — this is a typo bug for '.claude'. Refusing operation." >&2
+if [ -n "$FILE_PATH" ] && echo "$FILE_PATH" | grep -q '\.claire'; then
+  echo "ERROR: Path '$FILE_PATH' contains '.claire' — this is a typo bug for '.claude'. Refusing operation." >&2
   exit 2
 fi
+
+exit 0
