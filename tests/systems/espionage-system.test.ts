@@ -8,11 +8,9 @@ import type {
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   createEspionageCivState,
-  recruitSpy,
-  assignSpy,
+  createSpyFromUnit,
   assignSpyDefensive,
   recallSpy,
-  canRecruitSpy,
   getSpySuccessChance,
   getMissionDuration,
   getAvailableMissions,
@@ -29,11 +27,28 @@ import {
 } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 
+// MR1: legacy fixture helper for tests that need a spy in state without going through city production
+function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
+  return {
+    id, owner, name: `Agent ${id}`, unitType: 'spy_scout',
+    targetCivId: null, targetCityId: null, position: null,
+    status: 'idle', experience: 0, currentMission: null,
+    cooldownTurns: 0, promotion: undefined, promotionAvailable: false,
+    feedsFalseIntel: false,
+    ...overrides,
+  };
+}
+
+function addSpy(esp: EspionageCivState, spy: Spy): EspionageCivState {
+  return { ...esp, spies: { ...esp.spies, [spy.id]: spy } };
+}
+
 describe('espionage types', () => {
   it('Spy has required fields', () => {
     const spy: Spy = {
       id: 'spy-1',
       owner: 'player',
+      unitType: 'spy_scout',
       targetCivId: null,
       targetCityId: null,
       position: null,
@@ -158,77 +173,18 @@ describe('espionage-system', () => {
   });
 
   describe('createEspionageCivState', () => {
-    it('creates empty state with 1 max spy', () => {
+    it('creates empty state with 0 max spies (grows when espionage techs are researched)', () => {
       const state = createEspionageCivState();
       expect(state.spies).toEqual({});
-      expect(state.maxSpies).toBe(1);
+      expect(state.maxSpies).toBe(0);
       expect(state.counterIntelligence).toEqual({});
-    });
-  });
-
-  describe('recruitSpy', () => {
-    it('creates a spy with correct owner and idle status', () => {
-      const state = createEspionageCivState();
-      const result = recruitSpy(state, 'player', 'spy-seed-1');
-      expect(result.spy.owner).toBe('player');
-      expect(result.spy.status).toBe('idle');
-      expect(result.spy.experience).toBe(0);
-      expect(result.spy.targetCivId).toBeNull();
-      expect(result.spy.name).toBeTruthy();
-      expect(Object.keys(result.state.spies)).toHaveLength(1);
-    });
-
-    it('generates deterministic spy names from seed', () => {
-      const state = createEspionageCivState();
-      _resetSpyIdCounter();
-      const r1 = recruitSpy(state, 'player', 'same-seed');
-      _resetSpyIdCounter();
-      const r2 = recruitSpy(state, 'player', 'same-seed');
-      expect(r1.spy.name).toBe(r2.spy.name);
-    });
-
-    it('refuses recruitment when at max spies', () => {
-      const state = createEspionageCivState();
-      const { state: s1 } = recruitSpy(state, 'player', 'seed-1');
-      // maxSpies is 1, so second recruit should fail
-      expect(canRecruitSpy(s1)).toBe(false);
-    });
-  });
-
-  describe('assignSpy', () => {
-    it('assigns idle spy to a target city', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-egypt-1', { q: 5, r: 3 });
-      const assigned = s2.spies[spy.id];
-      expect(assigned.status).toBe('stationed');
-      expect(assigned.targetCivId).toBe('ai-egypt');
-      expect(assigned.targetCityId).toBe('city-egypt-1');
-      expect(assigned.position).toEqual({ q: 5, r: 3 });
-    });
-
-    it('refuses to assign a spy that is on cooldown', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      s1.spies[spy.id].status = 'cooldown';
-      s1.spies[spy.id].cooldownTurns = 3;
-      expect(() => assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 0, r: 0 }))
-        .toThrow('Spy is not available');
-    });
-
-    it('refuses to assign a spy that is already on mission', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      s1.spies[spy.id].status = 'on_mission';
-      expect(() => assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 0, r: 0 }))
-        .toThrow('Spy is not available');
     });
   });
 
   describe('assignSpyDefensive', () => {
     it('assigns spy to own city for counter-intelligence', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      const spy = makeTestSpy('spy-1', 'player');
+      const s1 = addSpy(createEspionageCivState(), spy);
       const s2 = assignSpyDefensive(s1, spy.id, 'city-player-1', { q: 0, r: 0 });
       const assigned = s2.spies[spy.id];
       expect(assigned.status).toBe('stationed');
@@ -238,9 +194,8 @@ describe('espionage-system', () => {
     });
 
     it('increases counter-intelligence score based on spy experience', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      s1.spies[spy.id].experience = 50;
+      const spy = makeTestSpy('spy-1', 'player', { experience: 50 });
+      const s1 = addSpy(createEspionageCivState(), spy);
       const s2 = assignSpyDefensive(s1, spy.id, 'city-player-1', { q: 0, r: 0 });
       const ciScore = s2.counterIntelligence['city-player-1'];
       expect(ciScore).toBeGreaterThan(20); // base 20 + experience bonus
@@ -249,30 +204,16 @@ describe('espionage-system', () => {
 
   describe('recallSpy', () => {
     it('returns a stationed spy to idle', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
-      s2.spies[spy.id].status = 'stationed'; // simulate arrival
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
+      });
+      const s2 = addSpy(createEspionageCivState(), spy);
       const s3 = recallSpy(s2, spy.id);
       expect(s3.spies[spy.id].status).toBe('idle');
       expect(s3.spies[spy.id].targetCivId).toBeNull();
       expect(s3.spies[spy.id].targetCityId).toBeNull();
       expect(s3.spies[spy.id].position).toBeNull();
       expect(s3.spies[spy.id].currentMission).toBeNull();
-    });
-  });
-
-  describe('canRecruitSpy', () => {
-    it('returns true when under max spies', () => {
-      const state = createEspionageCivState();
-      expect(canRecruitSpy(state)).toBe(true);
-    });
-
-    it('does not count captured spies against limit', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      s1.spies[spy.id].status = 'captured';
-      expect(canRecruitSpy(s1)).toBe(true);
     });
   });
 
@@ -350,10 +291,10 @@ describe('missions', () => {
 
   describe('startMission', () => {
     it('starts a mission on a stationed spy', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
-      s2.spies[spy.id].status = 'stationed';
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
+      });
+      const s2 = addSpy(createEspionageCivState(), spy);
       const s3 = startMission(s2, spy.id, 'gather_intel');
       const missionSpy = s3.spies[spy.id];
       expect(missionSpy.status).toBe('on_mission');
@@ -364,24 +305,17 @@ describe('missions', () => {
     });
 
     it('refuses mission on idle spy', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      const spy = makeTestSpy('spy-1', 'player');
+      const s1 = addSpy(createEspionageCivState(), spy);
       expect(() => startMission(s1, spy.id, 'gather_intel'))
         .toThrow('Spy must be stationed');
     });
 
     it('allows remote Stage 5 missions from an idle spy when a target is supplied', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
+      const spy = makeTestSpy('spy-1', 'player');
+      const s1 = addSpy(createEspionageCivState(), spy);
 
-      const s2 = startMission(
-        s1,
-        spy.id,
-        'cyber_attack',
-        undefined,
-        'ai-egypt',
-        'city-egypt-1',
-      );
+      const s2 = startMission(s1, spy.id, 'cyber_attack', undefined, 'ai-egypt', 'city-egypt-1');
 
       expect(s2.spies[spy.id].status).toBe('on_mission');
       expect(s2.spies[spy.id].currentMission?.type).toBe('cyber_attack');
@@ -390,9 +324,8 @@ describe('missions', () => {
     });
 
     it('requires a target when starting a remote mission from an idle spy', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-
+      const spy = makeTestSpy('spy-1', 'player');
+      const s1 = addSpy(createEspionageCivState(), spy);
       expect(() => startMission(s1, spy.id, 'cyber_attack'))
         .toThrow('Spy must have a valid target to start a mission');
     });
@@ -409,18 +342,11 @@ describe('missions', () => {
   });
 
   describe('processSpyTurn', () => {
-    it('assignSpy sets spy to stationed immediately (travel is now physical movement)', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
-      expect(s2.spies[spy.id].status).toBe('stationed');
-    });
-
     it('decrements mission turns remaining', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
-      s2.spies[spy.id].status = 'stationed';
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
+      });
+      const s2 = addSpy(createEspionageCivState(), spy);
       const s3 = startMission(s2, spy.id, 'gather_intel'); // 3 turns
       const { state: s4 } = processSpyTurn(s3, 'turn-seed-1');
       expect(s4.spies[spy.id].currentMission!.turnsRemaining).toBe(2);
@@ -428,13 +354,12 @@ describe('missions', () => {
     });
 
     it('resolves mission when turns reach 0', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
-      s2.spies[spy.id].status = 'stationed';
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
+      });
+      const s2 = addSpy(createEspionageCivState(), spy);
       const s3 = startMission(s2, spy.id, 'scout_area'); // 1 turn
       const { state: s4, events } = processSpyTurn(s3, 'turn-seed-1');
-      // After 1 turn, scout_area should resolve
       expect(s4.spies[spy.id].status).not.toBe('on_mission');
       expect(s4.spies[spy.id].currentMission).toBeNull();
       expect(events.length).toBeGreaterThan(0);
@@ -442,12 +367,11 @@ describe('missions', () => {
     });
 
     it('grants experience on successful mission', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      const s2 = assignSpy(s1, spy.id, 'ai-egypt', 'city-1', { q: 5, r: 3 });
-      s2.spies[spy.id].status = 'stationed';
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'stationed', targetCivId: 'ai-egypt', targetCityId: 'city-1', position: { q: 5, r: 3 },
+      });
+      const s2 = addSpy(createEspionageCivState(), spy);
       const s3 = startMission(s2, spy.id, 'scout_area');
-      // Use a seed known to produce success (high base chance for scout_area = 0.90)
       const { state: s4, events } = processSpyTurn(s3, 'success-seed');
       if (events.some(e => e.type === 'mission_succeeded')) {
         expect(s4.spies[spy.id].experience).toBeGreaterThan(0);
@@ -455,28 +379,23 @@ describe('missions', () => {
     });
 
     it('decrements cooldown on cooldown spies', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      s1.spies[spy.id].status = 'cooldown';
-      s1.spies[spy.id].cooldownTurns = 3;
+      const spy = makeTestSpy('spy-1', 'player', { status: 'cooldown', cooldownTurns: 3 });
+      const s1 = addSpy(createEspionageCivState(), spy);
       const { state: s2 } = processSpyTurn(s1, 'turn-seed');
       expect(s2.spies[spy.id].cooldownTurns).toBe(2);
     });
 
     it('transitions cooldown to idle when cooldown reaches 0', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      s1.spies[spy.id].status = 'cooldown';
-      s1.spies[spy.id].cooldownTurns = 1;
+      const spy = makeTestSpy('spy-1', 'player', { status: 'cooldown', cooldownTurns: 1 });
+      const s1 = addSpy(createEspionageCivState(), spy);
       const { state: s2 } = processSpyTurn(s1, 'turn-seed');
       expect(s2.spies[spy.id].status).toBe('idle');
       expect(s2.spies[spy.id].cooldownTurns).toBe(0);
     });
 
     it('does nothing for captured spies', () => {
-      const state = createEspionageCivState();
-      const { state: s1, spy } = recruitSpy(state, 'player', 'seed-1');
-      s1.spies[spy.id].status = 'captured';
+      const spy = makeTestSpy('spy-1', 'player', { status: 'captured' });
+      const s1 = addSpy(createEspionageCivState(), spy);
       const { state: s2 } = processSpyTurn(s1, 'turn-seed');
       expect(s2.spies[spy.id].status).toBe('captured');
     });
@@ -673,13 +592,11 @@ describe('espionage diplomatic consequences', () => {
 
   describe('double agents', () => {
     it('turns a captured spy into a false-intel asset for the captor', () => {
+      const spy = makeTestSpy('spy-1', 'player', { status: 'captured' });
       const espionage = {
-        player: createEspionageCivState(),
+        player: addSpy(createEspionageCivState(), spy),
         'ai-egypt': createEspionageCivState(),
       };
-      const { state: playerState, spy } = recruitSpy(espionage.player, 'player', 'seed-1');
-      espionage.player = playerState;
-      espionage.player.spies[spy.id].status = 'captured';
 
       const turned = turnCapturedSpy(espionage, 'ai-egypt', 'player', spy.id);
 
@@ -689,10 +606,8 @@ describe('espionage diplomatic consequences', () => {
     });
 
     it('verifyAgent clears false-intel state from a turned spy', () => {
-      const state = createEspionageCivState();
-      const { state: updated, spy } = recruitSpy(state, 'player', 'seed-1');
-      updated.spies[spy.id].turnedBy = 'ai-egypt';
-      updated.spies[spy.id].feedsFalseIntel = true;
+      const spy = makeTestSpy('spy-1', 'player', { turnedBy: 'ai-egypt', feedsFalseIntel: true });
+      const updated = addSpy(createEspionageCivState(), spy);
 
       const verified = verifyAgent(updated, spy.id);
 
@@ -701,15 +616,13 @@ describe('espionage diplomatic consequences', () => {
     });
 
     it('records detected threat intel for the captor when a spy is turned', () => {
+      const spy = makeTestSpy('spy-1', 'player', {
+        status: 'captured', targetCivId: 'ai-egypt', targetCityId: 'city-egypt-1',
+      });
       const espionage = {
-        player: createEspionageCivState(),
+        player: addSpy(createEspionageCivState(), spy),
         'ai-egypt': createEspionageCivState(),
       };
-      const { state: playerState, spy } = recruitSpy(espionage.player, 'player', 'seed-1');
-      espionage.player = playerState;
-      espionage.player.spies[spy.id].status = 'captured';
-      espionage.player.spies[spy.id].targetCivId = 'ai-egypt';
-      espionage.player.spies[spy.id].targetCityId = 'city-egypt-1';
 
       const turned = turnCapturedSpy(espionage, 'ai-egypt', 'player', spy.id, 12);
 
@@ -776,6 +689,7 @@ describe('espionage diplomatic consequences', () => {
                 id: 'spy-1',
                 owner: 'player',
                 name: 'Agent Echo',
+                unitType: 'spy_scout',
                 targetCivId: 'rival',
                 targetCityId: 'city-rival-1',
                 position: { q: 1, r: 1 },

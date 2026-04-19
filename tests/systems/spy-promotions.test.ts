@@ -3,9 +3,9 @@ import type { Spy } from '@/core/types';
 import {
   checkAndApplyPromotion,
   createEspionageCivState,
+  createSpyFromUnit,
   getSpySuccessChance,
   processSpyTurn,
-  recruitSpy,
   startMission,
 } from '@/systems/espionage-system';
 
@@ -14,6 +14,7 @@ function makeSpy(experience: number): Spy {
     id: 'spy-1',
     owner: 'player',
     name: 'Agent Shadow',
+    unitType: 'spy_scout',
     targetCivId: null,
     targetCityId: null,
     position: null,
@@ -60,7 +61,7 @@ describe('spy promotions', () => {
   });
 
   it('annuvin spies complete missions one turn faster', () => {
-    const { state, spy } = recruitSpy(createEspionageCivState(), 'player', 'seed-1');
+    const { state, spy } = createSpyFromUnit(createEspionageCivState(), 'spy-1', 'player', 'spy_scout', 'seed-1');
     state.spies[spy.id].status = 'stationed';
     state.spies[spy.id].targetCivId = 'ai-1';
     state.spies[spy.id].targetCityId = 'city-1';
@@ -75,7 +76,7 @@ describe('spy promotions', () => {
   });
 
   it('annuvin spies gain bonus XP from successful missions', () => {
-    const { state, spy } = recruitSpy(createEspionageCivState(), 'player', 'seed-1');
+    const { state, spy } = createSpyFromUnit(createEspionageCivState(), 'spy-1', 'player', 'spy_scout', 'seed-1');
     state.spies[spy.id].status = 'on_mission';
     state.spies[spy.id].currentMission = {
       type: 'gather_intel',

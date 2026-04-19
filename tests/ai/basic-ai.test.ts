@@ -2,7 +2,7 @@ import { processAITurn } from '@/ai/basic-ai';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { createEspionageCivState } from '@/systems/espionage-system';
+import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 
 function makeAiRebelState(): GameState {
@@ -1022,8 +1022,19 @@ describe('processAITurn', () => {
 
   it('AI stations a defensive spy in its capital by stage 3', () => {
     const state = makeAiDefenseSpyState();
-    const bus = new EventBus();
+    // Pre-place an idle spy unit so AI can station it defensively this turn
+    state.units['unit-spy-ai'] = {
+      id: 'unit-spy-ai', type: 'spy_scout', owner: 'ai-1',
+      position: { q: 0, r: 0 }, movement: 2, maxMovement: 2,
+      health: 100, maxHealth: 100, status: 'idle',
+    } as any;
+    state.civilizations['ai-1'].units = ['unit-spy-ai'];
+    const { state: espWithSpy } = createSpyFromUnit(
+      state.espionage!['ai-1'], 'unit-spy-ai', 'ai-1', 'spy_scout', 'seed-defense-test',
+    );
+    state.espionage!['ai-1'] = espWithSpy;
 
+    const bus = new EventBus();
     const newState = processAITurn(state, 'ai-1', bus);
 
     const spies = Object.values(newState.espionage!['ai-1'].spies);

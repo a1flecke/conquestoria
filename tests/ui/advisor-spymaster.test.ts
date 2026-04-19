@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { createEspionageCivState, recruitSpy, assignSpy, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { createEspionageCivState, _resetSpyIdCounter } from '@/systems/espionage-system';
 
 function makeSpymasterTestState(): GameState {
   const state = {

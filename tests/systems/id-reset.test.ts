@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createUnit, resetUnitId } from '@/systems/unit-system';
 import { foundCity, resetCityId } from '@/systems/city-system';
 import { spawnBarbarianCamp, resetCampId } from '@/systems/barbarian-system';
-import { recruitSpy, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { _resetSpyIdCounter } from '@/systems/espionage-system';
 import { generateMap } from '@/systems/map-generator';
 
 describe('ID counter reset between games', () => {
@@ -63,22 +63,13 @@ describe('ID counter reset between games', () => {
     expect(fresh?.id).toBe('camp-1');
   });
 
-  it('_resetSpyIdCounter resets counter to 1', () => {
-    // Create some spies to advance the counter
-    const { spy: spy1 } = recruitSpy({ spies: {}, maxSpies: 1, counterIntelligence: {} }, 'player', 'seed1');
-    const { spy: spy2 } = recruitSpy({ spies: {}, maxSpies: 1, counterIntelligence: {} }, 'player', 'seed2');
-
-    expect(spy1.id).toBe('spy-1');
-    expect(spy2.id).toBe('spy-2');
-
-    // Reset and verify counter restarts
-    _resetSpyIdCounter();
-
-    const { spy: fresh } = recruitSpy({ spies: {}, maxSpies: 1, counterIntelligence: {} }, 'player', 'seed3');
-    expect(fresh.id).toBe('spy-1');
+  it('_resetSpyIdCounter is a no-op (spies now use unit IDs)', () => {
+    // Spy IDs are now derived from unit IDs — _resetSpyIdCounter is kept for
+    // backward compatibility but no longer advances a counter.
+    expect(() => _resetSpyIdCounter()).not.toThrow();
   });
 
-  it('all counters can be reset together', () => {
+  it('all non-spy counters can be reset together', () => {
     // Advance all counters
     createUnit('warrior', 'player', { q: 0, r: 0 });
     createUnit('warrior', 'player', { q: 1, r: 0 });
@@ -90,10 +81,6 @@ describe('ID counter reset between games', () => {
     const camp = spawnBarbarianCamp(map, [{ q: 0, r: 0 }], [], 12345);
     if (camp) spawnBarbarianCamp(map, [{ q: 0, r: 0 }], [camp], 12346);
 
-    const { spy } = recruitSpy({ spies: {}, maxSpies: 1, counterIntelligence: {} }, 'player', 'seed1');
-    const civEspState = { spies: { [spy.id]: spy }, maxSpies: 1, counterIntelligence: {} };
-    recruitSpy(civEspState, 'player', 'seed2');
-
     // Reset all
     resetUnitId();
     resetCityId();
@@ -104,11 +91,9 @@ describe('ID counter reset between games', () => {
     const freshUnit = createUnit('warrior', 'player', { q: 0, r: 0 });
     const freshCity = foundCity('player', { q: 5, r: 5 }, map);
     const freshCamp = spawnBarbarianCamp(map, [{ q: 0, r: 0 }], [], 12347);
-    const { spy: freshSpy } = recruitSpy({ spies: {}, maxSpies: 1, counterIntelligence: {} }, 'player', 'seed3');
 
     expect(freshUnit.id).toBe('unit-1');
     expect(freshCity.id).toBe('city-1');
     expect(freshCamp?.id).toBe('camp-1');
-    expect(freshSpy.id).toBe('spy-1');
   });
 });
