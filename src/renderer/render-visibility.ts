@@ -16,11 +16,3 @@ export function shouldRenderOwnedTileBorder(
 
   return visibilityState === 'visible';
 }
-
-export function shouldRenderForeignPresenceHex(
-  visibility: VisibilityMap | undefined,
-  coord: HexCoord,
-): boolean {
-  if (!visibility) return false;
-  return getVisibility(visibility, coord) === 'visible';
-}

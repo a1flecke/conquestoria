@@ -65,6 +65,15 @@ function makeCamera(): Camera {
 }
 
 describe('hex renderer privacy', () => {
+  it('draws foreign ownership borders on visible tiles', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible', '1,0': 'visible' } };
+
+    drawHexMap(ctx, makeMap(), makeCamera(), undefined, 'player', visibility);
+
+    expect((ctx as unknown as MockCanvasContext).strokeCalls).toContain('rgba(217,74,74,0.5)');
+  });
+
   it('does not draw foreign ownership borders on fogged tiles', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const visibility: VisibilityMap = { tiles: { '0,0': 'visible', '1,0': 'fog' } };
