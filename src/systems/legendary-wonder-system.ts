@@ -655,13 +655,13 @@ export function startLegendaryWonderBuild(
     pendingEvents,
     legendaryWonderIntel,
     cities: city ? {
-      ...seededState.cities,
-      [cityId]: {
-        ...city,
-        productionQueue: [`legendary:${wonderId}`, ...city.productionQueue.filter(item => item !== `legendary:${wonderId}`)].slice(0, 3),
-        productionProgress: carriedProduction,
-      },
-    } : state.cities,
+        ...seededState.cities,
+        [cityId]: {
+          ...city,
+          productionQueue: [`legendary:${wonderId}`, ...city.productionQueue.filter(item => item !== `legendary:${wonderId}`)],
+          productionProgress: carriedProduction,
+        },
+      } : state.cities,
     legendaryWonderProjects: {
       ...seededState.legendaryWonderProjects,
       [projectKey]: {

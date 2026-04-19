@@ -24,4 +24,12 @@ describe('pacing-audit', () => {
     expect(typeof row?.outlier).toBe('boolean');
     expect(typeof row?.outlierReason).toBe('string');
   });
+
+  it('derives meaningful pacing bands for unannotated catalog items instead of defaulting them all to core', () => {
+    const rows = buildPacingAudit();
+
+    expect(rows.find(row => row.id === 'granary')?.band).toBe('infrastructure');
+    expect(rows.find(row => row.id === 'settler')?.band).toBe('power-spike');
+    expect(rows.find(row => row.id === 'banking')?.band).toBe('power-spike');
+  });
 });

@@ -9,7 +9,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
-import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId } from '@/systems/planning-system';
+import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
@@ -430,10 +430,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
     onMoveQueueItem: (cityId, fromIndex, toIndex) => {
       const targetCity = gameState.cities[cityId];
       if (!targetCity) return;
-      gameState.cities[cityId] = {
-        ...targetCity,
-        productionQueue: moveQueuedId(targetCity.productionQueue, fromIndex, toIndex),
-      };
+      gameState.cities[cityId] = reorderCityProduction(targetCity, fromIndex, toIndex);
       renderLoop.setGameState(gameState);
     },
     onRemoveQueueItem: (cityId, index) => {
