@@ -9,6 +9,9 @@ paths:
 - If you calculate data (e.g., movement range, attack targets, fog of war), it MUST be passed to the renderer and visually displayed
 - If you create a utility function, it MUST be called from at least one code path — dead code is a bug
 - After implementing any system logic, trace the data flow: **state → compute → UI/renderer → user sees it**
+- If you extract or add a replacement UI helper for an existing player-visible flow, wire the real entry path to that helper in the same change. Shipping the old inline flow while the new module sits unused is still a broken feature.
+- For extracted entry flows, tests must cover real interaction behavior, not just isolated render shape. A passing test that never exercises the live path or callback contract is insufficient.
+- If an extraction exposes an existing bug in the inherited flow, do not freeze that bug in place under the banner of parity. Either fix it in the same change or stop and get a user decision on whether to defer it into a documented follow-up issue with reproduction details and the intended fix.
 
 ## Every user action needs visible feedback
 - Combat must show what will happen BEFORE it happens (preview panel with Attack/Cancel)

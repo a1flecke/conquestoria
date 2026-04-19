@@ -5,6 +5,7 @@ export interface GameModeSelectCallbacks {
   onChooseSolo: (title: string) => void;
   onChooseHotSeat: (title: string) => void;
   onTitleRequired?: () => void;
+  onCancel?: () => void;
 }
 
 function createModeButton(label: string, description: string, action: string): HTMLButtonElement {
@@ -43,6 +44,25 @@ function createModeButton(label: string, description: string, action: string): H
   });
   button.appendChild(subtitle);
 
+  return button;
+}
+
+function createActionButton(label: string, action: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.dataset.action = action;
+  Object.assign(button.style, {
+    minHeight: '44px',
+    minWidth: '44px',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    border: '1px solid rgba(255,255,255,0.2)',
+    background: 'transparent',
+    color: '#f4f1e8',
+    cursor: 'pointer',
+    fontSize: '13px',
+  });
   return button;
 }
 
@@ -118,6 +138,22 @@ export function showGameModeSelect(container: HTMLElement, callbacks: GameModeSe
   modeGrid.appendChild(hotSeatButton);
 
   shell.body.appendChild(modeSection.section);
+
+  const actionBar = document.createElement('div');
+  Object.assign(actionBar.style, {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  });
+
+  const backButton = createActionButton('Back', 'cancel-mode-select');
+  backButton.addEventListener('click', () => {
+    shell.surface.remove();
+    callbacks.onCancel?.();
+  });
+  actionBar.appendChild(backButton);
+  shell.actions.appendChild(actionBar);
 
   container.appendChild(shell.surface);
   return shell.surface;

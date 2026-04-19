@@ -83,6 +83,12 @@ If you add a derived UI helper or label such as `next layer`, `reachable`, `reco
 
 If you add or modify a player-visible queue, tests must verify both data integrity and rendered behavior: active item, queued order, ETA text when relevant, and visible post-action state after reorder/remove.
 
+If you extract an existing player-visible launcher, modal, or setup flow into a shared UI helper, wire the live caller to that helper in the same change. Do not leave the old inline path active while only testing the new helper in isolation.
+
+If an extracted flow previously blocked on invalid input or showed a warning, preserve the intended validation behavior unless the user or spec explicitly changes it. Do not preserve inherited bugs just because they were already present.
+
+If you discover an inherited player-visible bug while extracting or refactoring a flow, either fix it in the same change or pause and get a user decision to defer it into a GitHub issue with reproduction steps, impact, and implementation notes.
+
 When a gameplay rule is attached to combat resolution, camp destruction, capture, or any other actor-agnostic state change, add parity coverage for the human path and at least one non-human path (`AI`, `turn-manager`, or another system caller). Do not treat a UI handler as the only execution path for game-state history or progression rules.
 
 If a system seeds local placeholders or project shells ahead of true eligibility, do not treat those seeded records as actionable by default. UI guidance, AI prioritization, and recommendation systems must use a shared helper that filters seeded state down to currently reachable opportunities.
