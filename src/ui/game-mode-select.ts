@@ -4,6 +4,7 @@ export interface GameModeSelectCallbacks {
   initialTitle?: string;
   onChooseSolo: (title: string) => void;
   onChooseHotSeat: (title: string) => void;
+  onTitleRequired?: () => void;
 }
 
 function createModeButton(label: string, description: string, action: string): HTMLButtonElement {
@@ -92,14 +93,28 @@ export function showGameModeSelect(container: HTMLElement, callbacks: GameModeSe
   });
   modeSection.content.appendChild(modeGrid);
 
-  const getTitle = (): string => titleInput.value.trim() || 'New Campaign';
+  const getSoloTitle = (): string => titleInput.value.trim() || 'New Campaign';
+  const getHotSeatTitle = (): string | null => {
+    const title = titleInput.value.trim();
+    if (!title) {
+      callbacks.onTitleRequired?.();
+      return null;
+    }
+    return title;
+  };
 
   const soloButton = createModeButton('Solo', 'Lead one civilization against AI rivals.', 'choose-solo-mode');
-  soloButton.addEventListener('click', () => callbacks.onChooseSolo(getTitle()));
+  soloButton.addEventListener('click', () => callbacks.onChooseSolo(getSoloTitle()));
   modeGrid.appendChild(soloButton);
 
   const hotSeatButton = createModeButton('Hot Seat', 'Pass the device between human players sharing one world.', 'choose-hotseat-mode');
-  hotSeatButton.addEventListener('click', () => callbacks.onChooseHotSeat(getTitle()));
+  hotSeatButton.addEventListener('click', () => {
+    const title = getHotSeatTitle();
+    if (!title) {
+      return;
+    }
+    callbacks.onChooseHotSeat(title);
+  });
   modeGrid.appendChild(hotSeatButton);
 
   shell.body.appendChild(modeSection.section);
