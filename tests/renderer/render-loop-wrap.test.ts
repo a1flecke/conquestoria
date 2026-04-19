@@ -117,6 +117,9 @@ describe('render-loop wrap parity', () => {
       expect.anything(),
       5,
       true,
+      state.civilizations.player.visibility,
+      'player',
+      'mc-sparta',
     );
   });
 });

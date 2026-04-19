@@ -77,6 +77,8 @@ export class RenderLoop {
 
   private render(): void {
     if (!this.state) return;
+    const viewerId = this.state.currentPlayer;
+    const viewerVisibility = this.state.civilizations[viewerId]?.visibility;
 
     const { width, height } = this.canvas.getBoundingClientRect();
     this.ctx.clearRect(0, 0, width, height);
@@ -89,7 +91,7 @@ export class RenderLoop {
     const villagePositions = new Set(
       Object.values(this.state.tribalVillages ?? {}).map(v => `${v.position.q},${v.position.r}`),
     );
-    drawHexMap(this.ctx, this.state.map, this.camera, villagePositions, this.state.currentPlayer);
+    drawHexMap(this.ctx, this.state.map, this.camera, villagePositions, viewerId, viewerVisibility);
 
     // Draw rivers
     drawRivers(this.ctx, this.state.map, this.camera);
@@ -109,6 +111,9 @@ export class RenderLoop {
           this.camera,
           this.state.map.width,
           this.state.map.wrapsHorizontally,
+          viewerVisibility,
+          viewerId,
+          mc.id,
         );
       }
     }
@@ -130,12 +135,10 @@ export class RenderLoop {
     }
 
     // Draw cities
-    drawCities(this.ctx, this.state, this.camera, this.state.currentPlayer);
+    drawCities(this.ctx, this.state, this.camera, viewerId);
 
     // Draw units
-    const currentCiv = this.state.civilizations[this.state.currentPlayer];
-    const playerVis = currentCiv?.visibility;
-    if (playerVis) {
+    if (viewerVisibility) {
       const colorLookup: Record<string, string> = { barbarian: '#8b4513' };
       for (const [id, civ] of Object.entries(this.state.civilizations)) {
         colorLookup[id] = civ.color;
@@ -145,14 +148,14 @@ export class RenderLoop {
         const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
         if (def) colorLookup[mc.id] = def.color;
       }
-      drawUnits(this.ctx, this.state.units, this.camera, playerVis, this.state, this.state.currentPlayer, colorLookup);
+      drawUnits(this.ctx, this.state.units, this.camera, viewerVisibility, this.state, viewerId, colorLookup);
     }
 
     // Draw fog of war
-    if (playerVis) {
+    if (viewerVisibility) {
       drawFogOfWar(
         this.ctx,
-        playerVis,
+        viewerVisibility,
         this.state.map.width,
         this.state.map.height,
         this.camera,
