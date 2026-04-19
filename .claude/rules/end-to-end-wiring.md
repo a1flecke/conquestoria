@@ -31,3 +31,13 @@ paths:
 ## Transition Events must be transition-owned
 - If a feature emits events on state transition, add a regression proving the event fires exactly once across repeated turns/renders and does not recur from steady-state scans.
 - Prefer returning explicit transition payloads from the mutating helper over re-deriving one-time events by re-reading final state.
+
+## Trainable units must be wired end-to-end
+- When you add a `UnitType` to `TRAINABLE_UNITS` in `src/systems/city-system.ts`, the same change MUST also wire:
+  1. **`UNIT_DEFINITIONS` + `UNIT_DESCRIPTIONS`** entries in `src/systems/unit-system.ts`.
+  2. **Unit-renderer icon** in `src/renderer/unit-renderer.ts`.
+  3. **Production-completion side-effects.** If the unit type has matching system state (e.g. spies → `state.espionage[civId].spies`, settlers → `state.cities` foundation), `src/core/turn-manager.ts` MUST create that state record at the same moment the `Unit` is added to `state.units`.
+  4. **Death cleanup.** If the unit type has matching system state, `src/main.ts` death branches MUST clean it up to avoid zombie records.
+  5. **AI usage.** `src/ai/basic-ai.ts` MUST queue the new unit type when its conditions hold; otherwise AI civs become asymmetric with the player.
+  6. **Tech-gated dequeue.** `processCity` MUST consult `getTrainableUnitsForCiv(civ.techState.completed)` — or an equivalent — so an obsolete queued unit silently dequeues instead of producing forever.
+- Adding a `UnitType` to `TRAINABLE_UNITS` without all six wirings is "dead computed data" and is a bug.
