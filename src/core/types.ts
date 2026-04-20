@@ -998,6 +998,7 @@ export interface GameEvents {
   'espionage:mission-succeeded': { civId: string; spyId: string; missionType: SpyMissionType; result: Record<string, unknown> };
   'espionage:mission-failed': { civId: string; spyId: string; missionType: SpyMissionType };
   'espionage:spy-detected': { detectingCivId: string; spyOwner: string; spyId: string; cityId: string };
+  'espionage:spy-detected-traveling': { detectingCivId: string; spyOwner: string; spyUnitId: string; position: HexCoord; wasDisguised: boolean };
   'espionage:spy-expelled': { civId: string; spyId: string; fromCivId: string };
   'espionage:spy-captured': { capturingCivId: string; spyOwner: string; spyId: string };
   'espionage:spy-recalled': { civId: string; spyId: string; reason?: string };
