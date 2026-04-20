@@ -36,6 +36,7 @@ import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, ch
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
 import { processEspionageTurn, isSpyUnitType, createSpyFromUnit } from '@/systems/espionage-system';
+import { processDetection } from '@/systems/detection-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import {
@@ -433,6 +434,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);
+  newState = processDetection(newState, bus);
 
   // --- Vassalage protection & independence ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {

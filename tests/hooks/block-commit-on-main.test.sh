@@ -9,6 +9,12 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 0
 fi
 
+# Skip if main is already checked out in another worktree (git worktree checkout would fail)
+if git worktree list 2>/dev/null | grep -q '\[main\]'; then
+  echo "skip: main branch checked out in another worktree — skipping branch-switching smoke test"
+  exit 0
+fi
+
 fail=0
 ORIG_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
