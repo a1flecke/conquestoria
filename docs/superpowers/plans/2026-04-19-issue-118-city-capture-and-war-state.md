@@ -338,7 +338,7 @@ it('assaults and occupies an exposed enemy city', () => {
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/city-capture-system.test.ts tests/input/selected-unit-tap-intent.test.ts tests/ai/basic-ai.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/city-capture-system.test.ts tests/ai/basic-ai.test.ts
 ```
 
 Expected:
@@ -530,7 +530,7 @@ it('creates a pending player choice for a size-2 city and finalizes occupy onto 
   const pending = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
   const result = finalizePlayerCityAssaultChoice(state, pending, 'occupy', state.turn);
 
-  expect(pending.preview.occupiedPopulation).toBe(2);
+  expect(pending.occupiedPopulation).toBe(2);
   expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
   expect(result.state.units['unit-1'].movementPointsLeft).toBe(0);
   expect(result.state.cities.athens.owner).toBe('player');
@@ -776,7 +776,7 @@ In `src/main.ts`:
 - if the player assaults a size-2+ city, call `beginPlayerCityAssaultChoice(...)`, assign it to `pendingCityCaptureChoice`, and open the panel
 - only finalize the outcome after the click, then clear `pendingCityCaptureChoice`
 - while the panel is open, block other map interactions
-- keep AI on the backend default `occupy` path for now
+- keep AI on the MR 1 backend default `occupy` path; do not add a second player-style choice flow for AI in this MR
 
 Add one real player-flow regression in `tests/input/city-assault-flow.test.ts` that covers:
 
