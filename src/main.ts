@@ -1526,6 +1526,15 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
 
 registerMinorCivNotificationListeners(bus, () => gameState, { appendToCivLog });
 
+bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisguised, position }) => {
+  const label = wasDisguised ? 'A disguised unit' : 'An enemy spy';
+  appendToCivLog(
+    detectingCivId,
+    `${label} from ${spyOwner} was spotted near (${position.q}, ${position.r}).`,
+    'warning',
+  );
+});
+
 // --- Initialization ---
 async function init(): Promise<void> {
   // Register service worker

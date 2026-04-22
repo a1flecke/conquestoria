@@ -108,7 +108,7 @@ function buildDetectionState(seed: string, { scoutHound = false } = {}): GameSta
 
 describe('passive baseline detection', () => {
   it('returns 0.05 for a city with population 1', () => {
-    expect(getPassiveDetectionChance(1)).toBeCloseTo(0.05);
+    expect(getPassiveDetectionChance(1)).toBeCloseTo(0.05, 3);
   });
 
   it('scales with population, max 0.20', () => {
@@ -175,6 +175,8 @@ describe('scout_hound detection', () => {
     for (let i = 0; i < 200; i++) {
       const s = buildDetectionState(`seed-hound-${i}`, { scoutHound: true });
       s.turn = i + 1;
+      // Move enemy city far away so only the scout_hound path can trigger detection
+      s.cities['city-enemy'].position = { q: 8, r: 0 };
       const bus = new EventBus();
       const next = processDetection(s, bus);
       if ((next.espionage?.['ai-egypt']?.recentDetections ?? []).length > 0) {

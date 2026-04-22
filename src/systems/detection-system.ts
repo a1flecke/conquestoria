@@ -7,7 +7,7 @@ import { createRng } from './map-generator';
 import { isSpyUnitType } from './espionage-system';
 
 export function getPassiveDetectionChance(cityPopulation: number): number {
-  return Math.min(0.20, 0.03 + cityPopulation * 0.017);
+  return Math.min(0.20, 0.033 + cityPopulation * 0.017);
 }
 
 export function processDetection(state: GameState, bus: EventBus): GameState {

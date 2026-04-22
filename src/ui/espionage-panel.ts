@@ -31,6 +31,7 @@ export interface EspionagePanelData {
   defendingCityIds: string[];
   disabledAdvisors: AdvisorType[];
   threatBoard: Array<{ cityId: string; foreignCivId: string; confidence: 'detected' }>;
+  recentDetections: Array<{ position: { q: number; r: number }; turn: number; wasDisguised: boolean }>;
 }
 
 export interface MissionStageGroup {
@@ -305,6 +306,32 @@ function appendThreatBoard(
   parent.appendChild(threatBlock);
 }
 
+function appendRecentDetections(
+  parent: HTMLElement,
+  detections: Array<{ position: { q: number; r: number }; turn: number; wasDisguised: boolean }>,
+): void {
+  const block = createEl('section');
+  block.dataset.section = 'recent-detections';
+  appendSectionHeader(block, 'Recent Detections', 'Spy units spotted near your territory this game.');
+
+  if (detections.length === 0) {
+    const empty = createEl('div', 'No spy sightings recorded.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    block.appendChild(empty);
+    parent.appendChild(block);
+    return;
+  }
+
+  for (const d of [...detections].reverse().slice(0, 5)) {
+    const label = d.wasDisguised ? 'disguised unit' : 'spy unit';
+    const row = createEl('div', `Turn ${d.turn} · ${label} at (${d.position.q}, ${d.position.r})`);
+    row.style.cssText = 'font-size:11px;opacity:0.8;padding:4px 0;';
+    block.appendChild(row);
+  }
+
+  parent.appendChild(block);
+}
+
 export function createEspionagePanel(
   state: GameState,
   callbacks: EspionagePanelCallbacks = { onClose: () => {} },
@@ -362,6 +389,7 @@ export function createEspionagePanel(
   panel.appendChild(advisorBlock);
 
   appendThreatBoard(panel, data.threatBoard);
+  appendRecentDetections(panel, data.recentDetections);
 
   return panel;
 }
@@ -379,6 +407,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
       defendingCityIds: [],
       disabledAdvisors: [],
       threatBoard: [],
+      recentDetections: [],
     };
   }
 
@@ -428,6 +457,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     defendingCityIds,
     disabledAdvisors,
     threatBoard,
+    recentDetections: civEsp.recentDetections ?? [],
   };
 }
 

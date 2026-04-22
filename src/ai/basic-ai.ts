@@ -652,6 +652,22 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
+  // Queue scout_hound when lookouts tech researched and no hound already queued/deployed
+  if (civ.techState.completed.includes('lookouts')) {
+    const hasHound = Object.values(newState.units).some(
+      u => u.owner === civId && u.type === 'scout_hound',
+    );
+    if (!hasHound) {
+      for (const cityId of civ.cities) {
+        const city = newState.cities[cityId];
+        if (city && city.productionQueue.length === 0) {
+          newState.cities[cityId] = { ...city, productionQueue: ['scout_hound'] };
+          break;
+        }
+      }
+    }
+  }
+
   if (shouldAiStationDefensiveSpy(newState, civId)) {
     const capitalId = civ.cities[0];
     const capital = capitalId ? newState.cities[capitalId] : undefined;
