@@ -382,7 +382,7 @@ Rules:
   - remove the city id from the previous owner’s city list
   - clear `owner` on every tile in `city.ownedTiles`
   - award `10 + floor(sum(building.productionCost) / 2)` gold to the conqueror
-  - apply `-40` relationship to the former owner toward the conqueror and the conqueror toward the former owner
+  - apply `-40` relationship to the former owner toward the conqueror if the former owner is a major civ in `state.civilizations`
 
 - [ ] **Step 4: Route only the AI assault path through the shared resolver**
 
@@ -435,8 +435,8 @@ git commit -m "fix(combat): resolve exposed city assaults"
 - Modify: `tests/storage/save-persistence.test.ts`
 
 **Player Truth Table:**
-- Before assaulting a size-1 city: no choice panel appears; the city is auto-razed after the assault resolves
-- Before assaulting a size-2+ city: the attacker reaches the city, then sees a blocking panel with `Occupy` and `Raze`
+- Before assaulting a size-1 city: no choice panel appears; the attacker moves onto the city tile, loses all movement, and the city is auto-razed immediately
+- Before assaulting a size-2+ city: the attacker moves onto the city tile, loses all movement, and then sees a blocking panel with `Occupy` and `Raze`
 - Choosing `Occupy`: the city remains on the map, shows reduced population, and displays `Occupied: 10 turns to integrate`
 - Choosing `Raze`: the city disappears, the player gets the shown gold amount immediately, and the map is interactive again
 - After either choice: the attacker remains on the city hex and has no movement left for the turn
@@ -524,23 +524,25 @@ it('returns assault-city for an ungarrisoned enemy major city in movement range'
 Add to `tests/input/city-assault-flow.test.ts`:
 
 ```ts
-it('creates a pending player choice for a size-2 city and finalizes occupy onto the city hex', () => {
+it('begins a pending player choice by moving onto a size-2 city and finalizes occupy in place', () => {
   const state = makePlayerAssaultState({ population: 4 });
 
-  const pending = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
-  const result = finalizePlayerCityAssaultChoice(state, pending, 'occupy', state.turn);
+  const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+  const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
 
-  expect(pending.occupiedPopulation).toBe(2);
+  expect(begun.pending.occupiedPopulation).toBe(2);
+  expect(begun.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
+  expect(begun.state.units['unit-1'].movementPointsLeft).toBe(0);
   expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
   expect(result.state.units['unit-1'].movementPointsLeft).toBe(0);
   expect(result.state.cities.athens.owner).toBe('player');
 });
 
-it('creates a pending player choice for a size-2 city and finalizes raze onto the city hex', () => {
+it('begins a pending player choice by moving onto a size-2 city and finalizes raze in place', () => {
   const state = makePlayerAssaultState({ population: 4 });
 
-  const pending = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
-  const result = finalizePlayerCityAssaultChoice(state, pending, 'raze', state.turn);
+  const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+  const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'raze', begun.state.turn);
 
   expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
   expect(result.state.units['unit-1'].movementPointsLeft).toBe(0);
@@ -607,6 +609,30 @@ it('shows occupied-city integration countdown', () => {
 
   expect(rendered).toContain('Occupied');
   expect(rendered).toContain('7 turns');
+});
+```
+
+Add to `tests/ui/city-panel.test.ts`:
+
+```ts
+it('shows occupation-reduced yields and build eta', () => {
+  const { container, city, state } = makeMultiCityFixture();
+  city.population = 4;
+  city.buildings = ['granary'];
+  city.productionQueue = ['library'];
+  city.productionProgress = 0;
+  city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 8 };
+
+  const panel = createCityPanel(container, city, state, {
+    onBuild: () => {},
+    onOpenWonderPanel: () => {},
+    onClose: () => {},
+  });
+  const rendered = panel.textContent ?? '';
+
+  expect(rendered).toContain('⚒️ +');
+  expect(rendered).toContain('turns remaining');
+  expect(rendered).toContain('Very Unhappy');
 });
 ```
 
@@ -737,7 +763,10 @@ export function beginPlayerCityAssaultChoice(
   state: GameState,
   attackerId: string,
   cityId: string,
-): PendingCityCaptureChoice
+): {
+  state: GameState;
+  pending: PendingCityCaptureChoice;
+}
 
 export function finalizePlayerCityAssaultChoice(
   state: GameState,
@@ -753,13 +782,17 @@ export function finalizePlayerCityAssaultChoice(
 
 Rules:
 
-- `beginPlayerCityAssaultChoice(...)` computes preview only and does not mutate the city yet
-- `finalizePlayerCityAssaultChoice(...)`:
-  - moves the attacker onto `pending.targetCoord`
+- `beginPlayerCityAssaultChoice(...)` is the single place that:
+  - validates the assault target
+  - moves the attacker onto the city tile
   - sets `movementPointsLeft = 0`
   - sets `hasMoved = true`
+  - returns both the updated `state` and the `pending` preview payload for the blocking panel
+- `finalizePlayerCityAssaultChoice(...)`:
+  - accepts the already-moved state returned by `beginPlayerCityAssaultChoice(...)`
   - resolves `occupy` or `raze` through `resolveMajorCityCapture(...)`
-- attacker outcome is identical for occupy and raze: remain on the target hex and end movement for the turn
+  - does not move the attacker again
+- attacker outcome is identical for occupy and raze: the unit is already on the target hex from `begin...` and remains there after finalization
 
 In `src/ui/city-capture-panel.ts`, build a blocking overlay with:
 
@@ -773,7 +806,7 @@ In `src/main.ts`:
 
 - keep `let pendingCityCaptureChoice: PendingCityCaptureChoice | null = null;` as transient UI state
 - if the player assaults a size-1 city, skip the panel and auto-raze
-- if the player assaults a size-2+ city, call `beginPlayerCityAssaultChoice(...)`, assign it to `pendingCityCaptureChoice`, and open the panel
+- if the player assaults a size-2+ city, call `beginPlayerCityAssaultChoice(...)`, replace `gameState` with the returned `state`, assign `pending` to `pendingCityCaptureChoice`, and open the panel
 - only finalize the outcome after the click, then clear `pendingCityCaptureChoice`
 - while the panel is open, block other map interactions
 - keep AI on the MR 1 backend default `occupy` path; do not add a second player-style choice flow for AI in this MR
@@ -781,8 +814,8 @@ In `src/main.ts`:
 Add one real player-flow regression in `tests/input/city-assault-flow.test.ts` that covers:
 
 - empty city tap resolves to `assault-city`
-- `beginPlayerCityAssaultChoice(...)` returns the preview
-- `finalizePlayerCityAssaultChoice(..., 'occupy')` applies the chosen result
+- `beginPlayerCityAssaultChoice(...)` returns the preview and the already-moved attacker state
+- `finalizePlayerCityAssaultChoice(..., 'occupy')` applies the chosen result without moving the attacker a second time
 
 - [ ] **Step 5: Show occupation status in existing city surfaces**
 
@@ -790,6 +823,10 @@ In `src/ui/city-panel.ts`:
 
 - render `Occupied: X turns to integrate` near the population line
 - render `Very Unhappy` when mood is `2`, `Unhappy` when mood is `1`
+- compute displayed food/production/gold/science and production ETA using the same effective occupation multiplier used by the turn loop:
+  - import `getOccupiedCityYieldMultiplier(...)`
+  - combine it with unrest using `Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city))`
+  - use that effective production value when rendering build turns and current production ETA so the panel matches real city output
 
 In `src/renderer/city-renderer.ts`:
 
@@ -975,6 +1012,7 @@ git commit -m "fix(diplomacy): require acceptance for peace requests"
 
 **Player Truth Table:**
 - Before request: rival row shows `Request Peace` only if still at war and no pending request exists
+- After the player sends a peace request: the row shows a non-clickable `Peace Requested` state and does not keep offering `Request Peace`
 - After AI request arrives: player remains at war and sees `Accept Peace` / `Reject Peace`
 - Accept: war clears and `Declare War` appears only after peace is real
 - Reject: war remains active and the pending request disappears
@@ -984,6 +1022,7 @@ git commit -m "fix(diplomacy): require acceptance for peace requests"
 - the row must not imply peace has already happened
 
 **Interaction Replay Checklist:**
+- send a peace request to an AI while at war and confirm the row no longer offers `Request Peace`
 - receive an AI peace request while at war
 - open diplomacy panel immediately
 - accept peace
@@ -991,6 +1030,23 @@ git commit -m "fix(diplomacy): require acceptance for peace requests"
 - reject peace and confirm war remains active
 
 - [ ] **Step 1: Add failing UI regressions**
+
+Add to `tests/ui/diplomacy-panel.test.ts`:
+
+```ts
+it('shows outbound peace-request pending state and suppresses request peace', () => {
+  const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+  state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+  state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+  state.pendingDiplomacyRequests = [{ id: 'req-1', type: 'peace', fromCivId: 'player', toCivId: 'outsider', turnIssued: state.turn }];
+
+  const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+  const rendered = panel.innerHTML ?? panel.textContent ?? '';
+
+  expect(rendered).toContain('Peace Requested');
+  expect(rendered).not.toContain('Request Peace');
+});
+```
 
 Add to `tests/ui/diplomacy-panel.test.ts`:
 
@@ -1038,6 +1094,7 @@ Run:
 In `src/ui/diplomacy-panel.ts`:
 
 - add `onAcceptDiplomaticRequest` and `onRejectDiplomaticRequest` callbacks
+- when the current player already has a pending outbound request to that civ, render a disabled `Peace Requested` status chip and suppress `Request Peace`
 - when the current player has a pending request from that civ, render `Accept Peace` and `Reject Peace`
 - suppress `Declare War` in that state
 
@@ -1045,6 +1102,7 @@ In `src/main.ts`:
 
 - pass the new callbacks into `createDiplomacyPanel(...)`
 - call `acceptDiplomaticRequest(...)` / `rejectDiplomaticRequest(...)`
+- after the player clicks `Request Peace`, refresh the panel immediately so the row flips into the outbound pending state
 - refresh the panel immediately after the choice
 
 - [ ] **Step 4: Add the player-facing notification**
