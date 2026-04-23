@@ -1,5 +1,11 @@
 import type { GameState, DiplomaticAction } from '@/core/types';
-import { canReabsorbBreakaway, getRelationship, isAtWar, getAvailableActions } from '@/systems/diplomacy-system';
+import {
+  canReabsorbBreakaway,
+  getRelationship,
+  isAtWar,
+  getAvailableActions,
+  getPendingPeaceRequestForPair,
+} from '@/systems/diplomacy-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv, hasMetCivilization } from '@/systems/discovery-system';
@@ -8,6 +14,8 @@ import { getQuestDescriptionForPlayer } from '@/systems/quest-system';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
+  onAcceptPeaceRequest?: (requestId: string) => void;
+  onRejectPeaceRequest?: (requestId: string) => void;
   onGiftGold?: (mcId: string) => void;
   onMinorCivWarPeace?: (mcId: string, currentlyAtWar: boolean) => void;
   onClose: () => void;
@@ -25,6 +33,8 @@ interface CivRowData {
   statusText: string;
   treaties: Array<{ label: string; turns: number }>;
   actions: Array<{ action: DiplomaticAction; isHostile: boolean }>;
+  peaceRequestState: 'none' | 'incoming' | 'outgoing';
+  peaceRequestId: string | null;
 }
 
 interface MinorCivRowData {
@@ -63,6 +73,11 @@ export function createDiplomacyPanel(
     const civDef = resolveCivDefinition(state, civ.civType ?? '');
     const relationship = getRelationship(playerDiplomacy, civId);
     const atWar = isAtWar(playerDiplomacy, civId);
+    const pendingPeaceRequest = getPendingPeaceRequestForPair(state, state.currentPlayer, civId);
+    const peaceRequestState = !pendingPeaceRequest ? 'none'
+      : pendingPeaceRequest.toCivId === state.currentPlayer ? 'incoming'
+      : pendingPeaceRequest.fromCivId === state.currentPlayer ? 'outgoing'
+      : 'none';
     const actions = hasMet
       ? getAvailableActions(
           playerDiplomacy, civId, playerCiv.techState.completed, state.era,
@@ -113,7 +128,11 @@ export function createDiplomacyPanel(
       barColor: hasMet ? barColor : '#888',
       statusText: hasMet ? statusText : 'Unknown rival',
       treaties,
-      actions: rowActions.map(action => ({ action, isHostile: action === 'declare_war' })),
+      actions: rowActions
+        .filter(action => !(action === 'request_peace' && peaceRequestState !== 'none'))
+        .map(action => ({ action, isHostile: action === 'declare_war' })),
+      peaceRequestState,
+      peaceRequestId: pendingPeaceRequest?.id ?? null,
     });
     civIdx++;
   }
@@ -164,6 +183,12 @@ export function createDiplomacyPanel(
     }
 
     let actionsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    if (row.peaceRequestState === 'incoming' && row.peaceRequestId) {
+      actionsHtml += `<button class="diplo-accept-peace" data-request-id="${row.peaceRequestId}" data-action="accept-peace-request" style="padding:6px 12px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept Peace</button>`;
+      actionsHtml += `<button class="diplo-reject-peace" data-request-id="${row.peaceRequestId}" data-action="reject-peace-request" style="padding:6px 12px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Reject Peace</button>`;
+    } else if (row.peaceRequestState === 'outgoing') {
+      actionsHtml += '<span data-role="peace-requested-pill" style="display:inline-block;padding:6px 12px;background:rgba(232,193,112,0.2);border:1px solid rgba(232,193,112,0.5);border-radius:6px;color:#e8c170;font-size:11px;">Peace Requested</span>';
+    }
     row.actions.forEach((a, aIdx) => {
       const btnColor = a.isHostile ? 'rgba(217,74,74,0.3)' : 'rgba(255,255,255,0.1)';
       const borderColor = a.isHostile ? '#d94a4a' : 'rgba(255,255,255,0.2)';
@@ -265,8 +290,24 @@ export function createDiplomacyPanel(
     btn.addEventListener('click', () => {
       const civId = (btn as HTMLElement).dataset.civId!;
       const action = (btn as HTMLElement).dataset.action! as DiplomaticAction;
-      callbacks.onAction(civId, action);
       panel.remove();
+      callbacks.onAction(civId, action);
+    });
+  });
+
+  panel.querySelectorAll('.diplo-accept-peace').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const requestId = (btn as HTMLElement).dataset.requestId!;
+      panel.remove();
+      callbacks.onAcceptPeaceRequest?.(requestId);
+    });
+  });
+
+  panel.querySelectorAll('.diplo-reject-peace').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const requestId = (btn as HTMLElement).dataset.requestId!;
+      panel.remove();
+      callbacks.onRejectPeaceRequest?.(requestId);
     });
   });
 

@@ -176,6 +176,16 @@ describe('save persistence (#38)', () => {
     expect(loaded?.pendingDiplomacyRequests).toEqual(state.pendingDiplomacyRequests);
   });
 
+  it('normalizes older saves without pending diplomacy requests', async () => {
+    const state = createNewGame(undefined, 'legacy-pending-peace-save', 'small');
+    delete (state as Partial<GameState>).pendingDiplomacyRequests;
+
+    await saveGame('slot-legacy-pending-peace', 'Legacy Pending Peace', state);
+    const loaded = await loadGame('slot-legacy-pending-peace');
+
+    expect(loaded?.pendingDiplomacyRequests).toEqual([]);
+  });
+
   it('round-trips legendary wonder history through JSON serialization', () => {
     const state = {
       legendaryWonderHistory: {

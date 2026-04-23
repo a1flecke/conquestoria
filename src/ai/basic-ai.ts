@@ -557,10 +557,14 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     );
 
     for (const decision of decisions) {
+      const currentDiplomacy = newState.civilizations[civId]?.diplomacy;
+      if (!currentDiplomacy) {
+        continue;
+      }
       switch (decision.action) {
         case 'declare_war':
           newState.civilizations[civId].diplomacy = declareWar(
-            civ.diplomacy, decision.targetCiv, newState.turn,
+            currentDiplomacy, decision.targetCiv, newState.turn,
           );
           if (newState.civilizations[decision.targetCiv]?.diplomacy) {
             newState.civilizations[decision.targetCiv].diplomacy = declareWar(
@@ -570,14 +574,14 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv });
           break;
         case 'request_peace':
-          newState = enqueuePeaceRequest(newState, civId, decision.targetCiv);
+          newState = enqueuePeaceRequest(newState, civId, decision.targetCiv, bus);
           break;
         case 'non_aggression_pact':
         case 'trade_agreement':
         case 'open_borders':
         case 'alliance':
           newState.civilizations[civId].diplomacy = proposeTreaty(
-            civ.diplomacy, civId, decision.targetCiv, decision.action,
+            currentDiplomacy, civId, decision.targetCiv, decision.action,
             decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
           );
           if (newState.civilizations[decision.targetCiv]?.diplomacy) {

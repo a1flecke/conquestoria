@@ -54,6 +54,15 @@ class MockDocument {
   }
 }
 
+function ensureDocument(): Document {
+  if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+    return document;
+  }
+  const mockDocument = new MockDocument() as unknown as Document;
+  (globalThis as typeof globalThis & { document?: Document }).document = mockDocument;
+  return mockDocument;
+}
+
 export function makeDiplomacyFixture({
   currentPlayer = 'player',
   includeBreakaway = true,
@@ -67,13 +76,14 @@ export function makeDiplomacyFixture({
   relationship?: number;
   gold?: number;
 } = {}): { container: HTMLElement; state: GameState } {
-  (globalThis as typeof globalThis & { document?: Document }).document = new MockDocument() as unknown as Document;
+  const activeDocument = ensureDocument();
 
   const base = includeBreakaway
     ? makeBreakawayFixture({ turn: 10, breakawayStartedTurn: 10, includeThirdCiv })
     : makeBreakawayFixture();
   const state = base.state;
   state.currentPlayer = currentPlayer;
+  state.pendingDiplomacyRequests = [];
 
   if (currentPlayer === 'player-2') {
     state.civilizations['player-2'] = {
@@ -99,7 +109,7 @@ export function makeDiplomacyFixture({
   }
 
   return {
-    container: new MockElement() as unknown as HTMLElement,
+    container: activeDocument.createElement('div'),
     state,
   };
 }

@@ -1032,6 +1032,25 @@ describe('processAITurn', () => {
     );
   });
 
+  it('does not enqueue a duplicate reciprocal peace request when one already exists', () => {
+    const state = makeAiPeaceRequestState();
+    state.pendingDiplomacyRequests = [
+      {
+        id: 'peace:player:ai-1:1',
+        type: 'peace',
+        fromCivId: 'player',
+        toCivId: 'ai-1',
+        turnIssued: state.turn,
+      },
+    ];
+
+    const result = processAITurn(state, 'ai-1', new EventBus());
+
+    expect(result.pendingDiplomacyRequests).toHaveLength(1);
+    expect(result.pendingDiplomacyRequests?.[0]?.fromCivId).toBe('player');
+    expect(result.pendingDiplomacyRequests?.[0]?.toCivId).toBe('ai-1');
+  });
+
   it('assaults and occupies an exposed enemy city', () => {
     const state = makeAdjacentExposedCityState({ population: 5 });
     const bus = new EventBus();
