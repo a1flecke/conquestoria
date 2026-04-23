@@ -37,7 +37,14 @@ import { showCampaignSetup } from '@/ui/campaign-setup';
 import { showGameModeSelect } from '@/ui/game-mode-select';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { applyDiplomaticAction, declareWar, makePeace, modifyRelationship } from '@/systems/diplomacy-system';
+import {
+  acceptDiplomaticRequest,
+  applyDiplomaticAction,
+  declareWar,
+  makePeace,
+  modifyRelationship,
+  rejectDiplomaticRequest,
+} from '@/systems/diplomacy-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { visitVillage } from '@/systems/village-system';
@@ -364,7 +371,30 @@ function toggleNotificationLog(): void {
 function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
   const cp = gameState.currentPlayer;
   gameState = applyDiplomaticAction(gameState, cp, targetCivId, action, bus);
-  showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+  if (action === 'request_peace') {
+    showNotification('Peace requested.', 'info');
+  } else {
+    showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
+  }
+}
+
+function handleAcceptPeaceRequest(requestId: string): void {
+  gameState = acceptDiplomaticRequest(gameState, gameState.currentPlayer, requestId, bus);
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+  showNotification('Peace accepted.', 'success');
+}
+
+function handleRejectPeaceRequest(requestId: string): void {
+  gameState = rejectDiplomaticRequest(gameState, gameState.currentPlayer, requestId);
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+  showNotification('Peace request rejected.', 'info');
 }
 
 function handleGiftGold(mcId: string): void {
@@ -406,6 +436,18 @@ function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
   }
   renderLoop.setGameState(gameState);
   updateHUD();
+}
+
+function openDiplomacyPanel(): void {
+  document.getElementById('diplomacy-panel')?.remove();
+  createDiplomacyPanel(uiLayer, gameState, {
+    onAction: handleDiplomaticAction,
+    onAcceptPeaceRequest: handleAcceptPeaceRequest,
+    onRejectPeaceRequest: handleRejectPeaceRequest,
+    onGiftGold: handleGiftGold,
+    onMinorCivWarPeace: handleMinorCivWarPeace,
+    onClose: () => {},
+  });
 }
 
 function openCityPanelForCity(city: import('@/core/types').City): void {
@@ -752,12 +794,7 @@ function togglePanel(panel: string): void {
       },
     }));
   } else if (panel === 'diplomacy') {
-    createDiplomacyPanel(uiLayer, gameState, {
-      onAction: handleDiplomaticAction,
-      onGiftGold: handleGiftGold,
-      onMinorCivWarPeace: handleMinorCivWarPeace,
-      onClose: () => {},
-    });
+    openDiplomacyPanel();
   } else if (panel === 'marketplace') {
     createMarketplacePanel(uiLayer, gameState, {
       onClose: () => {},
@@ -1575,6 +1612,16 @@ bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId 
 
 bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
   routeWarDeclared(gameState, attackerId, defenderId, appendToCivLog);
+});
+
+bus.on('diplomacy:peace-requested', ({ fromCivId, toCivId }) => {
+  const fromName = gameState.civilizations[fromCivId]?.name ?? 'Unknown';
+  const toName = gameState.civilizations[toCivId]?.name ?? 'Unknown';
+  appendToCivLog(toCivId, `${fromName} requests peace.`, 'info');
+  appendToCivLog(fromCivId, `Peace requested from ${toName}.`, 'info');
+  if (toCivId === gameState.currentPlayer) {
+    showNotification(`${fromName} requests peace.`, 'info');
+  }
 });
 
 bus.on('diplomacy:peace-made', ({ civA, civB }) => {

@@ -1,5 +1,13 @@
+// @vitest-environment jsdom
+
 import { describe, it, expect } from 'vitest';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
+import {
+  acceptDiplomaticRequest,
+  enqueuePeaceRequest,
+  rejectDiplomaticRequest,
+} from '@/systems/diplomacy-system';
+import { EventBus } from '@/core/event-bus';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { makeDiplomacyFixture } from './helpers/diplomacy-fixture';
 
@@ -217,5 +225,79 @@ describe('diplomacy-panel breakaway rows', () => {
 
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
     expect(rendered).toContain(presentation.name);
+  });
+
+  it('shows Peace Requested instead of Request Peace for an outbound proposal', () => {
+    const { container, state: baseState } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeThirdCiv: true,
+    });
+    let state = baseState;
+    state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    state = enqueuePeaceRequest(state, 'player', 'outsider');
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Peace Requested');
+    expect(panel.textContent).not.toContain('request peace');
+  });
+
+  it('shows Accept Peace and Reject Peace for an incoming proposal', () => {
+    const { container, state: baseState } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeThirdCiv: true,
+    });
+    let state = baseState;
+    state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    state = enqueuePeaceRequest(state, 'outsider', 'player');
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onAcceptPeaceRequest: () => {},
+      onRejectPeaceRequest: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Accept Peace');
+    expect(panel.textContent).toContain('Reject Peace');
+    expect(panel.textContent).not.toContain('request peace');
+  });
+
+  it('updates the open panel immediately after accepting an incoming proposal', () => {
+    const { container, state } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeThirdCiv: true,
+    });
+    state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    let nextState = enqueuePeaceRequest(state, 'outsider', 'player');
+    const bus = new EventBus();
+
+    const render = () => createDiplomacyPanel(container, nextState, {
+      onAction: () => {},
+      onAcceptPeaceRequest: (requestId) => {
+        nextState = acceptDiplomaticRequest(nextState, 'player', requestId, bus);
+        render();
+      },
+      onRejectPeaceRequest: (requestId) => {
+        nextState = rejectDiplomaticRequest(nextState, 'player', requestId);
+        render();
+      },
+      onClose: () => {},
+    });
+
+    let panel = render();
+    (panel.querySelector('[data-action="accept-peace-request"]') as HTMLButtonElement).click();
+    panel = container.querySelector('#diplomacy-panel') as HTMLElement;
+
+    expect(panel.textContent).not.toContain('Accept Peace');
+    expect(panel.textContent).not.toContain('Reject Peace');
+    expect(panel.textContent).not.toContain('Peace Requested');
+    expect(panel.textContent).toContain('declare war');
   });
 });

@@ -332,7 +332,7 @@ export function applyDiplomaticAction(
         },
       };
     case 'request_peace':
-      return enqueuePeaceRequest(state, actorId, targetCivId);
+      return enqueuePeaceRequest(state, actorId, targetCivId, bus);
     case 'non_aggression_pact':
     case 'trade_agreement':
     case 'open_borders':
@@ -409,16 +409,41 @@ function isSamePeaceRequest(
     && request.toCivId === toCivId;
 }
 
+function isPeaceRequestPair(
+  request: PendingDiplomaticRequest,
+  civA: string,
+  civB: string,
+): boolean {
+  return request.type === 'peace'
+    && (
+      (request.fromCivId === civA && request.toCivId === civB)
+      || (request.fromCivId === civB && request.toCivId === civA)
+    );
+}
+
+export function getPendingPeaceRequestForPair(
+  state: GameState,
+  civA: string,
+  civB: string,
+): PendingDiplomaticRequest | undefined {
+  return (state.pendingDiplomacyRequests ?? []).find(request => isPeaceRequestPair(request, civA, civB));
+}
+
 export function enqueuePeaceRequest(
   state: GameState,
   fromCivId: string,
   toCivId: string,
+  bus?: EventBus,
 ): GameState {
   const requests = state.pendingDiplomacyRequests ?? [];
-  if (requests.some(request => isSamePeaceRequest(request, fromCivId, toCivId))) {
+  if (
+    requests.some(request => isSamePeaceRequest(request, fromCivId, toCivId))
+    || getPendingPeaceRequestForPair(state, fromCivId, toCivId)
+  ) {
     return state;
   }
 
+  bus?.emit('diplomacy:peace-requested', { fromCivId, toCivId });
   return {
     ...state,
     pendingDiplomacyRequests: [
@@ -436,11 +461,12 @@ export function enqueuePeaceRequest(
 
 export function acceptDiplomaticRequest(
   state: GameState,
+  actingCivId: string,
   requestId: string,
   bus: EventBus,
 ): GameState {
   const request = (state.pendingDiplomacyRequests ?? []).find(candidate => candidate.id === requestId);
-  if (!request || request.type !== 'peace') {
+  if (!request || request.type !== 'peace' || request.toCivId !== actingCivId) {
     return state;
   }
 
@@ -456,7 +482,9 @@ export function acceptDiplomaticRequest(
   bus.emit('diplomacy:peace-made', { civA: request.fromCivId, civB: request.toCivId });
   return {
     ...state,
-    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
+    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(
+      candidate => !isPeaceRequestPair(candidate, request.fromCivId, request.toCivId),
+    ),
     civilizations: {
       ...state.civilizations,
       [request.fromCivId]: {
@@ -473,15 +501,17 @@ export function acceptDiplomaticRequest(
 
 export function rejectDiplomaticRequest(
   state: GameState,
+  actingCivId: string,
   requestId: string,
 ): GameState {
-  if (!(state.pendingDiplomacyRequests ?? []).some(request => request.id === requestId)) {
+  const request = (state.pendingDiplomacyRequests ?? []).find(candidate => candidate.id === requestId);
+  if (!request || request.toCivId !== actingCivId) {
     return state;
   }
 
   return {
     ...state,
-    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(request => request.id !== requestId),
+    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
   };
 }
 

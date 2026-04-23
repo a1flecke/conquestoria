@@ -979,6 +979,7 @@ export interface GameEvents {
   'grid:slot-unlocked': { cityId: string; newGridSize: number };
   'grid:building-placed': { cityId: string; buildingId: string; row: number; col: number };
   'diplomacy:war-declared': { attackerId: string; defenderId: string };
+  'diplomacy:peace-requested': { fromCivId: string; toCivId: string };
   'diplomacy:peace-made': { civA: string; civB: string };
   'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
   'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };

@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  acceptDiplomaticRequest,
   applyDiplomaticAction,
   createDiplomacyState,
+  enqueuePeaceRequest,
   getRelationship,
+  getPendingPeaceRequestForPair,
   modifyRelationship,
   declareWar,
   makePeace,
@@ -12,6 +15,7 @@ import {
   decayEvents,
   getAvailableActions,
   isAtWar,
+  rejectDiplomaticRequest,
 } from '@/systems/diplomacy-system';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
@@ -180,6 +184,65 @@ describe('diplomacy-system', () => {
       expect(result.pendingDiplomacyRequests).toContainEqual(
         expect.objectContaining({ fromCivId: 'ai-1', toCivId: 'player', type: 'peace' }),
       );
+    });
+
+    it('deduplicates pending peace requests across both directions for the same civ pair', () => {
+      const state = makeWarState();
+
+      const first = enqueuePeaceRequest(state, 'ai-1', 'player');
+      const second = enqueuePeaceRequest(first, 'player', 'ai-1');
+
+      expect(second.pendingDiplomacyRequests).toHaveLength(1);
+      expect(getPendingPeaceRequestForPair(second, 'player', 'ai-1')).toEqual(first.pendingDiplomacyRequests?.[0]);
+    });
+
+    it('accepts a peace request only for the addressed civ and clears pair requests', () => {
+      const state = makeWarState();
+      const bus = new EventBus();
+      const first = enqueuePeaceRequest(state, 'ai-1', 'player');
+      const pairRequestId = first.pendingDiplomacyRequests?.[0]?.id;
+      if (!pairRequestId) {
+        throw new Error('expected pending peace request');
+      }
+
+      const wrongActorResult = acceptDiplomaticRequest(first, 'ai-1', pairRequestId, bus);
+      expect(wrongActorResult).toBe(first);
+
+      const second = {
+        ...first,
+        pendingDiplomacyRequests: [
+          ...(first.pendingDiplomacyRequests ?? []),
+          {
+            id: 'peace:player:ai-1:10',
+            type: 'peace' as const,
+            fromCivId: 'player',
+            toCivId: 'ai-1',
+            turnIssued: first.turn,
+          },
+        ],
+      };
+
+      const accepted = acceptDiplomaticRequest(second, 'player', pairRequestId, bus);
+      expect(accepted.pendingDiplomacyRequests).toEqual([]);
+      expect(accepted.civilizations.player.diplomacy.atWarWith).not.toContain('ai-1');
+      expect(accepted.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
+    });
+
+    it('rejects a peace request only for the addressed civ and keeps war active', () => {
+      const state = makeWarState();
+      const requested = enqueuePeaceRequest(state, 'ai-1', 'player');
+      const requestId = requested.pendingDiplomacyRequests?.[0]?.id;
+      if (!requestId) {
+        throw new Error('expected pending peace request');
+      }
+
+      const wrongActorResult = rejectDiplomaticRequest(requested, 'ai-1', requestId);
+      expect(wrongActorResult).toBe(requested);
+
+      const rejected = rejectDiplomaticRequest(requested, 'player', requestId);
+      expect(rejected.pendingDiplomacyRequests).toEqual([]);
+      expect(rejected.civilizations.player.diplomacy.atWarWith).toContain('ai-1');
+      expect(rejected.civilizations['ai-1'].diplomacy.atWarWith).toContain('player');
     });
 
     it('applies Narnias treaty relationship bonus symmetrically when a treaty is signed', () => {
