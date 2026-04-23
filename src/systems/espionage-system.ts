@@ -3,7 +3,7 @@ import type {
   Spy, SpyMission, SpyMissionType, SpyStatus, SpyPromotion,
   EspionageCivState, EspionageState, HexCoord, GameState,
   DiplomacyState, Treaty, UnitType, AdvisorType,
-  CivBonusEffect, DetectedSpyThreat,
+  CivBonusEffect, DetectedSpyThreat, DisguiseType,
 } from '../core/types';
 import type { EventBus } from '../core/event-bus';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
@@ -146,6 +146,20 @@ export function createSpyFromUnit(
   return {
     state: { ...state, spies: { ...state.spies, [unitId]: spy } },
     spy,
+  };
+}
+
+export function setDisguise(
+  state: EspionageCivState,
+  spyId: string,
+  disguiseAs: DisguiseType | null,
+): EspionageCivState {
+  const spy = state.spies[spyId];
+  if (!spy) throw new Error(`Spy ${spyId} not found`);
+  if (spy.status !== 'idle') throw new Error('Disguise can only be set while spy is on the map (idle)');
+  return {
+    ...state,
+    spies: { ...state.spies, [spyId]: { ...spy, disguiseAs } },
   };
 }
 

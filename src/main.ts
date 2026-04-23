@@ -72,6 +72,7 @@ import {
   getAvailableMissions,
   missionRequiresPlacedSpy,
   recallSpy,
+  setDisguise,
   startMission,
   verifyAgent,
 } from '@/systems/espionage-system';
@@ -867,6 +868,23 @@ function selectUnit(unitId: string): void {
       onBuildMine: () => buildImprovementAction('mine'),
       onRest: () => restAction(),
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
+      onSetDisguise: (uid, disguise) => {
+        const unit = gameState.units[uid];
+        if (!unit || unit.hasActed) return;
+        if (unit.owner !== gameState.currentPlayer) return;
+        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        if (!civEsp) return;
+        const spy = civEsp.spies[uid];
+        if (!spy || spy.status !== 'idle') return;
+        gameState.espionage![gameState.currentPlayer] = setDisguise(civEsp, uid, disguise);
+        if (disguise !== null) {
+          gameState.units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+        }
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(uid);
+        showNotification(disguise ? `Spy disguised as ${disguise}.` : 'Disguise removed.', 'info');
+      },
     });
   }
 
