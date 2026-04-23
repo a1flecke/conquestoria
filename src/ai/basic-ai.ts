@@ -21,6 +21,7 @@ import {
   joinEmbargo,
   inviteToLeague,
 } from '@/systems/diplomacy-system';
+import { resolveMajorCityCapture } from '@/systems/city-capture-system';
 import {
   getAvailableMissions,
   assignSpyDefensive,
@@ -264,7 +265,7 @@ function scoreLegendaryWonderOpportunity(state: GameState, civId: string, cityId
 
 export function processAITurn(state: GameState, civId: string, bus: EventBus): GameState {
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
-  const civ = newState.civilizations[civId];
+  let civ = newState.civilizations[civId];
   if (!civ) return newState;
 
   const personality = getPersonality(newState, civ.civType ?? 'generic');
@@ -293,6 +294,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
   const abandonment = abandonLostLegendaryWonderRace(newState, civId);
   newState = abandonment.state;
+  civ = newState.civilizations[civId];
   for (const event of abandonment.lostEvents) {
     bus.emit('wonder:legendary-lost', event);
   }
@@ -397,6 +399,34 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
 
     if (attacked) continue;
+
+    const exposedEnemyCity = Object.values(newState.cities).find(city =>
+      city.owner !== civId
+      && !city.owner.startsWith('mc-')
+      && (civ.diplomacy?.atWarWith.includes(city.owner) ?? false)
+      && hexDistance(unit.position, city.position) === 1,
+    );
+
+    if (exposedEnemyCity) {
+      const movedAttacker = moveUnit(unit, exposedEnemyCity.position, 1);
+      newState.units[unit.id] = {
+        ...movedAttacker,
+        movementPointsLeft: 0,
+        hasMoved: true,
+      };
+      delete unitPositions[hexKey(unit.position)];
+      unitPositions[hexKey(exposedEnemyCity.position)] = unit.id;
+      const captureResult = resolveMajorCityCapture(
+        newState,
+        exposedEnemyCity.id,
+        civId,
+        'occupy',
+        newState.turn,
+      );
+      newState = captureResult.state;
+      civ = newState.civilizations[civId];
+      continue;
+    }
 
     // Explore: move toward unexplored territory
     const range = getMovementRange(unit, newState.map, unitPositions);

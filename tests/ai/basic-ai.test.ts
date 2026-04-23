@@ -2,7 +2,9 @@ import { processAITurn } from '@/ai/basic-ai';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
+import { foundCity } from '@/systems/city-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
+import { hexKey } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 
 function makeAiRebelState(): GameState {
@@ -408,6 +410,44 @@ function makeAiBreakawayState(): GameState {
     embargoes: [],
     defensiveLeagues: [],
   } as GameState;
+}
+
+function makeAdjacentExposedCityState({ population }: { population: number }): GameState {
+  const state = createNewGame(undefined, 'ai-city-capture', 'small');
+  state.currentPlayer = 'ai-1';
+  state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+  state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+  state.civilizations.player.diplomacy.relationships['ai-1'] = -60;
+  state.civilizations['ai-1'].diplomacy.relationships.player = -60;
+
+  const template = Object.values(state.units).find(unit => unit.owner === 'ai-1' && unit.type === 'warrior');
+  if (!template) {
+    throw new Error('missing ai warrior fixture');
+  }
+
+  state.units['ai-attacker'] = {
+    ...template,
+    id: 'ai-attacker',
+    owner: 'ai-1',
+    position: { q: 0, r: 0 },
+    movementPointsLeft: 2,
+    hasMoved: false,
+  };
+  state.civilizations['ai-1'].units = ['ai-attacker'];
+
+  state.cities['city-player'] = {
+    ...foundCity('player', { q: 1, r: 0 }, state.map),
+    id: 'city-player',
+    name: 'Memphis',
+    owner: 'player',
+    position: { q: 1, r: 0 },
+    population,
+    ownedTiles: [{ q: 1, r: 0 }],
+  };
+  state.civilizations.player.cities = ['city-player'];
+  state.map.tiles[hexKey({ q: 1, r: 0 })].owner = 'player';
+
+  return state;
 }
 
 function makeLegendaryWonderAiFixture(options: { duplicateLostRace?: boolean } = {}): GameState {
@@ -971,6 +1011,17 @@ function makeAiBarbarianCampAttackState(): GameState {
 }
 
 describe('processAITurn', () => {
+  it('assaults and occupies an exposed enemy city', () => {
+    const state = makeAdjacentExposedCityState({ population: 5 });
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.cities['city-player'].owner).toBe('ai-1');
+    expect(result.cities['city-player'].population).toBe(2);
+    expect(result.cities['city-player'].occupation?.turnsRemaining).toBe(10);
+  });
+
   it('does not throw on a fresh game', () => {
     const state = createNewGame(undefined, 'ai-test');
     const bus = new EventBus();
