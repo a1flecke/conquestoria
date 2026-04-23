@@ -8,6 +8,7 @@ import { drawCities } from './city-renderer';
 import { AnimationSystem } from './animation-system';
 import { hexToPixel } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
 
 export interface HexHighlight {
   coord: HexCoord;
@@ -148,7 +149,8 @@ export class RenderLoop {
         const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
         if (def) colorLookup[mc.id] = def.color;
       }
-      drawUnits(this.ctx, this.state.units, this.camera, viewerVisibility, this.state, viewerId, colorLookup);
+      const visibleUnits = getVisibleUnitsForPlayer(this.state.units, this.state, viewerId);
+      drawUnits(this.ctx, visibleUnits, this.camera, viewerVisibility, this.state, viewerId, colorLookup);
     }
 
     // Draw fog of war

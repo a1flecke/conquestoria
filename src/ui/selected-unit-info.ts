@@ -1,5 +1,6 @@
-import type { GameState } from '@/core/types';
+import type { GameState, DisguiseType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
+import { isSpyUnitType } from '@/systems/espionage-system';
 import { canBuildImprovement } from '@/systems/improvement-system';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -10,6 +11,7 @@ export interface SelectedUnitInfoCallbacks {
   onBuildMine?: () => void;
   onRest?: () => void;
   onCancelAutoExplore?: () => void;
+  onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -101,6 +103,39 @@ export function renderSelectedUnitInfo(
 
   if (canHeal(unit) && !unit.hasActed && callbacks.onRest) {
     actionsDiv.appendChild(makeButton('Rest (+15 HP)', '#4a90d9', callbacks.onRest));
+  }
+
+  if (isSpyUnitType(unit.type) && !unit.hasActed && callbacks.onSetDisguise) {
+    const spy = state.espionage?.[unit.owner]?.spies[unitId];
+    if (spy?.status === 'idle') {
+    const ownerTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
+    type DisguiseOption = { label: string; value: DisguiseType | null; tech?: string };
+    const allDisguises: DisguiseOption[] = [
+      { label: 'No Disguise', value: null },
+      { label: 'As Barbarian', value: 'barbarian', tech: 'espionage-informants' },
+      { label: 'As Warrior',   value: 'warrior',   tech: 'espionage-informants' },
+      { label: 'As Scout',     value: 'scout',     tech: 'spy-networks' },
+      { label: 'As Archer',    value: 'archer',    tech: 'spy-networks' },
+      { label: 'As Worker',    value: 'worker',    tech: 'cryptography' },
+    ];
+    const disguiseOptions = allDisguises.filter(opt => !opt.tech || ownerTechs.includes(opt.tech));
+
+    if (disguiseOptions.length > 1) {
+      const disguiseSection = document.createElement('div');
+      disguiseSection.style.cssText = 'margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;';
+      const sectionLabel = document.createElement('div');
+      sectionLabel.textContent = "Set disguise (costs this turn's move):";
+      sectionLabel.style.cssText = 'font-size:10px;opacity:0.6;width:100%;';
+      disguiseSection.appendChild(sectionLabel);
+      for (const opt of disguiseOptions) {
+        const active = (spy?.disguiseAs ?? null) === opt.value;
+        const btn = makeButton(active ? `✓ ${opt.label}` : opt.label, active ? '#7c3aed' : '#374151',
+          () => callbacks.onSetDisguise!(unitId, opt.value));
+        disguiseSection.appendChild(btn);
+      }
+      actionsDiv.appendChild(disguiseSection);
+    }
+    } // end spy?.status === 'idle'
   }
 
   if (actionsDiv.childElementCount > 0) {

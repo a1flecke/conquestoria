@@ -6,7 +6,7 @@ Civilization-building strategy game. TypeScript + Canvas 2D + Vite.
 - `eval "$(mise activate bash)"` — Activate mise for node/yarn (run first in any new shell)
 - `yarn dev` — Start dev server
 - `yarn build` — Production build
-- `yarn test` — Run tests with vitest
+- `yarn test` — Run vitest + hook smoke tests. DOES NOT type-check — `yarn build` is the only path that runs `tsc`. Before any `git push`, `gh pr create`, or `gh pr merge`, run `yarn build` and `yarn test` and confirm both exit 0. The `require-green-before-push` hook enforces this, but catching it locally is faster.
 - `yarn test:watch` — Run tests in watch mode
 
 ## Rules Index
