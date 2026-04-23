@@ -6,6 +6,7 @@ import type {
   TreatyType,
   DefensiveLeague,
   Embargo,
+  PendingDiplomaticRequest,
   TradeRoute,
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
@@ -331,21 +332,7 @@ export function applyDiplomaticAction(
         },
       };
     case 'request_peace':
-      bus.emit('diplomacy:peace-made', { civA: actorId, civB: targetCivId });
-      return {
-        ...state,
-        civilizations: {
-          ...state.civilizations,
-          [actorId]: {
-            ...actor,
-            diplomacy: makePeace(actor.diplomacy, targetCivId, state.turn),
-          },
-          [targetCivId]: {
-            ...target,
-            diplomacy: makePeace(target.diplomacy, actorId, state.turn),
-          },
-        },
-      };
+      return enqueuePeaceRequest(state, actorId, targetCivId);
     case 'non_aggression_pact':
     case 'trade_agreement':
     case 'open_borders':
@@ -406,6 +393,96 @@ export function applyDiplomaticAction(
     default:
       return state;
   }
+}
+
+function buildPendingPeaceRequestId(fromCivId: string, toCivId: string, turn: number): string {
+  return `peace:${fromCivId}:${toCivId}:${turn}`;
+}
+
+function isSamePeaceRequest(
+  request: PendingDiplomaticRequest,
+  fromCivId: string,
+  toCivId: string,
+): boolean {
+  return request.type === 'peace'
+    && request.fromCivId === fromCivId
+    && request.toCivId === toCivId;
+}
+
+export function enqueuePeaceRequest(
+  state: GameState,
+  fromCivId: string,
+  toCivId: string,
+): GameState {
+  const requests = state.pendingDiplomacyRequests ?? [];
+  if (requests.some(request => isSamePeaceRequest(request, fromCivId, toCivId))) {
+    return state;
+  }
+
+  return {
+    ...state,
+    pendingDiplomacyRequests: [
+      ...requests,
+      {
+        id: buildPendingPeaceRequestId(fromCivId, toCivId, state.turn),
+        type: 'peace',
+        fromCivId,
+        toCivId,
+        turnIssued: state.turn,
+      },
+    ],
+  };
+}
+
+export function acceptDiplomaticRequest(
+  state: GameState,
+  requestId: string,
+  bus: EventBus,
+): GameState {
+  const request = (state.pendingDiplomacyRequests ?? []).find(candidate => candidate.id === requestId);
+  if (!request || request.type !== 'peace') {
+    return state;
+  }
+
+  const actor = state.civilizations[request.fromCivId];
+  const target = state.civilizations[request.toCivId];
+  if (!actor || !target) {
+    return {
+      ...state,
+      pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
+    };
+  }
+
+  bus.emit('diplomacy:peace-made', { civA: request.fromCivId, civB: request.toCivId });
+  return {
+    ...state,
+    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
+    civilizations: {
+      ...state.civilizations,
+      [request.fromCivId]: {
+        ...actor,
+        diplomacy: makePeace(actor.diplomacy, request.toCivId, state.turn),
+      },
+      [request.toCivId]: {
+        ...target,
+        diplomacy: makePeace(target.diplomacy, request.fromCivId, state.turn),
+      },
+    },
+  };
+}
+
+export function rejectDiplomaticRequest(
+  state: GameState,
+  requestId: string,
+): GameState {
+  if (!(state.pendingDiplomacyRequests ?? []).some(request => request.id === requestId)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(request => request.id !== requestId),
+  };
 }
 
 // --- Defensive Leagues (real implementations in league section below) ---

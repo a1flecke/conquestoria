@@ -110,6 +110,12 @@ describe('createNewGame', () => {
     expect(state.settings.councilTalkLevel).toBe('quiet');
   });
 
+  it('initializes pending diplomacy requests for new solo games', () => {
+    const state = createNewGame(undefined, 'pending-diplomacy-seed');
+
+    expect(state.pendingDiplomacyRequests).toEqual([]);
+  });
+
   it('createNewGame can start from a saved custom civ registry', () => {
     const state = createNewGame({
       civType: 'custom-sunfolk',
@@ -202,5 +208,11 @@ describe('createHotSeatGame', () => {
     const state = createHotSeatGame(config, 'hs-title', 'Friends Campaign');
     expect(state.gameTitle).toBe('Friends Campaign');
     expect(state.gameId).toMatch(/^game-/);
+  });
+
+  it('initializes pending diplomacy requests for hot seat games', () => {
+    const state = createHotSeatGame(config, 'hs-pending-diplomacy');
+
+    expect(state.pendingDiplomacyRequests).toEqual([]);
   });
 });

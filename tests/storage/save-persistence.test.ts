@@ -164,6 +164,18 @@ describe('save persistence (#38)', () => {
     expect(loaded?.cities.athens.occupation).toEqual(state.cities.athens.occupation);
   });
 
+  it('round-trips pending diplomacy requests through save and load', async () => {
+    const state = createNewGame(undefined, 'pending-peace-save', 'small');
+    state.pendingDiplomacyRequests = [
+      { id: 'req-1', type: 'peace', fromCivId: 'ai-1', toCivId: 'player', turnIssued: state.turn },
+    ];
+
+    await saveGame('slot-pending-peace', 'Pending Peace', state);
+    const loaded = await loadGame('slot-pending-peace');
+
+    expect(loaded?.pendingDiplomacyRequests).toEqual(state.pendingDiplomacyRequests);
+  });
+
   it('round-trips legendary wonder history through JSON serialization', () => {
     const state = {
       legendaryWonderHistory: {

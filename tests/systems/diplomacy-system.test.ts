@@ -14,7 +14,19 @@ import {
   isAtWar,
 } from '@/systems/diplomacy-system';
 import { EventBus } from '@/core/event-bus';
+import { createNewGame } from '@/core/game-state';
+import type { GameState } from '@/core/types';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
+
+function makeWarState(): GameState {
+  const state = createNewGame(undefined, 'peace-request-test', 'small');
+  state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+  state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+  state.civilizations.player.diplomacy.relationships['ai-1'] = -25;
+  state.civilizations['ai-1'].diplomacy.relationships.player = -25;
+  state.pendingDiplomacyRequests = [];
+  return state;
+}
 
 describe('diplomacy-system', () => {
   const civIds = ['player', 'ai-egypt', 'ai-rome'];
@@ -159,6 +171,17 @@ describe('diplomacy-system', () => {
   });
 
   describe('applyDiplomaticAction', () => {
+    it('request_peace enqueues a proposal instead of clearing war state', () => {
+      const state = makeWarState();
+
+      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'request_peace', new EventBus());
+
+      expect(result.civilizations.player.diplomacy.atWarWith).toContain('ai-1');
+      expect(result.pendingDiplomacyRequests).toContainEqual(
+        expect.objectContaining({ fromCivId: 'ai-1', toCivId: 'player', type: 'peace' }),
+      );
+    });
+
     it('applies Narnias treaty relationship bonus symmetrically when a treaty is signed', () => {
       const bus = new EventBus();
       const state = {

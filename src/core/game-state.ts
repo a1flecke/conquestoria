@@ -237,6 +237,7 @@ export function createNewGame(
     legendaryWonderIntel: {},
     embargoes: [],
     defensiveLeagues: [],
+    pendingDiplomacyRequests: [],
     settings,
   };
 
@@ -347,6 +348,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     legendaryWonderIntel: {},
     embargoes: [],
     defensiveLeagues: [],
+    pendingDiplomacyRequests: [],
     settings,
   };
 

@@ -470,6 +470,14 @@ export interface DefensiveLeague {
   formedTurn: number;
 }
 
+export interface PendingDiplomaticRequest {
+  id: string;
+  type: 'peace';
+  fromCivId: string;
+  toCivId: string;
+  turnIssued: number;
+}
+
 // --- Espionage ---
 
 export type SpyStatus =
@@ -913,6 +921,7 @@ export interface GameState {
   espionage?: EspionageState;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];
+  pendingDiplomacyRequests?: PendingDiplomaticRequest[];
 }
 
 export interface GameSettings {
