@@ -1,5 +1,138 @@
-import type { GameState } from '@/core/types';
+import type { City, GameState } from '@/core/types';
 import { reconquerBreakawayCity } from '@/systems/breakaway-system';
+import { BUILDINGS } from '@/systems/city-system';
+import { modifyRelationship } from '@/systems/diplomacy-system';
+import { hexKey } from '@/systems/hex-utils';
+
+export type MajorCityCaptureDisposition = 'occupy' | 'raze';
+
+export function computeRazeGold(city: City): number {
+  const salvage = city.buildings.reduce((sum, buildingId) => {
+    const building = BUILDINGS[buildingId];
+    return sum + Math.floor((building?.productionCost ?? 0) / 2);
+  }, 0);
+  return 10 + salvage;
+}
+
+export function resolveMajorCityCapture(
+  state: GameState,
+  cityId: string,
+  newOwnerId: string,
+  disposition: MajorCityCaptureDisposition,
+  turn: number,
+): {
+  state: GameState;
+  outcome: 'occupied' | 'razed';
+  goldAwarded: number;
+} {
+  const city = state.cities[cityId];
+  if (!city) {
+    return { state, outcome: 'razed', goldAwarded: 0 };
+  }
+
+  const previousOwnerId = city.owner;
+  const previousOwner = state.civilizations[previousOwnerId];
+  const capturingCiv = state.civilizations[newOwnerId];
+  if (!capturingCiv || previousOwnerId === newOwnerId) {
+    return { state, outcome: 'razed', goldAwarded: 0 };
+  }
+
+  const forcedDisposition: MajorCityCaptureDisposition = city.population <= 1 ? 'raze' : disposition;
+
+  if (forcedDisposition === 'occupy') {
+    const occupiedCity: City = {
+      ...city,
+      owner: newOwnerId,
+      population: Math.max(1, Math.floor(city.population / 2)),
+      conquestTurn: turn,
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+      occupation: {
+        originalOwnerId: previousOwnerId,
+        turnsRemaining: 10,
+      },
+    };
+
+    const nextTiles = { ...state.map.tiles };
+    for (const coord of occupiedCity.ownedTiles) {
+      const key = hexKey(coord);
+      if (nextTiles[key]) {
+        nextTiles[key] = { ...nextTiles[key], owner: newOwnerId };
+      }
+    }
+
+    return {
+      state: {
+        ...state,
+        map: {
+          ...state.map,
+          tiles: nextTiles,
+        },
+        cities: {
+          ...state.cities,
+          [cityId]: occupiedCity,
+        },
+        civilizations: {
+          ...state.civilizations,
+          ...(previousOwner ? {
+            [previousOwnerId]: {
+              ...previousOwner,
+              cities: previousOwner.cities.filter(id => id !== cityId),
+            },
+          } : {}),
+          [newOwnerId]: {
+            ...capturingCiv,
+            cities: capturingCiv.cities.includes(cityId) ? capturingCiv.cities : [...capturingCiv.cities, cityId],
+          },
+        },
+      },
+      outcome: 'occupied',
+      goldAwarded: 0,
+    };
+  }
+
+  const goldAwarded = computeRazeGold(city);
+  const nextTiles = { ...state.map.tiles };
+  for (const coord of city.ownedTiles) {
+    const key = hexKey(coord);
+    if (nextTiles[key]) {
+      nextTiles[key] = { ...nextTiles[key], owner: null };
+    }
+  }
+
+  const nextCivilizations = {
+    ...state.civilizations,
+    ...(previousOwner ? {
+      [previousOwnerId]: {
+        ...previousOwner,
+        cities: previousOwner.cities.filter(id => id !== cityId),
+        diplomacy: modifyRelationship(previousOwner.diplomacy, newOwnerId, -40),
+      },
+    } : {}),
+    [newOwnerId]: {
+      ...capturingCiv,
+      gold: capturingCiv.gold + goldAwarded,
+    },
+  };
+
+  const nextCities = { ...state.cities };
+  delete nextCities[cityId];
+
+  return {
+    state: {
+      ...state,
+      map: {
+        ...state.map,
+        tiles: nextTiles,
+      },
+      cities: nextCities,
+      civilizations: nextCivilizations,
+    },
+    outcome: 'razed',
+    goldAwarded,
+  };
+}
 
 export function transferCapturedCityOwnership(
   state: GameState,

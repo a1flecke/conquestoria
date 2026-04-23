@@ -250,6 +250,11 @@ export interface Building {
   pacing?: PacingMetadata;
 }
 
+export interface OccupiedCityState {
+  originalOwnerId: string;
+  turnsRemaining: number;
+}
+
 export interface City {
   id: string;
   name: string;
@@ -267,6 +272,7 @@ export interface City {
   unrestLevel: 0 | 1 | 2;     // 0=stable, 1=unrest, 2=revolt
   unrestTurns: number;         // turns spent at current unrest level (>= 1 when unrestLevel > 0)
   conquestTurn?: number;       // turn this city was captured; cleared after 15 turns
+  occupation?: OccupiedCityState;
   spyUnrestBonus: number;      // bonus pressure injected by enemy espionage; decays 5/turn
   productionDisabledTurns?: number; // late-game sabotage/cyber effect timer
 }
