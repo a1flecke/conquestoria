@@ -36,6 +36,18 @@ export function routePeaceMade(
   sink(civB, `Peace with ${a}!`, 'success');
 }
 
+// Writes only to the recipient civ's log because the requester already
+// gets direct action feedback from the initiating UI/AI path.
+export function routePeaceRequested(
+  state: GameState,
+  fromCivId: string,
+  toCivId: string,
+  sink: NotificationSink,
+): void {
+  const fromName = state.civilizations[fromCivId]?.name ?? 'Unknown';
+  sink(toCivId, `${fromName} requests peace.`, 'info');
+}
+
 // Routes to the defender's owner regardless of who is currently acting.
 export function routeCombatResolved(
   state: GameState,

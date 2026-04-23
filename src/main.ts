@@ -91,6 +91,7 @@ import {
   routeCombatResolved,
   routeLegendaryWonder,
   routePeaceMade,
+  routePeaceRequested,
   routeWarDeclared,
   type NotificationSink,
 } from '@/ui/notification-routing';
@@ -1633,11 +1634,9 @@ bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
 });
 
 bus.on('diplomacy:peace-requested', ({ fromCivId, toCivId }) => {
-  const fromName = gameState.civilizations[fromCivId]?.name ?? 'Unknown';
-  const toName = gameState.civilizations[toCivId]?.name ?? 'Unknown';
-  appendToCivLog(toCivId, `${fromName} requests peace.`, 'info');
-  appendToCivLog(fromCivId, `Peace requested from ${toName}.`, 'info');
+  routePeaceRequested(gameState, fromCivId, toCivId, appendToCivLog);
   if (toCivId === gameState.currentPlayer) {
+    const fromName = gameState.civilizations[fromCivId]?.name ?? 'Unknown';
     showNotification(`${fromName} requests peace.`, 'info');
   }
 });
