@@ -450,6 +450,17 @@ function makeAdjacentExposedCityState({ population }: { population: number }): G
   return state;
 }
 
+function makeAiPeaceRequestState(): GameState {
+  const state = createNewGame(undefined, 'ai-peace-request', 'small');
+  state.currentPlayer = 'ai-1';
+  state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+  state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+  state.civilizations.player.diplomacy.relationships['ai-1'] = 10;
+  state.civilizations['ai-1'].diplomacy.relationships.player = 10;
+  state.pendingDiplomacyRequests = [];
+  return state;
+}
+
 function makeLegendaryWonderAiFixture(options: { duplicateLostRace?: boolean } = {}): GameState {
   const state = {
     turn: 40,
@@ -1011,6 +1022,16 @@ function makeAiBarbarianCampAttackState(): GameState {
 }
 
 describe('processAITurn', () => {
+  it('does not auto-force peace on a human player', () => {
+    const state = makeAiPeaceRequestState();
+    const result = processAITurn(state, 'ai-1', new EventBus());
+
+    expect(result.civilizations.player.diplomacy.atWarWith).toContain('ai-1');
+    expect(result.pendingDiplomacyRequests).toContainEqual(
+      expect.objectContaining({ fromCivId: 'ai-1', toCivId: 'player', type: 'peace' }),
+    );
+  });
+
   it('assaults and occupies an exposed enemy city', () => {
     const state = makeAdjacentExposedCityState({ population: 5 });
     const bus = new EventBus();

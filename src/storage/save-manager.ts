@@ -45,7 +45,9 @@ function migrateLegacyPlanningState(state: GameState): GameState {
 }
 
 function normalizeLoadedState(state: GameState): GameState {
-  return migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)));
+  const normalized = migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)));
+  normalized.pendingDiplomacyRequests ??= [];
+  return normalized;
 }
 
 function getCityNamingInfo(state: GameState, ownerId: string): { civType: string; civName: string; namingPool?: string[] } {

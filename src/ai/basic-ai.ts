@@ -14,7 +14,7 @@ import { chooseTech, chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import {
   declareWar,
-  makePeace,
+  enqueuePeaceRequest,
   proposeTreaty,
   modifyRelationship,
   offerVassalage,
@@ -570,15 +570,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv });
           break;
         case 'request_peace':
-          newState.civilizations[civId].diplomacy = makePeace(
-            civ.diplomacy, decision.targetCiv, newState.turn,
-          );
-          if (newState.civilizations[decision.targetCiv]?.diplomacy) {
-            newState.civilizations[decision.targetCiv].diplomacy = makePeace(
-              newState.civilizations[decision.targetCiv].diplomacy, civId, newState.turn,
-            );
-          }
-          bus.emit('diplomacy:peace-made', { civA: civId, civB: decision.targetCiv });
+          newState = enqueuePeaceRequest(newState, civId, decision.targetCiv);
           break;
         case 'non_aggression_pact':
         case 'trade_agreement':
