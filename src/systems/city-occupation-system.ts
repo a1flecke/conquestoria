@@ -1,13 +1,16 @@
 import type { City, GameState } from '@/core/types';
 
-export function getOccupiedCityYieldMultiplier(city: City): 0.5 | 0.75 | 1 {
+export function getOccupiedCityMood(city: City): 0 | 1 | 2 {
   const turnsRemaining = city.occupation?.turnsRemaining ?? 0;
-  if (turnsRemaining >= 6) {
-    return 0.5;
-  }
-  if (turnsRemaining >= 1) {
-    return 0.75;
-  }
+  if (turnsRemaining >= 6) return 2;
+  if (turnsRemaining >= 1) return 1;
+  return 0;
+}
+
+export function getOccupiedCityYieldMultiplier(city: City): 0.5 | 0.75 | 1 {
+  const mood = getOccupiedCityMood(city);
+  if (mood === 2) return 0.5;
+  if (mood === 1) return 0.75;
   return 1;
 }
 

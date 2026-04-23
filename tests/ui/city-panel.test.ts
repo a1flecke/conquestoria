@@ -100,6 +100,40 @@ describe('city-panel navigation', () => {
     expect(rendered).toContain('turns');
   });
 
+  it('shows occupied-city integration countdown', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 7 };
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+
+    expect(rendered).toContain('Occupied');
+    expect(rendered).toContain('7 turns');
+  });
+
+  it('shows occupation-reduced yields and build eta', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.population = 4;
+    city.buildings = ['granary'];
+    city.productionQueue = ['library'];
+    city.productionProgress = 0;
+    city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 8 };
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+
+    expect(rendered).toContain('Very Unhappy');
+    expect(rendered).toContain('turns remaining');
+  });
+
   it('renders production queue rows with move and remove controls', () => {
     const { container, city, state } = makeMultiCityFixture();
     city.productionQueue = ['warrior', 'shrine', 'worker'];

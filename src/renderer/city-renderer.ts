@@ -1,6 +1,7 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { hexToPixel } from '@/systems/hex-utils';
 import { isVisible } from '@/systems/fog-of-war';
+import { getOccupiedCityMood } from '@/systems/city-occupation-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
@@ -103,6 +104,11 @@ export function drawCities(
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(breakaway.status === 'secession' ? '⛓' : '👑', screen.x + size * 0.45, screen.y - size * 0.45);
+      } else if (city.occupation) {
+        ctx.font = `${size * 0.28}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(getOccupiedCityMood(city) === 2 ? '☹' : '⚡', screen.x + size * 0.45, screen.y - size * 0.45);
       } else if (city.unrestLevel > 0) {
         ctx.font = `${size * 0.28}px system-ui`;
         ctx.textAlign = 'center';

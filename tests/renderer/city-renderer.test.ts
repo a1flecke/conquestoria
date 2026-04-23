@@ -3,6 +3,7 @@ import type { Camera } from '@/renderer/camera';
 import { drawCities, getCityRenderData } from '@/renderer/city-renderer';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 
 class MockCanvasContext {
@@ -140,6 +141,30 @@ describe('city renderer', () => {
 
     const overlayTexts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
     expect(overlayTexts).toContain('⛓');
+  });
+
+  it('renders an occupied-city badge separately from ordinary unrest', () => {
+    const state = createNewGame(undefined, 'occupied-render', 'small');
+    const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map);
+    city.id = 'occupied-city';
+    city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 9 };
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const camera = {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    drawCities(ctx, state, camera, 'player');
+
+    const overlayTexts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(overlayTexts).toContain('☹');
   });
 
   it('renders wrapped ghost cities at the horizontal seam when only the mirrored copy is on screen', () => {

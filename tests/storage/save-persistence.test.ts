@@ -12,6 +12,7 @@ vi.mock('@/storage/db', () => ({
 
 import { loadGame, migrateLegacyNamingState, saveGame } from '@/storage/save-manager';
 import type { CustomCivDefinition, GameState } from '@/core/types';
+import { foundCity } from '@/systems/city-system';
 
 // --- Minimal in-memory localStorage mock ---
 function makeLocalStorageMock() {
@@ -143,6 +144,24 @@ describe('save persistence (#38)', () => {
 
     expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].ownerId).toBe('player');
     expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].turnCompleted).toBe(40);
+  });
+
+  it('round-trips occupied city state through save and load', async () => {
+    const state = createNewGame(undefined, 'occupied-save', 'small');
+    state.cities.athens = {
+      ...foundCity('player', { q: 1, r: 0 }, state.map),
+      id: 'athens',
+      name: 'Athens',
+      owner: 'player',
+      position: { q: 1, r: 0 },
+      occupation: { originalOwnerId: 'ai-1', turnsRemaining: 6 },
+    };
+    state.civilizations.player.cities = ['athens'];
+
+    await saveGame('slot-occupied-city', 'Occupied City', state);
+    const loaded = await loadGame('slot-occupied-city');
+
+    expect(loaded?.cities.athens.occupation).toEqual(state.cities.athens.occupation);
   });
 
   it('round-trips legendary wonder history through JSON serialization', () => {
