@@ -13,6 +13,7 @@ import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedI
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
+import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
 import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
@@ -53,7 +54,8 @@ import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
-import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import { type PendingCityCaptureChoice, beginPlayerCityAssaultChoice, finalizePlayerCityAssaultChoice } from '@/input/city-assault-flow';
+import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
 import {
   initializeLegendaryWonderProjectsForCity,
   startLegendaryWonderBuild,
@@ -69,7 +71,7 @@ import {
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
-import type { GameState, HexCoord, Unit, DiplomaticAction } from '@/core/types';
+import type { GameState, HexCoord, Unit, DiplomaticAction, CivBonusEffect } from '@/core/types';
 import {
   appendNotification,
   createNotificationLog,
@@ -94,6 +96,7 @@ let inputInitialized = false;
 let councilPanelOpen = false;
 let persistedSettings: GameState['settings'] | undefined;
 let pacingDebugOpen = false;
+let pendingCityCaptureChoice: PendingCityCaptureChoice | null = null;
 
 function mergePersistedSettings(loadedSettings?: GameState['settings']): GameState['settings'] {
   const baseSettings = loadedSettings ?? persistedSettings ?? createDefaultSettings('small');
@@ -966,6 +969,81 @@ function buildImprovementAction(type: 'farm' | 'mine'): void {
   renderLoop.setGameState(gameState);
 }
 
+function ensurePlayerWarState(targetCivId: string): void {
+  const targetCiv = gameState.civilizations[targetCivId];
+  if (!targetCiv || targetCivId.startsWith('mc-') || targetCivId === 'barbarian') return;
+
+  const cp = gameState.currentPlayer;
+  const alreadyAtWar = currentCiv().diplomacy?.atWarWith.includes(targetCivId) ?? false;
+  if (alreadyAtWar) return;
+
+  currentCiv().diplomacy = declareWar(currentCiv().diplomacy, targetCivId, gameState.turn);
+  targetCiv.diplomacy = declareWar(targetCiv.diplomacy, cp, gameState.turn);
+  bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId });
+}
+
+function finalizePendingCityCaptureChoice(
+  disposition: 'occupy' | 'raze',
+  attackerBonus?: CivBonusEffect,
+): void {
+  if (!pendingCityCaptureChoice) return;
+
+  const pending = pendingCityCaptureChoice;
+  const cityBeforeResolution = gameState.cities[pending.cityId];
+  const previousOwner = cityBeforeResolution?.owner ?? '';
+  const cityName = cityBeforeResolution?.name ?? pending.cityId;
+  const result = finalizePlayerCityAssaultChoice(gameState, pending, disposition, gameState.turn);
+
+  pendingCityCaptureChoice = null;
+  document.getElementById('city-capture-panel')?.remove();
+  gameState = result.state;
+
+  if (result.outcome === 'occupied') {
+    const capturingCiv = currentCiv();
+    if (capturingCiv && attackerBonus?.type === 'naval_raiding') {
+      capturingCiv.gold += 30;
+      showNotification('Viking raid spoils! +30 gold', 'success');
+    }
+    showNotification(`We have captured ${cityName}!`, 'success');
+    bus.emit('city:captured', { cityId: pending.cityId, newOwner: gameState.currentPlayer, previousOwner });
+  } else {
+    showNotification(`${cityName} was razed! +${result.goldAwarded} gold`, 'success');
+  }
+
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  selectNextUnit();
+}
+
+function beginPlayerCityAssault(
+  attackerId: string,
+  cityId: string,
+  attackerBonus?: CivBonusEffect,
+): 'pending' | 'resolved' {
+  const city = gameState.cities[cityId];
+  if (!city) return 'resolved';
+
+  ensurePlayerWarState(city.owner);
+  const begun = beginPlayerCityAssaultChoice(gameState, attackerId, cityId);
+  gameState = begun.state;
+
+  if (city.population <= 1) {
+    pendingCityCaptureChoice = begun.pending;
+    finalizePendingCityCaptureChoice('raze', attackerBonus);
+    return 'resolved';
+  }
+
+  pendingCityCaptureChoice = begun.pending;
+  createCityCapturePanel(uiLayer, {
+    cityName: city.name,
+    occupiedPopulation: begun.pending.occupiedPopulation,
+    razeGold: begun.pending.razeGold,
+    onOccupy: () => finalizePendingCityCaptureChoice('occupy', attackerBonus),
+    onRaze: () => finalizePendingCityCaptureChoice('raze', attackerBonus),
+  });
+  return 'pending';
+}
+
 function executeAttack(attackerId: string, defenderId: string, defender: Unit, targetKey: string): void {
   const attacker = gameState.units[attackerId];
   if (!attacker) return;
@@ -973,15 +1051,7 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
   const defOwnerCiv = defender.owner;
   const isBarbarian = defOwnerCiv === 'barbarian' || defOwnerCiv.startsWith('mc-');
   if (!isBarbarian && gameState.civilizations[defOwnerCiv]) {
-    const cp = gameState.currentPlayer;
-    const alreadyAtWar = currentCiv().diplomacy?.atWarWith.includes(defOwnerCiv) ?? false;
-    if (!alreadyAtWar) {
-      currentCiv().diplomacy = declareWar(currentCiv().diplomacy, defOwnerCiv, gameState.turn);
-      gameState.civilizations[defOwnerCiv].diplomacy = declareWar(
-        gameState.civilizations[defOwnerCiv].diplomacy, cp, gameState.turn,
-      );
-      bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: defOwnerCiv });
-    }
+    ensurePlayerWarState(defOwnerCiv);
   }
 
   const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
@@ -1031,18 +1101,14 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
       conquestMinorCiv(gameState, cityAtTarget.owner, gameState.currentPlayer, bus);
     }
     if (cityAtTarget && !cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
-      const previousOwner = cityAtTarget.owner;
-      gameState = transferCapturedCityOwnership(gameState, cityAtTarget.id, gameState.currentPlayer, gameState.turn);
-      const capturingCiv = currentCiv();
-      if (capturingCiv && !capturingCiv.cities.includes(cityAtTarget.id)) {
-        capturingCiv.cities.push(cityAtTarget.id);
+      const assaultStatus = beginPlayerCityAssault(attackerId, cityAtTarget.id, attackerBonus);
+      SFX.combat();
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      if (assaultStatus === 'resolved') {
+        selectNextUnit();
       }
-      if (capturingCiv && attackerBonus?.type === 'naval_raiding') {
-        capturingCiv.gold += 30;
-        showNotification('Viking raid spoils! +30 gold', 'success');
-      }
-      showNotification(`We have captured ${cityAtTarget.name}!`, 'success');
-      bus.emit('city:captured', { cityId: cityAtTarget.id, newOwner: gameState.currentPlayer, previousOwner });
+      return;
     }
   } else {
     if (gameState.units[defenderId]) {
@@ -1068,6 +1134,10 @@ function restAction(): void {
 }
 
 function handleHexTap(rawCoord: HexCoord): void {
+  if (pendingCityCaptureChoice) {
+    return;
+  }
+
   const coord = gameState.map.wrapsHorizontally
     ? wrapHexCoord(rawCoord, gameState.map.width)
     : rawCoord;
@@ -1246,6 +1316,18 @@ function handleHexTap(rawCoord: HexCoord): void {
         return; // Wait for button press
       }
     } else {
+      const tapIntent = resolveSelectedUnitTapIntent(gameState, selectedUnitId, coord, movementRange);
+      if (tapIntent.kind === 'assault-city') {
+        const assaultStatus = beginPlayerCityAssault(selectedUnitId, tapIntent.cityId);
+        SFX.tap();
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        if (assaultStatus === 'resolved') {
+          selectNextUnit();
+        }
+        return;
+      }
+
       // Move unit
       executeUnitMove(gameState, selectedUnitId, coord, {
         actor: 'player',

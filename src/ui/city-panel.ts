@@ -1,5 +1,7 @@
 import type { City, GameState } from '@/core/types';
 import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getUnrestYieldMultiplier } from '@/systems/faction-system';
+import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { createCityGrid } from './city-grid';
 
@@ -23,7 +25,17 @@ export function createCityPanel(
   panel.id = 'city-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
 
-  const yields = calculateCityYields(city, state.map);
+  const baseYields = calculateCityYields(city, state.map);
+  const yieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
+  const yields = {
+    food: Math.floor(baseYields.food * yieldMultiplier),
+    production: Math.floor(baseYields.production * yieldMultiplier),
+    gold: Math.floor(baseYields.gold * yieldMultiplier),
+    science: Math.floor(baseYields.science * yieldMultiplier),
+  };
+  const occupiedMood = getOccupiedCityMood(city);
+  const occupiedStatus = city.occupation ? `Occupied: ${city.occupation.turnsRemaining} turns to integrate` : '';
+  const occupiedMoodText = occupiedMood === 2 ? 'Very Unhappy' : occupiedMood === 1 ? 'Unhappy' : '';
   const availableBuildings = getAvailableBuildings(city, state.civilizations[state.currentPlayer].techState.completed);
   const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
 
@@ -118,6 +130,8 @@ export function createCityPanel(
       <div>
         <h2 style="font-size:18px;color:#e8c170;margin:0;"><span data-text="city-name"></span></h2>
         <div style="font-size:12px;opacity:0.7;">Population: <span data-text="city-pop"></span></div>
+        ${city.occupation ? '<div style="font-size:12px;color:#e8c170;" data-text="occupied-status"></div>' : ''}
+        ${occupiedMoodText ? '<div style="font-size:12px;color:#d9a25c;" data-text="occupied-mood"></div>' : ''}
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         ${navHtml}
@@ -161,6 +175,12 @@ export function createCityPanel(
 
   setText('city-name', city.name);
   setText('city-pop', String(city.population));
+  if (city.occupation) {
+    setText('occupied-status', occupiedStatus);
+  }
+  if (occupiedMoodText) {
+    setText('occupied-mood', occupiedMoodText);
+  }
   setText('yield-food', String(yields.food));
   setText('yield-prod', String(yields.production));
   setText('yield-gold', String(yields.gold));

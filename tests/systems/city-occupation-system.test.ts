@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { City, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
-import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
+import { getOccupiedCityMood, getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 
 function makeOccupiedCityState(turnsRemaining: number): GameState {
   const state = createNewGame(undefined, 'occupied-city', 'small');
@@ -21,6 +21,18 @@ function makeOccupiedCityState(turnsRemaining: number): GameState {
 }
 
 describe('city-occupation-system', () => {
+  it('reports very unhappy mood while six or more occupation turns remain', () => {
+    const state = makeOccupiedCityState(8);
+
+    expect(getOccupiedCityMood(state.cities.athens)).toBe(2);
+  });
+
+  it('reports unhappy mood during the final five occupation turns', () => {
+    const state = makeOccupiedCityState(5);
+
+    expect(getOccupiedCityMood(state.cities.athens)).toBe(1);
+  });
+
   it('uses the stronger penalty while a city has 6 or more occupation turns remaining', () => {
     const state = makeOccupiedCityState(8);
 
@@ -41,5 +53,22 @@ describe('city-occupation-system', () => {
 
     state = tickOccupiedCities(state);
     expect(state.cities.athens.occupation).toBeUndefined();
+  });
+
+  it('decays occupied-city mood over ten turns and then clears occupation', () => {
+    const state = makeOccupiedCityState(10);
+
+    let afterFive = state;
+    for (let i = 0; i < 5; i++) {
+      afterFive = tickOccupiedCities(afterFive);
+    }
+
+    let afterTen = state;
+    for (let i = 0; i < 10; i++) {
+      afterTen = tickOccupiedCities(afterTen);
+    }
+
+    expect(getOccupiedCityMood(afterFive.cities.athens)).toBe(1);
+    expect(afterTen.cities.athens.occupation).toBeUndefined();
   });
 });
