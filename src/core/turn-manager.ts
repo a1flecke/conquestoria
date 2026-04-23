@@ -38,6 +38,7 @@ import { applyProductionBonus } from '@/systems/city-system';
 import { processEspionageTurn, isSpyUnitType, createSpyFromUnit } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
+import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import {
   getLegendaryWonderCityYieldBonus,
@@ -54,6 +55,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   // Resolve unrest and revolts before city yields so instability impacts the current turn.
   newState = processFactionTurn(newState, bus);
   newState = processBreakawayTurn(newState, bus);
+  newState = tickOccupiedCities(newState);
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
@@ -69,7 +71,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
       const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
-      const unrestMultiplier = getUnrestYieldMultiplier(city);
+      const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
       const yields = {
         food: Math.floor((baseYields.food + (wonderCityBonuses.food ?? 0)) * unrestMultiplier),
         production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0)) * unrestMultiplier),

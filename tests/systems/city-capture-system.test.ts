@@ -37,6 +37,21 @@ describe('city-capture-system', () => {
     return state;
   }
 
+  function addLegendaryProject(state: GameState, ownerId: string, cityId: string, wonderId = 'oracle-of-delphi'): void {
+    state.legendaryWonderProjects = {
+      ...(state.legendaryWonderProjects ?? {}),
+      [`${wonderId}:${ownerId}:${cityId}`]: {
+        wonderId,
+        ownerId,
+        cityId,
+        phase: 'questing',
+        investedProduction: 12,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+  }
+
   it('keeps instability pressure when the former owner reconquers its own breakaway city', () => {
     const { state, cityId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });
 
@@ -45,6 +60,18 @@ describe('city-capture-system', () => {
     expect(result.cities[cityId].owner).toBe('player');
     expect(result.cities[cityId].unrestLevel).toBe(1);
     expect(result.cities[cityId].conquestTurn).toBeUndefined();
+  });
+
+  it('preserves breakaway reconquest behavior in the shared occupy resolver', () => {
+    const { state, cityId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });
+
+    const result = resolveMajorCityCapture(state, cityId, 'player', 'occupy', state.turn);
+
+    expect(result.outcome).toBe('occupied');
+    expect(result.state.cities[cityId].owner).toBe('player');
+    expect(result.state.cities[cityId].unrestLevel).toBe(1);
+    expect(result.state.cities[cityId].conquestTurn).toBeUndefined();
+    expect(result.state.cities[cityId].occupation).toBeUndefined();
   });
 
   it('occupies a captured city by halving population and transferring all owned tiles', () => {
@@ -60,6 +87,18 @@ describe('city-capture-system', () => {
     for (const coord of result.state.cities.athens.ownedTiles) {
       expect(result.state.map.tiles[hexKey(coord)].owner).toBe('player');
     }
+  });
+
+  it('reassigns legendary wonder projects to the new owner when a city is occupied', () => {
+    const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary'] });
+    addLegendaryProject(state, 'ai-1', 'athens');
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(Object.keys(result.state.legendaryWonderProjects ?? {})).toEqual(['oracle-of-delphi:player:athens']);
+    expect(result.state.legendaryWonderProjects?.['oracle-of-delphi:player:athens']).toEqual(
+      expect.objectContaining({ ownerId: 'player', cityId: 'athens' }),
+    );
   });
 
   it('auto-razes a size-1 city instead of occupying it', () => {
@@ -81,5 +120,15 @@ describe('city-capture-system', () => {
     expect(result.goldAwarded).toBe(10 + Math.floor((40 + 16 + 30) / 2));
     expect(result.state.cities.athens).toBeUndefined();
     expect(result.state.civilizations['ai-1'].diplomacy.relationships.player).toBe(before - 40);
+  });
+
+  it('removes legendary wonder projects for a razed city', () => {
+    const state = makeExposedCityCaptureState({ population: 4, buildings: ['granary'] });
+    addLegendaryProject(state, 'ai-1', 'athens');
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
+
+    expect(result.state.cities.athens).toBeUndefined();
+    expect(result.state.legendaryWonderProjects).toEqual({});
   });
 });
