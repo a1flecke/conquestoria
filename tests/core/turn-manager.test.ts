@@ -7,6 +7,7 @@ import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { calculateCityYields } from '@/systems/resource-system';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
@@ -68,6 +69,26 @@ describe('processTurn', () => {
 
     const newState = processTurn(state, bus);
     expect(newState).toBeDefined();
+  });
+
+  it('applies occupied-city penalties and decrements the occupation timer during turn processing', () => {
+    const state = createNewGame(undefined, 'occupied-turn', 'small');
+    const bus = new EventBus();
+    const city = foundCity('player', { q: 1, r: 0 }, state.map);
+    city.id = 'athens';
+    city.population = 4;
+    city.buildings = ['granary'];
+    city.productionQueue = ['library'];
+    city.productionProgress = 0;
+    city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 8 };
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+
+    const baseProduction = calculateCityYields(city, state.map).production;
+    const result = processTurn(state, bus);
+
+    expect(result.cities.athens.occupation?.turnsRemaining).toBe(7);
+    expect(result.cities.athens.productionProgress).toBe(Math.floor(baseProduction * 0.5));
   });
 
   it('processes minor civ turn phase', () => {

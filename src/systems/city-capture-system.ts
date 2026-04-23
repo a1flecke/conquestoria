@@ -1,4 +1,4 @@
-import type { City, GameState } from '@/core/types';
+import type { City, GameState, LegendaryWonderProject } from '@/core/types';
 import { reconquerBreakawayCity } from '@/systems/breakaway-system';
 import { BUILDINGS } from '@/systems/city-system';
 import { modifyRelationship } from '@/systems/diplomacy-system';
@@ -12,6 +12,44 @@ export function computeRazeGold(city: City): number {
     return sum + Math.floor((building?.productionCost ?? 0) / 2);
   }, 0);
   return 10 + salvage;
+}
+
+function buildLegendaryWonderProjectKey(project: LegendaryWonderProject): string {
+  return `${project.wonderId}:${project.ownerId}:${project.cityId}`;
+}
+
+function transferLegendaryWonderProjectsForCity(
+  projects: GameState['legendaryWonderProjects'],
+  cityId: string,
+  newOwnerId: string,
+): GameState['legendaryWonderProjects'] {
+  const entries = Object.entries(projects ?? {});
+  if (entries.length === 0) {
+    return projects;
+  }
+
+  const updated = Object.fromEntries(entries.map(([projectId, project]) => {
+    if (project.cityId !== cityId) {
+      return [projectId, project];
+    }
+
+    const movedProject = { ...project, ownerId: newOwnerId };
+    return [buildLegendaryWonderProjectKey(movedProject), movedProject];
+  }));
+
+  return updated;
+}
+
+function removeLegendaryWonderProjectsForCity(
+  projects: GameState['legendaryWonderProjects'],
+  cityId: string,
+): GameState['legendaryWonderProjects'] {
+  const entries = Object.entries(projects ?? {});
+  if (entries.length === 0) {
+    return projects;
+  }
+
+  return Object.fromEntries(entries.filter(([, project]) => project.cityId !== cityId));
 }
 
 export function resolveMajorCityCapture(
@@ -38,6 +76,22 @@ export function resolveMajorCityCapture(
   }
 
   const forcedDisposition: MajorCityCaptureDisposition = city.population <= 1 ? 'raze' : disposition;
+
+  if (forcedDisposition === 'occupy' && previousOwner?.breakaway?.originOwnerId === newOwnerId) {
+    const reconquered = reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId);
+    return {
+      state: {
+        ...reconquered,
+        legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
+          reconquered.legendaryWonderProjects,
+          cityId,
+          newOwnerId,
+        ),
+      },
+      outcome: 'occupied',
+      goldAwarded: 0,
+    };
+  }
 
   if (forcedDisposition === 'occupy') {
     const occupiedCity: City = {
@@ -86,6 +140,11 @@ export function resolveMajorCityCapture(
             cities: capturingCiv.cities.includes(cityId) ? capturingCiv.cities : [...capturingCiv.cities, cityId],
           },
         },
+        legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
+          state.legendaryWonderProjects,
+          cityId,
+          newOwnerId,
+        ),
       },
       outcome: 'occupied',
       goldAwarded: 0,
@@ -128,6 +187,7 @@ export function resolveMajorCityCapture(
       },
       cities: nextCities,
       civilizations: nextCivilizations,
+      legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
     },
     outcome: 'razed',
     goldAwarded,
