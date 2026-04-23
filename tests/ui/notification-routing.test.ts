@@ -5,6 +5,7 @@ import {
   routeCombatResolved,
   routeLegendaryWonder,
   routePeaceMade,
+  routePeaceRequested,
   routeWarDeclared,
   type NotificationSink,
 } from '@/ui/notification-routing';
@@ -57,6 +58,21 @@ describe('notification routing', () => {
     expect(calls.map(c => c.civId).sort()).toEqual(['p1', 'p2']);
     expect(calls.every(c => c.type === 'success')).toBe(true);
     expect(calls.find(c => c.civId === 'p3')).toBeUndefined();
+  });
+
+  it('peace-requested writes only to the recipient civ', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routePeaceRequested(state, 'p1', 'p2', sink);
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'p2',
+        message: expect.stringMatching(/Alice requests peace/i),
+        type: 'info',
+      }),
+    ]);
   });
 
   it('combat-resolved writes to the defender owner log even when current player is a third civ', () => {
