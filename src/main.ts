@@ -7,7 +7,7 @@ import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
-import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits } from '@/systems/unit-system';
+import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
@@ -69,6 +69,7 @@ import {
 } from '@/systems/legendary-wonder-system';
 import {
   assignSpyDefensive,
+  attemptInfiltration,
   getAvailableMissions,
   missionRequiresPlacedSpy,
   recallSpy,
@@ -794,6 +795,27 @@ function togglePanel(panel: string): void {
         togglePanel('espionage');
         showNotification('Agent verified and cleared.', 'success');
       },
+      onExfiltrate: (spyId) => {
+        const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
+        const spy = ownerEsp?.spies[spyId];
+        if (!spy || spy.status !== 'stationed') return;
+        const civCities = gameState.civilizations[gameState.currentPlayer]?.cities ?? [];
+        const capital = gameState.cities[civCities[0]];
+        if (!capital) { showNotification('Cannot exfiltrate — no capital found.', 'warning'); return; }
+        const newUnit = createUnit(spy.unitType, gameState.currentPlayer, capital.position);
+        gameState.units[newUnit.id] = newUnit;
+        gameState.civilizations[gameState.currentPlayer].units =
+          [...(gameState.civilizations[gameState.currentPlayer].units ?? []), newUnit.id];
+        const updatedSpy = {
+          ...spy, id: newUnit.id, status: 'cooldown' as const,
+          cooldownTurns: 8, infiltrationCityId: null, cityVisionTurnsLeft: 0,
+        };
+        const { [spyId]: _old, ...rest } = ownerEsp!.spies;
+        gameState.espionage![gameState.currentPlayer] = { ...ownerEsp!, spies: { ...rest, [newUnit.id]: updatedSpy } };
+        renderLoop.setGameState(gameState);
+        togglePanel('espionage');
+        showNotification('Spy exfiltrated. Available again in 8 turns.', 'info');
+      },
     }));
   } else if (panel === 'diplomacy') {
     openDiplomacyPanel();
@@ -885,6 +907,57 @@ function selectUnit(unitId: string): void {
         updateHUD();
         selectUnit(uid);
         showNotification(disguise ? `Spy disguised as ${disguise}.` : 'Disguise removed.', 'info');
+      },
+      onInfiltrate: (uid) => {
+        const unit = gameState.units[uid];
+        if (!unit || unit.owner !== gameState.currentPlayer) return;
+        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        if (!civEsp) return;
+        const targetCity = Object.values(gameState.cities).find(
+          c => c.owner !== gameState.currentPlayer &&
+               c.position.q === unit.position.q && c.position.r === unit.position.r,
+        );
+        if (!targetCity) { showNotification('No enemy city at this location.', 'info'); return; }
+
+        const alreadyInside = Object.values(civEsp.spies).some(
+          s => s.infiltrationCityId === targetCity.id &&
+               (s.status === 'stationed' || s.status === 'on_mission' || s.status === 'cooldown'),
+        );
+        if (alreadyInside) { showNotification('You already have a spy in that city.', 'info'); return; }
+
+        const cityCI = gameState.espionage![targetCity.owner]?.counterIntelligence[targetCity.id] ?? 0;
+        const seed = `infiltrate-${uid}-${gameState.turn}`;
+        const result = attemptInfiltration(
+          civEsp, uid, unit.type as any, targetCity.id, targetCity.position, cityCI, seed,
+        );
+        gameState.espionage![gameState.currentPlayer] = result.civEsp;
+
+        if (result.removeUnitFromMap) {
+          delete gameState.units[uid];
+          const civUnits = gameState.civilizations[gameState.currentPlayer].units;
+          if (civUnits) {
+            gameState.civilizations[gameState.currentPlayer].units = civUnits.filter(id => id !== uid);
+          }
+          showNotification(`Spy successfully infiltrated ${targetCity.name}. Open Intel panel to issue orders.`, 'success');
+          bus.emit('espionage:spy-infiltrated', { civId: gameState.currentPlayer, spyId: uid, cityId: targetCity.id });
+          deselectUnit();
+        } else if (result.era1ScoutResult !== undefined) {
+          gameState.units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+          showNotification(`Scout gathered basic intel on ${targetCity.name}. Next infiltration in 3 turns.`, 'success');
+          selectUnit(uid);
+        } else if (result.caught) {
+          showNotification(`Spy was caught attempting to infiltrate ${targetCity.name}!`, 'warning');
+          bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: gameState.currentPlayer, spyId: uid, cityId: targetCity.id });
+          deselectUnit();
+        } else {
+          const cooldown = result.civEsp.spies[uid]?.cooldownTurns ?? 3;
+          showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low for ${cooldown} turns.`, 'info');
+          gameState.units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+          selectUnit(uid);
+        }
+
+        renderLoop.setGameState(gameState);
+        updateHUD();
       },
     });
   }
@@ -1679,6 +1752,24 @@ bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisgu
     `${label} from ${spyOwner} was spotted near (${position.q}, ${position.r}).`,
     'warning',
   );
+});
+
+bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, cityId }) => {
+  if (spyOwner === gameState.currentPlayer) {
+    const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
+    const city = gameState.cities[cityId];
+    showNotification(
+      `${spy?.name ?? 'Your spy'} was caught trying to infiltrate ${city?.name ?? 'an enemy city'}!`,
+      'warning',
+    );
+  }
+});
+
+bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
+  if (civId === gameState.currentPlayer) {
+    const city = gameState.cities[cityId];
+    showNotification(`Your spy was auto-exfiltrated from ${city?.name ?? 'a city'} after it changed hands.`, 'info');
+  }
 });
 
 // --- Initialization ---

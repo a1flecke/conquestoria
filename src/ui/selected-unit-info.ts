@@ -12,6 +12,7 @@ export interface SelectedUnitInfoCallbacks {
   onRest?: () => void;
   onCancelAutoExplore?: () => void;
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
+  onInfiltrate?: (unitId: string) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -136,6 +137,24 @@ export function renderSelectedUnitInfo(
       actionsDiv.appendChild(disguiseSection);
     }
     } // end spy?.status === 'idle'
+  }
+
+  if (isSpyUnitType(unit.type) && callbacks.onInfiltrate) {
+    const spyRecord = state.espionage?.[unit.owner]?.spies[unitId];
+    const isAvailable = !spyRecord || spyRecord.status === 'idle' ||
+      (spyRecord.status === 'cooldown' && (spyRecord.cooldownTurns ?? 1) === 0);
+    const enemyCityHere = Object.values(state.cities).some(
+      c => c.owner !== unit.owner && c.position.q === unit.position.q && c.position.r === unit.position.r,
+    );
+    if (isAvailable && enemyCityHere) {
+      actionsDiv.appendChild(makeButton('Infiltrate City', '#7c3aed', () => callbacks.onInfiltrate!(unitId)));
+    }
+    if (spyRecord?.status === 'cooldown' && (spyRecord.cooldownTurns ?? 0) > 0) {
+      const cd = document.createElement('span');
+      cd.style.cssText = 'font-size:10px;opacity:0.6;align-self:center;';
+      cd.textContent = `Infiltrate available in ${spyRecord.cooldownTurns} turns`;
+      actionsDiv.appendChild(cd);
+    }
   }
 
   if (actionsDiv.childElementCount > 0) {

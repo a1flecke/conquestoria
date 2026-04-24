@@ -438,6 +438,21 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   newState = processEspionageTurn(newState, bus);
   newState = processDetection(newState, bus);
 
+  // Decrement city vision from infiltrated spies and keep tile visible while active
+  for (const [civId, civEsp] of Object.entries(newState.espionage ?? {})) {
+    for (const [spyId, spy] of Object.entries(civEsp.spies)) {
+      if (!spy.cityVisionTurnsLeft || spy.cityVisionTurnsLeft <= 0) continue;
+      const newLeft = spy.cityVisionTurnsLeft - 1;
+      newState.espionage![civId].spies[spyId] = { ...spy, cityVisionTurnsLeft: newLeft };
+      if (spy.infiltrationCityId) {
+        const city = newState.cities[spy.infiltrationCityId];
+        if (city && newState.civilizations[civId]?.visibility?.tiles) {
+          newState.civilizations[civId].visibility.tiles[`${city.position.q},${city.position.r}`] = 'visible';
+        }
+      }
+    }
+  }
+
   // --- Vassalage protection & independence ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
     if (!civ.diplomacy?.vassalage.overlord) continue;

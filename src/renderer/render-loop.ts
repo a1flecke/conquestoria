@@ -137,6 +137,7 @@ export class RenderLoop {
 
     // Draw cities
     drawCities(this.ctx, this.state, this.camera, viewerId);
+    this.drawInfiltratedSpyIndicators();
 
     // Draw units
     if (viewerVisibility) {
@@ -167,5 +168,24 @@ export class RenderLoop {
 
     // Draw animations
     this.animations.update(this.ctx, performance.now());
+  }
+
+  private drawInfiltratedSpyIndicators(): void {
+    if (!this.state) return;
+    const civEsp = this.state.espionage?.[this.state.currentPlayer];
+    if (!civEsp) return;
+    for (const spy of Object.values(civEsp.spies)) {
+      if (spy.status !== 'stationed' && spy.status !== 'on_mission' && spy.status !== 'cooldown') continue;
+      if (!spy.infiltrationCityId) continue;
+      const city = this.state.cities[spy.infiltrationCityId];
+      if (!city) continue;
+      const pixel = hexToPixel(city.position, this.camera.hexSize);
+      const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+      const size = this.camera.hexSize * this.camera.zoom;
+      this.ctx.font = `${size * 0.3}px system-ui`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText('👁', screen.x + size * 0.5, screen.y - size * 0.4);
+    }
   }
 }

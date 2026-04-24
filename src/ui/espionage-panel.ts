@@ -15,6 +15,7 @@ export interface SpySummary {
   status: Spy['status'];
   targetCityId: string | null;
   targetCivId: string | null;
+  infiltrationCityId?: string | null;
   experience: number;
   promotion?: SpyPromotion;
   promotionReady: boolean;
@@ -53,6 +54,7 @@ export interface EspionagePanelCallbacks {
   onStartMission?: (spyId: string) => void;
   onRecall?: (spyId: string) => void;
   onVerifyAgent?: (spyId: string) => void;
+  onExfiltrate?: (spyId: string) => void;
 }
 
 const MISSION_LABELS: Record<SpyMissionType, string> = {
@@ -261,6 +263,9 @@ function appendSpyCard(
         appendChip(actionRow, actionLabel);
       }
     }
+    if (spy.status === 'stationed' && spy.infiltrationCityId && callbacks.onExfiltrate) {
+      appendActionButton(actionRow, 'exfiltrate (8 turn cooldown)', 'exfiltrate', () => callbacks.onExfiltrate?.(spy.id));
+    }
     card.appendChild(actionRow);
   }
 
@@ -441,6 +446,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     status: spy.status,
     targetCityId: spy.targetCityId,
     targetCivId: spy.targetCivId,
+    infiltrationCityId: spy.infiltrationCityId ?? null,
     experience: spy.experience,
     promotion: spy.promotion,
     promotionReady: spy.promotionAvailable || (spy.experience >= 60 && spy.promotion === undefined),
