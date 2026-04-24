@@ -439,18 +439,34 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   newState = processDetection(newState, bus);
 
   // Decrement city vision from infiltrated spies and keep tile visible while active
-  for (const [civId, civEsp] of Object.entries(newState.espionage ?? {})) {
-    for (const [spyId, spy] of Object.entries(civEsp.spies)) {
-      if (!spy.cityVisionTurnsLeft || spy.cityVisionTurnsLeft <= 0) continue;
-      const newLeft = spy.cityVisionTurnsLeft - 1;
-      newState.espionage![civId].spies[spyId] = { ...spy, cityVisionTurnsLeft: newLeft };
-      if (spy.infiltrationCityId) {
-        const city = newState.cities[spy.infiltrationCityId];
-        if (city && newState.civilizations[civId]?.visibility?.tiles) {
-          newState.civilizations[civId].visibility.tiles[`${city.position.q},${city.position.r}`] = 'visible';
+  {
+    let espionage = newState.espionage ?? {};
+    let civilizations = newState.civilizations;
+    for (const [civId, civEsp] of Object.entries(espionage)) {
+      let updatedSpies = civEsp.spies;
+      let updatedVisibility = civilizations[civId]?.visibility;
+      for (const [spyId, spy] of Object.entries(civEsp.spies)) {
+        if (!spy.cityVisionTurnsLeft || spy.cityVisionTurnsLeft <= 0) continue;
+        const newLeft = spy.cityVisionTurnsLeft - 1;
+        updatedSpies = { ...updatedSpies, [spyId]: { ...spy, cityVisionTurnsLeft: newLeft } };
+        if (spy.infiltrationCityId && updatedVisibility?.tiles) {
+          const city = newState.cities[spy.infiltrationCityId];
+          if (city) {
+            updatedVisibility = {
+              ...updatedVisibility,
+              tiles: { ...updatedVisibility.tiles, [`${city.position.q},${city.position.r}`]: 'visible' },
+            };
+          }
         }
       }
+      if (updatedSpies !== civEsp.spies) {
+        espionage = { ...espionage, [civId]: { ...civEsp, spies: updatedSpies } };
+      }
+      if (updatedVisibility !== civilizations[civId]?.visibility) {
+        civilizations = { ...civilizations, [civId]: { ...civilizations[civId], visibility: updatedVisibility! } };
+      }
     }
+    newState = { ...newState, espionage, civilizations };
   }
 
   // --- Vassalage protection & independence ---

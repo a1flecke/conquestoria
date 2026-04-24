@@ -175,7 +175,7 @@ export class RenderLoop {
     const civEsp = this.state.espionage?.[this.state.currentPlayer];
     if (!civEsp) return;
     for (const spy of Object.values(civEsp.spies)) {
-      if (spy.status !== 'stationed' && spy.status !== 'on_mission' && spy.status !== 'cooldown') continue;
+      if (spy.status !== 'stationed' && spy.status !== 'on_mission' && spy.status !== 'idle') continue;
       if (!spy.infiltrationCityId) continue;
       const city = this.state.cities[spy.infiltrationCityId];
       if (!city) continue;
