@@ -1133,21 +1133,35 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
       }
     }
 
-    // Auto-exfiltrate stationed spies when their infiltration city is captured/destroyed
+    // Auto-exfiltrate stationed spies when their infiltration city changes hands or is destroyed.
+    // Collect first to avoid mutating while iterating and to guarantee single-fire per turn.
+    const toAutoExfil: Array<{ spyId: string; cityId: string }> = [];
     for (const spy of Object.values(state.espionage![civId].spies)) {
       if ((spy.status === 'stationed' || spy.status === 'on_mission') && spy.infiltrationCityId) {
         const infiltCity = state.cities[spy.infiltrationCityId];
-        if (!infiltCity || infiltCity.owner === civId) {
-          state.espionage![civId].spies[spy.id] = {
-            ...spy,
-            status: 'cooldown',
-            cooldownTurns: 5,
-            infiltrationCityId: null,
-            cityVisionTurnsLeft: 0,
-          };
-          bus.emit('espionage:spy-auto-exfiltrated', { civId, spyId: spy.id, cityId: spy.infiltrationCityId });
+        // Trigger when city is gone OR the current owner is no longer the original target civ
+        if (!infiltCity || infiltCity.owner !== spy.targetCivId) {
+          toAutoExfil.push({ spyId: spy.id, cityId: spy.infiltrationCityId });
         }
       }
+    }
+    for (const { spyId, cityId } of toAutoExfil) {
+      const spy = state.espionage![civId].spies[spyId];
+      if (!spy) continue;
+      state = {
+        ...state,
+        espionage: {
+          ...state.espionage,
+          [civId]: {
+            ...state.espionage![civId],
+            spies: {
+              ...state.espionage![civId].spies,
+              [spyId]: { ...spy, status: 'cooldown', cooldownTurns: 5, infiltrationCityId: null, cityVisionTurnsLeft: 0, targetCivId: null },
+            },
+          },
+        },
+      };
+      bus.emit('espionage:spy-auto-exfiltrated', { civId, spyId, cityId });
     }
 
     // Passive spy abilities: stationed spies passively reveal fog and report troops
@@ -1273,10 +1287,10 @@ export function attemptInfiltration(
     const era1 = unitType === 'spy_scout';
     const updatedSpy: Spy = {
       ...spy,
-      status: era1 ? 'cooldown' : 'stationed',
-      infiltrationCityId: era1 ? null : targetCityId,
-      cityVisionTurnsLeft: era1 ? 0 : 5,
-      cooldownTurns: era1 ? INFILTRATION_FAIL_COOLDOWN : 0,
+      status: era1 ? 'idle' : 'stationed',
+      infiltrationCityId: targetCityId,
+      cityVisionTurnsLeft: 5,
+      cooldownTurns: 0,
       position: { ...targetPosition },
       experience: Math.min(100, spy.experience + 5),
     };
