@@ -1133,6 +1133,23 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
       }
     }
 
+    // Auto-exfiltrate stationed spies when their infiltration city is captured/destroyed
+    for (const spy of Object.values(state.espionage![civId].spies)) {
+      if ((spy.status === 'stationed' || spy.status === 'on_mission') && spy.infiltrationCityId) {
+        const infiltCity = state.cities[spy.infiltrationCityId];
+        if (!infiltCity || infiltCity.owner === civId) {
+          state.espionage![civId].spies[spy.id] = {
+            ...spy,
+            status: 'cooldown',
+            cooldownTurns: 5,
+            infiltrationCityId: null,
+            cityVisionTurnsLeft: 0,
+          };
+          bus.emit('espionage:spy-auto-exfiltrated', { civId, spyId: spy.id, cityId: spy.infiltrationCityId });
+        }
+      }
+    }
+
     // Passive spy abilities: stationed spies passively reveal fog and report troops
     for (const spy of Object.values(state.espionage![civId].spies)) {
       if (spy.status === 'stationed' && spy.targetCivId && spy.targetCityId) {
@@ -1205,6 +1222,84 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
   state = { ...state, cities: decayedCities };
 
   return state;
+}
+
+// ─── Infiltration ────────────────────────────────────────────────────────────
+
+const INFILTRATION_BASE: Partial<Record<UnitType, number>> = {
+  spy_scout: 0.55,
+  spy_informant: 0.65,
+  spy_agent: 0.70,
+  spy_operative: 0.75,
+  spy_hacker: 0.80,
+};
+
+export function getInfiltrationSuccessChance(
+  unitType: UnitType,
+  experience: number,
+  cityCI: number,
+): number {
+  const base = INFILTRATION_BASE[unitType] ?? 0.50;
+  return Math.max(0.10, Math.min(0.90, base + experience * 0.003 - cityCI * 0.004));
+}
+
+export interface InfiltrationResult {
+  civEsp: EspionageCivState;
+  removeUnitFromMap: boolean;
+  caught: boolean;
+  era1ScoutResult?: { tilesToReveal: HexCoord[] };
+}
+
+const INFILTRATION_FAIL_COOLDOWN = 3;
+const INFILTRATION_CATCH_CHANCE = 0.25;
+
+export function attemptInfiltration(
+  state: EspionageCivState,
+  spyId: string,
+  unitType: UnitType,
+  targetCityId: string,
+  targetPosition: HexCoord,
+  cityCI: number,
+  seed: string,
+): InfiltrationResult {
+  const spy = state.spies[spyId];
+  if (!spy || spy.status !== 'idle') throw new Error(`Spy ${spyId} cannot infiltrate (not idle)`);
+
+  const rng = createRng(seed);
+  const chance = getInfiltrationSuccessChance(unitType, spy.experience, cityCI);
+  const roll = rng();
+
+  if (roll < chance) {
+    const era1 = unitType === 'spy_scout';
+    const updatedSpy: Spy = {
+      ...spy,
+      status: era1 ? 'cooldown' : 'stationed',
+      infiltrationCityId: era1 ? null : targetCityId,
+      cityVisionTurnsLeft: era1 ? 0 : 5,
+      cooldownTurns: era1 ? INFILTRATION_FAIL_COOLDOWN : 0,
+      position: { ...targetPosition },
+      experience: Math.min(100, spy.experience + 5),
+    };
+    return {
+      civEsp: { ...state, spies: { ...state.spies, [spyId]: updatedSpy } },
+      removeUnitFromMap: !era1,
+      caught: false,
+      era1ScoutResult: era1 ? { tilesToReveal: [] } : undefined,
+    };
+  } else {
+    const catchRoll = rng();
+    const caught = catchRoll < INFILTRATION_CATCH_CHANCE;
+    const updatedSpy: Spy = {
+      ...spy,
+      status: caught ? 'captured' : 'cooldown',
+      cooldownTurns: caught ? 0 : INFILTRATION_FAIL_COOLDOWN,
+    };
+    return {
+      civEsp: { ...state, spies: { ...state.spies, [spyId]: updatedSpy } },
+      removeUnitFromMap: false,
+      caught,
+    };
+  }
 }
 
 // Reset the ID counter (for testing)

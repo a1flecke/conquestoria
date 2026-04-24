@@ -1018,6 +1018,9 @@ export interface GameEvents {
   'espionage:spy-expelled': { civId: string; spyId: string; fromCivId: string };
   'espionage:spy-captured': { capturingCivId: string; spyOwner: string; spyId: string };
   'espionage:spy-recalled': { civId: string; spyId: string; reason?: string };
+  'espionage:spy-infiltrated': { civId: string; spyId: string; cityId: string };
+  'espionage:spy-caught-infiltrating': { capturingCivId: string; spyOwner: string; spyId: string; cityId: string };
+  'espionage:spy-auto-exfiltrated': { civId: string; spyId: string; cityId: string };
   'faction:unrest-started': { cityId: string; owner: string };
   'faction:revolt-started': { cityId: string; owner: string };
   'faction:unrest-resolved': { cityId: string; owner: string };
