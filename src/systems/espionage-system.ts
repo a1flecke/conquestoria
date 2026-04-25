@@ -925,6 +925,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                   },
                 },
               };
+              state.espionage![civId] = updatedEsp;
             }
           }
 
@@ -1199,6 +1200,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
       for (const spyId of toCapture) {
         const spy = state.espionage![civId].spies[spyId];
         if (!spy) continue;
+        const capturedById = spy.targetCivId;
         state = {
           ...state,
           espionage: {
@@ -1212,7 +1214,25 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             },
           },
         };
-        bus.emit('espionage:spy-captured', { capturingCivId: spy.targetCivId ?? '', spyOwner: civId, spyId });
+        if (capturedById && state.civilizations[capturedById]) {
+          state.civilizations[capturedById].diplomacy = handleSpyCaptured(
+            state.civilizations[capturedById].diplomacy, civId, state.turn,
+          );
+          if (state.civilizations[civId]) {
+            state.civilizations[civId].diplomacy = modifyRelationship(
+              state.civilizations[civId].diplomacy, capturedById, -10,
+            );
+          }
+          const targetTechs = state.civilizations[capturedById].techState.completed ?? [];
+          if (targetTechs.includes('counter-intelligence') || targetTechs.includes('digital-surveillance')) {
+            state.espionage = turnCapturedSpy(state.espionage!, capturedById, civId, spyId, state.turn);
+            bus.emit('espionage:spy-detected', {
+              detectingCivId: capturedById, spyOwner: civId, spyId,
+              cityId: spy.infiltrationCityId ?? '',
+            });
+          }
+        }
+        bus.emit('espionage:spy-captured', { capturingCivId: capturedById ?? '', spyOwner: civId, spyId });
       }
     }
 
