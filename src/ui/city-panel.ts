@@ -2,7 +2,7 @@ import type { City, GameState } from '@/core/types';
 import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
-import { calculateCityYields } from '@/systems/resource-system';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { createCityGrid } from './city-grid';
 
 export interface CityPanelCallbacks {
@@ -25,7 +25,7 @@ export function createCityPanel(
   panel.id = 'city-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
 
-  const baseYields = calculateCityYields(city, state.map);
+  const baseYields = calculateProjectedCityYields(state, city.id);
   const yieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
   const yields = {
     food: Math.floor(baseYields.food * yieldMultiplier),

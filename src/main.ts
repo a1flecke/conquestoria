@@ -46,7 +46,7 @@ import {
   modifyRelationship,
   rejectDiplomaticRequest,
 } from '@/systems/diplomacy-system';
-import { calculateCityYields } from '@/systems/resource-system';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
@@ -186,7 +186,7 @@ function updateHUD(): void {
   for (const cityId of civ.cities) {
     const city = gameState.cities[cityId];
     if (!city) continue;
-    const y = calculateCityYields(city, gameState.map);
+    const y = calculateProjectedCityYields(gameState, cityId);
     totalFood += y.food;
     totalProd += y.production;
     totalGold += y.gold;
@@ -560,9 +560,7 @@ function showRequiredChoicesIfNeeded(): boolean {
   const sciencePerTurn = Math.max(
     1,
     civ.cities
-      .map(cityId => gameState.cities[cityId])
-      .filter((city): city is NonNullable<typeof gameState.cities[string]> => city !== undefined)
-      .reduce((total, city) => total + calculateCityYields(city, gameState.map).science, 0),
+      .reduce((total, cityId) => total + calculateProjectedCityYields(gameState, cityId).science, 0),
   );
   const researchChoices = missingResearch
     ? getAvailableTechs(civ.techState).slice(0, 3).map(tech => ({

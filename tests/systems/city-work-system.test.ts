@@ -5,6 +5,7 @@ import { foundCity } from '@/systems/city-system';
 import {
   assignCityFocus,
   calculateWorkedTileYield,
+  calculateProjectedCityYields,
   getWorkableTilesForCity,
   normalizeCityWorkAfterTerritoryChange,
   normalizeWorkedTilesForCity,
@@ -69,6 +70,36 @@ describe('city worked tile eligibility', () => {
 });
 
 describe('city focus assignment', () => {
+  it('projects focused yields for an empty non-custom worked tile list without mutating state', () => {
+    const state = createNewGame(undefined, 'city-work-projected-yields');
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+    const hills = { q: 16, r: 15 };
+    state.map.tiles[hexKey(hills)] = {
+      ...state.map.tiles[hexKey(hills)],
+      coord: hills,
+      terrain: 'hills',
+      elevation: 'highland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.cities[city.id] = {
+      ...city,
+      population: 1,
+      focus: 'production',
+      workedTiles: [],
+      ownedTiles: [city.position, hills],
+    };
+
+    const yields = calculateProjectedCityYields(state, city.id);
+
+    expect(yields.production).toBe(3);
+    expect(state.cities[city.id].workedTiles).toEqual([]);
+  });
+
   it('assigns food focus to the highest-food unclaimed tiles up to population', () => {
     const state = createNewGame(undefined, 'city-work-food-focus');
     const city = addCity(state, 'player', { q: 15, r: 15 });
@@ -80,6 +111,46 @@ describe('city focus assignment', () => {
     expect(focused.focus).toBe('food');
     expect(focused.workedTiles).toHaveLength(2);
     expect(focused.workedTiles).not.toContainEqual(city.position);
+  });
+
+  it('uses natural wonder yields when scoring focused tiles', () => {
+    const state = createNewGame(undefined, 'city-work-wonder-focus');
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+    const plains = { q: 16, r: 15 };
+    const wonder = { q: 15, r: 16 };
+    state.map.tiles[hexKey(plains)] = {
+      ...state.map.tiles[hexKey(plains)],
+      coord: plains,
+      terrain: 'plains',
+      elevation: 'lowland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.map.tiles[hexKey(wonder)] = {
+      ...state.map.tiles[hexKey(wonder)],
+      coord: wonder,
+      terrain: 'hills',
+      elevation: 'highland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: 'crystal_caverns',
+      resource: null,
+    };
+    state.cities[city.id] = {
+      ...city,
+      population: 1,
+      ownedTiles: [city.position, plains, wonder],
+    };
+
+    const result = assignCityFocus(state, city.id, 'gold');
+
+    expect(result.state.cities[city.id].workedTiles).toEqual([wonder]);
   });
 
   it('leaves surplus population unassigned when no valid unclaimed tiles exist', () => {
@@ -121,6 +192,38 @@ describe('manual worked tile assignment', () => {
 });
 
 describe('worked tile normalization', () => {
+  it('lets a focused city claim a tile that only has a stale foreign work claim', () => {
+    const state = createNewGame(undefined, 'city-work-stale-foreign-claim');
+    const foreign = addCity(state, 'ai-1', { q: 10, r: 10 });
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+    const target = { q: 16, r: 15 };
+    state.map.tiles[hexKey(target)] = {
+      ...state.map.tiles[hexKey(target)],
+      coord: target,
+      terrain: 'hills',
+      elevation: 'highland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.cities[foreign.id] = { ...foreign, workedTiles: [target] };
+    state.cities[city.id] = {
+      ...city,
+      population: 1,
+      focus: 'production',
+      workedTiles: [],
+      ownedTiles: [city.position, target],
+    };
+
+    const result = assignCityFocus(state, city.id, 'production');
+
+    expect(result.state.cities[city.id].workedTiles).toEqual([target]);
+    expect(result.state.cities[foreign.id].workedTiles).toEqual([]);
+  });
+
   it('removes city center and foreign-owned tiles', () => {
     const state = createNewGame(undefined, 'city-work-normalize');
     const city = addCity(state, 'player', { q: 15, r: 15 });
@@ -208,5 +311,42 @@ describe('worked tile normalization', () => {
     };
     const yieldValue = calculateWorkedTileYield(state, tile);
     expect(yieldValue.food).toBeGreaterThan(2);
+  });
+
+  it('calculates natural and adjacent wonder yields for a worked tile', () => {
+    const state = createNewGame(undefined, 'city-work-wonder-yield');
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+    const tile = { q: 16, r: 15 };
+    const adjacentWonder = { q: 17, r: 15 };
+    state.map.tiles[hexKey(tile)] = {
+      ...state.map.tiles[hexKey(tile)],
+      coord: tile,
+      terrain: 'hills',
+      elevation: 'highland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: 'crystal_caverns',
+      resource: null,
+    };
+    state.map.tiles[hexKey(adjacentWonder)] = {
+      ...state.map.tiles[hexKey(adjacentWonder)],
+      coord: adjacentWonder,
+      terrain: 'mountain',
+      elevation: 'highland',
+      owner: null,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: 'sacred_mountain',
+      resource: null,
+    };
+    state.cities[city.id] = { ...city, ownedTiles: [city.position, tile] };
+
+    const yieldValue = calculateWorkedTileYield(state, tile);
+
+    expect(yieldValue.gold).toBeGreaterThanOrEqual(3);
+    expect(yieldValue.science).toBeGreaterThanOrEqual(1);
   });
 });

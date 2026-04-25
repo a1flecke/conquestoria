@@ -1,7 +1,9 @@
-import type { CityFocus, GameState, HexCoord, ResourceYield } from '@/core/types';
-import { hexKey } from './hex-utils';
+import type { CityFocus, CivBonusEffect, GameState, HexCoord, ResourceYield } from '@/core/types';
+import { hexKey, hexNeighbors } from './hex-utils';
 import { getImprovementYieldBonus } from './improvement-system';
-import { TERRAIN_YIELDS } from './resource-system';
+import { calculateCityYields, TERRAIN_YIELDS } from './resource-system';
+import { getWonderDefinition } from './wonder-definitions';
+import { getWonderYieldBonus } from './wonder-system';
 import {
   buildCityWorkClaimIndex,
   canonicalizeCityCoord,
@@ -24,6 +26,13 @@ export interface CityWorkMutationResult {
   unassignedCitizens: number;
 }
 
+function addYield(total: ResourceYield, bonus: Partial<ResourceYield>): void {
+  total.food += bonus.food ?? 0;
+  total.production += bonus.production ?? 0;
+  total.gold += bonus.gold ?? 0;
+  total.science += bonus.science ?? 0;
+}
+
 export function calculateWorkedTileYield(state: GameState, coord: HexCoord): ResourceYield {
   const canonical = canonicalizeCityCoord(coord, state.map);
   const tile = state.map.tiles[hexKey(canonical)];
@@ -31,10 +40,7 @@ export function calculateWorkedTileYield(state: GameState, coord: HexCoord): Res
   if (!tile) return total;
 
   const terrain = TERRAIN_YIELDS[tile.terrain] ?? total;
-  total.food += terrain.food;
-  total.production += terrain.production;
-  total.gold += terrain.gold;
-  total.science += terrain.science;
+  addYield(total, terrain);
 
   if (tile.hasRiver) {
     total.gold += 1;
@@ -45,10 +51,27 @@ export function calculateWorkedTileYield(state: GameState, coord: HexCoord): Res
 
   if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) {
     const improvement = getImprovementYieldBonus(tile.improvement);
-    total.food += improvement.food;
-    total.production += improvement.production;
-    total.gold += improvement.gold;
-    total.science += improvement.science;
+    addYield(total, improvement);
+  }
+
+  if (tile.wonder) {
+    addYield(total, getWonderYieldBonus(tile.wonder));
+  }
+
+  const seenNeighborKeys = new Set<string>();
+  for (const rawNeighbor of hexNeighbors(canonical)) {
+    const neighbor = canonicalizeCityCoord(rawNeighbor, state.map);
+    const neighborKey = hexKey(neighbor);
+    if (seenNeighborKeys.has(neighborKey)) continue;
+    seenNeighborKeys.add(neighborKey);
+
+    const neighborTile = state.map.tiles[neighborKey];
+    if (!neighborTile?.wonder) continue;
+
+    const wonder = getWonderDefinition(neighborTile.wonder);
+    if (wonder?.effect.type === 'adjacent_yield_bonus') {
+      addYield(total, wonder.effect.yields);
+    }
   }
 
   return total;
@@ -64,6 +87,12 @@ function isWorkableTerrain(terrain: string): boolean {
 
 function isWaterTerrain(terrain: string): boolean {
   return terrain === 'coast';
+}
+
+function isClaimStillValid(state: GameState, tileKey: string, claim: TileWorkClaim): boolean {
+  const claimedCity = state.cities[claim.cityId];
+  const tile = state.map.tiles[tileKey];
+  return Boolean(claimedCity && tile && tile.owner === claimedCity.owner);
 }
 
 export function getWorkableTilesForCity(state: GameState, cityId: string): WorkableCityTile[] {
@@ -85,7 +114,7 @@ export function getWorkableTilesForCity(state: GameState, cityId: string): Worka
     if (!tile || tile.owner !== city.owner || !isWorkableTerrain(tile.terrain)) continue;
 
     const claim = claims[key];
-    const claimedByOtherCity = Boolean(claim && claim.cityId !== city.id);
+    const claimedByOtherCity = Boolean(claim && claim.cityId !== city.id && isClaimStillValid(state, key, claim));
     tiles.push({
       coord,
       yield: calculateWorkedTileYield(state, coord),
@@ -202,4 +231,19 @@ export function normalizeCityWorkAfterTerritoryChange(state: GameState, cityId: 
   return city.focus === 'custom'
     ? normalizeWorkedTilesForCity(state, cityId)
     : assignCityFocus(state, cityId, city.focus);
+}
+
+export function calculateProjectedCityYields(
+  state: GameState,
+  cityId: string,
+  bonusEffect?: CivBonusEffect,
+): ResourceYield {
+  const city = state.cities[cityId];
+  if (!city) return { food: 0, production: 0, gold: 0, science: 0 };
+
+  const workResult = city.focus === 'custom'
+    ? normalizeWorkedTilesForCity(state, cityId)
+    : assignCityFocus(state, cityId, city.focus);
+  const projectedCity = workResult.state.cities[cityId] ?? city;
+  return calculateCityYields(projectedCity, workResult.state.map, bonusEffect);
 }
