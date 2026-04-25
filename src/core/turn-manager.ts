@@ -472,7 +472,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         const tiles = intel.data.tiles as Array<{ q: number; r: number }>;
         if (newState.civilizations[captorId]?.visibility?.tiles) {
           for (const t of tiles) {
-            newState.civilizations[captorId].visibility.tiles[`${t.q},${t.r}`] = 'explored';
+            newState.civilizations[captorId].visibility.tiles[`${t.q},${t.r}`] = 'fog';
           }
         }
       }

@@ -4,7 +4,7 @@ import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
-import { getMovementRange, moveUnit, findPath } from '@/systems/unit-system';
+import { getMovementRange, moveUnit, findPath, createUnit } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
@@ -867,7 +867,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         s => s.status === 'captured' && s.targetCivId === civId,
       );
       for (const capturedSpy of capturedByMe) {
-        const rel = civ.diplomacy.relationships[victimCivId]?.score ?? 50;
+        const rel = civ.diplomacy.relationships[victimCivId] ?? 50;
         const atWar = civ.diplomacy.atWarWith.includes(victimCivId);
         let verdict: 'expel' | 'execute' | 'interrogate';
         if (atWar) {
