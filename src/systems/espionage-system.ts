@@ -751,6 +751,7 @@ export function expelSpy(
         cityVisionTurnsLeft: 0,
         targetCivId: null,
         targetCityId: null,
+        position: null,
         currentMission: null,
         stolenTechFrom: {},
         disguiseAs: null,
@@ -872,13 +873,19 @@ function resolveInterrogationIntel(
       const wonderCities = spyCiv.cities.map(id => state.cities?.[id])
         .filter(c => c?.productionQueue[0]?.startsWith('legendary:'));
       if (wonderCities.length === 0) return null;
-      const city = wonderCities[0];
+      const city = wonderCities[Math.floor(rng() * wonderCities.length)];
       return { type, data: { cityId: city.id, wonderId: city.productionQueue[0].replace('legendary:', '') } };
     }
     case 'map_area': {
       const tiles = Object.keys(spyCiv.visibility?.tiles ?? {}).filter(k => spyCiv.visibility.tiles[k] === 'visible');
       if (tiles.length === 0) return null;
-      const sample = tiles.slice(0, 8).map(k => {
+      // Fisher-Yates shuffle using seeded rng, then take first 8
+      const shuffled = [...tiles];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const sample = shuffled.slice(0, 8).map(k => {
         const [q, r] = k.split(',').map(Number);
         return { q, r };
       });

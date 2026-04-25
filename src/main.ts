@@ -1714,7 +1714,6 @@ function centerOnCurrentPlayer(): void {
 interface ChoiceAction {
   label: string;
   danger?: boolean;
-  confirm?: string;
   onClick: () => void;
 }
 
@@ -1744,11 +1743,6 @@ function createPersistentChoiceNotification(message: string, actions: ChoiceActi
       ? 'padding:8px 14px;border-radius:8px;background:rgba(220,60,60,0.25);border:1px solid rgba(220,60,60,0.5);color:#ff9999;font-size:12px;cursor:pointer;'
       : 'padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#f5f7fb;font-size:12px;cursor:pointer;';
     btn.addEventListener('click', () => {
-      if (action.confirm) {
-        // eslint-disable-next-line no-alert
-        const confirmed = window.confirm(action.confirm);
-        if (!confirmed) return;
-      }
       overlay.remove();
       action.onClick();
     });
@@ -1810,14 +1804,22 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
         } else {
           gameState = { ...gameState, espionage: { ...gameState.espionage, [spyOwner]: updatedOwnerEsp } };
         }
+        // Bilateral: captor's view of spy owner AND spy owner's view of captor
+        const captorId = gameState.currentPlayer;
         gameState = {
           ...gameState,
           civilizations: {
             ...gameState.civilizations,
-            [gameState.currentPlayer]: {
-              ...gameState.civilizations[gameState.currentPlayer],
+            [captorId]: {
+              ...gameState.civilizations[captorId],
               diplomacy: modifyRelationship(
-                gameState.civilizations[gameState.currentPlayer].diplomacy, spyOwner, relPenalty,
+                gameState.civilizations[captorId].diplomacy, spyOwner, relPenalty,
+              ),
+            },
+            [spyOwner]: {
+              ...gameState.civilizations[spyOwner],
+              diplomacy: modifyRelationship(
+                gameState.civilizations[spyOwner].diplomacy, captorId, relPenalty,
               ),
             },
           },
@@ -1829,39 +1831,71 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
     {
       label: 'Execute',
       danger: true,
-      confirm: `Execute ${spy.name}? This cannot be undone and will severely damage relations with ${spyOwnerName}.`,
       onClick: () => {
-        gameState = {
-          ...gameState,
-          espionage: {
-            ...gameState.espionage,
-            [spyOwner]: executeSpy(gameState.espionage![spyOwner], spyId),
-          },
-          civilizations: {
-            ...gameState.civilizations,
-            [gameState.currentPlayer]: {
-              ...gameState.civilizations[gameState.currentPlayer],
-              diplomacy: modifyRelationship(
-                gameState.civilizations[gameState.currentPlayer].diplomacy, spyOwner, relPenalty * 2,
-              ),
+        // Second in-panel confirmation — no window.confirm on mobile
+        createPersistentChoiceNotification(
+          `Execute ${spy.name}? This cannot be undone and will severely damage relations with ${spyOwnerName}.`,
+          [
+            {
+              label: 'Cancel',
+              onClick: () => showEspionageCaptureChoice(spyId, spyOwner),
             },
-          },
-        };
-        bus.emit('espionage:spy-executed', {
-          executingCivId: gameState.currentPlayer, spyOwner, spyId, spyName: spy.name,
-        });
-        showNotification(`${spy.name} has been executed.`, 'warning');
-        renderLoop.setGameState(gameState);
+            {
+              label: 'Confirm Execute',
+              danger: true,
+              onClick: () => {
+                const captorId = gameState.currentPlayer;
+                gameState = {
+                  ...gameState,
+                  espionage: {
+                    ...gameState.espionage,
+                    [spyOwner]: executeSpy(gameState.espionage![spyOwner], spyId),
+                  },
+                  // Bilateral: captor's view AND spy owner's view
+                  civilizations: {
+                    ...gameState.civilizations,
+                    [captorId]: {
+                      ...gameState.civilizations[captorId],
+                      diplomacy: modifyRelationship(
+                        gameState.civilizations[captorId].diplomacy, spyOwner, relPenalty * 2,
+                      ),
+                    },
+                    [spyOwner]: {
+                      ...gameState.civilizations[spyOwner],
+                      diplomacy: modifyRelationship(
+                        gameState.civilizations[spyOwner].diplomacy, captorId, relPenalty * 2,
+                      ),
+                    },
+                  },
+                };
+                bus.emit('espionage:spy-executed', {
+                  executingCivId: captorId, spyOwner, spyId, spyName: spy.name,
+                });
+                showNotification(`${spy.name} has been executed.`, 'warning');
+                renderLoop.setGameState(gameState);
+              },
+            },
+          ],
+        );
       },
     },
     {
       label: 'Interrogate (4 turns)',
       onClick: () => {
+        const ownerEsp = gameState.espionage![spyOwner];
         gameState = {
           ...gameState,
           espionage: {
             ...gameState.espionage,
             [gameState.currentPlayer]: startInterrogation(captorEsp, spyId, spyOwner),
+            // Set spy status to 'interrogated' on the spy owner's record
+            [spyOwner]: {
+              ...ownerEsp,
+              spies: {
+                ...ownerEsp.spies,
+                [spyId]: { ...ownerEsp.spies[spyId]!, status: 'interrogated' as const },
+              },
+            },
           },
         };
         showNotification(`${spy.name} is being interrogated. Check the Intel panel for results.`, 'info');

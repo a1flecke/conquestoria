@@ -4,7 +4,7 @@ import { resetUnitTurn, createUnit, healUnit, moveUnit } from '@/systems/unit-sy
 import { processCity } from '@/systems/city-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
-import { processResearch } from '@/systems/tech-system';
+import { processResearch, getTechById } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
@@ -480,19 +480,24 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         const bonus = intel.data.researchBonus as number;
         const cap = newState.civilizations[captorId];
         if (cap) {
-          newState = {
-            ...newState,
-            civilizations: {
-              ...newState.civilizations,
-              [captorId]: {
-                ...cap,
-                techState: {
-                  ...cap.techState,
-                  researchProgress: (cap.techState.researchProgress ?? 0) + Math.floor(bonus * 100),
+          const currentTechId = cap.techState.currentResearch;
+          const techCost = currentTechId ? (getTechById(currentTechId)?.cost ?? 0) : 0;
+          const progressGain = techCost > 0 ? Math.floor(bonus * techCost) : 0;
+          if (progressGain > 0) {
+            newState = {
+              ...newState,
+              civilizations: {
+                ...newState.civilizations,
+                [captorId]: {
+                  ...cap,
+                  techState: {
+                    ...cap.techState,
+                    researchProgress: (cap.techState.researchProgress ?? 0) + progressGain,
+                  },
                 },
               },
-            },
-          };
+            };
+          }
         }
       }
     }
