@@ -88,10 +88,11 @@ export function applyCityMaturity(city: City, completedTechs: string[]): CityMat
   const current = resolveCityMaturity(city.population, completedTechs);
   const previous = city.maturity ?? INITIAL_CITY_MATURITY;
   const definition = getCityMaturityDefinition(current);
+  const gridSize = Math.max(city.gridSize ?? definition.gridSize, definition.gridSize) as 3 | 5 | 7;
   return {
-    city: { ...city, maturity: current, gridSize: definition.gridSize },
+    city: { ...city, maturity: current, gridSize },
     previous,
     current,
-    changed: previous !== current || city.gridSize !== definition.gridSize,
+    changed: previous !== current || city.gridSize !== gridSize,
   };
 }

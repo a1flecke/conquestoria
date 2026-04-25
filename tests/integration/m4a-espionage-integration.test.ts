@@ -51,7 +51,7 @@ function makeTestGameState(): GameState {
         id: 'city-egypt-1', name: 'Thebes', owner: 'ai-egypt',
         position: { q: 5, r: 3 }, population: 5, food: 0, foodNeeded: 20,
         buildings: ['granary'], productionQueue: ['warrior'],
-        productionProgress: 10, ownedTiles: [{ q: 5, r: 3 }],
+        productionProgress: 10, ownedTiles: [{ q: 5, r: 3 }], workedTiles: [], focus: 'balanced', maturity: 'outpost',
         grid: [[null]], gridSize: 3,
         unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
       },
@@ -255,7 +255,7 @@ describe('hot seat espionage safety', () => {
       id: 'city-rome-1', name: 'Rome', owner: 'player-2',
       position: { q: 8, r: 1 }, population: 3, food: 0, foodNeeded: 15,
       buildings: [], productionQueue: [], productionProgress: 0,
-      ownedTiles: [], grid: [[null]], gridSize: 3,
+      ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [[null]], gridSize: 3,
     } as any;
     state.espionage = {
       player: createEspionageCivState(),

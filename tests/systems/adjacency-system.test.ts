@@ -49,6 +49,18 @@ describe('adjacency system', () => {
         expect(barracksBonus.food + barracksBonus.production + barracksBonus.gold + barracksBonus.science).toBe(0);
       }
     });
+
+    it('uses the centered unlocked area on 7x7 city grids', () => {
+      const grid: (string | null)[][] = Array.from({ length: 7 }, () =>
+        Array.from({ length: 7 }, () => null),
+      );
+      grid[3][3] = 'city-center';
+      grid[4][3] = 'library';
+
+      const bonuses = calculateAdjacencyBonuses(grid, 3);
+
+      expect(bonuses['4,3'].science).toBeGreaterThan(0);
+    });
   });
 
   describe('findOptimalSlot', () => {

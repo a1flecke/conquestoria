@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { EventBus } from '@/core/event-bus';
+import { processTurn } from '@/core/turn-manager';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 const dbState = new Map<string, unknown>();
 
@@ -215,6 +217,37 @@ describe('save persistence (#38)', () => {
     expect([3, 5, 7]).toContain(loadedCity.gridSize);
   });
 
+  it('does not shrink a migrated 5x5 city grid during the next turn', async () => {
+    const state = createNewGame('rome', 'legacy-city-grid-turn-seed');
+    const playerCiv = state.civilizations.player;
+    const startPosition = state.units[playerCiv.units[0]].position;
+    const city = foundCity('player', startPosition, state.map);
+    state.cities[city.id] = city;
+    playerCiv.cities.push(city.id);
+
+    const legacyCity = city as unknown as {
+      workedTiles?: unknown;
+      focus?: unknown;
+      maturity?: unknown;
+      grid: (string | null)[][];
+      gridSize: number;
+    };
+    delete legacyCity.workedTiles;
+    delete legacyCity.focus;
+    delete legacyCity.maturity;
+    legacyCity.grid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => null));
+    legacyCity.grid[2][2] = 'city-center';
+    legacyCity.grid[0][2] = 'workshop';
+    legacyCity.gridSize = 5;
+
+    await saveGame('slot-legacy-city-grid-turn', 'Legacy City Grid Turn', state);
+    const loaded = await loadGame('slot-legacy-city-grid-turn');
+    const processed = processTurn(loaded!, new EventBus());
+
+    expect(processed.cities[city.id].gridSize).toBe(5);
+    expect(processed.cities[city.id].grid[1][3]).toBe('workshop');
+  });
+
   it('round-trips legendary wonder history through JSON serialization', () => {
     const state = {
       legendaryWonderHistory: {
@@ -392,6 +425,9 @@ describe('save persistence (#38)', () => {
       productionQueue: ['warrior', 'shrine', 'worker', 'library'],
       productionProgress: 0,
       ownedTiles: [{ q: 2, r: 2 }],
+      workedTiles: [],
+      focus: 'balanced',
+      maturity: 'outpost',
       grid: [[null]],
       gridSize: 3,
       unrestLevel: 0,
@@ -430,6 +466,9 @@ describe('save persistence (#38)', () => {
       productionQueue: [],
       productionProgress: 0,
       ownedTiles: [{ q: 2, r: 2 }],
+      workedTiles: [],
+      focus: 'balanced',
+      maturity: 'outpost',
       grid: [[null]],
       gridSize: 3,
       unrestLevel: 0,
@@ -463,6 +502,9 @@ describe('save persistence (#38)', () => {
         productionQueue: [],
         productionProgress: 0,
         ownedTiles: [{ q: 2, r: 2 }],
+        workedTiles: [],
+        focus: 'balanced',
+        maturity: 'outpost',
         grid: [[null]],
         gridSize: 3,
         unrestLevel: 0,
@@ -481,6 +523,9 @@ describe('save persistence (#38)', () => {
         productionQueue: [],
         productionProgress: 0,
         ownedTiles: [{ q: 10, r: 10 }],
+        workedTiles: [],
+        focus: 'balanced',
+        maturity: 'outpost',
         grid: [[null]],
         gridSize: 3,
         unrestLevel: 0,

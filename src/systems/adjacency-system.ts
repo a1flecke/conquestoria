@@ -53,9 +53,10 @@ function getGridNeighbors(row: number, col: number): Array<{ row: number; col: n
   ];
 }
 
-function isSlotUnlocked(row: number, col: number, gridSize: number): boolean {
-  const offset = Math.floor((5 - gridSize) / 2);
-  return row >= offset && row < 5 - offset && col >= offset && col < 5 - offset;
+function isSlotUnlocked(row: number, col: number, gridSize: number, renderSize: number): boolean {
+  const unlockedSize = Math.min(gridSize, renderSize);
+  const offset = Math.floor((renderSize - unlockedSize) / 2);
+  return row >= offset && row < renderSize - offset && col >= offset && col < renderSize - offset;
 }
 
 export function calculateAdjacencyBonuses(
@@ -63,11 +64,12 @@ export function calculateAdjacencyBonuses(
   gridSize: number,
 ): Record<string, ResourceYield> {
   const bonuses: Record<string, ResourceYield> = {};
+  const renderSize = grid.length;
 
-  for (let r = 0; r < 5; r++) {
-    for (let c = 0; c < 5; c++) {
+  for (let r = 0; r < renderSize; r++) {
+    for (let c = 0; c < (grid[r]?.length ?? 0); c++) {
       const building = grid[r]?.[c];
-      if (!building || !isSlotUnlocked(r, c, gridSize)) continue;
+      if (!building || !isSlotUnlocked(r, c, gridSize, renderSize)) continue;
 
       const bonus: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
       const neighbors = getGridNeighbors(r, c);
@@ -115,10 +117,11 @@ export function findOptimalSlot(
 ): { row: number; col: number } | null {
   let bestSlot: { row: number; col: number } | null = null;
   let bestScore = -1;
+  const renderSize = grid.length;
 
-  for (let r = 0; r < 5; r++) {
-    for (let c = 0; c < 5; c++) {
-      if (!isSlotUnlocked(r, c, gridSize)) continue;
+  for (let r = 0; r < renderSize; r++) {
+    for (let c = 0; c < (grid[r]?.length ?? 0); c++) {
+      if (!isSlotUnlocked(r, c, gridSize, renderSize)) continue;
       if (grid[r]?.[c] !== null) continue;
 
       // Score by adjacency bonus this building would get here
@@ -144,9 +147,9 @@ export function findOptimalSlot(
 
   // If no adjacency-scoring slot, return first empty unlocked slot
   if (bestSlot === null || bestScore === 0) {
-    for (let r = 0; r < 5; r++) {
-      for (let c = 0; c < 5; c++) {
-        if (!isSlotUnlocked(r, c, gridSize)) continue;
+    for (let r = 0; r < renderSize; r++) {
+      for (let c = 0; c < (grid[r]?.length ?? 0); c++) {
+        if (!isSlotUnlocked(r, c, gridSize, renderSize)) continue;
         if (grid[r]?.[c] === null) {
           return { row: r, col: c };
         }

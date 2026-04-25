@@ -38,6 +38,18 @@ describe('foundCity', () => {
     expect(city.ownedTiles).toContainEqual(landTile.coord);
   });
 
+  it('canonicalizes claimed tiles when founded near a wrapped map edge', () => {
+    const map = generateMap(5, 5, 'city-wrap-test');
+    map.wrapsHorizontally = true;
+    map.tiles['0,2'] = { ...map.tiles['0,2'], terrain: 'grassland' };
+    map.tiles['4,2'] = { ...map.tiles['4,2'], terrain: 'grassland' };
+
+    const city = foundCity('p1', { q: 0, r: 2 }, map);
+
+    expect(city.ownedTiles).toContainEqual({ q: 4, r: 2 });
+    expect(city.ownedTiles).not.toContainEqual({ q: -1, r: 2 });
+  });
+
   it('foundCity uses the naming system instead of the old shared CITY_NAMES pool', () => {
     const map = generateMap(30, 30, 'city-test');
     const city = foundCity('player', { q: 2, r: 2 }, map, {
