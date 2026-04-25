@@ -418,6 +418,7 @@ describe('resolveMissionResult', () => {
           position: { q: 5, r: 3 }, population: 5, food: 0, foodNeeded: 20,
           buildings: ['granary'], productionQueue: ['warrior'],
           productionProgress: 10, ownedTiles: [{ q: 5, r: 3 }, { q: 5, r: 4 }, { q: 6, r: 3 }],
+          workedTiles: [], focus: 'balanced', maturity: 'outpost',
           grid: [[null]], gridSize: 3,
           unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
         },
@@ -649,12 +650,12 @@ describe('espionage diplomatic consequences', () => {
           'city-player-1': {
             id: 'city-player-1', name: 'Capital', owner: 'player', position: { q: 0, r: 0 }, population: 4,
             food: 0, foodNeeded: 20, buildings: [], productionQueue: [], productionProgress: 0,
-            ownedTiles: [{ q: 0, r: 0 }], grid: [[null]], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+            ownedTiles: [{ q: 0, r: 0 }], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [[null]], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
           },
           'city-rival-1': {
             id: 'city-rival-1', name: 'Rival City', owner: 'rival', position: { q: 1, r: 1 }, population: 4,
             food: 0, foodNeeded: 20, buildings: [], productionQueue: [], productionProgress: 0,
-            ownedTiles: [{ q: 1, r: 1 }], grid: [[null]], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+            ownedTiles: [{ q: 1, r: 1 }], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [[null]], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
           },
         },
         civilizations: {

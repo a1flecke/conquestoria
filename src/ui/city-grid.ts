@@ -62,6 +62,9 @@ export function createCityGrid(
   const suggestedSlot = suggestedBuilding
     ? findOptimalSlot(city.grid, city.gridSize, suggestedBuilding)
     : null;
+  const renderGridSize = city.grid.length || 7;
+  const gridCenter = Math.floor(renderGridSize / 2);
+  const gridMaxWidth = Math.min(420, renderGridSize * 56);
 
   // Get terrain for edge slots from owned tiles
   const ownedTileMap: Record<string, HexTile> = {};
@@ -78,7 +81,7 @@ export function createCityGrid(
     <strong style="color:#e8c170;">Grid View</strong> — Tap empty slots to place buildings, tap built slots to learn what they do, and use adjacency to make clever little combos. Edge slots show the terrain they sit on so the board explains itself.
     ${suggestedBuilding ? `<div style="color:#e8c170;margin-top:4px;">Suggested: <strong>${suggestedBuilding}</strong></div>` : ''}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;max-width:380px;margin:0 auto;">`;
+  <div style="display:grid;grid-template-columns:repeat(${renderGridSize},minmax(0,1fr));gap:3px;max-width:${gridMaxWidth}px;margin:0 auto;">`;
 
   const edgeSlots: Record<string, number> = {
     '0,1': 0, '0,2': 1, '0,3': 2,
@@ -89,16 +92,17 @@ export function createCityGrid(
     '0,0': 12, '0,4': 13, '4,0': 14, '4,4': 15,
   };
 
-  for (let r = 0; r < 5; r++) {
-    for (let c = 0; c < 5; c++) {
+  for (let r = 0; r < renderGridSize; r++) {
+    for (let c = 0; c < renderGridSize; c++) {
       const building = city.grid[r]?.[c];
-      const isUnlocked = isSlotUnlocked(r, c, city.gridSize);
+      const isUnlocked = isSlotUnlocked(r, c, city.gridSize, renderGridSize);
       const isSuggested = suggestedSlot && suggestedSlot.row === r && suggestedSlot.col === c;
       const adjKey = `${r},${c}`;
       const bonus = adjBonuses[adjKey];
 
       if (!isUnlocked) {
-        const popNeeded = r < 1 || r > 3 || c < 1 || c > 3 ? 6 : 3;
+        const distanceFromCenter = Math.max(Math.abs(r - gridCenter), Math.abs(c - gridCenter));
+        const popNeeded = distanceFromCenter > 2 ? 6 : 3;
         const buyCost = popNeeded === 3 ? 50 : 150;
         html += `<div class="grid-locked" style="aspect-ratio:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:10px;color:rgba(255,255,255,0.15);cursor:pointer;">
           <span>🔒</span>
@@ -131,7 +135,7 @@ export function createCityGrid(
         const edgeTile = edgeIdx !== undefined ? ownedTileMap[`edge-${edgeIdx}`] : null;
 
         let terrainInfo = '';
-        if (edgeTile && r !== 2 && c !== 2) {
+        if (edgeTile && (r !== gridCenter || c !== gridCenter)) {
           const tIcon = TERRAIN_ICONS[edgeTile.terrain] ?? '?';
           const tYield = TERRAIN_YIELDS[edgeTile.terrain];
           const yieldParts: string[] = [];
@@ -210,7 +214,8 @@ export function createCityGrid(
   return panel;
 }
 
-function isSlotUnlocked(row: number, col: number, gridSize: number): boolean {
-  const offset = Math.floor((5 - gridSize) / 2);
-  return row >= offset && row < 5 - offset && col >= offset && col < 5 - offset;
+function isSlotUnlocked(row: number, col: number, gridSize: number, renderSize: number): boolean {
+  const unlockedSize = Math.min(gridSize, renderSize);
+  const offset = Math.floor((renderSize - unlockedSize) / 2);
+  return row >= offset && row < renderSize - offset && col >= offset && col < renderSize - offset;
 }

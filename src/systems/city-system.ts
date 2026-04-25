@@ -1,5 +1,5 @@
 import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry } from '@/core/types';
-import { hexKey, hexesInRange } from './hex-utils';
+import { hexKey, hexesInRange, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 
@@ -83,17 +83,23 @@ export function createEmptyCityGrid(): (string | null)[][] {
 }
 
 export function foundCity(owner: string, position: HexCoord, map: GameMap, options: FoundCityOptions = {}): City {
+  const canonicalPosition = map.wrapsHorizontally ? wrapHexCoord(position, map.width) : { ...position };
   const name = drawNextCityName(options.civType ?? owner, options.usedNames ?? new Set<string>(), {
     namingPool: options.namingPool,
     civName: options.civName,
   });
 
   // Claim nearby land tiles (radius 1)
-  const nearby = hexesInRange(position, 1);
-  const ownedTiles = nearby.filter(coord => {
-    const tile = map.tiles[hexKey(coord)];
-    return tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain';
-  });
+  const ownedTileMap = new Map<string, HexCoord>();
+  const nearby = hexesInRange(canonicalPosition, 1);
+  for (const coord of nearby) {
+    const canonical = map.wrapsHorizontally ? wrapHexCoord(coord, map.width) : { ...coord };
+    const tile = map.tiles[hexKey(canonical)];
+    if (tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain') {
+      ownedTileMap.set(hexKey(canonical), canonical);
+    }
+  }
+  const ownedTiles = Array.from(ownedTileMap.values());
 
   const grid = createEmptyCityGrid();
 
@@ -101,7 +107,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, optio
     id: `city-${nextCityId++}`,
     name,
     owner,
-    position: { ...position },
+    position: canonicalPosition,
     population: 1,
     food: 0,
     foodNeeded: 15,

@@ -269,9 +269,9 @@ export interface City {
   productionQueue: string[]; // what's being built (building or unit ID)
   productionProgress: number;
   ownedTiles: HexCoord[];    // city territory/control, not active citizen assignment
-  workedTiles?: HexCoord[];
-  focus?: CityFocus;
-  maturity?: CityMaturity;
+  workedTiles: HexCoord[];
+  focus: CityFocus;
+  maturity: CityMaturity;
   lastFocusReminderTurn?: number;
   grid: (string | null)[][];  // 7x7 city interior grid with centered unlocked rings
   gridSize: 3 | 5 | 7;        // unlocked centered grid size
