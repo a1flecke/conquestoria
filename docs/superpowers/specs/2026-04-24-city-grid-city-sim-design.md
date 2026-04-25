@@ -29,9 +29,18 @@ The UI must work for two primary audiences:
 - Prevent city crowding and overlapping worked tiles across every civilization.
 - Make the design sliceable into small MRs that each deliver visible gameplay value.
 
+## Terminology
+
+Use these terms consistently so implementation does not mix the building board with map tiles:
+
+- **Building grid**: the city-internal square grid that holds city center and buildings. It grows from 3x3 to 5x5 to 7x7.
+- **Worked Land And Water**: the district page that lists map hexes a city can assign citizens to work.
+- **City territory**: map hexes associated with a city for control and eligibility, stored today as `city.ownedTiles`.
+- **Active work claim**: one citizen assignment to one map hex, stored on the city as `city.workedTiles` and indexed across all cities by the work-claim system.
+
 ## Non-Goals For The First MR
 
-- Do not implement specialists, governors, housing, amenities, pollution, district adjacency, offshore improvements, or tile purchasing yet.
+- Do not implement specialists, governors, housing, amenities, pollution, new district-adjacency rules, offshore improvements, or tile purchasing yet.
 - Do not require a complete city-builder economy rewrite.
 - Do not add an 8x8 grid.
 - Do not make straight turn count a maturity requirement.
@@ -39,7 +48,7 @@ The UI must work for two primary audiences:
 
 ## City Maturity
 
-Cities have maturity types that match the tech era structure:
+Cities have maturity types that match the current tech tree's era structure, which runs from Era 1 through Era 5:
 
 | Maturity | Era | Initial Population Threshold | Required Maturity Tech Count | City Layout Unlock |
 |---|---:|---:|---:|---:|
@@ -53,7 +62,9 @@ Population thresholds are tuning constants, not sacred balance. They must live i
 
 Maturity tech requirements are flexible groups, not single hard gates. A city should not be blocked forever because the player skipped exactly one named tech. Qualifying maturity techs must be explicit metadata, not inferred from all techs in a track.
 
-Likely qualifying tracks include civics, construction, agriculture, medicine, science, and economy when the tech represents settlement organization or urban systems. Examples include `early-empire`, `state-workforce`, `civil-service`, `foundations`, `masonry`, `aqueducts`, `arches`, `city-planning`, `granary-design`, `crop-rotation`, `fertilization`, `sanitation`, `medicine`, `surgery`, `engineering`, and `currency`.
+Era matching is part of the rule. Outpost has no tech requirement. Every later maturity requires both the total qualifying maturity-tech count in the table and at least one qualifying city-maturity tech from that maturity's era. For example, four Era 2 urban techs are not enough to unlock Metropolis; Metropolis needs the population threshold, four qualifying maturity techs total, and at least one qualifying Era 5 maturity tech.
+
+Qualifying tracks include civics, construction, agriculture, medicine, science, economy, and communication when the tech represents settlement organization, infrastructure, urban systems, logistics, or civic administration. Initial qualifying examples include `early-empire`, `state-workforce`, `civil-service`, `foundations`, `masonry`, `aqueducts`, `arches`, `city-planning`, `granary-design`, `crop-rotation`, `fertilization`, `sanitation`, `medicine`, `surgery`, `engineering`, `currency`, `global-logistics`, and `mass-media`. A tech with `countsForEraAdvancement: false` may still count for city maturity only if city-maturity metadata explicitly opts it in.
 
 Maturity upgrades happen automatically when a city meets both requirements. The player sees a short positive notification, for example: `Ephyra became a Town. New city slots unlocked.`
 
@@ -98,11 +109,15 @@ Auto-placement is required for the first MR. Manual building relocation can come
 
 Barracks is the immediate regression target: a completed Barracks must render in the grid after completion.
 
+Unplaced buildings should be derived from `city.buildings` minus buildings present in `city.grid`. Do not add a second long-term source of truth for unplaced buildings unless a later feature needs extra per-building state.
+
 ## Worked Land And Water
 
 Citizens work explicit tiles. The city center gives fixed base yield and does not consume a citizen.
 
-`city.workedTiles` is the source of worked-land yields. The old implicit behavior, `ownedTiles.slice(0, population)`, may be used only as migration/default fallback when a city has no valid `workedTiles` yet.
+`city.workedTiles` is the source of worked-land yields. The old implicit behavior, `ownedTiles.slice(0, population)`, may be used only as migration/default fallback when a city has no valid `workedTiles` yet. After migration, `ownedTiles` means city territory/control, not active citizen assignment.
+
+The city center coordinate must not appear in `city.workedTiles`. City-center yields are fixed base yields and remain separate from citizen assignment.
 
 Workable tiles include:
 
@@ -112,7 +127,9 @@ Workable tiles include:
 - unimproved tiles with base terrain yields
 - future water improvements such as fisheries, offshore wind farms, oil rigs, sea platforms, and harbor-linked commerce
 
-Water must be a first-class city-work tile type, not a later exception. Worker build rules may still limit which improvements can be built today, but the city assignment model must allow water work.
+Water must be a first-class city-work tile type, not a later exception. Coast tiles are valid worked water tiles in the first implementation. Ocean tiles may be controlled and worked only when normal ownership and later eligibility rules allow them. Worker build rules may still limit which improvements can be built today, but the city assignment model must not blanket-filter water out of city work.
+
+This does not make water valid for city centers. Founding a city still requires valid land terrain unless a later feature explicitly adds floating or offshore cities.
 
 Each worked-land row or card must show:
 
@@ -134,6 +151,8 @@ Player and major-civ AI city centers must be at least 4 hexes away from every ex
 Minor-civ placement may keep stricter rules where they already exist, such as larger spacing from starts, other minor civs, and camps. The shared hard rule remains: no newly founded city may violate the 4-hex city-center minimum against any existing player, AI, or minor-civ city.
 
 Spacing must use wrapped distance on wrapped maps. A city near the left map edge cannot be founded too close to a city mirrored across the right edge.
+
+All territory and worked-tile coordinates must be stored in canonical map coordinates. On horizontally wrapping maps, helpers must call `wrapHexCoord` before keying, saving, or comparing tile coordinates so no saved `ownedTiles` or `workedTiles` entry uses an off-map wrapped copy such as `q = -1`.
 
 Existing saves and captured cities are grandfathered. The rule prevents new too-close founding; it does not delete, move, or invalidate cities that already exist.
 
@@ -172,6 +191,8 @@ If an older save or a future migration produces duplicate claims, normalization 
 4. Break remaining ties by stable city id order.
 5. Refill losing cities from their focus mode when possible.
 
+Normalization should report which cities changed so UI and turn processing can refresh only the affected panels and show targeted notifications.
+
 ### Cross-Civ Boundary Pressure
 
 A city may work only tiles currently controlled by its civilization, unless a later feature explicitly grants shared access through diplomacy, trade, vassalage, or occupation rules. No such shared-access exception is part of the first implementation.
@@ -205,6 +226,8 @@ Cities have persistent focus:
 Focus buttons are kid-friendly automation. When a player chooses Food, Production, Gold, Science, or Balanced, the system assigns the best available tiles for that focus up to population.
 
 Manual tile toggles switch the city to `custom`. Custom assignments persist until invalid or until the player chooses a focus again.
+
+If a city has more population than valid unclaimed workable tiles, the surplus citizens remain unassigned for now. The system must show the open slots and must not duplicate another city's claim to fill them.
 
 Focus reassignment runs when:
 
@@ -255,6 +278,8 @@ interface City {
 
 The implementation may derive `maturity` from population and completed techs instead of persisting it, but player-facing UI and save migration must still behave consistently. If persisted, migration must normalize it on load and after turn processing.
 
+Update the `ownedTiles` type comment to mean city territory/control. It must no longer be described as "tiles this city works" once `workedTiles` exists.
+
 Add typed city-territory definitions:
 
 ```ts
@@ -278,12 +303,19 @@ interface CityMaturityDefinition {
   era: number;
   populationRequired: number;
   maturityTechsRequired: number;
+  requiresQualifyingTechAtEra: boolean;
   gridSize: 3 | 5 | 7;
   districtPages: string[];
 }
 ```
 
-Add explicit tech metadata for maturity qualification rather than inferring from text.
+Add explicit tech metadata for maturity qualification rather than inferring from text:
+
+```ts
+interface Tech {
+  countsForCityMaturity?: boolean;
+}
+```
 
 ## System Ownership
 
@@ -299,6 +331,7 @@ Shared gameplay logic should live outside UI:
 
 - `src/systems/city-work-system.ts`
   - derive workable tiles
+  - canonicalize wrapped coordinates before comparing or saving assignments
   - calculate tile yield contributions
   - choose worked tiles by focus
   - set focus
@@ -343,6 +376,8 @@ The Worked Land And Water page must keep every workable tile reachable. Recommen
 
 Tiles that are in this city's potential workable area but already claimed by another city must remain visible in the appropriate filtered view or show-all state. They are unavailable for assignment and labeled with the claim reason.
 
+On iPhone, the city panel should use vertical scrolling and district-page tabs rather than horizontal scrolling. The 7x7 building grid may scale to fit, but icons and tap targets must remain legible; worked land and water should use a list or compact cards instead of a tiny 49-cell map board.
+
 The panel should use simple labels:
 
 - `Worked 3/5 citizens`
@@ -363,19 +398,24 @@ System tests:
 - founding a city fails when it is within 3 hexes of an owned city
 - founding a city fails when it is within 3 hexes of a foreign or minor-civ city
 - founding distance uses wrapped distance on wrapped maps
+- territory and worked-tile normalization stores canonical wrapped coordinates
 - player and AI founding use the same spacing helper
 - worked tiles drive yields, including farm yield
 - water tiles can be selected and contribute water yields
 - city center yields do not consume a citizen
+- city center coordinates are removed from `workedTiles` during normalization
 - focus assignment selects the best tiles for food/production/gold/science
 - focus assignment skips tiles claimed by another city
+- surplus population remains visibly unassigned when no valid unclaimed tiles exist
 - manual assignment switches focus to `custom`
 - manual assignment refuses a tile claimed by another city
 - invalid worked tiles are removed and replaced when focus allows
 - cross-civ ownership changes invalidate losing cities' worked tiles
 - the work-claim index never returns two active city claims for the same hex key
 - maturity requires both population and enough qualifying maturity techs
+- maturity after Outpost requires at least one qualifying tech from that maturity's era
 - near-miss maturity cases fail: population without techs, techs without population
+- near-miss maturity cases fail when enough total maturity techs exist but none are from the target era
 - maturity upgrades unlock the correct grid size or district page set
 - completed Barracks auto-places in the building grid
 - completed buildings with no slot are surfaced as unplaced, not hidden
@@ -386,6 +426,7 @@ UI tests:
 - a farm tile appears with its improvement and yield
 - water tile appears as workable
 - claimed overlap tile appears as unavailable with `Worked by ...` text when the city is known
+- surplus unassigned citizens are visible when population exceeds valid unclaimed worked tiles
 - clicking a focus button rerenders worked tiles and visible yields
 - manual tile toggle rerenders immediately and shows `Custom`
 - blocked founding shows `Too close to ...` and does not consume the settler
@@ -405,18 +446,14 @@ Save/load tests:
 - older saves with duplicate worked-tile claims normalize to one claim per tile
 - older 5x5 grids normalize into the new 7x7-compatible shape without losing buildings
 
-## Suggested MR Slicing
+## Suggested Milestone Slicing
 
-MR 1 should be valuable on its own:
+The first milestone should be split into small MRs if implementation risk grows. Each MR should leave the game playable and visibly better:
 
-- data fields and migration
-- shared city spacing validation
-- city work-claim index and duplicate-claim normalization
-- explicit worked tiles
-- focus assignment
-- farm and water visibility in the city panel
-- completed building auto-placement
-- Barracks regression coverage
+- MR 1a: data fields, save migration, canonical coordinate normalization, shared city spacing validation, and work-claim index helpers.
+- MR 1b: explicit worked tiles, focus assignment, yield calculation from `workedTiles`, city-center exclusion, and duplicate-claim normalization.
+- MR 1c: Worked Land And Water UI with farm visibility, water visibility, claimed-tile labels, surplus citizen display, and immediate rerender after actions.
+- MR 1d: completed building auto-placement, unplaced-building surfacing, and Barracks regression coverage.
 
 Later MRs can add:
 
