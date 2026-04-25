@@ -28,12 +28,14 @@ Rules to read before editing source:
 - Create: `src/systems/city-maturity-system.ts`
 - Create: `src/systems/city-territory-system.ts`
 - Modify: `src/systems/city-system.ts`
+- Modify: `src/core/turn-manager.ts`
 - Modify: `src/storage/save-manager.ts`
 - Modify: `src/main.ts`
 - Modify: `src/ai/basic-ai.ts`
 - Test: `tests/systems/city-maturity-system.test.ts`
 - Test: `tests/systems/city-territory-system.test.ts`
 - Test: `tests/systems/city-system.test.ts`
+- Test: `tests/core/turn-manager.test.ts`
 - Test: `tests/storage/save-persistence.test.ts`
 - Test: `tests/ai/basic-ai.test.ts`
 
@@ -50,7 +52,10 @@ Add `tests/systems/city-maturity-system.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
+import { foundCity } from '@/systems/city-system';
+import { generateMap } from '@/systems/map-generator';
 import {
+  applyCityMaturity,
   CITY_MATURITY_DEFINITIONS,
   countCityMaturityTechs,
   resolveCityMaturity,
@@ -83,6 +88,16 @@ describe('city maturity definitions', () => {
 
   it('allows explicit era-five city maturity metadata to unlock metropolis', () => {
     expect(resolveCityMaturity(12, ['early-empire', 'engineering', 'medicine', 'global-logistics'])).toBe('metropolis');
+  });
+
+  it('applies maturity grid size from population plus qualifying techs', () => {
+    const map = generateMap(30, 30, 'city-maturity-apply');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const result = applyCityMaturity({ ...city, population: 5 }, ['early-empire', 'engineering']);
+    expect(result.changed).toBe(true);
+    expect(result.previous).toBe('outpost');
+    expect(result.current).toBe('town');
+    expect(result.city.gridSize).toBe(5);
   });
 });
 ```
@@ -153,7 +168,7 @@ export interface Tech {
 Create `src/systems/city-maturity-system.ts`:
 
 ```ts
-import type { CityMaturity } from '@/core/types';
+import type { City, CityMaturity } from '@/core/types';
 import { TECH_TREE } from './tech-system';
 
 export interface CityMaturityDefinition {
@@ -232,6 +247,25 @@ export function resolveCityMaturity(population: number, completedTechs: string[]
   }
   return result;
 }
+
+export interface CityMaturityApplicationResult {
+  city: City;
+  previous: CityMaturity;
+  current: CityMaturity;
+  changed: boolean;
+}
+
+export function applyCityMaturity(city: City, completedTechs: string[]): CityMaturityApplicationResult {
+  const current = resolveCityMaturity(city.population, completedTechs);
+  const previous = city.maturity;
+  const definition = getCityMaturityDefinition(current);
+  return {
+    city: { ...city, maturity: current, gridSize: definition.gridSize },
+    previous,
+    current,
+    changed: previous !== current || city.gridSize !== definition.gridSize,
+  };
+}
 ```
 
 Also update the existing `global-logistics` and `mass-media` object literals in `src/systems/tech-definitions.ts` so both include:
@@ -269,6 +303,7 @@ import { foundCity } from '@/systems/city-system';
 import {
   buildCityWorkClaimIndex,
   canonicalizeCityCoord,
+  formatCityFoundingBlockerMessage,
   getCityFoundingBlockers,
   MIN_CITY_CENTER_DISTANCE,
   normalizeCityWorkClaims,
@@ -313,6 +348,38 @@ describe('city founding territory rules', () => {
     const blockers = getCityFoundingBlockers(state, { q: state.map.width - 2, r: 5 });
     expect(blockers).toContainEqual(expect.objectContaining({ reason: 'too-close', distance: 2 }));
   });
+
+  it('does not treat the founding settler as an occupied-tile blocker', () => {
+    const state = createNewGame(undefined, 'city-spacing-ignore-settler');
+    state.units['unit-settler-test'] = {
+      id: 'unit-settler-test',
+      type: 'settler',
+      owner: 'player',
+      position: { q: 12, r: 12 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.map.tiles['12,12'] = {
+      ...state.map.tiles['12,12'],
+      terrain: 'grassland',
+    };
+
+    const blockers = getCityFoundingBlockers(state, { q: 12, r: 12 }, { ignoreUnitId: 'unit-settler-test' });
+
+    expect(blockers.find(blocker => blocker.reason === 'occupied')).toBeUndefined();
+  });
+
+  it('formats player-facing founding blocker messages', () => {
+    expect(formatCityFoundingBlockerMessage([
+      { reason: 'too-close', cityName: 'Ephyra', distance: 2 },
+    ])).toBe('Too close to Ephyra.');
+    expect(formatCityFoundingBlockerMessage([{ reason: 'invalid-terrain' }])).toBe('Cities must be founded on land.');
+    expect(formatCityFoundingBlockerMessage([{ reason: 'occupied' }])).toBe('Another unit is blocking this city site.');
+  });
 });
 
 describe('work claim indexing', () => {
@@ -334,6 +401,19 @@ describe('work claim indexing', () => {
     const index = buildCityWorkClaimIndex(normalized.state);
     expect(Object.values(index).filter(claim => claim.coord.q === 11 && claim.coord.r === 10)).toHaveLength(1);
     expect(normalized.changedCityIds.length).toBeGreaterThan(0);
+  });
+
+  it('removes worked claims when the city no longer controls the tile', () => {
+    const state = createNewGame(undefined, 'city-claim-foreign-owner');
+    const city = addCity(state, 'player', 10, 10);
+    const lostTile = { q: 11, r: 10 };
+    state.map.tiles['11,10'].owner = 'ai-1';
+    city.workedTiles = [lostTile];
+
+    const normalized = normalizeCityWorkClaims(state);
+
+    expect(normalized.state.cities[city.id].workedTiles).toEqual([]);
+    expect(normalized.changedCityIds).toContain(city.id);
   });
 });
 ```
@@ -378,6 +458,10 @@ export interface CityWorkClaimNormalizationResult {
   changedCityIds: string[];
 }
 
+export interface CityFoundingValidationOptions {
+  ignoreUnitId?: string;
+}
+
 export function canonicalizeCityCoord(coord: HexCoord, map: GameMap): HexCoord {
   return map.wrapsHorizontally ? wrapHexCoord(coord, map.width) : { ...coord };
 }
@@ -391,7 +475,11 @@ function isValidCityCenterTerrain(state: GameState, position: HexCoord): boolean
   return Boolean(tile && tile.terrain !== 'ocean' && tile.terrain !== 'coast' && tile.terrain !== 'mountain');
 }
 
-export function getCityFoundingBlockers(state: GameState, position: HexCoord): CityFoundingBlocker[] {
+export function getCityFoundingBlockers(
+  state: GameState,
+  position: HexCoord,
+  options: CityFoundingValidationOptions = {},
+): CityFoundingBlocker[] {
   const canonical = canonicalizeCityCoord(position, state.map);
   const blockers: CityFoundingBlocker[] = [];
 
@@ -400,7 +488,9 @@ export function getCityFoundingBlockers(state: GameState, position: HexCoord): C
   }
 
   const occupied = Object.values(state.units).some(unit =>
-    unit.position.q === canonical.q && unit.position.r === canonical.r,
+    unit.id !== options.ignoreUnitId &&
+    unit.position.q === canonical.q &&
+    unit.position.r === canonical.r,
   );
   if (occupied) {
     blockers.push({ reason: 'occupied' });
@@ -421,8 +511,20 @@ export function getCityFoundingBlockers(state: GameState, position: HexCoord): C
   return blockers;
 }
 
-export function canFoundCityAt(state: GameState, position: HexCoord): boolean {
-  return getCityFoundingBlockers(state, position).length === 0;
+export function canFoundCityAt(
+  state: GameState,
+  position: HexCoord,
+  options: CityFoundingValidationOptions = {},
+): boolean {
+  return getCityFoundingBlockers(state, position, options).length === 0;
+}
+
+export function formatCityFoundingBlockerMessage(blockers: CityFoundingBlocker[]): string {
+  const tooClose = blockers.find(blocker => blocker.reason === 'too-close');
+  if (tooClose?.cityName) return `Too close to ${tooClose.cityName}.`;
+  if (blockers.some(blocker => blocker.reason === 'invalid-terrain')) return 'Cities must be founded on land.';
+  if (blockers.some(blocker => blocker.reason === 'occupied')) return 'Another unit is blocking this city site.';
+  return 'This location cannot support a city.';
 }
 
 export function buildCityWorkClaimIndex(state: GameState): CityWorkClaimIndex {
@@ -451,8 +553,13 @@ function compareClaimCities(tileOwner: string | null, tileCoord: HexCoord, map: 
   return left.id.localeCompare(right.id);
 }
 
+interface ClaimCandidate {
+  city: City;
+  coord: HexCoord;
+}
+
 export function normalizeCityWorkClaims(state: GameState): CityWorkClaimNormalizationResult {
-  const claimsByTile = new Map<string, City[]>();
+  const claimsByTile = new Map<string, ClaimCandidate[]>();
   const changedCityIds = new Set<string>();
 
   for (const city of Object.values(state.cities)) {
@@ -460,28 +567,35 @@ export function normalizeCityWorkClaims(state: GameState): CityWorkClaimNormaliz
       const canonical = canonicalizeCityCoord(coord, state.map);
       const key = hexKey(canonical);
       const current = claimsByTile.get(key) ?? [];
-      current.push(city);
+      current.push({ city, coord: canonical });
       claimsByTile.set(key, current);
     }
   }
 
   const allowedByCity = new Map<string, Set<string>>();
-  for (const [key, claimCities] of claimsByTile.entries()) {
-    const coord = claimCities[0].workedTiles.find(candidate => hexKey(canonicalizeCityCoord(candidate, state.map)) === key);
-    const canonical = coord ? canonicalizeCityCoord(coord, state.map) : claimCities[0].position;
+  for (const [key, candidates] of claimsByTile.entries()) {
+    const canonical = candidates[0].coord;
     const tileOwner = state.map.tiles[key]?.owner ?? null;
-    const eligible = claimCities.filter(city => city.owner === tileOwner);
-    const sorted = (eligible.length > 0 ? eligible : claimCities)
+    const eligible = candidates.filter(candidate => candidate.city.owner === tileOwner);
+
+    if (eligible.length === 0) {
+      for (const candidate of candidates) {
+        changedCityIds.add(candidate.city.id);
+      }
+      continue;
+    }
+
+    const sorted = eligible
       .slice()
-      .sort((left, right) => compareClaimCities(tileOwner, canonical, state.map, left, right));
+      .sort((left, right) => compareClaimCities(tileOwner, canonical, state.map, left.city, right.city));
     const winner = sorted[0];
     if (!winner) continue;
-    const allowed = allowedByCity.get(winner.id) ?? new Set<string>();
+    const allowed = allowedByCity.get(winner.city.id) ?? new Set<string>();
     allowed.add(key);
-    allowedByCity.set(winner.id, allowed);
-    for (const loser of claimCities) {
-      if (loser.id !== winner.id || !eligible.includes(loser)) {
-        changedCityIds.add(loser.id);
+    allowedByCity.set(winner.city.id, allowed);
+    for (const candidate of candidates) {
+      if (candidate.city.id !== winner.city.id || candidate.coord.q !== canonical.q || candidate.coord.r !== canonical.r) {
+        changedCityIds.add(candidate.city.id);
       }
     }
   }
@@ -489,9 +603,15 @@ export function normalizeCityWorkClaims(state: GameState): CityWorkClaimNormaliz
   const cities = { ...state.cities };
   for (const city of Object.values(state.cities)) {
     const allowed = allowedByCity.get(city.id) ?? new Set<string>();
+    const seen = new Set<string>();
     const normalized = (city.workedTiles ?? [])
       .map(coord => canonicalizeCityCoord(coord, state.map))
-      .filter(coord => allowed.has(hexKey(coord)));
+      .filter(coord => {
+        const key = hexKey(coord);
+        if (!allowed.has(key) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     if (JSON.stringify(normalized) !== JSON.stringify(city.workedTiles ?? [])) {
       cities[city.id] = { ...city, workedTiles: normalized };
       changedCityIds.add(city.id);
@@ -695,12 +815,111 @@ Run:
 
 Expected: PASS.
 
-## Task 4: Wire Player And AI Founding Validation
+## Task 4: Apply Maturity During Turn Processing
+
+**Files:**
+- Modify: `src/core/turn-manager.ts`
+- Test: `tests/core/turn-manager.test.ts`
+
+- [ ] **Step 1: Add failing turn-manager maturity test**
+
+In `tests/core/turn-manager.test.ts`, add:
+
+```ts
+it('updates city maturity and grid size from population plus qualifying techs during turn processing', () => {
+  const state = createNewGame(undefined, 'turn-city-maturity', 'small');
+  const bus = new EventBus();
+  const playerCiv = state.civilizations.player;
+  const startPos = state.units[playerCiv.units[0]].position;
+  const city = foundCity('player', startPos, state.map);
+  state.cities[city.id] = {
+    ...city,
+    population: 5,
+    food: 0,
+    maturity: 'outpost',
+    gridSize: 3,
+    workedTiles: [],
+    focus: 'balanced',
+  };
+  playerCiv.cities.push(city.id);
+  playerCiv.techState.completed = ['early-empire', 'engineering'];
+
+  const result = processTurn(state, bus);
+
+  expect(result.cities[city.id].maturity).toBe('town');
+  expect(result.cities[city.id].gridSize).toBe(5);
+});
+```
+
+- [ ] **Step 2: Run test to verify failure**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/core/turn-manager.test.ts
+```
+
+Expected: FAIL because turn processing does not apply city maturity yet.
+
+- [ ] **Step 3: Apply maturity inside city processing**
+
+In `src/core/turn-manager.ts`, import:
+
+```ts
+import { applyCityMaturity } from '@/systems/city-maturity-system';
+```
+
+After `const result = processCity(...)`, replace the direct city assignment:
+
+```ts
+newState.cities[cityId] = result.city;
+```
+
+with:
+
+```ts
+const maturityResult = applyCityMaturity(result.city, civ.techState.completed);
+newState.cities[cityId] = maturityResult.city;
+if (maturityResult.changed && maturityResult.previous !== maturityResult.current) {
+  bus.emit('city:maturity-upgraded', {
+    cityId,
+    previous: maturityResult.previous,
+    current: maturityResult.current,
+  });
+}
+```
+
+Any later code in this city loop that reads the processed city must read `newState.cities[cityId]` after this assignment, not the stale `result.city`, when it needs maturity or grid size.
+
+- [ ] **Step 4: Show player maturity notification**
+
+In `src/main.ts`, add an event listener near the existing city event listeners:
+
+```ts
+bus.on('city:maturity-upgraded', ({ cityId, current }) => {
+  const city = gameState.cities[cityId];
+  if (city && city.owner === gameState.currentPlayer) {
+    const label = `${current[0].toUpperCase()}${current.slice(1)}`;
+    showNotification(`${city.name} became a ${label}. New city slots unlocked.`, 'success');
+  }
+});
+```
+
+- [ ] **Step 5: Run maturity turn tests**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn test --run tests/systems/city-maturity-system.test.ts tests/core/turn-manager.test.ts
+```
+
+Expected: PASS.
+
+## Task 5: Wire Player And AI Founding Validation
 
 **Files:**
 - Modify: `src/main.ts`
 - Modify: `src/ai/basic-ai.ts`
-- Test: `tests/ai/basic-ai.test.ts`
 - Test: `tests/ai/basic-ai.test.ts`
 
 - [ ] **Step 1: Add player and AI regression tests**
@@ -766,22 +985,18 @@ Expected: FAIL because AI still calls `foundCity` directly after terrain checks.
 
 - [ ] **Step 3: Update `src/main.ts` player founding**
 
-Import the blocker helper:
+Import the blocker helper and shared message formatter:
 
 ```ts
-import { getCityFoundingBlockers } from '@/systems/city-territory-system';
+import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 ```
 
 At the start of `foundCityAction`, after settler validation and before `foundCity`, add:
 
 ```ts
-const blockers = getCityFoundingBlockers(gameState, unit.position);
+const blockers = getCityFoundingBlockers(gameState, unit.position, { ignoreUnitId: unit.id });
 if (blockers.length > 0) {
-  const tooClose = blockers.find(blocker => blocker.reason === 'too-close');
-  const message = tooClose?.cityName
-    ? `Too close to ${tooClose.cityName}.`
-    : 'This location cannot support a city.';
-  showNotification(message, 'warning');
+  showNotification(formatCityFoundingBlockerMessage(blockers), 'warning');
   return;
 }
 ```
@@ -797,7 +1012,7 @@ import { canFoundCityAt } from '@/systems/city-territory-system';
 In the settler founding branch, replace the terrain-only condition with:
 
 ```ts
-if (tile && canFoundCityAt(newState, settler.position)) {
+if (tile && canFoundCityAt(newState, settler.position, { ignoreUnitId: settler.id })) {
   const city = foundCity(civId, settler.position, newState.map, {
     civType: civ.civType,
     namingPool: civDef?.cityNames,
@@ -813,7 +1028,7 @@ if (tile && canFoundCityAt(newState, settler.position)) {
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/city-territory-system.test.ts tests/systems/city-system.test.ts tests/storage/save-persistence.test.ts tests/ai/basic-ai.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/city-territory-system.test.ts tests/systems/city-system.test.ts tests/core/turn-manager.test.ts tests/storage/save-persistence.test.ts tests/ai/basic-ai.test.ts
 ```
 
 Expected: PASS.
@@ -823,7 +1038,7 @@ Expected: PASS.
 Run:
 
 ```bash
-scripts/check-src-rule-violations.sh src/core/types.ts src/systems/city-maturity-system.ts src/systems/city-territory-system.ts src/systems/city-system.ts src/storage/save-manager.ts src/main.ts src/ai/basic-ai.ts
+scripts/check-src-rule-violations.sh src/core/types.ts src/systems/city-maturity-system.ts src/systems/city-territory-system.ts src/systems/city-system.ts src/core/turn-manager.ts src/storage/save-manager.ts src/main.ts src/ai/basic-ai.ts
 ```
 
 Expected: no rule violations.
@@ -833,7 +1048,7 @@ Expected: no rule violations.
 Run:
 
 ```bash
-git add src/core/types.ts src/systems/city-maturity-system.ts src/systems/city-territory-system.ts src/systems/city-system.ts src/storage/save-manager.ts src/main.ts src/ai/basic-ai.ts tests/systems/city-maturity-system.test.ts tests/systems/city-territory-system.test.ts tests/systems/city-system.test.ts tests/storage/save-persistence.test.ts tests/ai/basic-ai.test.ts
+git add src/core/types.ts src/systems/city-maturity-system.ts src/systems/city-territory-system.ts src/systems/city-system.ts src/core/turn-manager.ts src/storage/save-manager.ts src/main.ts src/ai/basic-ai.ts tests/systems/city-maturity-system.test.ts tests/systems/city-territory-system.test.ts tests/systems/city-system.test.ts tests/core/turn-manager.test.ts tests/storage/save-persistence.test.ts tests/ai/basic-ai.test.ts
 git commit -m "feat(city): add territory foundation"
 ```
 
@@ -842,7 +1057,7 @@ git commit -m "feat(city): add territory foundation"
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/city-maturity-system.test.ts tests/systems/city-territory-system.test.ts tests/systems/city-system.test.ts tests/storage/save-persistence.test.ts tests/ai/basic-ai.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/city-maturity-system.test.ts tests/systems/city-territory-system.test.ts tests/systems/city-system.test.ts tests/core/turn-manager.test.ts tests/storage/save-persistence.test.ts tests/ai/basic-ai.test.ts
 ./scripts/run-with-mise.sh yarn build
 ```
 

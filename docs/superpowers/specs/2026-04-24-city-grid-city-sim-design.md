@@ -454,11 +454,11 @@ The first milestone should be split into small MRs if implementation risk grows.
 - MR 1b: explicit worked tiles, focus assignment, yield calculation from `workedTiles`, city-center exclusion, and duplicate-claim normalization.
 - MR 1c: Worked Land And Water UI with farm visibility, water visibility, claimed-tile labels, surplus citizen display, and immediate rerender after actions.
 - MR 1d: completed building auto-placement, unplaced-building surfacing, and Barracks regression coverage.
+- MR 1e: focused-city reminders and worked-person map markers with focus glyphs.
 
 Later MRs can add:
 
 - district-page polish and deeper mobile ergonomics
-- worked-person map markers
 - richer water improvements
 - manual building relocation
 - specialists

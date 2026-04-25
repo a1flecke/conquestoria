@@ -53,6 +53,7 @@ import {
   assignCityFocus,
   calculateWorkedTileYield,
   getWorkableTilesForCity,
+  normalizeCityWorkAfterTerritoryChange,
   normalizeWorkedTilesForCity,
   setCityWorkedTile,
 } from '@/systems/city-work-system';
@@ -166,6 +167,70 @@ describe('worked tile normalization', () => {
 
     const result = normalizeWorkedTilesForCity(state, city.id);
     expect(result.state.cities[city.id].workedTiles).toEqual([]);
+  });
+
+  it('reassigns a focused city when a worked tile changes ownership', () => {
+    const state = createNewGame(undefined, 'city-work-territory-change');
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+    const lostTile = { q: 16, r: 15 };
+    const replacement = { q: 15, r: 16 };
+    state.map.tiles[hexKey(lostTile)] = {
+      ...state.map.tiles[hexKey(lostTile)],
+      coord: lostTile,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      owner: 'ai-1',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.map.tiles[hexKey(replacement)] = {
+      ...state.map.tiles[hexKey(replacement)],
+      coord: replacement,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.cities[city.id] = {
+      ...city,
+      population: 1,
+      focus: 'food',
+      workedTiles: [lostTile],
+      ownedTiles: [city.position, lostTile, replacement],
+    };
+
+    const result = normalizeCityWorkAfterTerritoryChange(state, city.id);
+    const updated = result.state.cities[city.id];
+    expect(updated.focus).toBe('food');
+    expect(updated.workedTiles).toContainEqual(replacement);
+    expect(updated.workedTiles).not.toContainEqual(lostTile);
+  });
+
+  it('removes invalid custom worked tiles without auto-refilling them', () => {
+    const state = createNewGame(undefined, 'city-work-custom-territory-change');
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+    const lostTile = { q: 16, r: 15 };
+    const replacement = { q: 15, r: 16 };
+    state.map.tiles[hexKey(lostTile)] = { ...state.map.tiles[hexKey(lostTile)], coord: lostTile, terrain: 'grassland', owner: 'ai-1' };
+    state.map.tiles[hexKey(replacement)] = { ...state.map.tiles[hexKey(replacement)], coord: replacement, terrain: 'grassland', owner: 'player' };
+    state.cities[city.id] = {
+      ...city,
+      population: 1,
+      focus: 'custom',
+      workedTiles: [lostTile],
+      ownedTiles: [city.position, lostTile, replacement],
+    };
+
+    const result = normalizeCityWorkAfterTerritoryChange(state, city.id);
+    expect(result.state.cities[city.id].workedTiles).toEqual([]);
+    expect(result.unassignedCitizens).toBe(1);
   });
 
   it('calculates completed farm yield for a worked tile', () => {
@@ -419,6 +484,14 @@ export function normalizeWorkedTilesForCity(state: GameState, cityId: string): C
     unassignedCitizens: countUnassigned(normalizedCity.population, normalizedCity.workedTiles),
   };
 }
+
+export function normalizeCityWorkAfterTerritoryChange(state: GameState, cityId: string): CityWorkMutationResult {
+  const city = state.cities[cityId];
+  if (!city) return { state, changed: false, reason: 'missing-city', unassignedCitizens: 0 };
+  return city.focus === 'custom'
+    ? normalizeWorkedTilesForCity(state, cityId)
+    : assignCityFocus(state, cityId, city.focus);
+}
 ```
 
 - [ ] **Step 5: Run city-work tests**
@@ -441,37 +514,75 @@ Expected: PASS.
 
 In `tests/systems/resource-system.test.ts`, add:
 
+Update imports:
+
+```ts
+import type { GameMap, HexCoord, TerrainType } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
+```
+
+Add this helper inside the `calculateCityYields` describe block:
+
+```ts
+function forceTerrain(map: GameMap, coord: HexCoord, terrain: TerrainType): HexCoord {
+  const key = hexKey(coord);
+  map.tiles[key] = {
+    ...map.tiles[key],
+    coord,
+    terrain,
+    elevation: terrain === 'hills' ? 'highland' : 'lowland',
+    owner: 'player',
+    improvement: 'none',
+    improvementTurnsLeft: 0,
+    hasRiver: false,
+    wonder: null,
+    resource: null,
+  };
+  return coord;
+}
+```
+
+Then add these tests:
+
 ```ts
 it('uses explicit workedTiles instead of the first owned tiles', () => {
   const map = generateMap(30, 30, 'explicit-worked-yields');
   const city = foundCity('player', { q: 15, r: 15 }, map);
-  const grass = city.ownedTiles.find(coord => map.tiles[`${coord.q},${coord.r}`]?.terrain === 'grassland')!;
-  const hills = city.ownedTiles.find(coord => map.tiles[`${coord.q},${coord.r}`]?.terrain === 'hills')!;
+  const grass = forceTerrain(map, { q: 16, r: 15 }, 'grassland');
+  const hills = forceTerrain(map, { q: 17, r: 15 }, 'hills');
   const cityWithProductionFocus = { ...city, population: 1, workedTiles: [hills], ownedTiles: [grass, hills] };
 
   const yields = calculateCityYields(cityWithProductionFocus, map);
 
-  expect(yields.production).toBeGreaterThanOrEqual(3);
+  expect(yields.food).toBe(1);
+  expect(yields.production).toBe(3);
+});
+
+it('treats an empty workedTiles array as no assigned citizens', () => {
+  const map = generateMap(30, 30, 'empty-worked-yields');
+  const city = foundCity('player', { q: 15, r: 15 }, map);
+  const grass = forceTerrain(map, { q: 16, r: 15 }, 'grassland');
+  const hills = forceTerrain(map, { q: 17, r: 15 }, 'hills');
+
+  const yields = calculateCityYields({ ...city, population: 2, ownedTiles: [grass, hills], workedTiles: [] }, map);
+
+  expect(yields).toEqual({ food: 1, production: 1, gold: 1, science: 1 });
 });
 
 it('does not count city center as a worked citizen tile', () => {
   const map = generateMap(30, 30, 'city-center-not-worked');
   const city = foundCity('player', { q: 15, r: 15 }, map);
   const yields = calculateCityYields({ ...city, population: 1, workedTiles: [city.position] }, map);
-  expect(yields.food).toBe(1);
-  expect(yields.production).toBe(1);
-  expect(yields.gold).toBe(1);
-  expect(yields.science).toBe(1);
+  expect(yields).toEqual({ food: 1, production: 1, gold: 1, science: 1 });
 });
 
 it('counts coast water yields when explicitly worked', () => {
   const map = generateMap(30, 30, 'worked-coast-yields');
   const city = foundCity('player', { q: 15, r: 15 }, map);
-  const coast = Object.values(map.tiles).find(tile => tile.terrain === 'coast')!;
-  map.tiles[`${coast.coord.q},${coast.coord.r}`].owner = 'player';
-  const yields = calculateCityYields({ ...city, population: 1, ownedTiles: [coast.coord], workedTiles: [coast.coord] }, map);
-  expect(yields.food).toBeGreaterThanOrEqual(3);
-  expect(yields.gold).toBeGreaterThanOrEqual(2);
+  const coast = forceTerrain(map, { q: 16, r: 15 }, 'coast');
+  const yields = calculateCityYields({ ...city, population: 1, ownedTiles: [coast], workedTiles: [coast] }, map);
+  expect(yields.food).toBe(3);
+  expect(yields.gold).toBe(2);
 });
 ```
 
@@ -487,9 +598,10 @@ Expected: FAIL because `calculateCityYields` still slices `ownedTiles`.
 
 - [ ] **Step 3: Update resource-system worked tile selection**
 
-In `src/systems/resource-system.ts`, import helpers:
+In `src/systems/resource-system.ts`, add `HexCoord` to the existing `@/core/types` type import and import the coordinate helper:
 
 ```ts
+import type { City, GameMap, ResourceYield, CivBonusEffect, HexCoord } from '@/core/types';
 import { canonicalizeCityCoord } from './city-territory-system';
 ```
 
@@ -503,19 +615,20 @@ with:
 
 ```ts
 const centerKey = hexKey(city.position);
-const explicitWorkedTiles = (city.workedTiles ?? [])
+const maybeWorkedTiles = (city as City & { workedTiles?: HexCoord[] }).workedTiles;
+const hasExplicitWorkedTiles = Array.isArray(maybeWorkedTiles);
+const explicitWorkedTiles = (maybeWorkedTiles ?? [])
   .map(coord => canonicalizeCityCoord(coord, map))
   .filter(coord => hexKey(coord) !== centerKey)
   .slice(0, city.population);
-const workedTiles = explicitWorkedTiles.length > 0
-  ? explicitWorkedTiles
-  : city.ownedTiles
-      .map(coord => canonicalizeCityCoord(coord, map))
-      .filter(coord => hexKey(coord) !== centerKey)
-      .slice(0, city.population);
+const legacyImplicitWorkedTiles = city.ownedTiles
+  .map(coord => canonicalizeCityCoord(coord, map))
+  .filter(coord => hexKey(coord) !== centerKey)
+  .slice(0, city.population);
+const workedTiles = hasExplicitWorkedTiles ? explicitWorkedTiles : legacyImplicitWorkedTiles;
 ```
 
-Keep the existing terrain, river, improvement, wonder, and civ-bonus loops reading from `workedTiles`.
+Keep the existing terrain, river, improvement, wonder, and civ-bonus loops reading from `workedTiles`. The important distinction is that `workedTiles: []` is an explicit city state with no assigned citizens, while a missing `workedTiles` property is a legacy-save fallback.
 
 - [ ] **Step 4: Run resource tests**
 
@@ -541,6 +654,7 @@ In `tests/systems/city-system.test.ts`, add:
 
 ```ts
 it('preserves focus fields after city growth processing', () => {
+  const map = generateMap(30, 30, 'city-growth-focus-fields');
   const city = foundCity('player', { q: 15, r: 15 }, map);
   const focused = { ...city, focus: 'food' as const, workedTiles: [] };
   const result = processCity(focused, map, 30, 0);
@@ -549,7 +663,63 @@ it('preserves focus fields after city growth processing', () => {
 });
 ```
 
-In `tests/core/turn-manager.test.ts`, add a regression where a food-focused city grows and the turn result has `workedTiles.length <= population` and no city-center coordinate in `workedTiles`.
+In `tests/core/turn-manager.test.ts`, add this import:
+
+```ts
+import { hexKey } from '@/systems/hex-utils';
+```
+
+Then add this regression:
+
+```ts
+it('reassigns focused city worked tiles after growth without working the city center', () => {
+  const state = createNewGame(undefined, 'focused-growth-worked-tiles', 'small');
+  const bus = new EventBus();
+  const playerCiv = state.civilizations.player;
+  const startPos = state.units[playerCiv.units[0]].position;
+  const city = foundCity('player', startPos, state.map);
+  const workable = [
+    { q: startPos.q + 1, r: startPos.r },
+    { q: startPos.q, r: startPos.r + 1 },
+    { q: startPos.q + 1, r: startPos.r - 1 },
+  ];
+
+  state.map.tiles[hexKey(city.position)].owner = 'player';
+  for (const coord of workable) {
+    state.map.tiles[hexKey(coord)] = {
+      ...state.map.tiles[hexKey(coord)],
+      coord,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+  }
+
+  state.cities[city.id] = {
+    ...city,
+    population: 1,
+    food: city.foodNeeded,
+    focus: 'food',
+    workedTiles: [],
+    ownedTiles: [city.position, ...workable],
+  };
+  playerCiv.cities.push(city.id);
+
+  const result = processTurn(state, bus);
+  const updated = result.cities[city.id];
+
+  expect(updated.population).toBe(2);
+  expect(updated.focus).toBe('food');
+  expect(updated.workedTiles.length).toBeGreaterThan(0);
+  expect(updated.workedTiles.length).toBeLessThanOrEqual(updated.population);
+  expect(updated.workedTiles.map(hexKey)).not.toContain(hexKey(updated.position));
+});
+```
 
 - [ ] **Step 2: Run tests to verify failure or missing behavior**
 
@@ -565,16 +735,34 @@ Expected: FAIL until turn processing normalizes focus after growth.
 
 `processCity` already spreads `...city` in its return. Confirm it preserves `focus`, `workedTiles`, `maturity`, and `lastFocusReminderTurn`.
 
-In `src/core/turn-manager.ts`, after a city grows or after city-owned tiles change, call:
+In `src/core/turn-manager.ts`, import:
 
 ```ts
-const focusResult = processedCity.focus === 'custom'
-  ? normalizeWorkedTilesForCity(nextState, processedCity.id)
-  : assignCityFocus(nextState, processedCity.id, processedCity.focus);
-nextState = focusResult.state;
+import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 ```
 
-Thread this through immutable `GameState` updates. Do not mutate `state.cities[id]` in place inside turn processing.
+Then replace the current growth block:
+
+```ts
+if (result.grew) {
+  bus.emit('city:grew', { cityId, newPopulation: result.city.population });
+}
+```
+
+with:
+
+```ts
+if (result.grew) {
+  const grownCity = newState.cities[cityId];
+  const focusResult = grownCity.focus === 'custom'
+    ? normalizeWorkedTilesForCity(newState, cityId)
+    : assignCityFocus(newState, cityId, grownCity.focus);
+  newState = focusResult.state;
+  bus.emit('city:grew', { cityId, newPopulation: newState.cities[cityId].population });
+}
+```
+
+The call must happen after MR 1a's maturity application has assigned `newState.cities[cityId]`, so the helper sees the grown population, maturity, and grid size. Do not mutate the original `state` object; keep threading the local `newState` value.
 
 - [ ] **Step 4: Run turn and city tests**
 

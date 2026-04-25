@@ -128,10 +128,11 @@ Expected: PASS.
 
 - [ ] **Step 1: Add failing city-system tests**
 
-In `tests/systems/city-system.test.ts`, add:
+In `tests/systems/city-system.test.ts`, update the city-system import to include `getUnplacedBuildings`, then add:
 
 ```ts
 it('auto-places a completed Barracks into the building grid', () => {
+  const map = generateMap(30, 30, 'auto-place-barracks');
   const city = foundCity('player', { q: 15, r: 15 }, map);
   const queued = { ...city, productionQueue: ['barracks'], productionProgress: 9 };
 
@@ -143,6 +144,7 @@ it('auto-places a completed Barracks into the building grid', () => {
 });
 
 it('surfaces completed buildings as unplaced when no unlocked slots exist', () => {
+  const map = generateMap(30, 30, 'unplaced-barracks');
   const city = foundCity('player', { q: 15, r: 15 }, map);
   const fullGrid = city.grid.map(row => row.slice());
   for (let row = 2; row <= 4; row++) {
@@ -198,19 +200,13 @@ export function getUnplacedBuildings(city: City): string[] {
 
 - [ ] **Step 4: Call placement during production completion**
 
-In `processCity`, when a building completes, replace:
+In `processCity`, keep the existing completion assignment:
 
 ```ts
 newBuildings.push(building.id);
 ```
 
-with:
-
-```ts
-newBuildings.push(building.id);
-```
-
-Then before the final return, build an intermediate city:
+Then replace the final `return { city: { ...city, ... }, ... }` block with an intermediate city:
 
 ```ts
 let nextCity: City = {
@@ -266,7 +262,7 @@ it('shows a completed Barracks in the Buildings/Core grid', () => {
   });
 
   panel.querySelector<HTMLElement>('#tab-grid')?.click();
-  expect(panel.textContent).toContain('Barracks');
+  expect(collectText(panel)).toContain('Barracks');
 });
 
 it('shows unplaced buildings instead of hiding them', () => {
@@ -283,8 +279,9 @@ it('shows unplaced buildings instead of hiding them', () => {
   });
 
   panel.querySelector<HTMLElement>('#tab-grid')?.click();
-  expect(panel.textContent).toContain('Unplaced buildings');
-  expect(panel.textContent).toContain('Barracks');
+  const rendered = collectText(panel);
+  expect(rendered).toContain('Unplaced buildings');
+  expect(rendered).toContain('Barracks');
 });
 ```
 
@@ -354,29 +351,59 @@ Run:
 
 Expected: PASS.
 
-## Task 4: Remove Remaining 4x4 Grid Behavior
+## Task 4: Remove Remaining Population-Only Grid Expansion
 
 **Files:**
 - Modify: `src/systems/city-system.ts`
 - Test: `tests/systems/city-system.test.ts`
 
-- [ ] **Step 1: Update tests away from 4x4**
+- [ ] **Step 1: Update tests away from population-only expansion**
 
-Replace tests that expect grid size 4 with tests for 3, 5, and 7:
+Replace tests that expect grid size 4 or population-only grid unlocks with maturity-driven tests:
 
 ```ts
-it('does not use even grid sizes when expanding', () => {
+it('does not expand grid size from population alone', () => {
+  const map = generateMap(30, 30, 'expand-no-pop-only');
   const city = foundCity('player', { q: 15, r: 15 }, map);
-  city.population = 3;
+  city.population = 12;
+  city.maturity = 'outpost';
   expect(checkGridExpansion(city)).toBe(false);
   expect(city.gridSize).toBe(3);
 });
 
-it('expands from 3x3 to 5x5 at Town scale', () => {
+it('syncs from 3x3 to 5x5 when maturity is Town', () => {
+  const map = generateMap(30, 30, 'expand-town-scale');
   const city = foundCity('player', { q: 15, r: 15 }, map);
-  city.population = 5;
+  city.maturity = 'town';
   expect(checkGridExpansion(city)).toBe(true);
   expect(city.gridSize).toBe(5);
+});
+
+it('syncs from 5x5 to 7x7 when maturity is Metropolis', () => {
+  const map = generateMap(30, 30, 'expand-metropolis-scale');
+  const city = foundCity('player', { q: 15, r: 15 }, map);
+  city.maturity = 'metropolis';
+  city.gridSize = 5;
+  expect(checkGridExpansion(city)).toBe(true);
+  expect(city.gridSize).toBe(7);
+});
+
+it('processCity growth does not bypass maturity tech requirements', () => {
+  const map = generateMap(30, 30, 'process-growth-no-pop-only-grid');
+  const city = foundCity('player', { q: 15, r: 15 }, map);
+  const growingCity = { ...city, population: 4, food: city.foodNeeded };
+  const result = processCity(growingCity, map, 4, 0);
+  expect(result.grew).toBe(true);
+  expect(result.city.population).toBe(5);
+  expect(result.city.gridSize).toBe(3);
+});
+
+it('purchase grid expansion does not bypass city maturity', () => {
+  const map = generateMap(30, 30, 'buy-no-bypass-maturity');
+  const city = foundCity('player', { q: 15, r: 15 }, map);
+  const cost = purchaseGridExpansion(city, 1000);
+  expect(cost).toBe(0);
+  expect(city.gridSize).toBe(3);
 });
 ```
 
@@ -385,29 +412,43 @@ it('expands from 3x3 to 5x5 at Town scale', () => {
 In `src/systems/city-system.ts`, update:
 
 ```ts
-export function checkGridExpansion(city: City): boolean {
-  if (city.population >= 12 && city.gridSize < 7) {
-    city.gridSize = 7;
-    return true;
+function getGridSizeForCityMaturity(maturity: City['maturity']): 3 | 5 | 7 {
+  switch (maturity) {
+    case 'town':
+    case 'city':
+      return 5;
+    case 'metropolis':
+      return 7;
+    case 'outpost':
+    case 'village':
+    default:
+      return 3;
   }
-  if (city.population >= 5 && city.gridSize < 5) {
-    city.gridSize = 5;
+}
+
+export function checkGridExpansion(city: City): boolean {
+  const targetSize = getGridSizeForCityMaturity(city.maturity);
+  if (city.gridSize < targetSize) {
+    city.gridSize = targetSize;
     return true;
   }
   return false;
 }
 ```
 
-If `purchaseGridExpansion` remains in this MR, make it skip even sizes:
+In `processCity`, remove the inline population-only grid threshold block:
 
 ```ts
-export function purchaseGridExpansion(city: City, currentGold: number): number {
-  if (city.gridSize >= 7) return 0;
-  const nextSize: 5 | 7 = city.gridSize < 5 ? 5 : 7;
-  const cost = nextSize === 5 ? 150 : 400;
-  if (currentGold < cost) return 0;
-  city.gridSize = nextSize;
-  return cost;
+// Delete this legacy block entirely:
+// if (newPop >= 6 && newGridSize < 5) newGridSize = 5;
+// else if (newPop >= 3 && newGridSize < 4) newGridSize = 4;
+```
+
+Update `purchaseGridExpansion` so it cannot bypass maturity:
+
+```ts
+export function purchaseGridExpansion(_city: City, _currentGold: number): number {
+  return 0;
 }
 ```
 

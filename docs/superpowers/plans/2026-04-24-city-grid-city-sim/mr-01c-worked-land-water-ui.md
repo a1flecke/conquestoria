@@ -30,13 +30,14 @@ MR dependency: complete MR 1a and MR 1b first.
 - Modify: `src/ui/city-grid.ts`
 - Modify: `src/main.ts`
 - Test: `tests/ui/city-panel.test.ts`
-- Test: `tests/integration/city-hex-tap.test.ts` if player founding UI feedback is covered there
+- Test helper: `tests/ui/helpers/wonder-panel-fixture.ts`
+- Test: `tests/integration/city-hex-tap.test.ts`
 
 ## Player Truth Table
 
 | Before | Action | Internal change | Immediate visible result | Must remain reachable |
 |---|---|---|---|---|
-| City panel shows `Balanced` and `Worked 0/3 citizens` | Tap `Food` | `assignCityFocus(state, city.id, 'food')` | Focus label changes to `Food focus`; worked count and yields update in the open panel | All workable tiles via `Show all` or full list |
+| City panel shows `Balanced` and `Worked 0/3 citizens` | Tap `Food` | `assignCityFocus(state, city.id, 'food')` | Focus label changes to `Food focus`; worked count and yields update in the open panel | Full workable tile list |
 | Worked Land page shows an unworked tile | Tap `Work` | `setCityWorkedTile(..., true)` | Tile row changes to worked; focus label becomes `Custom`; yields update | Other workable tiles remain visible |
 | Worked Land page shows a worked tile | Tap `Unwork` | `setCityWorkedTile(..., false)` | Tile row changes to unworked; worked count decreases; yields update | The same tile remains visible for rework |
 | Worked Land page shows `Worked by Corinth` | Tap disabled tile | No mutation | Button remains disabled and label stays visible | The tile remains visible as an unavailable overlap |
@@ -63,11 +64,81 @@ MR dependency: complete MR 1a and MR 1b first.
 
 **Files:**
 - Modify: `src/ui/city-panel.ts`
+- Modify: `tests/ui/helpers/wonder-panel-fixture.ts`
 - Test: `tests/ui/city-panel.test.ts`
 
-- [ ] **Step 1: Add failing tests for sections and labels**
+- [ ] **Step 1: Extend the city-panel test fixture selectors**
 
-In `tests/ui/city-panel.test.ts`, add:
+In `tests/ui/helpers/wonder-panel-fixture.ts`, extend `MockElement` with data-attribute selectors and disabled-button support. Add these fields to the class:
+
+```ts
+  className = '';
+  disabled = false;
+  private _attributes: Record<string, string> = {};
+```
+
+Add these methods to the class:
+
+```ts
+  setAttribute(name: string, value: string = ''): void {
+    this._attributes[name] = value;
+    if (name === 'id') this.id = value;
+    if (name === 'class') this.className = value;
+    if (name === 'disabled') this.disabled = true;
+    const dataMatch = name.match(/^data-(.+)$/);
+    if (dataMatch) {
+      const key = dataMatch[1].replace(/-([a-z])/g, (_match: string, char: string) => char.toUpperCase());
+      this.dataset[key] = value;
+    }
+  }
+
+  getAttribute(name: string): string | null {
+    if (name === 'disabled' && this.disabled) return '';
+    return this._attributes[name] ?? null;
+  }
+
+  private descendants(): MockElement[] {
+    return this.children.flatMap(child => [child, ...child.descendants()]);
+  }
+
+  private matchesSelector(selector: string): boolean {
+    if (selector.startsWith('#')) return this.id === selector.slice(1);
+    if (selector.startsWith('.')) return this.className.split(/\s+/).includes(selector.slice(1));
+    const dataMatch = selector.match(/^\[data-([a-z0-9-]+)(?:="([^"]*)")?\]$/);
+    if (dataMatch) {
+      const key = dataMatch[1].replace(/-([a-z])/g, (_match: string, char: string) => char.toUpperCase());
+      return dataMatch[2] === undefined
+        ? this.dataset[key] !== undefined
+        : this.dataset[key] === dataMatch[2];
+    }
+    return this.tagName.toLowerCase() === selector.toLowerCase();
+  }
+```
+
+Replace the current final `return null;` in `querySelector` with:
+
+```ts
+    return this.querySelectorAll(selector)[0] ?? null;
+```
+
+Replace `querySelectorAll()` with:
+
+```ts
+  querySelectorAll(selector: string = ''): MockElement[] {
+    if (!selector) return [];
+    return this.descendants().filter(child => child.matchesSelector(selector));
+  }
+```
+
+- [ ] **Step 2: Add failing tests for sections and labels**
+
+In `tests/ui/city-panel.test.ts`, update the fixture import:
+
+```ts
+import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
+```
+
+Then add:
 
 ```ts
 it('renders Overview, Buildings/Core, and Worked Land And Water sections in the Grid tab', () => {
@@ -84,11 +155,12 @@ it('renders Overview, Buildings/Core, and Worked Land And Water sections in the 
   });
 
   panel.querySelector<HTMLElement>('#tab-grid')?.click();
-  expect(panel.textContent).toContain('Overview');
-  expect(panel.textContent).toContain('Buildings/Core');
-  expect(panel.textContent).toContain('Worked Land And Water');
-  expect(panel.textContent).toContain('Worked 0/');
-  expect(panel.textContent).toContain('Balanced focus');
+  const rendered = collectText(panel);
+  expect(rendered).toContain('Overview');
+  expect(rendered).toContain('Buildings/Core');
+  expect(rendered).toContain('Worked Land And Water');
+  expect(rendered).toContain('Worked 0/');
+  expect(rendered).toContain('Balanced focus');
 });
 
 it('shows surplus unassigned citizens when population exceeds available worked tiles', () => {
@@ -106,11 +178,11 @@ it('shows surplus unassigned citizens when population exceeds available worked t
   });
 
   panel.querySelector<HTMLElement>('#tab-grid')?.click();
-  expect(panel.textContent).toContain('Unassigned citizens: 4');
+  expect(collectText(panel)).toContain('Unassigned citizens: 4');
 });
 ```
 
-- [ ] **Step 2: Run tests to verify failure**
+- [ ] **Step 3: Run tests to verify failure**
 
 Run:
 
@@ -120,7 +192,7 @@ Run:
 
 Expected: FAIL because callbacks and rendered sections do not exist.
 
-- [ ] **Step 3: Update callback interface**
+- [ ] **Step 4: Update callback interface**
 
 In `src/ui/city-panel.ts`, update `CityPanelCallbacks`:
 
@@ -132,17 +204,34 @@ export interface CityPanelCallbacks {
   onMoveQueueItem?: (cityId: string, fromIndex: number, toIndex: number) => void;
   onRemoveQueueItem?: (cityId: string, index: number) => void;
   onOpenWonderPanel: (cityId: string) => void;
-  onSetCityFocus?: (cityId: string, focus: Exclude<CityFocus, 'custom'>) => void;
-  onToggleWorkedTile?: (cityId: string, coord: HexCoord, worked: boolean) => void;
+  onSetCityFocus?: (cityId: string, focus: Exclude<CityFocus, 'custom'>) => GameState | void;
+  onToggleWorkedTile?: (cityId: string, coord: HexCoord, worked: boolean) => GameState | void;
   onClose: () => void;
   onPrevCity?: () => void;
   onNextCity?: () => void;
 }
 ```
 
-- [ ] **Step 4: Add safe tab rendering helper**
+- [ ] **Step 5: Add safe tab rendering helper**
 
-Keep existing list and wonders behavior. For the Grid tab, call a single helper:
+Keep existing list and wonders behavior. Add a rerender helper in `createCityPanel`:
+
+```ts
+const rerenderPanel = (nextState: GameState | void = state) => {
+  const renderState = nextState ?? state;
+  const refreshedCity = renderState.cities[city.id];
+  if (!refreshedCity) {
+    panel.remove();
+    callbacks.onClose();
+    return;
+  }
+
+  panel.remove();
+  createCityPanel(container, refreshedCity, renderState, callbacks);
+};
+```
+
+For the Grid tab, call a single helper:
 
 ```ts
 function renderCityGridTab(
@@ -150,21 +239,22 @@ function renderCityGridTab(
   city: City,
   state: GameState,
   callbacks: CityPanelCallbacks,
+  rerenderPanel: (nextState?: GameState | void) => void,
 ): void {
   container.textContent = '';
-  container.appendChild(createCityGrid(container.ownerDocument.createElement('div'), city, state.map, {
+  createCityGrid(container, city, state.map, {
     onSlotTap: () => {},
     onBuyExpansion: () => {},
     onClose: callbacks.onClose,
   }, undefined, {
     state,
-    onSetCityFocus: callbacks.onSetCityFocus,
-    onToggleWorkedTile: callbacks.onToggleWorkedTile,
-  }));
+    onSetCityFocus: (cityId, focus) => rerenderPanel(callbacks.onSetCityFocus?.(cityId, focus)),
+    onToggleWorkedTile: (cityId, coord, worked) => rerenderPanel(callbacks.onToggleWorkedTile?.(cityId, coord, worked)),
+  });
 }
 ```
 
-Split a new `createCityManagementGrid` helper in `src/ui/city-grid.ts` and keep the old `createCityGrid` export as a thin wrapper until MR 1d replaces building-grid details.
+Keep the existing `createCityGrid` export and add the optional management argument shown above. MR 1d will continue refining the building-grid details without changing the panel callback contract again.
 
 ## Task 2: Render Worked Land And Water Cards
 
@@ -174,22 +264,43 @@ Split a new `createCityManagementGrid` helper in `src/ui/city-grid.ts` and keep 
 
 - [ ] **Step 1: Add failing farm/water/claimed tile tests**
 
-In `tests/ui/city-panel.test.ts`, add:
+In `tests/ui/city-panel.test.ts`, add this import:
+
+```ts
+import { hexKey } from '@/systems/hex-utils';
+```
+
+Then add:
 
 ```ts
 it('shows farm and water worked-land rows with yields', () => {
   const { container, city, state } = makeWonderPanelFixture();
   const farm = { q: city.position.q + 1, r: city.position.r };
-  const coast = Object.values(state.map.tiles).find(tile => tile.terrain === 'coast')!.coord;
-  state.map.tiles[`${farm.q},${farm.r}`] = {
-    ...state.map.tiles[`${farm.q},${farm.r}`],
+  const coast = { q: city.position.q, r: city.position.r + 1 };
+  state.map.tiles[hexKey(farm)] = {
+    ...state.map.tiles[hexKey(farm)],
     coord: farm,
     terrain: 'grassland',
+    elevation: 'lowland',
     improvement: 'farm',
     improvementTurnsLeft: 0,
     owner: city.owner,
+    hasRiver: false,
+    wonder: null,
+    resource: null,
   };
-  state.map.tiles[`${coast.q},${coast.r}`].owner = city.owner;
+  state.map.tiles[hexKey(coast)] = {
+    ...state.map.tiles[hexKey(coast)],
+    coord: coast,
+    terrain: 'coast',
+    elevation: 'lowland',
+    improvement: 'none',
+    improvementTurnsLeft: 0,
+    owner: city.owner,
+    hasRiver: false,
+    wonder: null,
+    resource: null,
+  };
   city.ownedTiles = [city.position, farm, coast];
 
   const panel = createCityPanel(container, city, state, {
@@ -201,8 +312,9 @@ it('shows farm and water worked-land rows with yields', () => {
   });
 
   panel.querySelector<HTMLElement>('#tab-grid')?.click();
-  expect(panel.textContent).toContain('Farm');
-  expect(panel.textContent).toContain('Water work: fishing/trapping');
+  const rendered = collectText(panel);
+  expect(rendered).toContain('Farm');
+  expect(rendered).toContain('Water work: fishing/trapping');
 });
 
 it('shows claimed overlap tiles as unavailable', () => {
@@ -210,12 +322,20 @@ it('shows claimed overlap tiles as unavailable', () => {
   const claimed = { q: city.position.q + 1, r: city.position.r };
   const otherCity = { ...city, id: 'city-other', name: 'Corinth', workedTiles: [claimed] };
   state.cities[otherCity.id] = otherCity;
-  state.map.tiles[`${claimed.q},${claimed.r}`] = {
-    ...state.map.tiles[`${claimed.q},${claimed.r}`],
+  state.map.tiles[hexKey(claimed)] = {
+    ...state.map.tiles[hexKey(claimed)],
     coord: claimed,
+    terrain: 'grassland',
+    elevation: 'lowland',
+    improvement: 'none',
+    improvementTurnsLeft: 0,
     owner: city.owner,
+    hasRiver: false,
+    wonder: null,
+    resource: null,
   };
   city.ownedTiles = [city.position, claimed];
+  city.workedTiles = [];
 
   const panel = createCityPanel(container, city, state, {
     onBuild: () => {},
@@ -226,7 +346,7 @@ it('shows claimed overlap tiles as unavailable', () => {
   });
 
   panel.querySelector<HTMLElement>('#tab-grid')?.click();
-  expect(panel.textContent).toContain('Worked by Corinth');
+  expect(collectText(panel)).toContain('Worked by Corinth');
   expect(panel.querySelector('[data-worked-tile-action="work"]')?.getAttribute('disabled')).not.toBeNull();
 });
 ```
@@ -248,6 +368,8 @@ Import:
 ```ts
 import type { CityFocus, GameState, HexCoord } from '@/core/types';
 import { getWorkableTilesForCity } from '@/systems/city-work-system';
+import { calculateCityYields } from '@/systems/resource-system';
+import { hexKey } from '@/systems/hex-utils';
 ```
 
 Add an options type:
@@ -260,21 +382,181 @@ interface CityManagementOptions {
 }
 ```
 
-Render focus buttons with `button.textContent`:
+Update `createCityGrid` to accept the options as the sixth argument:
 
 ```ts
-const focusModes: Array<Exclude<CityFocus, 'custom'>> = ['balanced', 'food', 'production', 'gold', 'science'];
-for (const focus of focusModes) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.dataset.cityFocus = focus;
-  button.textContent = `${focus[0].toUpperCase()}${focus.slice(1)}`;
-  button.addEventListener('click', () => options.onSetCityFocus?.(city.id, focus));
-  focusWrap.appendChild(button);
+export function createCityGrid(
+  container: HTMLElement,
+  city: City,
+  map: GameMap,
+  callbacks: CityGridCallbacks,
+  suggestedBuilding?: string,
+  managementOptions?: CityManagementOptions,
+): HTMLElement {
+```
+
+Add these helpers below `CityManagementOptions`:
+
+```ts
+function titleCase(value: string): string {
+  return value.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function formatYield(yieldValue: { food: number; production: number; gold: number; science: number }): string {
+  const parts: string[] = [];
+  if (yieldValue.food) parts.push(`+${yieldValue.food} food`);
+  if (yieldValue.production) parts.push(`+${yieldValue.production} production`);
+  if (yieldValue.gold) parts.push(`+${yieldValue.gold} gold`);
+  if (yieldValue.science) parts.push(`+${yieldValue.science} science`);
+  return parts.length > 0 ? parts.join(', ') : 'No yield';
+}
+
+function formatFocusLabel(focus: CityFocus): string {
+  return `${titleCase(focus)} focus`;
 }
 ```
 
-Render worked cards from `getWorkableTilesForCity(options.state, city.id)`. Each card must include terrain, improvement label, yield text, worked state, and claim label. Use `textContent` for all game data.
+Add this renderer and call it before the existing building-grid board:
+
+```ts
+function renderOverviewSection(root: HTMLElement, city: City, options: CityManagementOptions): void {
+  const section = document.createElement('section');
+  section.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Overview';
+  section.appendChild(heading);
+
+  const yields = calculateCityYields(city, options.state.map);
+  const summary = document.createElement('div');
+  summary.textContent = [
+    `Population ${city.population}`,
+    formatFocusLabel(city.focus),
+    `Food +${yields.food}`,
+    `Production +${yields.production}`,
+    `Gold +${yields.gold}`,
+    `Science +${yields.science}`,
+  ].join(' · ');
+  section.appendChild(summary);
+  root.appendChild(section);
+}
+
+function renderBuildingsCoreSection(root: HTMLElement, city: City): void {
+  const section = document.createElement('section');
+  section.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Buildings/Core';
+  section.appendChild(heading);
+
+  const placedBuildingIds = city.grid.flat().filter((buildingId): buildingId is string => Boolean(buildingId));
+  const summary = document.createElement('div');
+  summary.textContent = placedBuildingIds.length > 0
+    ? placedBuildingIds.map(buildingId => BUILDINGS[buildingId]?.name ?? titleCase(buildingId)).join(', ')
+    : 'City Center';
+  section.appendChild(summary);
+  root.appendChild(section);
+}
+
+function renderWorkedLandSection(root: HTMLElement, city: City, options: CityManagementOptions): void {
+  const section = document.createElement('section');
+  section.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+  const heading = document.createElement('h3');
+  heading.textContent = 'Worked Land And Water';
+  section.appendChild(heading);
+
+  const workedKeys = new Set((city.workedTiles ?? []).map(coord => hexKey(coord)));
+  const workedCount = Math.min(city.population, workedKeys.size);
+  const unassigned = Math.max(0, city.population - workedCount);
+
+  const summary = document.createElement('div');
+  summary.textContent = `Worked ${workedCount}/${city.population} citizens · ${formatFocusLabel(city.focus)}`;
+  section.appendChild(summary);
+
+  if (unassigned > 0) {
+    const unassignedLabel = document.createElement('div');
+    unassignedLabel.textContent = `Unassigned citizens: ${unassigned}`;
+    section.appendChild(unassignedLabel);
+  }
+
+  const focusWrap = document.createElement('div');
+  focusWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+  const focusModes: Array<Exclude<CityFocus, 'custom'>> = ['balanced', 'food', 'production', 'gold', 'science'];
+  for (const focus of focusModes) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.cityFocus = focus;
+    button.textContent = `${focus[0].toUpperCase()}${focus.slice(1)}`;
+    button.addEventListener('click', () => options.onSetCityFocus?.(city.id, focus));
+    focusWrap.appendChild(button);
+  }
+  section.appendChild(focusWrap);
+
+  for (const entry of getWorkableTilesForCity(options.state, city.id)) {
+    const tile = options.state.map.tiles[hexKey(entry.coord)];
+    if (!tile) continue;
+    const worked = workedKeys.has(hexKey(entry.coord));
+    const row = document.createElement('div');
+    row.style.cssText = [
+      'display:grid',
+      'grid-template-columns:minmax(0,1fr) auto',
+      'gap:8px',
+      'align-items:center',
+      'padding:10px',
+      'border:1px solid rgba(255,255,255,0.14)',
+      'border-radius:8px',
+    ].join(';');
+
+    const text = document.createElement('div');
+    const labels = [titleCase(tile.terrain), formatYield(entry.yield)];
+    if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) labels.push(titleCase(tile.improvement));
+    if (entry.isWater) labels.push('Water work: fishing/trapping');
+    if (entry.claim) {
+      const claimingCity = options.state.cities[entry.claim.cityId];
+      labels.push(claimingCity && claimingCity.owner === city.owner ? `Worked by ${claimingCity.name}` : 'Worked by another city');
+    } else {
+      labels.push(worked ? 'Working' : 'Available');
+    }
+    text.textContent = labels.join(' · ');
+    row.appendChild(text);
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.workedTileAction = worked ? 'unwork' : 'work';
+    button.textContent = worked ? 'Unwork' : 'Work';
+    button.disabled = !entry.available && !worked;
+    button.addEventListener('click', () => options.onToggleWorkedTile?.(city.id, entry.coord, !worked));
+    row.appendChild(button);
+    section.appendChild(row);
+  }
+
+  root.appendChild(section);
+}
+```
+
+Replace the existing `panel.innerHTML = html;` assignment with this block so the management sections render before the legacy building board:
+
+```ts
+if (managementOptions) {
+  const managementRoot = document.createElement('div');
+  managementRoot.style.cssText = [
+    'display:flex',
+    'flex-direction:column',
+    'gap:12px',
+    'max-width:720px',
+    'margin:0 auto',
+  ].join(';');
+  renderOverviewSection(managementRoot, city, managementOptions);
+  renderBuildingsCoreSection(managementRoot, city);
+  renderWorkedLandSection(managementRoot, city, managementOptions);
+
+  const boardRoot = document.createElement('div');
+  boardRoot.innerHTML = html;
+  panel.appendChild(managementRoot);
+  panel.appendChild(boardRoot);
+} else {
+  panel.innerHTML = html;
+}
+```
 
 - [ ] **Step 4: Use responsive layout**
 
@@ -327,9 +609,18 @@ Expected: PASS.
 In `tests/ui/city-panel.test.ts`, add:
 
 ```ts
-it('clicking a focus button calls focus callback and rerenders expected text', () => {
+it('clicking a focus button calls focus callback and rerenders from the returned state', () => {
   const { container, city, state } = makeWonderPanelFixture();
-  const onSetCityFocus = vi.fn();
+  const onSetCityFocus = vi.fn((_cityId, focus) => {
+    const nextState = {
+      ...state,
+      cities: {
+        ...state.cities,
+        [city.id]: { ...city, focus, workedTiles: [] },
+      },
+    };
+    return nextState;
+  });
   const panel = createCityPanel(container, city, state, {
     onBuild: () => {},
     onOpenWonderPanel: () => {},
@@ -342,11 +633,25 @@ it('clicking a focus button calls focus callback and rerenders expected text', (
   panel.querySelector<HTMLButtonElement>('[data-city-focus="food"]')?.click();
 
   expect(onSetCityFocus).toHaveBeenCalledWith(city.id, 'food');
+  expect(collectText(container)).toContain('Food focus');
 });
 
 it('manual work button calls tile toggle callback with coordinates', () => {
   const { container, city, state } = makeWonderPanelFixture();
-  const target = city.ownedTiles.find(coord => coord.q !== city.position.q || coord.r !== city.position.r)!;
+  const target = { q: city.position.q + 1, r: city.position.r };
+  state.map.tiles[hexKey(target)] = {
+    ...state.map.tiles[hexKey(target)],
+    coord: target,
+    terrain: 'grassland',
+    elevation: 'lowland',
+    owner: city.owner,
+    improvement: 'none',
+    improvementTurnsLeft: 0,
+    hasRiver: false,
+    wonder: null,
+    resource: null,
+  };
+  city.ownedTiles = [city.position, target];
   const onToggleWorkedTile = vi.fn();
   const panel = createCityPanel(container, city, state, {
     onBuild: () => {},
@@ -388,6 +693,7 @@ onSetCityFocus: (cityId, focus) => {
   const result = assignCityFocus(gameState, cityId, focus);
   gameState = result.state;
   showNotification(`${gameState.cities[cityId].name} reassigned citizens for ${focus} focus.`, 'info');
+  return gameState;
 },
 onToggleWorkedTile: (cityId, coord, worked) => {
   const result = setCityWorkedTile(gameState, cityId, coord, worked);
@@ -395,10 +701,11 @@ onToggleWorkedTile: (cityId, coord, worked) => {
   if (!result.changed && result.reason === 'claimed') {
     showNotification('That tile is already worked by another city.', 'warning');
   }
+  return gameState;
 },
 ```
 
-If `createCityPanel` already owns reopen behavior after callbacks, keep the rerender centralized there. The open panel must refresh immediately after the state change.
+Keep the rerender centralized in `createCityPanel` by returning the updated `gameState` from these callbacks. The open panel must refresh immediately from the returned state rather than from the stale `state` object captured when the panel first opened.
 
 - [ ] **Step 4: Run tests**
 
@@ -417,13 +724,34 @@ Expected: PASS.
 
 - [ ] **Step 1: Add regression for too-close founding feedback**
 
-Use the existing integration harness if it exposes `handleHexTap` and unit actions. The test must prove:
+Add imports:
 
 ```ts
-expect(state.cities).toHaveProperty(existingCity.id);
-expect(Object.values(state.cities).filter(city => city.owner === state.currentPlayer)).toHaveLength(1);
-expect(state.units[settler.id]).toBeDefined();
-expect(notificationText).toContain('Too close to');
+import { createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
+import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
+```
+
+Add this test:
+
+```ts
+it('uses shared founding blockers for player-facing too-close city feedback', () => {
+  const state = createNewGame(undefined, 'player-too-close-founding', 'small');
+  const playerId = state.currentPlayer;
+  const settlerId = state.civilizations[playerId].units.find(id => state.units[id]?.type === 'settler')!;
+  const settler = state.units[settlerId];
+  const existingCity = foundCity(playerId, { q: settler.position.q + 2, r: settler.position.r }, state.map);
+  state.cities[existingCity.id] = existingCity;
+  state.civilizations[playerId].cities.push(existingCity.id);
+
+  const blockers = getCityFoundingBlockers(state, settler.position, { ignoreUnitId: settler.id });
+  const message = formatCityFoundingBlockerMessage(blockers);
+
+  expect(blockers).toContainEqual(expect.objectContaining({ reason: 'too-close', cityId: existingCity.id }));
+  expect(message).toContain(`Too close to ${existingCity.name}`);
+  expect(state.units[settler.id]).toBeDefined();
+  expect(Object.values(state.cities).filter(city => city.owner === playerId)).toHaveLength(1);
+});
 ```
 
 - [ ] **Step 2: Run the chosen test**
@@ -473,6 +801,6 @@ Expected: PASS.
 Run:
 
 ```bash
-git add src/ui/city-panel.ts src/ui/city-grid.ts src/main.ts tests/ui/city-panel.test.ts tests/integration/city-hex-tap.test.ts
+git add src/ui/city-panel.ts src/ui/city-grid.ts src/main.ts tests/ui/city-panel.test.ts tests/ui/helpers/wonder-panel-fixture.ts tests/integration/city-hex-tap.test.ts
 git commit -m "feat(city): add worked land management UI"
 ```
