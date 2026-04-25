@@ -120,6 +120,30 @@ describe('processTurn', () => {
     expect(newState.civilizations.player.techState.researchProgress).toBeGreaterThan(0);
   });
 
+  it('updates city maturity and grid size from population plus qualifying techs during turn processing', () => {
+    const state = createNewGame(undefined, 'turn-city-maturity', 'small');
+    const bus = new EventBus();
+    const playerCiv = state.civilizations.player;
+    const startPos = state.units[playerCiv.units[0]].position;
+    const city = foundCity('player', startPos, state.map);
+    state.cities[city.id] = {
+      ...city,
+      population: 5,
+      food: 0,
+      maturity: 'outpost',
+      gridSize: 3,
+      workedTiles: [],
+      focus: 'balanced',
+    };
+    playerCiv.cities.push(city.id);
+    playerCiv.techState.completed = ['early-empire', 'engineering'];
+
+    const result = processTurn(state, bus);
+
+    expect(result.cities[city.id].maturity).toBe('town');
+    expect(result.cities[city.id].gridSize).toBe(5);
+  });
+
   it('spawns a unit when city completes unit training', () => {
     const state = createNewGame(undefined, 'unit-spawn-test', 'small');
     const bus = new EventBus();

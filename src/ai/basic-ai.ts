@@ -2,6 +2,7 @@ import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity, getTrainableUnitsForCiv } from '@/systems/city-system';
+import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
@@ -306,7 +307,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
   for (const settler of settlers) {
     const tile = newState.map.tiles[hexKey(settler.position)];
-    if (tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain' && tile.terrain !== 'coast') {
+    if (tile && canFoundCityAt(newState, settler.position, { ignoreUnitId: settler.id })) {
       const city = foundCity(civId, settler.position, newState.map, {
         civType: civ.civType,
         namingPool: civDef?.cityNames,

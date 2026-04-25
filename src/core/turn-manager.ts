@@ -2,6 +2,7 @@ import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { resetUnitTurn, createUnit, healUnit, moveUnit } from '@/systems/unit-system';
 import { processCity } from '@/systems/city-system';
+import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { processResearch } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import { resolveCombat } from '@/systems/combat-system';
@@ -82,10 +83,18 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       totalGold += yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
       const result = processCity(city, newState.map, yields.food, effectiveProduction, civDef?.bonusEffect, civ.techState.completed);
-      newState.cities[cityId] = result.city;
+      const maturityResult = applyCityMaturity(result.city, civ.techState.completed);
+      newState.cities[cityId] = maturityResult.city;
+      if (maturityResult.changed && maturityResult.previous !== maturityResult.current) {
+        bus.emit('city:maturity-upgraded', {
+          cityId,
+          previous: maturityResult.previous,
+          current: maturityResult.current,
+        });
+      }
 
       if (result.grew) {
-        bus.emit('city:grew', { cityId, newPopulation: result.city.population });
+        bus.emit('city:grew', { cityId, newPopulation: newState.cities[cityId].population });
       }
       if (result.completedBuilding) {
         bus.emit('city:building-complete', { cityId, buildingId: result.completedBuilding });

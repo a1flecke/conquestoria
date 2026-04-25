@@ -20,7 +20,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production'], era: 3 },
   { id: 'trade-routes', name: 'Trade Routes', track: 'economy', cost: 85, prerequisites: ['currency'], unlocks: ['Enable trade routes between cities'], era: 4 },
   { id: 'banking', name: 'Banking', track: 'economy', cost: 95, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+20% gold in all cities'], era: 4 },
-  { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5, countsForEraAdvancement: false },
+  { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
 
   // === SCIENCE TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'fire', name: 'Fire', track: 'science', cost: 8, prerequisites: [], unlocks: ['Unlock basic research'], era: 1, pacing: { band: 'starter', role: 'foundational-science', impact: 1, scope: 'empire', snowball: 1.15, urgency: 1.1, situationality: 1, unlockBreadth: 1.1 } },
@@ -132,7 +132,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'ciphers', name: 'Ciphers', track: 'communication', cost: 85, prerequisites: ['pictographs'], unlocks: ['Encoded messages'], era: 3 },
   { id: 'printing', name: 'Printing', track: 'communication', cost: 120, prerequisites: ['courier-networks'], unlocks: ['Newspaper'], era: 4 },
   { id: 'diplomats', name: 'Diplomats', track: 'communication', cost: 130, prerequisites: ['courier-networks', 'ciphers'], unlocks: ['Embassy'], era: 4 },
-  { id: 'mass-media', name: 'Mass Media', track: 'communication', cost: 150, prerequisites: ['printing', 'diplomats'], unlocks: ['Global broadcasts and late-era cultural coordination'], era: 5, countsForEraAdvancement: false },
+  { id: 'mass-media', name: 'Mass Media', track: 'communication', cost: 150, prerequisites: ['printing', 'diplomats'], unlocks: ['Global broadcasts and late-era cultural coordination'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
 
   // === ESPIONAGE TRACK (8 techs — M4a stages 1-2, expanded in later milestones) ===
   { id: 'espionage-scouting', name: 'Scouting Networks', track: 'espionage', cost: 40, prerequisites: [], unlocks: ['Recruit spies', 'Passive city surveillance', 'Scout Area mission', 'Monitor Troops mission'], era: 1 },
