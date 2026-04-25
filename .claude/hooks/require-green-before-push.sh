@@ -31,13 +31,12 @@ case "${REQUIRE_GREEN_TEST_MODE:-}" in
     ;;
 esac
 
-# mise is how this repo installs node/yarn; activate silently if available
-if command -v mise >/dev/null 2>&1; then
-  eval "$(mise activate bash)" >/dev/null 2>&1 || true
-fi
-
-if ! command -v yarn >/dev/null 2>&1; then
-  echo "ERROR: yarn not found on PATH — run \`eval \"\$(mise activate bash)\"\` and retry." >&2
+# mise is how this repo installs node/yarn; use the project's run-with-mise.sh
+# wrapper so yarn runs in the correct toolchain without shell-level activation
+# (which fails in non-interactive subprocess contexts).
+RUN="$CLAUDE_PROJECT_DIR/scripts/run-with-mise.sh"
+if [ ! -x "$RUN" ]; then
+  echo "ERROR: $RUN not found or not executable." >&2
   exit 2
 fi
 
@@ -45,7 +44,10 @@ BUILD_LOG=$(mktemp)
 TEST_LOG=$(mktemp)
 trap 'rm -f "$BUILD_LOG" "$TEST_LOG"' EXIT
 
-if ! yarn -s build >"$BUILD_LOG" 2>&1; then
+# Ensure dependencies are installed before building/testing
+"$RUN" yarn install --immutable >"$BUILD_LOG" 2>&1 || true
+
+if ! "$RUN" yarn build >>"$BUILD_LOG" 2>&1; then
   {
     echo "ERROR: \`yarn build\` failed — fix type/build errors before pushing."
     echo "--- last 30 lines of build output ---"
@@ -54,7 +56,7 @@ if ! yarn -s build >"$BUILD_LOG" 2>&1; then
   exit 2
 fi
 
-if ! yarn -s test >"$TEST_LOG" 2>&1; then
+if ! "$RUN" yarn test >"$TEST_LOG" 2>&1; then
   {
     echo "ERROR: \`yarn test\` failed — fix failing tests before pushing."
     echo "--- last 30 lines of test output ---"
