@@ -581,7 +581,9 @@ export function resolveMissionResult(
       if (!targetCiv || !myCiv) return {};
       const theyHave = targetCiv.techState.completed;
       const iHave = new Set(myCiv.techState.completed);
-      const stealable = theyHave.filter(t => !iHave.has(t));
+      const spy = gameState.espionage?.[spyingCivId]?.spies[spyId];
+      const alreadyStolen = new Set(spy?.stolenTechFrom?.[targetCivId] ?? []);
+      const stealable = theyHave.filter(t => !iHave.has(t) && !alreadyStolen.has(t));
       if (stealable.length === 0) return {};
       const rng = createRng(`steal-${spyId}-${targetCivId}-${targetCityId}-${gameState.turn}`);
       const idx = Math.floor(rng() * stealable.length);
@@ -865,7 +867,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
     const civBonus = resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect;
     const xpMultiplier = civBonus?.type === 'espionage_growth' ? 1 + civBonus.experienceBonus : 1;
     const spyTurnResult = processSpyTurn(civEspBefore, `${turnSeed}-${civId}`, xpMultiplier);
-    const updatedEsp = spyTurnResult.state;
+    let updatedEsp = spyTurnResult.state;
     const events = spyTurnResult.events;
     state.espionage![civId] = updatedEsp;
 
@@ -900,12 +902,29 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             }
           }
 
-          // steal_tech: add the tech to the spying civ
+          // steal_tech: add the tech to the spying civ and record dedup
           if (evt.missionType === 'steal_tech' && result.stolenTechId) {
             const stolenId = result.stolenTechId as string;
             if (!state.civilizations[civId].techState.completed.includes(stolenId)) {
               state.civilizations[civId].techState.completed.push(stolenId);
               bus.emit('tech:completed', { civId, techId: stolenId });
+            }
+            const thisSpy = updatedEsp.spies[evt.spyId];
+            if (thisSpy?.targetCivId) {
+              const prevStolen = thisSpy.stolenTechFrom?.[thisSpy.targetCivId] ?? [];
+              updatedEsp = {
+                ...updatedEsp,
+                spies: {
+                  ...updatedEsp.spies,
+                  [evt.spyId]: {
+                    ...thisSpy,
+                    stolenTechFrom: {
+                      ...thisSpy.stolenTechFrom,
+                      [thisSpy.targetCivId]: [...prevStolen, stolenId],
+                    },
+                  },
+                },
+              };
             }
           }
 
@@ -1164,6 +1183,39 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
       bus.emit('espionage:spy-auto-exfiltrated', { civId, spyId, cityId });
     }
 
+    // Passive detection: cooldown spies with infiltrationCityId risk capture based on cooldownMode
+    {
+      const passiveRng = createRng(`passive-detect-${civId}-${state.turn}`);
+      const toCapture: string[] = [];
+      for (const spy of Object.values(state.espionage![civId].spies)) {
+        if (spy.status !== 'cooldown' || !spy.infiltrationCityId || !spy.targetCivId) continue;
+        const ci = state.espionage?.[spy.targetCivId]?.counterIntelligence[spy.infiltrationCityId] ?? 0;
+        const baseChance = spy.cooldownMode === 'passive_observe' ? 0.04 : 0.02;
+        const detectChance = baseChance + ci * 0.002;
+        if (passiveRng() < detectChance) {
+          toCapture.push(spy.id);
+        }
+      }
+      for (const spyId of toCapture) {
+        const spy = state.espionage![civId].spies[spyId];
+        if (!spy) continue;
+        state = {
+          ...state,
+          espionage: {
+            ...state.espionage,
+            [civId]: {
+              ...state.espionage![civId],
+              spies: {
+                ...state.espionage![civId].spies,
+                [spyId]: { ...spy, status: 'captured', infiltrationCityId: null, targetCivId: null },
+              },
+            },
+          },
+        };
+        bus.emit('espionage:spy-captured', { capturingCivId: spy.targetCivId ?? '', spyOwner: civId, spyId });
+      }
+    }
+
     // Passive spy abilities: stationed spies passively reveal fog and report troops
     for (const spy of Object.values(state.espionage![civId].spies)) {
       if (spy.status === 'stationed' && spy.targetCivId && spy.targetCityId) {
@@ -1307,6 +1359,7 @@ export function attemptInfiltration(
       ...spy,
       status: caught ? 'captured' : 'cooldown',
       cooldownTurns: caught ? 0 : INFILTRATION_FAIL_COOLDOWN,
+      cooldownMode: caught ? undefined : 'stay_low',
     };
     return {
       civEsp: { ...state, spies: { ...state.spies, [spyId]: updatedSpy } },
