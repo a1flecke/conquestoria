@@ -3,6 +3,7 @@ import { EventBus } from './event-bus';
 import { resetUnitTurn, createUnit, healUnit, moveUnit } from '@/systems/unit-system';
 import { processCity } from '@/systems/city-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
+import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { processResearch } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import { resolveCombat } from '@/systems/combat-system';
@@ -67,7 +68,14 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     let totalGold = 0;
 
     for (const cityId of civ.cities) {
-      const city = newState.cities[cityId];
+      let city = newState.cities[cityId];
+      if (!city) continue;
+
+      const preYieldWorkResult = city.focus === 'custom'
+        ? normalizeWorkedTilesForCity(newState, cityId)
+        : assignCityFocus(newState, cityId, city.focus);
+      newState = preYieldWorkResult.state;
+      city = newState.cities[cityId];
       if (!city) continue;
 
       const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
@@ -94,6 +102,11 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
 
       if (result.grew) {
+        const grownCity = newState.cities[cityId];
+        const focusResult = grownCity.focus === 'custom'
+          ? normalizeWorkedTilesForCity(newState, cityId)
+          : assignCityFocus(newState, cityId, grownCity.focus);
+        newState = focusResult.state;
         bus.emit('city:grew', { cityId, newPopulation: newState.cities[cityId].population });
       }
       if (result.completedBuilding) {

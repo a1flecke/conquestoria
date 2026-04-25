@@ -3,6 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 
 describe('pacing simulation', () => {
   it('produces an early completion within a few turns on a deterministic seed', () => {
@@ -14,6 +15,9 @@ describe('pacing simulation', () => {
     const city = foundCity('player', state.units[settlerId!].position, state.map);
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
+    for (const coord of city.ownedTiles) {
+      state.map.tiles[hexKey(coord)].owner = 'player';
+    }
     state.cities[city.id].productionQueue = ['warrior'];
     state.civilizations.player.techState.currentResearch = 'fire';
 

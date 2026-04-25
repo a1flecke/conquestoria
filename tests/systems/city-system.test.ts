@@ -123,6 +123,15 @@ describe('processCity', () => {
     const result = processCity(city, map, 3, 5);
     expect(result.city.productionProgress).toBe(5);
   });
+
+  it('preserves focus fields after city growth processing', () => {
+    const map = generateMap(30, 30, 'city-growth-focus-fields');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const focused = { ...city, focus: 'food' as const, workedTiles: [] };
+    const result = processCity(focused, map, 30, 0);
+    expect(result.city.focus).toBe('food');
+    expect(result.city.workedTiles).toEqual([]);
+  });
 });
 
 describe('expanded buildings', () => {

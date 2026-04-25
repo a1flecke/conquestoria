@@ -1,10 +1,28 @@
 import { calculateCityYields, TERRAIN_YIELDS } from '@/systems/resource-system';
-import type { GameMap } from '@/core/types';
+import type { GameMap, HexCoord, TerrainType } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 
 describe('calculateCityYields', () => {
   let map: GameMap;
+
+  function forceTerrain(map: GameMap, coord: HexCoord, terrain: TerrainType): HexCoord {
+    const key = hexKey(coord);
+    map.tiles[key] = {
+      ...map.tiles[key],
+      coord,
+      terrain,
+      elevation: terrain === 'hills' ? 'highland' : 'lowland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    return coord;
+  }
 
   beforeAll(() => {
     map = generateMap(30, 30, 'resource-test');
@@ -31,6 +49,46 @@ describe('calculateCityYields', () => {
     const withoutBuilding = calculateCityYields(city, map);
     const withBuilding = calculateCityYields(cityWithBuildings, map);
     expect(withBuilding.food).toBeGreaterThan(withoutBuilding.food);
+  });
+
+  it('uses explicit workedTiles instead of the first owned tiles', () => {
+    const map = generateMap(30, 30, 'explicit-worked-yields');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const grass = forceTerrain(map, { q: 16, r: 15 }, 'grassland');
+    const hills = forceTerrain(map, { q: 17, r: 15 }, 'hills');
+    const cityWithProductionFocus = { ...city, population: 1, workedTiles: [hills], ownedTiles: [grass, hills] };
+
+    const yields = calculateCityYields(cityWithProductionFocus, map);
+
+    expect(yields.food).toBe(1);
+    expect(yields.production).toBe(3);
+  });
+
+  it('treats an empty workedTiles array as no assigned citizens', () => {
+    const map = generateMap(30, 30, 'empty-worked-yields');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const grass = forceTerrain(map, { q: 16, r: 15 }, 'grassland');
+    const hills = forceTerrain(map, { q: 17, r: 15 }, 'hills');
+
+    const yields = calculateCityYields({ ...city, population: 2, ownedTiles: [grass, hills], workedTiles: [] }, map);
+
+    expect(yields).toEqual({ food: 1, production: 1, gold: 1, science: 1 });
+  });
+
+  it('does not count city center as a worked citizen tile', () => {
+    const map = generateMap(30, 30, 'city-center-not-worked');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const yields = calculateCityYields({ ...city, population: 1, workedTiles: [city.position] }, map);
+    expect(yields).toEqual({ food: 1, production: 1, gold: 1, science: 1 });
+  });
+
+  it('counts coast water yields when explicitly worked', () => {
+    const map = generateMap(30, 30, 'worked-coast-yields');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const coast = forceTerrain(map, { q: 16, r: 15 }, 'coast');
+    const yields = calculateCityYields({ ...city, population: 1, ownedTiles: [coast], workedTiles: [coast] }, map);
+    expect(yields.food).toBe(3);
+    expect(yields.gold).toBe(2);
   });
 });
 

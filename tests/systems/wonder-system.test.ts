@@ -145,6 +145,7 @@ describe('Wonder yields in calculateCityYields', () => {
     // Place a wonder on one of the city's owned tiles
     const ownedTile = state.map.tiles[hexKey(city.ownedTiles[0])];
     ownedTile.wonder = 'crystal_caverns'; // +0F/+1P/+3G/+0S
+    city.workedTiles = [ownedTile.coord];
 
     const yields = calculateCityYields(city, state.map);
     expect(yields.gold).toBeGreaterThanOrEqual(3);

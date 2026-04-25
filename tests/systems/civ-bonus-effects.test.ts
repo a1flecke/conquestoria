@@ -8,6 +8,9 @@ function makeCity(overrides?: Partial<City>): City {
     id: 'city-1', name: 'Test City', owner: 'p1',
     position: { q: 0, r: 0 }, population: 3,
     ownedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+    workedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+    focus: 'balanced',
+    maturity: 'outpost',
     buildings: [], productionQueue: [], productionProgress: 0,
     food: 0, foodNeeded: 15,
     grid: [[null]], gridSize: 3,
@@ -36,7 +39,11 @@ describe('civ bonus effects', () => {
   describe('Russia tundra_bonus', () => {
     it('adds food and production per tundra tile', () => {
       const bonus: CivBonusEffect = { type: 'tundra_bonus', foodBonus: 1, productionBonus: 1 };
-      const city = makeCity({ ownedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }] });
+      const city = makeCity({
+        position: { q: 2, r: 0 },
+        ownedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+        workedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+      });
       const map = makeMap({
         '0,0': { terrain: 'tundra' },
         '1,0': { terrain: 'plains' },

@@ -5,6 +5,7 @@ import type { CustomCivDefinition, GameState } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
+import { hexKey } from '@/systems/hex-utils';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { calculateCityYields } from '@/systems/resource-system';
@@ -142,6 +143,93 @@ describe('processTurn', () => {
 
     expect(result.cities[city.id].maturity).toBe('town');
     expect(result.cities[city.id].gridSize).toBe(5);
+  });
+
+  it('assigns focused worked tiles before calculating city yields', () => {
+    const state = createNewGame(undefined, 'focused-work-before-yields', 'small');
+    const bus = new EventBus();
+    const playerCiv = state.civilizations.player;
+    const startPos = state.units[playerCiv.units[0]].position;
+    const city = foundCity('player', startPos, state.map);
+    const hills = { q: startPos.q + 1, r: startPos.r };
+
+    state.map.tiles[hexKey(city.position)].owner = 'player';
+    state.map.tiles[hexKey(hills)] = {
+      ...state.map.tiles[hexKey(hills)],
+      coord: hills,
+      terrain: 'hills',
+      elevation: 'highland',
+      owner: 'player',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+
+    state.cities[city.id] = {
+      ...city,
+      population: 1,
+      focus: 'production',
+      workedTiles: [],
+      ownedTiles: [city.position, hills],
+      productionQueue: ['warrior'],
+    };
+    playerCiv.cities.push(city.id);
+
+    const result = processTurn(state, bus);
+    const updated = result.cities[city.id];
+
+    expect(updated.workedTiles).toContainEqual(hills);
+    expect(updated.productionProgress).toBe(3);
+  });
+
+  it('reassigns focused city worked tiles after growth without working the city center', () => {
+    const state = createNewGame(undefined, 'focused-growth-worked-tiles', 'small');
+    const bus = new EventBus();
+    const playerCiv = state.civilizations.player;
+    const startPos = state.units[playerCiv.units[0]].position;
+    const city = foundCity('player', startPos, state.map);
+    const workable = [
+      { q: startPos.q + 1, r: startPos.r },
+      { q: startPos.q, r: startPos.r + 1 },
+      { q: startPos.q + 1, r: startPos.r - 1 },
+    ];
+
+    state.map.tiles[hexKey(city.position)].owner = 'player';
+    for (const coord of workable) {
+      state.map.tiles[hexKey(coord)] = {
+        ...state.map.tiles[hexKey(coord)],
+        coord,
+        terrain: 'grassland',
+        elevation: 'lowland',
+        owner: 'player',
+        improvement: 'none',
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+        resource: null,
+      };
+    }
+
+    state.cities[city.id] = {
+      ...city,
+      population: 1,
+      food: city.foodNeeded,
+      focus: 'food',
+      workedTiles: [],
+      ownedTiles: [city.position, ...workable],
+    };
+    playerCiv.cities.push(city.id);
+
+    const result = processTurn(state, bus);
+    const updated = result.cities[city.id];
+
+    expect(updated.population).toBe(2);
+    expect(updated.focus).toBe('food');
+    expect(updated.workedTiles.length).toBeGreaterThan(0);
+    expect(updated.workedTiles.length).toBeLessThanOrEqual(updated.population);
+    expect(updated.workedTiles.map(hexKey)).not.toContain(hexKey(updated.position));
   });
 
   it('spawns a unit when city completes unit training', () => {
