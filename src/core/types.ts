@@ -1038,4 +1038,6 @@ export interface GameEvents {
   'espionage:spy-promoted': { civId: string; spyId: string; promotion: SpyPromotion };
   'espionage:advisor-assassinated': { targetCivId: string; advisorType: AdvisorType; disabledUntilTurn: number };
   'espionage:documents-forged': { civA: string; civB: string; relationshipPenalty: number };
+  'espionage:spy-executed': { executingCivId: string; spyOwner: string; spyId: string; spyName: string };
+  'espionage:intel-extracted': { captorId: string; intel: InterrogationIntel[] };
 }

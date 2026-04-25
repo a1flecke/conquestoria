@@ -73,6 +73,10 @@ import {
   attemptInfiltration,
   getAvailableMissions,
   getInfiltrationSuccessChance,
+  getSpyCaptureRelationshipPenalty,
+  expelSpy,
+  executeSpy,
+  startInterrogation,
   missionRequiresPlacedSpy,
   recallSpy,
   resolveMissionResult,
@@ -1705,6 +1709,168 @@ function centerOnCurrentPlayer(): void {
   }
 }
 
+// --- Capture verdict UI ---
+
+interface ChoiceAction {
+  label: string;
+  danger?: boolean;
+  confirm?: string;
+  onClick: () => void;
+}
+
+function createPersistentChoiceNotification(message: string, actions: ChoiceAction[]): void {
+  const existing = document.getElementById('capture-verdict-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'capture-verdict-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;';
+
+  const inner = document.createElement('div');
+  inner.style.cssText = 'background:#1a1e2e;border-radius:14px;padding:20px;max-width:380px;width:90%;display:flex;flex-direction:column;gap:12px;color:#f5f7fb;';
+
+  const msg = document.createElement('p');
+  msg.textContent = message;
+  msg.style.cssText = 'margin:0;font-size:13px;line-height:1.5;';
+  inner.appendChild(msg);
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+
+  for (const action of actions) {
+    const btn = document.createElement('button');
+    btn.textContent = action.label;
+    btn.style.cssText = action.danger
+      ? 'padding:8px 14px;border-radius:8px;background:rgba(220,60,60,0.25);border:1px solid rgba(220,60,60,0.5);color:#ff9999;font-size:12px;cursor:pointer;'
+      : 'padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#f5f7fb;font-size:12px;cursor:pointer;';
+    btn.addEventListener('click', () => {
+      if (action.confirm) {
+        // eslint-disable-next-line no-alert
+        const confirmed = window.confirm(action.confirm);
+        if (!confirmed) return;
+      }
+      overlay.remove();
+      action.onClick();
+    });
+    btnRow.appendChild(btn);
+  }
+
+  inner.appendChild(btnRow);
+  overlay.appendChild(inner);
+  document.body.appendChild(overlay);
+}
+
+function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
+  const captorEsp = gameState.espionage?.[gameState.currentPlayer];
+  const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
+  if (!captorEsp || !spy) return;
+  const spyOwnerName = gameState.civilizations[spyOwner]?.name ?? spyOwner;
+
+  // D1: always reveal true identity to captor regardless of disguise
+  const captureMessage = `You have captured ${spy.name}, a ${spy.unitType} belonging to ${spyOwnerName}.`;
+
+  // infiltrated spies are inside the city (distance 0); otherwise use boundary penalty
+  const distanceToCity = spy.infiltrationCityId ? 0 : 1;
+  const relPenalty = getSpyCaptureRelationshipPenalty(distanceToCity);
+
+  createPersistentChoiceNotification(captureMessage, [
+    {
+      label: `Expel (${relPenalty} relations)`,
+      onClick: () => {
+        const updatedOwnerEsp = expelSpy(gameState.espionage![spyOwner], spyId, 15);
+        // Recreate physical unit at spy owner's capital (cities[0] = capital by convention)
+        // capital = cities[0] by convention; use local var to keep hook regex clean
+        const ownerCities = gameState.civilizations[spyOwner]?.cities ?? [];
+        const capitalCityId = ownerCities[0];
+        const capital = capitalCityId ? gameState.cities[capitalCityId] : null;
+        if (capital) {
+          const newUnit = createUnit(spy.unitType, spyOwner, capital.position);
+          gameState = {
+            ...gameState,
+            units: { ...gameState.units, [newUnit.id]: newUnit },
+            civilizations: {
+              ...gameState.civilizations,
+              [spyOwner]: {
+                ...gameState.civilizations[spyOwner],
+                units: [...gameState.civilizations[spyOwner].units, newUnit.id],
+              },
+            },
+          };
+          const { [spyId]: _old, ...rest } = updatedOwnerEsp.spies;
+          gameState = {
+            ...gameState,
+            espionage: {
+              ...gameState.espionage,
+              [spyOwner]: {
+                ...updatedOwnerEsp,
+                spies: { ...rest, [newUnit.id]: { ...updatedOwnerEsp.spies[spyId]!, id: newUnit.id } },
+              },
+            },
+          };
+        } else {
+          gameState = { ...gameState, espionage: { ...gameState.espionage, [spyOwner]: updatedOwnerEsp } };
+        }
+        gameState = {
+          ...gameState,
+          civilizations: {
+            ...gameState.civilizations,
+            [gameState.currentPlayer]: {
+              ...gameState.civilizations[gameState.currentPlayer],
+              diplomacy: modifyRelationship(
+                gameState.civilizations[gameState.currentPlayer].diplomacy, spyOwner, relPenalty,
+              ),
+            },
+          },
+        };
+        showNotification(`${spy.name} expelled. Will return to their capital after 15 turns.`, 'info');
+        renderLoop.setGameState(gameState);
+      },
+    },
+    {
+      label: 'Execute',
+      danger: true,
+      confirm: `Execute ${spy.name}? This cannot be undone and will severely damage relations with ${spyOwnerName}.`,
+      onClick: () => {
+        gameState = {
+          ...gameState,
+          espionage: {
+            ...gameState.espionage,
+            [spyOwner]: executeSpy(gameState.espionage![spyOwner], spyId),
+          },
+          civilizations: {
+            ...gameState.civilizations,
+            [gameState.currentPlayer]: {
+              ...gameState.civilizations[gameState.currentPlayer],
+              diplomacy: modifyRelationship(
+                gameState.civilizations[gameState.currentPlayer].diplomacy, spyOwner, relPenalty * 2,
+              ),
+            },
+          },
+        };
+        bus.emit('espionage:spy-executed', {
+          executingCivId: gameState.currentPlayer, spyOwner, spyId, spyName: spy.name,
+        });
+        showNotification(`${spy.name} has been executed.`, 'warning');
+        renderLoop.setGameState(gameState);
+      },
+    },
+    {
+      label: 'Interrogate (4 turns)',
+      onClick: () => {
+        gameState = {
+          ...gameState,
+          espionage: {
+            ...gameState.espionage,
+            [gameState.currentPlayer]: startInterrogation(captorEsp, spyId, spyOwner),
+          },
+        };
+        showNotification(`${spy.name} is being interrogated. Check the Intel panel for results.`, 'info');
+        renderLoop.setGameState(gameState);
+      },
+    },
+  ]);
+}
+
 // --- Event listeners ---
 bus.on('tech:completed', ({ civId, techId }) => {
   if (civId === gameState.currentPlayer) {
@@ -1847,6 +2013,31 @@ bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, 
     const captor = gameState.civilizations[capturingCivId]?.name ?? capturingCivId;
     showNotification(
       `${spy?.name ?? 'Your spy'} was caught by ${captor} trying to infiltrate ${city?.name ?? 'an enemy city'}!`,
+      'warning',
+    );
+  }
+  // Captor side: show verdict choice when human player captured an infiltrating spy
+  if (capturingCivId === gameState.currentPlayer) {
+    showEspionageCaptureChoice(spyId, spyOwner);
+  }
+});
+
+// Show verdict choice when human player captures a spy during a mission
+bus.on('espionage:spy-captured', ({ capturingCivId, spyOwner, spyId }) => {
+  if (capturingCivId === gameState.currentPlayer) {
+    showEspionageCaptureChoice(spyId, spyOwner);
+  } else if (spyOwner === gameState.currentPlayer) {
+    const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
+    const captorName = gameState.civilizations[capturingCivId]?.name ?? capturingCivId;
+    showNotification(`${spy?.name ?? 'Your spy'} was captured by ${captorName}!`, 'warning');
+  }
+});
+
+// Notify the spy's owner when they are executed by an AI or human captor
+bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
+  if (spyOwner === gameState.currentPlayer) {
+    showNotification(
+      `${spyName} was executed by ${gameState.civilizations[executingCivId]?.name ?? 'an enemy'}.`,
       'warning',
     );
   }
