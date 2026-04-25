@@ -101,8 +101,16 @@ export function makeWonderPanelFixture(): { container: HTMLElement; city: City; 
   const state = makeLegendaryWonderFixture({ completedTechs: ['philosophy', 'pilgrimages'], resources: ['stone'] });
   const city = state.cities['city-river'];
 
+  const container = typeof document !== 'undefined' && typeof document.createElement === 'function'
+    ? document.createElement('div')
+    : new MockElement() as unknown as HTMLElement;
+
+  if (typeof HTMLElement !== 'undefined' && container instanceof HTMLElement && document.body) {
+    document.body.appendChild(container);
+  }
+
   return {
-    container: new MockElement() as unknown as HTMLElement,
+    container,
     city,
     state,
   };

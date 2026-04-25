@@ -1,4 +1,4 @@
-import type { City, GameState } from '@/core/types';
+import type { City, CityFocus, GameState, HexCoord } from '@/core/types';
 import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
@@ -10,16 +10,21 @@ export interface CityPanelCallbacks {
   onMoveQueueItem?: (cityId: string, fromIndex: number, toIndex: number) => void;
   onRemoveQueueItem?: (cityId: string, index: number) => void;
   onOpenWonderPanel: (cityId: string) => void;
+  onSetCityFocus?: (cityId: string, focus: Exclude<CityFocus, 'custom'>) => GameState | void;
+  onToggleWorkedTile?: (cityId: string, coord: HexCoord, worked: boolean) => GameState | void;
   onClose: () => void;
   onPrevCity?: () => void;
   onNextCity?: () => void;
 }
+
+type CityPanelTab = 'list' | 'grid';
 
 export function createCityPanel(
   container: HTMLElement,
   city: City,
   state: GameState,
   callbacks: CityPanelCallbacks,
+  initialTab: CityPanelTab = 'list',
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.id = 'city-panel';
@@ -172,6 +177,7 @@ export function createCityPanel(
     const el = panel.querySelector(`[data-text="${sel}"]`);
     if (el) el.textContent = text;
   };
+  const byId = <T extends HTMLElement>(id: string): T | null => panel.querySelector<T>(`[id="${id}"]`);
 
   setText('city-name', city.name);
   setText('city-pop', String(city.population));
@@ -221,8 +227,9 @@ export function createCityPanel(
 
   container.appendChild(panel);
 
-  const reopenPanel = () => {
-    const refreshedCity = state.cities[city.id];
+  const rerenderPanel = (nextState: GameState | void = state, nextTab: CityPanelTab = 'list') => {
+    const renderState = nextState ?? state;
+    const refreshedCity = renderState.cities[city.id];
     if (!refreshedCity) {
       panel.remove();
       callbacks.onClose();
@@ -230,22 +237,22 @@ export function createCityPanel(
     }
 
     panel.remove();
-    createCityPanel(container, refreshedCity, state, callbacks);
+    createCityPanel(container, refreshedCity, renderState, callbacks, nextTab);
   };
 
-  panel.querySelector('#city-close')?.addEventListener('click', () => {
+  byId('city-close')?.addEventListener('click', () => {
     panel.remove();
     callbacks.onClose();
   });
 
   if (callbacks.onPrevCity) {
-    panel.querySelector('#city-prev')?.addEventListener('click', () => {
+    byId('city-prev')?.addEventListener('click', () => {
       panel.remove();
       callbacks.onPrevCity!();
     });
   }
   if (callbacks.onNextCity) {
-    panel.querySelector('#city-next')?.addEventListener('click', () => {
+    byId('city-next')?.addEventListener('click', () => {
       panel.remove();
       callbacks.onNextCity!();
     });
@@ -255,7 +262,7 @@ export function createCityPanel(
     el.addEventListener('click', () => {
       const itemId = (el as HTMLElement).dataset.itemId!;
       callbacks.onBuild(city.id, itemId);
-      reopenPanel();
+      rerenderPanel();
     });
   });
 
@@ -271,59 +278,78 @@ export function createCityPanel(
 
       if (action === 'remove') {
         callbacks.onRemoveQueueItem?.(city.id, index);
-        reopenPanel();
+        rerenderPanel();
         return;
       }
 
       if (action === 'up' && index > 0) {
         callbacks.onMoveQueueItem?.(city.id, index, index - 1);
-        reopenPanel();
+        rerenderPanel();
         return;
       }
 
       if (action === 'down' && index < city.productionQueue.length - 1) {
         callbacks.onMoveQueueItem?.(city.id, index, index + 1);
-        reopenPanel();
+        rerenderPanel();
       }
     });
   });
 
   // Tab switching
-  const listTab = panel.querySelector('#tab-list') as HTMLElement;
-  const gridTab = panel.querySelector('#tab-grid') as HTMLElement;
-  const wondersTab = panel.querySelector('#tab-wonders') as HTMLElement;
-  const listView = panel.querySelector('#city-list-view') as HTMLElement;
-  const gridView = panel.querySelector('#city-grid-view') as HTMLElement;
+  const listTab = byId('tab-list') as HTMLElement;
+  const gridTab = byId('tab-grid') as HTMLElement;
+  const wondersTab = byId('tab-wonders') as HTMLElement;
+  const listView = byId('city-list-view') as HTMLElement;
+  const gridView = byId('city-grid-view') as HTMLElement;
 
-  listTab?.addEventListener('click', () => {
+  const renderCityGridTab = (): void => {
+    gridView.textContent = '';
+    createCityGrid(gridView, city, state.map, {
+      onSlotTap: () => {
+        callbacks.onClose();
+      },
+      onBuyExpansion: () => {
+        callbacks.onClose();
+      },
+      onClose: callbacks.onClose,
+    }, undefined, {
+      state,
+      onSetCityFocus: (cityId, focus) => rerenderPanel(callbacks.onSetCityFocus?.(cityId, focus), 'grid'),
+      onToggleWorkedTile: (cityId, coord, worked) => rerenderPanel(callbacks.onToggleWorkedTile?.(cityId, coord, worked), 'grid'),
+    });
+  };
+
+  const activateListTab = () => {
     listView.style.display = 'block';
     gridView.style.display = 'none';
     listTab.style.background = 'rgba(255,255,255,0.15)';
     gridTab.style.background = 'rgba(255,255,255,0.05)';
-  });
+  };
 
-  gridTab?.addEventListener('click', () => {
+  const activateGridTab = () => {
     listView.style.display = 'none';
     gridView.style.display = 'block';
     gridTab.style.background = 'rgba(255,255,255,0.15)';
     listTab.style.background = 'rgba(255,255,255,0.05)';
-    if (!gridView.hasChildNodes()) {
-      createCityGrid(gridView, city, state.map, {
-        onSlotTap: (_row, _col) => {
-          callbacks.onClose();
-        },
-        onBuyExpansion: () => {
-          callbacks.onClose();
-        },
-        onClose: callbacks.onClose,
-      });
-    }
+    renderCityGridTab();
+  };
+
+  listTab?.addEventListener('click', () => {
+    activateListTab();
+  });
+
+  gridTab?.addEventListener('click', () => {
+    activateGridTab();
   });
 
   wondersTab?.addEventListener('click', () => {
     callbacks.onOpenWonderPanel(city.id);
     panel.remove();
   });
+
+  if (initialTab === 'grid') {
+    activateGridTab();
+  }
 
   return panel;
 }
