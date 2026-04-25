@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Claude Code PreToolUse hook for Bash — reminds Claude to run the
-# code-review skill before pushing or merging if the current branch
-# has commits ahead of origin/main.
+# Claude Code PreToolUse hook for Bash — blocks git push / gh pr create / merge
+# unless the current branch is fast-forward compatible with origin/main (i.e.
+# origin/main is an ancestor of HEAD). Rebase before pushing.
 
 set -u
 payload="$(cat)"
@@ -12,22 +12,22 @@ case "$cmd" in
   *) exit 0 ;;
 esac
 
-# How many commits ahead of origin/main?
-ahead=0
-if git rev-parse --verify origin/main >/dev/null 2>&1; then
-  ahead="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+# Skip the check when pushing directly to main (the block-commit-on-main hook
+# already handles that case).
+current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || echo '')"
+if [ "$current_branch" = "main" ]; then
+  exit 0
 fi
 
-if [ "${ahead:-0}" -ge 1 ]; then
-  reason="This branch has $ahead commit(s) ahead of origin/main. Proceed with push/merge."
-  jq -n --arg r "$reason" '{
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "allow",
-      permissionDecisionReason: $r
-    }
-  }'
+if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
   exit 0
+fi
+
+# origin/main must be an ancestor of HEAD for a FF merge to be possible.
+if ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
+  behind="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo '?')"
+  echo "ERROR: Branch is $behind commit(s) behind origin/main. Rebase before pushing: git fetch origin main && git rebase origin/main" >&2
+  exit 2
 fi
 
 exit 0
