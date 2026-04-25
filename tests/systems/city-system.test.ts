@@ -4,6 +4,7 @@ import {
   processCity,
   checkGridExpansion,
   purchaseGridExpansion,
+  getUnplacedBuildings,
   BUILDINGS,
   CITY_NAMES,
 } from '@/systems/city-system';
@@ -131,6 +132,58 @@ describe('processCity', () => {
     const result = processCity(focused, map, 30, 0);
     expect(result.city.focus).toBe('food');
     expect(result.city.workedTiles).toEqual([]);
+  });
+
+  it('auto-places a newly completed Barracks into an unlocked building grid slot', () => {
+    const map = generateMap(30, 30, 'auto-place-barracks');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const queued = { ...city, productionQueue: ['barracks'], productionProgress: 9 };
+
+    const result = processCity(queued, map, 0, 1);
+
+    expect(result.completedBuilding).toBe('barracks');
+    expect(result.city.buildings).toEqual(['barracks']);
+    expect(result.city.grid.flat()).toContain('barracks');
+    expect(getUnplacedBuildings(result.city)).not.toContain('barracks');
+  });
+
+  it('keeps completed buildings unplaced when every unlocked slot is full', () => {
+    const map = generateMap(30, 30, 'unplaced-barracks');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const fullGrid = city.grid.map(row => row.slice());
+    for (let row = 2; row <= 4; row++) {
+      for (let col = 2; col <= 4; col++) {
+        if (row !== 3 || col !== 3) fullGrid[row][col] = 'shrine';
+      }
+    }
+    const queued = { ...city, grid: fullGrid, productionQueue: ['barracks'], productionProgress: 9 };
+
+    const result = processCity(queued, map, 0, 1);
+
+    expect(result.completedBuilding).toBe('barracks');
+    expect(result.city.buildings).toContain('barracks');
+    expect(result.city.grid.flat()).not.toContain('barracks');
+    expect(getUnplacedBuildings(result.city)).toEqual(['barracks']);
+  });
+
+  it('does not duplicate an already built building from a stale production queue', () => {
+    const map = generateMap(30, 30, 'dedupe-built-barracks');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const grid = city.grid.map(row => row.slice());
+    grid[3][2] = 'barracks';
+    const queued = {
+      ...city,
+      buildings: ['barracks'],
+      grid,
+      productionQueue: ['barracks'],
+      productionProgress: 9,
+    };
+
+    const result = processCity(queued, map, 0, 1);
+
+    expect(result.city.buildings.filter(buildingId => buildingId === 'barracks')).toHaveLength(1);
+    expect(result.city.grid.flat().filter(buildingId => buildingId === 'barracks')).toHaveLength(1);
+    expect(getUnplacedBuildings(result.city)).toEqual([]);
   });
 });
 

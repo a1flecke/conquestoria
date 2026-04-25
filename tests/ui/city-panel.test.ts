@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
+import { createEmptyCityGrid } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
@@ -205,6 +206,79 @@ describe('city-panel navigation', () => {
     expect(rendered).toContain('Worked Land And Water');
     expect(rendered).toContain('Worked 1/');
     expect(rendered).toContain('Balanced focus');
+  });
+
+  it('shows a placed completed Barracks in exactly one Buildings/Core grid', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['barracks'];
+    city.grid = createEmptyCityGrid();
+    city.grid[3][2] = 'barracks';
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    const gridView = activeCityGrid(container);
+    const boards = gridView.querySelectorAll('[data-building-grid="core"]');
+    expect(boards).toHaveLength(1);
+    const barracksCell = gridView.querySelector<HTMLElement>('[data-building-cell="barracks"]');
+    expect(barracksCell).toBeTruthy();
+    expect(barracksCell!.textContent).toContain('Barracks');
+    expect(gridView.querySelector('[data-unplaced-buildings]')).toBeNull();
+  });
+
+  it('shows unplaced buildings instead of hiding them', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['barracks'];
+    city.grid = createEmptyCityGrid();
+    city.grid = city.grid.map(row => row.map(value => value === 'barracks' ? null : value));
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    const gridView = activeCityGrid(container);
+    expect(gridView.querySelector('[data-building-cell="barracks"]')).toBeNull();
+    const unplaced = gridView.querySelector<HTMLElement>('[data-unplaced-buildings]');
+    expect(unplaced).toBeTruthy();
+    expect(unplaced!.textContent).toContain('Unplaced buildings');
+    expect(unplaced!.textContent).toContain('Barracks');
+  });
+
+  it('keeps building details and the single grid after reopening the Grid tab', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['barracks'];
+    city.grid = createEmptyCityGrid();
+    city.grid[3][2] = 'barracks';
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(activeCityGrid(container).querySelector('[data-building-cell="barracks"]'));
+    expect(collectText(activeCityGrid(container))).toContain('A training ground');
+
+    clickElement(panel.querySelector('[id="tab-list"]'));
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+
+    const gridView = activeCityGrid(container);
+    expect(gridView.querySelectorAll('[data-building-grid="core"]')).toHaveLength(1);
+    expect(gridView.querySelector<HTMLElement>('[data-building-cell="barracks"]')?.textContent).toContain('Barracks');
   });
 
   it('shows surplus unassigned citizens when population exceeds available worked tiles', () => {

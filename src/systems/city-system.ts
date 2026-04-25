@@ -2,6 +2,7 @@ import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, Train
 import { hexKey, hexesInRange, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
+import { findOptimalSlot } from './adjacency-system';
 
 let nextCityId = 1;
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
@@ -146,6 +147,27 @@ export function purchaseGridExpansion(_city: City, _currentGold: number): number
   return 0;
 }
 
+export function placeBuildingInGrid(city: City, buildingId: string): City {
+  if (city.grid.flat().includes(buildingId)) return city;
+  const slot = findOptimalSlot(city.grid, city.gridSize, buildingId);
+  if (!slot) return city;
+
+  const grid = city.grid.map(row => row.slice());
+  if (grid[slot.row]?.[slot.col]) return city;
+  grid[slot.row][slot.col] = buildingId;
+  return { ...city, grid };
+}
+
+export function getUnplacedBuildings(city: City): string[] {
+  const placed = new Set(city.grid.flat().filter((entry): entry is string => Boolean(entry)));
+  const seen = new Set<string>();
+  return city.buildings.filter(buildingId => {
+    if (seen.has(buildingId)) return false;
+    seen.add(buildingId);
+    return !placed.has(buildingId);
+  });
+}
+
 export interface CityProcessResult {
   city: City;
   grew: boolean;
@@ -208,10 +230,12 @@ export function processCity(
     const building = BUILDINGS[currentItem];
     const buildingCostMult = building ? applyProductionBonus(currentItem, bonusEffect) : 1;
     if (building && newProgress >= Math.round(building.productionCost * buildingCostMult)) {
-      newBuildings.push(building.id);
+      if (!newBuildings.includes(building.id)) {
+        newBuildings.push(building.id);
+        completedBuilding = building.id;
+      }
       newQueue.shift();
       newProgress = 0;
-      completedBuilding = building.id;
     }
 
     // Check if it's a unit
@@ -224,16 +248,22 @@ export function processCity(
     }
   }
 
+  let nextCity: City = {
+    ...city,
+    food: newFood,
+    foodNeeded: newFoodNeeded,
+    population: newPop,
+    productionProgress: newProgress,
+    productionQueue: newQueue,
+    buildings: newBuildings,
+  };
+
+  if (completedBuilding) {
+    nextCity = placeBuildingInGrid(nextCity, completedBuilding);
+  }
+
   return {
-    city: {
-      ...city,
-      food: newFood,
-      foodNeeded: newFoodNeeded,
-      population: newPop,
-      productionProgress: newProgress,
-      productionQueue: newQueue,
-      buildings: newBuildings,
-    },
+    city: nextCity,
     grew,
     completedBuilding,
     completedUnit,
