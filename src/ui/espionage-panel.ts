@@ -1,6 +1,6 @@
 // src/ui/espionage-panel.ts
 import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion } from '../core/types';
-import { getAvailableMissions, missionRequiresPlacedSpy } from '../systems/espionage-system';
+import { getAvailableMissions, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-system';
 
 export interface MissionCatalogEntry {
   id: SpyMissionType;
@@ -20,6 +20,7 @@ export interface SpySummary {
   promotion?: SpyPromotion;
   promotionReady: boolean;
   currentMission: SpyMissionType | null;
+  cooldownMode?: 'stay_low' | 'passive_observe';
 }
 
 export interface EspionagePanelData {
@@ -33,6 +34,7 @@ export interface EspionagePanelData {
   disabledAdvisors: AdvisorType[];
   threatBoard: Array<{ cityId: string; foreignCivId: string; confidence: 'detected' }>;
   recentDetections: Array<{ position: { q: number; r: number }; turn: number; wasDisguised: boolean }>;
+  missionSuccessChances?: Partial<Record<SpyMissionType, number>>;
 }
 
 export interface MissionStageGroup {
@@ -55,6 +57,7 @@ export interface EspionagePanelCallbacks {
   onRecall?: (spyId: string) => void;
   onVerifyAgent?: (spyId: string) => void;
   onExfiltrate?: (spyId: string) => void;
+  onToggleCooldownMode?: (spyId: string) => void;
 }
 
 const MISSION_LABELS: Record<SpyMissionType, string> = {
@@ -179,7 +182,11 @@ function appendActionButton(
   parent.appendChild(button);
 }
 
-function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void {
+function appendMissionStage(
+  parent: HTMLElement,
+  group: MissionStageGroup,
+  successChances?: Partial<Record<SpyMissionType, number>>,
+): void {
   const section = createEl('section');
   section.dataset.stage = String(group.stage);
   section.style.cssText = 'padding:10px 0;border-top:1px solid rgba(255,255,255,0.08);';
@@ -204,6 +211,12 @@ function appendMissionStage(parent: HTMLElement, group: MissionStageGroup): void
       const accessTag = createEl('span', mission.accessLabel);
       accessTag.style.cssText = 'color:#9dd1ff;font-size:10px;';
       item.appendChild(accessTag);
+      if (successChances && successChances[mission.id] !== undefined) {
+        const pct = Math.round((successChances[mission.id] as number) * 100);
+        const pctTag = createEl('span', `${pct}%`);
+        pctTag.style.cssText = 'color:#7cff8a;font-size:10px;font-weight:700;';
+        item.appendChild(pctTag);
+      }
       list.appendChild(item);
     }
     section.appendChild(list);
@@ -265,6 +278,16 @@ function appendSpyCard(
     }
     if (spy.status === 'stationed' && spy.infiltrationCityId && callbacks.onExfiltrate) {
       appendActionButton(actionRow, 'exfiltrate (8 turn cooldown)', 'exfiltrate', () => callbacks.onExfiltrate?.(spy.id));
+    }
+    if (spy.status === 'cooldown' && spy.infiltrationCityId && callbacks.onToggleCooldownMode) {
+      const current = spy.cooldownMode ?? 'stay_low';
+      const label = current === 'passive_observe' ? 'Passive Observe (higher risk)' : 'Stay Low (safer)';
+      const btn = createEl('button', `Mode: ${label}`);
+      btn.dataset.action = 'toggle-mode';
+      btn.style.cssText = 'padding:6px 10px;border:1px solid rgba(255,255,255,0.16);border-radius:8px;background:rgba(255,255,255,0.06);color:#f5f7fb;font-size:11px;cursor:pointer;';
+      btn.title = 'Stay Low: 2% detection risk per turn. Passive Observe: 4% but grants basic intel at cooldown end.';
+      btn.addEventListener('click', () => callbacks.onToggleCooldownMode?.(spy.id));
+      actionRow.appendChild(btn);
     }
     card.appendChild(actionRow);
   }
@@ -366,7 +389,7 @@ export function createEspionagePanel(
   const missionBlock = createEl('section');
   missionBlock.dataset.section = 'missions';
   appendSectionHeader(missionBlock, 'Mission Tiers', 'Available operations grouped by stage.');
-  for (const group of data.missionStages) appendMissionStage(missionBlock, group);
+  for (const group of data.missionStages) appendMissionStage(missionBlock, group, data.missionSuccessChances);
   panel.appendChild(missionBlock);
 
   const spiesBlock = createEl('section');
@@ -451,7 +474,22 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     promotion: spy.promotion,
     promotionReady: spy.promotionAvailable || (spy.experience >= 60 && spy.promotion === undefined),
     currentMission: spy.currentMission?.type ?? null,
+    cooldownMode: spy.cooldownMode,
   }));
+
+  const stationedSpy = spies.find(
+    s => (s.status === 'stationed' || s.status === 'on_mission') && s.infiltrationCityId && s.targetCivId,
+  );
+  let missionSuccessChances: Partial<Record<SpyMissionType, number>> | undefined;
+  if (stationedSpy) {
+    const enemyCIMap = state.espionage?.[stationedSpy.targetCivId!]?.counterIntelligence ?? {};
+    const ci = enemyCIMap[stationedSpy.infiltrationCityId!] ?? 0;
+    const chances: Partial<Record<SpyMissionType, number>> = {};
+    for (const mission of availableMissions as SpyMissionType[]) {
+      chances[mission] = getSpySuccessChance(stationedSpy.experience, ci, mission, stationedSpy.promotion);
+    }
+    missionSuccessChances = chances;
+  }
 
   return {
     spies,
@@ -464,6 +502,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     disabledAdvisors,
     threatBoard,
     recentDetections: civEsp.recentDetections ?? [],
+    ...(missionSuccessChances !== undefined ? { missionSuccessChances } : {}),
   };
 }
 

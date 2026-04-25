@@ -401,5 +401,27 @@ describe('espionage-panel', () => {
       expect(close).toBeDefined();
       expect(collectText(close)).toContain('Close');
     });
+
+    it('renders a success % chip next to each mission when a spy is stationed inside a city', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['espionage-scouting', 'espionage-informants'];
+      const spy = makeTestSpy('spy-inf', 'player', {
+        status: 'stationed', infiltrationCityId: 'city-egypt-1', targetCivId: 'ai-egypt',
+        targetCityId: null, experience: 30,
+      });
+      state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
+      const data = getEspionagePanelData(state);
+      expect(data.missionSuccessChances).toBeDefined();
+      const panel = createEspionagePanel(state) as unknown;
+      const missionItems = findAll(panel, el => el.dataset?.missionId !== undefined);
+      expect(missionItems.length).toBeGreaterThan(0);
+      // Each mission item should contain a % text in at least one child
+      let foundPct = false;
+      for (const item of missionItems) {
+        const text = collectText(item);
+        if (/\d+%/.test(text)) { foundPct = true; break; }
+      }
+      expect(foundPct).toBe(true);
+    });
   });
 });

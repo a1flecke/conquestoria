@@ -829,7 +829,7 @@ function togglePanel(panel: string): void {
           [...(gameState.civilizations[gameState.currentPlayer].units ?? []), newUnit.id];
         const updatedSpy = {
           ...spy, id: newUnit.id, status: 'cooldown' as const,
-          cooldownTurns: 8, infiltrationCityId: null, cityVisionTurnsLeft: 0, targetCivId: null,
+          cooldownTurns: 8, infiltrationCityId: null, cityVisionTurnsLeft: 0, targetCivId: null, cooldownMode: undefined,
         };
         const { [spyId]: _old, ...rest } = ownerEsp!.spies;
         gameState.espionage![gameState.currentPlayer] = { ...ownerEsp!, spies: { ...rest, [newUnit.id]: updatedSpy } };
@@ -838,6 +838,26 @@ function togglePanel(panel: string): void {
         document.getElementById('espionage-panel')?.remove();
         togglePanel('espionage');
         showNotification('Spy exfiltrated. Available again in 8 turns.', 'info');
+      },
+      onToggleCooldownMode: (spyId) => {
+        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        const spy = civEsp?.spies[spyId];
+        if (!spy || spy.status !== 'cooldown') return;
+        const next: 'stay_low' | 'passive_observe' =
+          (spy.cooldownMode ?? 'stay_low') === 'passive_observe' ? 'stay_low' : 'passive_observe';
+        gameState = {
+          ...gameState,
+          espionage: {
+            ...gameState.espionage!,
+            [gameState.currentPlayer]: {
+              ...civEsp!,
+              spies: { ...civEsp!.spies, [spyId]: { ...spy, cooldownMode: next } },
+            },
+          },
+        };
+        renderLoop.setGameState(gameState);
+        document.getElementById('espionage-panel')?.remove();
+        togglePanel('espionage');
       },
     }));
   } else if (panel === 'diplomacy') {

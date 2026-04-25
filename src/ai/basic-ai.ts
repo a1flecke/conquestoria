@@ -1,10 +1,10 @@
-import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City } from '@/core/types';
+import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
-import { getMovementRange, moveUnit } from '@/systems/unit-system';
+import { getMovementRange, moveUnit, findPath } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
@@ -26,10 +26,12 @@ import { resolveMajorCityCapture } from '@/systems/city-capture-system';
 import {
   getAvailableMissions,
   assignSpyDefensive,
+  attemptInfiltration,
   missionRequiresPlacedSpy,
   startMission,
   isSpyUnitType,
 } from '@/systems/espionage-system';
+import { createRng } from '@/systems/map-generator';
 import { getCityAppeaseCost } from '@/systems/faction-system';
 import {
   getEligibleLegendaryWonders,
@@ -707,6 +709,107 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         capital.id,
         capital.position,
       );
+    }
+  }
+
+  // AI spy movement, infiltration, and mission issuance for infiltrated spies
+  if (newState.espionage?.[civId]) {
+    const aiSpyRng = createRng(`ai-spy-${civId}-${newState.turn}`);
+
+    // 1) Move idle spy units toward nearest enemy city
+    const idleSpyUnits = (newState.civilizations[civId].units ?? [])
+      .map(id => newState.units[id])
+      .filter((u): u is Unit => !!u && isSpyUnitType(u.type) && !u.hasActed);
+
+    for (const spyUnit of idleSpyUnits) {
+      const candidates = Object.values(newState.cities)
+        .filter(c => c.owner !== civId)
+        .sort((a, b) => {
+          const da = hexDistance(spyUnit.position, a.position);
+          const db = hexDistance(spyUnit.position, b.position);
+          if (da !== db) return da - db;
+          return a.id.localeCompare(b.id);
+        });
+      if (candidates.length === 0) continue;
+      const target = candidates[0];
+      if (spyUnit.position.q === target.position.q && spyUnit.position.r === target.position.r) continue;
+      const path = findPath(spyUnit.position, target.position, newState.map);
+      if (!path || path.length < 2) continue;
+      const next = path[1];
+      const nextKey = `${next.q},${next.r}`;
+      const occupied = Object.values(newState.units).some(
+        u => u.id !== spyUnit.id && `${u.position.q},${u.position.r}` === nextKey,
+      );
+      if (occupied) continue;
+      newState.units[spyUnit.id] = moveUnit(spyUnit, next, 1);
+    }
+
+    // 2) Attempt infiltration when a spy is on an enemy city tile
+    const spyIdsThisTurn = (newState.civilizations[civId].units ?? []).filter(
+      id => newState.units[id] && isSpyUnitType(newState.units[id].type),
+    );
+    for (const spyUnitId of spyIdsThisTurn) {
+      const spyUnit = newState.units[spyUnitId];
+      if (!spyUnit) continue;
+      const cityHere = Object.values(newState.cities).find(
+        c => c.owner !== civId &&
+             c.position.q === spyUnit.position.q && c.position.r === spyUnit.position.r,
+      );
+      if (!cityHere) continue;
+      const civEspNow = newState.espionage?.[civId];
+      if (!civEspNow) continue;
+      const spyRec = civEspNow.spies[spyUnitId];
+      if (!spyRec || spyRec.status !== 'idle') continue;
+      const alreadyInside = Object.values(civEspNow.spies).some(
+        s => s.infiltrationCityId === cityHere.id &&
+             (s.status === 'stationed' || s.status === 'on_mission' || s.status === 'cooldown'),
+      );
+      if (alreadyInside) continue;
+      const cityCI = newState.espionage?.[cityHere.owner]?.counterIntelligence[cityHere.id] ?? 0;
+      const infSeed = `ai-infiltrate-${spyUnitId}-${newState.turn}`;
+      const result = attemptInfiltration(civEspNow, spyUnitId, spyUnit.type as UnitType, cityHere.id, cityHere.position, cityCI, infSeed);
+      const spyAfterAttempt = result.civEsp.spies[spyUnitId];
+      newState.espionage![civId] = {
+        ...result.civEsp,
+        spies: { ...result.civEsp.spies, [spyUnitId]: { ...spyAfterAttempt, targetCivId: cityHere.owner } },
+      };
+      if (result.removeUnitFromMap) {
+        delete newState.units[spyUnitId];
+        newState.civilizations[civId].units =
+          (newState.civilizations[civId].units ?? []).filter(id => id !== spyUnitId);
+        bus.emit('espionage:spy-infiltrated', { civId, spyId: spyUnitId, cityId: cityHere.id });
+      } else if (result.caught) {
+        delete newState.units[spyUnitId];
+        newState.civilizations[civId].units =
+          (newState.civilizations[civId].units ?? []).filter(id => id !== spyUnitId);
+        bus.emit('espionage:spy-caught-infiltrating', {
+          capturingCivId: cityHere.owner, spyOwner: civId, spyId: spyUnitId, cityId: cityHere.id,
+        });
+      } else {
+        newState.units[spyUnitId] = { ...spyUnit, hasActed: true, movementPointsLeft: 0 };
+      }
+    }
+
+    // 3) Stationed-inside (infiltrationCityId) spies issue missions
+    const civEspForMission = newState.espionage?.[civId];
+    if (civEspForMission) {
+      const completedTechs = newState.civilizations[civId].techState.completed ?? [];
+      const infiltrationMissions = getAvailableMissions(completedTechs).filter(m => m !== 'scout_area');
+      if (infiltrationMissions.length > 0) {
+        for (const spy of Object.values(civEspForMission.spies)) {
+          if (spy.status !== 'stationed' || !spy.infiltrationCityId || spy.currentMission) continue;
+          const city = newState.cities[spy.infiltrationCityId];
+          if (!city) continue;
+          const missionIdx = Math.floor(aiSpyRng() * infiltrationMissions.length);
+          const missionType = infiltrationMissions[missionIdx];
+          try {
+            newState.espionage![civId] = startMission(
+              newState.espionage![civId], spy.id, missionType, undefined, city.owner, city.id,
+            );
+            bus.emit('espionage:mission-started', { civId, spyId: spy.id, missionType });
+          } catch { /* spy not eligible — skip */ }
+        }
+      }
     }
   }
 
