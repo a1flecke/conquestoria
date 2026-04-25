@@ -20,7 +20,6 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 
 A PostToolUse hook (`.claude/hooks/check-src-edit.sh`) greps every Write/Edit under `src/` for known rule violations and returns feedback in the same turn.
 
-Before pushing or merging, run the `code-review:code-review` skill. A PreToolUse hook will remind you if the branch is ahead of `origin/main`.
 When planning interactive UI or queue work, use `docs/superpowers/plans/README.md` as the minimum checklist for player-visible state transitions, misleading derived labels, and replayable interaction coverage.
 
 ## Architecture
