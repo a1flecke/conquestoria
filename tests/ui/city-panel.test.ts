@@ -1,7 +1,24 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
-import { makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
+import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
+import { hexKey } from '@/systems/hex-utils';
+import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 import type { City } from '@/core/types';
+
+function activeCityGrid(container: HTMLElement): HTMLElement {
+  const panel = container.querySelector<HTMLElement>('[id="city-panel"]');
+  expect(panel).toBeTruthy();
+  const gridView = panel!.querySelector<HTMLElement>('[id="city-grid-view"]');
+  expect(gridView).toBeTruthy();
+  expect(gridView!.style.display).toBe('block');
+  return gridView!;
+}
+
+function clickElement(element: Element | null | undefined): void {
+  expect(element).toBeTruthy();
+  element!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
 
 describe('city-panel legendary wonders', () => {
   it('renders a Legendary Wonders entry point and shows carryover in the active city', () => {
@@ -68,8 +85,7 @@ describe('city-panel navigation', () => {
       onPrevCity: onPrev,
       onNextCity: () => {},
     });
-    const prevBtn = (panel as unknown as { querySelector: (s: string) => { click?: () => void } | null }).querySelector('#city-prev');
-    prevBtn?.click?.();
+    clickElement(panel.querySelector('[id="city-prev"]'));
     expect(onPrev).toHaveBeenCalledOnce();
   });
 
@@ -83,8 +99,7 @@ describe('city-panel navigation', () => {
       onPrevCity: () => {},
       onNextCity: onNext,
     });
-    const nextBtn = (panel as unknown as { querySelector: (s: string) => { click?: () => void } | null }).querySelector('#city-next');
-    nextBtn?.click?.();
+    clickElement(panel.querySelector('[id="city-next"]'));
     expect(onNext).toHaveBeenCalledOnce();
   });
 
@@ -168,5 +183,354 @@ describe('city-panel navigation', () => {
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
     expect(rendered).toContain('Queue');
     expect(rendered).toContain('data-queue-action="remove"');
+  });
+
+  it('renders Overview, Buildings/Core, and Worked Land And Water sections in the Grid tab', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.focus = 'balanced';
+    city.workedTiles = [];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Overview');
+    expect(rendered).toContain('Buildings/Core');
+    expect(rendered).toContain('Worked Land And Water');
+    expect(rendered).toContain('Worked 1/');
+    expect(rendered).toContain('Balanced focus');
+  });
+
+  it('shows surplus unassigned citizens when population exceeds available worked tiles', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.population = 4;
+    city.ownedTiles = [city.position];
+    city.workedTiles = [];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    expect(collectText(panel)).toContain('Unassigned citizens: 4');
+  });
+
+  it('shows farm and water worked-land rows with yields', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const farm = { q: city.position.q + 1, r: city.position.r };
+    const coast = { q: city.position.q, r: city.position.r + 1 };
+    state.map.tiles[hexKey(farm)] = {
+      ...state.map.tiles[hexKey(farm)],
+      coord: farm,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+      owner: city.owner,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.map.tiles[hexKey(coast)] = {
+      ...state.map.tiles[hexKey(coast)],
+      coord: coast,
+      terrain: 'coast',
+      elevation: 'lowland',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      owner: city.owner,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    city.ownedTiles = [city.position, farm, coast];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Farm');
+    expect(rendered).toContain('Water work: fishing/trapping');
+  });
+
+  it('shows claimed overlap tiles as unavailable', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const claimed = { q: city.position.q + 1, r: city.position.r };
+    const otherCity = { ...city, id: 'city-other', name: 'Corinth', workedTiles: [claimed] };
+    state.cities[otherCity.id] = otherCity;
+    state.map.tiles[hexKey(claimed)] = {
+      ...state.map.tiles[hexKey(claimed)],
+      coord: claimed,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      owner: city.owner,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    city.ownedTiles = [city.position, claimed];
+    city.workedTiles = [];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    expect(collectText(panel)).toContain('Worked by Corinth');
+    expect(panel.querySelector<HTMLButtonElement>('[data-worked-tile-action="work"]')?.disabled).toBe(true);
+  });
+
+  it('renders focused projected worked tiles consistently with Overview yields', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const foodTile = { q: city.position.q + 1, r: city.position.r };
+    const productionTile = { q: city.position.q, r: city.position.r + 1 };
+    state.map.tiles[hexKey(foodTile)] = {
+      ...state.map.tiles[hexKey(foodTile)],
+      coord: foodTile,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      owner: city.owner,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.map.tiles[hexKey(productionTile)] = {
+      ...state.map.tiles[hexKey(productionTile)],
+      coord: productionTile,
+      terrain: 'hills',
+      elevation: 'lowland',
+      owner: city.owner,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    city.population = 1;
+    city.focus = 'food';
+    city.workedTiles = [];
+    city.ownedTiles = [city.position, foodTile, productionTile];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    const rendered = collectText(activeCityGrid(container));
+    expect(rendered).toContain('Food focus');
+    expect(rendered).toContain('Worked 1/1 citizens');
+    expect(rendered).toContain('Grassland · +2 food · Working');
+    expect(rendered).not.toContain('Unassigned citizens: 1');
+  });
+
+  it('clicking a focus button keeps Grid open and rerenders visible focus and yields from returned state', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    let renderState = state;
+    const onSetCityFocus = vi.fn((cityId, focus) => {
+      const result = assignCityFocus(renderState, cityId, focus);
+      renderState = result.state;
+      return renderState;
+    });
+    createCityPanel(container, city, renderState, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus,
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(container.querySelector('[id="tab-grid"]'));
+    clickElement(activeCityGrid(container).querySelector('[data-city-focus="food"]'));
+
+    expect(onSetCityFocus).toHaveBeenCalledWith(city.id, 'food');
+    const gridView = activeCityGrid(container);
+    expect(collectText(gridView)).toContain('Food focus');
+    expect(collectText(gridView)).toContain('Worked Land And Water');
+  });
+
+  it('working, unworking, and reworking a tile keeps Grid open and updates visible state', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const target = { q: city.position.q + 1, r: city.position.r };
+    state.map.tiles[hexKey(target)] = {
+      ...state.map.tiles[hexKey(target)],
+      coord: target,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      owner: city.owner,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    city.population = 1;
+    city.focus = 'custom';
+    city.workedTiles = [];
+    city.ownedTiles = [city.position, target];
+    let renderState = state;
+    const onToggleWorkedTile = vi.fn((cityId, coord, worked) => {
+      const result = setCityWorkedTile(renderState, cityId, coord, worked);
+      renderState = result.state;
+      return renderState;
+    });
+    createCityPanel(container, city, renderState, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile,
+    });
+
+    clickElement(container.querySelector('[id="tab-grid"]'));
+    clickElement(activeCityGrid(container).querySelector('[data-worked-tile-action="work"]'));
+
+    expect(onToggleWorkedTile).toHaveBeenLastCalledWith(city.id, target, true);
+    expect(collectText(activeCityGrid(container))).toContain('Custom focus');
+    expect(collectText(activeCityGrid(container))).toContain('Working');
+
+    clickElement(activeCityGrid(container).querySelector('[data-worked-tile-action="unwork"]'));
+
+    expect(onToggleWorkedTile).toHaveBeenLastCalledWith(city.id, target, false);
+    expect(collectText(activeCityGrid(container))).toContain('Available');
+
+    clickElement(activeCityGrid(container).querySelector('[data-worked-tile-action="work"]'));
+
+    expect(onToggleWorkedTile).toHaveBeenLastCalledWith(city.id, target, true);
+    expect(collectText(activeCityGrid(container))).toContain('Working');
+
+    clickElement(container.querySelector('[id="tab-list"]'));
+    clickElement(container.querySelector('[id="tab-grid"]'));
+    expect(collectText(activeCityGrid(container))).toContain('Working');
+  });
+
+  it('disables extra Work buttons when every citizen is already assigned', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const workedTile = { q: city.position.q + 1, r: city.position.r };
+    const spareTile = { q: city.position.q, r: city.position.r + 1 };
+    state.map.tiles[hexKey(workedTile)] = {
+      ...state.map.tiles[hexKey(workedTile)],
+      coord: workedTile,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      owner: city.owner,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.map.tiles[hexKey(spareTile)] = {
+      ...state.map.tiles[hexKey(spareTile)],
+      coord: spareTile,
+      terrain: 'hills',
+      elevation: 'lowland',
+      owner: city.owner,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    city.population = 1;
+    city.focus = 'custom';
+    city.workedTiles = [workedTile];
+    city.ownedTiles = [city.position, workedTile, spareTile];
+    let renderState = state;
+    const onToggleWorkedTile = vi.fn((cityId, coord, worked) => {
+      const result = setCityWorkedTile(renderState, cityId, coord, worked);
+      renderState = result.state;
+      return renderState;
+    });
+
+    createCityPanel(container, city, renderState, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => renderState,
+      onToggleWorkedTile,
+    });
+
+    clickElement(container.querySelector('[id="tab-grid"]'));
+    const gridView = activeCityGrid(container);
+    const disabledWork = gridView.querySelector<HTMLButtonElement>('[data-worked-tile-action="work"]');
+    expect(disabledWork).toBeTruthy();
+    expect(disabledWork!.disabled).toBe(true);
+    expect(collectText(gridView)).toContain('No open citizen');
+
+    disabledWork!.click();
+    expect(onToggleWorkedTile).not.toHaveBeenCalled();
+    expect(renderState.cities[city.id].workedTiles).toEqual([workedTile]);
+  });
+
+  it('leaves claimed worked-land tiles disabled and unchanged when clicked', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const claimed = { q: city.position.q + 1, r: city.position.r };
+    const otherCity = { ...city, id: 'city-other', name: 'Corinth', workedTiles: [claimed] };
+    state.cities[otherCity.id] = otherCity;
+    state.map.tiles[hexKey(claimed)] = {
+      ...state.map.tiles[hexKey(claimed)],
+      coord: claimed,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      owner: city.owner,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    city.ownedTiles = [city.position, claimed];
+    city.workedTiles = [];
+    let renderState = state;
+    const onToggleWorkedTile = vi.fn((cityId, coord, worked) => {
+      const result = setCityWorkedTile(renderState, cityId, coord, worked);
+      renderState = result.state;
+      return renderState;
+    });
+
+    createCityPanel(container, city, renderState, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => renderState,
+      onToggleWorkedTile,
+    });
+
+    clickElement(container.querySelector('[id="tab-grid"]'));
+    const disabledWork = activeCityGrid(container).querySelector<HTMLButtonElement>('[data-worked-tile-action="work"]');
+
+    expect(collectText(activeCityGrid(container))).toContain('Worked by Corinth');
+    expect(disabledWork?.disabled).toBe(true);
+    disabledWork?.click();
+    expect(onToggleWorkedTile).not.toHaveBeenCalled();
+    expect(renderState.cities[city.id].workedTiles).toEqual([]);
   });
 });

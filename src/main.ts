@@ -9,6 +9,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexesInRange, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
+import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
@@ -509,6 +510,24 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
         },
         onClose: () => {},
       });
+    },
+    onSetCityFocus: (cityId, focus) => {
+      const result = assignCityFocus(gameState, cityId, focus);
+      gameState = result.state;
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(`${gameState.cities[cityId].name} reassigned citizens for ${focus} focus.`, 'info');
+      return gameState;
+    },
+    onToggleWorkedTile: (cityId, coord, worked) => {
+      const result = setCityWorkedTile(gameState, cityId, coord, worked);
+      gameState = result.state;
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      if (!result.changed && result.reason === 'claimed') {
+        showNotification('That tile is already worked by another city.', 'warning');
+      }
+      return gameState;
     },
     onClose: () => {},
     onPrevCity: () => {

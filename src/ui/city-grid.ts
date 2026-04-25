@@ -1,8 +1,16 @@
-import type { City, GameMap, HexTile } from '@/core/types';
+import type { City, CityFocus, GameMap, GameState, HexCoord, HexTile, ResourceYield } from '@/core/types';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
 import { BUILDINGS } from '@/systems/city-system';
 import { calculateAdjacencyBonuses, findOptimalSlot } from '@/systems/adjacency-system';
 import { TERRAIN_YIELDS } from '@/systems/resource-system';
+import {
+  assignCityFocus,
+  calculateProjectedCityYields,
+  getWorkableTilesForCity,
+  normalizeWorkedTilesForCity,
+} from '@/systems/city-work-system';
+import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
+import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 
 const BUILDING_ICONS: Record<string, string> = {
   'city-center': '🏛️',
@@ -47,12 +55,184 @@ interface CityGridCallbacks {
   onClose: () => void;
 }
 
+interface CityManagementOptions {
+  state: GameState;
+  onSetCityFocus?: (cityId: string, focus: Exclude<CityFocus, 'custom'>) => void;
+  onToggleWorkedTile?: (cityId: string, coord: HexCoord, worked: boolean) => void;
+}
+
+function titleCase(value: string): string {
+  return value.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function formatYield(yieldValue: ResourceYield): string {
+  const parts: string[] = [];
+  if (yieldValue.food) parts.push(`+${yieldValue.food} food`);
+  if (yieldValue.production) parts.push(`+${yieldValue.production} production`);
+  if (yieldValue.gold) parts.push(`+${yieldValue.gold} gold`);
+  if (yieldValue.science) parts.push(`+${yieldValue.science} science`);
+  return parts.length > 0 ? parts.join(', ') : 'No yield';
+}
+
+function formatFocusLabel(focus: CityFocus): string {
+  return `${titleCase(focus)} focus`;
+}
+
+interface DisplayedCityWorkView {
+  state: GameState;
+  city: City;
+}
+
+function getDisplayedCityWorkView(state: GameState, city: City): DisplayedCityWorkView {
+  const result = city.focus === 'custom'
+    ? normalizeWorkedTilesForCity(state, city.id)
+    : assignCityFocus(state, city.id, city.focus);
+  return {
+    state: result.state,
+    city: result.state.cities[city.id] ?? city,
+  };
+}
+
+function getDisplayedCityYields(state: GameState, city: City): ResourceYield {
+  const baseYields = calculateProjectedCityYields(state, city.id);
+  const yieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
+  return {
+    food: Math.floor(baseYields.food * yieldMultiplier),
+    production: Math.floor(baseYields.production * yieldMultiplier),
+    gold: Math.floor(baseYields.gold * yieldMultiplier),
+    science: Math.floor(baseYields.science * yieldMultiplier),
+  };
+}
+
+function renderOverviewSection(root: HTMLElement, city: City, options: CityManagementOptions): void {
+  const section = document.createElement('section');
+  section.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Overview';
+  section.appendChild(heading);
+
+  const yields = getDisplayedCityYields(options.state, city);
+  const summary = document.createElement('div');
+  summary.textContent = [
+    `Population ${city.population}`,
+    formatFocusLabel(city.focus),
+    `Food +${yields.food}`,
+    `Production +${yields.production}`,
+    `Gold +${yields.gold}`,
+    `Science +${yields.science}`,
+  ].join(' · ');
+  section.appendChild(summary);
+  root.appendChild(section);
+}
+
+function renderBuildingsCoreSection(root: HTMLElement, city: City): void {
+  const section = document.createElement('section');
+  section.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Buildings/Core';
+  section.appendChild(heading);
+
+  const placedBuildingIds = city.grid.flat().filter((buildingId): buildingId is string => Boolean(buildingId));
+  const summary = document.createElement('div');
+  summary.textContent = placedBuildingIds.length > 0
+    ? placedBuildingIds.map(buildingId => BUILDINGS[buildingId]?.name ?? titleCase(buildingId)).join(', ')
+    : 'City Center';
+  section.appendChild(summary);
+  root.appendChild(section);
+}
+
+function renderWorkedLandSection(root: HTMLElement, city: City, options: CityManagementOptions): void {
+  const section = document.createElement('section');
+  section.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+  const heading = document.createElement('h3');
+  heading.textContent = 'Worked Land And Water';
+  section.appendChild(heading);
+
+  const workedKeys = new Set((city.workedTiles ?? []).map(coord => hexKey(coord)));
+  const workedCount = Math.min(city.population, workedKeys.size);
+  const unassigned = Math.max(0, city.population - workedCount);
+  const hasOpenCitizen = workedCount < city.population;
+
+  const summary = document.createElement('div');
+  summary.textContent = `Worked ${workedCount}/${city.population} citizens · ${formatFocusLabel(city.focus)}`;
+  section.appendChild(summary);
+
+  if (unassigned > 0) {
+    const unassignedLabel = document.createElement('div');
+    unassignedLabel.textContent = `Unassigned citizens: ${unassigned}`;
+    section.appendChild(unassignedLabel);
+  }
+
+  const focusWrap = document.createElement('div');
+  focusWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+  const focusModes: Array<Exclude<CityFocus, 'custom'>> = ['balanced', 'food', 'production', 'gold', 'science'];
+  for (const focus of focusModes) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.cityFocus = focus;
+    button.textContent = `${focus[0].toUpperCase()}${focus.slice(1)}`;
+    button.addEventListener('click', () => options.onSetCityFocus?.(city.id, focus));
+    focusWrap.appendChild(button);
+  }
+  section.appendChild(focusWrap);
+
+  for (const entry of getWorkableTilesForCity(options.state, city.id)) {
+    const tile = options.state.map.tiles[hexKey(entry.coord)];
+    if (!tile) continue;
+    const worked = workedKeys.has(hexKey(entry.coord));
+    const row = document.createElement('div');
+    row.style.cssText = [
+      'display:grid',
+      'grid-template-columns:minmax(0,1fr) auto',
+      'gap:8px',
+      'align-items:center',
+      'padding:10px',
+      'border:1px solid rgba(255,255,255,0.14)',
+      'border-radius:8px',
+    ].join(';');
+
+    const text = document.createElement('div');
+    const labels = [titleCase(tile.terrain), formatYield(entry.yield)];
+    if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) labels.push(titleCase(tile.improvement));
+    if (entry.isWater) labels.push('Water work: fishing/trapping');
+    const blockedByCapacity = !worked && entry.available && !hasOpenCitizen;
+    if (entry.claim) {
+      const claimingCity = options.state.cities[entry.claim.cityId];
+      labels.push(claimingCity && claimingCity.owner === city.owner ? `Worked by ${claimingCity.name}` : 'Worked by another city');
+    } else if (worked) {
+      labels.push('Working');
+    } else if (blockedByCapacity) {
+      labels.push('No open citizen');
+    } else {
+      labels.push('Available');
+    }
+    text.textContent = labels.join(' · ');
+    row.appendChild(text);
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.workedTileAction = worked ? 'unwork' : 'work';
+    button.textContent = worked ? 'Unwork' : 'Work';
+    button.disabled = (!entry.available && !worked) || blockedByCapacity;
+    if (blockedByCapacity) {
+      button.title = 'Unwork another tile first';
+    }
+    button.addEventListener('click', () => options.onToggleWorkedTile?.(city.id, entry.coord, !worked));
+    row.appendChild(button);
+    section.appendChild(row);
+  }
+
+  root.appendChild(section);
+}
+
 export function createCityGrid(
   container: HTMLElement,
   city: City,
   map: GameMap,
   callbacks: CityGridCallbacks,
   suggestedBuilding?: string,
+  managementOptions?: CityManagementOptions,
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.id = 'city-grid';
@@ -168,7 +348,28 @@ export function createCityGrid(
   html += '<div id="grid-detail" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.6);min-height:24px;padding:0 4px;"></div>';
   html += '<style>@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }</style>';
 
-  panel.innerHTML = html;
+  if (managementOptions) {
+    const managementRoot = document.createElement('div');
+    managementRoot.style.cssText = [
+      'display:flex',
+      'flex-direction:column',
+      'gap:12px',
+      'max-width:720px',
+      'margin:0 auto',
+    ].join(';');
+    const displayedWorkView = getDisplayedCityWorkView(managementOptions.state, city);
+    const displayedOptions = { ...managementOptions, state: displayedWorkView.state };
+    renderOverviewSection(managementRoot, displayedWorkView.city, displayedOptions);
+    renderBuildingsCoreSection(managementRoot, displayedWorkView.city);
+    renderWorkedLandSection(managementRoot, displayedWorkView.city, displayedOptions);
+
+    const boardRoot = document.createElement('div');
+    boardRoot.innerHTML = html;
+    panel.appendChild(managementRoot);
+    panel.appendChild(boardRoot);
+  } else {
+    panel.innerHTML = html;
+  }
   container.appendChild(panel);
 
   // Click handlers for occupied building slots — show info inline
