@@ -27,6 +27,9 @@ import {
   getAvailableMissions,
   assignSpyDefensive,
   attemptInfiltration,
+  expelSpy,
+  executeSpy,
+  startInterrogation,
   missionRequiresPlacedSpy,
   startMission,
   isSpyUnitType,
@@ -850,6 +853,84 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           target.civId,
           target.cityId,
         );
+      }
+    }
+  }
+
+  // AI capture verdicts: find enemy spies we (civId) captured
+  // They live in other civs' spy lists with targetCivId === civId and status === 'captured'
+  {
+    const captureRng = createRng(`ai-capture-${civId}-${newState.turn}`);
+    for (const [victimCivId, victimEsp] of Object.entries(newState.espionage ?? {})) {
+      if (victimCivId === civId) continue;
+      const capturedByMe = Object.values(victimEsp.spies).filter(
+        s => s.status === 'captured' && s.targetCivId === civId,
+      );
+      for (const capturedSpy of capturedByMe) {
+        const rel = civ.diplomacy.relationships[victimCivId]?.score ?? 50;
+        const atWar = civ.diplomacy.atWarWith.includes(victimCivId);
+        let verdict: 'expel' | 'execute' | 'interrogate';
+        if (atWar) {
+          verdict = captureRng() < 0.5 ? 'execute' : 'interrogate';
+        } else if (rel < 30) {
+          verdict = captureRng() < 0.4 ? 'interrogate' : 'expel';
+        } else {
+          verdict = 'expel';
+        }
+
+        if (verdict === 'expel') {
+          const updatedOwnerEsp = expelSpy(newState.espionage![victimCivId], capturedSpy.id, 15);
+          // capital = cities[0] by convention
+          const victimCivCities = newState.civilizations[victimCivId]?.cities ?? [];
+          const capitalCityId = victimCivCities[0];
+          const capital = capitalCityId ? newState.cities[capitalCityId] : null;
+          if (capital) {
+            const newUnit = createUnit(capturedSpy.unitType, victimCivId, capital.position);
+            newState = {
+              ...newState,
+              units: { ...newState.units, [newUnit.id]: newUnit },
+              civilizations: {
+                ...newState.civilizations,
+                [victimCivId]: {
+                  ...newState.civilizations[victimCivId],
+                  units: [...newState.civilizations[victimCivId].units, newUnit.id],
+                },
+              },
+            };
+            const { [capturedSpy.id]: _old, ...rest } = updatedOwnerEsp.spies;
+            newState = {
+              ...newState,
+              espionage: {
+                ...newState.espionage,
+                [victimCivId]: {
+                  ...updatedOwnerEsp,
+                  spies: { ...rest, [newUnit.id]: { ...updatedOwnerEsp.spies[capturedSpy.id]!, id: newUnit.id } },
+                },
+              },
+            };
+          } else {
+            newState = { ...newState, espionage: { ...newState.espionage, [victimCivId]: updatedOwnerEsp } };
+          }
+        } else if (verdict === 'execute') {
+          newState = {
+            ...newState,
+            espionage: {
+              ...newState.espionage,
+              [victimCivId]: executeSpy(newState.espionage![victimCivId], capturedSpy.id),
+            },
+          };
+          bus.emit('espionage:spy-executed', {
+            executingCivId: civId, spyOwner: victimCivId, spyId: capturedSpy.id, spyName: capturedSpy.name,
+          });
+        } else {
+          newState = {
+            ...newState,
+            espionage: {
+              ...newState.espionage,
+              [civId]: startInterrogation(newState.espionage![civId], capturedSpy.id, victimCivId),
+            },
+          };
+        }
       }
     }
   }

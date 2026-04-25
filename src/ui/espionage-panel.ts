@@ -1,5 +1,5 @@
 // src/ui/espionage-panel.ts
-import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion } from '../core/types';
+import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
 import { getAvailableMissions, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-system';
 
 export interface MissionCatalogEntry {
@@ -259,6 +259,13 @@ function appendSpyCard(
   card.appendChild(target);
 
   const actions = getSpyActions(state, spy.id);
+  if (spy.status === 'captured') {
+    const capturedDiv = createEl('div', `${spy.name} has been captured! Awaiting the captor's verdict.`);
+    capturedDiv.className = 'spy-captured-notice';
+    capturedDiv.style.cssText = 'font-size:11px;color:#ff9966;padding:4px 0;';
+    card.appendChild(capturedDiv);
+  }
+
   if (actions.length > 0) {
     const actionRow = createEl('div');
     actionRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
@@ -360,6 +367,84 @@ function appendRecentDetections(
   parent.appendChild(block);
 }
 
+function formatIntelItem(item: InterrogationIntel): string {
+  switch (item.type) {
+    case 'spy_identity': return `Enemy spy ${item.data.spyName as string} is currently ${item.data.status as string}${item.data.location ? ` in ${item.data.location as string}` : ''}`;
+    case 'city_location': return `Revealed city ${item.data.cityName as string} at position ${JSON.stringify(item.data.position)}`;
+    case 'production_queue': return `${item.data.cityName as string} is producing: ${(item.data.queue as string[]).join(', ')}`;
+    case 'wonder_in_progress': return `${item.data.cityId as string} is building wonder ${item.data.wonderId as string}`;
+    case 'map_area': return `Received map data for ${(item.data.tiles as unknown[]).length} tiles (may be outdated)`;
+    case 'tech_hint': return `Research hint: ${item.data.techId as string} (+5% progress)`;
+    default: return 'Unknown intel';
+  }
+}
+
+function showIntelModal(intel: InterrogationIntel[]): void {
+  const existing = document.getElementById('intel-modal');
+  if (existing) existing.remove();
+
+  const modal = createEl('div');
+  modal.id = 'intel-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;';
+
+  const inner = createEl('div');
+  inner.style.cssText = 'background:#1a1e2e;border-radius:12px;padding:20px;max-width:400px;width:90%;display:flex;flex-direction:column;gap:10px;color:#f5f7fb;';
+
+  const title = createEl('h3', 'Extracted Intel');
+  title.style.cssText = 'margin:0;font-size:14px;color:#e8c170;';
+  inner.appendChild(title);
+
+  if (intel.length === 0) {
+    inner.appendChild(createEl('p', 'No intel extracted yet.'));
+  } else {
+    for (const item of intel) {
+      const p = createEl('p', formatIntelItem(item));
+      p.style.cssText = 'margin:0;font-size:12px;opacity:0.85;';
+      inner.appendChild(p);
+    }
+  }
+
+  const closeBtn = createEl('button', 'Close');
+  closeBtn.style.cssText = 'padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#f5f7fb;cursor:pointer;';
+  closeBtn.addEventListener('click', () => modal.remove());
+  inner.appendChild(closeBtn);
+
+  modal.appendChild(inner);
+  document.body.appendChild(modal);
+}
+
+function appendInterrogationProgress(parent: HTMLElement, state: GameState): void {
+  const captorEsp = state.espionage?.[state.currentPlayer];
+  const records = Object.values(captorEsp?.activeInterrogations ?? {});
+  if (records.length === 0) return;
+
+  const section = createEl('section');
+  section.dataset.section = 'interrogations';
+  appendSectionHeader(section, 'Active Interrogations', 'Captured spies being questioned for intel.');
+
+  for (const record of records) {
+    const div = createEl('div');
+    div.style.cssText = 'padding:8px;border-radius:8px;background:rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:6px;font-size:11px;';
+
+    const spyName = state.espionage?.[record.spyOwner]?.spies[record.spyId]?.name ?? record.spyId;
+    const summary = document.createTextNode(
+      `Interrogating: ${spyName} (owner: ${record.spyOwner}) — ${record.turnsRemaining} turns remaining | Intel: ${record.extractedIntel.length} items`,
+    );
+    div.appendChild(summary);
+
+    if (record.extractedIntel.length > 0) {
+      const btn = createEl('button', 'View Intel');
+      btn.style.cssText = 'padding:5px 10px;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.16);color:#9dd1ff;font-size:11px;cursor:pointer;';
+      btn.addEventListener('click', () => showIntelModal(record.extractedIntel));
+      div.appendChild(btn);
+    }
+
+    section.appendChild(div);
+  }
+
+  parent.appendChild(section);
+}
+
 export function createEspionagePanel(
   state: GameState,
   callbacks: EspionagePanelCallbacks = { onClose: () => {} },
@@ -418,6 +503,7 @@ export function createEspionagePanel(
 
   appendThreatBoard(panel, data.threatBoard);
   appendRecentDetections(panel, data.recentDetections);
+  appendInterrogationProgress(panel, state);
 
   return panel;
 }

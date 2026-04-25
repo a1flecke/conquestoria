@@ -37,7 +37,7 @@ import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
-import { processEspionageTurn, isSpyUnitType, createSpyFromUnit } from '@/systems/espionage-system';
+import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
@@ -459,6 +459,48 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);
   newState = processDetection(newState, bus);
+
+  // Process active interrogations and apply extracted intel to game state
+  for (const [captorId, captorEsp] of Object.entries(newState.espionage ?? {})) {
+    if (!captorEsp.activeInterrogations || Object.keys(captorEsp.activeInterrogations).length === 0) continue;
+    const seed = `interro-${captorId}-${newState.turn}`;
+    const { state: updatedEsp, newIntel } = processInterrogation(captorEsp, seed, newState);
+    newState = { ...newState, espionage: { ...newState.espionage!, [captorId]: updatedEsp } };
+
+    for (const intel of newIntel) {
+      if (intel.type === 'map_area') {
+        const tiles = intel.data.tiles as Array<{ q: number; r: number }>;
+        if (newState.civilizations[captorId]?.visibility?.tiles) {
+          for (const t of tiles) {
+            newState.civilizations[captorId].visibility.tiles[`${t.q},${t.r}`] = 'explored';
+          }
+        }
+      }
+      if (intel.type === 'tech_hint') {
+        const bonus = intel.data.researchBonus as number;
+        const cap = newState.civilizations[captorId];
+        if (cap) {
+          newState = {
+            ...newState,
+            civilizations: {
+              ...newState.civilizations,
+              [captorId]: {
+                ...cap,
+                techState: {
+                  ...cap.techState,
+                  researchProgress: (cap.techState.researchProgress ?? 0) + Math.floor(bonus * 100),
+                },
+              },
+            },
+          };
+        }
+      }
+    }
+
+    if (newIntel.length > 0) {
+      bus.emit('espionage:intel-extracted', { captorId, intel: newIntel });
+    }
+  }
 
   // Decrement city vision from infiltrated spies and keep tile visible while active
   {
