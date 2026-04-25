@@ -1202,7 +1202,7 @@ describe('processAITurn', () => {
 
     const spies = Object.values(newState.espionage!['ai-1'].spies);
     expect(spies).toHaveLength(1);
-    expect(spies[0].status).toBe('stationed');
+    expect(spies[0].status).toBe('embedded');
     expect(spies[0].targetCivId).toBeNull();
     expect(spies[0].targetCityId).toBe('city-ai');
     expect(newState.espionage!['ai-1'].counterIntelligence['city-ai']).toBeGreaterThan(0);
@@ -1298,7 +1298,8 @@ describe('processAITurn', () => {
         },
       },
       maxSpies: 1,
-      counterIntelligence: {},
+      // Pre-set CI so shouldAiStationDefensiveSpy returns false (CI > 0 → no embed needed)
+      counterIntelligence: { 'city-ai': 20 },
     };
 
     const result = processAITurn(state, 'ai-1', bus);

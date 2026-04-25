@@ -70,7 +70,9 @@ import {
   startLegendaryWonderBuild,
 } from '@/systems/legendary-wonder-system';
 import {
-  assignSpyDefensive,
+  embedSpy,
+  unembedSpy,
+  attemptSweep,
   attemptInfiltration,
   getAvailableMissions,
   getInfiltrationSuccessChance,
@@ -766,15 +768,21 @@ function togglePanel(panel: string): void {
       onAssignDefensive: (spyId) => {
         const target = chooseFriendlyCityTarget();
         if (!target) return;
-        gameState.espionage![gameState.currentPlayer] = assignSpyDefensive(
+        gameState.espionage![gameState.currentPlayer] = embedSpy(
           gameState.espionage![gameState.currentPlayer],
           spyId,
           target.cityId,
           target.position,
         );
+        const unit = gameState.units[spyId];
+        if (unit) {
+          delete gameState.units[spyId];
+          gameState.civilizations[gameState.currentPlayer].units =
+            gameState.civilizations[gameState.currentPlayer].units.filter(id => id !== spyId);
+        }
         renderLoop.setGameState(gameState);
         togglePanel('espionage');
-        showNotification(`Spy defending ${target.cityId}.`, 'info');
+        showNotification(`Spy embedded in ${target.cityId}. Counter-intelligence boosted.`, 'info');
       },
       onStartMission: (spyId) => {
         const spy = gameState.espionage?.[gameState.currentPlayer]?.spies[spyId];
@@ -881,6 +889,36 @@ function togglePanel(panel: string): void {
         renderLoop.setGameState(gameState);
         document.getElementById('espionage-panel')?.remove();
         togglePanel('espionage');
+      },
+      onUnembed: (spyId) => {
+        const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
+        const spy = ownerEsp?.spies[spyId];
+        if (!spy || spy.status !== 'embedded' || !spy.targetCityId) return;
+        const city = gameState.cities[spy.targetCityId];
+        if (!city) return;
+        const newUnit = createUnit(spy.unitType, gameState.currentPlayer, city.position);
+        gameState.units[newUnit.id] = newUnit;
+        gameState.civilizations[gameState.currentPlayer].units.push(newUnit.id);
+        const unembedded = unembedSpy(ownerEsp!, spyId);
+        const rekeyed = { ...unembedded.spies[spyId], id: newUnit.id };
+        const { [spyId]: _old, ...rest } = unembedded.spies;
+        gameState.espionage![gameState.currentPlayer] = { ...unembedded, spies: { ...rest, [newUnit.id]: rekeyed } };
+        renderLoop.setGameState(gameState);
+        document.getElementById('espionage-panel')?.remove();
+        togglePanel('espionage');
+        showNotification(`Spy recalled from ${city.name}. Available in 5 turns.`, 'info');
+      },
+      onSweep: (spyId) => {
+        const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
+        if (!ownerEsp) return;
+        const seed = `sweep-${spyId}-${gameState.turn}`;
+        const { detectedSpyIds } = attemptSweep(ownerEsp, spyId, seed, gameState);
+        if (detectedSpyIds.length > 0) {
+          showNotification(`Sweep detected ${detectedSpyIds.length} enemy spy(ies) in the city!`, 'warning');
+        } else {
+          showNotification('Sweep complete — no enemy spies detected.', 'info');
+        }
+        renderLoop.setGameState(gameState);
       },
     }));
   } else if (panel === 'diplomacy') {
@@ -1053,6 +1091,25 @@ function selectUnit(unitId: string): void {
 
         renderLoop.setGameState(gameState);
         updateHUD();
+      },
+      onEmbed: (uid) => {
+        const unit = gameState.units[uid];
+        if (!unit || unit.owner !== gameState.currentPlayer) return;
+        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        if (!civEsp) return;
+        const city = Object.values(gameState.cities).find(
+          c => c.owner === gameState.currentPlayer &&
+               c.position.q === unit.position.q && c.position.r === unit.position.r,
+        );
+        if (!city) return;
+        gameState.espionage![gameState.currentPlayer] = embedSpy(civEsp, uid, city.id, city.position);
+        delete gameState.units[uid];
+        gameState.civilizations[gameState.currentPlayer].units =
+          gameState.civilizations[gameState.currentPlayer].units.filter(id => id !== uid);
+        deselectUnit();
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        showNotification(`Spy embedded in ${city.name}. Counter-intelligence boosted.`, 'info');
       },
     });
   }

@@ -58,6 +58,8 @@ export interface EspionagePanelCallbacks {
   onVerifyAgent?: (spyId: string) => void;
   onExfiltrate?: (spyId: string) => void;
   onToggleCooldownMode?: (spyId: string) => void;
+  onUnembed?: (spyId: string) => void;
+  onSweep?: (spyId: string) => void;
 }
 
 const MISSION_LABELS: Record<SpyMissionType, string> = {
@@ -285,6 +287,14 @@ function appendSpyCard(
     }
     if (spy.status === 'stationed' && spy.infiltrationCityId && callbacks.onExfiltrate) {
       appendActionButton(actionRow, 'exfiltrate (8 turn cooldown)', 'exfiltrate', () => callbacks.onExfiltrate?.(spy.id));
+    }
+    if (spy.status === 'embedded' && spy.targetCityId) {
+      if (callbacks.onUnembed) {
+        appendActionButton(actionRow, 'Unembed (5 turn cooldown)', 'unembed', () => callbacks.onUnembed!(spy.id));
+      }
+      if (callbacks.onSweep) {
+        appendActionButton(actionRow, 'Run Sweep', 'sweep', () => callbacks.onSweep!(spy.id));
+      }
     }
     if (spy.status === 'cooldown' && spy.infiltrationCityId && callbacks.onToggleCooldownMode) {
       const current = spy.cooldownMode ?? 'stay_low';
@@ -618,6 +628,9 @@ export function getSpyActions(state: GameState, spyId: string): SpyAction[] {
         actions.push('start_mission');
       }
       actions.push('recall');
+      break;
+    case 'embedded':
+      // Unembed and Sweep are rendered directly in renderSpyCard, not via getSpyActions
       break;
     case 'captured':
     case 'cooldown':

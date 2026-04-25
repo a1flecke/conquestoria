@@ -25,7 +25,7 @@ import {
 import { resolveMajorCityCapture } from '@/systems/city-capture-system';
 import {
   getAvailableMissions,
-  assignSpyDefensive,
+  embedSpy,
   attemptInfiltration,
   expelSpy,
   executeSpy,
@@ -707,12 +707,18 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     const espState = newState.espionage?.[civId];
     const idleSpy = espState ? Object.values(espState.spies).find(spy => spy.status === 'idle') : undefined;
     if (capital && idleSpy) {
-      newState.espionage![civId] = assignSpyDefensive(
+      newState.espionage![civId] = embedSpy(
         newState.espionage![civId],
         idleSpy.id,
         capital.id,
         capital.position,
       );
+      // Remove unit from map — embedded spy goes off-map
+      delete newState.units[idleSpy.id];
+      newState.civilizations[civId] = {
+        ...newState.civilizations[civId],
+        units: newState.civilizations[civId].units.filter(id => id !== idleSpy.id),
+      };
     }
   }
 

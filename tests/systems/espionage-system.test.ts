@@ -9,7 +9,7 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   createEspionageCivState,
   createSpyFromUnit,
-  assignSpyDefensive,
+  embedSpy,
   recallSpy,
   getSpySuccessChance,
   getMissionDuration,
@@ -181,13 +181,13 @@ describe('espionage-system', () => {
     });
   });
 
-  describe('assignSpyDefensive', () => {
-    it('assigns spy to own city for counter-intelligence', () => {
+  describe('embedSpy', () => {
+    it('embeds spy in own city for counter-intelligence', () => {
       const spy = makeTestSpy('spy-1', 'player');
       const s1 = addSpy(createEspionageCivState(), spy);
-      const s2 = assignSpyDefensive(s1, spy.id, 'city-player-1', { q: 0, r: 0 });
+      const s2 = embedSpy(s1, spy.id, 'city-player-1', { q: 0, r: 0 });
       const assigned = s2.spies[spy.id];
-      expect(assigned.status).toBe('stationed');
+      expect(assigned.status).toBe('embedded');
       expect(assigned.targetCivId).toBeNull();
       expect(assigned.targetCityId).toBe('city-player-1');
       expect(s2.counterIntelligence['city-player-1']).toBeGreaterThan(0);
@@ -196,9 +196,9 @@ describe('espionage-system', () => {
     it('increases counter-intelligence score based on spy experience', () => {
       const spy = makeTestSpy('spy-1', 'player', { experience: 50 });
       const s1 = addSpy(createEspionageCivState(), spy);
-      const s2 = assignSpyDefensive(s1, spy.id, 'city-player-1', { q: 0, r: 0 });
+      const s2 = embedSpy(s1, spy.id, 'city-player-1', { q: 0, r: 0 });
       const ciScore = s2.counterIntelligence['city-player-1'];
-      expect(ciScore).toBeGreaterThan(20); // base 20 + experience bonus
+      expect(ciScore).toBeGreaterThan(15); // base 15 + experience bonus
     });
   });
 
