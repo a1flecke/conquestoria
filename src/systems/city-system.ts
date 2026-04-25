@@ -1,6 +1,7 @@
 import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry } from '@/core/types';
 import { hexKey, hexesInRange } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
+import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 
 let nextCityId = 1;
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
@@ -73,6 +74,14 @@ export function getTrainableUnitsForCiv(completedTechs: string[]): TrainableUnit
   });
 }
 
+export function createEmptyCityGrid(): (string | null)[][] {
+  const grid: (string | null)[][] = Array.from({ length: 7 }, () =>
+    Array.from({ length: 7 }, () => null),
+  );
+  grid[3][3] = 'city-center';
+  return grid;
+}
+
 export function foundCity(owner: string, position: HexCoord, map: GameMap, options: FoundCityOptions = {}): City {
   const name = drawNextCityName(options.civType ?? owner, options.usedNames ?? new Set<string>(), {
     namingPool: options.namingPool,
@@ -86,11 +95,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, optio
     return tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain';
   });
 
-  // Initialize 5x5 grid (all null), place city center in the middle
-  const grid: (string | null)[][] = Array.from({ length: 5 }, () =>
-    Array.from({ length: 5 }, () => null),
-  );
-  grid[2][2] = 'city-center';
+  const grid = createEmptyCityGrid();
 
   return {
     id: `city-${nextCityId++}`,
@@ -104,6 +109,9 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, optio
     productionQueue: [],
     productionProgress: 0,
     ownedTiles,
+    workedTiles: [],
+    focus: INITIAL_CITY_FOCUS,
+    maturity: INITIAL_CITY_MATURITY,
     grid,
     gridSize: 3,
     unrestLevel: 0,
@@ -124,24 +132,12 @@ export function getAvailableBuildings(city: City, completedTechs: string[]): Bui
   });
 }
 
-export function checkGridExpansion(city: City): boolean {
-  if (city.population >= 6 && city.gridSize < 5) {
-    city.gridSize = 5;
-    return true;
-  }
-  if (city.population >= 3 && city.gridSize < 4) {
-    city.gridSize = 4;
-    return true;
-  }
+export function checkGridExpansion(_city: City): boolean {
   return false;
 }
 
-export function purchaseGridExpansion(city: City, currentGold: number): number {
-  if (city.gridSize >= 5) return 0;
-  const cost = city.gridSize < 4 ? 50 : 150;
-  if (currentGold < cost) return 0;
-  city.gridSize = city.gridSize < 4 ? 4 : 5;
-  return cost;
+export function purchaseGridExpansion(_city: City, _currentGold: number): number {
+  return 0;
 }
 
 export interface CityProcessResult {
@@ -169,17 +165,11 @@ export function processCity(
   let newPop = city.population;
   let newFoodNeeded = city.foodNeeded;
 
-  let newGridSize = city.gridSize;
-
   if (newFood >= city.foodNeeded) {
     newPop++;
     newFood -= city.foodNeeded;
     newFoodNeeded = Math.floor(city.foodNeeded * 1.3);
     grew = true;
-
-    // Check grid expansion thresholds
-    if (newPop >= 6 && newGridSize < 5) newGridSize = 5;
-    else if (newPop >= 3 && newGridSize < 4) newGridSize = 4;
   }
 
   // Production
@@ -237,7 +227,6 @@ export function processCity(
       productionProgress: newProgress,
       productionQueue: newQueue,
       buildings: newBuildings,
-      gridSize: newGridSize,
     },
     grew,
     completedBuilding,

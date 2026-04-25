@@ -136,45 +136,48 @@ describe('expanded buildings', () => {
 });
 
 describe('city grid', () => {
-  it('foundCity initializes a 3x3 grid', () => {
+  it('foundCity initializes city-sim fields and a 7x7-compatible grid', () => {
     const map = generateMap(30, 30, 'grid-test');
     const city = foundCity('player', { q: 15, r: 15 }, map);
+    expect(city.focus).toBe('balanced');
+    expect(city.maturity).toBe('outpost');
+    expect(city.workedTiles).toEqual([]);
     expect(city.gridSize).toBe(3);
-    expect(city.grid.length).toBe(5);
-    expect(city.grid[0].length).toBe(5);
+    expect(city.grid).toHaveLength(7);
+    expect(city.grid[0]).toHaveLength(7);
+    expect(city.grid[3][3]).toBe('city-center');
   });
 
   it('city center is placed in the center of the grid', () => {
     const map = generateMap(30, 30, 'grid-center');
     const city = foundCity('player', { q: 15, r: 15 }, map);
-    expect(city.grid[2][2]).toBe('city-center');
+    expect(city.grid[3][3]).toBe('city-center');
   });
 });
 
 describe('grid expansion', () => {
-  it('expands to 4x4 at population 3', () => {
+  it('does not expand grid size from population alone', () => {
     const map = generateMap(30, 30, 'expand-test');
     const city = foundCity('player', { q: 15, r: 15 }, map);
-    city.population = 3;
-    expect(checkGridExpansion(city)).toBe(true);
-    expect(city.gridSize).toBe(4);
+    city.population = 12;
+    expect(checkGridExpansion(city)).toBe(false);
+    expect(city.gridSize).toBe(3);
   });
 
-  it('expands to 5x5 at population 6', () => {
+  it('keeps mature grid size unchanged when checked', () => {
     const map = generateMap(30, 30, 'expand-test-2');
     const city = foundCity('player', { q: 15, r: 15 }, map);
-    city.population = 6;
-    city.gridSize = 4;
-    expect(checkGridExpansion(city)).toBe(true);
+    city.gridSize = 5;
+    expect(checkGridExpansion(city)).toBe(false);
     expect(city.gridSize).toBe(5);
   });
 
-  it('purchase grid expansion costs 50 gold for 4x4', () => {
+  it('purchase grid expansion cannot bypass city maturity', () => {
     const map = generateMap(30, 30, 'buy-test');
     const city = foundCity('player', { q: 15, r: 15 }, map);
     const cost = purchaseGridExpansion(city, 60);
-    expect(cost).toBe(50);
-    expect(city.gridSize).toBe(4);
+    expect(cost).toBe(0);
+    expect(city.gridSize).toBe(3);
   });
 
   it('purchase fails with insufficient gold', () => {

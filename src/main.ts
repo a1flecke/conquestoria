@@ -9,6 +9,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexesInRange, wrapHexCoord } from '@/systems/hex-utils';
 import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
+import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { createTechPanel } from '@/ui/tech-panel';
@@ -1092,6 +1093,12 @@ function foundCityAction(): void {
   if (!unit || unit.type !== 'settler') return;
 
   const cp = gameState.currentPlayer;
+  const blockers = getCityFoundingBlockers(gameState, unit.position, { ignoreUnitId: unit.id });
+  if (blockers.length > 0) {
+    showNotification(formatCityFoundingBlockerMessage(blockers), 'warning');
+    return;
+  }
+
   const civDef = currentCivDef();
   const city = foundCity(cp, unit.position, gameState.map, {
     civType: currentCiv().civType,
@@ -1692,6 +1699,14 @@ bus.on('city:grew', ({ cityId, newPopulation }) => {
   const city = gameState.cities[cityId];
   if (city && city.owner === gameState.currentPlayer) {
     showNotification(`${city.name} grew to ${newPopulation} population!`, 'success');
+  }
+});
+
+bus.on('city:maturity-upgraded', ({ cityId, current }) => {
+  const city = gameState.cities[cityId];
+  if (city && city.owner === gameState.currentPlayer) {
+    const label = `${current[0].toUpperCase()}${current.slice(1)}`;
+    showNotification(`${city.name} became a ${label}. New city slots unlocked.`, 'success');
   }
 });
 

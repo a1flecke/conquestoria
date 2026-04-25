@@ -232,6 +232,8 @@ export interface Unit {
 // --- Cities ---
 
 export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | 'military' | 'culture' | 'espionage';
+export type CityFocus = 'balanced' | 'food' | 'production' | 'gold' | 'science' | 'custom';
+export type CityMaturity = 'outpost' | 'village' | 'town' | 'city' | 'metropolis';
 
 export interface AdjacencyBonus {
   adjacentTo: string;
@@ -266,9 +268,13 @@ export interface City {
   buildings: string[];       // building IDs
   productionQueue: string[]; // what's being built (building or unit ID)
   productionProgress: number;
-  ownedTiles: HexCoord[];    // tiles this city works
-  grid: (string | null)[][];  // 5x5 city interior grid
-  gridSize: number;           // unlocked grid size (3, 4, or 5)
+  ownedTiles: HexCoord[];    // city territory/control, not active citizen assignment
+  workedTiles?: HexCoord[];
+  focus?: CityFocus;
+  maturity?: CityMaturity;
+  lastFocusReminderTurn?: number;
+  grid: (string | null)[][];  // 7x7 city interior grid with centered unlocked rings
+  gridSize: 3 | 5 | 7;        // unlocked centered grid size
   unrestLevel: 0 | 1 | 2;     // 0=stable, 1=unrest, 2=revolt
   unrestTurns: number;         // turns spent at current unrest level (>= 1 when unrestLevel > 0)
   conquestTurn?: number;       // turn this city was captured; cleared after 15 turns
@@ -316,6 +322,7 @@ export interface Tech {
   unlocks: string[];         // what this tech enables (descriptions)
   era: number;               // 1-3 for milestone 1
   countsForEraAdvancement?: boolean;
+  countsForCityMaturity?: boolean;
   pacing?: PacingMetadata;
 }
 
@@ -963,6 +970,7 @@ export interface GameEvents {
   'city:building-complete': { cityId: string; buildingId: string };
   'city:unit-trained': { cityId: string; unitType: UnitType };
   'city:grew': { cityId: string; newPopulation: number };
+  'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
   'combat:resolved': { result: CombatResult };
   'tech:completed': { civId: string; techId: string };
   'tech:started': { civId: string; techId: string };

@@ -1104,6 +1104,43 @@ describe('processAITurn', () => {
     ).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('does not found an AI city inside the shared city spacing boundary', () => {
+    const state = createNewGame(undefined, 'ai-city-spacing');
+    const bus = new EventBus();
+    const playerCity = foundCity('player', { q: 10, r: 10 }, state.map);
+    state.cities[playerCity.id] = playerCity;
+    state.civilizations.player.cities = [playerCity.id];
+    state.civilizations['ai-1'].cities = [];
+
+    const settlerId = 'unit-ai-settler-spacing';
+    state.units = {
+      [settlerId]: {
+        id: settlerId,
+        type: 'settler',
+        owner: 'ai-1',
+        position: { q: 12, r: 10 },
+        movementPointsLeft: 2,
+        health: 100,
+        experience: 0,
+        hasMoved: false,
+        hasActed: false,
+        isResting: false,
+      },
+    };
+    state.civilizations['ai-1'].units = [settlerId];
+    state.map.tiles['12,10'] = {
+      ...state.map.tiles['12,10'],
+      terrain: 'grassland',
+      owner: null,
+    };
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    const foundedCities = Object.values(result.cities).filter(city => city.owner === 'ai-1');
+    expect(foundedCities).toHaveLength(0);
+    expect(result.units[settlerId]).toBeDefined();
+  });
+
   it('AI attacks adjacent rebel units during revolt cleanup', () => {
     const state = makeAiRebelState();
     const bus = new EventBus();

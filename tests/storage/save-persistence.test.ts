@@ -186,6 +186,35 @@ describe('save persistence (#38)', () => {
     expect(loaded?.pendingDiplomacyRequests).toEqual([]);
   });
 
+  it('normalizes older city-grid saves into city-sim fields on load', async () => {
+    const state = createNewGame('rome', 'legacy-city-grid-seed');
+    const city = Object.values(state.cities)[0];
+    const legacyCity = city as unknown as {
+      workedTiles?: unknown;
+      focus?: unknown;
+      maturity?: unknown;
+      grid: (string | null)[][];
+      gridSize: number;
+    };
+    delete legacyCity.workedTiles;
+    delete legacyCity.focus;
+    delete legacyCity.maturity;
+    legacyCity.grid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => null));
+    legacyCity.grid[2][2] = 'city-center';
+    legacyCity.gridSize = 5;
+
+    await saveGame('slot-legacy-city-grid', 'Legacy City Grid', state);
+    const loaded = await loadGame('slot-legacy-city-grid');
+
+    const loadedCity = Object.values(loaded!.cities)[0];
+    expect(loadedCity.workedTiles).toEqual([]);
+    expect(loadedCity.focus).toBe('balanced');
+    expect(loadedCity.maturity).toBe('outpost');
+    expect(loadedCity.grid).toHaveLength(7);
+    expect(loadedCity.grid[3][3]).toBe('city-center');
+    expect([3, 5, 7]).toContain(loadedCity.gridSize);
+  });
+
   it('round-trips legendary wonder history through JSON serialization', () => {
     const state = {
       legendaryWonderHistory: {
