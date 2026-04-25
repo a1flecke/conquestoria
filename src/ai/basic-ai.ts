@@ -33,6 +33,7 @@ import {
   missionRequiresPlacedSpy,
   startMission,
   isSpyUnitType,
+  getSpyCaptureRelationshipPenalty,
 } from '@/systems/espionage-system';
 import { createRng } from '@/systems/map-generator';
 import { getCityAppeaseCost } from '@/systems/faction-system';
@@ -878,6 +879,9 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           verdict = 'expel';
         }
 
+        const distanceToCity = capturedSpy.infiltrationCityId ? 0 : 1;
+        const relPenalty = getSpyCaptureRelationshipPenalty(distanceToCity);
+
         if (verdict === 'expel') {
           const updatedOwnerEsp = expelSpy(newState.espionage![victimCivId], capturedSpy.id, 15);
           // capital = cities[0] by convention
@@ -911,6 +915,24 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           } else {
             newState = { ...newState, espionage: { ...newState.espionage, [victimCivId]: updatedOwnerEsp } };
           }
+          // Bilateral diplomacy: captor's view of victim AND victim's view of captor
+          newState = {
+            ...newState,
+            civilizations: {
+              ...newState.civilizations,
+              [civId]: {
+                ...newState.civilizations[civId],
+                diplomacy: modifyRelationship(newState.civilizations[civId].diplomacy, victimCivId, relPenalty),
+              },
+              [victimCivId]: {
+                ...newState.civilizations[victimCivId],
+                diplomacy: modifyRelationship(newState.civilizations[victimCivId].diplomacy, civId, relPenalty),
+              },
+            },
+          };
+          bus.emit('espionage:spy-expelled', {
+            civId: victimCivId, spyId: capturedSpy.id, fromCivId: civId,
+          });
         } else if (verdict === 'execute') {
           newState = {
             ...newState,
@@ -918,16 +940,37 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
               ...newState.espionage,
               [victimCivId]: executeSpy(newState.espionage![victimCivId], capturedSpy.id),
             },
+            // Bilateral diplomacy
+            civilizations: {
+              ...newState.civilizations,
+              [civId]: {
+                ...newState.civilizations[civId],
+                diplomacy: modifyRelationship(newState.civilizations[civId].diplomacy, victimCivId, relPenalty * 2),
+              },
+              [victimCivId]: {
+                ...newState.civilizations[victimCivId],
+                diplomacy: modifyRelationship(newState.civilizations[victimCivId].diplomacy, civId, relPenalty * 2),
+              },
+            },
           };
           bus.emit('espionage:spy-executed', {
             executingCivId: civId, spyOwner: victimCivId, spyId: capturedSpy.id, spyName: capturedSpy.name,
           });
         } else {
+          // Interrogate: set spy status to 'interrogated' on victim's espionage record
+          const victimOwnerEsp = newState.espionage![victimCivId];
           newState = {
             ...newState,
             espionage: {
               ...newState.espionage,
               [civId]: startInterrogation(newState.espionage![civId], capturedSpy.id, victimCivId),
+              [victimCivId]: {
+                ...victimOwnerEsp,
+                spies: {
+                  ...victimOwnerEsp.spies,
+                  [capturedSpy.id]: { ...capturedSpy, status: 'interrogated' as const },
+                },
+              },
             },
           };
         }

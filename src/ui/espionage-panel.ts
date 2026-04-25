@@ -427,8 +427,9 @@ function appendInterrogationProgress(parent: HTMLElement, state: GameState): voi
     div.style.cssText = 'padding:8px;border-radius:8px;background:rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:6px;font-size:11px;';
 
     const spyName = state.espionage?.[record.spyOwner]?.spies[record.spyId]?.name ?? record.spyId;
+    const ownerName = state.civilizations[record.spyOwner]?.name ?? record.spyOwner;
     const summary = document.createTextNode(
-      `Interrogating: ${spyName} (owner: ${record.spyOwner}) — ${record.turnsRemaining} turns remaining | Intel: ${record.extractedIntel.length} items`,
+      `Interrogating: ${spyName} (owner: ${ownerName}) — ${record.turnsRemaining} turns remaining | Intel: ${record.extractedIntel.length} items`,
     );
     div.appendChild(summary);
 
