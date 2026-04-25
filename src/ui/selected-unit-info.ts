@@ -13,6 +13,7 @@ export interface SelectedUnitInfoCallbacks {
   onCancelAutoExplore?: () => void;
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
   onInfiltrate?: (unitId: string) => void;
+  onEmbed?: (unitId: string) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -158,6 +159,16 @@ export function renderSelectedUnitInfo(
         btn.style.cursor = 'not-allowed';
         actionsDiv.appendChild(btn);
       }
+    }
+  }
+
+  if (isSpyUnitType(unit.type) && callbacks.onEmbed) {
+    const spyRecord = state.espionage?.[unit.owner]?.spies[unitId];
+    const ownCityHere = Object.values(state.cities).some(
+      c => c.owner === unit.owner && c.position.q === unit.position.q && c.position.r === unit.position.r,
+    );
+    if (ownCityHere && spyRecord?.status === 'idle') {
+      actionsDiv.appendChild(makeButton('Embed (counter-espionage)', '#374151', () => callbacks.onEmbed!(unitId)));
     }
   }
 

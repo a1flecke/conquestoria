@@ -538,6 +538,25 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     newState = { ...newState, espionage, civilizations };
   }
 
+  // Embedded spy per-turn CI contribution
+  {
+    let espionage = newState.espionage ?? {};
+    for (const [civId, civEsp] of Object.entries(espionage)) {
+      let ci = civEsp.counterIntelligence;
+      let changed = false;
+      for (const spy of Object.values(civEsp.spies)) {
+        if (spy.status !== 'embedded' || !spy.targetCityId) continue;
+        const perTurnBonus = 2 + Math.floor(spy.experience * 0.1);
+        ci = { ...ci, [spy.targetCityId]: Math.min(100, (ci[spy.targetCityId] ?? 0) + perTurnBonus) };
+        changed = true;
+      }
+      if (changed) {
+        espionage = { ...espionage, [civId]: { ...civEsp, counterIntelligence: ci } };
+      }
+    }
+    newState = { ...newState, espionage };
+  }
+
   // --- Vassalage protection & independence ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
     if (!civ.diplomacy?.vassalage.overlord) continue;

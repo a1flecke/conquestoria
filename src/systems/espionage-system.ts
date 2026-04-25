@@ -178,37 +178,61 @@ export function cleanupDeadSpyUnit(
   };
 }
 
-export function assignSpyDefensive(
+export function embedSpy(
   state: EspionageCivState,
   spyId: string,
-  ownCityId: string,
+  cityId: string,
   cityPosition: HexCoord,
 ): EspionageCivState {
   const spy = state.spies[spyId];
-  if (!spy) throw new Error(`Spy ${spyId} not found`);
-  if (spy.status !== 'idle') throw new Error('Spy is not available');
+  if (!spy || spy.status !== 'idle') throw new Error('Spy must be idle to embed');
+  const baseCi = 15;
+  const expBonus = Math.floor(spy.experience * 0.3);
+  const newCi = (state.counterIntelligence[cityId] ?? 0) + baseCi + expBonus;
+  const withCi = setCounterIntelligence(state, cityId, newCi);
+  return {
+    ...withCi,
+    spies: {
+      ...withCi.spies,
+      [spyId]: { ...spy, status: 'embedded', targetCityId: cityId, position: { ...cityPosition } },
+    },
+  };
+}
 
-  const baseCi = 20;
-  const expBonus = Math.floor(spy.experience * 0.4); // up to +40 from experience
-  const ciScore = Math.min(100, (state.counterIntelligence[ownCityId] ?? 0) + baseCi + expBonus);
-
+export function unembedSpy(
+  state: EspionageCivState,
+  spyId: string,
+): EspionageCivState {
+  const spy = state.spies[spyId];
+  if (!spy || spy.status !== 'embedded') return state;
   return {
     ...state,
     spies: {
       ...state.spies,
-      [spyId]: {
-        ...spy,
-        status: 'stationed',
-        targetCivId: null,         // null = defensive assignment
-        targetCityId: ownCityId,
-        position: { ...cityPosition },
-      },
-    },
-    counterIntelligence: {
-      ...state.counterIntelligence,
-      [ownCityId]: ciScore,
+      [spyId]: { ...spy, status: 'cooldown', cooldownTurns: 5, targetCityId: null },
     },
   };
+}
+
+export function attemptSweep(
+  state: EspionageCivState,
+  spyId: string,
+  seed: string,
+  gameState: GameState,
+): { state: EspionageCivState; detectedSpyIds: string[] } {
+  const spy = state.spies[spyId];
+  if (!spy || spy.status !== 'embedded' || !spy.targetCityId) return { state, detectedSpyIds: [] };
+  const rng = createRng(seed);
+  const detected: string[] = [];
+  const baseSweepChance = 0.40 + spy.experience * 0.003;
+  for (const [otherId, otherEsp] of Object.entries(gameState.espionage ?? {})) {
+    if (otherId === spy.owner) continue;
+    for (const enemySpy of Object.values(otherEsp.spies)) {
+      if (enemySpy.infiltrationCityId !== spy.targetCityId) continue;
+      if (rng() < baseSweepChance) detected.push(enemySpy.id);
+    }
+  }
+  return { state, detectedSpyIds: detected };
 }
 
 export function recallSpy(

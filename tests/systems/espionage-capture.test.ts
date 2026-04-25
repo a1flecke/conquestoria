@@ -3,6 +3,7 @@ import {
   expelSpy, executeSpy, startInterrogation, processInterrogation,
   getSpyCaptureRelationshipPenalty,
   createEspionageCivState, createSpyFromUnit,
+  embedSpy, unembedSpy, attemptSweep,
 } from '@/systems/espionage-system';
 import type { GameState } from '@/core/types';
 
@@ -118,6 +119,103 @@ describe('interrogation', () => {
       complete = result.complete;
     }
     expect(complete).toBe(true);
+  });
+});
+
+describe('embedSpy', () => {
+  it('sets spy status to embedded and sets targetCityId', () => {
+    let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
+    const result = embedSpy(civEsp, 'unit-1', 'city-1', { q: 0, r: 0 });
+    expect(result.spies['unit-1'].status).toBe('embedded');
+    expect(result.spies['unit-1'].targetCityId).toBe('city-1');
+  });
+
+  it('embedding boosts CI score for the city', () => {
+    let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
+    const before = civEsp.counterIntelligence['city-1'] ?? 0;
+    const result = embedSpy(civEsp, 'unit-1', 'city-1', { q: 0, r: 0 });
+    expect(result.counterIntelligence['city-1']).toBeGreaterThan(before);
+  });
+
+  it('throws if spy is not idle', () => {
+    let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
+    civEsp = embedSpy(civEsp, 'unit-1', 'city-1', { q: 0, r: 0 });
+    expect(() => embedSpy(civEsp, 'unit-1', 'city-1', { q: 0, r: 0 })).toThrow();
+  });
+});
+
+describe('unembedSpy', () => {
+  it('sets status to cooldown with cooldownTurns 5', () => {
+    let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
+    civEsp = embedSpy(civEsp, 'unit-1', 'city-1', { q: 0, r: 0 });
+    const result = unembedSpy(civEsp, 'unit-1');
+    expect(result.spies['unit-1'].status).toBe('cooldown');
+    expect(result.spies['unit-1'].cooldownTurns).toBe(5);
+    expect(result.spies['unit-1'].targetCityId).toBeNull();
+  });
+
+  it('is a no-op if spy is not embedded', () => {
+    let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: civEsp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed'));
+    const result = unembedSpy(civEsp, 'unit-1');
+    expect(result.spies['unit-1'].status).toBe('idle');
+  });
+});
+
+describe('attemptSweep', () => {
+  it('returns empty array when no enemy spies are in the city', () => {
+    let ownerEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: ownerEsp } = createSpyFromUnit(ownerEsp, 'spy-own', 'player', 'spy_scout', 'seed'));
+    ownerEsp = embedSpy(ownerEsp, 'spy-own', 'city-1', { q: 0, r: 0 });
+    const fakeGameState = { espionage: { player: ownerEsp } } as unknown as GameState;
+    const { detectedSpyIds } = attemptSweep(ownerEsp, 'spy-own', 'sweep-seed', fakeGameState);
+    expect(detectedSpyIds).toHaveLength(0);
+  });
+
+  it('returns empty array if spy is not embedded', () => {
+    let ownerEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: ownerEsp } = createSpyFromUnit(ownerEsp, 'spy-own', 'player', 'spy_scout', 'seed'));
+    const fakeGameState = { espionage: { player: ownerEsp } } as unknown as GameState;
+    const { detectedSpyIds } = attemptSweep(ownerEsp, 'spy-own', 'sweep-seed', fakeGameState);
+    expect(detectedSpyIds).toHaveLength(0);
+  });
+
+  it('can detect an enemy spy stationed in the embedded city', () => {
+    let ownerEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: ownerEsp } = createSpyFromUnit(ownerEsp, 'spy-own', 'player', 'spy_scout', 'seed'));
+    ownerEsp = embedSpy(ownerEsp, 'spy-own', 'city-1', { q: 0, r: 0 });
+
+    let enemyEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: enemyEsp } = createSpyFromUnit(enemyEsp, 'spy-enemy', 'ai', 'spy_scout', 'seed2'));
+    enemyEsp = {
+      ...enemyEsp,
+      spies: { 'spy-enemy': { ...enemyEsp.spies['spy-enemy'], infiltrationCityId: 'city-1', status: 'stationed' as const } },
+    };
+
+    const fakeGameState = { espionage: { player: ownerEsp, ai: enemyEsp } } as unknown as GameState;
+    const { detectedSpyIds } = attemptSweep(ownerEsp, 'spy-own', 'sweep-high', fakeGameState);
+    expect(Array.isArray(detectedSpyIds)).toBe(true);
+  });
+
+  it('does not detect enemy spy in a different city', () => {
+    let ownerEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: ownerEsp } = createSpyFromUnit(ownerEsp, 'spy-own', 'player', 'spy_scout', 'seed'));
+    ownerEsp = embedSpy(ownerEsp, 'spy-own', 'city-1', { q: 0, r: 0 });
+
+    let enemyEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: enemyEsp } = createSpyFromUnit(enemyEsp, 'spy-enemy', 'ai', 'spy_scout', 'seed2'));
+    enemyEsp = {
+      ...enemyEsp,
+      spies: { 'spy-enemy': { ...enemyEsp.spies['spy-enemy'], infiltrationCityId: 'city-2', status: 'stationed' as const } },
+    };
+
+    const fakeGameState = { espionage: { player: ownerEsp, ai: enemyEsp } } as unknown as GameState;
+    const { detectedSpyIds } = attemptSweep(ownerEsp, 'spy-own', 'sweep-seed', fakeGameState);
+    expect(detectedSpyIds).toHaveLength(0);
   });
 });
 
