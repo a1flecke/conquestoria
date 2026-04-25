@@ -5,6 +5,7 @@ import { BUILDINGS } from './city-system';
 import { getTotalAdjacencyYields } from './adjacency-system';
 import { getWonderYieldBonus } from './wonder-system';
 import { getWonderDefinition } from './wonder-definitions';
+import { canonicalizeCityCoord } from './city-territory-system';
 
 export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   grassland:  { food: 2, production: 0, gold: 0, science: 0 },
@@ -31,8 +32,12 @@ export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivB
   yields.gold += 1;
   yields.science += 1;
 
-  // Yields from worked tiles (up to population count)
-  const workedTiles = city.ownedTiles.slice(0, city.population);
+  // Yields from explicitly worked citizen tiles. The city center is always base yield only.
+  const centerKey = hexKey(canonicalizeCityCoord(city.position, map));
+  const workedTiles = city.workedTiles
+    .map(coord => canonicalizeCityCoord(coord, map))
+    .filter(coord => hexKey(coord) !== centerKey)
+    .slice(0, city.population);
   for (const coord of workedTiles) {
     const tile = map.tiles[hexKey(coord)];
     if (!tile) continue;
