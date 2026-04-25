@@ -1,6 +1,6 @@
 import type { City, GameState, TechState } from '@/core/types';
 import { getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
-import { calculateCityYields } from '@/systems/resource-system';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 
@@ -121,7 +121,7 @@ export function getRecommendedIdleCityChoice(
   }
 
   const completedTechs = civ.techState.completed ?? [];
-  const productionPerTurn = Math.max(1, calculateCityYields(city, state.map).production);
+  const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId).production);
   const candidates = [
     ...getAvailableBuildings(city, completedTechs).map(building => ({
       itemId: building.id,

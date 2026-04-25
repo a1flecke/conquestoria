@@ -39,7 +39,7 @@ import {
   startLegendaryWonderBuild,
 } from '@/systems/legendary-wonder-system';
 import { BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
-import { calculateCityYields } from '@/systems/resource-system';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
@@ -202,7 +202,7 @@ function chooseLegendaryWonderFallback(
   }
 
   const civDef = resolveCivDefinition(state, civilization.civType ?? '');
-  const yields = calculateCityYields(city, state.map, civDef?.bonusEffect);
+  const yields = calculateProjectedCityYields(state, cityId, civDef?.bonusEffect);
   const availableBuildings = getAvailableBuildings(city, civilization.techState.completed).map(building => building.id);
   const atWar = civilization.diplomacy.atWarWith.length > 0;
 

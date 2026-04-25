@@ -1,6 +1,6 @@
 import type { GameState, Tech, TechTrack } from '@/core/types';
 import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
-import { calculateCityYields } from '@/systems/resource-system';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 
 export interface TechPanelCallbacks {
@@ -260,9 +260,7 @@ export function createTechPanel(
   const sciencePerTurn = Math.max(
     1,
     civ.cities
-      .map(cityId => state.cities[cityId])
-      .filter((city): city is NonNullable<typeof state.cities[string]> => city !== undefined)
-      .reduce((total, city) => total + calculateCityYields(city, state.map).science, 0),
+      .reduce((total, cityId) => total + calculateProjectedCityYields(state, cityId).science, 0),
   );
   const queueTiming = getQueuedResearchTiming(civ, sciencePerTurn);
 

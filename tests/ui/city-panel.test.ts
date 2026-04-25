@@ -100,6 +100,25 @@ describe('city-panel navigation', () => {
     expect(rendered).toContain('turns');
   });
 
+  it('shows focused yield estimates before the next turn assigns worked tiles', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.population = 1;
+    city.focus = 'production';
+    city.workedTiles = [];
+    city.ownedTiles = [city.position, { q: 2, r: 3 }];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).toContain('data-text="yield-food">2');
+    expect(rendered).toContain('data-text="yield-prod">2');
+    expect(rendered).toContain('data-text="yield-gold">2');
+  });
+
   it('shows occupied-city integration countdown', () => {
     const { container, city, state } = makeMultiCityFixture();
     city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 7 };

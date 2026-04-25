@@ -1,6 +1,6 @@
 import type { CouncilAgenda, CouncilCard, CouncilInterrupt, CouncilTalkLevel, GameState } from '@/core/types';
 import { getQuestDescriptionForPlayer, getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
-import { calculateCityYields } from '@/systems/resource-system';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import {
@@ -9,8 +9,11 @@ import {
 } from '@/systems/legendary-wonder-system';
 
 function getPrimaryCity(state: GameState, civId: string) {
-  const firstCityId = state.civilizations[civId]?.cities[0];
-  return firstCityId ? state.cities[firstCityId] : undefined;
+  for (const cityId of state.civilizations[civId]?.cities ?? []) {
+    const city = state.cities[cityId];
+    if (city) return city;
+  }
+  return undefined;
 }
 
 function getFoodRecommendation(city: GameState['cities'][string]): string {
@@ -112,7 +115,7 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
   ];
 
   if (primaryCity) {
-    const yields = calculateCityYields(primaryCity, state.map, civBonus);
+    const yields = calculateProjectedCityYields(state, primaryCity.id, civBonus);
     const foodSurplus = yields.food - primaryCity.population;
     if (foodSurplus < 0) {
       doNow.unshift({
