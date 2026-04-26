@@ -174,7 +174,7 @@ export function renderSelectedUnitInfo(
     }
   }
 
-  if (callbacks.onUpgradeUnit) {
+  if (callbacks.onUpgradeUnit && !unit.hasActed) {
     const homeCity = Object.values(state.cities).find(
       c => c.owner === unit.owner &&
            c.position.q === unit.position.q &&
@@ -182,7 +182,8 @@ export function renderSelectedUnitInfo(
     );
     if (homeCity) {
       const completedTechs = state.civilizations[unit.owner]?.techState?.completed ?? [];
-      const upgrade = canUpgradeUnit(unit, homeCity.id, state.cities, completedTechs);
+      const civGold = state.civilizations[unit.owner]?.gold ?? 0;
+      const upgrade = canUpgradeUnit(unit, homeCity.id, state.cities, completedTechs, civGold);
       if (upgrade.canUpgrade && upgrade.targetType) {
         const targetName = UNIT_DEFINITIONS[upgrade.targetType].name;
         const btn = makeButton(

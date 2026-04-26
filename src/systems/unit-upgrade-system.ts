@@ -12,6 +12,7 @@ export function canUpgradeUnit(
   cityId: string,
   cities: Record<string, City>,
   completedTechs: string[],
+  civGold?: number,
 ): { canUpgrade: boolean; targetType: UnitType | null; cost: number } {
   const city = cities[cityId];
   if (!city || city.owner !== unit.owner) return { canUpgrade: false, targetType: null, cost: 0 };
@@ -29,7 +30,9 @@ export function canUpgradeUnit(
     (!u.obsoletedByTech || !completedTechs.includes(u.obsoletedByTech))
   );
   if (!nextEntry) return { canUpgrade: false, targetType: null, cost: 0 };
-  return { canUpgrade: true, targetType: nextEntry.type, cost: getUpgradeCost(nextEntry.type) };
+  const cost = getUpgradeCost(nextEntry.type);
+  if (civGold !== undefined && civGold < cost) return { canUpgrade: false, targetType: null, cost };
+  return { canUpgrade: true, targetType: nextEntry.type, cost };
 }
 
 // Returns a new Unit with the upgraded type, full health, and action consumed.
