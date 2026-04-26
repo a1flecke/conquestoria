@@ -1447,7 +1447,9 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
 
     const cityAtTarget = Object.values(gameState.cities).find(c => hexKey(c.position) === targetKey);
     if (cityAtTarget && cityAtTarget.owner.startsWith('mc-')) {
+      const conqueredCityName = cityAtTarget.name;
       conquestMinorCiv(gameState, cityAtTarget.owner, gameState.currentPlayer, bus);
+      showNotification(`${conqueredCityName} has been conquered!`, 'success');
     }
     if (cityAtTarget && !cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
       const assaultStatus = beginPlayerCityAssault(attackerId, cityAtTarget.id, attackerBonus);
@@ -1674,6 +1676,24 @@ function handleHexTap(rawCoord: HexCoord): void {
         if (assaultStatus === 'resolved') {
           selectNextUnit();
         }
+        return;
+      }
+
+      if (tapIntent.kind === 'assault-minor-civ') {
+        const mc = gameState.minorCivs[tapIntent.minorCivId];
+        if (mc && !mc.isDestroyed) {
+          const cityName = gameState.cities[tapIntent.cityId]?.name ?? 'City-State';
+          const attacker = gameState.units[selectedUnitId];
+          if (attacker) {
+            gameState.units[selectedUnitId] = { ...attacker, movementPointsLeft: 0, hasMoved: true };
+          }
+          conquestMinorCiv(gameState, tapIntent.minorCivId, gameState.currentPlayer, bus);
+          showNotification(`${cityName} has been conquered!`, 'success');
+        }
+        SFX.tap();
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectNextUnit();
         return;
       }
 
