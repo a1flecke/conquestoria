@@ -94,7 +94,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   shadow_warden: {
     type: 'shadow_warden', name: 'Shadow Warden', movementPoints: 3,
     visionRange: 4, strength: 6, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 45,
+    canBuildImprovements: false, productionCost: 55,
     spyDetectionChance: 0.50,
   },
   war_hound: {
