@@ -37,7 +37,7 @@ import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
-import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation } from '@/systems/espionage-system';
+import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
@@ -577,6 +577,23 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
       if (changed) {
         espionage = { ...espionage, [civId]: { ...civEsp, counterIntelligence: ci } };
+      }
+    }
+    newState = { ...newState, espionage };
+  }
+
+  // Building CI bonuses per turn (Intelligence Agency + Security Bureau)
+  {
+    let espionage = newState.espionage ?? {};
+    for (const [civId, civ] of Object.entries(newState.civilizations)) {
+      if (!espionage[civId]) continue;
+      for (const cityId of civ.cities) {
+        const city = newState.cities[cityId];
+        if (!city) continue;
+        const updated = applyBuildingCI(cityId, city, espionage[civId], civ.techState.completed);
+        if (updated !== espionage[civId]) {
+          espionage = { ...espionage, [civId]: updated };
+        }
       }
     }
     newState = { ...newState, espionage };

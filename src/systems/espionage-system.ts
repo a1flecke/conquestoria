@@ -754,6 +754,26 @@ export function setCounterIntelligence(
   };
 }
 
+export function applyBuildingCI(
+  cityId: string,
+  city: { buildings: string[] },
+  civEsp: EspionageCivState,
+  completedTechs: string[],
+): EspionageCivState {
+  let ciBonus = 0;
+  if (city.buildings.includes('intelligence-agency')) {
+    const faded = completedTechs.includes('digital-surveillance');
+    ciBonus += faded ? 10 : 20;
+  }
+  if (city.buildings.includes('security-bureau')) {
+    const faded = completedTechs.includes('cyber-warfare');
+    ciBonus += faded ? 15 : 30;
+  }
+  if (ciBonus === 0) return civEsp;
+  const current = civEsp.counterIntelligence[cityId] ?? 0;
+  return setCounterIntelligence(civEsp, cityId, Math.min(100, current + ciBonus));
+}
+
 export function getSpyCaptureRelationshipPenalty(distanceToNearestCity: number): number {
   if (distanceToNearestCity > 5) return 0;
   if (distanceToNearestCity > 1) return -10;
@@ -1058,6 +1078,12 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
       const captorTechs = captorId ? state.civilizations[captorId]?.techState.completed ?? [] : [];
       const canTurnCapturedSpy = captorTechs.includes('counter-intelligence') || captorTechs.includes('digital-surveillance');
       if (spy.status === 'captured' && !spy.turnedBy && captorId && canTurnCapturedSpy) {
+        const targetCity = spy.targetCityId ? state.cities[spy.targetCityId] : null;
+        const hasSecurityBureau = targetCity?.buildings.includes('security-bureau') ?? false;
+        if (hasSecurityBureau) {
+          const turnRng = createRng(`sec-bureau-${spy.id}-${state.turn}`);
+          if (turnRng() < 0.5) continue; // Security bureau blocks 50% of turning attempts
+        }
         state.espionage = turnCapturedSpy(state.espionage!, captorId, civId, spy.id, state.turn);
         bus.emit('espionage:spy-detected', {
           detectingCivId: captorId,

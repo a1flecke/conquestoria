@@ -195,7 +195,7 @@ describe('expanded buildings', () => {
   it('all buildings have a category', () => {
     for (const building of Object.values(BUILDINGS)) {
       expect(building.category).toBeDefined();
-      expect(['production', 'food', 'science', 'economy', 'military', 'culture']).toContain(building.category);
+      expect(['production', 'food', 'science', 'economy', 'military', 'culture', 'espionage']).toContain(building.category);
     }
   });
 
