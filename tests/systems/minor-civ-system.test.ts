@@ -5,6 +5,7 @@ import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { createUnit } from '@/systems/unit-system';
 
 const bus = new EventBus();
 
@@ -112,6 +113,50 @@ describe('minor civ turn processing', () => {
     // Next turn should spawn replacement
     const result2 = processMinorCivTurn(result, bus);
     expect(result2.minorCivs[mcId].units.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('skips garrison respawn when city hex is occupied by another unit', () => {
+    const state = createNewGame(undefined, 'mc-garrison-blocked', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    if (!city) return;
+
+    // Kill the garrison
+    for (const uid of mc.units) {
+      delete state.units[uid];
+    }
+    mc.units = [];
+    mc.garrisonCooldown = 0;
+
+    // Place a player unit on the city hex
+    const occupier = createUnit('warrior', 'player', city.position);
+    state.units[occupier.id] = occupier;
+
+    const result = processMinorCivTurn(state, bus);
+
+    // Garrison must NOT have been spawned — hex is blocked
+    expect(result.minorCivs[mcId].units.length).toBe(0);
+  });
+
+  it('respawns garrison when city hex is free after cooldown', () => {
+    const state = createNewGame(undefined, 'mc-garrison-free', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+
+    // Kill the garrison
+    for (const uid of mc.units) {
+      delete state.units[uid];
+    }
+    mc.units = [];
+    mc.garrisonCooldown = 0;
+
+    const result = processMinorCivTurn(state, bus);
+
+    // Garrison should be respawned — hex is free
+    expect(result.minorCivs[mcId].units.length).toBeGreaterThanOrEqual(1);
   });
 
   it('applies ally bonus to allied major civ', () => {
