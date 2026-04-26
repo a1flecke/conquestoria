@@ -1,4 +1,5 @@
 import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry } from '@/core/types';
+import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
@@ -46,6 +47,29 @@ export const BUILDINGS: Record<string, Building> = {
   amphitheater: { id: 'amphitheater', name: 'Amphitheater', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 85, description: 'Entertainment and culture', techRequired: 'drama-poetry', adjacencyBonuses: [] },
   shrine: { id: 'shrine', name: 'Shrine', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 8, description: 'Place of worship', techRequired: null, adjacencyBonuses: [], pacing: { band: 'starter', role: 'early-science', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', adjacencyBonuses: [] },
+
+  // Espionage
+  safehouse: {
+    id: 'safehouse', name: 'Safehouse', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 0, science: 0 },
+    productionCost: 50,
+    description: 'Reduces spy unit training cost by 25%.',
+    techRequired: 'espionage-scouting', adjacencyBonuses: [],
+  },
+  'intelligence-agency': {
+    id: 'intelligence-agency', name: 'Intelligence Agency', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 0, science: 0 },
+    productionCost: 80,
+    description: "Raises this city's counter-intelligence score by 20 each turn (max 100). Bonus halves when digital-surveillance era is reached.",
+    techRequired: 'espionage-informants', adjacencyBonuses: [],
+  },
+  'security-bureau': {
+    id: 'security-bureau', name: 'Security Bureau', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 0, science: 0 },
+    productionCost: 120,
+    description: 'Raises CI by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves at cyber-warfare era.',
+    techRequired: 'counter-intelligence', adjacencyBonuses: [],
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -241,7 +265,10 @@ export function processCity(
     // Check if it's a unit
     const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
     const unitCostMult = unitDef ? applyProductionBonus(currentItem, bonusEffect) : 1;
-    if (unitDef && newProgress >= Math.round(unitDef.cost * unitCostMult)) {
+    const safehouseMult = (unitDef && city.buildings.includes('safehouse') && isSpyUnitType(unitDef.type as UnitType))
+      ? 0.75
+      : 1;
+    if (unitDef && newProgress >= Math.ceil(unitDef.cost * unitCostMult * safehouseMult)) {
       newQueue.shift();
       newProgress = 0;
       completedUnit = unitDef.type;
