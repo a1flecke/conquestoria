@@ -4,7 +4,7 @@
 
 **Goal:** Three espionage-category buildings boost spy training, counter-intelligence, and captive handling. CI bonuses from older-era buildings fade when later-era security techs are researched (era adaptation mechanic).
 
-**Prerequisite MRs:** MR 1–7 (`setCounterIntelligence` module-private helper defined in MR 7)
+**Prerequisite MRs:** MR 1–7 (`setCounterIntelligence` is **exported** from `espionage-system.ts` — `applyBuildingCI` lives in the same file so it can call `setCounterIntelligence` directly with no additional import)
 
 **Buildings:**
 
@@ -21,6 +21,7 @@
 **Files:**
 - Modify: `src/systems/city-system.ts`
 - Modify: `src/systems/espionage-system.ts`
+- Modify: `src/core/turn-manager.ts`
 - Create: `tests/systems/espionage-buildings.test.ts`
 
 - [ ] **Step 1: Write failing tests**
@@ -29,24 +30,23 @@ Create `tests/systems/espionage-buildings.test.ts`:
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { processCity, BUILDING_DEFINITIONS } from '@/systems/city-system';
-import { applyBuildingCI } from '@/systems/espionage-system';
-import { createEspionageCivState } from '@/systems/espionage-system';
+import { processCity, BUILDINGS } from '@/systems/city-system';
+import { applyBuildingCI, createEspionageCivState } from '@/systems/espionage-system';
 
 describe('espionage building definitions', () => {
   it('safehouse is defined with espionage category', () => {
-    expect(BUILDING_DEFINITIONS['safehouse']).toBeDefined();
-    expect(BUILDING_DEFINITIONS['safehouse'].category).toBe('espionage');
+    expect(BUILDINGS['safehouse']).toBeDefined();
+    expect(BUILDINGS['safehouse'].category).toBe('espionage');
   });
 
   it('intelligence-agency is defined with espionage category', () => {
-    expect(BUILDING_DEFINITIONS['intelligence-agency']).toBeDefined();
-    expect(BUILDING_DEFINITIONS['intelligence-agency'].techRequired).toBe('espionage-informants');
+    expect(BUILDINGS['intelligence-agency']).toBeDefined();
+    expect(BUILDINGS['intelligence-agency'].techRequired).toBe('espionage-informants');
   });
 
   it('security-bureau is defined with espionage category', () => {
-    expect(BUILDING_DEFINITIONS['security-bureau']).toBeDefined();
-    expect(BUILDING_DEFINITIONS['security-bureau'].techRequired).toBe('counter-intelligence');
+    expect(BUILDINGS['security-bureau']).toBeDefined();
+    expect(BUILDINGS['security-bureau'].techRequired).toBe('counter-intelligence');
   });
 });
 
@@ -65,6 +65,13 @@ describe('applyBuildingCI', () => {
     expect(result.counterIntelligence['c1']).toBe(10);
   });
 
+  it('city without intelligence-agency gets no CI from that building', () => {
+    const civEsp = createEspionageCivState();
+    const city = { id: 'c1', buildings: [] } as any;
+    const result = applyBuildingCI('c1', city, civEsp, []);
+    expect(result.counterIntelligence['c1']).toBeUndefined();
+  });
+
   it('security-bureau gives +30 CI per turn', () => {
     const civEsp = createEspionageCivState();
     const city = { id: 'c1', buildings: ['security-bureau'] } as any;
@@ -79,10 +86,72 @@ describe('applyBuildingCI', () => {
     expect(result.counterIntelligence['c1']).toBe(15);
   });
 
-  it('safehouse reduces spy training cost by 25%', () => {
-    const city = { id: 'c1', buildings: ['safehouse'] } as any;
-    // processCity with spy_scout in queue should cost ~23 instead of 30
-    // (test the applyProductionBonus integration)
+  it('city without security-bureau gets no CI from that building', () => {
+    const civEsp = createEspionageCivState();
+    const city = { id: 'c1', buildings: [] } as any;
+    const result = applyBuildingCI('c1', city, civEsp, []);
+    expect(result.counterIntelligence['c1']).toBeUndefined();
+  });
+
+  it('both buildings stack CI', () => {
+    const civEsp = createEspionageCivState();
+    const city = { id: 'c1', buildings: ['intelligence-agency', 'security-bureau'] } as any;
+    const result = applyBuildingCI('c1', city, civEsp, []);
+    expect(result.counterIntelligence['c1']).toBe(50); // 20 + 30
+  });
+
+  it('CI is capped at 100', () => {
+    const civEsp = { ...createEspionageCivState(), counterIntelligence: { c1: 90 } };
+    const city = { id: 'c1', buildings: ['intelligence-agency', 'security-bureau'] } as any;
+    const result = applyBuildingCI('c1', city, civEsp, []);
+    expect(result.counterIntelligence['c1']).toBe(100);
+  });
+});
+
+describe('safehouse spy training cost reduction', () => {
+  const baseCity = {
+    id: 'c1',
+    food: 0, foodNeeded: 10, population: 1,
+    productionProgress: 0,
+    productionQueue: ['spy_scout'],
+    buildings: ['safehouse'],
+    ownedTiles: [],
+    buildingGrid: {},
+  } as any;
+
+  const baseMap = { tiles: {}, width: 10, height: 10, wrap: false } as any;
+
+  it('safehouse reduces spy_scout training cost by 25% (30 → 23)', () => {
+    // spy_scout costs 30; with safehouse 25% discount: ceil(30 * 0.75) = 23
+    const city = { ...baseCity, productionProgress: 22 };
+    const result = processCity(city, baseMap, 0, 0, undefined, ['espionage-scouting']);
+    // Progress 22 < 23 — not complete yet
+    expect(result.completedUnit).toBeNull();
+
+    const city2 = { ...baseCity, productionProgress: 23 };
+    const result2 = processCity(city2, baseMap, 0, 0, undefined, ['espionage-scouting']);
+    expect(result2.completedUnit).toBe('spy_scout');
+  });
+
+  it('safehouse does NOT reduce training cost for non-spy units', () => {
+    // warrior costs 8; safehouse discount should not apply
+    const city = { ...baseCity, productionQueue: ['warrior'], productionProgress: 7 };
+    const result = processCity(city, baseMap, 0, 0, undefined, []);
+    expect(result.completedUnit).toBeNull();
+
+    const city2 = { ...baseCity, productionQueue: ['warrior'], productionProgress: 8 };
+    const result2 = processCity(city2, baseMap, 0, 0, undefined, []);
+    expect(result2.completedUnit).toBe('warrior');
+  });
+
+  it('without safehouse spy_scout requires full 30 production', () => {
+    const city = { ...baseCity, buildings: [], productionProgress: 29 };
+    const result = processCity(city, baseMap, 0, 0, undefined, ['espionage-scouting']);
+    expect(result.completedUnit).toBeNull();
+
+    const city2 = { ...baseCity, buildings: [], productionProgress: 30 };
+    const result2 = processCity(city2, baseMap, 0, 0, undefined, ['espionage-scouting']);
+    expect(result2.completedUnit).toBe('spy_scout');
   });
 });
 ```
@@ -90,58 +159,80 @@ describe('applyBuildingCI', () => {
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-yarn test tests/systems/espionage-buildings.test.ts
+bash scripts/run-with-mise.sh yarn test tests/systems/espionage-buildings.test.ts
 ```
 
 - [ ] **Step 3: Add building definitions to `src/systems/city-system.ts`**
 
-In `BUILDING_DEFINITIONS`, add:
+In `BUILDINGS`, add an `// Espionage` section after the Culture section (after the closing `forum` entry, before the `};` that closes the object):
 
 ```typescript
-safehouse: {
-  id: 'safehouse', name: 'Safehouse', category: 'espionage',
-  yields: { food: 0, production: 0, gold: 0, science: 0 },
-  productionCost: 50,
-  description: 'Reduces spy unit training cost by 25%.',
-  techRequired: 'espionage-scouting', adjacencyBonuses: [],
-},
-'intelligence-agency': {
-  id: 'intelligence-agency', name: 'Intelligence Agency', category: 'espionage',
-  yields: { food: 0, production: 0, gold: 0, science: 0 },
-  productionCost: 80,
-  description: 'Raises this city\'s counter-intelligence score by 20 each turn (max 100). Bonus halves when digital-surveillance era is reached.',
-  techRequired: 'espionage-informants', adjacencyBonuses: [],
-},
-'security-bureau': {
-  id: 'security-bureau', name: 'Security Bureau', category: 'espionage',
-  yields: { food: 0, production: 0, gold: 0, science: 0 },
-  productionCost: 120,
-  description: 'Raises CI by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves at cyber-warfare era.',
-  techRequired: 'counter-intelligence', adjacencyBonuses: [],
-},
+  // Espionage
+  safehouse: {
+    id: 'safehouse', name: 'Safehouse', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 0, science: 0 },
+    productionCost: 50,
+    description: 'Reduces spy unit training cost by 25%.',
+    techRequired: 'espionage-scouting', adjacencyBonuses: [],
+  },
+  'intelligence-agency': {
+    id: 'intelligence-agency', name: 'Intelligence Agency', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 0, science: 0 },
+    productionCost: 80,
+    description: "Raises this city's counter-intelligence score by 20 each turn (max 100). Bonus halves when digital-surveillance era is reached.",
+    techRequired: 'espionage-informants', adjacencyBonuses: [],
+  },
+  'security-bureau': {
+    id: 'security-bureau', name: 'Security Bureau', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 0, science: 0 },
+    productionCost: 120,
+    description: 'Raises CI by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves at cyber-warfare era.',
+    techRequired: 'counter-intelligence', adjacencyBonuses: [],
+  },
 ```
 
 - [ ] **Step 4: Wire Safehouse 25% spy training cost reduction in `src/systems/city-system.ts`**
 
-In `processCity`, in the unit production cost calculation, check if the city has a safehouse and the unit being trained is a spy type:
+First add an import for `isSpyUnitType` at the top of `city-system.ts` (alongside the existing imports):
 
 ```typescript
-let effectiveCost = unitDef.cost;
-if (city.buildings.includes('safehouse') && isSpyUnitType(unitDef.type as UnitType)) {
-  effectiveCost = Math.ceil(effectiveCost * 0.75);
-}
+import { isSpyUnitType } from './espionage-system';
 ```
 
-Import `isSpyUnitType` from `espionage-system.ts`.
+Then in `processCity`, find the existing unit cost block (the lines that check `unitDef` and compare to `Math.round(unitDef.cost * unitCostMult)`):
+
+**Before:**
+```typescript
+    const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
+    const unitCostMult = unitDef ? applyProductionBonus(currentItem, bonusEffect) : 1;
+    if (unitDef && newProgress >= Math.round(unitDef.cost * unitCostMult)) {
+      newQueue.shift();
+      newProgress = 0;
+      completedUnit = unitDef.type;
+    }
+```
+
+**After:**
+```typescript
+    const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
+    const unitCostMult = unitDef ? applyProductionBonus(currentItem, bonusEffect) : 1;
+    const safehouseMult = (unitDef && city.buildings.includes('safehouse') && isSpyUnitType(unitDef.type as UnitType))
+      ? 0.75
+      : 1;
+    if (unitDef && newProgress >= Math.ceil(unitDef.cost * unitCostMult * safehouseMult)) {
+      newQueue.shift();
+      newProgress = 0;
+      completedUnit = unitDef.type;
+    }
+```
+
+Use `Math.ceil` so that 30 × 0.75 = 22.5 rounds up to 23, matching the test.
 
 - [ ] **Step 5: Add `applyBuildingCI` to `src/systems/espionage-system.ts`**
 
-```typescript
-const ERA_CI_FADE_TRIGGERS: Record<string, string[]> = {
-  'digital-surveillance': ['intelligence-agency'],
-  'cyber-warfare': ['security-bureau'],
-};
+Add after the `setCounterIntelligence` export (currently around line 755):
 
+```typescript
 export function applyBuildingCI(
   cityId: string,
   city: { buildings: string[] },
@@ -163,41 +254,88 @@ export function applyBuildingCI(
 }
 ```
 
+`setCounterIntelligence` is already exported from this file — call it directly, no additional import needed.
+
 - [ ] **Step 6: Wire `applyBuildingCI` in `src/core/turn-manager.ts`**
 
-In the espionage turn processing loop, after the embedded spy CI contribution block:
+Extend the existing espionage import line (line 40) to include `applyBuildingCI`:
 
 ```typescript
-import { applyBuildingCI } from '@/systems/espionage-system';
-
-// For each city owned by this civ, apply building CI bonuses
-for (const cityId of civ.cities) {
-  const city = newState.cities[cityId];
-  if (!city || !newState.espionage?.[civId]) continue;
-  newState.espionage![civId] = applyBuildingCI(cityId, city, newState.espionage![civId], civ.techState.completed);
-}
+import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 ```
 
-- [ ] **Step 7: Wire Security Bureau's turning resistance**
-
-In `processEspionageTurn`, before calling `turnCapturedSpy`, check if the captured spy's target city has a security bureau. If so, skip the turning (return early from that branch):
+Then add a new block **immediately after** the embedded-spy per-turn CI block (the `{ let espionage = newState.espionage ?? {}; ... newState = { ...newState, espionage }; }` block that ends around line 583). Use the same spread pattern — never mutate `newState.espionage![civId]` directly:
 
 ```typescript
-const targetCity = gameState.cities[spy.targetCityId ?? ''];
-const hasSecurityBureau = targetCity?.buildings.includes('security-bureau') ?? false;
-if (hasSecurityBureau && rng() < 0.5) {
-  // Security bureau blocks the turning attempt
-  continue;
-}
+  // Building CI bonuses per turn (Intelligence Agency + Security Bureau)
+  {
+    let espionage = newState.espionage ?? {};
+    for (const [civId, civ] of Object.entries(newState.civilizations)) {
+      if (!espionage[civId]) continue;
+      for (const cityId of civ.cities) {
+        const city = newState.cities[cityId];
+        if (!city) continue;
+        const updated = applyBuildingCI(cityId, city, espionage[civId], civ.techState.completed);
+        if (updated !== espionage[civId]) {
+          espionage = { ...espionage, [civId]: updated };
+        }
+      }
+    }
+    newState = { ...newState, espionage };
+  }
 ```
+
+- [ ] **Step 7: Wire Security Bureau's turning resistance in `src/systems/espionage-system.ts`**
+
+In `processEspionageTurn` (around line 1059), find the captured spy turning block:
+
+```typescript
+      if (spy.status === 'captured' && !spy.turnedBy && captorId && canTurnCapturedSpy) {
+        state.espionage = turnCapturedSpy(state.espionage!, captorId, civId, spy.id, state.turn);
+        bus.emit('espionage:spy-detected', {
+          detectingCivId: captorId,
+          spyOwner: civId,
+          spyId: spy.id,
+          cityId: spy.targetCityId ?? '',
+        });
+      }
+```
+
+Replace with:
+
+```typescript
+      if (spy.status === 'captured' && !spy.turnedBy && captorId && canTurnCapturedSpy) {
+        const targetCity = spy.targetCityId ? state.cities[spy.targetCityId] : null;
+        const hasSecurityBureau = targetCity?.buildings.includes('security-bureau') ?? false;
+        if (hasSecurityBureau) {
+          const turnRng = createRng(`sec-bureau-${spy.id}-${state.turn}`);
+          if (turnRng() < 0.5) continue; // Security bureau blocks 50% of turning attempts
+        }
+        state.espionage = turnCapturedSpy(state.espionage!, captorId, civId, spy.id, state.turn);
+        bus.emit('espionage:spy-detected', {
+          detectingCivId: captorId,
+          spyOwner: civId,
+          spyId: spy.id,
+          cityId: spy.targetCityId ?? '',
+        });
+      }
+```
+
+`createRng` is already imported at the top of `espionage-system.ts`. Use `state.cities` (the function parameter name) — not `gameState`.
 
 - [ ] **Step 8: Run full test suite**
 
 ```bash
-yarn test
+bash scripts/run-with-mise.sh yarn test
 ```
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 9: Type-check**
+
+```bash
+bash scripts/run-with-mise.sh yarn build
+```
+
+- [ ] **Step 10: Commit**
 
 ```bash
 git add src/systems/city-system.ts src/systems/espionage-system.ts src/core/turn-manager.ts tests/systems/espionage-buildings.test.ts
