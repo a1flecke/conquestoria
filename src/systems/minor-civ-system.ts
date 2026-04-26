@@ -308,10 +308,14 @@ function processGarrison(state: GameState, mc: MinorCivState): void {
     } else {
       const city = state.cities[mc.cityId];
       if (city) {
-        const garrison = createUnit('warrior', mc.id, city.position);
-        state.units[garrison.id] = garrison;
-        mc.units.push(garrison.id);
-        mc.garrisonCooldown = 3;
+        const cityKey = hexKey(city.position);
+        const occupied = Object.values(state.units).some(u => hexKey(u.position) === cityKey);
+        if (!occupied) {
+          const garrison = createUnit('warrior', mc.id, city.position);
+          state.units[garrison.id] = garrison;
+          mc.units.push(garrison.id);
+          mc.garrisonCooldown = 3;
+        }
       }
     }
   }
