@@ -91,6 +91,18 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 55,
     spyDetectionChance: 0.35,
   },
+  shadow_warden: {
+    type: 'shadow_warden', name: 'Shadow Warden', movementPoints: 3,
+    visionRange: 4, strength: 6, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 45,
+    spyDetectionChance: 0.50,
+  },
+  war_hound: {
+    type: 'war_hound', name: 'War Hound', movementPoints: 4,
+    visionRange: 3, strength: 12, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 45,
+    spyDetectionChance: 0.30,
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -202,6 +214,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   spy_operative: 'Elite spy. Capable of high-stakes operations — assassination, forgery, arms smuggling.',
   spy_hacker: 'Cyber operative. Remote and digital warfare missions; hardest to detect.',
   scout_hound: 'Detection unit. Patrols territory and has a 35% chance per turn to reveal disguised or stealthed spy units within vision range.',
+  shadow_warden: 'Elite detection unit. 50% chance per turn to reveal disguised spies within vision range. Favored by intelligence-focused civilizations.',
+  war_hound: 'Combat-focused detection unit. Weaker spy detection (30%) but formidable in battle. Tears apart lightly-armored spy units.',
 };
 
 export function getUnmovedUnits(

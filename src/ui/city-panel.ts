@@ -1,5 +1,5 @@
 import type { City, CityFocus, GameState, HexCoord } from '@/core/types';
-import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
@@ -77,7 +77,8 @@ export function createCityPanel(
   }
 
   const completedTechs = state.civilizations[state.currentPlayer].techState.completed;
-  const availableUnits = TRAINABLE_UNITS.filter(u => !u.techRequired || completedTechs.includes(u.techRequired));
+  const civType = state.civilizations[city.owner]?.civType;
+  const availableUnits = getTrainableUnitsForCiv(completedTechs, civType);
 
   let unitPlaceholders = '';
   for (let idx = 0; idx < availableUnits.length; idx++) {

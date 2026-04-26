@@ -89,14 +89,27 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'spy_operative', name: 'Operative', cost: 90, techRequired: 'cryptography', obsoletedByTech: 'cyber-warfare' },
   { type: 'spy_hacker', name: 'Cyber Operative', cost: 110, techRequired: 'cyber-warfare' },
   { type: 'scout_hound', name: 'Scout Hound', cost: 55, techRequired: 'lookouts' },
+  { type: 'shadow_warden', name: 'Shadow Warden', cost: 45, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound' },
+  { type: 'war_hound', name: 'War Hound', cost: 45, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound' },
 ];
 
-export function getTrainableUnitsForCiv(completedTechs: string[]): TrainableUnitEntry[] {
+export function getTrainableUnitsForCiv(completedTechs: string[], civType?: string): TrainableUnitEntry[] {
+  const replacedForCiv = new Set(
+    TRAINABLE_UNITS
+      .filter(u => u.civTypeRequired === civType && u.replacesUnit)
+      .map(u => u.replacesUnit!),
+  );
   return TRAINABLE_UNITS.filter(u => {
     if (u.techRequired && !completedTechs.includes(u.techRequired)) return false;
     if (u.obsoletedByTech && completedTechs.includes(u.obsoletedByTech)) return false;
+    if (u.civTypeRequired && u.civTypeRequired !== civType) return false;
+    if (replacedForCiv.has(u.type)) return false;
     return true;
   });
+}
+
+export function getDetectionUnitTypeForCiv(civType?: string): UnitType {
+  return TRAINABLE_UNITS.find(u => u.civTypeRequired === civType && u.replacesUnit === 'scout_hound')?.type ?? 'scout_hound';
 }
 
 export function createEmptyCityGrid(): (string | null)[][] {
@@ -206,6 +219,7 @@ export function processCity(
   productionYield: number = 0,
   bonusEffect?: CivBonusEffect,
   completedTechs: string[] = [],
+  civType?: string,
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -231,7 +245,7 @@ export function processCity(
 
   // Drop queued unit types that aren't trainable for this civ's tech state
   if (completedTechs.length > 0 && newQueue.length > 0) {
-    const trainable = getTrainableUnitsForCiv(completedTechs);
+    const trainable = getTrainableUnitsForCiv(completedTechs, civType);
     const trainableTypes = new Set(trainable.map(u => u.type));
     const BUILDING_IDS = new Set(Object.keys(BUILDINGS));
     const filtered = newQueue.filter(item =>
