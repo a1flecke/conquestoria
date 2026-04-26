@@ -72,6 +72,13 @@ describe('applyBuildingCI', () => {
     expect(result.counterIntelligence['c1']).toBe(50); // 20 + 30
   });
 
+  it('both buildings faded simultaneously with both era techs', () => {
+    const civEsp = createEspionageCivState();
+    const city = { id: 'c1', buildings: ['intelligence-agency', 'security-bureau'] } as any;
+    const result = applyBuildingCI('c1', city, civEsp, ['digital-surveillance', 'cyber-warfare']);
+    expect(result.counterIntelligence['c1']).toBe(25); // 10 + 15
+  });
+
   it('CI is capped at 100', () => {
     const civEsp = { ...createEspionageCivState(), counterIntelligence: { c1: 90 } };
     const city = { id: 'c1', buildings: ['intelligence-agency', 'security-bureau'] } as any;
@@ -88,7 +95,7 @@ describe('safehouse spy training cost reduction', () => {
     productionQueue: ['spy_scout'],
     buildings: ['safehouse'],
     ownedTiles: [],
-    buildingGrid: {},
+    grid: [[null]],
   } as any;
 
   const baseMap = { tiles: {}, width: 10, height: 10, wrap: false } as any;
