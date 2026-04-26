@@ -5,7 +5,7 @@ import { processTurn } from '@/core/turn-manager';
 import type { GameState, Spy, Unit } from '@/core/types';
 
 function makeUnit(type: string, position = { q: 0, r: 0 }): Unit {
-  return { id: 'u1', type: type as any, owner: 'player', position, health: 70, movementPointsLeft: 2, hasActed: false, hasMoved: false };
+  return { id: 'u1', type: type as any, owner: 'player', position, health: 70, movementPointsLeft: 2, hasActed: false, hasMoved: false, experience: 0, isResting: false };
 }
 
 describe('canUpgradeUnit', () => {
@@ -30,6 +30,21 @@ describe('canUpgradeUnit', () => {
     const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting', 'espionage-informants']);
     expect(result.canUpgrade).toBe(false);
   });
+
+  it('reports canUpgrade:false when civGold is below cost', () => {
+    const unit = makeUnit('spy_scout', { q: 0, r: 0 });
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting', 'espionage-informants'], 10);
+    expect(result.canUpgrade).toBe(false);
+  });
+
+  it('reports canUpgrade:true when civGold exactly meets cost', () => {
+    const unit = makeUnit('spy_scout', { q: 0, r: 0 });
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting', 'espionage-informants'], 25);
+    expect(result.canUpgrade).toBe(true);
+    expect(result.cost).toBe(25);
+  });
 });
 
 describe('getUpgradeCost', () => {
@@ -47,6 +62,14 @@ describe('applyUpgrade', () => {
     expect(upgraded.health).toBe(100);
     expect(upgraded.hasActed).toBe(true);
     expect(upgraded.movementPointsLeft).toBe(0);
+  });
+
+  it('preserves identity fields (id, owner, position) so spy record can sync by unitId', () => {
+    const unit = makeUnit('spy_scout', { q: 3, r: 4 });
+    const upgraded = applyUpgrade(unit, 'spy_informant');
+    expect(upgraded.id).toBe(unit.id);
+    expect(upgraded.owner).toBe(unit.owner);
+    expect(upgraded.position).toEqual({ q: 3, r: 4 });
   });
 });
 
@@ -73,7 +96,7 @@ function makeObsolescenceState(overrides: {
   const mapUnit = {
     id: 'u1', type: 'spy_scout' as const, owner: civId,
     position: { q: 0, r: 0 }, health: 100, movementPointsLeft: 2,
-    hasActed: false, hasMoved: false,
+    hasActed: false, hasMoved: false, experience: 0, isResting: false,
   };
   return {
     turn: 1, era: 1, currentPlayer: civId, hotSeat: false,

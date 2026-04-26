@@ -80,6 +80,7 @@ import {
   expelSpy,
   executeSpy,
   startInterrogation,
+  isSpyUnitType,
   missionRequiresPlacedSpy,
   recallSpy,
   resolveMissionResult,
@@ -464,6 +465,27 @@ function openDiplomacyPanel(): void {
   });
 }
 
+// Deduct gold, upgrade unit type, sync spy record unitType if applicable, refresh render.
+// Caller must validate eligibility and afford-ability before calling.
+function executeUpgrade(unitId: string, targetType: import('@/core/types').UnitType, cost: number): void {
+  const unit = gameState.units[unitId];
+  if (!unit) return;
+  const civ = gameState.civilizations[gameState.currentPlayer];
+  gameState.civilizations[gameState.currentPlayer] = { ...civ, gold: civ.gold - cost };
+  gameState.units[unitId] = applyUpgrade(unit, targetType);
+  if (isSpyUnitType(unit.type)) {
+    const civEsp = gameState.espionage?.[gameState.currentPlayer];
+    if (civEsp?.spies[unitId]) {
+      gameState.espionage![gameState.currentPlayer] = {
+        ...civEsp,
+        spies: { ...civEsp.spies, [unitId]: { ...civEsp.spies[unitId], unitType: targetType } },
+      };
+    }
+  }
+  renderLoop.setGameState(gameState);
+  updateHUD();
+}
+
 function openCityPanelForCity(city: import('@/core/types').City): void {
   if (city.owner !== gameState.currentPlayer) return;
   const playerCities = currentCiv().cities;
@@ -566,10 +588,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
         showNotification('Not enough gold to upgrade!', 'warning');
         return;
       }
-      gameState.civilizations[gameState.currentPlayer] = { ...civ, gold: civ.gold - upgrade.cost };
-      gameState.units[unitId] = applyUpgrade(unit, upgrade.targetType);
-      renderLoop.setGameState(gameState);
-      updateHUD();
+      executeUpgrade(unitId, upgrade.targetType, upgrade.cost);
       showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
     },
   });
@@ -1150,10 +1169,7 @@ function selectUnit(unitId: string): void {
           showNotification('Not enough gold to upgrade!', 'warning');
           return;
         }
-        gameState.civilizations[gameState.currentPlayer] = { ...civ, gold: civ.gold - upgrade.cost };
-        gameState.units[uid] = applyUpgrade(unit, upgrade.targetType);
-        renderLoop.setGameState(gameState);
-        updateHUD();
+        executeUpgrade(uid, upgrade.targetType, upgrade.cost);
         selectUnit(uid);
         showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
       },
@@ -2196,6 +2212,13 @@ bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
       `${spyName} was executed by ${gameState.civilizations[executingCivId]?.name ?? 'an enemy'}.`,
       'warning',
     );
+  }
+});
+
+bus.on('unit:obsolete', ({ civId, unitType }) => {
+  if (civId === gameState.currentPlayer) {
+    const name = UNIT_DEFINITIONS[unitType]?.name ?? unitType;
+    showNotification(`Your ${name} is now obsolete — upgrade it in your home city.`, 'info');
   }
 });
 

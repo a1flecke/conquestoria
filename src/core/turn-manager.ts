@@ -160,14 +160,14 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       if (obsoletedTypes.length > 0) {
         for (const [unitId, unit] of Object.entries(newState.units)) {
           if (unit.owner !== civId) continue;
-          if (!obsoletedTypes.includes(unit.type as any)) continue;
-          bus.emit('unit:obsolete', { civId, unitId, unitType: unit.type as any });
+          if (!obsoletedTypes.includes(unit.type)) continue;
+          bus.emit('unit:obsolete', { civId, unitId, unitType: unit.type });
         }
 
         const civEsp = newState.espionage?.[civId];
         if (civEsp) {
           for (const [spyId, spy] of Object.entries(civEsp.spies)) {
-            if (!obsoletedTypes.includes(spy.unitType as any)) continue;
+            if (!obsoletedTypes.includes(spy.unitType)) continue;
             if (spy.status !== 'embedded' && spy.status !== 'stationed' && spy.status !== 'on_mission') continue;
             const { [spyId]: _removed, ...remainingSpies } = newState.espionage![civId].spies;
             newState.espionage![civId] = { ...newState.espionage![civId], spies: remainingSpies };
