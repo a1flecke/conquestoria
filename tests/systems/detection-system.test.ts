@@ -10,8 +10,8 @@ import { createEspionageCivState, createSpyFromUnit, _resetSpyIdCounter } from '
 import { getTrainableUnitsForCiv } from '@/systems/city-system';
 
 // Builds a state with a player spy unit adjacent to an enemy city.
-// If scoutHound is true, ai-egypt gets a scout_hound unit at the spy's position.
-function buildDetectionState(seed: string, { scoutHound = false } = {}): GameState {
+// If detectionUnit is set, ai-egypt gets that unit type at the spy's position.
+function buildDetectionState(seed: string, { scoutHound = false, detectionUnit }: { scoutHound?: boolean; detectionUnit?: import('@/core/types').UnitType } = {}): GameState {
   const state: GameState = {
     turn: 10,
     era: 2,
@@ -89,11 +89,12 @@ function buildDetectionState(seed: string, { scoutHound = false } = {}): GameSta
   );
   state.espionage!['player'] = espWithSpy;
 
-  // Optionally add scout_hound for ai-egypt at the same position as the spy
-  if (scoutHound) {
+  // Optionally add a detection unit for ai-egypt at the same position as the spy
+  const unitType = detectionUnit ?? (scoutHound ? 'scout_hound' : null);
+  if (unitType) {
     state.units['unit-hound-1'] = {
       id: 'unit-hound-1',
-      type: 'scout_hound',
+      type: unitType,
       owner: 'ai-egypt',
       position: { q: 1, r: 0 }, // same tile as the spy — within vision range
       movement: 3,
@@ -223,6 +224,7 @@ describe('civ-unique detection units', () => {
     const { UNIT_DEFINITIONS } = await import('@/systems/unit-system');
     expect(UNIT_DEFINITIONS['war_hound']).toBeDefined();
     expect(UNIT_DEFINITIONS['war_hound'].strength).toBeGreaterThan(10);
+    expect(UNIT_DEFINITIONS['war_hound'].spyDetectionChance).toBe(0.30);
   });
 
   it('persia gets shadow_warden instead of scout_hound', () => {
@@ -253,5 +255,43 @@ describe('civ-unique detection units', () => {
     expect(types).toContain('scout_hound');
     expect(types).not.toContain('shadow_warden');
     expect(types).not.toContain('war_hound');
+  });
+});
+
+describe('unique detection unit detection rates', () => {
+  it('shadow_warden within vision range detects spy at ~50% rate', () => {
+    _resetSpyIdCounter();
+    let detections = 0;
+    for (let i = 0; i < 200; i++) {
+      const s = buildDetectionState(`seed-warden-${i}`, { detectionUnit: 'shadow_warden' });
+      s.turn = i + 1;
+      s.cities['city-enemy'].position = { q: 8, r: 0 };
+      const bus = new EventBus();
+      const next = processDetection(s, bus);
+      if ((next.espionage?.['ai-egypt']?.recentDetections ?? []).length > 0) {
+        detections++;
+      }
+    }
+    const rate = detections / 200;
+    expect(rate).toBeGreaterThan(0.35);
+    expect(rate).toBeLessThan(0.65);
+  });
+
+  it('war_hound within vision range detects spy at ~30% rate', () => {
+    _resetSpyIdCounter();
+    let detections = 0;
+    for (let i = 0; i < 200; i++) {
+      const s = buildDetectionState(`seed-warhound-${i}`, { detectionUnit: 'war_hound' });
+      s.turn = i + 1;
+      s.cities['city-enemy'].position = { q: 8, r: 0 };
+      const bus = new EventBus();
+      const next = processDetection(s, bus);
+      if ((next.espionage?.['ai-egypt']?.recentDetections ?? []).length > 0) {
+        detections++;
+      }
+    }
+    const rate = detections / 200;
+    expect(rate).toBeGreaterThan(0.15);
+    expect(rate).toBeLessThan(0.48);
   });
 });

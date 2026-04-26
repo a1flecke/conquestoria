@@ -136,7 +136,7 @@ export const TECH_TREE: Tech[] = [
 
   // === ESPIONAGE TRACK (8 techs — M4a stages 1-2, expanded in later milestones) ===
   { id: 'espionage-scouting', name: 'Scouting Networks', track: 'espionage', cost: 40, prerequisites: [], unlocks: ['Recruit spies', 'Passive city surveillance', 'Scout Area mission', 'Monitor Troops mission'], era: 1 },
-  { id: 'lookouts', name: 'Lookouts', track: 'espionage', cost: 25, prerequisites: ['espionage-scouting'], unlocks: ['Scout Hound unit'], era: 1 },
+  { id: 'lookouts', name: 'Lookouts', track: 'espionage', cost: 25, prerequisites: ['espionage-scouting'], unlocks: ['Scout Hound unit (Shadow Warden for Persia, War Hound for Rome)'], era: 1 },
   { id: 'espionage-informants', name: 'Informant Rings', track: 'espionage', cost: 80, prerequisites: ['espionage-scouting'], unlocks: ['Gather Intel mission', 'Identify Resources mission', 'Monitor Diplomacy mission', 'Second spy slot'], era: 2 },
   { id: 'disguise', name: 'Disguise', track: 'espionage', cost: 40, prerequisites: ['lookouts'], unlocks: ['Spy disguise'], era: 2 },
   { id: 'spy-networks', name: 'Spy Networks', track: 'espionage', cost: 85, prerequisites: ['espionage-informants', 'disguise'], unlocks: ['Spy ring'], era: 3 },

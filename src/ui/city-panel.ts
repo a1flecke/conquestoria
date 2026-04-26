@@ -76,9 +76,9 @@ export function createCityPanel(
     </div>`;
   }
 
-  const completedTechs = state.civilizations[state.currentPlayer].techState.completed;
-  const civType = state.civilizations[city.owner]?.civType;
-  const availableUnits = getTrainableUnitsForCiv(completedTechs, civType);
+  const currentCiv = state.civilizations[state.currentPlayer];
+  const completedTechs = currentCiv.techState.completed;
+  const availableUnits = getTrainableUnitsForCiv(completedTechs, currentCiv.civType);
 
   let unitPlaceholders = '';
   for (let idx = 0; idx < availableUnits.length; idx++) {

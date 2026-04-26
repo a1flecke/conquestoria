@@ -192,6 +192,60 @@ describe('spy lifecycle integration', () => {
     expect(result.city.productionQueue).toHaveLength(0);
   });
 
+  it('processCity for Rome retains war_hound in queue when lookouts researched', () => {
+    const city = {
+      id: 'c1',
+      name: 'Rome',
+      owner: 'player',
+      position: { q: 0, r: 0 },
+      population: 3,
+      food: 0,
+      foodNeeded: 10,
+      buildings: [],
+      productionQueue: ['war_hound'],
+      productionProgress: 0,
+      ownedTiles: [],
+      workedTiles: [],
+      focus: 'balanced',
+      maturity: 'outpost',
+      grid: [[null]],
+      gridSize: 3,
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+    } as any;
+
+    const result = processCity(city, { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] } as any, 0, 0, undefined, ['lookouts'], 'rome');
+    expect(result.city.productionQueue).toContain('war_hound');
+  });
+
+  it('processCity for non-Rome civ drops war_hound from queue (not trainable)', () => {
+    const city = {
+      id: 'c1',
+      name: 'Athens',
+      owner: 'player',
+      position: { q: 0, r: 0 },
+      population: 3,
+      food: 0,
+      foodNeeded: 10,
+      buildings: [],
+      productionQueue: ['war_hound'],
+      productionProgress: 0,
+      ownedTiles: [],
+      workedTiles: [],
+      focus: 'balanced',
+      maturity: 'outpost',
+      grid: [[null]],
+      gridSize: 3,
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+    } as any;
+
+    const result = processCity(city, { width: 4, height: 4, tiles: {}, wrapsHorizontally: false, rivers: [] } as any, 0, 0, undefined, ['lookouts'], 'greece');
+    expect(result.city.productionQueue).not.toContain('war_hound');
+  });
+
   it('cleanupDeadSpyUnit removes Spy record after unit death', () => {
     const espionage = {
       player: { ...createEspionageCivState(), maxSpies: 1 },

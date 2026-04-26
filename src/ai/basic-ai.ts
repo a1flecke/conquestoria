@@ -4,7 +4,7 @@ import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { foundCity, getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
-import { getMovementRange, moveUnit, findPath, createUnit } from '@/systems/unit-system';
+import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
@@ -689,7 +689,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   if (civ.techState.completed.includes('lookouts')) {
     const detectionType = getDetectionUnitTypeForCiv(civ.civType);
     const hasDetectionUnit = Object.values(newState.units).some(
-      u => u.owner === civId && (u.type === 'scout_hound' || u.type === 'shadow_warden' || u.type === 'war_hound'),
+      u => u.owner === civId && !!UNIT_DEFINITIONS[u.type]?.spyDetectionChance,
     );
     if (!hasDetectionUnit) {
       for (const cityId of civ.cities) {

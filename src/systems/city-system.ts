@@ -89,7 +89,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'spy_operative', name: 'Operative', cost: 90, techRequired: 'cryptography', obsoletedByTech: 'cyber-warfare' },
   { type: 'spy_hacker', name: 'Cyber Operative', cost: 110, techRequired: 'cyber-warfare' },
   { type: 'scout_hound', name: 'Scout Hound', cost: 55, techRequired: 'lookouts' },
-  { type: 'shadow_warden', name: 'Shadow Warden', cost: 45, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound' },
+  { type: 'shadow_warden', name: 'Shadow Warden', cost: 55, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound' },
   { type: 'war_hound', name: 'War Hound', cost: 45, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound' },
 ];
 
