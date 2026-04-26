@@ -1041,4 +1041,6 @@ export interface GameEvents {
   'espionage:documents-forged': { civA: string; civB: string; relationshipPenalty: number };
   'espionage:spy-executed': { executingCivId: string; spyOwner: string; spyId: string; spyName: string };
   'espionage:intel-extracted': { captorId: string; intel: InterrogationIntel[] };
+  'unit:obsolete': { civId: string; unitId: string; unitType: UnitType };
+  'espionage:spy-expired': { civId: string; spyId: string; spyName: string; unitType: UnitType };
 }

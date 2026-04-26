@@ -2199,6 +2199,12 @@ bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
   }
 });
 
+bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
+  if (civId === gameState.currentPlayer) {
+    showNotification(`${spyName}'s network dissolved — ${unitType} era ended. No diplomatic penalty.`, 'info');
+  }
+});
+
 bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
   if (civId === gameState.currentPlayer) {
     const city = gameState.cities[cityId];
