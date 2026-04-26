@@ -556,6 +556,7 @@ export interface Spy {
   cityVisionTurnsLeft?: number;        // turns of full city-tile vision remaining
   cooldownMode?: 'stay_low' | 'passive_observe';
   stolenTechFrom?: Record<string, string[]>; // civId -> techIds already stolen
+  lastSweepTurn?: number;              // turn the spy last ran a sweep (prevents double-sweep)
 }
 
 export interface DetectedSpyThreat {

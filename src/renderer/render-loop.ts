@@ -175,6 +175,7 @@ export class RenderLoop {
     if (!this.state) return;
     const civEsp = this.state.espionage?.[this.state.currentPlayer];
     if (!civEsp) return;
+    this.ctx.save();
     for (const spy of Object.values(civEsp.spies)) {
       if (spy.status !== 'embedded' || !spy.targetCityId) continue;
       const city = this.state.cities[spy.targetCityId];
@@ -187,12 +188,14 @@ export class RenderLoop {
       this.ctx.textBaseline = 'middle';
       this.ctx.fillText('🛡', screen.x - size * 0.5, screen.y - size * 0.4);
     }
+    this.ctx.restore();
   }
 
   private drawInfiltratedSpyIndicators(): void {
     if (!this.state) return;
     const civEsp = this.state.espionage?.[this.state.currentPlayer];
     if (!civEsp) return;
+    this.ctx.save();
     for (const spy of Object.values(civEsp.spies)) {
       if (spy.status !== 'stationed' && spy.status !== 'on_mission' && spy.status !== 'idle') continue;
       if (!spy.infiltrationCityId) continue;
@@ -206,5 +209,6 @@ export class RenderLoop {
       this.ctx.textBaseline = 'middle';
       this.ctx.fillText('👁', screen.x + size * 0.5, screen.y - size * 0.4);
     }
+    this.ctx.restore();
   }
 }

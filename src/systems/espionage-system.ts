@@ -232,7 +232,11 @@ export function attemptSweep(
       if (rng() < baseSweepChance) detected.push(enemySpy.id);
     }
   }
-  return { state, detectedSpyIds: detected };
+  const updatedState = {
+    ...state,
+    spies: { ...state.spies, [spyId]: { ...spy, lastSweepTurn: gameState.turn } },
+  };
+  return { state: updatedState, detectedSpyIds: detected };
 }
 
 export function recallSpy(
@@ -241,6 +245,7 @@ export function recallSpy(
 ): EspionageCivState {
   const spy = state.spies[spyId];
   if (!spy) throw new Error(`Spy ${spyId} not found`);
+  if (spy.status === 'embedded') return state; // embedded spies must use unembedSpy
 
   return {
     ...state,
@@ -1346,6 +1351,22 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             targetCityId: null,
             position: null,
             currentMission: null,
+          };
+          bus.emit('espionage:spy-recalled', {
+            civId, spyId: spy.id, reason: 'city_destroyed',
+          });
+        }
+      }
+      // Clean up embedded spies when their own city is destroyed or captured
+      if (spy.status === 'embedded' && spy.targetCityId) {
+        const targetCity = state.cities[spy.targetCityId];
+        if (!targetCity || targetCity.owner !== civId) {
+          state.espionage![civId].spies[spy.id] = {
+            ...spy,
+            status: 'cooldown',
+            cooldownTurns: 5,
+            targetCityId: null,
+            position: null,
           };
           bus.emit('espionage:spy-recalled', {
             civId, spyId: spy.id, reason: 'city_destroyed',

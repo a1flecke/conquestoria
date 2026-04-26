@@ -3,8 +3,9 @@ import {
   expelSpy, executeSpy, startInterrogation, processInterrogation,
   getSpyCaptureRelationshipPenalty,
   createEspionageCivState, createSpyFromUnit,
-  embedSpy, unembedSpy, attemptSweep,
+  embedSpy, unembedSpy, attemptSweep, processEspionageTurn,
 } from '@/systems/espionage-system';
+import { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
 
 describe('relational penalty by distance', () => {
@@ -184,9 +185,13 @@ describe('attemptSweep', () => {
     expect(detectedSpyIds).toHaveLength(0);
   });
 
-  it('can detect an enemy spy stationed in the embedded city', () => {
+  it('detects an enemy spy in the embedded city when experience is high', () => {
     let ownerEsp = { ...createEspionageCivState(), maxSpies: 1 };
     ({ state: ownerEsp } = createSpyFromUnit(ownerEsp, 'spy-own', 'player', 'spy_scout', 'seed'));
+    ownerEsp = {
+      ...ownerEsp,
+      spies: { 'spy-own': { ...ownerEsp.spies['spy-own'], experience: 100 } },
+    };
     ownerEsp = embedSpy(ownerEsp, 'spy-own', 'city-1', { q: 0, r: 0 });
 
     let enemyEsp = { ...createEspionageCivState(), maxSpies: 1 };
@@ -197,8 +202,22 @@ describe('attemptSweep', () => {
     };
 
     const fakeGameState = { espionage: { player: ownerEsp, ai: enemyEsp } } as unknown as GameState;
-    const { detectedSpyIds } = attemptSweep(ownerEsp, 'spy-own', 'sweep-high', fakeGameState);
-    expect(Array.isArray(detectedSpyIds)).toBe(true);
+    // With experience=100, sweepChance=0.70; across 20 seeds detection is near-certain
+    let detected = false;
+    for (let i = 0; i < 20; i++) {
+      const { detectedSpyIds } = attemptSweep(ownerEsp, 'spy-own', `sweep-high-${i}`, fakeGameState);
+      if (detectedSpyIds.includes('spy-enemy')) { detected = true; break; }
+    }
+    expect(detected).toBe(true);
+  });
+
+  it('records lastSweepTurn on the sweeping spy', () => {
+    let ownerEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: ownerEsp } = createSpyFromUnit(ownerEsp, 'spy-own', 'player', 'spy_scout', 'seed'));
+    ownerEsp = embedSpy(ownerEsp, 'spy-own', 'city-1', { q: 0, r: 0 });
+    const fakeGameState = { turn: 7, espionage: { player: ownerEsp } } as unknown as GameState;
+    const { state: updatedEsp } = attemptSweep(ownerEsp, 'spy-own', 'sweep-seed', fakeGameState);
+    expect(updatedEsp.spies['spy-own'].lastSweepTurn).toBe(7);
   });
 
   it('does not detect enemy spy in a different city', () => {
@@ -339,5 +358,72 @@ describe('intel extraction', () => {
     // With 6 intel types at 0.08–0.60 chance each per turn x 3 turns,
     // statistically at least 1 intel item should be extracted with our fixed seeds
     expect(typeof totalExtracted).toBe('number'); // always accumulates (even 0 is a valid run)
+  });
+});
+
+describe('processEspionageTurn embedded spy cleanup', () => {
+  function makeEmbedCleanupState(cityExists: boolean, cityOwner: string): GameState {
+    let ownerEsp = { ...createEspionageCivState(), maxSpies: 1 };
+    ({ state: ownerEsp } = createSpyFromUnit(ownerEsp, 'spy-1', 'player', 'spy_scout', 'seed'));
+    ownerEsp = embedSpy(ownerEsp, 'spy-1', 'city-1', { q: 0, r: 0 });
+    return {
+      turn: 3,
+      era: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 5, tiles: {}, wrapsHorizontally: false, rivers: [] },
+      units: {},
+      cities: cityExists
+        ? {
+          'city-1': {
+            id: 'city-1', name: 'Rome', owner: cityOwner,
+            position: { q: 0, r: 0 }, population: 2, food: 0, foodNeeded: 10,
+            buildings: [], productionQueue: [], productionProgress: 0,
+            ownedTiles: [], grid: [[null]], gridSize: 3,
+            unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+          },
+        }
+        : {},
+      civilizations: {
+        player: {
+          id: 'player', name: 'Rome', color: '#f00',
+          isHuman: true, civType: 'rome',
+          cities: cityExists ? ['city-1'] : [], units: [],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0, visibility: { tiles: {} }, score: 0,
+          diplomacy: {
+            relationships: {}, treaties: [], events: [], atWarWith: [],
+            treacheryScore: 0,
+            vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
+          },
+        },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      gameOver: false, winner: null,
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      espionage: { player: ownerEsp },
+    } as unknown as GameState;
+  }
+
+  it('keeps embedded spy when own city still exists and is owned by same civ', () => {
+    const state = makeEmbedCleanupState(true, 'player');
+    const result = processEspionageTurn(state, new EventBus());
+    expect(result.espionage!['player'].spies['spy-1'].status).toBe('embedded');
+  });
+
+  it('moves embedded spy to cooldown when target city is destroyed', () => {
+    const state = makeEmbedCleanupState(false, 'player');
+    const result = processEspionageTurn(state, new EventBus());
+    expect(result.espionage!['player'].spies['spy-1'].status).toBe('cooldown');
+  });
+
+  it('moves embedded spy to cooldown when target city is captured by enemy', () => {
+    const state = makeEmbedCleanupState(true, 'enemy');
+    const result = processEspionageTurn(state, new EventBus());
+    expect(result.espionage!['player'].spies['spy-1'].status).toBe('cooldown');
   });
 });
