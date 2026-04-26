@@ -1,7 +1,7 @@
 import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { resetUnitTurn, createUnit, healUnit, moveUnit } from '@/systems/unit-system';
-import { processCity } from '@/systems/city-system';
+import { processCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { processResearch, getTechById } from '@/systems/tech-system';
@@ -149,7 +149,32 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const researchResult = processResearch(civ.techState, effectiveScience);
     newState.civilizations[civId].techState = researchResult.state;
     if (researchResult.completedTech) {
-      bus.emit('tech:completed', { civId, techId: researchResult.completedTech });
+      const techId = researchResult.completedTech;
+      bus.emit('tech:completed', { civId, techId });
+
+      // Inline obsolescence scan — runs once synchronously per completed tech
+      const obsoletedTypes = TRAINABLE_UNITS
+        .filter(u => u.obsoletedByTech === techId)
+        .map(u => u.type);
+
+      if (obsoletedTypes.length > 0) {
+        for (const [unitId, unit] of Object.entries(newState.units)) {
+          if (unit.owner !== civId) continue;
+          if (!obsoletedTypes.includes(unit.type as any)) continue;
+          bus.emit('unit:obsolete', { civId, unitId, unitType: unit.type as any });
+        }
+
+        const civEsp = newState.espionage?.[civId];
+        if (civEsp) {
+          for (const [spyId, spy] of Object.entries(civEsp.spies)) {
+            if (!obsoletedTypes.includes(spy.unitType as any)) continue;
+            if (spy.status !== 'embedded' && spy.status !== 'stationed' && spy.status !== 'on_mission') continue;
+            const { [spyId]: _removed, ...remainingSpies } = newState.espionage![civId].spies;
+            newState.espionage![civId] = { ...newState.espionage![civId], spies: remainingSpies };
+            bus.emit('espionage:spy-expired', { civId, spyId, spyName: spy.name, unitType: spy.unitType });
+          }
+        }
+      }
     }
 
     // Update gold
