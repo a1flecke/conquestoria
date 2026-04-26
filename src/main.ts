@@ -782,7 +782,8 @@ function togglePanel(panel: string): void {
         }
         renderLoop.setGameState(gameState);
         togglePanel('espionage');
-        showNotification(`Spy embedded in ${target.cityId}. Counter-intelligence boosted.`, 'info');
+        const cityName = gameState.cities[target.cityId]?.name ?? target.cityId;
+        showNotification(`Spy embedded in ${cityName}. Counter-intelligence boosted.`, 'info');
       },
       onStartMission: (spyId) => {
         const spy = gameState.espionage?.[gameState.currentPlayer]?.spies[spyId];
@@ -912,13 +913,16 @@ function togglePanel(panel: string): void {
         const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
         if (!ownerEsp) return;
         const seed = `sweep-${spyId}-${gameState.turn}`;
-        const { detectedSpyIds } = attemptSweep(ownerEsp, spyId, seed, gameState);
+        const { detectedSpyIds, state: updatedEsp } = attemptSweep(ownerEsp, spyId, seed, gameState);
+        gameState.espionage![gameState.currentPlayer] = updatedEsp;
         if (detectedSpyIds.length > 0) {
           showNotification(`Sweep detected ${detectedSpyIds.length} enemy spy(ies) in the city!`, 'warning');
         } else {
           showNotification('Sweep complete — no enemy spies detected.', 'info');
         }
         renderLoop.setGameState(gameState);
+        document.getElementById('espionage-panel')?.remove();
+        togglePanel('espionage');
       },
     }));
   } else if (panel === 'diplomacy') {

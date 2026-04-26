@@ -1,7 +1,7 @@
 import { processTurn } from '@/core/turn-manager';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import type { CustomCivDefinition, GameState } from '@/core/types';
+import type { CustomCivDefinition, GameState, UnitType } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
 import { getAvailableTechs } from '@/systems/tech-system';
@@ -469,5 +469,44 @@ describe('processTurn', () => {
     const roundTrip = JSON.parse(JSON.stringify(state)) as GameState;
     expect(resolveCivDefinition(roundTrip, 'custom-sunfolk')?.name).toBe('Sunfolk');
     expect(() => processTurn(roundTrip, new EventBus())).not.toThrow();
+  });
+
+  it('per-turn CI accumulates for an embedded spy each turn', () => {
+    const state = createNewGame(undefined, 'ci-embed-test', 'small');
+    const bus = new EventBus();
+
+    // Player starts with a settler, not a city — found one so targetCityId is valid
+    const city = foundCity('player', { q: 1, r: 0 }, state.map);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+
+    const cityId = city.id;
+    const startCi = 10;
+    state.espionage!['player'] = {
+      ...state.espionage!['player']!,
+      counterIntelligence: { [cityId]: startCi },
+      spies: {
+        'test-spy-embed': {
+          id: 'test-spy-embed',
+          owner: 'player',
+          name: 'Test Spy',
+          targetCivId: null,
+          targetCityId: cityId,
+          position: null,
+          status: 'embedded',
+          experience: 0,
+          currentMission: null,
+          cooldownTurns: 0,
+          promotionAvailable: false,
+          unitType: 'spy_scout' as UnitType,
+          stolenTechFrom: {},
+        },
+      },
+    };
+
+    const result = processTurn(state, bus);
+
+    const afterCi = result.espionage!['player']!.counterIntelligence[cityId] ?? 0;
+    expect(afterCi).toBe(startCi + 2); // perTurnBonus = 2 + floor(0 * 0.1) = 2
   });
 });

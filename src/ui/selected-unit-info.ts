@@ -167,7 +167,7 @@ export function renderSelectedUnitInfo(
     const ownCityHere = Object.values(state.cities).some(
       c => c.owner === unit.owner && c.position.q === unit.position.q && c.position.r === unit.position.r,
     );
-    if (ownCityHere && spyRecord?.status === 'idle') {
+    if (ownCityHere && spyRecord?.status === 'idle' && !unit.hasActed) {
       actionsDiv.appendChild(makeButton('Embed (counter-espionage)', '#374151', () => callbacks.onEmbed!(unitId)));
     }
   }

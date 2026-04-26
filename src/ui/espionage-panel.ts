@@ -21,6 +21,7 @@ export interface SpySummary {
   promotionReady: boolean;
   currentMission: SpyMissionType | null;
   cooldownMode?: 'stay_low' | 'passive_observe';
+  lastSweepTurn?: number;
 }
 
 export interface EspionagePanelData {
@@ -35,6 +36,7 @@ export interface EspionagePanelData {
   threatBoard: Array<{ cityId: string; foreignCivId: string; confidence: 'detected' }>;
   recentDetections: Array<{ position: { q: number; r: number }; turn: number; wasDisguised: boolean }>;
   missionSuccessChances?: Partial<Record<SpyMissionType, number>>;
+  currentTurn: number;
 }
 
 export interface MissionStageGroup {
@@ -293,7 +295,12 @@ function appendSpyCard(
         appendActionButton(actionRow, 'Unembed (5 turn cooldown)', 'unembed', () => callbacks.onUnembed!(spy.id));
       }
       if (callbacks.onSweep) {
-        appendActionButton(actionRow, 'Run Sweep', 'sweep', () => callbacks.onSweep!(spy.id));
+        const alreadySwept = spy.lastSweepTurn === state.turn;
+        if (!alreadySwept) {
+          appendActionButton(actionRow, 'Run Sweep', 'sweep', () => callbacks.onSweep!(spy.id));
+        } else {
+          appendChip(actionRow, 'Sweep done this turn');
+        }
       }
     }
     if (spy.status === 'cooldown' && spy.infiltrationCityId && callbacks.onToggleCooldownMode) {
@@ -533,6 +540,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
       disabledAdvisors: [],
       threatBoard: [],
       recentDetections: [],
+      currentTurn: state.turn,
     };
   }
 
@@ -546,7 +554,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     .filter(([, disabledUntil]) => disabledUntil !== undefined && disabledUntil >= state.turn)
     .map(([advisor]) => advisor as AdvisorType);
   const defendingCityIds = spies
-    .filter(s => s.status === 'stationed' && s.targetCivId === null && s.targetCityId !== null)
+    .filter(s => (s.status === 'stationed' || s.status === 'embedded') && s.targetCivId === null && s.targetCityId !== null)
     .map(s => s.targetCityId!)
     .sort();
   const playerTechs = state.civilizations[state.currentPlayer]?.techState.completed ?? [];
@@ -572,6 +580,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     promotionReady: spy.promotionAvailable || (spy.experience >= 60 && spy.promotion === undefined),
     currentMission: spy.currentMission?.type ?? null,
     cooldownMode: spy.cooldownMode,
+    lastSweepTurn: spy.lastSweepTurn,
   }));
 
   const stationedSpy = spies.find(
@@ -599,6 +608,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     disabledAdvisors,
     threatBoard,
     recentDetections: civEsp.recentDetections ?? [],
+    currentTurn: state.turn,
     ...(missionSuccessChances !== undefined ? { missionSuccessChances } : {}),
   };
 }
