@@ -89,6 +89,7 @@ import {
 } from '@/systems/espionage-system';
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
+import { canUpgradeUnit, applyUpgrade } from '@/systems/unit-upgrade-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import type { GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect } from '@/core/types';
 import {
@@ -547,6 +548,29 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       const nextIdx = (currentIdx + 1) % cities.length;
       const nextCity = gameState.cities[cities[nextIdx]];
       if (nextCity) openCityPanelForCity(nextCity);
+    },
+    onUpgradeUnit: (unitId) => {
+      const unit = gameState.units[unitId];
+      if (!unit || unit.owner !== gameState.currentPlayer) return;
+      const civ = gameState.civilizations[gameState.currentPlayer];
+      const completedTechs = civ?.techState?.completed ?? [];
+      const homeCity = Object.values(gameState.cities).find(
+        c => c.owner === unit.owner &&
+             c.position.q === unit.position.q &&
+             c.position.r === unit.position.r,
+      );
+      if (!homeCity) return;
+      const upgrade = canUpgradeUnit(unit, homeCity.id, gameState.cities, completedTechs);
+      if (!upgrade.canUpgrade || !upgrade.targetType) return;
+      if (civ.gold < upgrade.cost) {
+        showNotification('Not enough gold to upgrade!', 'warning');
+        return;
+      }
+      gameState.civilizations[gameState.currentPlayer] = { ...civ, gold: civ.gold - upgrade.cost };
+      gameState.units[unitId] = applyUpgrade(unit, upgrade.targetType);
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
     },
   });
 }
@@ -1114,6 +1138,24 @@ function selectUnit(unitId: string): void {
         renderLoop.setGameState(gameState);
         updateHUD();
         showNotification(`Spy embedded in ${city.name}. Counter-intelligence boosted.`, 'info');
+      },
+      onUpgradeUnit: (uid, cityId) => {
+        const unit = gameState.units[uid];
+        if (!unit || unit.owner !== gameState.currentPlayer) return;
+        const civ = gameState.civilizations[gameState.currentPlayer];
+        const completedTechs = civ?.techState?.completed ?? [];
+        const upgrade = canUpgradeUnit(unit, cityId, gameState.cities, completedTechs);
+        if (!upgrade.canUpgrade || !upgrade.targetType) return;
+        if (civ.gold < upgrade.cost) {
+          showNotification('Not enough gold to upgrade!', 'warning');
+          return;
+        }
+        gameState.civilizations[gameState.currentPlayer] = { ...civ, gold: civ.gold - upgrade.cost };
+        gameState.units[uid] = applyUpgrade(unit, upgrade.targetType);
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(uid);
+        showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
       },
     });
   }

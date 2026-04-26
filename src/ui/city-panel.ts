@@ -1,5 +1,7 @@
 import type { City, CityFocus, GameState, HexCoord } from '@/core/types';
 import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -15,6 +17,7 @@ export interface CityPanelCallbacks {
   onClose: () => void;
   onPrevCity?: () => void;
   onNextCity?: () => void;
+  onUpgradeUnit?: (unitId: string) => void;
 }
 
 type CityPanelTab = 'list' | 'grid';
@@ -226,6 +229,57 @@ export function createCityPanel(
   });
 
   container.appendChild(panel);
+
+  // Upgradeable units section — units standing on this city tile that can be upgraded
+  // completedTechs is already declared above (line ~79); reuse it here
+  const upgradeableUnits = Object.values(state.units).filter(u =>
+    u.owner === city.owner &&
+    u.position.q === city.position.q &&
+    u.position.r === city.position.r &&
+    canUpgradeUnit(u, city.id, state.cities, completedTechs).canUpgrade,
+  );
+
+  if (upgradeableUnits.length > 0 && callbacks.onUpgradeUnit) {
+    const upgradeSection = document.createElement('div');
+    upgradeSection.style.cssText = 'margin-top:16px;';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:12px;font-weight:bold;color:#a78bfa;margin-bottom:8px;';
+    header.textContent = 'Upgradeable Units';
+    upgradeSection.appendChild(header);
+
+    for (const u of upgradeableUnits) {
+      const upgrade = canUpgradeUnit(u, city.id, state.cities, completedTechs);
+      if (!upgrade.canUpgrade || !upgrade.targetType) continue;
+
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;margin-bottom:6px;';
+
+      const info = document.createElement('span');
+      info.style.cssText = 'font-size:12px;';
+      const currentName = UNIT_DEFINITIONS[u.type]?.name ?? u.type;
+      const targetName = UNIT_DEFINITIONS[upgrade.targetType].name;
+      const cost = getUpgradeCost(upgrade.targetType);
+      info.textContent = `${currentName} → ${targetName} (${cost} gold)`;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Upgrade';
+      btn.style.cssText = 'padding:4px 10px;border-radius:6px;background:#7c3aed;border:none;color:white;cursor:pointer;font-size:11px;';
+      btn.addEventListener('click', () => callbacks.onUpgradeUnit!(u.id));
+
+      row.appendChild(info);
+      row.appendChild(btn);
+      upgradeSection.appendChild(row);
+    }
+
+    const listViewEl = panel.querySelector('#city-list-view');
+    if (listViewEl) {
+      listViewEl.appendChild(upgradeSection);
+    } else {
+      panel.appendChild(upgradeSection);
+    }
+  }
 
   const rerenderPanel = (nextState: GameState | void = state, nextTab: CityPanelTab = 'list') => {
     const renderState = nextState ?? state;
