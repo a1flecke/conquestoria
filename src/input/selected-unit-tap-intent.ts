@@ -4,7 +4,8 @@ import { getMovementRange } from '@/systems/unit-system';
 
 export type SelectedUnitTapIntent =
   | { kind: 'move' }
-  | { kind: 'assault-city'; cityId: string };
+  | { kind: 'assault-city'; cityId: string }
+  | { kind: 'assault-minor-civ'; cityId: string; minorCivId: string };
 
 function buildUnitMaps(state: GameState): {
   unitPositions: Record<string, string>;
@@ -40,20 +41,23 @@ export function resolveSelectedUnitTapIntent(
     return { kind: 'move' };
   }
 
-  const cityAtTarget = Object.values(state.cities).find(city =>
-    hexKey(city.position) === targetKey
-    && city.owner !== state.currentPlayer
-    && !city.owner.startsWith('mc-'),
-  );
-  if (!cityAtTarget) {
-    return { kind: 'move' };
-  }
-
   const occupiedByOtherUnit = Object.values(state.units).some(other =>
     other.id !== unitId && hexKey(other.position) === targetKey,
   );
   if (occupiedByOtherUnit) {
     return { kind: 'move' };
+  }
+
+  const cityAtTarget = Object.values(state.cities).find(city =>
+    hexKey(city.position) === targetKey
+    && city.owner !== state.currentPlayer,
+  );
+  if (!cityAtTarget) {
+    return { kind: 'move' };
+  }
+
+  if (cityAtTarget.owner.startsWith('mc-')) {
+    return { kind: 'assault-minor-civ', cityId: cityAtTarget.id, minorCivId: cityAtTarget.owner };
   }
 
   return { kind: 'assault-city', cityId: cityAtTarget.id };
