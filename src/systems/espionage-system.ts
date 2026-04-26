@@ -771,7 +771,7 @@ export function applyBuildingCI(
   }
   if (ciBonus === 0) return civEsp;
   const current = civEsp.counterIntelligence[cityId] ?? 0;
-  return setCounterIntelligence(civEsp, cityId, Math.min(100, current + ciBonus));
+  return setCounterIntelligence(civEsp, cityId, current + ciBonus);
 }
 
 export function getSpyCaptureRelationshipPenalty(distanceToNearestCity: number): number {

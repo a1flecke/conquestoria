@@ -264,14 +264,19 @@ export function processCity(
 
     // Check if it's a unit
     const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    const unitCostMult = unitDef ? applyProductionBonus(currentItem, bonusEffect) : 1;
-    const safehouseMult = (unitDef && city.buildings.includes('safehouse') && isSpyUnitType(unitDef.type as UnitType))
-      ? 0.75
-      : 1;
-    if (unitDef && newProgress >= Math.ceil(unitDef.cost * unitCostMult * safehouseMult)) {
-      newQueue.shift();
-      newProgress = 0;
-      completedUnit = unitDef.type;
+    if (unitDef) {
+      const unitCostMult = applyProductionBonus(currentItem, bonusEffect);
+      const safehouseMult = (city.buildings.includes('safehouse') && isSpyUnitType(unitDef.type as UnitType))
+        ? 0.75
+        : 1;
+      const effectiveCost = safehouseMult < 1
+        ? Math.ceil(unitDef.cost * unitCostMult * safehouseMult)
+        : Math.round(unitDef.cost * unitCostMult);
+      if (newProgress >= effectiveCost) {
+        newQueue.shift();
+        newProgress = 0;
+        completedUnit = unitDef.type;
+      }
     }
   }
 
