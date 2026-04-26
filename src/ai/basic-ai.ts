@@ -1,7 +1,7 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
-import { foundCity, getTrainableUnitsForCiv } from '@/systems/city-system';
+import { foundCity, getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit, findPath, createUnit } from '@/systems/unit-system';
@@ -669,7 +669,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     if (espState) {
       const activeSpies = Object.values(espState.spies).filter(s => s.status !== 'captured').length;
       if (activeSpies < espState.maxSpies) {
-        const availableSpyTypes = getTrainableUnitsForCiv(civ.techState.completed)
+        const availableSpyTypes = getTrainableUnitsForCiv(civ.techState.completed, civ.civType)
           .filter(u => isSpyUnitType(u.type));
         if (availableSpyTypes.length > 0) {
           const bestType = availableSpyTypes[availableSpyTypes.length - 1];
@@ -685,16 +685,17 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
-  // Queue scout_hound when lookouts tech researched and no hound already queued/deployed
+  // Queue detection unit when lookouts tech researched and no detection unit already queued/deployed
   if (civ.techState.completed.includes('lookouts')) {
-    const hasHound = Object.values(newState.units).some(
-      u => u.owner === civId && u.type === 'scout_hound',
+    const detectionType = getDetectionUnitTypeForCiv(civ.civType);
+    const hasDetectionUnit = Object.values(newState.units).some(
+      u => u.owner === civId && (u.type === 'scout_hound' || u.type === 'shadow_warden' || u.type === 'war_hound'),
     );
-    if (!hasHound) {
+    if (!hasDetectionUnit) {
       for (const cityId of civ.cities) {
         const city = newState.cities[cityId];
         if (city && city.productionQueue.length === 0) {
-          newState.cities[cityId] = { ...city, productionQueue: ['scout_hound'] };
+          newState.cities[cityId] = { ...city, productionQueue: [detectionType] };
           break;
         }
       }

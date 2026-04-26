@@ -18,6 +18,8 @@ const UNIT_ICONS: Record<string, string> = {
   spy_operative: '🕵️',
   spy_hacker: '💻',
   scout_hound: '🐕',
+  shadow_warden: '🦅',
+  war_hound: '🐺',
 };
 
 const OWNER_COLORS: Record<string, string> = {

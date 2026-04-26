@@ -7,6 +7,7 @@ import {
   processDetection,
 } from '@/systems/detection-system';
 import { createEspionageCivState, createSpyFromUnit, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { getTrainableUnitsForCiv } from '@/systems/city-system';
 
 // Builds a state with a player spy unit adjacent to an enemy city.
 // If scoutHound is true, ai-egypt gets a scout_hound unit at the spy's position.
@@ -208,5 +209,49 @@ describe('scout_hound detection', () => {
       }
     }
     expect(detections).toBe(0);
+  });
+});
+
+describe('civ-unique detection units', () => {
+  it('shadow_warden is defined in UNIT_DEFINITIONS', async () => {
+    const { UNIT_DEFINITIONS } = await import('@/systems/unit-system');
+    expect(UNIT_DEFINITIONS['shadow_warden']).toBeDefined();
+    expect(UNIT_DEFINITIONS['shadow_warden'].spyDetectionChance).toBe(0.50);
+  });
+
+  it('war_hound is defined in UNIT_DEFINITIONS', async () => {
+    const { UNIT_DEFINITIONS } = await import('@/systems/unit-system');
+    expect(UNIT_DEFINITIONS['war_hound']).toBeDefined();
+    expect(UNIT_DEFINITIONS['war_hound'].strength).toBeGreaterThan(10);
+  });
+
+  it('persia gets shadow_warden instead of scout_hound', () => {
+    const units = getTrainableUnitsForCiv(['lookouts'], 'persia');
+    const types = units.map(u => u.type);
+    expect(types).toContain('shadow_warden');
+    expect(types).not.toContain('scout_hound');
+  });
+
+  it('rome gets war_hound instead of scout_hound', () => {
+    const units = getTrainableUnitsForCiv(['lookouts'], 'rome');
+    const types = units.map(u => u.type);
+    expect(types).toContain('war_hound');
+    expect(types).not.toContain('scout_hound');
+  });
+
+  it('standard civ still gets scout_hound', () => {
+    const units = getTrainableUnitsForCiv(['lookouts'], 'egypt');
+    const types = units.map(u => u.type);
+    expect(types).toContain('scout_hound');
+    expect(types).not.toContain('shadow_warden');
+    expect(types).not.toContain('war_hound');
+  });
+
+  it('civType undefined returns no unique units and includes scout_hound', () => {
+    const units = getTrainableUnitsForCiv(['lookouts']);
+    const types = units.map(u => u.type);
+    expect(types).toContain('scout_hound');
+    expect(types).not.toContain('shadow_warden');
+    expect(types).not.toContain('war_hound');
   });
 });

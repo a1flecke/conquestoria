@@ -196,7 +196,7 @@ export type UnitType =
   | 'settler' | 'worker' | 'scout' | 'warrior' | 'archer'
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
-  | 'scout_hound';
+  | 'scout_hound' | 'shadow_warden' | 'war_hound';
 
 export interface UnitDefinition {
   type: UnitType;
@@ -600,6 +600,8 @@ export interface TrainableUnitEntry {
   cost: number;
   techRequired?: string;
   obsoletedByTech?: string;
+  civTypeRequired?: string;  // only available/shown for this civ
+  replacesUnit?: UnitType;   // hides this standard unit for the civ above
 }
 
 // --- Civilizations ---
