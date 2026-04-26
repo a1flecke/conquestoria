@@ -1,6 +1,7 @@
 import type { GameState, DisguiseType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
+import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
 import { canBuildImprovement } from '@/systems/improvement-system';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -14,6 +15,7 @@ export interface SelectedUnitInfoCallbacks {
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
   onInfiltrate?: (unitId: string) => void;
   onEmbed?: (unitId: string) => void;
+  onUpgradeUnit?: (unitId: string, cityId: string) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -169,6 +171,27 @@ export function renderSelectedUnitInfo(
     );
     if (ownCityHere && spyRecord?.status === 'idle' && !unit.hasActed) {
       actionsDiv.appendChild(makeButton('Embed (counter-espionage)', '#374151', () => callbacks.onEmbed!(unitId)));
+    }
+  }
+
+  if (callbacks.onUpgradeUnit) {
+    const homeCity = Object.values(state.cities).find(
+      c => c.owner === unit.owner &&
+           c.position.q === unit.position.q &&
+           c.position.r === unit.position.r,
+    );
+    if (homeCity) {
+      const completedTechs = state.civilizations[unit.owner]?.techState?.completed ?? [];
+      const upgrade = canUpgradeUnit(unit, homeCity.id, state.cities, completedTechs);
+      if (upgrade.canUpgrade && upgrade.targetType) {
+        const targetName = UNIT_DEFINITIONS[upgrade.targetType].name;
+        const btn = makeButton(
+          `Upgrade → ${targetName} (${upgrade.cost} gold)`,
+          '#7c3aed',
+          () => callbacks.onUpgradeUnit!(unitId, homeCity.id),
+        );
+        actionsDiv.appendChild(btn);
+      }
     }
   }
 
