@@ -99,6 +99,24 @@ describe('tech-panel', () => {
     expect(panel.textContent).toContain('Starts in');
   });
 
+  it('styles queue control buttons consistently (not browser default)', () => {
+    const state = createNewGame(undefined, 'tech-btn-style-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing'];
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    const removeBtn = panel.querySelector('[data-queue-action="remove"]') as HTMLButtonElement | null;
+    expect(removeBtn).toBeTruthy();
+    expect(removeBtn?.style.background).toBeTruthy();
+    expect(removeBtn?.style.borderRadius).toBeTruthy();
+  });
+
   it('refreshes the visible research state after queue interactions', () => {
     const state = createNewGame(undefined, 'tech-refresh-test');
     const panel = createTechPanel(document.body, state, {

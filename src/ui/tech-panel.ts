@@ -336,21 +336,25 @@ export function createTechPanel(
 
       const controls = document.createElement('div');
       controls.style.cssText = 'display:flex;gap:6px;';
+      const queueBtnStyle = 'padding:4px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:white;cursor:pointer;font-size:13px;';
       const up = document.createElement('button');
       up.type = 'button';
       up.dataset.queueAction = 'up';
       up.dataset.queueIndex = String(index);
       up.textContent = '↑';
+      up.style.cssText = queueBtnStyle;
       const down = document.createElement('button');
       down.type = 'button';
       down.dataset.queueAction = 'down';
       down.dataset.queueIndex = String(index);
       down.textContent = '↓';
+      down.style.cssText = queueBtnStyle;
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.dataset.queueAction = 'remove';
       remove.dataset.queueIndex = String(index);
       remove.textContent = '✕';
+      remove.style.cssText = queueBtnStyle;
       controls.appendChild(up);
       controls.appendChild(down);
       controls.appendChild(remove);
