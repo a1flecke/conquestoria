@@ -1683,9 +1683,16 @@ function handleHexTap(rawCoord: HexCoord): void {
         const mc = gameState.minorCivs[tapIntent.minorCivId];
         if (mc && !mc.isDestroyed) {
           const cityName = gameState.cities[tapIntent.cityId]?.name ?? 'City-State';
-          const attacker = gameState.units[selectedUnitId];
-          if (attacker) {
-            gameState.units[selectedUnitId] = { ...attacker, movementPointsLeft: 0, hasMoved: true };
+          // Move the unit onto the city hex (updates fog, position, movement cost).
+          executeUnitMove(gameState, selectedUnitId, coord, {
+            actor: 'player',
+            civId: gameState.currentPlayer,
+            bus,
+          });
+          // Conquering a city ends the unit's turn regardless of remaining movement.
+          const movedUnit = gameState.units[selectedUnitId];
+          if (movedUnit) {
+            gameState.units[selectedUnitId] = { ...movedUnit, movementPointsLeft: 0 };
           }
           conquestMinorCiv(gameState, tapIntent.minorCivId, gameState.currentPlayer, bus);
           showNotification(`${cityName} has been conquered!`, 'success');
