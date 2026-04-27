@@ -564,6 +564,78 @@ describe('city-panel navigation', () => {
     expect(renderState.cities[city.id].workedTiles).toEqual([workedTile]);
   });
 
+  it('shows no Production Queue section when only the current build is in the queue', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.productionQueue = ['warrior'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    expect(rendered).toContain('Building:');      // current build block is present
+    expect(rendered).not.toContain('Production Queue'); // no follow-up queue section
+  });
+
+  it('shows Production Queue section with follow-up items starting at slot 1 when there are multiple queue items', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.productionQueue = ['warrior', 'shrine', 'worker'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onMoveQueueItem: () => {},
+      onRemoveQueueItem: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    } as any);
+
+    const rendered = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    expect(rendered).toContain('Production Queue');
+    expect(rendered).toContain('Queue slot 1');  // shrine → slot 1
+    expect(rendered).toContain('Queue slot 2');  // worker → slot 2
+    expect(rendered).not.toContain('Queue slot 3'); // no slot 3 (only 2 follow-ups)
+  });
+
+  it('does not render the currently-building item as a numbered queue slot', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.productionQueue = ['warrior', 'shrine'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onMoveQueueItem: () => {},
+      onRemoveQueueItem: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    } as any);
+
+    const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    // warrior is shown in the "Building:" block, not as a numbered slot
+    expect(html).toContain('Queue slot 1'); // shrine is slot 1
+    // The queue data-queue-index="0" should not exist in the queue rows
+    // (index 0 is the current build, only shown in the production header)
+    expect(html).not.toMatch(/data-queue-index="0"[^>]*>[\s\S]*?Queue slot/);
+  });
+
+  it('shows timing text (Starts in / Done in) for follow-up queue items', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.productionQueue = ['warrior', 'shrine'];
+    city.productionProgress = 0;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onMoveQueueItem: () => {},
+      onRemoveQueueItem: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    } as any);
+
+    const rendered = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    expect(rendered).toContain('Starts in');
+    expect(rendered).toContain('Done in');
+  });
+
   it('leaves claimed worked-land tiles disabled and unchanged when clicked', () => {
     const { container, city, state } = makeWonderPanelFixture();
     const claimed = { q: city.position.q + 1, r: city.position.r };
