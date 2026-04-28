@@ -147,4 +147,96 @@ describe('tech-panel', () => {
 
     expect(document.body.querySelector('#tech-panel')?.textContent).toContain('Researching: Fire');
   });
+
+  it('clicking remove on a queued follow-up removes it from the rendered panel', () => {
+    const state = createNewGame(undefined, 'tech-remove-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+
+    createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: (index) => {
+        state.civilizations.player.techState = {
+          ...state.civilizations.player.techState,
+          researchQueue: state.civilizations.player.techState.researchQueue.filter((_, i) => i !== index),
+        };
+      },
+      onClose: () => {},
+    });
+
+    // writing is at index 0, wheel at index 1 — remove writing (index 0)
+    const removeBtn = document.body.querySelector<HTMLButtonElement>('[data-queue-action="remove"][data-queue-index="0"]');
+    expect(removeBtn).toBeTruthy();
+    removeBtn!.click();
+
+    // Panel rerenders — writing should be gone, wheel remains as slot 1
+    const panelAfter = document.body.querySelector('#tech-panel');
+    expect(panelAfter?.textContent).not.toContain('Queue slot 2');
+    expect(panelAfter?.textContent).toContain('Queue slot 1');
+  });
+
+  it('clicking ↓ on a queued follow-up moves it down in the rendered panel', () => {
+    const state = createNewGame(undefined, 'tech-move-down-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+
+    createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: (from, to) => {
+        const queue = [...state.civilizations.player.techState.researchQueue];
+        const [moved] = queue.splice(from, 1);
+        if (moved) queue.splice(to, 0, moved);
+        state.civilizations.player.techState = {
+          ...state.civilizations.player.techState,
+          researchQueue: queue,
+        };
+      },
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    // writing is index 0; press ↓ to move it after wheel
+    const downBtn = document.body.querySelector<HTMLButtonElement>('[data-queue-action="down"][data-queue-index="0"]');
+    expect(downBtn).toBeTruthy();
+    expect(downBtn!.disabled).toBe(false);
+    downBtn!.click();
+
+    expect(state.civilizations.player.techState.researchQueue).toEqual(['wheel', 'writing']);
+  });
+
+  it('↑ button on the first research queue item (index 0) is disabled', () => {
+    const state = createNewGame(undefined, 'tech-up-disabled-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+
+    createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    const upBtn = document.body.querySelector<HTMLButtonElement>('[data-queue-action="up"][data-queue-index="0"]');
+    expect(upBtn).toBeTruthy();
+    expect(upBtn!.disabled).toBe(true);
+  });
+
+  it('↓ button on the last research queue item is disabled', () => {
+    const state = createNewGame(undefined, 'tech-down-disabled-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+
+    createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    // wheel is the last item (index 1) — its ↓ button must be disabled
+    const downBtn = document.body.querySelector<HTMLButtonElement>('[data-queue-action="down"][data-queue-index="1"]');
+    expect(downBtn).toBeTruthy();
+    expect(downBtn!.disabled).toBe(true);
+  });
 });
