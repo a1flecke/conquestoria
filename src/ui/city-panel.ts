@@ -134,12 +134,16 @@ export function createCityPanel(
   }
 
   const queueBtnStyle = 'padding:4px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:white;cursor:pointer;font-size:13px;';
+  const queueBtnDisabledStyle = 'padding:4px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:rgba(255,255,255,0.3);font-size:13px;cursor:not-allowed;';
+  const lastQueueIdx = city.productionQueue.length - 1;
   let queueRowsHtml = '';
   for (let idx = 1; idx < city.productionQueue.length; idx++) {
     const timing = followUpTimings[idx - 1];
     const slotLabel = timing
       ? `Queue slot ${idx} · Starts in ${timing.startTurns} turns · Done in ${timing.finishTurns} turns`
       : `Queue slot ${idx}`;
+    const downStyle = idx === lastQueueIdx ? queueBtnDisabledStyle : queueBtnStyle;
+    const downDisabled = idx === lastQueueIdx ? 'disabled' : '';
     queueRowsHtml += `
       <div data-queue-index="${idx}" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;">
         <div>
@@ -148,7 +152,7 @@ export function createCityPanel(
         </div>
         <div style="display:flex;gap:6px;">
           <button type="button" data-queue-action="up" data-queue-index="${idx}" style="${queueBtnStyle}">↑</button>
-          <button type="button" data-queue-action="down" data-queue-index="${idx}" style="${queueBtnStyle}">↓</button>
+          <button type="button" data-queue-action="down" data-queue-index="${idx}" style="${downStyle}" ${downDisabled}>↓</button>
           <button type="button" data-queue-action="remove" data-queue-index="${idx}" style="${queueBtnStyle}">✕</button>
         </div>
       </div>
