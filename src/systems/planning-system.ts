@@ -1,5 +1,5 @@
 import type { City, GameState, TechState } from '@/core/types';
-import { getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
+import { BUILDINGS, getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
@@ -8,7 +8,8 @@ const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
 
 export function enqueueCityProduction(city: City, itemId: string): City {
-  if (city.productionQueue.includes(itemId)) {
+  const isUniqueItem = Boolean(BUILDINGS[itemId]) || itemId.startsWith('legendary:');
+  if (isUniqueItem && city.productionQueue.includes(itemId)) {
     return city;
   }
 

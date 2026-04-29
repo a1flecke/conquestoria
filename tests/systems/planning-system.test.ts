@@ -65,6 +65,24 @@ describe('planning-system city queues', () => {
     expect(third.researchQueue).toEqual(['writing', 'wheel', 'gathering']);
   });
 
+  it('allows the same unit type to appear multiple times in the queue', () => {
+    const city = { productionQueue: ['warrior'] } as any;
+    const queued = enqueueCityProduction(city, 'warrior');
+    expect(queued.productionQueue).toEqual(['warrior', 'warrior']);
+  });
+
+  it('prevents queuing a building that is already in the queue', () => {
+    const city = { productionQueue: ['warrior', 'shrine'] } as any;
+    const result = enqueueCityProduction(city, 'shrine');
+    expect(result.productionQueue).toEqual(['warrior', 'shrine']);
+  });
+
+  it('prevents queuing a legendary wonder that is already in the queue', () => {
+    const city = { productionQueue: ['legendary:colosseum'] } as any;
+    const result = enqueueCityProduction(city, 'legendary:colosseum');
+    expect(result.productionQueue).toEqual(['legendary:colosseum']);
+  });
+
   it('recommends a truly fast opening option instead of the first registered building', () => {
     const state = createNewGame(undefined, 'idle-choice-seed', 'small');
     const playerId = state.currentPlayer;

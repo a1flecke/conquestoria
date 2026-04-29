@@ -302,6 +302,9 @@ export function createTechPanel(
     panel.appendChild(summary);
   }
 
+  const queueBtnStyle = 'padding:4px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:white;cursor:pointer;font-size:13px;';
+  const queueBtnDisabledStyle = 'padding:4px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:rgba(255,255,255,0.3);font-size:13px;cursor:not-allowed;';
+
   const queueSection = document.createElement('div');
   queueSection.style.cssText = 'background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;';
   const queueHeading = document.createElement('div');
@@ -336,21 +339,33 @@ export function createTechPanel(
 
       const controls = document.createElement('div');
       controls.style.cssText = 'display:flex;gap:6px;';
+
+      const isFirst = index === 0;
+      const isLast = index === civ.techState.researchQueue.length - 1;
+
       const up = document.createElement('button');
       up.type = 'button';
       up.dataset.queueAction = 'up';
       up.dataset.queueIndex = String(index);
       up.textContent = '↑';
+      up.disabled = isFirst;
+      up.style.cssText = isFirst ? queueBtnDisabledStyle : queueBtnStyle;
+
       const down = document.createElement('button');
       down.type = 'button';
       down.dataset.queueAction = 'down';
       down.dataset.queueIndex = String(index);
       down.textContent = '↓';
+      down.disabled = isLast;
+      down.style.cssText = isLast ? queueBtnDisabledStyle : queueBtnStyle;
+
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.dataset.queueAction = 'remove';
       remove.dataset.queueIndex = String(index);
       remove.textContent = '✕';
+      remove.style.cssText = queueBtnStyle;
+
       controls.appendChild(up);
       controls.appendChild(down);
       controls.appendChild(remove);

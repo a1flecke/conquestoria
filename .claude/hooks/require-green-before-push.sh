@@ -31,10 +31,22 @@ case "${REQUIRE_GREEN_TEST_MODE:-}" in
     ;;
 esac
 
+# Detect the project directory from the command: "cd /some/path && git push ..."
+# The hook always runs from $CLAUDE_PROJECT_DIR, so we must extract the path
+# from a leading "cd" when commands originate from a git worktree.
+PROJECT_DIR="$CLAUDE_PROJECT_DIR"
+first_line="$(printf '%s' "$COMMAND" | head -1)"
+if printf '%s' "$first_line" | grep -qE '^[[:space:]]*cd[[:space:]]+'; then
+  cd_path="$(printf '%s' "$first_line" | sed -E 's|^[[:space:]]*cd[[:space:]]+([^ ;&]+).*|\1|')"
+  if [ -n "$cd_path" ] && [ -d "$cd_path" ] && git -C "$cd_path" rev-parse --git-dir >/dev/null 2>&1; then
+    PROJECT_DIR="$cd_path"
+  fi
+fi
+
 # mise is how this repo installs node/yarn; use the project's run-with-mise.sh
 # wrapper so yarn runs in the correct toolchain without shell-level activation
 # (which fails in non-interactive subprocess contexts).
-RUN="$CLAUDE_PROJECT_DIR/scripts/run-with-mise.sh"
+RUN="$PROJECT_DIR/scripts/run-with-mise.sh"
 if [ ! -x "$RUN" ]; then
   echo "ERROR: $RUN not found or not executable." >&2
   exit 2
@@ -45,9 +57,9 @@ TEST_LOG=$(mktemp)
 trap 'rm -f "$BUILD_LOG" "$TEST_LOG"' EXIT
 
 # Ensure dependencies are installed before building/testing
-"$RUN" yarn install --immutable >"$BUILD_LOG" 2>&1 || true
+(cd "$PROJECT_DIR" && "$RUN" yarn install --immutable) >"$BUILD_LOG" 2>&1 || true
 
-if ! "$RUN" yarn build >>"$BUILD_LOG" 2>&1; then
+if ! (cd "$PROJECT_DIR" && "$RUN" yarn build) >>"$BUILD_LOG" 2>&1; then
   {
     echo "ERROR: \`yarn build\` failed — fix type/build errors before pushing."
     echo "--- last 30 lines of build output ---"
@@ -56,7 +68,7 @@ if ! "$RUN" yarn build >>"$BUILD_LOG" 2>&1; then
   exit 2
 fi
 
-if ! "$RUN" yarn test >"$TEST_LOG" 2>&1; then
+if ! (cd "$PROJECT_DIR" && "$RUN" yarn test) >"$TEST_LOG" 2>&1; then
   {
     echo "ERROR: \`yarn test\` failed — fix failing tests before pushing."
     echo "--- last 30 lines of test output ---"

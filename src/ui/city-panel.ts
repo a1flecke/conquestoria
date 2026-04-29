@@ -110,18 +110,50 @@ export function createCityPanel(
     `;
   }
 
+  // Compute timing for each follow-up queue item (productionQueue[1+])
+  const followUpTimings: Array<{ startTurns: number; finishTurns: number } | null> = [];
+  if (city.productionQueue.length > 1 && yields.production > 0) {
+    const currentItem0 = city.productionQueue[0];
+    const currentBuilding0 = BUILDINGS[currentItem0];
+    const currentUnit0 = TRAINABLE_UNITS.find(u => u.type === currentItem0);
+    const currentCost0 = currentBuilding0?.productionCost ?? currentUnit0?.cost ?? 0;
+    let elapsed = Math.ceil(Math.max(0, currentCost0 - city.productionProgress) / yields.production);
+    for (let i = 1; i < city.productionQueue.length; i++) {
+      const followId = city.productionQueue[i];
+      const followBuilding = BUILDINGS[followId];
+      const followUnit = TRAINABLE_UNITS.find(u => u.type === followId);
+      const followCost = followBuilding?.productionCost ?? followUnit?.cost ?? 0;
+      const duration = Math.ceil(followCost / yields.production);
+      followUpTimings.push({ startTurns: elapsed, finishTurns: elapsed + duration });
+      elapsed += duration;
+    }
+  } else {
+    for (let i = 1; i < city.productionQueue.length; i++) {
+      followUpTimings.push(null);
+    }
+  }
+
+  const queueBtnStyle = 'padding:4px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:white;cursor:pointer;font-size:13px;';
+  const queueBtnDisabledStyle = 'padding:4px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:rgba(255,255,255,0.3);font-size:13px;cursor:not-allowed;';
+  const lastQueueIdx = city.productionQueue.length - 1;
   let queueRowsHtml = '';
-  for (let idx = 0; idx < city.productionQueue.length; idx++) {
+  for (let idx = 1; idx < city.productionQueue.length; idx++) {
+    const timing = followUpTimings[idx - 1];
+    const slotLabel = timing
+      ? `Queue slot ${idx} · Starts in ${timing.startTurns} turns · Done in ${timing.finishTurns} turns`
+      : `Queue slot ${idx}`;
+    const downStyle = idx === lastQueueIdx ? queueBtnDisabledStyle : queueBtnStyle;
+    const downDisabled = idx === lastQueueIdx ? 'disabled' : '';
     queueRowsHtml += `
       <div data-queue-index="${idx}" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;">
         <div>
           <div style="font-weight:bold;" data-text="queue-name-${idx}"></div>
-          <div style="font-size:11px;opacity:0.7;">Queue slot ${idx + 1}</div>
+          <div style="font-size:11px;opacity:0.7;">${slotLabel}</div>
         </div>
         <div style="display:flex;gap:6px;">
-          <button type="button" data-queue-action="up" data-queue-index="${idx}">↑</button>
-          <button type="button" data-queue-action="down" data-queue-index="${idx}">↓</button>
-          <button type="button" data-queue-action="remove" data-queue-index="${idx}">✕</button>
+          <button type="button" data-queue-action="up" data-queue-index="${idx}" style="${queueBtnStyle}">↑</button>
+          <button type="button" data-queue-action="down" data-queue-index="${idx}" style="${downStyle}" ${downDisabled}>↓</button>
+          <button type="button" data-queue-action="remove" data-queue-index="${idx}" style="${queueBtnStyle}">✕</button>
         </div>
       </div>
     `;
@@ -162,7 +194,7 @@ export function createCityPanel(
     </div>
     <div id="city-list-view">
       ${currentProductionHtml}
-      ${city.productionQueue.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Queue</h3>${queueRowsHtml}</div>` : ''}
+      ${city.productionQueue.length > 1 ? `<div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;"><div style="font-weight:bold;color:#e8c170;margin-bottom:8px;">Production Queue</div>${queueRowsHtml}</div>` : ''}
       ${cityWonderProject ? `<div style="margin-bottom:12px;font-size:12px;opacity:0.75;">Wonder carryover: ${cityWonderProject.transferableProduction}</div>` : ''}
       ${city.buildings.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>${buildingPlaceholders}</div>` : ''}
       <div><h3 style="font-size:14px;margin:0 0 8px;">Build</h3>
