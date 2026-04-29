@@ -75,7 +75,7 @@ export function resolveMajorCityCapture(
     return { state, outcome: 'razed', goldAwarded: 0 };
   }
 
-  const forcedDisposition: MajorCityCaptureDisposition = city.population <= 1 ? 'raze' : disposition;
+  const forcedDisposition: MajorCityCaptureDisposition = disposition;
 
   if (forcedDisposition === 'occupy' && previousOwner?.breakaway?.originOwnerId === newOwnerId) {
     const reconquered = reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId);

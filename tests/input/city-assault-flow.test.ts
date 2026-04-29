@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
-import { beginPlayerCityAssaultChoice, finalizePlayerCityAssaultChoice } from '@/input/city-assault-flow';
+import {
+  beginPlayerCityAssaultChoice,
+  finalizePlayerCityAssaultChoice,
+  shouldPromptForPlayerCityCapture,
+} from '@/input/city-assault-flow';
 
 function makePlayerAssaultState({ population }: { population: number }): GameState {
   const state = createNewGame(undefined, 'player-assault', 'small');
@@ -60,5 +64,21 @@ describe('city-assault-flow', () => {
     expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
     expect(result.state.units['unit-1'].movementPointsLeft).toBe(0);
     expect(result.state.cities.athens).toBeUndefined();
+  });
+
+  it('keeps population-1 player captures on the choice path so major cities can be occupied', () => {
+    const state = makePlayerAssaultState({ population: 1 });
+
+    expect(shouldPromptForPlayerCityCapture(state.cities.athens)).toBe(true);
+
+    const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+    const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
+
+    expect(begun.pending.occupiedPopulation).toBe(1);
+    expect(result.outcome).toBe('occupied');
+    expect(result.state.cities.athens).toMatchObject({
+      owner: 'player',
+      population: 1,
+    });
   });
 });

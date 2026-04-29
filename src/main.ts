@@ -62,7 +62,12 @@ import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
-import { type PendingCityCaptureChoice, beginPlayerCityAssaultChoice, finalizePlayerCityAssaultChoice } from '@/input/city-assault-flow';
+import {
+  type PendingCityCaptureChoice,
+  beginPlayerCityAssaultChoice,
+  finalizePlayerCityAssaultChoice,
+  shouldPromptForPlayerCityCapture,
+} from '@/input/city-assault-flow';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
 import {
   initializeLegendaryWonderProjectsForCity,
@@ -93,6 +98,7 @@ import {
 import {
   routeBarbarianSpawned,
   routeCombatResolved,
+  routeFactionTransition,
   routeLegendaryWonder,
   routePeaceMade,
   routePeaceRequested,
@@ -1234,13 +1240,12 @@ function beginPlayerCityAssault(
   const begun = beginPlayerCityAssaultChoice(gameState, attackerId, cityId);
   gameState = begun.state;
 
-  if (city.population <= 1) {
-    pendingCityCaptureChoice = begun.pending;
+  pendingCityCaptureChoice = begun.pending;
+  if (!shouldPromptForPlayerCityCapture(city)) {
     finalizePendingCityCaptureChoice('raze', attackerBonus);
     return 'resolved';
   }
 
-  pendingCityCaptureChoice = begun.pending;
   createCityCapturePanel(uiLayer, {
     cityName: city.name,
     occupiedPopulation: begun.pending.occupiedPopulation,
@@ -1830,6 +1835,37 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
 });
 
 registerMinorCivNotificationListeners(bus, () => gameState, { appendToCivLog });
+
+function appendFactionNotice(civId: string, message: string, type: NotificationEntry['type']): void {
+  appendToCivLog(civId, message, type);
+  if (gameState.pendingEvents) {
+    collectEvent(gameState.pendingEvents, civId, { type: 'faction:critical', message, turn: gameState.turn });
+  }
+}
+
+bus.on('faction:unrest-started', event => {
+  routeFactionTransition(gameState, { type: 'faction:unrest-started', ...event }, appendFactionNotice);
+});
+
+bus.on('faction:revolt-started', event => {
+  routeFactionTransition(gameState, { type: 'faction:revolt-started', ...event }, appendFactionNotice);
+});
+
+bus.on('faction:unrest-resolved', event => {
+  routeFactionTransition(gameState, { type: 'faction:unrest-resolved', ...event }, appendFactionNotice);
+});
+
+bus.on('faction:breakaway-started', event => {
+  routeFactionTransition(gameState, { type: 'faction:breakaway-started', ...event }, appendFactionNotice);
+});
+
+bus.on('faction:breakaway-established', event => {
+  routeFactionTransition(gameState, { type: 'faction:breakaway-established', ...event }, appendFactionNotice);
+});
+
+bus.on('faction:critical-status', event => {
+  routeFactionTransition(gameState, { type: 'faction:critical-status', ...event }, appendFactionNotice);
+});
 
 bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisguised, position }) => {
   const label = wasDisguised ? 'A disguised unit' : 'An enemy spy';

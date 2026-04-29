@@ -29,9 +29,29 @@ describe('breakaway-system', () => {
   it('promotes a surviving breakaway state into an established civilization after 50 turns', () => {
     const { state, breakawayId } = makeBreakawayFixture({ breakawayStartedTurn: 12, turn: 62 });
     const bus = new EventBus();
+    const criticalEvents: string[] = [];
+    const establishedEvents: string[] = [];
+    bus.on('faction:critical-status', event => criticalEvents.push(event.cityId));
+    bus.on('faction:breakaway-established', event => establishedEvents.push(event.civId));
 
     const result = processBreakawayTurn(state, bus);
+
     expect(result.civilizations[breakawayId].breakaway?.status).toBe('established');
+    expect(establishedEvents).toEqual([breakawayId]);
+    expect(criticalEvents).toEqual([]);
+  });
+
+  it('emits a recurring critical status while a breakaway secession is unresolved', () => {
+    const { state, breakawayId, cityId } = makeBreakawayFixture({ breakawayStartedTurn: 12, turn: 20 });
+    const bus = new EventBus();
+    const events: Array<{ cityId: string; owner: string; status: string; breakawayId?: string }> = [];
+    bus.on('faction:critical-status', event => events.push(event));
+
+    processBreakawayTurn(state, bus);
+
+    expect(events).toEqual([
+      { cityId, owner: 'player', status: 'breakaway', breakawayId },
+    ]);
   });
 
   it('requires both relationship and gold to reabsorb a breakaway state', () => {

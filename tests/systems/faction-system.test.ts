@@ -46,6 +46,7 @@ function makeState({
   spyUnrestBonus = 0,
   atWarCount = 0,
   unitPositions = [] as HexCoord[],
+  era = 2,
 }: {
   cityCount?: number;
   cityPosition?: HexCoord;
@@ -56,6 +57,7 @@ function makeState({
   spyUnrestBonus?: number;
   atWarCount?: number;
   unitPositions?: HexCoord[];
+  era?: number;
 } = {}): GameState {
   const civId = 'player';
   const city: City = makeCity('city-1', civId, cityPosition, {
@@ -95,7 +97,7 @@ function makeState({
 
   return {
     turn: 10,
-    era: 2,
+    era,
     currentPlayer: civId,
     gameOver: false,
     winner: null,
@@ -238,6 +240,109 @@ describe('faction-system', () => {
     expect(events).toEqual([{ type: 'unrest-started', cityId: 'city-1' }]);
   });
 
+  it('does not start unrest in Era 1 even when pressure is critical', () => {
+    const state = makeState({
+      era: 1,
+      cityCount: 21,
+      conquestTurn: 0,
+      spyUnrestBonus: 30,
+      atWarCount: 3,
+    });
+
+    const events: string[] = [];
+    bus.on('faction:unrest-started', payload => events.push(payload.cityId));
+    bus.on('faction:revolt-started', payload => events.push(payload.cityId));
+    bus.on('faction:breakaway-started', payload => events.push(payload.cityId));
+
+    const result = processFactionTurn(state, bus);
+
+    expect(result.cities['city-1'].unrestLevel).toBe(0);
+    expect(result.cities['city-1'].unrestTurns).toBe(0);
+    expect(events).toEqual([]);
+  });
+
+  it('clears existing unrest state in Era 1 instead of preserving penalties from saves', () => {
+    const state = makeState({
+      era: 1,
+      unrestLevel: 2,
+      unrestTurns: 7,
+      spyUnrestBonus: 15,
+    });
+
+    const events: string[] = [];
+    bus.on('faction:critical-status', payload => events.push(payload.cityId));
+    bus.on('faction:unrest-resolved', payload => events.push(payload.cityId));
+
+    const result = processFactionTurn(state, bus);
+
+    expect(result.cities['city-1']).toMatchObject({
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+    });
+    expect(events).toEqual([]);
+  });
+
+  it('emits a recurring critical status for an ongoing unrest city', () => {
+    const state = makeState({
+      cityCount: 21,
+      unrestLevel: 1,
+      unrestTurns: 1,
+      spyUnrestBonus: 20,
+      atWarCount: 2,
+    });
+
+    const events: Array<{ cityId: string; owner: string; status: string }> = [];
+    bus.on('faction:critical-status', event => events.push(event));
+
+    processFactionTurn(state, bus);
+
+    expect(events).toEqual([
+      { cityId: 'city-1', owner: 'player', status: 'unrest' },
+    ]);
+  });
+
+  it('does not emit recurring critical status when unrest stabilizes that turn', () => {
+    const state = makeState({
+      cityCount: 1,
+      unrestLevel: 1,
+      unrestTurns: 3,
+      spyUnrestBonus: 0,
+    });
+
+    const criticalEvents: string[] = [];
+    const resolvedEvents: string[] = [];
+    bus.on('faction:critical-status', payload => criticalEvents.push(payload.cityId));
+    bus.on('faction:unrest-resolved', payload => resolvedEvents.push(payload.cityId));
+
+    const result = processFactionTurn(state, bus);
+
+    expect(result.cities['city-1'].unrestLevel).toBe(0);
+    expect(resolvedEvents).toEqual(['city-1']);
+    expect(criticalEvents).toEqual([]);
+  });
+
+  it('emits recurring critical status for a revolt only when it remains unresolved', () => {
+    const state = makeState({
+      cityCount: 21,
+      cityPosition: { q: 3, r: 3 },
+      unrestLevel: 2,
+      unrestTurns: 0,
+      spyUnrestBonus: 20,
+      atWarCount: 2,
+    });
+
+    const events: Array<{ cityId: string; owner: string; status: string }> = [];
+    bus.on('faction:critical-status', event => events.push(event));
+
+    const result = processFactionTurn(state, bus);
+
+    expect(result.cities['city-1'].unrestLevel).toBe(2);
+    expect(events).toEqual([
+      { cityId: 'city-1', owner: 'player', status: 'revolt' },
+    ]);
+  });
+
   it('escalates unrest to revolt after enough turns and spawns rebel units', () => {
     const cityPos = { q: 5, r: 5 };
     const state = makeState({
@@ -247,14 +352,6 @@ describe('faction-system', () => {
       unrestTurns: 4,
       spyUnrestBonus: 7,
       atWarCount: 1,
-      unitPositions: [
-        { q: 6, r: 5 },
-        { q: 4, r: 5 },
-        { q: 5, r: 6 },
-        { q: 5, r: 4 },
-        { q: 6, r: 4 },
-        { q: 4, r: 6 },
-      ],
     });
 
     for (const coord of [
@@ -305,12 +402,15 @@ describe('faction-system', () => {
     });
 
     const events: string[] = [];
+    const criticalEvents: string[] = [];
     bus.on('faction:unrest-resolved', payload => events.push(payload.cityId));
+    bus.on('faction:critical-status', payload => criticalEvents.push(payload.cityId));
 
     const result = processFactionTurn(state, bus);
 
     expect(result.cities['city-1'].unrestLevel).toBe(0);
     expect(events).toEqual(['city-1']);
+    expect(criticalEvents).toEqual([]);
   });
 
   it('does not resolve revolt from a garrison alone while pressure remains high', () => {

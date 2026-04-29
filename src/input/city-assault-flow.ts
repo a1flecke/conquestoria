@@ -10,6 +10,12 @@ export interface PendingCityCaptureChoice {
   razeGold: number;
 }
 
+export function shouldPromptForPlayerCityCapture(
+  city: { population: number },
+): boolean {
+  return city.population >= 1;
+}
+
 export function beginPlayerCityAssaultChoice(
   state: GameState,
   attackerId: string,

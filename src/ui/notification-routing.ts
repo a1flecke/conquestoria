@@ -5,6 +5,78 @@ import type { NotificationEntry } from '@/ui/notification-log';
 
 export type NotificationSink = (civId: string, message: string, type: NotificationEntry['type']) => void;
 
+type FactionTransitionEvent =
+  | { type: 'faction:unrest-started'; cityId: string; owner: string }
+  | { type: 'faction:revolt-started'; cityId: string; owner: string }
+  | { type: 'faction:unrest-resolved'; cityId: string; owner: string }
+  | { type: 'faction:breakaway-started'; cityId: string; oldOwner: string; breakawayId: string }
+  | { type: 'faction:breakaway-established'; civId: string; originOwnerId: string }
+  | { type: 'faction:critical-status'; cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string };
+
+export function routeFactionTransition(
+  state: GameState,
+  event: FactionTransitionEvent,
+  sink: NotificationSink,
+): void {
+  if (event.type === 'faction:unrest-started') {
+    const city = state.cities[event.cityId];
+    sink(event.owner, `${city?.name ?? 'A city'} is slipping into unrest. Stabilize it before revolt spreads.`, 'warning');
+    return;
+  }
+
+  if (event.type === 'faction:revolt-started') {
+    const city = state.cities[event.cityId];
+    sink(event.owner, `${city?.name ?? 'A city'} is in open revolt. Defeat nearby rebels and reduce pressure.`, 'warning');
+    return;
+  }
+
+  if (event.type === 'faction:unrest-resolved') {
+    const city = state.cities[event.cityId];
+    sink(event.owner, `${city?.name ?? 'A city'} has stabilized.`, 'success');
+    return;
+  }
+
+  if (event.type === 'faction:breakaway-started') {
+    const city = state.cities[event.cityId];
+    const breakaway = state.civilizations[event.breakawayId];
+    const turnsLeft = breakaway?.breakaway
+      ? Math.max(0, breakaway.breakaway.establishesOnTurn - state.turn)
+      : 0;
+    sink(
+      event.oldOwner,
+      `${city?.name ?? 'A city'} has broken away. Recapture or reabsorb it before it becomes established${turnsLeft > 0 ? ` in ${turnsLeft} turns` : ''}.`,
+      'warning',
+    );
+    return;
+  }
+
+  if (event.type === 'faction:critical-status') {
+    const city = state.cities[event.cityId];
+    if (event.status === 'unrest') {
+      sink(event.owner, `${city?.name ?? 'A city'} remains in unrest. Stabilize it before revolt spreads.`, 'warning');
+      return;
+    }
+    if (event.status === 'revolt') {
+      sink(event.owner, `${city?.name ?? 'A city'} remains in open revolt. Defeat nearby rebels and reduce pressure.`, 'warning');
+      return;
+    }
+    const breakaway = event.breakawayId ? state.civilizations[event.breakawayId] : undefined;
+    const turnsLeft = breakaway?.breakaway
+      ? Math.max(0, breakaway.breakaway.establishesOnTurn - state.turn)
+      : 0;
+    sink(
+      event.owner,
+      `${city?.name ?? 'A city'} is still in secession${turnsLeft > 0 ? ` (${turnsLeft} turns before establishment)` : ''}.`,
+      'warning',
+    );
+    return;
+  }
+
+  const civ = state.civilizations[event.civId];
+  const city = civ?.breakaway ? state.cities[civ.breakaway.originCityId] : undefined;
+  sink(event.originOwnerId, `${city?.name ?? civ?.name ?? 'A breakaway state'} is now an established civilization.`, 'warning');
+}
+
 // Writes to both parties' logs from their own perspective.
 export function routeWarDeclared(
   state: GameState,
