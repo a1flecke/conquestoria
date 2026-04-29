@@ -18,8 +18,9 @@ esac
 # extract the path ourselves when the command starts with a cd.
 git_cwd=""
 if printf '%s' "$cmd" | grep -qE '^[[:space:]]*cd[[:space:]]+'; then
-  # Extract the first argument to cd (stops at whitespace; unquoted paths only).
-  cd_path="$(printf '%s' "$cmd" | sed -E 's|^[[:space:]]*cd[[:space:]]+([^ ;&]+).*|\1|')"
+  # Extract the first argument to cd from line 1 only (multi-line commands
+  # such as those with heredoc bodies must not bleed into the path).
+  cd_path="$(printf '%s' "$cmd" | head -1 | sed -E 's|^[[:space:]]*cd[[:space:]]+([^ ;&]+).*|\1|')"
   # Verify it is actually a git repo before trusting the extracted path.
   if [ -n "$cd_path" ] && git -C "$cd_path" rev-parse --git-dir >/dev/null 2>&1; then
     git_cwd="$cd_path"
