@@ -101,14 +101,30 @@ describe('city-capture-system', () => {
     );
   });
 
-  it('auto-razes a size-1 city instead of occupying it', () => {
+  it('razes a population-1 major city when the conqueror chooses raze', () => {
     const state = makeExposedCityCaptureState({ population: 1, buildings: ['granary'] });
 
-    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
 
     expect(result.outcome).toBe('razed');
     expect(result.state.cities.athens).toBeUndefined();
     expect(result.goldAwarded).toBe(30);
+  });
+
+  it('occupies a population-1 major city when the conqueror chooses occupy', () => {
+    const state = makeExposedCityCaptureState({ population: 1, buildings: ['granary'] });
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(result.outcome).toBe('occupied');
+    expect(result.state.cities.athens).toEqual(
+      expect.objectContaining({
+        owner: 'player',
+        population: 1,
+        occupation: expect.objectContaining({ originalOwnerId: 'ai-1', turnsRemaining: 10 }),
+      }),
+    );
+    expect(result.goldAwarded).toBe(0);
   });
 
   it('awards salvage gold and applies a raze relationship penalty', () => {

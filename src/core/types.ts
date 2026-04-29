@@ -1038,6 +1038,7 @@ export interface GameEvents {
   'faction:breakaway-started': { cityId: string; oldOwner: string; breakawayId: string };
   'faction:breakaway-established': { civId: string; originOwnerId: string };
   'faction:breakaway-reabsorbed': { civId: string; ownerId: string; cityId: string };
+  'faction:critical-status': { cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string };
   'espionage:spy-promoted': { civId: string; spyId: string; promotion: SpyPromotion };
   'espionage:advisor-assassinated': { targetCivId: string; advisorType: AdvisorType; disabledUntilTurn: number };
   'espionage:documents-forged': { civA: string; civB: string; relationshipPenalty: number };

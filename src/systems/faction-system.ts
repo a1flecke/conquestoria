@@ -86,7 +86,7 @@ export function isCityProductionLocked(city: City): boolean {
 
 // --- Rebel spawning ---
 
-function spawnRebelUnits(city: City, state: GameState, seed: string): void {
+function spawnRebelUnits(city: City, state: GameState, seed: string): GameState['units'] {
   const rng = createRng(seed);
   const offsets: HexCoord[] = [
     { q: 1, r: 0 }, { q: -1, r: 0 }, { q: 0, r: 1 },
@@ -94,74 +94,158 @@ function spawnRebelUnits(city: City, state: GameState, seed: string): void {
   ];
   const unitType: UnitType = city.population >= 4 ? 'swordsman' : 'warrior';
   const spawnCount = 1 + Math.floor(rng() * 2); // 1-2 rebels
+  const occupied = new Set(Object.values(state.units).map(unit => `${unit.position.q},${unit.position.r}`));
+  const available = offsets
+    .map(offset => ({ q: city.position.q + offset.q, r: city.position.r + offset.r }))
+    .filter(pos => {
+      const key = `${pos.q},${pos.r}`;
+      return state.map.tiles[key] !== undefined && !occupied.has(key);
+    });
 
+  let units = { ...state.units };
   for (let i = 0; i < spawnCount; i++) {
-    const offset = offsets[Math.floor(rng() * offsets.length)];
-    const pos: HexCoord = { q: city.position.q + offset.q, r: city.position.r + offset.r };
-    const key = `${pos.q},${pos.r}`;
-    if (!state.map.tiles[key]) continue; // off-map, skip
+    if (available.length === 0) break;
+    const index = Math.floor(rng() * available.length);
+    const [pos] = available.splice(index, 1);
+    if (!pos) continue;
     const rebel = createUnit(unitType, 'rebels', pos);
-    state.units[rebel.id] = rebel;
+    units = { ...units, [rebel.id]: rebel };
+    occupied.add(`${pos.q},${pos.r}`);
   }
+  return units;
 }
 
 // --- Main faction tick ---
 
+function clearEraOneUnrest(state: GameState): GameState {
+  let mutated = false;
+  const cities = { ...state.cities };
+
+  for (const [cityId, city] of Object.entries(state.cities)) {
+    if (city.unrestLevel === 0 && city.unrestTurns === 0 && city.spyUnrestBonus === 0) {
+      continue;
+    }
+    cities[cityId] = {
+      ...city,
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+    };
+    mutated = true;
+  }
+
+  return mutated ? { ...state, cities } : state;
+}
+
 export function processFactionTurn(state: GameState, bus: EventBus): GameState {
-  for (const cityId of Object.keys(state.cities)) {
-    const city = state.cities[cityId];
+  if (state.era <= 1) {
+    return clearEraOneUnrest(state);
+  }
+
+  let nextState = state;
+
+  for (const cityId of Object.keys(nextState.cities)) {
+    const city = nextState.cities[cityId];
     if (!city) continue;
 
     // Clear expired conquestTurn
     if (city.conquestTurn !== undefined &&
-        (state.turn - city.conquestTurn) >= CONQUEST_UNREST_DURATION) {
-      state.cities[cityId] = { ...state.cities[cityId], conquestTurn: undefined };
+        (nextState.turn - city.conquestTurn) >= CONQUEST_UNREST_DURATION) {
+      nextState = {
+        ...nextState,
+        cities: {
+          ...nextState.cities,
+          [cityId]: { ...city, conquestTurn: undefined },
+        },
+      };
     }
 
-    const pressure = computeUnrestPressure(cityId, state);
-    let updated = { ...state.cities[cityId] };
+    const currentCity = nextState.cities[cityId];
+    if (!currentCity) continue;
+    const initialCriticalStatus = currentCity.unrestLevel === 1
+      ? 'unrest'
+      : currentCity.unrestLevel === 2
+        ? 'revolt'
+        : null;
+    const pressure = computeUnrestPressure(cityId, nextState);
+    let updated = { ...currentCity };
 
     if (updated.unrestLevel === 0) {
       if (pressure > UNREST_TRIGGER_PRESSURE) {
         updated = { ...updated, unrestLevel: 1, unrestTurns: 0 };
-        state.cities[cityId] = updated;
+        nextState = {
+          ...nextState,
+          cities: { ...nextState.cities, [cityId]: updated },
+        };
         bus.emit('faction:unrest-started', { cityId, owner: city.owner });
       }
     } else if (updated.unrestLevel === 1) {
-      const garrisoned = canGarrisonCity(cityId, state);
+      const garrisoned = canGarrisonCity(cityId, nextState);
       if (pressure <= UNREST_TRIGGER_PRESSURE || garrisoned) {
         updated = { ...updated, unrestLevel: 0, unrestTurns: 0 };
-        state.cities[cityId] = updated;
+        nextState = {
+          ...nextState,
+          cities: { ...nextState.cities, [cityId]: updated },
+        };
         bus.emit('faction:unrest-resolved', { cityId, owner: city.owner });
       } else {
         updated = { ...updated, unrestTurns: updated.unrestTurns + 1 };
         if (updated.unrestTurns >= REVOLT_UNREST_TURNS) {
           updated = { ...updated, unrestLevel: 2, unrestTurns: 0 };
-          state.cities[cityId] = updated;
-          spawnRebelUnits(updated, state, `revolt-${cityId}-${state.turn}`);
+          nextState = {
+            ...nextState,
+            cities: { ...nextState.cities, [cityId]: updated },
+          };
+          nextState = {
+            ...nextState,
+            units: spawnRebelUnits(updated, nextState, `revolt-${cityId}-${nextState.turn}`),
+          };
           bus.emit('faction:revolt-started', { cityId, owner: city.owner });
         } else {
-          state.cities[cityId] = updated;
+          nextState = {
+            ...nextState,
+            cities: { ...nextState.cities, [cityId]: updated },
+          };
         }
       }
     } else if (updated.unrestLevel === 2) {
       // Revolt: resolve when rebels nearby are defeated AND pressure drops or city garrisoned
-      const nearbyRebels = Object.values(state.units).filter(
+      const nearbyRebels = Object.values(nextState.units).filter(
         u => u.owner === 'rebels' && hexDistance(u.position, city.position) <= 3,
       );
       if (nearbyRebels.length === 0 && pressure <= UNREST_TRIGGER_PRESSURE) {
         updated = { ...updated, unrestLevel: 0, unrestTurns: 0 };
-        state.cities[cityId] = updated;
+        nextState = {
+          ...nextState,
+          cities: { ...nextState.cities, [cityId]: updated },
+        };
         bus.emit('faction:unrest-resolved', { cityId, owner: city.owner });
       } else {
         updated = { ...updated, unrestTurns: updated.unrestTurns + 1 };
-        state.cities[cityId] = updated;
+        nextState = {
+          ...nextState,
+          cities: { ...nextState.cities, [cityId]: updated },
+        };
         if (updated.unrestTurns >= 10) {
-          state = createBreakawayFromCity(state, cityId, bus);
+          nextState = createBreakawayFromCity(nextState, cityId, bus);
         }
       }
     }
+
+    const finalCity = nextState.cities[cityId];
+    const finalCriticalStatus = finalCity?.unrestLevel === 1
+      ? 'unrest'
+      : finalCity?.unrestLevel === 2
+        ? 'revolt'
+        : null;
+    if (initialCriticalStatus && finalCriticalStatus === initialCriticalStatus && finalCity) {
+      bus.emit('faction:critical-status', {
+        cityId,
+        owner: finalCity.owner,
+        status: finalCriticalStatus,
+      });
+    }
   }
 
-  return state;
+  return nextState;
 }

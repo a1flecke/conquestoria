@@ -140,6 +140,12 @@ export function processBreakawayTurn(state: GameState, bus: EventBus): GameState
       continue;
     }
     if (state.turn < civ.breakaway.establishesOnTurn) {
+      bus.emit('faction:critical-status', {
+        cityId: civ.breakaway.originCityId,
+        owner: civ.breakaway.originOwnerId,
+        status: 'breakaway',
+        breakawayId: civId,
+      });
       continue;
     }
 

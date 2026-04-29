@@ -4,6 +4,7 @@ import {
   routeBarbarianSpawned,
   routeCombatResolved,
   routeLegendaryWonder,
+  routeFactionTransition,
   routePeaceMade,
   routePeaceRequested,
   routeWarDeclared,
@@ -144,6 +145,74 @@ describe('notification routing', () => {
     );
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p2');
+  });
+
+  it('routes breakaway-started as a critical warning to the origin owner', () => {
+    const state = makeState({
+      turn: 34,
+      cities: {
+        paris: { id: 'paris', name: 'Paris', owner: 'breakaway-paris', position: { q: 4, r: 2 } },
+      } as any,
+      civilizations: {
+        p1: { id: 'p1', name: 'France', diplomacy: { relationships: {}, atWarWith: [] }, visibility: { tiles: {} } },
+        'breakaway-paris': {
+          id: 'breakaway-paris',
+          name: 'Paris Secession',
+          diplomacy: { relationships: {}, atWarWith: [] },
+          visibility: { tiles: {} },
+          breakaway: { originOwnerId: 'p1', originCityId: 'paris', startedTurn: 34, establishesOnTurn: 84, status: 'secession' },
+        },
+      } as any,
+    });
+    const { sink, calls } = makeSink();
+
+    routeFactionTransition(
+      state,
+      { type: 'faction:breakaway-started', cityId: 'paris', oldOwner: 'p1', breakawayId: 'breakaway-paris' },
+      sink,
+    );
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'p1',
+        message: expect.stringMatching(/Paris.*broken away/i),
+        type: 'warning',
+      }),
+    ]);
+  });
+
+  it('routes recurring breakaway critical status to the origin owner', () => {
+    const state = makeState({
+      turn: 35,
+      cities: {
+        paris: { id: 'paris', name: 'Paris', owner: 'breakaway-paris', position: { q: 4, r: 2 } },
+      } as any,
+      civilizations: {
+        p1: { id: 'p1', name: 'France', diplomacy: { relationships: {}, atWarWith: [] }, visibility: { tiles: {} } },
+        'breakaway-paris': {
+          id: 'breakaway-paris',
+          name: 'Paris Secession',
+          diplomacy: { relationships: {}, atWarWith: [] },
+          visibility: { tiles: {} },
+          breakaway: { originOwnerId: 'p1', originCityId: 'paris', startedTurn: 34, establishesOnTurn: 84, status: 'secession' },
+        },
+      } as any,
+    });
+    const { sink, calls } = makeSink();
+
+    routeFactionTransition(
+      state,
+      { type: 'faction:critical-status', cityId: 'paris', owner: 'p1', status: 'breakaway', breakawayId: 'breakaway-paris' },
+      sink,
+    );
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'p1',
+        message: expect.stringMatching(/Paris.*still in secession/i),
+        type: 'warning',
+      }),
+    ]);
   });
 
   it('legendary-wonder-ready targets the builder only', () => {
