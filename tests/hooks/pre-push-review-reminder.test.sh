@@ -105,4 +105,26 @@ out=$(run "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $behind_repo
 out=$(run "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $ahead_repo && gh pr create --fill\"}}")
 [ "$out" = "rc=0" ] || { echo "FAIL: expected allow gh pr create (ahead, cd prefix), got: $out"; fail=1; }
 
+# ---------- multi-line command (heredoc body): path extraction must use line 1 only ----------
+
+# Simulate "cd /path && gh pr create --body $(cat <<'EOF'\n...\nEOF\n)"
+# The command string has newlines after the first line; the path must still be extracted correctly.
+multiline_cmd="cd $ahead_repo && gh pr create --title test --body \"\$(cat <<'EOF'
+## Summary
+some description
+EOF
+)\""
+multiline_payload="{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":$(printf '%s' "$multiline_cmd" | jq -Rs .)}}"
+out=$(run "$multiline_payload")
+[ "$out" = "rc=0" ] || { echo "FAIL: expected allow (ahead, multi-line cmd), got: $out"; fail=1; }
+
+multiline_cmd_behind="cd $behind_repo && gh pr create --title test --body \"\$(cat <<'EOF'
+## Summary
+some description
+EOF
+)\""
+multiline_payload_behind="{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":$(printf '%s' "$multiline_cmd_behind" | jq -Rs .)}}"
+out=$(run "$multiline_payload_behind")
+[ "$out" = "rc=2" ] || { echo "FAIL: expected block (behind, multi-line cmd), got: $out"; fail=1; }
+
 exit "$fail"
