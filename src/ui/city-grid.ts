@@ -332,6 +332,11 @@ function renderWorkedLandSection(root: HTMLElement, city: City, options: CityMan
   heading.textContent = 'Worked Land And Water';
   section.appendChild(heading);
 
+  const help = document.createElement('p');
+  help.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.55);margin:0;line-height:1.4;';
+  help.textContent = 'Workers build Farms (+2 food) and Mines (+2 production, +1 gold) on nearby tiles. Assign citizens to worked tiles each turn to collect their yields.';
+  section.appendChild(help);
+
   const workedKeys = new Set((city.workedTiles ?? []).map(coord => hexKey(coord)));
   const workedCount = Math.min(city.population, workedKeys.size);
   const unassigned = Math.max(0, city.population - workedCount);

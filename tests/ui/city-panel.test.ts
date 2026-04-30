@@ -343,6 +343,21 @@ describe('city-panel navigation', () => {
     expect(rendered).toContain('Water work: fishing/trapping');
   });
 
+  it('shows help text in the Worked Land And Water section explaining improvements', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Workers build Farms');
+    expect(rendered).toContain('Mines');
+  });
+
   it('shows claimed overlap tiles as unavailable', () => {
     const { container, city, state } = makeWonderPanelFixture();
     const claimed = { q: city.position.q + 1, r: city.position.r };
