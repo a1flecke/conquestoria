@@ -457,7 +457,7 @@ export function createCityGrid(
     introTitle.style.color = '#e8c170';
     introTitle.textContent = 'Grid View';
     intro.appendChild(introTitle);
-    intro.appendChild(document.createTextNode(' - Tap empty slots to place buildings, tap built slots to learn what they do, and use adjacency to make clever little combos.'));
+    intro.appendChild(document.createTextNode(' - Tap empty slots to place buildings, tap built slots to learn what they do, and use adjacency to make clever little combos. Workers can also build improvements (Farms, Mines) on surrounding tiles to boost your city\'s output.'));
     if (suggestedBuilding) {
       const suggested = document.createElement('div');
       suggested.style.cssText = 'color:#e8c170;margin-top:4px;';

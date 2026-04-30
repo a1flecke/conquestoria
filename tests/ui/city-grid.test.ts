@@ -6,6 +6,28 @@ import { generateMap } from '@/systems/map-generator';
 import { createCityGrid } from '@/ui/city-grid';
 
 describe('city-grid view', () => {
+  it('mentions improvements in the Grid View intro text', () => {
+    const previousDocument = globalThis.document;
+    const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' });
+    globalThis.document = dom.window.document;
+
+    try {
+      const map = generateMap(30, 30, 'city-grid-intro-test');
+      const city = foundCity('player', { q: 15, r: 15 }, map);
+      const container = document.createElement('div');
+
+      const panel = createCityGrid(container, city, map, {
+        onSlotTap: () => {},
+        onBuyExpansion: () => {},
+        onClose: () => {},
+      });
+
+      expect(panel.textContent).toContain('improvements');
+    } finally {
+      globalThis.document = previousDocument;
+    }
+  });
+
   it('renders the full 7x7 city grid with the city center in the visual center', () => {
     const previousDocument = globalThis.document;
     const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' });
