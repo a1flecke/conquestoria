@@ -5,6 +5,7 @@ import { foundCity } from '@/systems/city-system';
 import {
   buildCityWorkClaimIndex,
   canonicalizeCityCoord,
+  cityDistance,
   formatCityFoundingBlockerMessage,
   getCityFoundingBlockers,
   MIN_CITY_CENTER_DISTANCE,
@@ -133,5 +134,22 @@ describe('work claim indexing', () => {
 
     expect(normalized.state.cities[city.id].workedTiles).toEqual([]);
     expect(normalized.changedCityIds).toContain(city.id);
+  });
+});
+
+describe('minor-civ placement and founding distance invariant', () => {
+  it('no city-state city is within MIN_CITY_CENTER_DISTANCE wrapped hexes of a player start position', () => {
+    const state = createNewGame(undefined, 'minor-civ-wrap-placement');
+    const settlerPositions = Object.values(state.units)
+      .filter(u => u.type === 'settler')
+      .map(u => u.position);
+
+    for (const city of Object.values(state.cities)) {
+      if (!city.id.startsWith('mc-')) continue;
+      for (const settlerPos of settlerPositions) {
+        const dist = cityDistance(city.position, settlerPos, state.map);
+        expect(dist).toBeGreaterThanOrEqual(MIN_CITY_CENTER_DISTANCE);
+      }
+    }
   });
 });
