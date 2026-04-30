@@ -4,7 +4,7 @@ import { hexDistance, hexKey, wrapHexCoord, wrappedHexDistance } from './hex-uti
 export const MIN_CITY_CENTER_DISTANCE = 4;
 
 export interface CityFoundingBlocker {
-  reason: 'too-close' | 'invalid-terrain' | 'occupied' | 'unreachable';
+  reason: 'too-close' | 'invalid-terrain';
   cityId?: string;
   cityName?: string;
   distance?: number;
@@ -23,10 +23,6 @@ export interface CityWorkClaimNormalizationResult {
   changedCityIds: string[];
 }
 
-export interface CityFoundingValidationOptions {
-  ignoreUnitId?: string;
-}
-
 export function canonicalizeCityCoord(coord: HexCoord, map: GameMap): HexCoord {
   return map.wrapsHorizontally ? wrapHexCoord(coord, map.width) : { ...coord };
 }
@@ -43,22 +39,12 @@ function isValidCityCenterTerrain(state: GameState, position: HexCoord): boolean
 export function getCityFoundingBlockers(
   state: GameState,
   position: HexCoord,
-  options: CityFoundingValidationOptions = {},
 ): CityFoundingBlocker[] {
   const canonical = canonicalizeCityCoord(position, state.map);
   const blockers: CityFoundingBlocker[] = [];
 
   if (!isValidCityCenterTerrain(state, canonical)) {
     blockers.push({ reason: 'invalid-terrain' });
-  }
-
-  const occupied = Object.values(state.units).some(unit =>
-    unit.id !== options.ignoreUnitId &&
-    unit.position.q === canonical.q &&
-    unit.position.r === canonical.r,
-  );
-  if (occupied) {
-    blockers.push({ reason: 'occupied' });
   }
 
   for (const city of Object.values(state.cities)) {
@@ -79,16 +65,14 @@ export function getCityFoundingBlockers(
 export function canFoundCityAt(
   state: GameState,
   position: HexCoord,
-  options: CityFoundingValidationOptions = {},
 ): boolean {
-  return getCityFoundingBlockers(state, position, options).length === 0;
+  return getCityFoundingBlockers(state, position).length === 0;
 }
 
 export function formatCityFoundingBlockerMessage(blockers: CityFoundingBlocker[]): string {
   const tooClose = blockers.find(blocker => blocker.reason === 'too-close');
   if (tooClose?.cityName) return `Too close to ${tooClose.cityName}.`;
   if (blockers.some(blocker => blocker.reason === 'invalid-terrain')) return 'Cities must be founded on land.';
-  if (blockers.some(blocker => blocker.reason === 'occupied')) return 'Another unit is blocking this city site.';
   return 'This location cannot support a city.';
 }
 
