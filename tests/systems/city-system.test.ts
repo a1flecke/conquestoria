@@ -185,6 +185,59 @@ describe('processCity', () => {
     expect(result.city.grid.flat().filter(buildingId => buildingId === 'barracks')).toHaveLength(1);
     expect(getUnplacedBuildings(result.city)).toEqual([]);
   });
+
+  it('converts production to gold when queue is empty at turn start and idleProduction is gold', () => {
+    const map = generateMap(30, 30, 'idle-gold');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map);
+    const idle = { ...city, idleProduction: 'gold' as const, productionQueue: [] };
+
+    const result = processCity(idle, map, 0, 8);
+
+    expect(result.idleGoldBonus).toBe(8);
+    expect(result.idleScienceBonus).toBe(0);
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('converts production to science when queue is empty at turn start and idleProduction is science', () => {
+    const map = generateMap(30, 30, 'idle-science');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map);
+    const idle = { ...city, idleProduction: 'science' as const, productionQueue: [] };
+
+    const result = processCity(idle, map, 0, 5);
+
+    expect(result.idleScienceBonus).toBe(5);
+    expect(result.idleGoldBonus).toBe(0);
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('does not produce idle bonus when queue is non-empty even if idleProduction is set', () => {
+    const map = generateMap(30, 30, 'idle-ignored');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map);
+    const active = { ...city, idleProduction: 'gold' as const, productionQueue: ['workshop'], productionProgress: 0 };
+
+    const result = processCity(active, map, 0, 5);
+
+    expect(result.idleGoldBonus).toBe(0);
+    expect(result.idleScienceBonus).toBe(0);
+    expect(result.city.productionProgress).toBe(5);
+  });
+
+  it('does not produce idle bonus when the last queue item completes this turn', () => {
+    // workshop costs 12; progress=7 + yield=5 = 12 → completes this turn
+    const map = generateMap(30, 30, 'idle-completion-turn');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map);
+    const completing = { ...city, idleProduction: 'gold' as const, productionQueue: ['workshop'], productionProgress: 7 };
+
+    const result = processCity(completing, map, 0, 5);
+
+    expect(result.completedBuilding).toBe('workshop');
+    expect(result.idleGoldBonus).toBe(0);
+    expect(result.idleScienceBonus).toBe(0);
+  });
 });
 
 describe('expanded buildings', () => {
