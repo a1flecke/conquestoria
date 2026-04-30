@@ -51,11 +51,11 @@ describe('city founding territory rules', () => {
     expect(blockers).toContainEqual(expect.objectContaining({ reason: 'too-close', distance: 2 }));
   });
 
-  it('does not treat the founding settler as an occupied-tile blocker', () => {
-    const state = createNewGame(undefined, 'city-spacing-ignore-settler');
-    state.units['unit-settler-test'] = {
-      id: 'unit-settler-test',
-      type: 'settler',
+  it('does not block founding when a friendly warrior shares the tile', () => {
+    const state = createNewGame(undefined, 'city-found-with-warrior');
+    state.units['unit-warrior-test'] = {
+      id: 'unit-warrior-test',
+      type: 'warrior',
       owner: 'player',
       position: { q: 12, r: 12 },
       movementPointsLeft: 2,
@@ -65,14 +65,31 @@ describe('city founding territory rules', () => {
       hasActed: false,
       isResting: false,
     };
-    state.map.tiles['12,12'] = {
-      ...state.map.tiles['12,12'],
-      terrain: 'grassland',
+    state.map.tiles['12,12'] = { ...state.map.tiles['12,12'], terrain: 'grassland' };
+
+    const blockers = getCityFoundingBlockers(state, { q: 12, r: 12 });
+
+    expect(blockers.find(b => b.reason === 'occupied')).toBeUndefined();
+    expect(blockers.filter(b => b.reason !== 'too-close')).toHaveLength(0);
+  });
+
+  it('does not block founding when settler and warrior share the same tile (turn-1 scenario)', () => {
+    const state = createNewGame(undefined, 'city-found-any-unit');
+    state.units['unit-a'] = {
+      id: 'unit-a', type: 'settler', owner: 'player',
+      position: { q: 5, r: 5 }, movementPointsLeft: 2,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     };
+    state.units['unit-b'] = {
+      id: 'unit-b', type: 'warrior', owner: 'player',
+      position: { q: 5, r: 5 }, movementPointsLeft: 2,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    state.map.tiles['5,5'] = { ...state.map.tiles['5,5'], terrain: 'grassland' };
 
-    const blockers = getCityFoundingBlockers(state, { q: 12, r: 12 }, { ignoreUnitId: 'unit-settler-test' });
+    const blockers = getCityFoundingBlockers(state, { q: 5, r: 5 });
 
-    expect(blockers.find(blocker => blocker.reason === 'occupied')).toBeUndefined();
+    expect(blockers.find(b => b.reason === 'occupied')).toBeUndefined();
   });
 
   it('formats player-facing founding blocker messages', () => {
@@ -80,7 +97,6 @@ describe('city founding territory rules', () => {
       { reason: 'too-close', cityName: 'Ephyra', distance: 2 },
     ])).toBe('Too close to Ephyra.');
     expect(formatCityFoundingBlockerMessage([{ reason: 'invalid-terrain' }])).toBe('Cities must be founded on land.');
-    expect(formatCityFoundingBlockerMessage([{ reason: 'occupied' }])).toBe('Another unit is blocking this city site.');
   });
 });
 
