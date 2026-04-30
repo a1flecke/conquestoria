@@ -4,7 +4,7 @@ import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { getEraAdvancementTechs } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
-import { hexDistance, hexKey, hexNeighbors } from './hex-utils';
+import { hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { foundCity } from './city-system';
 import { collectUsedCityNames } from './city-name-system';
@@ -72,6 +72,7 @@ export function placeMinorCivs(
       startPositions,
       cityPositions,
       placedPositions,
+      state.map.width,
     );
     if (!pos) continue;
 
@@ -121,11 +122,12 @@ function findValidPosition(
   startPositions: HexCoord[],
   cityPositions: HexCoord[],
   placedPositions: HexCoord[],
+  mapWidth: number,
 ): HexCoord | null {
   for (const pos of candidates) {
-    if (startPositions.some(s => hexDistance(pos, s) < 8)) continue;
-    if (cityPositions.some(c => hexDistance(pos, c) < 6)) continue;
-    if (placedPositions.some(p => hexDistance(pos, p) < 10)) continue;
+    if (startPositions.some(s => wrappedHexDistance(pos, s, mapWidth) < 8)) continue;
+    if (cityPositions.some(c => wrappedHexDistance(pos, c, mapWidth) < 6)) continue;
+    if (placedPositions.some(p => wrappedHexDistance(pos, p, mapWidth) < 10)) continue;
     return pos;
   }
   return null;
@@ -150,8 +152,8 @@ export function processMinorCivTurn(state: GameState, bus: EventBus): GameState 
 
     processMovement(state, mc);
     processQuests(state, mc, def, bus);
-    applyAllyBonuses(state, mc, def, bus);
-    processGarrison(state, mc);
+    state = applyAllyBonuses(state, mc, def, bus);
+    state = processGarrison(state, mc);
     emitRelationshipThresholds(state, mc, bus);
   }
 
@@ -203,7 +205,7 @@ function processQuests(state: GameState, mc: MinorCivState, def: { archetype: an
   }
 }
 
-function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus: any }, bus: EventBus): void {
+function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus: any }, bus: EventBus): GameState {
   for (const [civId, rel] of Object.entries(mc.diplomacy.relationships)) {
     if (rel < 60) continue;
 
@@ -221,19 +223,20 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
         }
         break;
       case 'production_per_turn': {
-        const firstCityId = civ.cities[0];
-        const firstCity = firstCityId ? state.cities[firstCityId] : null;
-        if (firstCity && firstCity.productionQueue.length > 0) {
-          firstCity.productionProgress += def.allyBonus.amount;
+        const cityWithQueue = civ.cities
+          .map(id => state.cities[id])
+          .find(c => c && c.productionQueue.length > 0);
+        if (cityWithQueue) {
+          cityWithQueue.productionProgress += def.allyBonus.amount;
         }
         break;
       }
       case 'free_unit': {
         if (state.turn % def.allyBonus.everyNTurns === 0) {
-          const city = civ.cities[0] ? state.cities[civ.cities[0]] : null;
+          const city = civ.cities.map(id => state.cities[id]).find(c => !!c);
           if (city) {
             const freeUnit = createUnit(def.allyBonus.unitType, civId, city.position);
-            state.units[freeUnit.id] = freeUnit;
+            state = { ...state, units: { ...state.units, [freeUnit.id]: freeUnit } };
             civ.units.push(freeUnit.id);
           }
         }
@@ -241,6 +244,7 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
       }
     }
   }
+  return state;
 }
 
 function processMovement(state: GameState, mc: MinorCivState): void {
@@ -298,7 +302,7 @@ function emitRelationshipThresholds(state: GameState, mc: MinorCivState, bus: Ev
   }
 }
 
-function processGarrison(state: GameState, mc: MinorCivState): void {
+function processGarrison(state: GameState, mc: MinorCivState): GameState {
   const aliveUnits = mc.units.filter(uid => state.units[uid]);
   mc.units = aliveUnits;
 
@@ -312,13 +316,14 @@ function processGarrison(state: GameState, mc: MinorCivState): void {
         const occupied = Object.values(state.units).some(u => hexKey(u.position) === cityKey);
         if (!occupied) {
           const garrison = createUnit('warrior', mc.id, city.position);
-          state.units[garrison.id] = garrison;
+          state = { ...state, units: { ...state.units, [garrison.id]: garrison } };
           mc.units.push(garrison.id);
           mc.garrisonCooldown = 3;
         }
       }
     }
   }
+  return state;
 }
 
 function makeRng(seed: number): () => number {
@@ -368,18 +373,18 @@ export function conquestMinorCiv(
 
 // === Guerrilla & Scuffles ===
 
-export function processGuerrilla(state: GameState, mc: MinorCivState, bus: EventBus): void {
-  if (mc.isDestroyed) return;
-  if (mc.diplomacy.atWarWith.length === 0) return;
+export function processGuerrilla(state: GameState, mc: MinorCivState, bus: EventBus): GameState {
+  if (mc.isDestroyed) return state;
+  if (mc.diplomacy.atWarWith.length === 0) return state;
 
   const guerrillaCount = mc.units.filter(uid => state.units[uid]).length - 1;
-  if (guerrillaCount >= 2) return;
+  if (guerrillaCount >= 2) return state;
 
   const city = state.cities[mc.cityId];
-  if (!city) return;
+  if (!city) return state;
 
   const guerrilla = createUnit('warrior', mc.id, city.position);
-  state.units[guerrilla.id] = guerrilla;
+  state = { ...state, units: { ...state.units, [guerrilla.id]: guerrilla } };
   mc.units.push(guerrilla.id);
 
   bus.emit('minor-civ:guerrilla', {
@@ -387,6 +392,7 @@ export function processGuerrilla(state: GameState, mc: MinorCivState, bus: Event
     targetCivId: mc.diplomacy.atWarWith[0],
     position: city.position,
   });
+  return state;
 }
 
 export function processScuffles(state: GameState, bus: EventBus): void {

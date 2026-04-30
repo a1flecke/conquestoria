@@ -321,24 +321,24 @@ describe('conquest mechanics', () => {
 
 describe('guerrilla behavior', () => {
   it('spawns guerrilla units when at war (max 2)', () => {
-    const state = createNewGame(undefined, 'mc-guerrilla', 'small');
+    let state = createNewGame(undefined, 'mc-guerrilla', 'small');
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
     const mc = state.minorCivs[mcId];
     mc.diplomacy.atWarWith.push('player');
 
-    processGuerrilla(state, mc, bus);
+    state = processGuerrilla(state, mc, bus);
     expect(mc.units.length).toBeLessThanOrEqual(3);
   });
 
   it('does not spawn guerrilla when not at war', () => {
-    const state = createNewGame(undefined, 'mc-no-guerrilla', 'small');
+    let state = createNewGame(undefined, 'mc-no-guerrilla', 'small');
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
     const mc = state.minorCivs[mcId];
     const unitsBefore = mc.units.length;
 
-    processGuerrilla(state, mc, bus);
+    state = processGuerrilla(state, mc, bus);
     expect(mc.units.length).toBe(unitsBefore);
   });
 });
