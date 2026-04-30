@@ -2467,7 +2467,6 @@ function showGameModeSelection(): void {
             gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
           }
           startGame();
-          showNotification('Your tribe has settled near a river...', 'info');
         },
         onCustomCivilizationsChanged: (customCivilizations) => {
           updatePersistedCustomCivilizations(customCivilizations);
