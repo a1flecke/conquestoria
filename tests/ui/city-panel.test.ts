@@ -343,6 +343,35 @@ describe('city-panel navigation', () => {
     expect(rendered).toContain('Water work: fishing/trapping');
   });
 
+  it('shows mine yield bonus in worked-land tile row', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const hillTile = { q: city.position.q + 1, r: city.position.r };
+    state.map.tiles[hexKey(hillTile)] = {
+      ...state.map.tiles[hexKey(hillTile)],
+      coord: hillTile,
+      terrain: 'hills',
+      elevation: 'highland',
+      improvement: 'mine',
+      improvementTurnsLeft: 0,
+      owner: city.owner,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    city.ownedTiles = [city.position, hillTile];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    expect(collectText(panel)).toContain('Mine (+2 production, +1 gold)');
+  });
+
   it('shows help text in the Worked Land And Water section explaining improvements', () => {
     const { container, city, state } = makeWonderPanelFixture();
     const panel = createCityPanel(container, city, state, {
@@ -354,8 +383,8 @@ describe('city-panel navigation', () => {
     });
     clickElement(panel.querySelector('[id="tab-grid"]'));
     const rendered = collectText(panel);
-    expect(rendered).toContain('Workers build Farms');
-    expect(rendered).toContain('Mines');
+    expect(rendered).toContain('Workers build Farms (+2 food)');
+    expect(rendered).toContain('Mines (+2 production, +1 gold)');
   });
 
   it('shows claimed overlap tiles as unavailable', () => {
