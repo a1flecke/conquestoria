@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { generateMap } from '@/systems/map-generator';
 import { createTechState } from '@/systems/tech-system';
 import {
   enqueueCityProduction,
   enqueueResearch,
+  getIdleCityIds,
   getRecommendedIdleCityChoice,
   moveQueuedId,
+  needsResearchChoice,
   removeQueuedId,
   reorderCityProduction,
+  setIdleProduction,
 } from '@/systems/planning-system';
 
 describe('planning-system city queues', () => {
@@ -97,5 +101,48 @@ describe('planning-system city queues', () => {
 
     expect(choice).not.toBeNull();
     expect(choice?.itemId).not.toBe('herbalist');
+  });
+});
+
+describe('setIdleProduction', () => {
+  it('sets idleProduction mode on the city', () => {
+    const city = { productionQueue: [], idleProduction: null } as any;
+    const updated = setIdleProduction(city, 'gold');
+    expect(updated.idleProduction).toBe('gold');
+    expect(updated.productionQueue).toEqual([]);
+  });
+
+  it('clears idleProduction when mode is null', () => {
+    const city = { productionQueue: [], idleProduction: 'science' } as any;
+    const cleared = setIdleProduction(city, null);
+    expect(cleared.idleProduction).toBeNull();
+  });
+});
+
+describe('getIdleCityIds idle-production exclusion', () => {
+  it('excludes cities that have idleProduction set even if queue is empty', () => {
+    const state = createNewGame(undefined, 'idle-exclude-seed', 'small');
+    const playerId = state.currentPlayer;
+    const map = generateMap(20, 20, 'idle-exclude');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = { ...foundCity(playerId, tile.coord, map), productionQueue: [], idleProduction: 'gold' as const };
+    state.cities = { [city.id]: city };
+    state.civilizations[playerId].cities = [city.id];
+
+    const ids = getIdleCityIds(state, playerId);
+    expect(ids).not.toContain(city.id);
+  });
+
+  it('includes cities with empty queue and no idleProduction set', () => {
+    const state = createNewGame(undefined, 'idle-include-seed', 'small');
+    const playerId = state.currentPlayer;
+    const map = generateMap(20, 20, 'idle-include');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = { ...foundCity(playerId, tile.coord, map), productionQueue: [], idleProduction: null };
+    state.cities = { [city.id]: city };
+    state.civilizations[playerId].cities = [city.id];
+
+    const ids = getIdleCityIds(state, playerId);
+    expect(ids).toContain(city.id);
   });
 });
