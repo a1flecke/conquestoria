@@ -233,9 +233,11 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
       }
       case 'free_unit': {
         if (state.turn % def.allyBonus.everyNTurns === 0) {
-          const city = civ.cities.map(id => state.cities[id]).find(c => !!c);
-          if (city) {
-            const freeUnit = createUnit(def.allyBonus.unitType, civId, city.position);
+          const spawnCity = civ.cities
+            .map(id => state.cities[id])
+            .find(c => c && !Object.values(state.units).some(u => hexKey(u.position) === hexKey(c.position)));
+          if (spawnCity) {
+            const freeUnit = createUnit(def.allyBonus.unitType, civId, spawnCity.position);
             state = { ...state, units: { ...state.units, [freeUnit.id]: freeUnit } };
             civ.units.push(freeUnit.id);
           }
@@ -382,6 +384,10 @@ export function processGuerrilla(state: GameState, mc: MinorCivState, bus: Event
 
   const city = state.cities[mc.cityId];
   if (!city) return state;
+
+  const cityKey = hexKey(city.position);
+  const cityOccupied = Object.values(state.units).some(u => hexKey(u.position) === cityKey);
+  if (cityOccupied) return state;
 
   const guerrilla = createUnit('warrior', mc.id, city.position);
   state = { ...state, units: { ...state.units, [guerrilla.id]: guerrilla } };

@@ -145,7 +145,7 @@ describe('minor-civ placement and founding distance invariant', () => {
       .map(u => u.position);
 
     for (const city of Object.values(state.cities)) {
-      if (!city.id.startsWith('mc-')) continue;
+      if (!city.owner.startsWith('mc-')) continue;
       for (const settlerPos of settlerPositions) {
         const dist = cityDistance(city.position, settlerPos, state.map);
         expect(dist).toBeGreaterThanOrEqual(MIN_CITY_CENTER_DISTANCE);
