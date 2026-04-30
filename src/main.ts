@@ -1259,7 +1259,7 @@ function foundCityAction(): void {
   if (!unit || unit.type !== 'settler') return;
 
   const cp = gameState.currentPlayer;
-  const blockers = getCityFoundingBlockers(gameState, unit.position, { ignoreUnitId: unit.id });
+  const blockers = getCityFoundingBlockers(gameState, unit.position);
   if (blockers.length > 0) {
     showNotification(formatCityFoundingBlockerMessage(blockers), 'warning');
     return;

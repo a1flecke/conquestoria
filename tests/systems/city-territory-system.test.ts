@@ -69,7 +69,7 @@ describe('city founding territory rules', () => {
 
     const blockers = getCityFoundingBlockers(state, { q: 12, r: 12 });
 
-    expect(blockers.find(b => b.reason === 'occupied')).toBeUndefined();
+    // Only distance blockers (from pre-existing AI start cities) are acceptable — no terrain or unit blockers.
     expect(blockers.filter(b => b.reason !== 'too-close')).toHaveLength(0);
   });
 
@@ -89,7 +89,8 @@ describe('city founding territory rules', () => {
 
     const blockers = getCityFoundingBlockers(state, { q: 5, r: 5 });
 
-    expect(blockers.find(b => b.reason === 'occupied')).toBeUndefined();
+    // Only distance blockers acceptable — units must never block founding.
+    expect(blockers.filter(b => b.reason !== 'too-close')).toHaveLength(0);
   });
 
   it('formats player-facing founding blocker messages', () => {
