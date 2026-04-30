@@ -339,7 +339,7 @@ describe('city-panel navigation', () => {
 
     clickElement(panel.querySelector('[id="tab-grid"]'));
     const rendered = collectText(panel);
-    expect(rendered).toContain('Farm');
+    expect(rendered).toContain('Farm (+2 food)');
     expect(rendered).toContain('Water work: fishing/trapping');
   });
 

@@ -3,6 +3,7 @@ import { hexKey, hexesInRange } from '@/systems/hex-utils';
 import { BUILDINGS, getUnplacedBuildings } from '@/systems/city-system';
 import { calculateAdjacencyBonuses, findOptimalSlot } from '@/systems/adjacency-system';
 import { TERRAIN_YIELDS } from '@/systems/resource-system';
+import { getImprovementYieldBonus } from '@/systems/improvement-system';
 import {
   assignCityFocus,
   calculateProjectedCityYields,
@@ -376,7 +377,16 @@ function renderWorkedLandSection(root: HTMLElement, city: City, options: CityMan
 
     const text = document.createElement('div');
     const labels = [titleCase(tile.terrain), formatYield(entry.yield)];
-    if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) labels.push(titleCase(tile.improvement));
+    if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) {
+      const bonus = getImprovementYieldBonus(tile.improvement);
+      const bonusParts: string[] = [];
+      if (bonus.food) bonusParts.push(`+${bonus.food} food`);
+      if (bonus.production) bonusParts.push(`+${bonus.production} production`);
+      if (bonus.gold) bonusParts.push(`+${bonus.gold} gold`);
+      if (bonus.science) bonusParts.push(`+${bonus.science} science`);
+      const bonusText = bonusParts.length > 0 ? ` (${bonusParts.join(', ')})` : '';
+      labels.push(`${titleCase(tile.improvement)}${bonusText}`);
+    }
     if (entry.isWater) labels.push('Water work: fishing/trapping');
     const blockedByCapacity = !worked && entry.available && !hasOpenCitizen;
     if (entry.claim) {
