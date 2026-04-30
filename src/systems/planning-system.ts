@@ -91,6 +91,7 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
   return Object.values(state.cities)
     .filter(city => city.owner === civId)
     .filter(city => city.productionQueue.length === 0)
+    .filter(city => !city.idleProduction)
     .filter(city => {
       const buildableBuildings = getAvailableBuildings(city, completedTechs).length > 0;
       const buildableUnits = TRAINABLE_UNITS.some(unit => !unit.techRequired || completedTechs.includes(unit.techRequired));
@@ -155,4 +156,8 @@ export function getRecommendedIdleCityChoice(
     cost: best.cost,
     turns: best.turns,
   };
+}
+
+export function setIdleProduction(city: City, mode: 'gold' | 'science' | null): City {
+  return { ...city, idleProduction: mode };
 }
