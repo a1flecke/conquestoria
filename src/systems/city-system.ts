@@ -161,6 +161,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, optio
     unrestLevel: 0,
     unrestTurns: 0,
     spyUnrestBonus: 0,
+    idleProduction: null,
   };
 }
 
