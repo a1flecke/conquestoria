@@ -281,6 +281,7 @@ export interface City {
   occupation?: OccupiedCityState;
   spyUnrestBonus: number;      // bonus pressure injected by enemy espionage; decays 5/turn
   productionDisabledTurns?: number; // late-game sabotage/cyber effect timer
+  idleProduction?: 'gold' | 'science' | null; // conversion mode when queue is empty
 }
 
 // --- Tech ---
