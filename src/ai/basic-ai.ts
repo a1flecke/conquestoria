@@ -313,7 +313,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
   for (const settler of settlers) {
     const tile = newState.map.tiles[hexKey(settler.position)];
-    if (tile && canFoundCityAt(newState, settler.position, { ignoreUnitId: settler.id })) {
+    if (tile && canFoundCityAt(newState, settler.position)) {
       const city = foundCity(civId, settler.position, newState.map, {
         civType: civ.civType,
         namingPool: civDef?.cityNames,
