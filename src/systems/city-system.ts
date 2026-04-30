@@ -211,6 +211,8 @@ export interface CityProcessResult {
   grew: boolean;
   completedBuilding: string | null;
   completedUnit: UnitType | null;
+  idleGoldBonus: number;
+  idleScienceBonus: number;
 }
 
 export function processCity(
@@ -295,6 +297,16 @@ export function processCity(
     }
   }
 
+  let idleGoldBonus = 0;
+  let idleScienceBonus = 0;
+  if (city.productionQueue.length === 0 && city.idleProduction) {
+    if (city.idleProduction === 'gold') {
+      idleGoldBonus = productionYield;
+    } else if (city.idleProduction === 'science') {
+      idleScienceBonus = productionYield;
+    }
+  }
+
   let nextCity: City = {
     ...city,
     food: newFood,
@@ -314,6 +326,8 @@ export function processCity(
     grew,
     completedBuilding,
     completedUnit,
+    idleGoldBonus,
+    idleScienceBonus,
   };
 }
 
