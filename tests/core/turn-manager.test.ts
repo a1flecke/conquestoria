@@ -4,6 +4,8 @@ import { EventBus } from '@/core/event-bus';
 import type { CustomCivDefinition, GameState, UnitType } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
+import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createVisibilityMap, getVisibility } from '@/systems/fog-of-war';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { hexKey } from '@/systems/hex-utils';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
@@ -22,6 +24,33 @@ const customCiv: CustomCivDefinition = {
   primaryTrait: 'scholarly',
   temperamentTraits: ['diplomatic', 'trader'],
 };
+
+function createWrappedGrasslandMap(width: number, height: number): GameState['map'] {
+  const tiles: GameState['map']['tiles'] = {};
+  for (let q = 0; q < width; q++) {
+    for (let r = 0; r < height; r++) {
+      tiles[hexKey({ q, r })] = {
+        coord: { q, r },
+        terrain: 'grassland',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        owner: null,
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+      };
+    }
+  }
+
+  return {
+    width,
+    height,
+    wrapsHorizontally: true,
+    tiles,
+    rivers: [],
+  };
+}
 
 describe('processTurn', () => {
   it('increments the turn counter', () => {
@@ -99,6 +128,43 @@ describe('processTurn', () => {
 
     const result = processTurn(state, bus);
     expect(Object.keys(result.minorCivs).length).toBeGreaterThan(0);
+  });
+
+  it('persists wrapped minor-civ proximity reveal on the returned turn state', () => {
+    const state = createNewGame(undefined, 'minor-civ-wrap-visibility', 'small');
+    state.map = createWrappedGrasslandMap(5, 4);
+    state.units = {};
+    state.cities = {};
+    state.minorCivs = {};
+
+    for (const civ of Object.values(state.civilizations)) {
+      civ.units = [];
+      civ.cities = [];
+      civ.visibility = createVisibilityMap();
+    }
+
+    state.civilizations.player.visibility.tiles['4,1'] = 'fog';
+
+    const minorCity = foundCity('mc-geneva', { q: 0, r: 1 }, state.map);
+    minorCity.id = 'city-geneva';
+    minorCity.name = 'Geneva';
+    minorCity.owner = 'mc-geneva';
+    state.cities[minorCity.id] = minorCity;
+    state.minorCivs['mc-geneva'] = {
+      id: 'mc-geneva',
+      definitionId: 'geneva',
+      cityId: minorCity.id,
+      units: [],
+      diplomacy: createDiplomacyState(['player', 'mc-geneva'], 'mc-geneva'),
+      activeQuests: {},
+      isDestroyed: false,
+      garrisonCooldown: 0,
+      lastEraUpgrade: 0,
+    };
+
+    const result = processTurn(state, new EventBus());
+
+    expect(getVisibility(result.civilizations.player.visibility, { q: 0, r: 1 })).toBe('visible');
   });
 
   it('advances research progress when a city exists and tech is selected', () => {

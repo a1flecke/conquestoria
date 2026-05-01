@@ -1,5 +1,5 @@
 import type { VisibilityMap, VisibilityState, HexCoord, Unit, GameMap, GameState } from '@/core/types';
-import { hexKey, hexesInRange, hexDistance } from './hex-utils';
+import { hexKey, hexesInRange, hexDistance, getWrappedHexesInRange, wrapHexCoord, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderVisionBonus } from './wonder-system';
 import { resolveCivDefinition } from './civ-registry';
@@ -24,6 +24,21 @@ export function isUnexplored(vis: VisibilityMap, coord: HexCoord): boolean {
   return getVisibility(vis, coord) === 'unexplored';
 }
 
+function getVisibilityRange(center: HexCoord, range: number, map?: GameMap): HexCoord[] {
+  if (map?.wrapsHorizontally) {
+    return getWrappedHexesInRange(center, range, map.width);
+  }
+  return hexesInRange(center, range);
+}
+
+function canonicalVisibilityCoord(coord: HexCoord, map?: GameMap): HexCoord {
+  return map?.wrapsHorizontally ? wrapHexCoord(coord, map.width) : coord;
+}
+
+function visibilityDistance(a: HexCoord, b: HexCoord, map: GameMap): number {
+  return map.wrapsHorizontally ? wrappedHexDistance(a, b, map.width) : hexDistance(a, b);
+}
+
 /**
  * Recalculates visibility for a player based on their units and cities.
  * Returns newly revealed tiles (were unexplored, now visible).
@@ -44,13 +59,14 @@ export function updateVisibility(
   const newlyRevealed: HexCoord[] = [];
 
   const revealTile = (coord: HexCoord) => {
-    const key = hexKey(coord);
+    const canonical = canonicalVisibilityCoord(coord, map);
+    const key = hexKey(canonical);
     if (!map.tiles[key]) return; // off map
 
     const prev = vis.tiles[key];
     vis.tiles[key] = 'visible';
     if (!prev || prev === 'unexplored') {
-      newlyRevealed.push(coord);
+      newlyRevealed.push(canonical);
     }
   };
 
@@ -60,11 +76,12 @@ export function updateVisibility(
     const visionRange = def.visionRange;
 
     // Check if unit is on elevated terrain for bonus
-    const unitTile = map.tiles[hexKey(unit.position)];
+    const unitPosition = canonicalVisibilityCoord(unit.position, map);
+    const unitTile = map.tiles[hexKey(unitPosition)];
     const bonus = unitTile ? getTerrainVisionBonus(unitTile.terrain) : 0;
     const wonderBonus = unitTile?.wonder ? getWonderVisionBonus(unitTile.wonder) : 0;
 
-    const visible = hexesInRange(unit.position, visionRange + bonus + wonderBonus);
+    const visible = getVisibilityRange(unitPosition, visionRange + bonus + wonderBonus, map);
     for (const coord of visible) {
       revealTile(coord);
     }
@@ -72,7 +89,7 @@ export function updateVisibility(
 
   // Reveal around each city (vision range 2)
   for (const cityPos of cityPositions) {
-    const visible = hexesInRange(cityPos, 2);
+    const visible = getVisibilityRange(canonicalVisibilityCoord(cityPos, map), 2, map);
     for (const coord of visible) {
       revealTile(coord);
     }
@@ -90,12 +107,14 @@ export function getTerrainVisionBonus(terrain: string): number {
 export function revealMinorCivCities(
   vis: VisibilityMap,
   mcCityPositions: HexCoord[],
+  map?: GameMap,
 ): void {
   for (const cityPos of mcCityPositions) {
-    const key = hexKey(cityPos);
+    const cityCoord = canonicalVisibilityCoord(cityPos, map);
+    const key = hexKey(cityCoord);
     if (vis.tiles[key] === 'visible') continue;
 
-    const nearby = hexesInRange(cityPos, 2);
+    const nearby = getVisibilityRange(cityCoord, 2, map);
     const anyExplored = nearby.some(h => {
       const k = hexKey(h);
       return vis.tiles[k] === 'fog' || vis.tiles[k] === 'visible';
@@ -113,7 +132,7 @@ export function applySharedVision(
   map: GameMap,
 ): void {
   for (const pos of positions) {
-    const range = hexesInRange(pos, 2);
+    const range = getVisibilityRange(canonicalVisibilityCoord(pos, map), 2, map);
     for (const hex of range) {
       const key = hexKey(hex);
       if (map.tiles[key]) {
@@ -155,7 +174,8 @@ export function isForestConcealedUnit(
     return false;
   }
 
-  const tile = state.map.tiles[hexKey(unit.position)];
+  const unitPosition = canonicalVisibilityCoord(unit.position, state.map);
+  const tile = state.map.tiles[hexKey(unitPosition)];
   if (tile?.terrain !== 'forest') {
     return false;
   }
@@ -168,7 +188,11 @@ export function isForestConcealedUnit(
   const hasAdjacentUnit = viewer.units
     .map(unitId => state.units[unitId])
     .filter(Boolean)
-    .some(viewerUnit => hexDistance(viewerUnit!.position, unit.position) <= 1);
+    .some(viewerUnit => visibilityDistance(
+      canonicalVisibilityCoord(viewerUnit!.position, state.map),
+      unitPosition,
+      state.map,
+    ) <= 1);
   if (hasAdjacentUnit) {
     return false;
   }
@@ -176,6 +200,10 @@ export function isForestConcealedUnit(
   const hasAdjacentCity = viewer.cities
     .map(cityId => state.cities[cityId])
     .filter(Boolean)
-    .some(city => hexDistance(city!.position, unit.position) <= 1);
+    .some(city => visibilityDistance(
+      canonicalVisibilityCoord(city!.position, state.map),
+      unitPosition,
+      state.map,
+    ) <= 1);
   return !hasAdjacentCity;
 }

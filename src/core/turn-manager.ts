@@ -291,7 +291,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       .filter(mc => !mc.isDestroyed)
       .map(mc => newState.cities[mc.cityId]?.position)
       .filter(Boolean) as HexCoord[];
-    revealMinorCivCities(civ.visibility, mcCityPositions);
+    revealMinorCivCities(newState.civilizations[civId].visibility, mcCityPositions, newState.map);
 
     // Shared vision for friendly minor civs
     for (const mc of Object.values(newState.minorCivs)) {
@@ -302,7 +302,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
           newState.cities[mc.cityId]?.position,
           ...mc.units.map(uid => newState.units[uid]?.position),
         ].filter(Boolean) as HexCoord[];
-        applySharedVision(civ.visibility, mcPositions, newState.map);
+        applySharedVision(newState.civilizations[civId].visibility, mcPositions, newState.map);
       }
     }
 

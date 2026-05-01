@@ -4,6 +4,7 @@ import {
   hexNeighbors,
   hexDistance,
   getWrappedHexNeighbors,
+  getWrappedHexesInRange,
   hexRing,
   hexesInRange,
   pixelToHex,
@@ -125,5 +126,23 @@ describe('wrapped hex helpers', () => {
   it('uses the wrapped distance across horizontal seams', () => {
     expect(wrappedHexDistance({ q: 0, r: 0 }, { q: 4, r: 0 }, 5)).toBe(1);
     expect(wrappedHexDistance({ q: 0, r: 0 }, { q: 3, r: 0 }, 5)).toBe(2);
+  });
+
+  it('wraps every coordinate in a range through the horizontal seam', () => {
+    const range = getWrappedHexesInRange({ q: 0, r: 1 }, 1, 5);
+
+    expect(range).toContainEqual({ q: 4, r: 1 });
+    expect(range).toContainEqual({ q: 4, r: 2 });
+    expect(range).toContainEqual({ q: 0, r: 1 });
+    expect(range).toContainEqual({ q: 1, r: 0 });
+  });
+
+  it('deduplicates wrapped range coordinates using canonical keys', () => {
+    const range = getWrappedHexesInRange({ q: 0, r: 1 }, 3, 5);
+    const keys = range.map(hexKey);
+
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys.every(key => Number(key.split(',')[0]) >= 0)).toBe(true);
+    expect(keys.every(key => Number(key.split(',')[0]) < 5)).toBe(true);
   });
 });
