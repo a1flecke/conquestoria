@@ -11,7 +11,7 @@ import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DES
 import { foundCity } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
-import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction } from '@/systems/planning-system';
+import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
@@ -596,6 +596,12 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       }
       executeUpgrade(unitId, upgrade.targetType, upgrade.cost);
       showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
+    },
+    onSetIdleProduction: (cityId, mode) => {
+      const targetCity = gameState.cities[cityId];
+      if (!targetCity) return;
+      gameState.cities[cityId] = setIdleProduction(targetCity, mode);
+      renderLoop.setGameState(gameState);
     },
   });
 }
