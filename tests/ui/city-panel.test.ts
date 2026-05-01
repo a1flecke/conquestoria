@@ -885,11 +885,11 @@ describe('city-panel idle production selector', () => {
       onBuild: () => {},
       onOpenWonderPanel: () => {},
       onClose: () => {},
-      onSetIdleProduction: (cityId, mode) => {
+      onSetIdleProduction: (cityId: string, mode: 'gold' | 'science' | null) => {
         state.cities[cityId] = { ...state.cities[cityId]!, idleProduction: mode };
         onSetIdleProduction(cityId, mode);
       },
-    } as any);
+    });
     const goldBtn = panel.querySelector<HTMLElement>('[data-idle-mode="gold"]');
     expect(goldBtn).toBeTruthy();
     goldBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
