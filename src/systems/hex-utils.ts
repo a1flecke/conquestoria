@@ -129,6 +129,15 @@ export function getWrappedHexNeighbors(coord: HexCoord, mapWidth: number): HexCo
   return Array.from(deduped.values());
 }
 
+export function getWrappedHexesInRange(center: HexCoord, range: number, mapWidth: number): HexCoord[] {
+  const deduped = new Map<string, HexCoord>();
+  for (const coord of hexesInRange(center, range)) {
+    const wrapped = wrapHexCoord(coord, mapWidth);
+    deduped.set(hexKey(wrapped), wrapped);
+  }
+  return Array.from(deduped.values());
+}
+
 export function wrappedHexDistance(a: HexCoord, b: HexCoord, mapWidth: number): number {
   return Math.min(
     hexDistance(a, b),

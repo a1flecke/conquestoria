@@ -1,7 +1,49 @@
-import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, isForestConcealedUnit } from '@/systems/fog-of-war';
-import type { VisibilityMap, GameMap, Unit, GameState } from '@/core/types';
+import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, isForestConcealedUnit, getVisibility } from '@/systems/fog-of-war';
+import type { VisibilityMap, GameMap, Unit, GameState, HexCoord } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
+
+function createWrappedGrasslandMap(width: number, height: number): GameMap {
+  const tiles: GameMap['tiles'] = {};
+  for (let q = 0; q < width; q++) {
+    for (let r = 0; r < height; r++) {
+      tiles[hexKey({ q, r })] = {
+        coord: { q, r },
+        terrain: 'grassland',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        owner: null,
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+      };
+    }
+  }
+
+  return {
+    width,
+    height,
+    wrapsHorizontally: true,
+    tiles,
+    rivers: [],
+  };
+}
+
+function makeWarrior(position: HexCoord): Unit {
+  return {
+    id: 'edge-warrior',
+    type: 'warrior',
+    owner: 'player',
+    position,
+    movementPointsLeft: 2,
+    health: 100,
+    experience: 0,
+    hasMoved: false,
+    hasActed: false,
+    isResting: false,
+  };
+}
 
 describe('fog-of-war', () => {
   let map: GameMap;
@@ -67,6 +109,77 @@ describe('fog-of-war', () => {
     // Old position should be fog (seen before but no longer visible)
     expect(isFog(vis, { q: 15, r: 15 })).toBe(true);
     expect(isVisible(vis, { q: 15, r: 15 })).toBe(false);
+  });
+});
+
+describe('wrapped fog-of-war', () => {
+  it('reveals canonical wrapped tiles around a unit on the west map edge', () => {
+    const map = createWrappedGrasslandMap(5, 4);
+    const vis = createVisibilityMap();
+    const unit = makeWarrior({ q: 0, r: 1 });
+
+    const revealed = updateVisibility(vis, [unit], map);
+
+    expect(getVisibility(vis, { q: 4, r: 1 })).toBe('visible');
+    expect(getVisibility(vis, { q: 4, r: 2 })).toBe('visible');
+    expect(revealed.map(hexKey)).toContain('4,1');
+    expect(Object.keys(vis.tiles).some(key => key.startsWith('-'))).toBe(false);
+  });
+
+  it('reveals canonical wrapped tiles around a unit on the east map edge', () => {
+    const map = createWrappedGrasslandMap(5, 4);
+    const vis = createVisibilityMap();
+    const unit = makeWarrior({ q: 4, r: 1 });
+
+    updateVisibility(vis, [unit], map);
+
+    expect(getVisibility(vis, { q: 0, r: 1 })).toBe('visible');
+    expect(getVisibility(vis, { q: 0, r: 0 })).toBe('visible');
+    expect(Object.keys(vis.tiles).some(key => Number(key.split(',')[0]) >= map.width)).toBe(false);
+  });
+
+  it('uses wrapped range for city vision', () => {
+    const map = createWrappedGrasslandMap(5, 4);
+    const vis = createVisibilityMap();
+
+    updateVisibility(vis, [], map, [{ q: 0, r: 1 }]);
+
+    expect(getVisibility(vis, { q: 4, r: 1 })).toBe('visible');
+    expect(getVisibility(vis, { q: 4, r: 2 })).toBe('visible');
+  });
+
+  it('uses wrapped range for shared vision', () => {
+    const map = createWrappedGrasslandMap(5, 4);
+    const vis = createVisibilityMap();
+
+    applySharedVision(vis, [{ q: 0, r: 1 }], map);
+
+    expect(getVisibility(vis, { q: 4, r: 1 })).toBe('visible');
+    expect(getVisibility(vis, { q: 4, r: 2 })).toBe('visible');
+  });
+
+  it('treats explored wrapped neighbors as nearby when revealing minor-civ cities', () => {
+    const map = createWrappedGrasslandMap(5, 4);
+    const vis = createVisibilityMap();
+    vis.tiles['4,1'] = 'fog';
+
+    revealMinorCivCities(vis, [{ q: 0, r: 1 }], map);
+
+    expect(getVisibility(vis, { q: 0, r: 1 })).toBe('visible');
+  });
+
+  it('matches movement wrapping: a wrapped reachable tile is also visible', async () => {
+    const { getMovementRange } = await import('@/systems/unit-system');
+    const map = createWrappedGrasslandMap(5, 4);
+    const vis = createVisibilityMap();
+    const unit = makeWarrior({ q: 0, r: 1 });
+    const wrappedNeighbor = { q: 4, r: 1 };
+
+    const movementRange = getMovementRange(unit, map, {}, {});
+    updateVisibility(vis, [unit], map);
+
+    expect(movementRange.map(hexKey)).toContain(hexKey(wrappedNeighbor));
+    expect(getVisibility(vis, wrappedNeighbor)).toBe('visible');
   });
 });
 
@@ -232,6 +345,71 @@ describe('forest concealment', () => {
     expect(isForestConcealedUnit(state, 'player', state.units.hidden)).toBe(true);
 
     state.units.scout.position = { q: 4, r: 5 };
+    expect(isForestConcealedUnit(state, 'player', state.units.hidden)).toBe(false);
+  });
+
+  it('treats wrapped-edge adjacent contact as enough to reveal concealed forest units', () => {
+    const state = {
+      turn: 1,
+      era: 1,
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      map: createWrappedGrasslandMap(5, 4),
+      units: {
+        hidden: { id: 'hidden', type: 'warrior', owner: 'ai-1', position: { q: 4, r: 1 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+        scout: { id: 'scout', type: 'scout', owner: 'player', position: { q: 0, r: 1 }, movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+      },
+      cities: {},
+      civilizations: {
+        player: { id: 'player', civType: 'egypt', units: ['scout'], cities: [], visibility: createVisibilityMap(), techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any }, gold: 0, score: 0, isHuman: true, name: 'Player', color: '#4a90d9', diplomacy: {} as any },
+        'ai-1': { id: 'ai-1', civType: 'lothlorien', units: ['hidden'], cities: [], visibility: createVisibilityMap(), techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any }, gold: 0, score: 0, isHuman: false, name: 'Lothlorien', color: '#4d7c0f', diplomacy: {} as any },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
+    } as GameState;
+    state.map.tiles['4,1'] = { ...state.map.tiles['4,1'], terrain: 'forest' };
+
+    expect(isForestConcealedUnit(state, 'player', state.units.hidden)).toBe(false);
+  });
+
+  it('treats wrapped-edge adjacent cities as enough to reveal concealed forest units', () => {
+    const state = {
+      turn: 1,
+      era: 1,
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      map: createWrappedGrasslandMap(5, 4),
+      units: {
+        hidden: { id: 'hidden', type: 'warrior', owner: 'ai-1', position: { q: 4, r: 1 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+      },
+      cities: {
+        'city-player': { id: 'city-player', name: 'Edge City', owner: 'player', position: { q: 0, r: 1 }, population: 1, food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
+      },
+      civilizations: {
+        player: { id: 'player', civType: 'egypt', units: [], cities: ['city-player'], visibility: createVisibilityMap(), techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any }, gold: 0, score: 0, isHuman: true, name: 'Player', color: '#4a90d9', diplomacy: {} as any },
+        'ai-1': { id: 'ai-1', civType: 'lothlorien', units: ['hidden'], cities: [], visibility: createVisibilityMap(), techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any }, gold: 0, score: 0, isHuman: false, name: 'Lothlorien', color: '#4d7c0f', diplomacy: {} as any },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
+    } as GameState;
+    state.map.tiles['4,1'] = { ...state.map.tiles['4,1'], terrain: 'forest' };
+
     expect(isForestConcealedUnit(state, 'player', state.units.hidden)).toBe(false);
   });
 });
