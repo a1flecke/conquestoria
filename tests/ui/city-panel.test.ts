@@ -832,3 +832,67 @@ describe('city-panel queue click-through interactions', () => {
     expect(downBtn!.disabled).toBe(true);
   });
 });
+
+describe('city-panel idle production selector', () => {
+  function makeIdleCityFixture() {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.productionQueue = [];
+    city.idleProduction = null;
+    state.cities[city.id] = city;
+    return { container, city, state };
+  }
+
+  it('shows idle mode selector when production queue is empty', () => {
+    const { container, city, state } = makeIdleCityFixture();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    expect(html).toContain('data-idle-mode');
+  });
+
+  it('does not show idle mode selector when production queue is non-empty', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.productionQueue = ['warrior'];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    expect(html).not.toContain('data-idle-mode');
+  });
+
+  it('shows per-turn production amount in the idle selector', () => {
+    const { container, city, state } = makeIdleCityFixture();
+    city.buildings = ['workshop'];
+    state.cities[city.id] = city;
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    expect(html).toMatch(/\+\d+\/turn/);
+  });
+
+  it('calls onSetIdleProduction with gold when Gold button is clicked', () => {
+    const { container, city, state } = makeIdleCityFixture();
+    const onSetIdleProduction = vi.fn();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetIdleProduction: (cityId, mode) => {
+        state.cities[cityId] = { ...state.cities[cityId]!, idleProduction: mode };
+        onSetIdleProduction(cityId, mode);
+      },
+    } as any);
+    const goldBtn = panel.querySelector<HTMLElement>('[data-idle-mode="gold"]');
+    expect(goldBtn).toBeTruthy();
+    goldBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onSetIdleProduction).toHaveBeenCalledWith(city.id, 'gold');
+  });
+});
