@@ -18,6 +18,7 @@ export interface CityPanelCallbacks {
   onPrevCity?: () => void;
   onNextCity?: () => void;
   onUpgradeUnit?: (unitId: string) => void;
+  onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => void;
 }
 
 type CityPanelTab = 'list' | 'grid';
@@ -88,6 +89,26 @@ export function createCityPanel(
       <div style="font-weight:bold;font-size:13px;">⚔️ <span data-text="unit-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">Cost: ${u.cost} · ${turns} turns</div>
     </div>`;
+  }
+
+  // Idle production selector (shown only when queue is empty)
+  let idleSelectorHtml = '';
+  if (city.productionQueue.length === 0) {
+    const activeMode = city.idleProduction ?? 'none';
+    const goldActive = activeMode === 'gold' ? 'border-color:#d4aa2c;background:rgba(212,170,44,0.3);' : '';
+    const sciActive = activeMode === 'science' ? 'border-color:#6496ff;background:rgba(100,150,255,0.3);' : '';
+    const noneActive = activeMode === 'none' ? 'border-color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.2);' : '';
+    idleSelectorHtml = `
+      <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;">
+        <div style="font-weight:bold;color:#e8c170;margin-bottom:6px;">Idle Production</div>
+        <div style="font-size:12px;opacity:0.7;margin-bottom:8px;">Queue is empty — convert +${yields.production}/turn production to:</div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" data-idle-mode="gold" style="flex:1;padding:8px;background:rgba(212,170,44,0.15);border:1px solid rgba(212,170,44,0.4);border-radius:6px;color:white;cursor:pointer;font-size:12px;${goldActive}">💰 Gold +${yields.production}/turn</button>
+          <button type="button" data-idle-mode="science" style="flex:1;padding:8px;background:rgba(100,150,255,0.15);border:1px solid rgba(100,150,255,0.4);border-radius:6px;color:white;cursor:pointer;font-size:12px;${sciActive}">🔬 Science +${yields.production}/turn</button>
+          <button type="button" data-idle-mode="none" style="flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:12px;${noneActive}">None</button>
+        </div>
+      </div>
+    `;
   }
 
   // Current production placeholders
@@ -193,7 +214,7 @@ export function createCityPanel(
       <div id="tab-wonders" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Legendary Wonders</div>
     </div>
     <div id="city-list-view">
-      ${currentProductionHtml}
+      ${idleSelectorHtml}${currentProductionHtml}
       ${city.productionQueue.length > 1 ? `<div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;"><div style="font-weight:bold;color:#e8c170;margin-bottom:8px;">Production Queue</div>${queueRowsHtml}</div>` : ''}
       ${cityWonderProject ? `<div style="margin-bottom:12px;font-size:12px;opacity:0.75;">Wonder carryover: ${cityWonderProject.transferableProduction}</div>` : ''}
       ${city.buildings.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>${buildingPlaceholders}</div>` : ''}
@@ -328,6 +349,15 @@ export function createCityPanel(
         callbacks.onMoveQueueItem?.(city.id, index, index + 1);
         rerenderPanel();
       }
+    });
+  });
+
+  panel.querySelectorAll<HTMLElement>('[data-idle-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const raw = btn.dataset.idleMode;
+      const mode = raw === 'gold' || raw === 'science' ? raw : null;
+      callbacks.onSetIdleProduction?.(city.id, mode);
+      rerenderPanel();
     });
   });
 
