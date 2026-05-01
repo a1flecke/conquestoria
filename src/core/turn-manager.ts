@@ -91,6 +91,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       totalGold += yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
       const result = processCity(city, newState.map, yields.food, effectiveProduction, civDef?.bonusEffect, civ.techState.completed, civ.civType);
+      totalGold += result.idleGoldBonus;
+      totalScience += result.idleScienceBonus;
       const maturityResult = applyCityMaturity(result.city, civ.techState.completed);
       newState.cities[cityId] = maturityResult.city;
       if (maturityResult.changed && maturityResult.previous !== maturityResult.current) {
