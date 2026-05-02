@@ -1,4 +1,4 @@
-import type { GameState, DisguiseType } from '@/core/types';
+import type { GameState, DisguiseType, HexCoord } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
 import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
@@ -16,6 +16,7 @@ export interface SelectedUnitInfoCallbacks {
   onInfiltrate?: (unitId: string) => void;
   onEmbed?: (unitId: string) => void;
   onUpgradeUnit?: (unitId: string, cityId: string) => void;
+  onOpenStack?: (coord: HexCoord) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -76,6 +77,20 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  const friendlyUnitsHere = Object.values(state.units).filter(other =>
+    other.owner === unit.owner && hexKey(other.position) === hexKey(unit.position),
+  );
+  if (friendlyUnitsHere.length > 1 && callbacks.onOpenStack) {
+    const stackRow = document.createElement('div');
+    stackRow.style.cssText = 'margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#e8c170;';
+    const stackText = document.createElement('span');
+    stackText.textContent = `Stack: ${friendlyUnitsHere.length} units here`;
+    const switchButton = makeButton('Switch unit', '#374151', () => callbacks.onOpenStack?.({ ...unit.position }));
+    stackRow.appendChild(stackText);
+    stackRow.appendChild(switchButton);
+    wrapper.appendChild(stackRow);
+  }
 
   if (unit.automation?.mode === 'auto-explore') {
     const statusRow = document.createElement('div');
