@@ -3,6 +3,7 @@ import type { GameState, HexCoord } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey, hexNeighbors, getWrappedHexNeighbors } from '@/systems/hex-utils';
 import { isThreatenedByVisibleHostiles } from '@/systems/movement-safety';
+import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
 import { getMovementCost, getMovementRange } from '@/systems/unit-system';
 import { executeUnitMove, type ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 
@@ -12,19 +13,11 @@ export interface AutoExploreOrder {
   reason: string;
 }
 
-function getOccupants(state: GameState): { positions: Record<string, string>; owners: Record<string, string> } {
-  const positions: Record<string, string> = {};
-  const owners: Record<string, string> = {};
-  for (const unit of Object.values(state.units)) {
-    positions[hexKey(unit.position)] = unit.id;
-    owners[unit.id] = unit.owner;
-  }
-  return { positions, owners };
-}
-
-function isDestinationEmpty(state: GameState, unitId: string, coord: HexCoord): boolean {
-  const key = hexKey(coord);
-  return !Object.values(state.units).some(unit => unit.id !== unitId && hexKey(unit.position) === key);
+function canAutoExploreEnter(state: GameState, unitId: string, coord: HexCoord): boolean {
+  const unit = state.units[unitId];
+  if (!unit) return false;
+  const occupancy = buildUnitOccupancy(state.units);
+  return !getStackRelationship(occupancy, unit, coord).hasHostileBlocker;
 }
 
 function countUnexploredNeighbors(state: GameState, viewerId: string, coord: HexCoord): number {
@@ -53,7 +46,7 @@ function rankCandidate(state: GameState, unitId: string, coord: HexCoord): { sco
   }
 
   const tile = state.map.tiles[hexKey(coord)];
-  if (!tile || getMovementCost(tile.terrain) > unit.movementPointsLeft || !isDestinationEmpty(state, unitId, coord)) {
+  if (!tile || getMovementCost(tile.terrain) > unit.movementPointsLeft || !canAutoExploreEnter(state, unitId, coord)) {
     return null;
   }
 
@@ -79,8 +72,8 @@ export function chooseAutoExploreMove(state: GameState, unitId: string): AutoExp
     return null;
   }
 
-  const { positions, owners } = getOccupants(state);
-  const best = getMovementRange(unit, state.map, positions, owners)
+  const occupancy = buildUnitOccupancy(state.units);
+  const best = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId)
     .map(coord => ({ coord, rank: rankCandidate(state, unitId, coord) }))
     .filter((entry): entry is { coord: HexCoord; rank: { score: number; reason: string } } => entry.rank !== null)
     .sort((a, b) => b.rank.score - a.rank.score)[0];
@@ -108,7 +101,11 @@ export function applyAutoExploreOrder(
 
   const order = chooseAutoExploreMove(state, unitId);
   if (!order) {
-    delete state.units[unitId].automation;
+    const { automation: _automation, ...unitWithoutAutomation } = state.units[unitId];
+    state.units = {
+      ...state.units,
+      [unitId]: unitWithoutAutomation,
+    };
     return null;
   }
 
@@ -117,13 +114,19 @@ export function applyAutoExploreOrder(
     civId: unit.owner,
     bus: options.bus,
   });
-  state.units[unitId] = {
-    ...state.units[unitId],
-    automation: {
-      mode: 'auto-explore',
-      startedTurn: unit.automation.startedTurn,
-      lastTargets: [...unit.automation.lastTargets, hexKey(order.to)].slice(-4),
-    },
-  };
+  const movedUnit = state.units[unitId];
+  if (movedUnit) {
+    state.units = {
+      ...state.units,
+      [unitId]: {
+        ...movedUnit,
+        automation: {
+          mode: 'auto-explore',
+          startedTurn: unit.automation.startedTurn,
+          lastTargets: [...unit.automation.lastTargets, hexKey(order.to)].slice(-4),
+        },
+      },
+    };
+  }
   return result;
 }
