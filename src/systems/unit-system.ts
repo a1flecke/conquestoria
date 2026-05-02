@@ -241,10 +241,15 @@ function isPassable(terrain: string): boolean {
   return getMovementCost(terrain) < Infinity;
 }
 
+function normalizeOccupants(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 export function getMovementRange(
   unit: Unit,
   map: GameMap,
-  unitPositions: Record<string, string>, // hexKey -> unitId (for blocking)
+  unitPositions: Record<string, string | string[]>, // hexKey -> unitId(s) for occupancy
   unitOwners?: Record<string, string>, // unitId -> owner (to distinguish friend/foe)
 ): HexCoord[] {
   const reachable: HexCoord[] = [];
@@ -270,19 +275,17 @@ export function getMovementRange(
       const remaining = current.remaining - cost;
       if (remaining < 0) continue;
 
-      // Check for unit blocking
-      const occupant = unitPositions[key];
-      if (occupant && occupant !== unit.id) {
-        const occupantOwner = unitOwners?.[occupant];
-        if (!occupantOwner || occupantOwner === unit.owner) continue; // block friendlies
-        // Enemy tile is reachable (for attack) but can't pathfind through
-        const prevRemaining = visited.get(key) ?? -1;
-        if (remaining > prevRemaining) {
-          visited.set(key, remaining);
-          reachable.push(neighbor);
-          // Don't add to queue — can't move through enemies
+      const occupants = normalizeOccupants(unitPositions[key]).filter(id => id !== unit.id);
+      if (occupants.length > 0) {
+        const hostileOccupants = occupants.filter(id => unitOwners?.[id] !== unit.owner);
+        if (hostileOccupants.length > 0) {
+          const prevRemaining = visited.get(key) ?? -1;
+          if (remaining > prevRemaining) {
+            visited.set(key, remaining);
+            reachable.push(neighbor);
+          }
+          continue;
         }
-        continue;
       }
 
       const prevRemaining = visited.get(key) ?? -1;
