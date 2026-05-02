@@ -54,4 +54,50 @@ describe('unit renderer wrap parity', () => {
 
     expect(ctx.fillText).toHaveBeenCalledWith('⚔️', expect.any(Number), expect.any(Number));
   });
+
+  it('draws a count badge when multiple visible units share a tile', () => {
+    const ctx = createContext();
+    const units: Record<string, Unit> = {
+      warrior: {
+        id: 'warrior',
+        owner: 'player',
+        type: 'warrior',
+        position: { q: 1, r: 1 },
+        movementPointsLeft: 2,
+        health: 100,
+        experience: 0,
+        hasMoved: false,
+        hasActed: false,
+        isResting: false,
+      },
+      worker: {
+        id: 'worker',
+        owner: 'player',
+        type: 'worker',
+        position: { q: 1, r: 1 },
+        movementPointsLeft: 2,
+        health: 100,
+        experience: 0,
+        hasMoved: false,
+        hasActed: false,
+        isResting: false,
+      },
+    };
+    const visibility: VisibilityMap = { tiles: { '1,1': 'visible' } };
+    const state = {
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+    } as unknown as GameState;
+    const camera = {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    drawUnits(ctx, units, camera, visibility, state, 'player', { player: '#4a90d9' });
+
+    expect(ctx.fillText).toHaveBeenCalledWith('2', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('⚔️', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('👷', expect.any(Number), expect.any(Number));
+  });
 });
