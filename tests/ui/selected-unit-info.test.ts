@@ -166,3 +166,74 @@ describe('renderSelectedUnitInfo — spy disguise buttons', () => {
     expect(called).toEqual(['unit-1', 'archer']);
   });
 });
+
+describe('renderSelectedUnitInfo - unit stack switch', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('renders a switch action when another friendly unit shares the selected unit tile', () => {
+    const state = makeSpyState([]);
+    state.units['unit-1'] = {
+      ...state.units['unit-1'],
+      type: 'warrior',
+      position: { q: 4, r: 2 },
+    } as any;
+    state.units['unit-2'] = {
+      ...state.units['unit-1'],
+      id: 'unit-2',
+      type: 'worker',
+      owner: 'player',
+      position: { q: 4, r: 2 },
+    } as any;
+
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
+      onOpenStack: () => {},
+    });
+
+    expect(collectAllText(container).join(' ')).toContain('Stack: 2 units here');
+    expect(findButtons(container).some(button => button.textContent === 'Switch unit')).toBe(true);
+  });
+
+  it('does not render switch action for a single selected unit', () => {
+    const state = makeSpyState([]);
+    state.units['unit-1'] = {
+      ...state.units['unit-1'],
+      type: 'warrior',
+      position: { q: 4, r: 2 },
+    } as any;
+
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
+      onOpenStack: () => {},
+    });
+
+    expect(collectAllText(container).join(' ')).not.toContain('Stack:');
+  });
+
+  it('fires onOpenStack with the selected unit coordinate', () => {
+    const state = makeSpyState([]);
+    state.units['unit-1'] = {
+      ...state.units['unit-1'],
+      type: 'warrior',
+      position: { q: 4, r: 2 },
+    } as any;
+    state.units['unit-2'] = {
+      ...state.units['unit-1'],
+      id: 'unit-2',
+      type: 'worker',
+      owner: 'player',
+      position: { q: 4, r: 2 },
+    } as any;
+    let opened: { q: number; r: number } | null = null;
+
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
+      onOpenStack: coord => { opened = coord; },
+    });
+
+    findButtons(container).find(button => button.textContent === 'Switch unit')?.click();
+
+    expect(opened).toEqual({ q: 4, r: 2 });
+  });
+});
