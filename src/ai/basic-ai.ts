@@ -5,6 +5,7 @@ import { foundCity, getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { resolveCombat } from '@/systems/combat-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
@@ -343,19 +344,17 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     .map(id => newState.units[id])
     .filter((u): u is Unit => u !== undefined && u.type !== 'settler' && u.type !== 'worker');
 
-  const unitPositions: Record<string, string> = {};
-  for (const [id, unit] of Object.entries(newState.units)) {
-    unitPositions[hexKey(unit.position)] = id;
-  }
-
   for (const unit of militaryUnits) {
     if (unit.movementPointsLeft <= 0) continue;
+
+    const occupancy = buildUnitOccupancy(newState.units);
 
     // Check for nearby enemies to attack
     const neighbors = hexNeighbors(unit.position);
     let attacked = false;
     for (const neighbor of neighbors) {
-      const occupantId = unitPositions[hexKey(neighbor)];
+      const occupantId = (occupancy.unitIdsByHex[hexKey(neighbor)] ?? [])
+        .find(id => newState.units[id]?.owner !== civId);
       if (occupantId) {
         const occupant = newState.units[occupantId];
         if (occupant && occupant.owner !== civId) {
@@ -421,8 +420,6 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         movementPointsLeft: 0,
         hasMoved: true,
       };
-      delete unitPositions[hexKey(unit.position)];
-      unitPositions[hexKey(exposedEnemyCity.position)] = unit.id;
       const captureResult = resolveMajorCityCapture(
         newState,
         exposedEnemyCity.id,
@@ -436,7 +433,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
 
     // Explore: move toward unexplored territory
-    const range = getMovementRange(unit, newState.map, unitPositions);
+    const range = getMovementRange(unit, newState.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId);
     if (range.length > 0) {
       const unexplored = range.filter(
         coord => civ.visibility.tiles[hexKey(coord)] !== 'visible',
@@ -445,8 +442,6 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       const moveSeed = newState.turn * 16807 + unit.id.charCodeAt(0);
       const target = candidates[moveSeed % candidates.length];
       newState.units[unit.id] = moveUnit(unit, target, 1);
-      delete unitPositions[hexKey(unit.position)];
-      unitPositions[hexKey(target)] = unit.id;
     }
   }
 
