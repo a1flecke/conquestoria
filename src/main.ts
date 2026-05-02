@@ -33,6 +33,7 @@ import { createCouncilPanel } from '@/ui/council-panel';
 import { createGameShell } from '@/ui/game-shell';
 import { createContextMenu } from '@/ui/context-menu';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
+import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { showCampaignSetup } from '@/ui/campaign-setup';
@@ -63,6 +64,7 @@ import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
+import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import {
   type PendingCityCaptureChoice,
   beginPlayerCityAssaultChoice,
@@ -70,6 +72,7 @@ import {
   shouldPromptForPlayerCityCapture,
 } from '@/input/city-assault-flow';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
+import { getFriendlyUnitIdsAtHex, resolveFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import {
   initializeLegendaryWonderProjectsForCity,
   startLegendaryWonderBuild,
@@ -1019,25 +1022,44 @@ function getPersistedSettingsOverrides(): Partial<GameState['settings']> {
   };
 }
 
+function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
+  const panel = document.getElementById('info-panel');
+  if (!panel) return;
+
+  renderUnitStackPanel(panel, gameState, coord, unitIds, {
+    onSelectUnit: (unitId) => selectUnit(unitId),
+    onOpenCity: (cityId) => {
+      const city = gameState.cities[cityId];
+      if (!city) return;
+      document.getElementById('tech-panel')?.remove();
+      document.getElementById('city-panel')?.remove();
+      document.getElementById('espionage-panel')?.remove();
+      document.getElementById('diplomacy-panel')?.remove();
+      document.getElementById('marketplace-panel')?.remove();
+      document.getElementById('council-panel')?.remove();
+      deselectUnit();
+      openCityPanelForCity(city);
+    },
+    onClose: () => deselectUnit(),
+  }, { selectedUnitId });
+}
+
 function selectUnit(unitId: string): void {
   selectedUnitId = unitId;
   const unit = gameState.units[unitId];
   if (!unit || unit.owner !== gameState.currentPlayer) return;
 
-  // Calculate movement range
-  const unitPositions: Record<string, string> = {};
-  const unitOwners: Record<string, string> = {};
-  for (const [id, u] of Object.entries(gameState.units)) {
-    unitPositions[hexKey(u.position)] = id;
-    unitOwners[id] = u.owner;
-  }
-  movementRange = getMovementRange(unit, gameState.map, unitPositions, unitOwners);
+  const occupancy = buildUnitOccupancy(gameState.units);
+  movementRange = getMovementRange(unit, gameState.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId);
 
   // Classify hexes as move or attack and send to renderer
   const highlights: HexHighlight[] = movementRange.map(coord => {
     const k = hexKey(coord);
-    const occupantId = unitPositions[k];
-    if (occupantId && unitOwners[occupantId] !== gameState.currentPlayer) {
+    const occupantIds = occupancy.unitIdsByHex[k] ?? [];
+    const hasEnemy = occupantIds.some(occupantId =>
+      occupantId !== unit.id && occupancy.ownersByUnitId[occupantId] !== gameState.currentPlayer,
+    );
+    if (hasEnemy) {
       return { coord, type: 'attack' as const };
     }
     return { coord, type: 'move' as const };
@@ -1054,6 +1076,10 @@ function selectUnit(unitId: string): void {
       onBuildMine: () => buildImprovementAction('mine'),
       onRest: () => restAction(),
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
+      onOpenStack: (coord) => {
+        const unitIds = getFriendlyUnitIdsAtHex(gameState, coord);
+        if (unitIds.length > 1) openUnitStackPicker(coord, unitIds);
+      },
       onSetDisguise: (uid, disguise) => {
         const unit = gameState.units[uid];
         if (!unit || unit.hasActed) return;
@@ -1505,18 +1531,26 @@ function handleHexTap(rawCoord: HexCoord): void {
     : rawCoord;
   const key = hexKey(coord);
 
-  // Check if tapping a unit
+  const selectedUnitCanMoveToTappedHex = selectedUnitId && movementRange.some(h => hexKey(h) === key);
+  if (!selectedUnitCanMoveToTappedHex) {
+    const friendlyTap = resolveFriendlyUnitStackTap(gameState, coord, selectedUnitId);
+    if (friendlyTap.kind === 'open-stack-picker') {
+      openUnitStackPicker(coord, friendlyTap.unitIds);
+      return;
+    }
+    if (friendlyTap.kind === 'select-unit') {
+      selectUnit(friendlyTap.unitId);
+      return;
+    }
+  }
+
   const unitAtHex = Object.entries(gameState.units).find(
-    ([_, u]) => hexKey(u.position) === key && (
-      u.owner === gameState.currentPlayer || !isForestConcealedUnit(gameState, gameState.currentPlayer, u)
-    )
+    ([_, u]) => hexKey(u.position) === key
+      && u.owner !== gameState.currentPlayer
+      && !isForestConcealedUnit(gameState, gameState.currentPlayer, u),
   );
 
   if (unitAtHex) {
-    if (unitAtHex[1].owner === gameState.currentPlayer) {
-      selectUnit(unitAtHex[0]);
-      return;
-    }
     // Show enemy unit info (if no unit selected for attack)
     if (!selectedUnitId) {
       const enemyUnit = unitAtHex[1];
