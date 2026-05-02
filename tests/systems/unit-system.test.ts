@@ -37,6 +37,34 @@ function createWrappedGrasslandMap(width: number, height: number): GameMap {
   };
 }
 
+function createStackCorridorMap(): GameMap {
+  const tiles: GameMap['tiles'] = {};
+  for (let q = 0; q < 5; q++) {
+    for (let r = 0; r < 3; r++) {
+      const isCorridor = r === 1 && q >= 1 && q <= 3;
+      tiles[hexKey({ q, r })] = {
+        coord: { q, r },
+        terrain: isCorridor ? 'grassland' : 'mountain',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        owner: null,
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+      };
+    }
+  }
+
+  return {
+    width: 5,
+    height: 3,
+    wrapsHorizontally: false,
+    tiles,
+    rivers: [],
+  };
+}
+
 describe('createUnit', () => {
   it('creates a unit with full movement points', () => {
     const unit = createUnit('warrior', 'p1', { q: 5, r: 5 });
@@ -103,30 +131,46 @@ describe('getMovementRange', () => {
     expect(keys).toContain(enemyKey);
   });
 
-  it('excludes friendly-occupied tiles from range', () => {
-    const landTile = Object.values(map.tiles).find(
-      t => t.terrain === 'grassland' || t.terrain === 'plains'
-    )!;
-    const unit = createUnit('warrior', 'p1', landTile.coord);
-    const neighborTiles = Object.values(map.tiles).filter(t =>
-      (t.terrain === 'grassland' || t.terrain === 'plains') &&
-      Math.abs(t.coord.q - landTile.coord.q) + Math.abs(t.coord.r - landTile.coord.r) <= 2
-    );
-    const friendlyTile = neighborTiles.find(t => hexKey(t.coord) !== hexKey(landTile.coord));
-    if (!friendlyTile) return;
+  it('includes same-owner occupied tiles as stackable movement destinations', () => {
+    const map = createWrappedGrasslandMap(5, 3);
+    const unit = createUnit('warrior', 'p1', { q: 1, r: 1 });
+    const friendly = createUnit('worker', 'p1', { q: 2, r: 1 });
+    friendly.id = 'friendly-worker';
 
-    const friendlyKey = hexKey(friendlyTile.coord);
-    const unitPositions: Record<string, string> = {
-      [hexKey(landTile.coord)]: unit.id,
-      [friendlyKey]: 'friendly1',
-    };
-    const unitOwners: Record<string, string> = {
+    const range = getMovementRange(unit, map, {
+      [hexKey(unit.position)]: [unit.id],
+      [hexKey(friendly.position)]: [friendly.id],
+    }, {
       [unit.id]: 'p1',
-      'friendly1': 'p1',
-    };
-    const range = getMovementRange(unit, map, unitPositions, unitOwners);
-    const keys = range.map(h => hexKey(h));
-    expect(keys).not.toContain(friendlyKey);
+      [friendly.id]: 'p1',
+    });
+
+    expect(range.map(hexKey)).toContain('2,1');
+  });
+
+  it('can path through same-owner stacks but not through hostile stacks', () => {
+    const map = createStackCorridorMap();
+    const unit = createUnit('scout', 'p1', { q: 1, r: 1 });
+
+    const friendlyRange = getMovementRange(unit, map, {
+      [hexKey(unit.position)]: [unit.id],
+      '2,1': ['friendly-warrior'],
+    }, {
+      [unit.id]: 'p1',
+      'friendly-warrior': 'p1',
+    });
+
+    const hostileRange = getMovementRange(unit, map, {
+      [hexKey(unit.position)]: [unit.id],
+      '2,1': ['enemy-warrior'],
+    }, {
+      [unit.id]: 'p1',
+      'enemy-warrior': 'ai-1',
+    });
+
+    expect(friendlyRange.map(hexKey)).toContain('3,1');
+    expect(hostileRange.map(hexKey)).toContain('2,1');
+    expect(hostileRange.map(hexKey)).not.toContain('3,1');
   });
 
   it('does not include impassable tiles', () => {
