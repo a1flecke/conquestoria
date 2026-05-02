@@ -113,4 +113,28 @@ describe('selected-unit-tap-intent', () => {
 
     expect(intent).toEqual({ kind: 'move' });
   });
+
+  it('returns move when the selected unit taps a friendly stack destination in range', () => {
+    const state = makeTapAssaultFixture();
+    const friendly = createUnit('worker', 'player', { q: 1, r: 0 });
+    friendly.id = 'friendly-worker';
+    state.units[friendly.id] = friendly;
+    state.civilizations.player.units.push(friendly.id);
+
+    const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 }, [{ q: 1, r: 0 }]);
+
+    expect(intent).toEqual({ kind: 'move' });
+  });
+
+  it('keeps hostile garrisoned cities out of direct city assault intent', () => {
+    const state = makeTapAssaultFixture();
+    const garrison = createUnit('warrior', 'ai-1', { q: 1, r: 0 });
+    garrison.id = 'enemy-garrison';
+    state.units[garrison.id] = garrison;
+    state.civilizations['ai-1'].units.push(garrison.id);
+
+    const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 }, [{ q: 1, r: 0 }]);
+
+    expect(intent).toEqual({ kind: 'move' });
+  });
 });

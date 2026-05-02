@@ -1,26 +1,12 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
+import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
 import { getMovementRange } from '@/systems/unit-system';
 
 export type SelectedUnitTapIntent =
   | { kind: 'move' }
   | { kind: 'assault-city'; cityId: string }
   | { kind: 'assault-minor-civ'; cityId: string; minorCivId: string };
-
-function buildUnitMaps(state: GameState): {
-  unitPositions: Record<string, string>;
-  unitOwners: Record<string, string>;
-} {
-  const unitPositions: Record<string, string> = {};
-  const unitOwners: Record<string, string> = {};
-
-  for (const unit of Object.values(state.units)) {
-    unitPositions[hexKey(unit.position)] = unit.id;
-    unitOwners[unit.id] = unit.owner;
-  }
-
-  return { unitPositions, unitOwners };
-}
 
 export function resolveSelectedUnitTapIntent(
   state: GameState,
@@ -32,8 +18,8 @@ export function resolveSelectedUnitTapIntent(
   if (!unit) return { kind: 'move' };
 
   const movementRange = movementRangeOverride ?? (() => {
-    const { unitPositions, unitOwners } = buildUnitMaps(state);
-    return getMovementRange(unit, state.map, unitPositions, unitOwners);
+    const occupancy = buildUnitOccupancy(state.units);
+    return getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId);
   })();
 
   const targetKey = hexKey(targetCoord);
@@ -41,10 +27,9 @@ export function resolveSelectedUnitTapIntent(
     return { kind: 'move' };
   }
 
-  const occupiedByOtherUnit = Object.values(state.units).some(other =>
-    other.id !== unitId && hexKey(other.position) === targetKey,
-  );
-  if (occupiedByOtherUnit) {
+  const occupancy = buildUnitOccupancy(state.units);
+  const relationship = getStackRelationship(occupancy, unit, targetCoord);
+  if (relationship.occupantIds.length > 0) {
     return { kind: 'move' };
   }
 
