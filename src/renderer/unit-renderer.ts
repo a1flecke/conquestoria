@@ -28,6 +28,25 @@ const OWNER_COLORS: Record<string, string> = {
   barbarian: '#8b4513',
 };
 
+const STACK_OFFSETS = [
+  { x: 0, y: 0 },
+  { x: -0.18, y: -0.1 },
+  { x: 0.18, y: 0.1 },
+];
+
+function groupUnitsByHex(units: Unit[]): Record<string, Unit[]> {
+  const groups: Record<string, Unit[]> = {};
+  for (const unit of units) {
+    const key = `${unit.position.q},${unit.position.r}`;
+    groups[key] ??= [];
+    groups[key].push(unit);
+  }
+  for (const group of Object.values(groups)) {
+    group.sort((a, b) => a.id.localeCompare(b.id));
+  }
+  return groups;
+}
+
 export function drawUnits(
   ctx: CanvasRenderingContext2D,
   units: Record<string, Unit>,
@@ -37,15 +56,15 @@ export function drawUnits(
   currentPlayer: string,
   colorLookup?: Record<string, string>,
 ): void {
-  for (const unit of Object.values(units)) {
-    // Only draw units visible to the player
-    if (!isVisible(playerVisibility, unit.position)) continue;
-    if (isForestConcealedUnit(state, currentPlayer, unit)) continue;
-    const ownerColor = colorLookup?.[unit.owner] ?? OWNER_COLORS[unit.owner] ?? '#888';
+  const visibleUnits = Object.values(units).filter(unit =>
+    isVisible(playerVisibility, unit.position) && !isForestConcealedUnit(state, currentPlayer, unit),
+  );
 
+  for (const stack of Object.values(groupUnitsByHex(visibleUnits))) {
+    const anchor = stack[0].position;
     const renderCoords = state.map.wrapsHorizontally
-      ? getHorizontalWrapRenderCoords(unit.position, state.map.width, camera)
-      : [unit.position];
+      ? getHorizontalWrapRenderCoords(anchor, state.map.width, camera)
+      : [anchor];
 
     for (const renderCoord of renderCoords) {
       if (!camera.isHexVisible(renderCoord)) continue;
@@ -53,35 +72,53 @@ export function drawUnits(
       const pixel = hexToPixel(renderCoord, camera.hexSize);
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const size = camera.hexSize * camera.zoom;
+      const unitsToDraw = stack.slice(0, 3);
 
-      // Unit background circle
-      ctx.beginPath();
-      ctx.arc(screen.x, screen.y, size * 0.35, 0, Math.PI * 2);
-      ctx.fillStyle = ownerColor;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      for (let index = 0; index < unitsToDraw.length; index++) {
+        const unit = unitsToDraw[index];
+        const offset = stack.length === 1 ? STACK_OFFSETS[0] : STACK_OFFSETS[index];
+        const unitX = screen.x + offset.x * size;
+        const unitY = screen.y + offset.y * size;
+        const ownerColor = colorLookup?.[unit.owner] ?? OWNER_COLORS[unit.owner] ?? '#888';
 
-      // Unit icon
-      ctx.font = `${size * 0.4}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(UNIT_ICONS[unit.type] ?? '?', screen.x, screen.y);
+        ctx.beginPath();
+        ctx.arc(unitX, unitY, size * (stack.length === 1 ? 0.35 : 0.25), 0, Math.PI * 2);
+        ctx.fillStyle = ownerColor;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
 
-      // Health bar (if damaged)
-      if (unit.health < 100) {
-        const barWidth = size * 0.6;
-        const barHeight = size * 0.08;
-        const barX = screen.x - barWidth / 2;
-        const barY = screen.y + size * 0.4;
+        ctx.font = `${size * (stack.length === 1 ? 0.4 : 0.28)}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(UNIT_ICONS[unit.type] ?? '?', unitX, unitY);
 
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
+        if (unit.health < 100) {
+          const barWidth = size * 0.42;
+          const barHeight = size * 0.06;
+          const barX = unitX - barWidth / 2;
+          const barY = unitY + size * 0.28;
 
-        const healthRatio = unit.health / 100;
-        ctx.fillStyle = healthRatio > 0.5 ? '#4caf50' : healthRatio > 0.25 ? '#ff9800' : '#f44336';
-        ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(barX, barY, barWidth, barHeight);
+
+          const healthRatio = unit.health / 100;
+          ctx.fillStyle = healthRatio > 0.5 ? '#4caf50' : healthRatio > 0.25 ? '#ff9800' : '#f44336';
+          ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
+        }
+      }
+
+      if (stack.length > 1) {
+        ctx.beginPath();
+        ctx.arc(screen.x + size * 0.34, screen.y - size * 0.34, size * 0.16, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.82)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.stroke();
+        ctx.font = `${size * 0.18}px system-ui`;
+        ctx.fillStyle = 'white';
+        ctx.fillText(String(stack.length), screen.x + size * 0.34, screen.y - size * 0.34);
       }
     }
   }
