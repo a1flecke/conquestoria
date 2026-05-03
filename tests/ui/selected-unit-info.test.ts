@@ -101,6 +101,56 @@ function makeSpyState(techs: string[], spyStatus: string = 'idle'): GameState {
   } as unknown as GameState;
 }
 
+function makeWorkerState(tileOverrides: Record<string, unknown>, unitOverrides: Record<string, unknown> = {}): GameState {
+  return {
+    turn: 1,
+    era: 1,
+    currentPlayer: 'player',
+    gameOver: false,
+    winner: null,
+    map: {
+      width: 10,
+      height: 10,
+      tiles: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'forest',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: 'player',
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: null,
+          ...tileOverrides,
+        },
+      },
+      wrapsHorizontally: false,
+      rivers: [],
+    },
+    units: {
+      'worker-1': {
+        id: 'worker-1',
+        type: 'worker',
+        owner: 'player',
+        position: { q: 0, r: 0 },
+        movementPointsLeft: 2,
+        health: 100,
+        experience: 0,
+        hasMoved: false,
+        hasActed: false,
+        isResting: false,
+        chargesRemaining: 2,
+        ...unitOverrides,
+      },
+    },
+    cities: {},
+    civilizations: {
+      player: { color: '#fff', techState: { completed: [] } },
+    },
+  } as unknown as GameState;
+}
+
 describe('renderSelectedUnitInfo — spy disguise buttons', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
@@ -235,5 +285,123 @@ describe('renderSelectedUnitInfo - unit stack switch', () => {
     findButtons(container).find(button => button.textContent === 'Switch unit')?.click();
 
     expect(opened).toEqual({ q: 4, r: 2 });
+  });
+});
+
+describe('renderSelectedUnitInfo - worker actions', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows worker charges and valid forest actions', () => {
+    const state = makeWorkerState({ terrain: 'forest' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const text = collectAllText(container).join(' ');
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(text).toContain('Worker Charges: 2/2');
+    expect(buttons).toContain('Build Farm');
+    expect(buttons).toContain('Build Lumber Camp');
+    expect(buttons).not.toContain('Build Watermill');
+    expect(buttons).not.toContain('Drain Swamp (20% worker risk)');
+  });
+
+  it('shows watermill only on valid river land', () => {
+    const state = makeWorkerState({ terrain: 'plains', hasRiver: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(buttons).toContain('Build Farm');
+    expect(buttons).toContain('Build Mine');
+    expect(buttons).toContain('Build Watermill');
+  });
+
+  it('shows Drain Swamp only on unimproved swamp', () => {
+    const state = makeWorkerState({ terrain: 'swamp' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(buttons).toContain('Drain Swamp (20% worker risk)');
+    expect(buttons).not.toContain('Build Farm');
+  });
+
+  it('communicates swamp danger before the player clicks', () => {
+    const state = makeWorkerState({ terrain: 'swamp' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('20% worker risk');
+  });
+
+  it('shows no worker actions on unowned or enemy-owned terrain', () => {
+    for (const [terrain, owner] of [['forest', null], ['forest', 'enemy'], ['swamp', null], ['swamp', 'enemy']] as const) {
+      const state = makeWorkerState({ terrain, owner });
+      const container = new MockElement('div');
+
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+        onWorkerAction: () => {},
+      });
+
+      const buttons = findButtons(container).map(button => button.textContent);
+      expect(collectAllText(container).join(' ')).toContain('Worker Charges: 2/2');
+      expect(buttons).not.toContain('Build Farm');
+      expect(buttons).not.toContain('Build Lumber Camp');
+      expect(buttons).not.toContain('Drain Swamp (20% worker risk)');
+    }
+  });
+
+  it('hides worker actions after the worker has already acted', () => {
+    const state = makeWorkerState({ terrain: 'forest' }, { hasActed: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(buttons).not.toContain('Build Farm');
+    expect(buttons).not.toContain('Build Lumber Camp');
+  });
+
+  it('hides worker actions on already improved tiles', () => {
+    const state = makeWorkerState({ terrain: 'swamp', improvement: 'farm' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(buttons).not.toContain('Drain Swamp (20% worker risk)');
+    expect(buttons).not.toContain('Build Farm');
+  });
+
+  it('fires onWorkerAction with the clicked action id', () => {
+    const state = makeWorkerState({ terrain: 'forest' });
+    const container = new MockElement('div');
+    let clicked: unknown = null;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: action => { clicked = action; },
+    });
+
+    findButtons(container).find(button => button.textContent === 'Build Lumber Camp')?.click();
+
+    expect(clicked).toBe('lumber_camp');
   });
 });

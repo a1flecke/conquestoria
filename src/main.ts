@@ -18,7 +18,7 @@ import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
-import { canBuildImprovement, IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
+import { applyWorkerAction } from '@/systems/worker-action-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
@@ -100,7 +100,7 @@ import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { canUpgradeUnit, applyUpgrade } from '@/systems/unit-upgrade-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
-import type { GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect } from '@/core/types';
+import type { GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
   createNotificationLog,
@@ -1072,8 +1072,7 @@ function selectUnit(unitId: string): void {
     renderSelectedUnitInfo(panel, gameState, unitId, {
       onClose: () => deselectUnit(),
       onFoundCity: () => foundCityAction(),
-      onBuildFarm: () => buildImprovementAction('farm'),
-      onBuildMine: () => buildImprovementAction('mine'),
+      onWorkerAction: action => performWorkerAction(action),
       onRest: () => restAction(),
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
       onOpenStack: (coord) => {
@@ -1341,21 +1340,31 @@ function foundCityAction(): void {
   updateHUD();
 }
 
-function buildImprovementAction(type: 'farm' | 'mine'): void {
+function performWorkerAction(action: WorkerActionType): void {
   if (!selectedUnitId) return;
-  const unit = gameState.units[selectedUnitId];
-  if (!unit || unit.type !== 'worker') return;
 
-  const tile = gameState.map.tiles[hexKey(unit.position)];
-  if (!tile || !canBuildImprovement(tile, type)) return;
+  const result = applyWorkerAction(gameState, selectedUnitId, action);
+  if (!result.ok) return;
 
-  tile.improvement = type;
-  tile.improvementTurnsLeft = IMPROVEMENT_BUILD_TURNS[type];
-  gameState.units[selectedUnitId].hasActed = true;
+  gameState = result.state;
+  for (const event of result.events) {
+    if (event.type === 'improvement:started') {
+      bus.emit('improvement:started', event.payload);
+    } else {
+      bus.emit('unit:destroyed', event.payload);
+    }
+  }
 
-  deselectUnit();
-  showNotification(`Building ${type}... (${IMPROVEMENT_BUILD_TURNS[type]} turns)`, 'info');
   renderLoop.setGameState(gameState);
+  updateHUD();
+
+  if (result.workerConsumed || result.workerLost || !gameState.units[selectedUnitId]) {
+    deselectUnit();
+  } else {
+    selectUnit(selectedUnitId);
+  }
+
+  showNotification(result.message, result.workerLost ? 'warning' : 'info');
 }
 
 function ensurePlayerWarState(targetCivId: string): void {
