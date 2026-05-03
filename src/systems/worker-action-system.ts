@@ -31,6 +31,7 @@ export type WorkerActionFailureReason =
   | 'not-worker'
   | 'missing-tile'
   | 'invalid-action'
+  | 'no-charges'
   | 'already-acted';
 
 export interface WorkerActionOptions {
@@ -109,6 +110,8 @@ export function applyWorkerAction(
   if (!unit) return { ok: false, state, reason: 'missing-unit', events: [] };
   if (unit.type !== 'worker') return { ok: false, state, reason: 'not-worker', events: [] };
   if (unit.hasActed) return { ok: false, state, reason: 'already-acted', events: [] };
+  const chargesBefore = getWorkerChargesRemaining(unit);
+  if (chargesBefore <= 0) return { ok: false, state, reason: 'no-charges', events: [] };
 
   const key = hexKey(unit.position);
   const tile = state.map.tiles[key];
@@ -123,7 +126,6 @@ export function applyWorkerAction(
     return { ok: false, state, reason: 'invalid-action', events: [] };
   }
 
-  const chargesBefore = getWorkerChargesRemaining(unit);
   const chargesAfter = Math.max(0, chargesBefore - 1);
   const events: WorkerActionEvent[] = [];
   let nextTerrain: TerrainType = tile.terrain;

@@ -111,7 +111,12 @@ export function getImprovementYieldBonus(type: ImprovementType): ResourceYield {
   return { ...IMPROVEMENT_DEFINITIONS[type].yieldBonus };
 }
 
+export function getImprovementDisplayName(type: ImprovementType): string {
+  if (type === 'none') return 'None';
+  return IMPROVEMENT_DEFINITIONS[type].name;
+}
+
 export function getWorkerActionLabel(action: WorkerActionType): string {
   if (action === 'drain_swamp') return 'Drain Swamp (20% worker risk)';
-  return `Build ${IMPROVEMENT_DEFINITIONS[action].name}`;
+  return `Build ${getImprovementDisplayName(action)}`;
 }
