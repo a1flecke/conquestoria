@@ -38,6 +38,7 @@ function city(overrides: Partial<City>): City {
     gridSize: 3,
     unrestLevel: 0,
     unrestTurns: 0,
+    spyUnrestBonus: 0,
     ...overrides,
   };
 }
