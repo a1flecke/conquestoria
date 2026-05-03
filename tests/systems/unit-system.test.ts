@@ -5,6 +5,8 @@ import {
   findPath,
   resetUnitTurn,
   UNIT_DEFINITIONS,
+  getUnmovedUnits,
+  healUnit,
 } from '@/systems/unit-system';
 import type { GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
@@ -261,6 +263,53 @@ describe('resetUnitTurn', () => {
     expect(reset.movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints);
     expect(reset.hasMoved).toBe(false);
     expect(reset.hasActed).toBe(false);
+  });
+});
+
+describe('skippedTurn cycling flag', () => {
+  it('excludes skipped units from unmoved cycling without treating skip as movement or action', () => {
+    const skipped = {
+      ...createUnit('scout', 'player', { q: 2, r: 2 }),
+      id: 'unit-skipped',
+      skippedTurn: true,
+      movementPointsLeft: 0,
+    };
+    const fresh = {
+      ...createUnit('warrior', 'player', { q: 3, r: 2 }),
+      id: 'unit-fresh',
+    };
+
+    const unmoved = getUnmovedUnits({ [skipped.id]: skipped, [fresh.id]: fresh }, 'player');
+
+    expect(unmoved.map(unit => unit.id)).toEqual(['unit-fresh']);
+    expect(skipped.hasMoved).toBe(false);
+    expect(skipped.hasActed).toBe(false);
+  });
+
+  it('still allows passive healing for a skipped unit that did not move or act', () => {
+    const skipped = {
+      ...createUnit('scout', 'player', { q: 2, r: 2 }),
+      health: 50,
+      skippedTurn: true,
+      movementPointsLeft: 0,
+    };
+
+    const healed = healUnit(skipped, false, false);
+
+    expect(healed.health).toBe(55);
+  });
+
+  it('clears skippedTurn during turn reset', () => {
+    const skipped = {
+      ...createUnit('scout', 'player', { q: 2, r: 2 }),
+      skippedTurn: true,
+      movementPointsLeft: 0,
+    };
+
+    const reset = resetUnitTurn(skipped);
+
+    expect(reset.skippedTurn).toBeUndefined();
+    expect(reset.movementPointsLeft).toBe(UNIT_DEFINITIONS.scout.movementPoints);
   });
 });
 

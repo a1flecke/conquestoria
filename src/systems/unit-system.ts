@@ -147,8 +147,9 @@ export function moveUnit(unit: Unit, to: HexCoord, cost: number): Unit {
 }
 
 export function resetUnitTurn(unit: Unit): Unit {
+  const { skippedTurn: _skippedTurn, ...rest } = unit;
   return {
-    ...unit,
+    ...rest,
     movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0),
     hasMoved: false,
     hasActed: false,
@@ -224,7 +225,7 @@ export function getUnmovedUnits(
   civId: string,
 ): Unit[] {
   return Object.values(units).filter(
-    u => u.owner === civId && !u.hasMoved && !u.hasActed,
+    u => u.owner === civId && !u.hasMoved && !u.hasActed && !u.skippedTurn,
   );
 }
 
