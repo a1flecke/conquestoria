@@ -1,15 +1,15 @@
-import type { GameState, DisguiseType, HexCoord } from '@/core/types';
+import type { GameState, DisguiseType, HexCoord, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
 import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
-import { canBuildImprovement } from '@/systems/improvement-system';
+import { getAvailableWorkerActions, getWorkerActionLabel } from '@/systems/improvement-system';
+import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { hexKey } from '@/systems/hex-utils';
 
 export interface SelectedUnitInfoCallbacks {
   onClose?: () => void;
   onFoundCity?: () => void;
-  onBuildFarm?: () => void;
-  onBuildMine?: () => void;
+  onWorkerAction?: (action: WorkerActionType) => void;
   onRest?: () => void;
   onCancelAutoExplore?: () => void;
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
@@ -112,11 +112,26 @@ export function renderSelectedUnitInfo(
   }
 
   if (def.canBuildImprovements) {
-    if (tile && canBuildImprovement(tile, 'farm') && callbacks.onBuildFarm) {
-      actionsDiv.appendChild(makeButton('Build Farm', '#6b9b4b', callbacks.onBuildFarm));
-    }
-    if (tile && canBuildImprovement(tile, 'mine') && callbacks.onBuildMine) {
-      actionsDiv.appendChild(makeButton('Build Mine', '#8b7355', callbacks.onBuildMine));
+    const charges = getWorkerChargesRemaining(unit);
+    const chargeDiv = document.createElement('div');
+    chargeDiv.style.cssText = 'font-size:10px;opacity:0.75;margin-top:6px;';
+    chargeDiv.textContent = `Worker Charges: ${charges}/${DEFAULT_WORKER_CHARGES}`;
+    wrapper.appendChild(chargeDiv);
+
+    if (charges > 0 && !unit.hasActed && callbacks.onWorkerAction) {
+      const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
+      for (const action of getAvailableWorkerActions(tile, completedTechs, unit.owner)) {
+        const color = action === 'farm'
+          ? '#6b9b4b'
+          : action === 'mine'
+            ? '#8b7355'
+            : action === 'lumber_camp'
+              ? '#476f3a'
+              : action === 'watermill'
+                ? '#3f7f8f'
+                : '#64748b';
+        actionsDiv.appendChild(makeButton(getWorkerActionLabel(action), color, () => callbacks.onWorkerAction!(action)));
+      }
     }
   }
 
