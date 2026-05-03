@@ -1,4 +1,8 @@
-import { canBuildImprovement, getImprovementYieldBonus } from '@/systems/improvement-system';
+import {
+  canBuildImprovement,
+  getAvailableWorkerActions,
+  getImprovementYieldBonus,
+} from '@/systems/improvement-system';
 import type { HexTile } from '@/core/types';
 
 describe('canBuildImprovement', () => {
@@ -66,5 +70,63 @@ describe('new terrain improvements', () => {
   it('can build mine on volcanic', () => {
     const tile = { terrain: 'volcanic', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false } as any;
     expect(canBuildImprovement(tile, 'mine')).toBe(true);
+  });
+});
+
+describe('lumber camp and watermill eligibility', () => {
+  function tile(overrides: Partial<HexTile>): HexTile {
+    return {
+      coord: { q: 0, r: 0 },
+      terrain: 'grassland',
+      elevation: 'lowland',
+      resource: null,
+      improvement: 'none',
+      owner: 'p1',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      ...overrides,
+    };
+  }
+
+  it('allows lumber camp on unimproved forest and jungle while preserving the terrain', () => {
+    expect(canBuildImprovement(tile({ terrain: 'forest' }), 'lumber_camp')).toBe(true);
+    expect(canBuildImprovement(tile({ terrain: 'jungle' }), 'lumber_camp')).toBe(true);
+  });
+
+  it('does not allow lumber camp on plains, swamp, or already improved forest', () => {
+    expect(canBuildImprovement(tile({ terrain: 'plains' }), 'lumber_camp')).toBe(false);
+    expect(canBuildImprovement(tile({ terrain: 'swamp' }), 'lumber_camp')).toBe(false);
+    expect(canBuildImprovement(tile({ terrain: 'forest', improvement: 'farm' }), 'lumber_camp')).toBe(false);
+  });
+
+  it('allows watermill only on valid unimproved river land', () => {
+    expect(canBuildImprovement(tile({ terrain: 'plains', hasRiver: true }), 'watermill')).toBe(true);
+    expect(canBuildImprovement(tile({ terrain: 'forest', hasRiver: true }), 'watermill')).toBe(true);
+    expect(canBuildImprovement(tile({ terrain: 'swamp', hasRiver: true }), 'watermill')).toBe(true);
+  });
+
+  it('does not allow watermill without river, on mountain, on coast, or on improved land', () => {
+    expect(canBuildImprovement(tile({ terrain: 'plains', hasRiver: false }), 'watermill')).toBe(false);
+    expect(canBuildImprovement(tile({ terrain: 'mountain', elevation: 'mountain', hasRiver: true }), 'watermill')).toBe(false);
+    expect(canBuildImprovement(tile({ terrain: 'coast', hasRiver: true }), 'watermill')).toBe(false);
+    expect(canBuildImprovement(tile({ terrain: 'plains', hasRiver: true, improvement: 'mine' }), 'watermill')).toBe(false);
+  });
+
+  it('rejects improvement actions on unowned or enemy-owned tiles when an owner is supplied', () => {
+    expect(canBuildImprovement(tile({ terrain: 'forest', owner: null }), 'lumber_camp', [], 'p1')).toBe(false);
+    expect(canBuildImprovement(tile({ terrain: 'forest', owner: 'enemy' }), 'lumber_camp', [], 'p1')).toBe(false);
+    expect(canBuildImprovement(tile({ terrain: 'forest', owner: 'p1' }), 'lumber_camp', [], 'p1')).toBe(true);
+  });
+
+  it('returns no worker actions for unowned or enemy-owned valid terrain', () => {
+    expect(getAvailableWorkerActions(tile({ terrain: 'forest', owner: null }), [], 'p1')).toEqual([]);
+    expect(getAvailableWorkerActions(tile({ terrain: 'forest', owner: 'enemy' }), [], 'p1')).toEqual([]);
+    expect(getAvailableWorkerActions(tile({ terrain: 'forest', owner: 'p1' }), [], 'p1')).toContain('lumber_camp');
+  });
+
+  it('returns expected yields for lumber camp and watermill', () => {
+    expect(getImprovementYieldBonus('lumber_camp')).toEqual({ food: 0, production: 2, gold: 0, science: 0 });
+    expect(getImprovementYieldBonus('watermill')).toEqual({ food: 1, production: 1, gold: 0, science: 0 });
   });
 });
