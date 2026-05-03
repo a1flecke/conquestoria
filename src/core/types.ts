@@ -162,7 +162,9 @@ export interface TribalVillage {
 
 export type VisibilityState = 'unexplored' | 'fog' | 'visible';
 
-export type ImprovementType = 'farm' | 'mine' | 'none';
+export type ImprovementType = 'farm' | 'mine' | 'lumber_camp' | 'watermill' | 'none';
+export type BuildableImprovementType = Exclude<ImprovementType, 'none'>;
+export type WorkerActionType = BuildableImprovementType | 'drain_swamp';
 
 export interface HexTile {
   coord: HexCoord;
