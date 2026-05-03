@@ -225,6 +225,7 @@ export interface Unit {
   hasActed: boolean;         // used action this turn (build, found, etc.)
   chargesRemaining?: number; // workers default to 2; omitted on legacy saves
   isResting: boolean;        // player explicitly chose to rest/heal this turn
+  skippedTurn?: boolean;     // player chose to hold this unit out of unit cycling this turn
   automation?: {
     mode: 'auto-explore';
     lastTargets: string[];
