@@ -1,6 +1,7 @@
 import {
   canBuildImprovement,
   getAvailableWorkerActions,
+  getImprovementDisplayName,
   getImprovementYieldBonus,
 } from '@/systems/improvement-system';
 import type { HexTile } from '@/core/types';
@@ -53,6 +54,12 @@ describe('getImprovementYieldBonus', () => {
   it('none gives no bonus', () => {
     const bonus = getImprovementYieldBonus('none');
     expect(bonus.food + bonus.production + bonus.gold + bonus.science).toBe(0);
+  });
+
+  it('formats improvement names for player-facing text', () => {
+    expect(getImprovementDisplayName('lumber_camp')).toBe('Lumber Camp');
+    expect(getImprovementDisplayName('watermill')).toBe('Watermill');
+    expect(getImprovementDisplayName('none')).toBe('None');
   });
 });
 

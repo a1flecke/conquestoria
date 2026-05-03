@@ -13,6 +13,7 @@ import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
+import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
@@ -1839,7 +1840,7 @@ function handleHexLongPress(rawCoord: HexCoord): void {
   }
 
   const wonderInfo = tile.wonder ? ` · ⭐ ${getWonderDefinition(tile.wonder)?.name ?? tile.wonder}` : '';
-  showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + tile.improvement : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
+  showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + getImprovementDisplayName(tile.improvement) : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
 }
 
 async function endTurn(): Promise<void> {
@@ -1920,7 +1921,7 @@ function processImprovements(): void {
       tile.improvementTurnsLeft--;
       if (tile.improvementTurnsLeft === 0) {
         bus.emit('improvement:completed', { coord: tile.coord, type: tile.improvement });
-        showNotification(`${tile.improvement} completed!`, 'success');
+        showNotification(`${getImprovementDisplayName(tile.improvement)} completed!`, 'success');
       }
     }
   }

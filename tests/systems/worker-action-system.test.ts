@@ -267,6 +267,20 @@ describe('worker action system', () => {
     expect(result.workerConsumed).toBe(true);
   });
 
+  it('rejects actions from workers with no charges left', () => {
+    const start = state();
+    start.units['worker-1'] = worker({ chargesRemaining: 0 });
+    start.map.tiles['0,0'] = tile({ terrain: 'forest' });
+
+    const result = applyWorkerAction(start, 'worker-1', 'lumber_camp');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('no-charges');
+    expect(result.state.map.tiles['0,0']).toMatchObject({ terrain: 'forest', improvement: 'none' });
+    expect(result.state.units['worker-1']).toBeDefined();
+  });
+
   it('rejects repeat-click mutation after the worker has already been removed', () => {
     const start = state({
       units: {},
