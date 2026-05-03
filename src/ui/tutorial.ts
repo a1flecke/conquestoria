@@ -31,7 +31,7 @@ const TUTORIAL_MESSAGES: TutorialMessage[] = [
   {
     step: 'build_improvement',
     advisor: 'builder',
-    message: 'Your Worker can build Farms and Mines on nearby tiles. Select the Worker and choose an improvement to boost your city\'s output.',
+    message: 'Your Worker can build Farms, Mines, Lumber Camps, and Watermills, or drain swamps on nearby tiles. Select the Worker and choose an improvement to boost your city\'s output.',
     trigger: (state) => Object.values(state.units).some(u => u.owner === state.currentPlayer && u.type === 'worker'),
   },
   {

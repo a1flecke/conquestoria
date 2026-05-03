@@ -209,7 +209,13 @@ function drawHex(
     ctx.font = `${size * 0.5}px system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const icon = tile.improvement === 'farm' ? '🌾' : '⛏️';
+    const icons: Record<string, string> = {
+      farm: '🌾',
+      mine: '⛏️',
+      lumber_camp: '🪵',
+      watermill: '💧',
+    };
+    const icon = icons[tile.improvement] ?? '◆';
     ctx.fillText(icon, cx, cy);
   }
 

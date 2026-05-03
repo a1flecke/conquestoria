@@ -372,6 +372,36 @@ describe('city-panel navigation', () => {
     expect(collectText(panel)).toContain('Mine (+2 production, +1 gold)');
   });
 
+  it('shows lumber camp label without underscores in worked-land tile row', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const forestTile = { q: city.position.q + 1, r: city.position.r };
+    state.map.tiles[hexKey(forestTile)] = {
+      ...state.map.tiles[hexKey(forestTile)],
+      coord: forestTile,
+      terrain: 'forest',
+      elevation: 'lowland',
+      improvement: 'lumber_camp',
+      improvementTurnsLeft: 0,
+      owner: city.owner,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    city.ownedTiles = [city.position, forestTile];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetCityFocus: () => {},
+      onToggleWorkedTile: () => {},
+    });
+
+    clickElement(panel.querySelector('[id="tab-grid"]'));
+    expect(collectText(panel)).toContain('Lumber Camp (+2 production)');
+    expect(collectText(panel)).not.toContain('Lumber_camp');
+  });
+
   it('shows help text in the Worked Land And Water section explaining improvements', () => {
     const { container, city, state } = makeWonderPanelFixture();
     const panel = createCityPanel(container, city, state, {
@@ -383,8 +413,11 @@ describe('city-panel navigation', () => {
     });
     clickElement(panel.querySelector('[id="tab-grid"]'));
     const rendered = collectText(panel);
-    expect(rendered).toContain('Workers build Farms (+2 food)');
-    expect(rendered).toContain('Mines (+2 production, +1 gold)');
+    expect(rendered).toContain('Farms');
+    expect(rendered).toContain('Mines');
+    expect(rendered).toContain('Lumber Camps');
+    expect(rendered).toContain('Watermills');
+    expect(rendered).toContain('2 charges');
   });
 
   it('shows claimed overlap tiles as unavailable', () => {
