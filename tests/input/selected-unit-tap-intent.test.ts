@@ -114,8 +114,22 @@ describe('selected-unit-tap-intent', () => {
     expect(intent).toEqual({ kind: 'move' });
   });
 
-  it('returns move when the selected unit taps a friendly stack destination in range', () => {
+  it('returns assault-city when a friendly unit is stacked on the enemy city destination', () => {
     const state = makeTapAssaultFixture();
+    const friendly = createUnit('worker', 'player', { q: 1, r: 0 });
+    friendly.id = 'friendly-worker';
+    state.units[friendly.id] = friendly;
+    state.civilizations.player.units.push(friendly.id);
+
+    const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 }, [{ q: 1, r: 0 }]);
+
+    expect(intent).toEqual({ kind: 'assault-city', cityId: 'enemyCity' });
+  });
+
+  it('returns move when the selected unit taps a friendly stack destination with no enemy city', () => {
+    const state = makeTapAssaultFixture();
+    delete state.cities.enemyCity;
+    state.civilizations['ai-1'].cities = [];
     const friendly = createUnit('worker', 'player', { q: 1, r: 0 });
     friendly.id = 'friendly-worker';
     state.units[friendly.id] = friendly;

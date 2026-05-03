@@ -29,7 +29,7 @@ export function resolveSelectedUnitTapIntent(
 
   const occupancy = buildUnitOccupancy(state.units);
   const relationship = getStackRelationship(occupancy, unit, targetCoord);
-  if (relationship.occupantIds.length > 0) {
+  if (relationship.hasHostileBlocker) {
     return { kind: 'move' };
   }
 

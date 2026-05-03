@@ -55,6 +55,14 @@ export function getStackRelationship(
   };
 }
 
+export function hasHostileUnitAtCoord(
+  index: UnitOccupancyIndex,
+  coord: HexCoord,
+  ownerId: string,
+): boolean {
+  return getUnitIdsAtCoord(index, coord).some(unitId => index.ownersByUnitId[unitId] !== ownerId);
+}
+
 function isReady(unit: Unit): boolean {
   return unit.movementPointsLeft > 0 && !unit.hasActed;
 }

@@ -64,7 +64,7 @@ import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
-import { buildUnitOccupancy } from '@/systems/unit-occupancy';
+import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupancy';
 import {
   type PendingCityCaptureChoice,
   beginPlayerCityAssaultChoice,
@@ -72,7 +72,7 @@ import {
   shouldPromptForPlayerCityCapture,
 } from '@/input/city-assault-flow';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
-import { getFriendlyUnitIdsAtHex, resolveFriendlyUnitStackTap } from '@/input/unit-stack-selection';
+import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import {
   initializeLegendaryWonderProjectsForCity,
   startLegendaryWonderBuild,
@@ -1077,8 +1077,10 @@ function selectUnit(unitId: string): void {
       onRest: () => restAction(),
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
       onOpenStack: (coord) => {
-        const unitIds = getFriendlyUnitIdsAtHex(gameState, coord);
-        if (unitIds.length > 1) openUnitStackPicker(coord, unitIds);
+        handleFriendlyUnitStackTap(gameState, coord, selectedUnitId, {
+          onSelectUnit: selectUnit,
+          onOpenStackPicker: openUnitStackPicker,
+        });
       },
       onSetDisguise: (uid, disguise) => {
         const unit = gameState.units[uid];
@@ -1483,20 +1485,26 @@ function executeAttack(attackerId: string, defenderId: string, defender: Unit, t
     }
 
     const cityAtTarget = Object.values(gameState.cities).find(c => hexKey(c.position) === targetKey);
-    if (cityAtTarget && cityAtTarget.owner.startsWith('mc-')) {
-      const conqueredCityName = cityAtTarget.name;
-      conquestMinorCiv(gameState, cityAtTarget.owner, gameState.currentPlayer, bus);
-      showNotification(`${conqueredCityName} has been conquered!`, 'success');
-    }
-    if (cityAtTarget && !cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
-      const assaultStatus = beginPlayerCityAssault(attackerId, cityAtTarget.id, attackerBonus);
-      SFX.combat();
-      renderLoop.setGameState(gameState);
-      updateHUD();
-      if (assaultStatus === 'resolved') {
-        selectNextUnit();
+    if (cityAtTarget) {
+      const occupancy = buildUnitOccupancy(gameState.units);
+      const remainingHostileDefenders = hasHostileUnitAtCoord(occupancy, cityAtTarget.position, gameState.currentPlayer);
+      if (!remainingHostileDefenders) {
+        if (cityAtTarget.owner.startsWith('mc-')) {
+          const conqueredCityName = cityAtTarget.name;
+          conquestMinorCiv(gameState, cityAtTarget.owner, gameState.currentPlayer, bus);
+          showNotification(`${conqueredCityName} has been conquered!`, 'success');
+        }
+        if (!cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
+          const assaultStatus = beginPlayerCityAssault(attackerId, cityAtTarget.id, attackerBonus);
+          SFX.combat();
+          renderLoop.setGameState(gameState);
+          updateHUD();
+          if (assaultStatus === 'resolved') {
+            selectNextUnit();
+          }
+          return;
+        }
       }
-      return;
     }
   } else {
     if (gameState.units[defenderId]) {
@@ -1533,13 +1541,10 @@ function handleHexTap(rawCoord: HexCoord): void {
 
   const selectedUnitCanMoveToTappedHex = selectedUnitId && movementRange.some(h => hexKey(h) === key);
   if (!selectedUnitCanMoveToTappedHex) {
-    const friendlyTap = resolveFriendlyUnitStackTap(gameState, coord, selectedUnitId);
-    if (friendlyTap.kind === 'open-stack-picker') {
-      openUnitStackPicker(coord, friendlyTap.unitIds);
-      return;
-    }
-    if (friendlyTap.kind === 'select-unit') {
-      selectUnit(friendlyTap.unitId);
+    if (handleFriendlyUnitStackTap(gameState, coord, selectedUnitId, {
+      onSelectUnit: selectUnit,
+      onOpenStackPicker: openUnitStackPicker,
+    })) {
       return;
     }
   }

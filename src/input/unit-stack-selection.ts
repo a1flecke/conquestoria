@@ -6,6 +6,11 @@ export type FriendlyUnitStackTap =
   | { kind: 'select-unit'; unitId: string }
   | { kind: 'open-stack-picker'; unitIds: string[] };
 
+export interface FriendlyUnitStackTapCallbacks {
+  onSelectUnit: (unitId: string) => void;
+  onOpenStackPicker: (coord: HexCoord, unitIds: string[]) => void;
+}
+
 export function getFriendlyUnitIdsAtHex(
   state: GameState,
   coord: HexCoord,
@@ -27,4 +32,22 @@ export function resolveFriendlyUnitStackTap(
   if (unitIds.length > 1) return { kind: 'open-stack-picker', unitIds };
   if (selectedUnitId && unitIds[0] === selectedUnitId) return { kind: 'select-unit', unitId: unitIds[0] };
   return { kind: 'select-unit', unitId: unitIds[0] };
+}
+
+export function handleFriendlyUnitStackTap(
+  state: GameState,
+  coord: HexCoord,
+  selectedUnitId: string | null,
+  callbacks: FriendlyUnitStackTapCallbacks,
+): boolean {
+  const friendlyTap = resolveFriendlyUnitStackTap(state, coord, selectedUnitId);
+  if (friendlyTap.kind === 'open-stack-picker') {
+    callbacks.onOpenStackPicker(coord, friendlyTap.unitIds);
+    return true;
+  }
+  if (friendlyTap.kind === 'select-unit') {
+    callbacks.onSelectUnit(friendlyTap.unitId);
+    return true;
+  }
+  return false;
 }

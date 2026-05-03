@@ -4,6 +4,7 @@ import {
   buildUnitOccupancy,
   getUnitIdsAtCoord,
   getStackRelationship,
+  hasHostileUnitAtCoord,
   sortUnitsForStackPicker,
 } from '@/systems/unit-occupancy';
 
@@ -65,6 +66,23 @@ describe('unit occupancy', () => {
       hasFriendlyStack: false,
       hasHostileBlocker: true,
     });
+  });
+
+  it('detects remaining hostile defenders while ignoring friendly stacks', () => {
+    const afterFirstDefenderDies = buildUnitOccupancy({
+      attacker: unit('attacker', 'player', 1, 1),
+      friendly: unit('friendly', 'player', 2, 1),
+      'enemy-2': unit('enemy-2', 'ai-1', 2, 1),
+    });
+
+    expect(hasHostileUnitAtCoord(afterFirstDefenderDies, { q: 2, r: 1 }, 'player')).toBe(true);
+
+    const afterAllDefendersDie = buildUnitOccupancy({
+      attacker: unit('attacker', 'player', 1, 1),
+      friendly: unit('friendly', 'player', 2, 1),
+    });
+
+    expect(hasHostileUnitAtCoord(afterAllDefendersDie, { q: 2, r: 1 }, 'player')).toBe(false);
   });
 
   it('sorts stack picker rows by ready state, current unit, name, then id', () => {
