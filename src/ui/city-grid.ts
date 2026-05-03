@@ -63,7 +63,7 @@ interface CityManagementOptions {
 }
 
 function titleCase(value: string): string {
-  return value.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+  return value.replace(/[-_]/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
 }
 
 function formatYield(yieldValue: ResourceYield): string {
@@ -334,11 +334,7 @@ function renderWorkedLandSection(root: HTMLElement, city: City, options: CityMan
 
   const help = document.createElement('p');
   help.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.55);margin:0;line-height:1.4;';
-  const farmBonus = getImprovementYieldBonus('farm');
-  const mineBonus = getImprovementYieldBonus('mine');
-  const farmText = formatYield(farmBonus);
-  const mineText = formatYield(mineBonus);
-  help.textContent = `Workers build Farms (${farmText}) and Mines (${mineText}) on nearby tiles. Assign citizens to worked tiles each turn to collect their yields.`;
+  help.textContent = 'Workers have 2 charges by default. They build Farms (+2 food), Mines (+2 production, +1 gold), Lumber Camps (+2 production on forest/jungle), and Watermills (+1 food, +1 production on river land).';
   section.appendChild(help);
 
   const workedKeys = new Set((city.workedTiles ?? []).map(coord => hexKey(coord)));
@@ -461,7 +457,7 @@ export function createCityGrid(
     introTitle.style.color = '#e8c170';
     introTitle.textContent = 'Grid View';
     intro.appendChild(introTitle);
-    intro.appendChild(document.createTextNode(' - Tap empty slots to place buildings, tap built slots to learn what they do, and use adjacency to make clever little combos. Workers can also build improvements (Farms, Mines) on surrounding tiles to boost your city\'s output.'));
+    intro.appendChild(document.createTextNode(' - Tap empty slots to place buildings, tap built slots to learn what they do, and use adjacency to make clever little combos. Workers can also build improvements (Farms, Mines, Lumber Camps, Watermills) or drain swamps on surrounding tiles to boost your city\'s output.'));
     if (suggestedBuilding) {
       const suggested = document.createElement('div');
       suggested.style.cssText = 'color:#e8c170;margin-top:4px;';
