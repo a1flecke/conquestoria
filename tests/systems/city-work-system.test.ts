@@ -100,6 +100,47 @@ describe('city focus assignment', () => {
     expect(state.cities[city.id].workedTiles).toEqual([]);
   });
 
+  it('calculates lumber camp worked-tile yield', () => {
+    const state = createNewGame(undefined, 'city-work-lumber-camp-yield');
+    addCity(state, 'player', { q: 15, r: 15 });
+    state.map.tiles['1,1'] = {
+      coord: { q: 1, r: 1 },
+      terrain: 'forest',
+      elevation: 'lowland',
+      resource: null,
+      improvement: 'lumber_camp',
+      owner: 'player',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+    };
+
+    const yields = calculateWorkedTileYield(state, { q: 1, r: 1 });
+
+    expect(yields.production).toBeGreaterThanOrEqual(3);
+  });
+
+  it('calculates watermill worked-tile yield', () => {
+    const state = createNewGame(undefined, 'city-work-watermill-yield');
+    addCity(state, 'player', { q: 15, r: 15 });
+    state.map.tiles['1,1'] = {
+      coord: { q: 1, r: 1 },
+      terrain: 'plains',
+      elevation: 'lowland',
+      resource: null,
+      improvement: 'watermill',
+      owner: 'player',
+      improvementTurnsLeft: 0,
+      hasRiver: true,
+      wonder: null,
+    };
+
+    const yields = calculateWorkedTileYield(state, { q: 1, r: 1 });
+
+    expect(yields.food).toBeGreaterThanOrEqual(2);
+    expect(yields.production).toBeGreaterThanOrEqual(2);
+  });
+
   it('assigns food focus to the highest-food unclaimed tiles up to population', () => {
     const state = createNewGame(undefined, 'city-work-food-focus');
     const city = addCity(state, 'player', { q: 15, r: 15 });
