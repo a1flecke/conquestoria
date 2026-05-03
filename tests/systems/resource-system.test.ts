@@ -90,6 +90,49 @@ describe('calculateCityYields', () => {
     expect(yields.food).toBe(3);
     expect(yields.gold).toBe(2);
   });
+
+  it('includes completed lumber camp production in city yields', () => {
+    const map = generateMap(10, 10, 'lumber-yield');
+    const center = { q: 2, r: 2 };
+    const worked = { q: 2, r: 3 };
+    map.tiles['2,2'] = {
+      coord: center, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    map.tiles['2,3'] = {
+      coord: worked, terrain: 'forest', elevation: 'lowland', resource: null,
+      improvement: 'lumber_camp', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    const city = foundCity('player', center, map);
+    city.population = 1;
+    city.workedTiles = [worked];
+
+    const yields = calculateCityYields(city, map);
+
+    expect(yields.production).toBeGreaterThanOrEqual(3);
+  });
+
+  it('includes completed watermill food and production in city yields', () => {
+    const map = generateMap(10, 10, 'watermill-yield');
+    const center = { q: 2, r: 2 };
+    const worked = { q: 2, r: 3 };
+    map.tiles['2,2'] = {
+      coord: center, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    map.tiles['2,3'] = {
+      coord: worked, terrain: 'plains', elevation: 'lowland', resource: null,
+      improvement: 'watermill', owner: 'player', improvementTurnsLeft: 0, hasRiver: true, wonder: null,
+    };
+    const city = foundCity('player', center, map);
+    city.population = 1;
+    city.workedTiles = [worked];
+
+    const yields = calculateCityYields(city, map);
+
+    expect(yields.food).toBeGreaterThanOrEqual(3);
+    expect(yields.production).toBeGreaterThanOrEqual(2);
+  });
 });
 
 describe('adjacency yields in city calculation', () => {
