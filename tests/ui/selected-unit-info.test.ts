@@ -215,6 +215,54 @@ describe('renderSelectedUnitInfo — spy disguise buttons', () => {
     archerBtn?.click();
     expect(called).toEqual(['unit-1', 'archer']);
   });
+
+  it('renders Skip Turn for a unit with movement remaining and calls onSkipTurn with the unit id', () => {
+    const state = makeSpyState([]);
+    const container = new MockElement('div');
+    let skippedUnitId: string | null = null;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
+      onSkipTurn: unitId => { skippedUnitId = unitId; },
+    });
+
+    const skipButton = findButtons(container).find(button => button.textContent === 'Skip Turn');
+    expect(skipButton).toBeDefined();
+
+    skipButton?.click();
+
+    expect(skippedUnitId).toBe('unit-1');
+  });
+
+  it('hides Skip Turn once the unit has already acted', () => {
+    const state = makeSpyState([]);
+    state.units['unit-1'] = { ...state.units['unit-1'], hasActed: true, movementPointsLeft: 0 } as any;
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
+      onSkipTurn: () => {},
+    });
+
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(buttons).not.toContain('Skip Turn');
+  });
+
+  it('renders Delete Unit and calls onDeleteUnit with the unit id without deleting immediately', () => {
+    const state = makeSpyState([]);
+    const container = new MockElement('div');
+    let deleteUnitId: string | null = null;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
+      onDeleteUnit: unitId => { deleteUnitId = unitId; },
+    });
+
+    const deleteButton = findButtons(container).find(button => button.textContent === 'Delete Unit');
+    expect(deleteButton).toBeDefined();
+
+    deleteButton?.click();
+
+    expect(deleteUnitId).toBe('unit-1');
+    expect(state.units['unit-1']).toBeDefined();
+  });
 });
 
 describe('renderSelectedUnitInfo - unit stack switch', () => {

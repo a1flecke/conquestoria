@@ -11,6 +11,8 @@ export interface SelectedUnitInfoCallbacks {
   onFoundCity?: () => void;
   onWorkerAction?: (action: WorkerActionType) => void;
   onRest?: () => void;
+  onSkipTurn?: (unitId: string) => void;
+  onDeleteUnit?: (unitId: string) => void;
   onCancelAutoExplore?: () => void;
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
   onInfiltrate?: (unitId: string) => void;
@@ -137,6 +139,14 @@ export function renderSelectedUnitInfo(
 
   if (canHeal(unit) && !unit.hasActed && callbacks.onRest) {
     actionsDiv.appendChild(makeButton('Rest (+15 HP)', '#4a90d9', callbacks.onRest));
+  }
+
+  if (unit.movementPointsLeft > 0 && !unit.hasActed && !unit.skippedTurn && callbacks.onSkipTurn) {
+    actionsDiv.appendChild(makeButton('Skip Turn', '#5b6472', () => callbacks.onSkipTurn!(unitId)));
+  }
+
+  if (callbacks.onDeleteUnit) {
+    actionsDiv.appendChild(makeButton('Delete Unit', '#b91c1c', () => callbacks.onDeleteUnit!(unitId)));
   }
 
   if (isSpyUnitType(unit.type) && !unit.hasActed && callbacks.onSetDisguise) {
