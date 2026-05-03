@@ -75,6 +75,12 @@ describe('createUnit', () => {
     expect(unit.health).toBe(100);
   });
 
+  it('creates workers with two default charges', () => {
+    const worker = createUnit('worker', 'player', { q: 0, r: 0 });
+
+    expect(worker.chargesRemaining).toBe(2);
+  });
+
   it('applies a persistent viking movement bonus', () => {
     const unit = createUnit(
       'warrior',

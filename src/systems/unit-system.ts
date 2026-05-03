@@ -128,6 +128,7 @@ export function createUnit(
     experience: 0,
     hasMoved: false,
     hasActed: false,
+    chargesRemaining: type === 'worker' ? 2 : undefined,
     isResting: false,
   };
 }
@@ -199,7 +200,7 @@ export function restUnit(unit: Unit): Unit {
 
 export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   settler: 'Civilian unit that can found new cities',
-  worker: 'Civilian unit that builds tile improvements',
+  worker: 'Civilian unit that builds tile improvements. Workers have 2 action charges by default and are used up after spending the last charge.',
   scout: 'Fast exploration unit with extended vision',
   warrior: 'Basic melee fighter — your first line of defense',
   archer: 'Ranged unit that attacks from a distance',

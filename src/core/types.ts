@@ -223,6 +223,7 @@ export interface Unit {
   experience: number;
   hasMoved: boolean;
   hasActed: boolean;         // used action this turn (build, found, etc.)
+  chargesRemaining?: number; // workers default to 2; omitted on legacy saves
   isResting: boolean;        // player explicitly chose to rest/heal this turn
   automation?: {
     mode: 'auto-explore';
