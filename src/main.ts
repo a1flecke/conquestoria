@@ -35,6 +35,7 @@ import { createGameShell } from '@/ui/game-shell';
 import { createContextMenu } from '@/ui/context-menu';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
+import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { showCampaignSetup } from '@/ui/campaign-setup';
@@ -1075,6 +1076,8 @@ function selectUnit(unitId: string): void {
       onFoundCity: () => foundCityAction(),
       onWorkerAction: action => performWorkerAction(action),
       onRest: () => restAction(),
+      onSkipTurn: uid => getUnitTurnFlow().skipUnitAction(uid),
+      onDeleteUnit: uid => getUnitTurnFlow().showDeleteUnitConfirmation(uid),
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
       onOpenStack: (coord) => {
         handleFriendlyUnitStackTap(gameState, coord, selectedUnitId, {
@@ -1285,6 +1288,40 @@ function selectNextUnit(): void {
   const next = filtered.length > 0 ? filtered[0] : unmoved[0];
   selectUnit(next.id);
   renderLoop.camera.centerOn(next.position);
+}
+
+function refreshCurrentPlayerVisibility(): void {
+  const civ = currentCiv();
+  if (!civ?.visibility) return;
+
+  const playerUnits = civ.units
+    .map(id => gameState.units[id])
+    .filter((unit): unit is Unit => unit !== undefined);
+  const cityPositions = civ.cities
+    .map(id => gameState.cities[id]?.position)
+    .filter((position): position is HexCoord => position !== undefined);
+
+  updateVisibility(civ.visibility, playerUnits, gameState.map, cityPositions);
+  syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer);
+}
+
+function getUnitTurnFlow() {
+  return createUnitTurnFlow({
+    uiLayer,
+    getState: () => gameState,
+    setState: nextState => { gameState = nextState; },
+    getSelectedUnitId: () => selectedUnitId,
+    selectUnit,
+    deselectUnit,
+    selectNextUnit,
+    centerOn: coord => renderLoop.camera.centerOn(coord),
+    refreshVisibility: refreshCurrentPlayerVisibility,
+    setRenderState: state => renderLoop.setGameState(state),
+    updateHUD,
+    showNotification,
+    setBlockingOverlay: id => uiInteractions.setBlockingOverlay(id),
+    endTurn: options => { void endTurn(options); },
+  });
 }
 
 function foundCityAction(): void {
@@ -1843,10 +1880,14 @@ function handleHexLongPress(rawCoord: HexCoord): void {
   showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + getImprovementDisplayName(tile.improvement) : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
 }
 
-async function endTurn(): Promise<void> {
+async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
   try {
     if (showRequiredChoicesIfNeeded()) {
       showNotification('Choose production and research before ending the turn.', 'info');
+      return;
+    }
+
+    if (!options.allowUnmovedUnits && getUnitTurnFlow().showEndTurnUnitWarningIfNeeded()) {
       return;
     }
 
