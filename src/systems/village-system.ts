@@ -1,4 +1,4 @@
-import type { GameMap, HexCoord, GameState, Unit, TribalVillage, VillageOutcomeType } from '@/core/types';
+import type { GameMap, HexCoord, GameState, TechState, Unit, TribalVillage, VillageOutcomeType } from '@/core/types';
 import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
 import { TECH_TREE, applyResearchBonus } from './tech-system';
@@ -54,11 +54,26 @@ export function placeVillages(
 export function rollVillageOutcome(roll: number): VillageOutcomeType {
   if (roll < 0.25) return 'gold';
   if (roll < 0.45) return 'food';
-  if (roll < 0.60) return 'science';
-  if (roll < 0.75) return 'free_unit';
+  if (roll < 0.69) return 'science';
+  if (roll < 0.84) return 'free_unit';
   if (roll < 0.85) return 'free_tech';
   if (roll < 0.95) return 'ambush';
   return 'illness';
+}
+
+function getCurrentResearchTech(techState: TechState) {
+  return techState.currentResearch
+    ? TECH_TREE.find(tech => tech.id === techState.currentResearch)
+    : undefined;
+}
+
+function capVillageResearchBonus(techState: TechState, amount: number): number {
+  const tech = getCurrentResearchTech(techState);
+  if (!tech) return amount;
+
+  const remaining = tech.cost - techState.researchProgress;
+  if (remaining <= 1) return amount;
+  return Math.min(amount, remaining - 1);
 }
 
 export function visitVillage(
@@ -114,11 +129,20 @@ export function visitVillage(
       break;
     }
     case 'science': {
-      const amount = Math.round((10 + Math.floor(rng() * 16)) * rewardMultiplier); // 10-25
+      const amount = Math.round((4 + Math.floor(rng() * 5)) * rewardMultiplier); // 4-8
       if (civ?.techState.currentResearch) {
-        const bonusResult = applyResearchBonus(civ.techState, amount);
+        const tech = getCurrentResearchTech(civ.techState);
+        const cappedAmount = capVillageResearchBonus(civ.techState, amount);
+        const bonusResult = applyResearchBonus(civ.techState, cappedAmount);
         civ.techState = bonusResult.state;
-        message = `The villagers share ancient knowledge! +${amount} research.`;
+        if (bonusResult.completedTech && tech) {
+          message = `The villagers helped us finish ${tech.name}! +${cappedAmount} research.`;
+        } else if (tech) {
+          message = `The villagers taught us a little bit about ${tech.name}. `
+            + `We are getting closer to understanding ${tech.name}. +${cappedAmount} research.`;
+        } else {
+          message = `The villagers share ancient knowledge! +${cappedAmount} research.`;
+        }
       } else {
         // Fallback: gold
         const fallbackGold = Math.round(25 * rewardMultiplier);
@@ -130,7 +154,7 @@ export function visitVillage(
     case 'free_unit': {
       const unitType: 'scout' | 'warrior' = rng() < 0.5 ? 'scout' : 'warrior';
       const newUnit = createUnit(unitType, unit.owner, village.position);
-      state.units[newUnit.id] = newUnit;
+      state.units = { ...state.units, [newUnit.id]: newUnit };
       if (civ) civ.units.push(newUnit.id);
       message = `A ${unitType} joins your cause!`;
       break;
@@ -143,10 +167,15 @@ export function visitVillage(
       );
       if (availableTechs.length > 0) {
         const tech = availableTechs[Math.floor(rng() * availableTechs.length)];
-        civ.techState.completed.push(tech.id);
         if (civ.techState.currentResearch === tech.id) {
-          civ.techState.currentResearch = null;
-          civ.techState.researchProgress = 0;
+          const remainingCost = Math.max(0, tech.cost - civ.techState.researchProgress);
+          civ.techState = applyResearchBonus(civ.techState, remainingCost).state;
+        } else {
+          civ.techState = {
+            ...civ.techState,
+            completed: [...civ.techState.completed, tech.id],
+            researchQueue: civ.techState.researchQueue.filter(techId => techId !== tech.id),
+          };
         }
         message = `The villagers taught us ${tech.name}!`;
       } else {
@@ -166,7 +195,7 @@ export function visitVillage(
       const spawnCount = Math.min(1 + Math.floor(rng() * 2), passable.length); // 1-2
       for (let i = 0; i < spawnCount; i++) {
         const barbarian = createUnit('warrior', 'barbarian', passable[i]);
-        state.units[barbarian.id] = barbarian;
+        state.units = { ...state.units, [barbarian.id]: barbarian };
       }
       message = spawnCount > 0
         ? 'It was a trap! Barbarian warriors ambush you!'

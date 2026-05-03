@@ -3,6 +3,7 @@ import { placeVillages, visitVillage, rollVillageOutcome } from '@/systems/villa
 import { generateMap, findStartPositions } from '@/systems/map-generator';
 import { createNewGame } from '@/core/game-state';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { TECH_TREE, getTechById } from '@/systems/tech-system';
 import type { GameState } from '@/core/types';
 
 function makeMap(size: 'small' | 'medium' | 'large') {
@@ -160,8 +161,58 @@ describe('visitVillage', () => {
     unit.position = { q: 5, r: 5 };
     const unitCountBefore = Object.keys(state.units).length;
 
-    visitVillage(state, 'v1', unit, () => 0.65); // 0.65 = free_unit
+    visitVillage(state, 'v1', unit, () => 0.7); // 0.7 = free_unit
     expect(Object.keys(state.units).length).toBeGreaterThan(unitCountBefore);
+  });
+
+  it('science outcome teaches partial progress instead of completing a fresh starter tech', () => {
+    const state = makeGameState();
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchProgress = 0;
+    state.tribalVillages = {
+      'v1': { id: 'v1', position: { q: 5, r: 5 } },
+    };
+    const unit = Object.values(state.units).find(u => u.owner === 'player')!;
+    unit.position = { q: 5, r: 5 };
+    const fire = getTechById('fire')!;
+    const rolls = [0.5, 0.999];
+
+    const result = visitVillage(state, 'v1', unit, () => rolls.shift() ?? 0);
+
+    expect(result.outcome).toBe('science');
+    expect(state.civilizations.player.techState.completed).not.toContain('fire');
+    expect(state.civilizations.player.techState.researchProgress).toBe(fire.cost - 1);
+    expect(result.message).toContain('getting closer to understanding Fire');
+  });
+
+  it('free tech outcome advances into queued research when completing current research', () => {
+    const state = makeGameState();
+    const otherStarterTechs = TECH_TREE
+      .filter(tech => tech.prerequisites.length === 0 && tech.id !== 'fire')
+      .map(tech => tech.id);
+    state.civilizations.player.techState.completed = otherStarterTechs;
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing'];
+    state.civilizations.player.techState.researchProgress = 3;
+    state.tribalVillages = {
+      'v1': { id: 'v1', position: { q: 5, r: 5 } },
+    };
+    const unit = Object.values(state.units).find(u => u.owner === 'player')!;
+    unit.position = { q: 5, r: 5 };
+    const availableTechs = TECH_TREE.filter(tech =>
+      !state.civilizations.player.techState.completed.includes(tech.id)
+      && tech.prerequisites.every(prerequisite => state.civilizations.player.techState.completed.includes(prerequisite)),
+    );
+    const fireIndex = availableTechs.findIndex(tech => tech.id === 'fire');
+    const rolls = [0.84, (fireIndex + 0.1) / availableTechs.length];
+
+    const result = visitVillage(state, 'v1', unit, () => rolls.shift() ?? 0);
+
+    expect(result.outcome).toBe('free_tech');
+    expect(state.civilizations.player.techState.completed).toContain('fire');
+    expect(state.civilizations.player.techState.currentResearch).toBe('writing');
+    expect(state.civilizations.player.techState.researchQueue).toEqual([]);
+    expect(state.civilizations.player.techState.researchProgress).toBe(0);
   });
 });
 
@@ -174,16 +225,18 @@ describe('rollVillageOutcome', () => {
     expect(rollVillageOutcome(0.3)).toBe('food');
   });
 
-  it('returns science for rng 0.45-0.60', () => {
+  it('returns science for rng 0.45-0.69', () => {
     expect(rollVillageOutcome(0.5)).toBe('science');
+    expect(rollVillageOutcome(0.68)).toBe('science');
   });
 
-  it('returns free_unit for rng 0.60-0.75', () => {
-    expect(rollVillageOutcome(0.65)).toBe('free_unit');
+  it('returns free_unit for rng 0.69-0.84', () => {
+    expect(rollVillageOutcome(0.7)).toBe('free_unit');
+    expect(rollVillageOutcome(0.83)).toBe('free_unit');
   });
 
-  it('returns free_tech for rng 0.75-0.85', () => {
-    expect(rollVillageOutcome(0.8)).toBe('free_tech');
+  it('returns free_tech for rng 0.84-0.85', () => {
+    expect(rollVillageOutcome(0.84)).toBe('free_tech');
   });
 
   it('returns ambush for rng 0.85-0.95', () => {
@@ -192,5 +245,17 @@ describe('rollVillageOutcome', () => {
 
   it('returns illness for rng >= 0.95', () => {
     expect(rollVillageOutcome(0.96)).toBe('illness');
+  });
+
+  it('keeps full tech rare while making research hints common', () => {
+    const outcomes = Array.from(
+      { length: 1000 },
+      (_, i) => rollVillageOutcome((i + 0.5) / 1000),
+    );
+    const fullTechCount = outcomes.filter(outcome => outcome === 'free_tech').length;
+    const scienceCount = outcomes.filter(outcome => outcome === 'science').length;
+
+    expect(fullTechCount).toBeLessThanOrEqual(15);
+    expect(scienceCount).toBeGreaterThanOrEqual(230);
   });
 });
