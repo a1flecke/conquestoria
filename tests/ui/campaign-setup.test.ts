@@ -110,6 +110,8 @@ describe('campaign-setup', () => {
     expect(document.querySelector('[data-size="small"]')?.getAttribute('data-selected')).toBe('true');
     expect(Array.from(document.querySelectorAll('[data-opponent-count]')).map(card => card.getAttribute('data-opponent-count'))).toEqual(['1', '2']);
     expect(opponentsSelect.value).toBe('1');
+    expect(document.querySelector('[data-role="start-spacing-note"]')?.textContent)
+      .toContain('Balanced starts keep rival civilizations from beginning next door');
 
     click(document, '[data-size="large"]');
 
