@@ -1,5 +1,6 @@
 import type { BarbarianCamp, GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
+import { selectDefenderForAttack } from './combat-system';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -126,6 +127,13 @@ export interface BarbarianProcessResult {
 
 const BARBARIAN_CHASE_RANGE = 5;
 
+function selectPlayerDefenderAtTarget(playerUnits: Unit[], targetKey: string, map: GameMap): Unit | undefined {
+  return selectDefenderForAttack(
+    playerUnits.filter(unit => hexKey(unit.position) === targetKey),
+    map,
+  );
+}
+
 export function processBarbarians(
   camps: BarbarianCamp[],
   map: GameMap,
@@ -187,7 +195,9 @@ export function processBarbarians(
 
     // If adjacent to target, issue an attack order
     if (nearestDist === 1) {
-      attackOrders.push({ attackerUnitId: barbUnit.id, defenderUnitId: nearestTarget.id });
+      const targetKey = hexKey(nearestTarget.position);
+      const defender = selectPlayerDefenderAtTarget(playerUnits, targetKey, map) ?? nearestTarget;
+      attackOrders.push({ attackerUnitId: barbUnit.id, defenderUnitId: defender.id });
       continue;
     }
 
@@ -219,7 +229,9 @@ export function processBarbarians(
 
     // If the best step is onto the target tile, issue attack instead
     if (hexKey(bestCoord) === hexKey(nearestTarget.position)) {
-      attackOrders.push({ attackerUnitId: barbUnit.id, defenderUnitId: nearestTarget.id });
+      const targetKey = hexKey(nearestTarget.position);
+      const defender = selectPlayerDefenderAtTarget(playerUnits, targetKey, map) ?? nearestTarget;
+      attackOrders.push({ attackerUnitId: barbUnit.id, defenderUnitId: defender.id });
     } else {
       moveOrders.push({ unitId: barbUnit.id, toCoord: bestCoord });
       // Update occupancy map so later units in this loop don't collide

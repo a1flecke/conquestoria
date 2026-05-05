@@ -13,6 +13,32 @@ export function getTerrainDefenseBonus(terrain: string): number {
   return bonuses[terrain] ?? 0;
 }
 
+export function getEffectiveDefenseStrength(defender: Unit, map: GameMap): number {
+  const def = UNIT_DEFINITIONS[defender.type];
+  let strength = def.strength * (defender.health / 100);
+  const tile = map.tiles[hexKey(defender.position)];
+  if (tile) {
+    strength *= (1 + getTerrainDefenseBonus(tile.terrain));
+    if (tile.wonder) {
+      strength *= (1 + getWonderCombatBonus(tile.wonder));
+    }
+  }
+  return strength;
+}
+
+export function selectDefenderForAttack(defenders: Unit[], map: GameMap): Unit | undefined {
+  return [...defenders].sort((a, b) => {
+    const aStrength = getEffectiveDefenseStrength(a, map);
+    const bStrength = getEffectiveDefenseStrength(b, map);
+    const aCanFight = aStrength > 0;
+    const bCanFight = bStrength > 0;
+    if (aCanFight !== bCanFight) return aCanFight ? -1 : 1;
+    if (aStrength !== bStrength) return bStrength - aStrength;
+    if (a.health !== b.health) return b.health - a.health;
+    return a.id.localeCompare(b.id);
+  })[0];
+}
+
 export interface CombatContext {
   attackerBonus?: CivBonusEffect;
   defenderBonus?: CivBonusEffect;

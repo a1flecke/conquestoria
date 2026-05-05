@@ -10,6 +10,7 @@ import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { checkCampEvolution } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { createUnit } from '@/systems/unit-system';
 
 describe('spawnBarbarianCamp', () => {
   let map: GameMap;
@@ -82,6 +83,23 @@ describe('processBarbarians', () => {
     };
     const result = processBarbarians([camp], generateMap(30, 30, 'barb-proc'), [], 123);
     expect(result.updatedCamps[0].spawnCooldown).toBe(2);
+  });
+
+  it('targets a combat defender before a stacked settler', () => {
+    const map = generateMap(30, 30, 'barb-stack-target');
+    const barbarian = createUnit('warrior', 'barbarian', { q: 10, r: 10 });
+    barbarian.id = 'barb';
+    const settler = createUnit('settler', 'player', { q: 11, r: 10 });
+    settler.id = 'settler-first';
+    const warrior = createUnit('warrior', 'player', { q: 11, r: 10 });
+    warrior.id = 'warrior-second';
+
+    const result = processBarbarians([], map, [settler, warrior], 42, [barbarian]);
+
+    expect(result.attackOrders).toContainEqual({
+      attackerUnitId: 'barb',
+      defenderUnitId: 'warrior-second',
+    });
   });
 });
 
