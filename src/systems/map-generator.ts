@@ -1,5 +1,11 @@
 import type { GameMap, HexTile, HexCoord, TerrainType, Elevation } from '@/core/types';
-import { hexKey, hexDistance, hexesInRange } from './hex-utils';
+import {
+  hexKey,
+  hexDistance,
+  hexesInRange,
+  getWrappedHexesInRange,
+  wrappedHexDistance,
+} from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
 
 // Simple seeded PRNG (mulberry32)
@@ -189,6 +195,37 @@ function placeResources(tiles: Record<string, HexTile>, rng: () => number): void
 
 function isLandTerrain(terrain: TerrainType): boolean {
   return terrain !== 'ocean' && terrain !== 'coast' && terrain !== 'mountain' && terrain !== 'snow';
+}
+
+export const MIN_MAJOR_CIV_START_DISTANCE = 9;
+
+export function getMinimumStartDistance(_map: Pick<GameMap, 'width' | 'height'>): number {
+  return MIN_MAJOR_CIV_START_DISTANCE;
+}
+
+export function getStartPositionDistance(
+  map: Pick<GameMap, 'width' | 'wrapsHorizontally'>,
+  a: HexCoord,
+  b: HexCoord,
+): number {
+  return map.wrapsHorizontally
+    ? wrappedHexDistance(a, b, map.width)
+    : hexDistance(a, b);
+}
+
+function getCandidateNeighborhood(map: GameMap, coord: HexCoord, range: number): HexCoord[] {
+  return map.wrapsHorizontally
+    ? getWrappedHexesInRange(coord, range, map.width)
+    : hexesInRange(coord, range);
+}
+
+function getMinimumDistanceToExistingStarts(
+  map: GameMap,
+  coord: HexCoord,
+  positions: HexCoord[],
+): number {
+  if (positions.length === 0) return Infinity;
+  return Math.min(...positions.map(position => getStartPositionDistance(map, coord, position)));
 }
 
 export function findStartPositions(map: GameMap, count: number): HexCoord[] {
