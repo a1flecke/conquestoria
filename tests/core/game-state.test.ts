@@ -1,5 +1,6 @@
 import { createNewGame, createHotSeatGame, MAP_DIMENSIONS } from '@/core/game-state';
-import type { CustomCivDefinition, HotSeatConfig } from '@/core/types';
+import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig } from '@/core/types';
+import { getMinimumStartDistance, getStartPositionDistance } from '@/systems/map-generator';
 
 const customCiv: CustomCivDefinition = {
   id: 'custom-sunfolk',
@@ -10,6 +11,23 @@ const customCiv: CustomCivDefinition = {
   primaryTrait: 'scholarly',
   temperamentTraits: ['diplomatic', 'trader'],
 };
+
+function getMajorSettlerStarts(state: GameState): HexCoord[] {
+  return Object.values(state.units)
+    .filter(unit => unit.type === 'settler' && !unit.owner.startsWith('mc-'))
+    .map(unit => unit.position);
+}
+
+function expectMajorStartsToRespectSpacing(state: GameState): void {
+  const starts = getMajorSettlerStarts(state);
+  const minimumDistance = getMinimumStartDistance(state.map);
+
+  for (let i = 0; i < starts.length; i++) {
+    for (let j = i + 1; j < starts.length; j++) {
+      expect(getStartPositionDistance(state.map, starts[i], starts[j])).toBeGreaterThanOrEqual(minimumDistance);
+    }
+  }
+}
 
 describe('createNewGame', () => {
   it('creates a valid initial game state', () => {
@@ -145,6 +163,18 @@ describe('createNewGame', () => {
     }
     expect(aiCivTypes.has('wakanda') || aiCivTypes.has('avalon')).toBe(true);
   });
+
+  it('spaces solo major civilizations by wrapped distance so rivals cannot start next door', () => {
+    const state = createNewGame({
+      civType: 'germany',
+      seed: 'issue-172-germany-greece-wrap',
+      mapSize: 'small',
+      opponentCount: 2,
+      gameTitle: 'Issue 172 Regression',
+    });
+
+    expectMajorStartsToRespectSpacing(state);
+  });
 });
 
 describe('minor civ integration', () => {
@@ -214,5 +244,19 @@ describe('createHotSeatGame', () => {
     const state = createHotSeatGame(config, 'hs-pending-diplomacy');
 
     expect(state.pendingDiplomacyRequests).toEqual([]);
+  });
+
+  it('spaces hot-seat major civilizations by wrapped distance at the selected map limit', () => {
+    const state = createHotSeatGame({
+      playerCount: 3,
+      mapSize: 'small',
+      players: [
+        { name: 'Germany', slotId: 'player-1', civType: 'germany', isHuman: true },
+        { name: 'Greece', slotId: 'player-2', civType: 'greece', isHuman: true },
+        { name: 'Rome', slotId: 'ai-1', civType: 'rome', isHuman: false },
+      ],
+    }, 'issue-172-hotseat-wrap');
+
+    expectMajorStartsToRespectSpacing(state);
   });
 });
