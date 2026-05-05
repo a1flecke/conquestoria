@@ -1,4 +1,4 @@
-import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
+import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
 import type { GameMap } from '@/core/types';
 import { createUnit } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
@@ -83,6 +83,28 @@ describe('resolveCombat', () => {
 
     const result = resolveCombat(warrior, settler, map, 42);
     expect(result.defenderSurvived).toBe(false);
+  });
+
+  it('selects a combat defender before a stacked civilian regardless of insertion order', () => {
+    const settler = createUnit('settler', 'p2', { q: 11, r: 10 });
+    settler.id = 'settler-first';
+    const warrior = createUnit('warrior', 'p2', { q: 11, r: 10 });
+    warrior.id = 'warrior-second';
+
+    const defender = selectDefenderForAttack([settler, warrior], map);
+
+    expect(defender?.id).toBe('warrior-second');
+  });
+
+  it('selects the strongest combat defender in a stack before civilians', () => {
+    const settler = createUnit('settler', 'p2', { q: 11, r: 10 });
+    const injuredSwordsman = createUnit('swordsman', 'p2', { q: 11, r: 10 });
+    injuredSwordsman.health = 20;
+    const warrior = createUnit('warrior', 'p2', { q: 11, r: 10 });
+
+    const defender = selectDefenderForAttack([settler, injuredSwordsman, warrior], map);
+
+    expect(defender?.id).toBe(warrior.id);
   });
 });
 

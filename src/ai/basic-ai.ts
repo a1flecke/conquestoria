@@ -6,7 +6,7 @@ import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
-import { resolveCombat } from '@/systems/combat-system';
+import { resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -353,15 +353,20 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     const neighbors = hexNeighbors(unit.position);
     let attacked = false;
     for (const neighbor of neighbors) {
-      const occupantId = (occupancy.unitIdsByHex[hexKey(neighbor)] ?? [])
-        .find(id => newState.units[id]?.owner !== civId);
-      if (occupantId) {
-        const occupant = newState.units[occupantId];
-        if (occupant && occupant.owner !== civId) {
-          const isBarbarian = occupant.owner === 'barbarian';
-          const isRebel = occupant.owner === 'rebels';
-          const atWar = civ.diplomacy?.atWarWith.includes(occupant.owner) ?? false;
-          if (!isBarbarian && !isRebel && !atWar) continue;
+      const neighborKey = hexKey(neighbor);
+      const occupantIds = occupancy.unitIdsByHex[neighborKey] ?? [];
+      if (occupantIds.length > 0) {
+        const attackableDefenders = occupantIds
+          .map(id => newState.units[id])
+          .filter((candidate): candidate is Unit => {
+            if (!candidate || candidate.owner === civId) return false;
+            const isBarbarian = candidate.owner === 'barbarian';
+            const isRebel = candidate.owner === 'rebels';
+            const atWar = civ.diplomacy?.atWarWith.includes(candidate.owner) ?? false;
+            return isBarbarian || isRebel || atWar;
+          });
+        const occupant = selectDefenderForAttack(attackableDefenders, newState.map);
+        if (occupant) {
           const seed = newState.turn * 16807 + unit.id.charCodeAt(0);
           const attackerBonus = resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect;
           const defenderBonus = resolveCivDefinition(newState, newState.civilizations[occupant.owner]?.civType ?? '')?.bonusEffect;

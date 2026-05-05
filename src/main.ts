@@ -18,7 +18,7 @@ import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
-import { resolveCombat, getTerrainDefenseBonus } from '@/systems/combat-system';
+import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
@@ -1057,11 +1057,7 @@ function selectUnit(unitId: string): void {
   // Classify hexes as move or attack and send to renderer
   const highlights: HexHighlight[] = movementRange.map(coord => {
     const k = hexKey(coord);
-    const occupantIds = occupancy.unitIdsByHex[k] ?? [];
-    const hasEnemy = occupantIds.some(occupantId =>
-      occupantId !== unit.id && occupancy.ownersByUnitId[occupantId] !== gameState.currentPlayer,
-    );
-    if (hasEnemy) {
+    if (visibleHostileUnitEntriesAtKey(k).length > 0) {
       return { coord, type: 'attack' as const };
     }
     return { coord, type: 'move' as const };
@@ -1479,9 +1475,12 @@ function beginPlayerCityAssault(
   return 'pending';
 }
 
-function executeAttack(attackerId: string, defenderId: string, defender: Unit, targetKey: string): void {
+function executeAttack(attackerId: string, targetKey: string): void {
   const attacker = gameState.units[attackerId];
-  if (!attacker) return;
+  const defenderEntry = selectDefenderEntryAtKey(targetKey);
+  if (!attacker || !defenderEntry) return;
+
+  const [defenderId, defender] = defenderEntry;
 
   const defOwnerCiv = defender.owner;
   const isBarbarian = defOwnerCiv === 'barbarian' || defOwnerCiv.startsWith('mc-');
@@ -1576,6 +1575,24 @@ function restAction(): void {
   renderLoop.setGameState(gameState);
 }
 
+function visibleUnitEntriesAtKey(key: string): Array<[string, Unit]> {
+  return Object.entries(gameState.units).filter(([, unit]) =>
+    hexKey(unit.position) === key
+    && (unit.owner === gameState.currentPlayer || !isForestConcealedUnit(gameState, gameState.currentPlayer, unit))
+  );
+}
+
+function visibleHostileUnitEntriesAtKey(key: string): Array<[string, Unit]> {
+  return visibleUnitEntriesAtKey(key).filter(([, unit]) => unit.owner !== gameState.currentPlayer);
+}
+
+function selectDefenderEntryAtKey(key: string): [string, Unit] | undefined {
+  const hostileEntries = visibleHostileUnitEntriesAtKey(key);
+  const defender = selectDefenderForAttack(hostileEntries.map(([, unit]) => unit), gameState.map);
+  if (!defender) return undefined;
+  return hostileEntries.find(([id]) => id === defender.id);
+}
+
 function handleHexTap(rawCoord: HexCoord): void {
   if (pendingCityCaptureChoice) {
     return;
@@ -1596,16 +1613,12 @@ function handleHexTap(rawCoord: HexCoord): void {
     }
   }
 
-  const unitAtHex = Object.entries(gameState.units).find(
-    ([_, u]) => hexKey(u.position) === key
-      && u.owner !== gameState.currentPlayer
-      && !isForestConcealedUnit(gameState, gameState.currentPlayer, u),
-  );
+  const defenderEntryAtHex = selectDefenderEntryAtKey(key);
 
-  if (unitAtHex) {
+  if (defenderEntryAtHex) {
     // Show enemy unit info (if no unit selected for attack)
-    if (!selectedUnitId) {
-      const enemyUnit = unitAtHex[1];
+    if (!selectedUnitId && defenderEntryAtHex) {
+      const enemyUnit = defenderEntryAtHex[1];
       const def = UNIT_DEFINITIONS[enemyUnit.type];
       const desc = UNIT_DESCRIPTIONS[enemyUnit.type] ?? '';
       const isBarbarian = enemyUnit.owner === 'barbarian';
@@ -1673,6 +1686,14 @@ function handleHexTap(rawCoord: HexCoord): void {
         descDiv.textContent = desc;
         wrapper.appendChild(descDiv);
 
+        const hostileStackSize = visibleHostileUnitEntriesAtKey(key).length;
+        if (hostileStackSize > 1) {
+          const stackDiv = document.createElement('div');
+          stackDiv.style.cssText = 'font-size:10px;opacity:0.72;margin-top:4px;';
+          stackDiv.textContent = `${def.name} defends this stack. ${hostileStackSize} enemy units present.`;
+          wrapper.appendChild(stackDiv);
+        }
+
         panel.appendChild(wrapper);
         closeBtn.addEventListener('click', deselectUnit);
       }
@@ -1686,8 +1707,9 @@ function handleHexTap(rawCoord: HexCoord): void {
     if (!unit) return;
 
     // Check for enemy unit at target — show combat preview
-    if (unitAtHex && unitAtHex[1].owner !== gameState.currentPlayer) {
-      const defender = unitAtHex[1];
+    const defenderEntry = selectDefenderEntryAtKey(key);
+    if (defenderEntry) {
+      const defender = defenderEntry[1];
       const atkDef = UNIT_DEFINITIONS[unit.type];
       const defDef = UNIT_DEFINITIONS[defender.type];
       const atkStr = Math.round(atkDef.strength * (unit.health / 100));
@@ -1740,6 +1762,14 @@ function handleHexTap(rawCoord: HexCoord): void {
         info.textContent = `${ownerName} · HP: ${defender.health}/100${terrainBonus > 0 ? ` · +${Math.round(terrainBonus * 100)}% terrain` : ''}`;
         previewDiv.appendChild(info);
 
+        const hostileStackSize = visibleHostileUnitEntriesAtKey(key).length;
+        if (hostileStackSize > 1) {
+          const stackInfo = document.createElement('div');
+          stackInfo.style.cssText = 'font-size:10px;opacity:0.72;margin-bottom:8px;';
+          stackInfo.textContent = `${defDef.name} defends this stack. ${hostileStackSize} enemy units present.`;
+          previewDiv.appendChild(stackInfo);
+        }
+
         const btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;gap:8px;';
         const attackBtn = document.createElement('button');
@@ -1759,7 +1789,7 @@ function handleHexTap(rawCoord: HexCoord): void {
 
         cancelBtn.addEventListener('click', deselectUnit);
         attackBtn.addEventListener('click', () => {
-          executeAttack(selectedUnitId!, unitAtHex[0], defender, key);
+          executeAttack(selectedUnitId!, key);
         });
         return; // Wait for button press
       }
