@@ -1,4 +1,9 @@
-import { generateMap, findStartPositions } from '@/systems/map-generator';
+import {
+  generateMap,
+  findStartPositions,
+  getMinimumStartDistance,
+  getStartPositionDistance,
+} from '@/systems/map-generator';
 import type { GameMap } from '@/core/types';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
 
@@ -96,6 +101,13 @@ describe('new terrain types', () => {
 });
 
 describe('findStartPositions', () => {
+  it('treats horizontally wrapped edge starts as adjacent for spacing checks', () => {
+    const map = generateMap(30, 30, 'issue-172-distance-helper');
+
+    expect(getStartPositionDistance(map, { q: 0, r: 12 }, { q: 29, r: 12 })).toBe(1);
+    expect(getStartPositionDistance(map, { q: 1, r: 12 }, { q: 28, r: 12 })).toBe(3);
+  });
+
   it('finds requested number of start positions on land', () => {
     const map = generateMap(30, 30, 'start-pos-seed');
     const positions = findStartPositions(map, 2);
