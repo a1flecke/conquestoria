@@ -5,7 +5,7 @@ import {
   getStartPositionDistance,
 } from '@/systems/map-generator';
 import type { GameMap } from '@/core/types';
-import { hexKey, hexDistance } from '@/systems/hex-utils';
+import { hexKey } from '@/systems/hex-utils';
 
 const SUPPORTED_START_CASES = [
   { width: 30, height: 30, count: 3, seed: 'issue-172-small-wrap' },
@@ -146,7 +146,29 @@ describe('findStartPositions', () => {
   it('places start positions far apart', () => {
     const map = generateMap(30, 30, 'start-pos-seed');
     const positions = findStartPositions(map, 2);
-    const dist = hexDistance(positions[0], positions[1]);
+    const dist = getStartPositionDistance(map, positions[0], positions[1]);
     expect(dist).toBeGreaterThan(8);
+  });
+
+  it('keeps supported player counts safely spaced across representative seeds', () => {
+    const seeds = Array.from({ length: 20 }, (_, index) => `issue-172-seed-sweep-${index}`);
+
+    for (const setup of SUPPORTED_START_CASES) {
+      for (const seed of seeds) {
+        const map = generateMap(setup.width, setup.height, `${setup.seed}-${seed}`);
+        const positions = findStartPositions(map, setup.count);
+        const minimumDistance = getMinimumStartDistance(map);
+
+        expect(positions, `${setup.width}x${setup.height} ${seed}`).toHaveLength(setup.count);
+        for (let i = 0; i < positions.length; i++) {
+          for (let j = i + 1; j < positions.length; j++) {
+            expect(
+              getStartPositionDistance(map, positions[i], positions[j]),
+              `${setup.width}x${setup.height} ${seed} ${hexKey(positions[i])} -> ${hexKey(positions[j])}`,
+            ).toBeGreaterThanOrEqual(minimumDistance);
+          }
+        }
+      }
+    }
   });
 });
