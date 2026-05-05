@@ -7,6 +7,12 @@ import {
 import type { GameMap } from '@/core/types';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
 
+const SUPPORTED_START_CASES = [
+  { width: 30, height: 30, count: 3, seed: 'issue-172-small-wrap' },
+  { width: 50, height: 50, count: 5, seed: 'issue-172-medium-wrap' },
+  { width: 80, height: 80, count: 8, seed: 'issue-172-large-wrap' },
+] as const;
+
 describe('generateMap', () => {
   let map: GameMap;
 
@@ -106,6 +112,21 @@ describe('findStartPositions', () => {
 
     expect(getStartPositionDistance(map, { q: 0, r: 12 }, { q: 29, r: 12 })).toBe(1);
     expect(getStartPositionDistance(map, { q: 1, r: 12 }, { q: 28, r: 12 })).toBe(3);
+  });
+
+  it('keeps generated start positions outside the wrapped minimum distance for supported map sizes', () => {
+    for (const setup of SUPPORTED_START_CASES) {
+      const map = generateMap(setup.width, setup.height, setup.seed);
+      const positions = findStartPositions(map, setup.count);
+      const minimumDistance = getMinimumStartDistance(map);
+
+      expect(positions).toHaveLength(setup.count);
+      for (let i = 0; i < positions.length; i++) {
+        for (let j = i + 1; j < positions.length; j++) {
+          expect(getStartPositionDistance(map, positions[i], positions[j])).toBeGreaterThanOrEqual(minimumDistance);
+        }
+      }
+    }
   });
 
   it('finds requested number of start positions on land', () => {

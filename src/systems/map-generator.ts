@@ -238,7 +238,7 @@ export function findStartPositions(map: GameMap, count: number): HexCoord[] {
       tile.coord.r < map.height - 4
     ) {
       // Check that there's enough land nearby
-      const nearby = hexesInRange(tile.coord, 2);
+      const nearby = getCandidateNeighborhood(map, tile.coord, 2);
       const landCount = nearby.filter(n => {
         const t = map.tiles[hexKey(n)];
         return t && isLandTerrain(t.terrain);
@@ -251,10 +251,13 @@ export function findStartPositions(map: GameMap, count: number): HexCoord[] {
 
   if (candidates.length < count) {
     // Fallback: relax constraints
+    const candidateKeys = new Set(candidates.map(hexKey));
     for (const tile of Object.values(map.tiles)) {
-      if (isLandTerrain(tile.terrain)) {
-        candidates.push(tile.coord);
-      }
+      if (!isLandTerrain(tile.terrain)) continue;
+      const key = hexKey(tile.coord);
+      if (candidateKeys.has(key)) continue;
+      candidates.push(tile.coord);
+      candidateKeys.add(key);
     }
   }
 
@@ -277,22 +280,33 @@ export function findStartPositions(map: GameMap, count: number): HexCoord[] {
   positions.push(best);
   used.add(hexKey(best));
 
-  // Remaining positions: maximize minimum distance to existing positions
+  // Remaining positions: maximize minimum wrapped distance to existing positions.
+  const minimumDistance = getMinimumStartDistance(map);
   for (let i = 1; i < count; i++) {
-    let bestCandidate = candidates[0];
+    let bestCandidate: HexCoord | null = null;
     let bestMinDist = -1;
+    let bestFallbackCandidate: HexCoord | null = null;
+    let bestFallbackDist = -1;
 
     for (const c of candidates) {
       if (used.has(hexKey(c))) continue;
-      const minDist = Math.min(...positions.map(p => hexDistance(c, p)));
+      const minDist = getMinimumDistanceToExistingStarts(map, c, positions);
+      if (minDist > bestFallbackDist) {
+        bestFallbackDist = minDist;
+        bestFallbackCandidate = c;
+      }
+
+      if (minDist < minimumDistance) continue;
       if (minDist > bestMinDist) {
         bestMinDist = minDist;
         bestCandidate = c;
       }
     }
 
-    positions.push(bestCandidate);
-    used.add(hexKey(bestCandidate));
+    const selected = bestCandidate ?? bestFallbackCandidate;
+    if (!selected) break;
+    positions.push(selected);
+    used.add(hexKey(selected));
   }
 
   return positions;
