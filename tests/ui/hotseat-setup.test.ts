@@ -80,6 +80,19 @@ beforeEach(() => {
 });
 
 describe('hotseat-setup', () => {
+  it('explains that supported map sizes use balanced starts before player-count selection', () => {
+    showHotSeatSetup(
+      document.body,
+      {
+        onComplete: () => {},
+        onCancel: () => {},
+      },
+    );
+
+    expect(document.querySelector('[data-role="hotseat-start-spacing-note"]')?.textContent)
+      .toContain('Balanced starts keep rival civilizations from beginning next door');
+  });
+
   it('passes custom civ definitions into hot-seat setup selection flow for later players', () => {
     showHotSeatSetup(
       document.body,
