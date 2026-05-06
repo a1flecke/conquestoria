@@ -136,6 +136,17 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   });
   mapSection.content.appendChild(mapSizeCardRow);
 
+  const startSpacingNote = document.createElement('p');
+  startSpacingNote.dataset.role = 'start-spacing-note';
+  startSpacingNote.textContent = 'Balanced starts keep rival civilizations from beginning next door, including across the wrapped map edge.';
+  Object.assign(startSpacingNote.style, {
+    margin: '0',
+    fontSize: '12px',
+    opacity: '0.72',
+    lineHeight: '1.45',
+  });
+  mapSection.content.appendChild(startSpacingNote);
+
   const mapSizeField = createLabeledSelect('Map size', 'campaign-map-size');
   mapSizeField.wrapper.hidden = true;
   for (const size of ['small', 'medium', 'large'] as const) {

@@ -78,6 +78,12 @@ export function showHotSeatSetup(
       if (maxEl) maxEl.textContent = `Up to ${s.max} players`;
     }
 
+    const spacingNote = document.createElement('p');
+    spacingNote.dataset.role = 'hotseat-start-spacing-note';
+    spacingNote.textContent = 'Balanced starts keep rival civilizations from beginning next door, including across the wrapped map edge.';
+    spacingNote.style.cssText = 'font-size:12px;opacity:0.65;margin:16px 0 0;text-align:center;max-width:420px;line-height:1.45;';
+    panel.querySelector('.map-size-card')?.parentElement?.insertAdjacentElement('afterend', spacingNote);
+
     container.appendChild(panel);
 
     panel.querySelectorAll('.map-size-card').forEach(card => {

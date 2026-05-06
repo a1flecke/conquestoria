@@ -1,6 +1,17 @@
-import { generateMap, findStartPositions } from '@/systems/map-generator';
+import {
+  generateMap,
+  findStartPositions,
+  getMinimumStartDistance,
+  getStartPositionDistance,
+} from '@/systems/map-generator';
 import type { GameMap } from '@/core/types';
-import { hexKey, hexDistance } from '@/systems/hex-utils';
+import { hexKey } from '@/systems/hex-utils';
+
+const SUPPORTED_START_CASES = [
+  { width: 30, height: 30, count: 3, seed: 'issue-172-small-wrap' },
+  { width: 50, height: 50, count: 5, seed: 'issue-172-medium-wrap' },
+  { width: 80, height: 80, count: 8, seed: 'issue-172-large-wrap' },
+] as const;
 
 describe('generateMap', () => {
   let map: GameMap;
@@ -96,6 +107,28 @@ describe('new terrain types', () => {
 });
 
 describe('findStartPositions', () => {
+  it('treats horizontally wrapped edge starts as adjacent for spacing checks', () => {
+    const map = generateMap(30, 30, 'issue-172-distance-helper');
+
+    expect(getStartPositionDistance(map, { q: 0, r: 12 }, { q: 29, r: 12 })).toBe(1);
+    expect(getStartPositionDistance(map, { q: 1, r: 12 }, { q: 28, r: 12 })).toBe(3);
+  });
+
+  it('keeps generated start positions outside the wrapped minimum distance for supported map sizes', () => {
+    for (const setup of SUPPORTED_START_CASES) {
+      const map = generateMap(setup.width, setup.height, setup.seed);
+      const positions = findStartPositions(map, setup.count);
+      const minimumDistance = getMinimumStartDistance(map);
+
+      expect(positions).toHaveLength(setup.count);
+      for (let i = 0; i < positions.length; i++) {
+        for (let j = i + 1; j < positions.length; j++) {
+          expect(getStartPositionDistance(map, positions[i], positions[j])).toBeGreaterThanOrEqual(minimumDistance);
+        }
+      }
+    }
+  });
+
   it('finds requested number of start positions on land', () => {
     const map = generateMap(30, 30, 'start-pos-seed');
     const positions = findStartPositions(map, 2);
@@ -113,7 +146,29 @@ describe('findStartPositions', () => {
   it('places start positions far apart', () => {
     const map = generateMap(30, 30, 'start-pos-seed');
     const positions = findStartPositions(map, 2);
-    const dist = hexDistance(positions[0], positions[1]);
+    const dist = getStartPositionDistance(map, positions[0], positions[1]);
     expect(dist).toBeGreaterThan(8);
+  });
+
+  it('keeps supported player counts safely spaced across representative seeds', () => {
+    const seeds = Array.from({ length: 20 }, (_, index) => `issue-172-seed-sweep-${index}`);
+
+    for (const setup of SUPPORTED_START_CASES) {
+      for (const seed of seeds) {
+        const map = generateMap(setup.width, setup.height, `${setup.seed}-${seed}`);
+        const positions = findStartPositions(map, setup.count);
+        const minimumDistance = getMinimumStartDistance(map);
+
+        expect(positions, `${setup.width}x${setup.height} ${seed}`).toHaveLength(setup.count);
+        for (let i = 0; i < positions.length; i++) {
+          for (let j = i + 1; j < positions.length; j++) {
+            expect(
+              getStartPositionDistance(map, positions[i], positions[j]),
+              `${setup.width}x${setup.height} ${seed} ${hexKey(positions[i])} -> ${hexKey(positions[j])}`,
+            ).toBeGreaterThanOrEqual(minimumDistance);
+          }
+        }
+      }
+    }
   });
 });
