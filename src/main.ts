@@ -19,6 +19,7 @@ import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
+import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
@@ -111,6 +112,7 @@ import {
 } from '@/ui/notification-log';
 import {
   routeBarbarianSpawned,
+  routeCombatRewardEarned,
   routeCombatResolved,
   routeFactionTransition,
   routeLegendaryWonder,
@@ -1501,23 +1503,21 @@ function executeAttack(attackerId: string, targetKey: string): void {
   );
   bus.emit('combat:resolved', { result });
 
-  if (!result.attackerSurvived) {
-    delete gameState.units[attackerId];
-    currentCiv().units = currentCiv().units.filter(id => id !== attackerId);
+  const applied = applyCombatOutcomeToState(gameState, result, seed);
+  gameState = applied.state;
+
+  if (applied.attackerDefeated) {
     showNotification('Our unit was destroyed!', 'warning');
-  } else {
-    gameState.units[attackerId].health -= result.attackerDamage;
-    gameState.units[attackerId].movementPointsLeft = 0;
-    gameState.units[attackerId].hasMoved = true;
   }
 
-  if (!result.defenderSurvived) {
-    const defOwner = defender.owner;
-    delete gameState.units[defenderId];
-    if (gameState.civilizations[defOwner]) {
-      gameState.civilizations[defOwner].units = gameState.civilizations[defOwner].units.filter(id => id !== defenderId);
-    }
+  if (applied.defenderDefeated) {
     showNotification('Enemy unit destroyed!', 'success');
+    for (const reward of applied.rewards) {
+      bus.emit('combat:reward-earned', { reward });
+      if (reward.recipientCivId === gameState.currentPlayer) {
+        showNotification(reward.message, 'success');
+      }
+    }
 
     const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
     if (destroyedCamp.campId) {
@@ -1551,10 +1551,6 @@ function executeAttack(attackerId: string, targetKey: string): void {
           return;
         }
       }
-    }
-  } else {
-    if (gameState.units[defenderId]) {
-      gameState.units[defenderId].health -= result.defenderDamage;
     }
   }
 
@@ -2310,6 +2306,10 @@ const notifiedBarbarianCampsPerCiv = new Map<string, Set<string>>();
 
 bus.on('combat:resolved', ({ result }) => {
   routeCombatResolved(gameState, result, appendToCivLog);
+});
+
+bus.on('combat:reward-earned', ({ reward }) => {
+  routeCombatRewardEarned(gameState, reward, appendToCivLog);
 });
 
 bus.on('barbarian:spawned', ({ campId, unitId }) => {

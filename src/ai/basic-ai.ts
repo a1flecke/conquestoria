@@ -7,6 +7,7 @@ import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
+import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -378,20 +379,10 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
             { attackerBonus, defenderBonus },
             newState.era,
           );
-          if (!result.attackerSurvived) {
-            delete newState.units[unit.id];
-            civ.units = civ.units.filter(id => id !== unit.id);
-          } else {
-            newState.units[unit.id].health -= result.attackerDamage;
-          }
-          if (!result.defenderSurvived) {
-            const defCivId = occupant.owner;
-            delete newState.units[occupant.id];
-            if (newState.civilizations[defCivId]) {
-              newState.civilizations[defCivId].units =
-                newState.civilizations[defCivId].units.filter(id => id !== occupant.id);
-            }
-
+          const applied = applyCombatOutcomeToState(newState, result, seed);
+          newState = applied.state;
+          civ = newState.civilizations[civId];
+          if (applied.defenderDefeated) {
             const destroyedCamp = applyCampDestructionAtTarget(newState, civId, occupant.position, newState.turn);
             if (destroyedCamp.campId) {
               newState = destroyedCamp.state;
@@ -399,10 +390,11 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
                 applyDiplomaticReaction(newState, 'camp_destroyed_nearby', civId, mcId);
               }
             }
-          } else {
-            newState.units[occupant.id].health -= result.defenderDamage;
           }
           bus.emit('combat:resolved', { result });
+          for (const reward of applied.rewards) {
+            bus.emit('combat:reward-earned', { reward });
+          }
           attacked = true;
           break;
         }

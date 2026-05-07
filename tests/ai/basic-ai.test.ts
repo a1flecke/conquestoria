@@ -1183,6 +1183,20 @@ describe('processAITurn', () => {
     expect(newState.units['unit-rebel']).toBeUndefined();
   });
 
+  it('awards AI units combat rewards when they defeat an adjacent enemy', () => {
+    const state = makeAiRebelState();
+    state.units['unit-ai'] = { ...state.units['unit-ai'], health: 60 };
+    state.units['unit-rebel'] = { ...state.units['unit-rebel'], health: 1 };
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.units['unit-rebel']).toBeUndefined();
+    expect(result.units['unit-ai'].experience).toBeGreaterThan(0);
+    expect(result.units['unit-ai'].health).toBeGreaterThan(50);
+    expect(result.civilizations['ai-1'].gold).toBeGreaterThan(0);
+  });
+
   it('AI stations a defensive spy in its capital by stage 3', () => {
     const state = makeAiDefenseSpyState();
     // Pre-place an idle spy unit so AI can station it defensively this turn

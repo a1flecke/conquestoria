@@ -130,6 +130,47 @@ describe('processTurn', () => {
     expect(Object.keys(result.minorCivs).length).toBeGreaterThan(0);
   });
 
+  it('awards barbarian units experience when they defeat a player unit during turn processing', () => {
+    const state = createNewGame(undefined, 'barbarian-reward', 'small');
+    state.turn = 5;
+    state.units = {
+      'barb-1': {
+        id: 'barb-1',
+        type: 'warrior',
+        owner: 'barbarian',
+        position: { q: 1, r: 0 },
+        movementPointsLeft: 2,
+        health: 60,
+        experience: 0,
+        hasMoved: false,
+        hasActed: false,
+        isResting: false,
+      },
+      'player-1': {
+        id: 'player-1',
+        type: 'warrior',
+        owner: 'player',
+        position: { q: 0, r: 0 },
+        movementPointsLeft: 0,
+        health: 1,
+        experience: 0,
+        hasMoved: true,
+        hasActed: false,
+        isResting: false,
+      },
+    };
+    state.civilizations.player.units = ['player-1'];
+    state.barbarianCamps = {
+      camp: { id: 'camp', position: { q: 2, r: 0 }, strength: 5, spawnCooldown: 99 },
+    };
+
+    const result = processTurn(state, new EventBus());
+
+    expect(result.units['player-1']).toBeUndefined();
+    expect(result.units['barb-1'].experience).toBeGreaterThan(0);
+    expect(result.civilizations.player.units).not.toContain('player-1');
+  });
+
   it('persists wrapped minor-civ proximity reveal on the returned turn state', () => {
     const state = createNewGame(undefined, 'minor-civ-wrap-visibility', 'small');
     state.map = createWrappedGrasslandMap(5, 4);
