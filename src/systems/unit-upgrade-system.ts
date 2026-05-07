@@ -1,10 +1,9 @@
 import type { Unit, UnitType, City } from '@/core/types';
-import { TRAINABLE_UNITS } from './city-system';
-import { UNIT_DEFINITIONS } from './unit-system';
+import { TRAINABLE_UNITS, getCatalogProductionCost } from './city-system';
 
 export function getUpgradeCost(targetType: UnitType): number {
-  const entry = TRAINABLE_UNITS.find(u => u.type === targetType);
-  return entry ? Math.ceil(entry.cost * 0.5) : 0;
+  const cost = getCatalogProductionCost(targetType, 1);
+  return cost > 0 ? Math.ceil(cost * 0.5) : 0;
 }
 
 export function canUpgradeUnit(
