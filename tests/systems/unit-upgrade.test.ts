@@ -48,9 +48,13 @@ describe('canUpgradeUnit', () => {
 });
 
 describe('getUpgradeCost', () => {
-  it('returns half of the target unit production cost', () => {
+  it('returns half of the target unit production cost from the canonical catalog', () => {
     const cost = getUpgradeCost('spy_informant');
-    expect(cost).toBe(25); // spy_informant costs 50 in TRAINABLE_UNITS, half = 25
+    expect(cost).toBe(25);
+  });
+
+  it('uses the retuned worker production cost for upgrade math', () => {
+    expect(getUpgradeCost('worker')).toBe(6);
   });
 });
 

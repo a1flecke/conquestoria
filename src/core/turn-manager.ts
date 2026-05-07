@@ -90,7 +90,16 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       totalScience += yields.science;
       totalGold += yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
-      const result = processCity(city, newState.map, yields.food, effectiveProduction, civDef?.bonusEffect, civ.techState.completed, civ.civType);
+      const result = processCity(
+        city,
+        newState.map,
+        yields.food,
+        effectiveProduction,
+        civDef?.bonusEffect,
+        civ.techState.completed,
+        civ.civType,
+        newState.era,
+      );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;
       const maturityResult = applyCityMaturity(result.city, civ.techState.completed);

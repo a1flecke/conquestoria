@@ -238,6 +238,33 @@ describe('processCity', () => {
     expect(result.idleGoldBonus).toBe(0);
     expect(result.idleScienceBonus).toBe(0);
   });
+
+  it('completes Herbalist at the retuned opening cost', () => {
+    const map = generateMap(30, 30, 'herbalist-opening-cost');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const queued = { ...city, productionQueue: ['herbalist'], productionProgress: 12 };
+
+    const result = processCity(queued, map, 0, 4, undefined, [], undefined, 1);
+
+    expect(result.completedBuilding).toBe('herbalist');
+    expect(result.city.buildings).toContain('herbalist');
+    expect(result.city.productionQueue).toEqual([]);
+  });
+
+  it('uses the current era cost when completing a Settler', () => {
+    const map = generateMap(30, 30, 'settler-era-cost');
+    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const queued = { ...city, productionQueue: ['settler'], productionProgress: 39 };
+
+    const era3Result = processCity(queued, map, 0, 1, undefined, [], undefined, 3);
+    const era4Result = processCity(queued, map, 0, 1, undefined, [], undefined, 4);
+
+    expect(era3Result.completedUnit).toBe('settler');
+    expect(era3Result.city.productionQueue).toEqual([]);
+    expect(era4Result.completedUnit).toBeNull();
+    expect(era4Result.city.productionQueue).toEqual(['settler']);
+    expect(era4Result.city.productionProgress).toBe(40);
+  });
 });
 
 describe('expanded buildings', () => {
