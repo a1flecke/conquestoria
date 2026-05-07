@@ -336,7 +336,7 @@ describe('renderSelectedUnitInfo - unit stack switch', () => {
   });
 });
 
-describe('renderSelectedUnitInfo — worker actions', () => {
+describe('renderSelectedUnitInfo - worker actions', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
 
@@ -469,7 +469,7 @@ describe('renderSelectedUnitInfo — worker actions', () => {
   });
 });
 
-describe('renderSelectedUnitInfo — veterancy', () => {
+describe('renderSelectedUnitInfo - veterancy', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
 
