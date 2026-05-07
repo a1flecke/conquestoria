@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildPacingAudit } from '@/systems/pacing-audit';
+import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 
 describe('pacing-audit', () => {
   it('returns audit rows for current techs, units, and buildings', () => {
@@ -31,5 +32,36 @@ describe('pacing-audit', () => {
     expect(rows.find(row => row.id === 'granary')?.band).toBe('infrastructure');
     expect(rows.find(row => row.id === 'settler')?.band).toBe('power-spike');
     expect(rows.find(row => row.id === 'banking')?.band).toBe('power-spike');
+  });
+
+  it('audits every current building and trainable unit exactly once', () => {
+    const productionRows = buildPacingAudit({ era: 1 })
+      .filter(row => row.contentType === 'building' || row.contentType === 'unit');
+    const actualIds = productionRows.map(row => row.id).sort();
+    const expectedIds = [
+      ...Object.keys(BUILDINGS),
+      ...TRAINABLE_UNITS.map(unit => unit.type),
+    ].sort();
+
+    expect(actualIds).toEqual(expectedIds);
+  });
+
+  it('reports Settler cost using the requested audit era', () => {
+    const era1Settler = buildPacingAudit({ era: 1 }).find(row => row.id === 'settler');
+    const era4Settler = buildPacingAudit({ era: 4 }).find(row => row.id === 'settler');
+
+    expect(era1Settler?.currentCost).toBe(24);
+    expect(era1Settler?.estimatedTurns).toBe(6);
+    expect(era4Settler?.currentCost).toBe(48);
+    expect(era4Settler?.estimatedTurns).toBe(5);
+  });
+
+  it('has no slower-than-target building or unit outliers after the catalog audit pass', () => {
+    const slowOutliers = buildPacingAudit({ era: 1 })
+      .filter(row => row.contentType === 'building' || row.contentType === 'unit')
+      .filter(row => row.estimatedTurns > row.target.max)
+      .map(row => `${row.id}:${row.estimatedTurns}/${row.target.max}`);
+
+    expect(slowOutliers).toEqual([]);
   });
 });
