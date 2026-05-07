@@ -10,6 +10,19 @@ const BAND_WINDOWS: Record<PacingBand, { early: [number, number]; late: [number,
   marquee: { early: [10, 12], late: [10, 16] },
 };
 
+const PRODUCTION_OUTPUT_BY_ERA: Record<number, number> = {
+  1: 4,
+  2: 6,
+  3: 8,
+  4: 10,
+  5: 12,
+};
+
+export function getProductionOutputProfileForEra(era: number): number {
+  const normalized = Math.max(1, Math.floor(era));
+  return PRODUCTION_OUTPUT_BY_ERA[Math.min(5, normalized)];
+}
+
 export function getTargetTurnWindow(input: { era: number; band: PacingBand; contentType: PacingContentType }): { min: number; max: number } {
   const [min, max] = input.era <= 1 ? BAND_WINDOWS[input.band].early : BAND_WINDOWS[input.band].late;
   return { min, max };
