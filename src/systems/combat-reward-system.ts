@@ -1,4 +1,4 @@
-import type { CombatResult, GameState, Unit } from '@/core/types';
+import type { CombatResult, CombatRewardNotification, GameState, Unit } from '@/core/types';
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
@@ -18,16 +18,7 @@ export interface CombatRewardSurprise {
   goldAwarded: number;
 }
 
-export interface CombatReward {
-  recipientUnitId: string;
-  recipientCivId: string;
-  defeatedUnitId: string;
-  experienceAwarded: number;
-  healthRestored: number;
-  goldAwarded: number;
-  surprise: CombatRewardSurprise | null;
-  message: string;
-}
+export interface CombatReward extends CombatRewardNotification {}
 
 export interface DefeatRewardInput {
   victor: Unit;

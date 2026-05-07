@@ -723,6 +723,22 @@ export interface CombatResult {
   defenderPosition: HexCoord;
 }
 
+export interface CombatRewardNotification {
+  recipientUnitId: string;
+  recipientCivId: string;
+  defeatedUnitId: string;
+  experienceAwarded: number;
+  healthRestored: number;
+  goldAwarded: number;
+  surprise: {
+    type: 'battlefield_insight' | 'salvaged_supplies';
+    label: string;
+    experienceAwarded: number;
+    goldAwarded: number;
+  } | null;
+  message: string;
+}
+
 // --- Game Modes ---
 
 export type GameMode = 'solo' | 'hotseat';
@@ -980,6 +996,7 @@ export interface GameEvents {
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
   'combat:resolved': { result: CombatResult };
+  'combat:reward-earned': { reward: CombatRewardNotification };
   'tech:completed': { civId: string; techId: string };
   'tech:started': { civId: string; techId: string };
   'fog:revealed': { tiles: HexCoord[] };
