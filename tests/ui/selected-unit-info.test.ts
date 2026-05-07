@@ -336,7 +336,7 @@ describe('renderSelectedUnitInfo - unit stack switch', () => {
   });
 });
 
-describe('renderSelectedUnitInfo - worker actions', () => {
+describe('renderSelectedUnitInfo — worker actions', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
 
@@ -466,5 +466,29 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     findButtons(container).find(button => button.textContent === 'Build Lumber Camp')?.click();
 
     expect(clicked).toBe('lumber_camp');
+  });
+});
+
+describe('renderSelectedUnitInfo — veterancy', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('renders unit XP, veterancy tier, next tier progress, and combat bonus', () => {
+    const state = makeWorkerState({}, {
+      type: 'warrior',
+      experience: 25,
+      health: 88,
+    });
+    state.units['worker-1'].type = 'warrior';
+    state.units['worker-1'].experience = 25;
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('XP: 25');
+    expect(text).toContain('Veteran');
+    expect(text).toContain('+10% combat');
+    expect(text).toContain('25 XP to Elite');
   });
 });

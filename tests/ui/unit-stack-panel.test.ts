@@ -101,4 +101,17 @@ describe('unit stack panel', () => {
     cityButton.click();
     expect(openedCity).toBe('city');
   });
+
+  it('shows XP and veterancy for each stacked unit', () => {
+    const state = stateWithStack();
+    state.units.warrior = { ...state.units.warrior, experience: 25 };
+    const container = document.createElement('div');
+
+    renderUnitStackPanel(container, state, { q: 2, r: 1 }, ['warrior'], {
+      onSelectUnit: () => {},
+    });
+
+    expect(container.textContent).toContain('Veteran');
+    expect(container.textContent).toContain('XP 25');
+  });
 });

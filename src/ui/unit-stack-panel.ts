@@ -1,4 +1,5 @@
 import type { GameState, HexCoord, Unit } from '@/core/types';
+import { getVeterancyTier } from '@/systems/combat-reward-system';
 import { hexKey } from '@/systems/hex-utils';
 import { sortUnitsForStackPicker } from '@/systems/unit-occupancy';
 import { canHeal, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
@@ -105,7 +106,8 @@ export function renderUnitStackPanel(
 
     const statusLine = document.createElement('div');
     statusLine.style.cssText = 'font-size:10px;opacity:0.72;margin-top:3px;';
-    statusLine.textContent = `${unitStatus(unit)} · ${UNIT_DESCRIPTIONS[unit.type] ?? ''}`;
+    const tier = getVeterancyTier(unit);
+    statusLine.textContent = `${unitStatus(unit)} · ${tier.label} · XP ${unit.experience ?? 0} · ${UNIT_DESCRIPTIONS[unit.type] ?? ''}`;
 
     row.appendChild(nameLine);
     row.appendChild(statusLine);

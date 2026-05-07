@@ -1,5 +1,6 @@
 import type { GameState, DisguiseType, HexCoord, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
+import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
 import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
 import { getAvailableWorkerActions, getWorkerActionLabel } from '@/systems/improvement-system';
@@ -30,6 +31,13 @@ function makeButton(label: string, color: string, onClick?: () => void): HTMLBut
     button.addEventListener('click', onClick);
   }
   return button;
+}
+
+function nextTierLabel(currentLabel: string): string | null {
+  if (currentLabel === 'Recruit') return 'Seasoned';
+  if (currentLabel === 'Seasoned') return 'Veteran';
+  if (currentLabel === 'Veteran') return 'Elite';
+  return null;
 }
 
 export function renderSelectedUnitInfo(
@@ -79,6 +87,17 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  const tier = getVeterancyTier(unit);
+  const nextTierXp = getExperienceToNextTier(unit);
+  const nextLabel = nextTierLabel(tier.label);
+  const combatBonus = Math.round(getVeterancyCombatModifier(unit) * 100);
+  const xpDiv = document.createElement('div');
+  xpDiv.style.cssText = 'font-size:10px;opacity:0.75;margin-top:4px;';
+  xpDiv.textContent = nextTierXp === null || nextLabel === null
+    ? `XP: ${unit.experience ?? 0} · ${tier.label} · +${combatBonus}% combat`
+    : `XP: ${unit.experience ?? 0} · ${tier.label} · +${combatBonus}% combat · ${nextTierXp} XP to ${nextLabel}`;
+  wrapper.appendChild(xpDiv);
 
   const friendlyUnitsHere = Object.values(state.units).filter(other =>
     other.owner === unit.owner && hexKey(other.position) === hexKey(unit.position),
