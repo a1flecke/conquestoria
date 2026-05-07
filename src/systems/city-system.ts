@@ -124,7 +124,8 @@ export const SETTLER_COST_BY_ERA: Record<number, number> = {
 };
 
 function clampProductionEra(era: number | undefined): number {
-  const normalized = Math.max(1, Math.floor(era ?? 1));
+  const numericEra = typeof era === 'number' && Number.isFinite(era) ? era : 1;
+  const normalized = Math.max(1, Math.floor(numericEra));
   return Math.min(5, normalized);
 }
 
