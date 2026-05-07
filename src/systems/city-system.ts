@@ -18,7 +18,26 @@ export interface FoundCityOptions {
 export const BUILDINGS: Record<string, Building> = {
   // Food
   granary: { id: 'granary', name: 'Granary', category: 'food', yields: { food: 2, production: 0, gold: 0, science: 0 }, productionCost: 40, description: 'Stores food for growth', techRequired: 'granary-design', adjacencyBonuses: [] },
-  herbalist: { id: 'herbalist', name: 'Herbalist', category: 'food', yields: { food: 1, production: 0, gold: 0, science: 0 }, productionCost: 35, description: 'Herbal medicine boosts health', techRequired: null, adjacencyBonuses: [] },
+  herbalist: {
+    id: 'herbalist',
+    name: 'Herbalist',
+    category: 'food',
+    yields: { food: 1, production: 0, gold: 0, science: 0 },
+    productionCost: 16,
+    description: 'Herbal medicine boosts health',
+    techRequired: null,
+    adjacencyBonuses: [],
+    pacing: {
+      band: 'starter',
+      role: 'early-growth',
+      impact: 1,
+      scope: 'city',
+      snowball: 1.05,
+      urgency: 1.1,
+      situationality: 1,
+      unlockBreadth: 1,
+    },
+  },
   aqueduct: { id: 'aqueduct', name: 'Aqueduct', category: 'food', yields: { food: 2, production: 0, gold: 0, science: 0 }, productionCost: 80, description: 'Brings fresh water for growth', techRequired: 'engineering', adjacencyBonuses: [] },
 
   // Production
@@ -77,7 +96,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery' },
   { type: 'scout', name: 'Scout', cost: 6, pacing: { band: 'starter', role: 'early-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   { type: 'worker', name: 'Worker', cost: 12 },
-  { type: 'settler', name: 'Settler', cost: 50 },
+  { type: 'settler', name: 'Settler', cost: 24, pacing: { band: 'power-spike', role: 'expansion', impact: 1.25, scope: 'empire', snowball: 1.3, urgency: 1.05, situationality: 1, unlockBreadth: 1.2 } },
   { type: 'swordsman', name: 'Swordsman', cost: 50, techRequired: 'bronze-working' },
   { type: 'pikeman', name: 'Pikeman', cost: 70, techRequired: 'fortification' },
   { type: 'musketeer', name: 'Musketeer', cost: 90, techRequired: 'tactics' },
@@ -92,6 +111,55 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'shadow_warden', name: 'Shadow Warden', cost: 55, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound' },
   { type: 'war_hound', name: 'War Hound', cost: 45, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound' },
 ];
+
+export const SETTLER_COST_BY_ERA: Record<number, number> = {
+  1: 24,
+  2: 32,
+  3: 40,
+  4: 48,
+  5: 56,
+};
+
+function clampProductionEra(era: number | undefined): number {
+  const normalized = Math.max(1, Math.floor(era ?? 1));
+  return Math.min(5, normalized);
+}
+
+export function getSettlerProductionCost(era: number = 1): number {
+  return SETTLER_COST_BY_ERA[clampProductionEra(era)];
+}
+
+export function getCatalogProductionCost(itemId: string, era: number = 1): number {
+  const building = BUILDINGS[itemId];
+  if (building) return building.productionCost;
+
+  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  if (!unit) return 0;
+  if (unit.type === 'settler') return getSettlerProductionCost(era);
+  return unit.cost;
+}
+
+export function getProductionCostForItem(
+  itemId: string,
+  options: {
+    city?: Pick<City, 'buildings'>;
+    bonusEffect?: CivBonusEffect;
+    era?: number;
+  } = {},
+): number {
+  const baseCost = getCatalogProductionCost(itemId, options.era);
+  if (baseCost <= 0) return 0;
+
+  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  const multiplier = applyProductionBonus(itemId, options.bonusEffect);
+  const safehouseMultiplier = unit && options.city?.buildings.includes('safehouse') && isSpyUnitType(unit.type)
+    ? 0.75
+    : 1;
+
+  return safehouseMultiplier < 1
+    ? Math.ceil(baseCost * multiplier * safehouseMultiplier)
+    : Math.round(baseCost * multiplier);
+}
 
 export function getTrainableUnitsForCiv(completedTechs: string[], civType?: string): TrainableUnitEntry[] {
   const replacedForCiv = new Set(
