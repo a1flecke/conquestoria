@@ -1,5 +1,6 @@
-import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { BUILDINGS, TRAINABLE_UNITS, getCatalogProductionCost } from '@/systems/city-system';
 import {
+  getProductionOutputProfileForEra,
   getTargetTurnWindow,
   estimateTurnsToComplete,
   resolveBuildingPacingBand,
@@ -53,11 +54,13 @@ function buildAuditSignals(
   };
 }
 
-export function buildPacingAudit(): PacingAuditRow[] {
+export function buildPacingAudit(options: { era?: number } = {}): PacingAuditRow[] {
   return [
     ...Object.values(BUILDINGS).map(building => {
       const era = getUnlockEra(building.techRequired);
       const band = resolveBuildingPacingBand(building);
+      const outputPerTurn = getProductionOutputProfileForEra(era);
+      const currentCost = getCatalogProductionCost(building.id, era);
       const target = getTargetTurnWindow({
         era,
         band,
@@ -69,16 +72,19 @@ export function buildPacingAudit(): PacingAuditRow[] {
         contentType: 'building' as const,
         era,
         band,
-        currentCost: building.productionCost,
+        currentCost,
         target,
-        ...buildAuditSignals(building.productionCost, 4, target),
+        ...buildAuditSignals(currentCost, outputPerTurn, target),
       };
     }),
     ...TRAINABLE_UNITS.map(unit => {
       const era = getUnlockEra(unit.techRequired);
+      const auditEra = unit.type === 'settler' ? options.era ?? era : era;
       const band = resolveUnitPacingBand(unit);
+      const outputPerTurn = getProductionOutputProfileForEra(auditEra);
+      const currentCost = getCatalogProductionCost(unit.type, auditEra);
       const target = getTargetTurnWindow({
-        era,
+        era: auditEra,
         band,
         contentType: 'unit',
       });
@@ -86,11 +92,11 @@ export function buildPacingAudit(): PacingAuditRow[] {
         id: unit.type,
         label: unit.name,
         contentType: 'unit' as const,
-        era,
+        era: auditEra,
         band,
-        currentCost: unit.cost,
+        currentCost,
         target,
-        ...buildAuditSignals(unit.cost, 4, target),
+        ...buildAuditSignals(currentCost, outputPerTurn, target),
       };
     }),
     ...TECH_TREE.map(tech => {

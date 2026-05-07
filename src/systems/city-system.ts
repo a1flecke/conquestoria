@@ -42,13 +42,13 @@ export const BUILDINGS: Record<string, Building> = {
 
   // Production
   workshop: { id: 'workshop', name: 'Workshop', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 12, description: 'Tools boost production', techRequired: null, adjacencyBonuses: [], pacing: { band: 'starter', role: 'early-production', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1 } },
-  forge: { id: 'forge', name: 'Forge', category: 'production', yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 70, description: 'Metalworking facility', techRequired: 'engineering', adjacencyBonuses: [] },
-  lumbermill: { id: 'lumbermill', name: 'Lumbermill', category: 'production', yields: { food: 0, production: 2, gold: 1, science: 0 }, productionCost: 50, description: 'Processes timber efficiently', techRequired: 'state-workforce', adjacencyBonuses: [] },
-  'quarry-building': { id: 'quarry-building', name: 'Quarry', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 55, description: 'Cuts stone for construction', techRequired: 'state-workforce', adjacencyBonuses: [] },
+  forge: { id: 'forge', name: 'Forge', category: 'production', yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 70, description: 'Metalworking facility', techRequired: 'engineering', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'production-scaling', impact: 1.2, scope: 'city', snowball: 1.25, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  lumbermill: { id: 'lumbermill', name: 'Lumbermill', category: 'production', yields: { food: 0, production: 2, gold: 1, science: 0 }, productionCost: 50, description: 'Processes timber efficiently', techRequired: 'state-workforce', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'production-economy', impact: 1.1, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  'quarry-building': { id: 'quarry-building', name: 'Quarry', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 55, description: 'Cuts stone for construction', techRequired: 'state-workforce', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'production-scaling', impact: 1.1, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1, unlockBreadth: 1 } },
 
   // Science
   library: { id: 'library', name: 'Library', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 16, description: 'Knowledge repository', techRequired: 'writing', adjacencyBonuses: [] },
-  archive: { id: 'archive', name: 'Archive', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 75, description: 'Preserves ancient knowledge', techRequired: 'mathematics', adjacencyBonuses: [] },
+  archive: { id: 'archive', name: 'Archive', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 60, description: 'Preserves ancient knowledge', techRequired: 'mathematics', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'science-scaling', impact: 1.15, scope: 'city', snowball: 1.2, urgency: 1, situationality: 1, unlockBreadth: 1 } },
   observatory: { id: 'observatory', name: 'Observatory', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 100, description: 'Studies the stars', techRequired: 'astronomy', adjacencyBonuses: [] },
 
   // Economy
@@ -62,54 +62,57 @@ export const BUILDINGS: Record<string, Building> = {
 
   // Culture
   temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center', techRequired: 'philosophy', adjacencyBonuses: [] },
-  monument: { id: 'monument', name: 'Monument', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 30, description: 'Commemorates your civilization', techRequired: 'code-of-laws', adjacencyBonuses: [] },
+  monument: { id: 'monument', name: 'Monument', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 30, description: 'Commemorates your civilization', techRequired: 'code-of-laws', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'early-culture', impact: 1.05, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
   amphitheater: { id: 'amphitheater', name: 'Amphitheater', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 85, description: 'Entertainment and culture', techRequired: 'drama-poetry', adjacencyBonuses: [] },
   shrine: { id: 'shrine', name: 'Shrine', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 8, description: 'Place of worship', techRequired: null, adjacencyBonuses: [], pacing: { band: 'starter', role: 'early-science', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
-  forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', adjacencyBonuses: [] },
+  forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'civic-economy', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
 
   // Espionage
   safehouse: {
     id: 'safehouse', name: 'Safehouse', category: 'espionage',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
-    productionCost: 50,
+    productionCost: 36,
     description: 'Reduces spy unit training cost by 25%.',
     techRequired: 'espionage-scouting', adjacencyBonuses: [],
+    pacing: { band: 'power-spike', role: 'spy-cost-reduction', impact: 1.2, scope: 'city', snowball: 1.15, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 },
   },
   'intelligence-agency': {
     id: 'intelligence-agency', name: 'Intelligence Agency', category: 'espionage',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
-    productionCost: 80,
+    productionCost: 60,
     description: "Raises this city's counter-intelligence score by 20 each turn (max 100). Bonus halves when digital-surveillance era is reached.",
     techRequired: 'espionage-informants', adjacencyBonuses: [],
+    pacing: { band: 'infrastructure', role: 'counter-intelligence', impact: 1.15, scope: 'city', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 },
   },
   'security-bureau': {
     id: 'security-bureau', name: 'Security Bureau', category: 'espionage',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
-    productionCost: 120,
+    productionCost: 100,
     description: 'Raises CI by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves at cyber-warfare era.',
     techRequired: 'counter-intelligence', adjacencyBonuses: [],
+    pacing: { band: 'infrastructure', role: 'advanced-counter-intelligence', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 },
   },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
   { type: 'warrior', name: 'Warrior', cost: 8, pacing: { band: 'starter', role: 'early-military', impact: 1, scope: 'military', snowball: 1, urgency: 1.2, situationality: 1, unlockBreadth: 1 } },
-  { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery' },
+  { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery', pacing: { band: 'power-spike', role: 'ranged-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1, unlockBreadth: 1 } },
   { type: 'scout', name: 'Scout', cost: 6, pacing: { band: 'starter', role: 'early-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   { type: 'worker', name: 'Worker', cost: 12 },
   { type: 'settler', name: 'Settler', cost: 24, pacing: { band: 'power-spike', role: 'expansion', impact: 1.25, scope: 'empire', snowball: 1.3, urgency: 1.05, situationality: 1, unlockBreadth: 1.2 } },
-  { type: 'swordsman', name: 'Swordsman', cost: 50, techRequired: 'bronze-working' },
-  { type: 'pikeman', name: 'Pikeman', cost: 70, techRequired: 'fortification' },
+  { type: 'swordsman', name: 'Swordsman', cost: 50, techRequired: 'bronze-working', pacing: { band: 'power-spike', role: 'melee-breakpoint', impact: 1.2, scope: 'military', snowball: 1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  { type: 'pikeman', name: 'Pikeman', cost: 70, techRequired: 'fortification', pacing: { band: 'power-spike', role: 'anti-cavalry-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1, situationality: 1.05, unlockBreadth: 1 } },
   { type: 'musketeer', name: 'Musketeer', cost: 90, techRequired: 'tactics' },
   { type: 'galley', name: 'Galley', cost: 40, techRequired: 'galleys' },
-  { type: 'trireme', name: 'Trireme', cost: 70, techRequired: 'triremes' },
-  { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants' },
-  { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks' },
-  { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography' },
+  { type: 'trireme', name: 'Trireme', cost: 70, techRequired: 'triremes', pacing: { band: 'power-spike', role: 'naval-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
+  { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
+  { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_operative', name: 'Operative', cost: 90, techRequired: 'cryptography', obsoletedByTech: 'cyber-warfare' },
   { type: 'spy_hacker', name: 'Cyber Operative', cost: 110, techRequired: 'cyber-warfare' },
-  { type: 'scout_hound', name: 'Scout Hound', cost: 55, techRequired: 'lookouts' },
-  { type: 'shadow_warden', name: 'Shadow Warden', cost: 55, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound' },
-  { type: 'war_hound', name: 'War Hound', cost: 45, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound' },
+  { type: 'scout_hound', name: 'Scout Hound', cost: 36, techRequired: 'lookouts', pacing: { band: 'power-spike', role: 'spy-detection', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.15, unlockBreadth: 1 } },
+  { type: 'shadow_warden', name: 'Shadow Warden', cost: 36, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.15, unlockBreadth: 1 } },
+  { type: 'war_hound', name: 'War Hound', cost: 32, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection-combat', impact: 1.1, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 } },
 ];
 
 export const SETTLER_COST_BY_ERA: Record<number, number> = {
