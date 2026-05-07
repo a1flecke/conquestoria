@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { estimateTurnsToComplete, getTargetTurnWindow } from '@/systems/pacing-model';
+import { estimateTurnsToComplete, getProductionOutputProfileForEra, getTargetTurnWindow } from '@/systems/pacing-model';
 
 describe('pacing-model', () => {
   it('gives Era 1 starter items a 2-4 turn target window', () => {
@@ -9,5 +9,9 @@ describe('pacing-model', () => {
   it('rounds ETA values up by turn', () => {
     expect(estimateTurnsToComplete({ cost: 12, outputPerTurn: 4 })).toBe(3);
     expect(estimateTurnsToComplete({ cost: 13, outputPerTurn: 4 })).toBe(4);
+  });
+
+  it('uses Era 1 production assumptions when the era is invalid', () => {
+    expect(getProductionOutputProfileForEra(Number.NaN)).toBe(4);
   });
 });

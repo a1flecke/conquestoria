@@ -1,8 +1,9 @@
 import type { City, GameState, TechState } from '@/core/types';
-import { BUILDINGS, getAvailableBuildings, TRAINABLE_UNITS } from '@/systems/city-system';
+import { BUILDINGS, getAvailableBuildings, getProductionCostForItem, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -94,7 +95,7 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
     .filter(city => !city.idleProduction)
     .filter(city => {
       const buildableBuildings = getAvailableBuildings(city, completedTechs).length > 0;
-      const buildableUnits = TRAINABLE_UNITS.some(unit => !unit.techRequired || completedTechs.includes(unit.techRequired));
+      const buildableUnits = getTrainableUnitsForCiv(completedTechs, civ.civType).length > 0;
       return buildableBuildings || buildableUnits;
     })
     .map(city => city.id);
@@ -123,24 +124,30 @@ export function getRecommendedIdleCityChoice(
   }
 
   const completedTechs = civ.techState.completed ?? [];
-  const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId).production);
+  const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
+  const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
   const candidates = [
-    ...getAvailableBuildings(city, completedTechs).map(building => ({
-      itemId: building.id,
-      label: building.name,
-      cost: building.productionCost,
-      turns: Math.ceil(building.productionCost / productionPerTurn),
-      priority: resolveBuildingPacingBand(building) === 'starter' ? 0 : 1,
-    })),
-    ...TRAINABLE_UNITS
-      .filter(unit => !unit.techRequired || completedTechs.includes(unit.techRequired))
-      .map(unit => ({
-        itemId: unit.type,
-        label: unit.name,
-        cost: unit.cost,
-        turns: Math.ceil(unit.cost / productionPerTurn),
-        priority: resolveUnitPacingBand(unit) === 'starter' ? 0 : 1,
-      })),
+    ...getAvailableBuildings(city, completedTechs).map(building => {
+      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: state.era });
+      return {
+        itemId: building.id,
+        label: building.name,
+        cost,
+        turns: Math.ceil(cost / productionPerTurn),
+        priority: resolveBuildingPacingBand(building) === 'starter' ? 0 : 1,
+      };
+    }),
+    ...getTrainableUnitsForCiv(completedTechs, civ.civType)
+      .map(unit => {
+        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: state.era });
+        return {
+          itemId: unit.type,
+          label: unit.name,
+          cost,
+          turns: Math.ceil(cost / productionPerTurn),
+          priority: resolveUnitPacingBand(unit) === 'starter' ? 0 : 1,
+        };
+      }),
   ];
 
   const best = candidates

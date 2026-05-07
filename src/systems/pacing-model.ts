@@ -19,7 +19,8 @@ const PRODUCTION_OUTPUT_BY_ERA: Record<number, number> = {
 };
 
 export function getProductionOutputProfileForEra(era: number): number {
-  const normalized = Math.max(1, Math.floor(era));
+  const numericEra = Number.isFinite(era) ? era : 1;
+  const normalized = Math.max(1, Math.floor(numericEra));
   return PRODUCTION_OUTPUT_BY_ERA[Math.min(5, normalized)];
 }
 

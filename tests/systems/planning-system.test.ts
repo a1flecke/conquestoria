@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { foundCity } from '@/systems/city-system';
+import { BUILDINGS, foundCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { generateMap } from '@/systems/map-generator';
 import { createTechState } from '@/systems/tech-system';
 import {
@@ -101,6 +101,37 @@ describe('planning-system city queues', () => {
 
     expect(choice).not.toBeNull();
     expect(choice?.itemId).not.toBe('herbalist');
+  });
+
+  it('prices recommended Settler production with the current era cost table', () => {
+    const state = createNewGame(undefined, 'idle-settler-era-seed', 'small');
+    const playerId = state.currentPlayer;
+    state.era = 4;
+    const settlerId = state.civilizations[playerId].units.find(unitId => state.units[unitId]?.type === 'settler');
+    expect(settlerId).toBeDefined();
+
+    const city = {
+      ...foundCity(playerId, state.units[settlerId!].position, state.map),
+      buildings: Object.keys(BUILDINGS),
+    };
+    state.cities[city.id] = city;
+    state.civilizations[playerId].cities.push(city.id);
+
+    const originalUnits = [...TRAINABLE_UNITS];
+    const settlerEntry = TRAINABLE_UNITS.find(unit => unit.type === 'settler');
+    expect(settlerEntry).toBeDefined();
+    TRAINABLE_UNITS.splice(0, TRAINABLE_UNITS.length, settlerEntry!);
+
+    try {
+      const choice = getRecommendedIdleCityChoice(state, playerId, city.id);
+
+      expect(choice).toMatchObject({
+        itemId: 'settler',
+        cost: 48,
+      });
+    } finally {
+      TRAINABLE_UNITS.splice(0, TRAINABLE_UNITS.length, ...originalUnits);
+    }
   });
 });
 
