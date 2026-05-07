@@ -1,4 +1,4 @@
-import type { CombatResult, GameState } from '@/core/types';
+import type { CombatResult, CombatRewardNotification, GameState } from '@/core/types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import type { NotificationEntry } from '@/ui/notification-log';
@@ -138,6 +138,14 @@ export function routeCombatResolved(
     ? `${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`
     : `${defenderType} was destroyed by ${attackerLabel}!`;
   sink(defender.owner, msg, 'warning');
+}
+
+export function routeCombatRewardEarned(
+  _state: GameState,
+  reward: CombatRewardNotification,
+  sink: NotificationSink,
+): void {
+  sink(reward.recipientCivId, reward.message, 'success');
 }
 
 type LegendaryWonderRoutingEvent =

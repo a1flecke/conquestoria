@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CombatResult, GameState } from '@/core/types';
 import {
   routeBarbarianSpawned,
+  routeCombatRewardEarned,
   routeCombatResolved,
   routeLegendaryWonder,
   routeFactionTransition,
@@ -115,6 +116,26 @@ describe('notification routing', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p3');
     expect(calls[0]!.message).toMatch(/destroyed by Barbarians/);
+  });
+
+  it('routes combat reward messages to the rewarded civ only', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeCombatRewardEarned(state, {
+      recipientCivId: 'p1',
+      recipientUnitId: 'unit-a',
+      defeatedUnitId: 'unit-d',
+      experienceAwarded: 10,
+      healthRestored: 8,
+      goldAwarded: 4,
+      surprise: null,
+      message: 'Combat reward: +10 XP, +8 HP, +4 gold',
+    }, sink);
+
+    expect(calls).toEqual([
+      { civId: 'p1', message: 'Combat reward: +10 XP, +8 HP, +4 gold', type: 'success' },
+    ]);
   });
 
   it('legendary-wonder-completed fans out to every civ, naming builder only for civs that have met them', () => {
