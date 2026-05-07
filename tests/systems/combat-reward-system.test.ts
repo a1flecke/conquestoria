@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createUnit } from '@/systems/unit-system';
 import {
+  applyCombatOutcomeToState,
   calculateDefeatReward,
   collectCombatRewards,
   getExperienceToNextTier,
   getVeterancyCombatModifier,
   getVeterancyTier,
 } from '@/systems/combat-reward-system';
-import type { CombatResult } from '@/core/types';
+import type { CombatResult, GameState } from '@/core/types';
 
 describe('combat-reward-system', () => {
   it('maps experience to named veterancy tiers and next thresholds', () => {
@@ -98,5 +99,107 @@ describe('combat-reward-system', () => {
     };
 
     expect(collectCombatRewards(result, attacker, defender, 64)).toEqual([]);
+  });
+});
+
+function makeRewardState(): GameState {
+  const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'attacker', health: 40 };
+  const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }), id: 'defender', health: 1 };
+  return {
+    turn: 3,
+    era: 1,
+    currentPlayer: 'player',
+    gameOver: false,
+    winner: null,
+    map: { width: 4, height: 4, wrapsHorizontally: false, rivers: [], tiles: {} },
+    units: { attacker, defender },
+    cities: {},
+    civilizations: {
+      player: {
+        id: 'player',
+        name: 'Player',
+        color: '#fff',
+        isHuman: true,
+        civType: 'rome',
+        cities: [],
+        units: ['attacker'],
+        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+        gold: 0,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 1 } },
+      },
+      'ai-1': {
+        id: 'ai-1',
+        name: 'AI',
+        color: '#d94a4a',
+        isHuman: false,
+        civType: 'egypt',
+        cities: [],
+        units: ['defender'],
+        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+        gold: 0,
+        visibility: { tiles: {} },
+        score: 0,
+        diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 1 } },
+      },
+    },
+    barbarianCamps: {},
+    minorCivs: {},
+    tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+    settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+    tribalVillages: {},
+    discoveredWonders: {},
+    wonderDiscoverers: {},
+    embargoes: [],
+    defensiveLeagues: [],
+  } as GameState;
+}
+
+describe('applyCombatOutcomeToState', () => {
+  it('removes the defeated unit, spends the attacker, and applies XP, healing, and gold', () => {
+    const state = makeRewardState();
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 10,
+      defenderDamage: 100,
+      attackerSurvived: true,
+      defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.defender).toBeUndefined();
+    expect(applied.state.civilizations['ai-1'].units).toEqual([]);
+    expect(applied.state.units.attacker.experience).toBeGreaterThan(0);
+    expect(applied.state.units.attacker.health).toBeGreaterThan(30);
+    expect(applied.state.units.attacker.movementPointsLeft).toBe(0);
+    expect(applied.state.units.attacker.hasMoved).toBe(true);
+    expect(applied.state.civilizations.player.gold).toBeGreaterThan(0);
+    expect(applied.rewards[0]?.message).toMatch(/Combat reward/);
+  });
+
+  it('does not award civilization gold to barbarian victors without a civ ledger', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, owner: 'barbarian' };
+    state.civilizations.player.units = [];
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 0,
+      defenderDamage: 100,
+      attackerSurvived: true,
+      defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.attacker.experience).toBeGreaterThan(0);
+    expect(applied.state.civilizations.player.gold).toBe(0);
   });
 });
