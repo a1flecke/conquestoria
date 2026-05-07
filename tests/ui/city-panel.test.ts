@@ -186,6 +186,76 @@ describe('city-panel navigation', () => {
     expect(rendered).toContain('data-queue-action="remove"');
   });
 
+  it('shows retuned Era 1 Settler and Herbalist ETA from canonical costs', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.population = 1;
+    city.focus = 'production';
+    city.buildings = ['forge'];
+    city.workedTiles = [];
+    city.ownedTiles = [city.position];
+    state.era = 1;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Herbalist');
+    expect(rendered).toContain('4 turns');
+    expect(rendered).toContain('Settler');
+    expect(rendered).toContain('Cost: 24');
+    expect(rendered).toContain('6 turns');
+  });
+
+  it('shows higher Settler cost and ETA after the era advances', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.population = 1;
+    city.focus = 'production';
+    city.buildings = ['forge'];
+    city.workedTiles = [];
+    city.ownedTiles = [city.position];
+    state.era = 3;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Settler');
+    expect(rendered).toContain('Cost: 40');
+    expect(rendered).toContain('10 turns');
+  });
+
+  it('recalculates queue timing with era-aware Settler cost', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.population = 1;
+    city.focus = 'production';
+    city.buildings = ['forge'];
+    city.workedTiles = [];
+    city.ownedTiles = [city.position];
+    city.productionQueue = ['herbalist', 'settler'];
+    city.productionProgress = 8;
+    state.era = 2;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onMoveQueueItem: () => {},
+      onRemoveQueueItem: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Herbalist');
+    expect(rendered).toContain('Settler');
+    expect(rendered).toContain('Starts in 2 turns');
+    expect(rendered).toContain('Done in 10 turns');
+  });
+
   it('renders Overview, Buildings/Core, and Worked Land And Water sections in the Grid tab', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.focus = 'balanced';

@@ -1,10 +1,11 @@
 import type { City, CityFocus, GameState, HexCoord } from '@/core/types';
-import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS, getTrainableUnitsForCiv } from '@/systems/city-system';
+import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS, getTrainableUnitsForCiv, getProductionCostForItem } from '@/systems/city-system';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createCityGrid } from './city-grid';
 
 export interface CityPanelCallbacks {
@@ -45,7 +46,14 @@ export function createCityPanel(
   const occupiedMood = getOccupiedCityMood(city);
   const occupiedStatus = city.occupation ? `Occupied: ${city.occupation.turnsRemaining} turns to integrate` : '';
   const occupiedMoodText = occupiedMood === 2 ? 'Very Unhappy' : occupiedMood === 1 ? 'Unhappy' : '';
-  const availableBuildings = getAvailableBuildings(city, state.civilizations[state.currentPlayer].techState.completed);
+  const currentCiv = state.civilizations[state.currentPlayer];
+  const civDef = resolveCivDefinition(state, currentCiv.civType);
+  const getDisplayedCost = (itemId: string): number => getProductionCostForItem(itemId, {
+    city,
+    bonusEffect: civDef?.bonusEffect,
+    era: state.era,
+  });
+  const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed);
   const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
 
   // Build placeholders for dynamic data; style attributes with pure numbers (progress%) are safe
@@ -63,7 +71,8 @@ export function createCityPanel(
   let buildItemPlaceholders = '';
   for (let idx = 0; idx < availableBuildings.length; idx++) {
     const b = availableBuildings[idx];
-    const turns = yields.production > 0 ? Math.ceil(b.productionCost / yields.production) : '∞';
+    const cost = getDisplayedCost(b.id);
+    const turns = yields.production > 0 ? Math.ceil(cost / yields.production) : '∞';
     const yieldParts: string[] = [];
     if (b.yields.food) yieldParts.push(`+${b.yields.food} 🌾`);
     if (b.yields.production) yieldParts.push(`+${b.yields.production} ⚒️`);
@@ -77,17 +86,17 @@ export function createCityPanel(
     </div>`;
   }
 
-  const currentCiv = state.civilizations[state.currentPlayer];
   const completedTechs = currentCiv.techState.completed;
   const availableUnits = getTrainableUnitsForCiv(completedTechs, currentCiv.civType);
 
   let unitPlaceholders = '';
   for (let idx = 0; idx < availableUnits.length; idx++) {
     const u = availableUnits[idx];
-    const turns = yields.production > 0 ? Math.ceil(u.cost / yields.production) : '∞';
+    const cost = getDisplayedCost(u.type);
+    const turns = yields.production > 0 ? Math.ceil(cost / yields.production) : '∞';
     unitPlaceholders += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
       <div style="font-weight:bold;font-size:13px;">⚔️ <span data-text="unit-name-${idx}"></span></div>
-      <div style="font-size:11px;opacity:0.7;">Cost: ${u.cost} · ${turns} turns</div>
+      <div style="font-size:11px;opacity:0.7;">Cost: ${cost} · ${turns} turns</div>
     </div>`;
   }
 
@@ -115,9 +124,7 @@ export function createCityPanel(
   let currentProductionHtml = '';
   if (city.productionQueue.length > 0) {
     const currentItem = city.productionQueue[0];
-    const building = BUILDINGS[currentItem];
-    const unit = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    const totalCost = building?.productionCost ?? unit?.cost ?? 0;
+    const totalCost = getDisplayedCost(currentItem);
     const progress = totalCost > 0 ? Math.round((city.productionProgress / totalCost) * 100) : 0;
 
     currentProductionHtml = `
@@ -135,15 +142,11 @@ export function createCityPanel(
   const followUpTimings: Array<{ startTurns: number; finishTurns: number } | null> = [];
   if (city.productionQueue.length > 1 && yields.production > 0) {
     const currentItem0 = city.productionQueue[0];
-    const currentBuilding0 = BUILDINGS[currentItem0];
-    const currentUnit0 = TRAINABLE_UNITS.find(u => u.type === currentItem0);
-    const currentCost0 = currentBuilding0?.productionCost ?? currentUnit0?.cost ?? 0;
+    const currentCost0 = getDisplayedCost(currentItem0);
     let elapsed = Math.ceil(Math.max(0, currentCost0 - city.productionProgress) / yields.production);
     for (let i = 1; i < city.productionQueue.length; i++) {
       const followId = city.productionQueue[i];
-      const followBuilding = BUILDINGS[followId];
-      const followUnit = TRAINABLE_UNITS.find(u => u.type === followId);
-      const followCost = followBuilding?.productionCost ?? followUnit?.cost ?? 0;
+      const followCost = getDisplayedCost(followId);
       const duration = Math.ceil(followCost / yields.production);
       followUpTimings.push({ startTurns: elapsed, finishTurns: elapsed + duration });
       elapsed += duration;
@@ -253,9 +256,9 @@ export function createCityPanel(
     const currentItem = city.productionQueue[0];
     const building = BUILDINGS[currentItem];
     const unit = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    const totalCost = building?.productionCost ?? unit?.cost ?? 0;
+    const totalCost = getDisplayedCost(currentItem);
     const turnsLeft = yields.production > 0 ? Math.ceil((totalCost - city.productionProgress) / yields.production) : '∞';
-    setText('prod-name', building?.name ?? currentItem);
+    setText('prod-name', building?.name ?? unit?.name ?? currentItem);
     setText('prod-turns', String(turnsLeft));
   }
 
