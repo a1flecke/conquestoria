@@ -7,6 +7,7 @@ import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-wor
 import { processResearch, getTechById } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import { resolveCombat } from '@/systems/combat-system';
+import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import type { HexCoord } from './types';
@@ -453,20 +454,11 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     if (!attacker || !defender) continue;
     const combatSeed = barbSeed ^ attack.attackerUnitId.charCodeAt(0);
     const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
+    const applied = applyCombatOutcomeToState(newState, result, combatSeed);
+    newState = applied.state;
     bus.emit('combat:resolved', { result });
-    if (!result.attackerSurvived) {
-      delete newState.units[attacker.id];
-    } else {
-      newState.units[attacker.id] = { ...attacker, health: attacker.health - result.attackerDamage, movementPointsLeft: 0 };
-    }
-    if (!result.defenderSurvived) {
-      delete newState.units[defender.id];
-      // Remove from owning civ's unit list
-      for (const civ of Object.values(newState.civilizations)) {
-        civ.units = civ.units.filter(id => id !== defender.id);
-      }
-    } else {
-      newState.units[defender.id] = { ...defender, health: defender.health - result.defenderDamage };
+    for (const reward of applied.rewards) {
+      bus.emit('combat:reward-earned', { reward });
     }
   }
 
