@@ -13,22 +13,22 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   settler: {
     type: 'settler', name: 'Settler', movementPoints: 2,
     visionRange: 2, strength: 0, canFoundCity: true,
-    canBuildImprovements: false, productionCost: 50,
+    canBuildImprovements: false, productionCost: 24,
   },
   worker: {
     type: 'worker', name: 'Worker', movementPoints: 2,
     visionRange: 2, strength: 0, canFoundCity: false,
-    canBuildImprovements: true, productionCost: 30,
+    canBuildImprovements: true, productionCost: 12,
   },
   scout: {
     type: 'scout', name: 'Scout', movementPoints: 3,
     visionRange: 3, strength: 5, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 20,
+    canBuildImprovements: false, productionCost: 6,
   },
   warrior: {
     type: 'warrior', name: 'Warrior', movementPoints: 2,
     visionRange: 2, strength: 10, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 25,
+    canBuildImprovements: false, productionCost: 8,
   },
   archer: {
     type: 'archer', name: 'Archer', movementPoints: 2,
