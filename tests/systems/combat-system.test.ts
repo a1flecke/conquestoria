@@ -30,6 +30,17 @@ describe('resolveCombat', () => {
     expect(result.defenderDamage).toBeGreaterThanOrEqual(0);
   });
 
+  it('experienced attackers deal more damage with the same seed', () => {
+    const recruit = { ...createUnit('warrior', 'p1', { q: 10, r: 10 }), id: 'recruit', experience: 0 };
+    const veteran = { ...createUnit('warrior', 'p1', { q: 10, r: 10 }), id: 'veteran', experience: 25 };
+    const defender = { ...createUnit('warrior', 'p2', { q: 11, r: 10 }), id: 'defender', experience: 0 };
+
+    const recruitResult = resolveCombat(recruit, defender, map, 2);
+    const veteranResult = resolveCombat(veteran, defender, map, 2);
+
+    expect(veteranResult.defenderDamage).toBeGreaterThan(recruitResult.defenderDamage);
+  });
+
   it('defender on hills takes less damage than on plains (same seed)', () => {
     const hillsTile = Object.values(map.tiles).find(t => t.terrain === 'hills');
     const plainsTile = Object.values(map.tiles).find(t => t.terrain === 'plains');

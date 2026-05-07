@@ -2,6 +2,7 @@ import type { Unit, CombatResult, GameMap, CivBonusEffect } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderCombatBonus } from './wonder-system';
+import { getVeterancyCombatModifier } from './combat-reward-system';
 
 export function getTerrainDefenseBonus(terrain: string): number {
   const bonuses: Record<string, number> = {
@@ -62,8 +63,8 @@ export function resolveCombat(
   const atkDef = UNIT_DEFINITIONS[attacker.type];
   const defDef = UNIT_DEFINITIONS[defender.type];
 
-  let atkStrength = atkDef.strength * (attacker.health / 100);
-  let defStrength = defDef.strength * (defender.health / 100);
+  let atkStrength = atkDef.strength * (attacker.health / 100) * (1 + getVeterancyCombatModifier(attacker));
+  let defStrength = defDef.strength * (defender.health / 100) * (1 + getVeterancyCombatModifier(defender));
 
   // Terrain defense bonus
   const defTile = map.tiles[hexKey(defender.position)];
