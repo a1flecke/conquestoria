@@ -4,6 +4,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { getQueueableResearchIds } from '@/systems/tech-progression';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -61,6 +62,10 @@ export function removeQueuedId<T>(items: T[], index: number): T[] {
 
 export function enqueueResearch(state: TechState, techId: string): TechState {
   if (state.completed.includes(techId) || state.currentResearch === techId || state.researchQueue.includes(techId)) {
+    return state;
+  }
+
+  if (!getQueueableResearchIds(state).has(techId)) {
     return state;
   }
 
