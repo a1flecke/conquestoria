@@ -1,7 +1,12 @@
 import type { GameState, Tech, TechTrack } from '@/core/types';
-import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
+import {
+  buildTechProgressionView,
+  type TechProgressionNode,
+  type TechTreeZoom,
+} from '@/systems/tech-progression';
+import { TECH_TREE } from '@/systems/tech-system';
 
 export interface TechPanelCallbacks {
   onQueueResearch: (techId: string) => void;
@@ -9,12 +14,6 @@ export interface TechPanelCallbacks {
   onRemoveQueuedResearch: (index: number) => void;
   onClose: () => void;
 }
-
-const TRACKS: TechTrack[] = [
-  'military', 'economy', 'science', 'civics', 'exploration',
-  'agriculture', 'medicine', 'philosophy', 'arts', 'maritime',
-  'metallurgy', 'construction', 'communication', 'espionage', 'spirituality',
-];
 
 const TRACK_ICONS: Record<TechTrack, string> = {
   military: '⚔️',
@@ -34,12 +33,32 @@ const TRACK_ICONS: Record<TechTrack, string> = {
   spirituality: '🙏',
 };
 
-function titleCase(track: string): string {
-  return track.charAt(0).toUpperCase() + track.slice(1);
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function getEraLabel(era: number): string {
   return era === 5 ? 'Late Era Foundations' : `Era ${era}`;
+}
+
+function getTechName(techId: string): string {
+  return TECH_TREE.find(tech => tech.id === techId)?.name ?? techId;
+}
+
+function getNodeStatusLabel(node: TechProgressionNode): string {
+  if (node.state === 'completed') return 'Done';
+  if (node.state === 'current') return 'Researching';
+  if (node.state === 'queued') return 'Queued';
+  if (node.state === 'available') return 'Available now';
+  if (node.state === 'next-layer') return 'Next layer';
+  return 'Locked';
+}
+
+function getPrerequisiteStatus(prereqId: string, civ: GameState['civilizations'][string]): string {
+  if (civ.techState.completed.includes(prereqId)) return 'Done';
+  if (civ.techState.currentResearch === prereqId) return 'Researching';
+  if (civ.techState.researchQueue.includes(prereqId)) return 'Queued';
+  return 'Locked';
 }
 
 function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: number, turnsRemaining: number | null): HTMLDivElement | null {
@@ -70,27 +89,11 @@ function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: nu
   const progressBar = document.createElement('div');
   progressBar.style.cssText = 'background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;';
   const fill = document.createElement('div');
-  fill.style.cssText = `background:#e8c170;border-radius:4px;height:8px;width:${progress}%;`;
+  fill.style.cssText = `background:#e8c170;border-radius:4px;height:8px;width:${Math.min(100, Math.max(0, progress))}%;`;
   progressBar.appendChild(fill);
   wrapper.appendChild(progressBar);
 
   return wrapper;
-}
-
-function getNextLayerTechIds(civ: GameState['civilizations'][string]): Set<string> {
-  const availableIds = new Set(getAvailableTechs(civ.techState).map(tech => tech.id));
-  const completedIds = new Set(civ.techState.completed);
-  return new Set(
-    TECH_TREE
-      .filter(tech => !availableIds.has(tech.id) && !completedIds.has(tech.id) && civ.techState.currentResearch !== tech.id)
-      .filter(tech => tech.prerequisites.length > 0)
-      .filter(tech => tech.prerequisites.every(prereq =>
-        completedIds.has(prereq)
-        || availableIds.has(prereq)
-        || civ.techState.currentResearch === prereq))
-      .filter(tech => tech.prerequisites.some(prereq => !completedIds.has(prereq)))
-      .map(tech => tech.id),
-  );
 }
 
 function getQueuedResearchTiming(
@@ -129,117 +132,162 @@ function getQueuedResearchTiming(
   return timing;
 }
 
-function createTechItem(
-  tech: Tech,
+function createTechNode(
+  node: TechProgressionNode,
   opts: {
-    isCompleted: boolean;
-    isCurrent: boolean;
-    isAvailable: boolean;
-    isNextLayer: boolean;
-    turnsToResearch: number | null;
+    isFocused: boolean;
+    isSelected: boolean;
+    onSelect: (techId: string) => void;
     onQueueResearch: (techId: string) => void;
   },
-): HTMLDivElement {
-  const item = document.createElement('div');
+): HTMLButtonElement {
+  const item = document.createElement('button');
+  item.type = 'button';
   item.className = 'tech-item';
-  item.dataset.techId = tech.id;
-  item.dataset.state = opts.isCompleted ? 'completed' : opts.isCurrent ? 'current' : opts.isAvailable ? 'available' : 'locked';
+  item.dataset.techId = node.tech.id;
+  item.dataset.state = node.state;
+  item.dataset.techState = node.state;
+  item.dataset.track = node.track;
+  item.dataset.era = String(node.era);
+  if (opts.isFocused) item.dataset.focused = 'true';
+  if (opts.isSelected) item.dataset.selected = 'true';
 
   let background = 'rgba(255,255,255,0.05)';
-  let border = 'transparent';
-  let opacity = '0.4';
-  let cursor = 'default';
+  let border = 'rgba(255,255,255,0.12)';
+  let opacity = '0.62';
+  let cursor = 'pointer';
 
-  if (opts.isCompleted) {
-    background = 'rgba(107,155,75,0.3)';
+  if (node.state === 'completed') {
+    background = 'rgba(107,155,75,0.28)';
     border = '#6b9b4b';
     opacity = '1';
-  } else if (opts.isCurrent) {
-    background = 'rgba(232,193,112,0.2)';
+  } else if (node.state === 'current') {
+    background = 'rgba(232,193,112,0.22)';
     border = '#e8c170';
     opacity = '1';
-  } else if (opts.isAvailable) {
-    background = 'rgba(255,255,255,0.1)';
-    border = 'rgba(255,255,255,0.3)';
+  } else if (node.state === 'queued') {
+    background = 'rgba(100,170,255,0.18)';
+    border = 'rgba(100,170,255,0.55)';
     opacity = '1';
-    cursor = 'pointer';
+  } else if (node.state === 'available') {
+    background = 'rgba(255,255,255,0.11)';
+    border = 'rgba(255,255,255,0.36)';
+    opacity = '1';
+  } else if (node.state === 'next-layer') {
+    background = 'rgba(232,193,112,0.1)';
+    border = 'rgba(232,193,112,0.28)';
+    opacity = '0.88';
   }
 
-  if (opts.isNextLayer && !opts.isAvailable && !opts.isCurrent && !opts.isCompleted) {
-    opacity = '0.75';
-    border = 'rgba(232,193,112,0.2)';
+  if (opts.isFocused || opts.isSelected) {
+    border = '#f0d48a';
+    background = node.state === 'completed' ? 'rgba(107,155,75,0.34)' : 'rgba(232,193,112,0.18)';
   }
 
-  item.style.cssText = `background:${background};border:1px solid ${border};border-radius:8px;padding:10px;margin-bottom:6px;opacity:${opacity};cursor:${cursor};`;
+  item.style.cssText = [
+    `background:${background}`,
+    `border:1px solid ${border}`,
+    'border-radius:8px',
+    'color:white',
+    'cursor:pointer',
+    'display:block',
+    'font:inherit',
+    'min-height:84px',
+    'opacity:' + opacity,
+    'padding:10px',
+    'text-align:left',
+    'width:190px',
+  ].join(';');
 
   const title = document.createElement('div');
-  title.style.cssText = 'font-weight:bold;font-size:13px;';
-  title.textContent = `${tech.name}${opts.isCompleted ? ' ✓' : ''}${opts.isCurrent ? ' ⏳' : ''}`;
+  title.style.cssText = 'font-weight:bold;font-size:13px;line-height:1.2;';
+  title.textContent = node.tech.name;
   item.appendChild(title);
 
+  const status = document.createElement('div');
+  status.style.cssText = 'font-size:11px;color:#e8c170;margin-top:5px;';
+  status.textContent = getNodeStatusLabel(node);
+  item.appendChild(status);
+
   const detail = document.createElement('div');
-  detail.style.cssText = 'font-size:11px;opacity:0.7;';
-  const etaText = opts.turnsToResearch === null ? 'ETA unknown' : `${opts.turnsToResearch} turns`;
-  detail.textContent = `${tech.unlocks[0] ?? 'New options'} · ${etaText} · Cost: ${tech.cost}`;
+  detail.style.cssText = 'font-size:11px;opacity:0.72;line-height:1.3;margin-top:5px;';
+  const etaText = node.turnsToResearch === null ? 'ETA unknown' : `${node.turnsToResearch} turns`;
+  detail.textContent = `${node.tech.unlocks[0] ?? 'New options'} · ${etaText} · Cost: ${node.tech.cost}`;
   item.appendChild(detail);
 
-  if (opts.isAvailable) {
-    item.addEventListener('click', () => {
-      opts.onQueueResearch(tech.id);
-    });
-  }
+  item.addEventListener('click', () => {
+    if (node.state === 'available') {
+      opts.onQueueResearch(node.tech.id);
+      return;
+    }
+    opts.onSelect(node.tech.id);
+  });
 
   return item;
 }
 
-function buildEraSection(
-  era: number,
-  techs: Tech[],
+function renderInspector(
+  inspector: HTMLElement,
+  selectedNode: TechProgressionNode | undefined,
   civ: GameState['civilizations'][string],
-  available: Tech[],
-  nextLayerIds: Set<string>,
-  callbacks: TechPanelCallbacks,
-  outputPerTurn: number,
-  showAll: boolean,
-): HTMLElement {
-  const section = document.createElement('div');
-  section.dataset.era = String(era);
-  section.style.cssText = 'margin-bottom:10px;';
+  queueableIds: Set<string>,
+  onQueueResearch: (techId: string) => void,
+): void {
+  inspector.textContent = '';
+  inspector.dataset.role = 'tech-detail';
+  inspector.style.cssText = 'background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:12px;min-width:220px;max-width:320px;';
 
-  const heading = document.createElement('div');
-  heading.textContent = getEraLabel(era);
-  heading.style.cssText = era === 5
-    ? 'font-size:11px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:#e8c170;margin:0 0 6px;'
-    : 'font-size:11px;font-weight:bold;letter-spacing:0.04em;text-transform:uppercase;opacity:0.65;margin:0 0 6px;';
-  section.appendChild(heading);
+  if (!selectedNode) {
+    const empty = document.createElement('div');
+    empty.textContent = 'Select a tech to inspect its path.';
+    empty.style.cssText = 'font-size:12px;opacity:0.72;';
+    inspector.appendChild(empty);
+    return;
+  }
 
-  for (const tech of techs) {
-    const isVisibleByDefault = civ.techState.currentResearch === tech.id
-      || available.some(candidate => candidate.id === tech.id)
-      || nextLayerIds.has(tech.id)
-      || civ.techState.completed.includes(tech.id);
+  const title = document.createElement('div');
+  title.textContent = selectedNode.tech.name;
+  title.style.cssText = 'font-weight:bold;color:#e8c170;margin-bottom:4px;';
+  inspector.appendChild(title);
 
-    if (!showAll && !isVisibleByDefault) {
-      continue;
+  const meta = document.createElement('div');
+  meta.textContent = `${titleCase(selectedNode.track)} · ${getEraLabel(selectedNode.era)} · ${getNodeStatusLabel(selectedNode)}`;
+  meta.style.cssText = 'font-size:12px;opacity:0.72;margin-bottom:8px;';
+  inspector.appendChild(meta);
+
+  const unlocks = document.createElement('div');
+  unlocks.textContent = selectedNode.tech.unlocks.join(', ') || 'New options for your empire';
+  unlocks.style.cssText = 'font-size:12px;line-height:1.35;margin-bottom:10px;';
+  inspector.appendChild(unlocks);
+
+  const prereqTitle = document.createElement('div');
+  prereqTitle.textContent = 'Prerequisites';
+  prereqTitle.style.cssText = 'font-size:11px;text-transform:uppercase;opacity:0.65;margin-bottom:5px;';
+  inspector.appendChild(prereqTitle);
+
+  if (selectedNode.prerequisiteIds.length === 0) {
+    const none = document.createElement('div');
+    none.textContent = 'None';
+    none.style.cssText = 'font-size:12px;opacity:0.75;margin-bottom:10px;';
+    inspector.appendChild(none);
+  } else {
+    for (const prereqId of selectedNode.prerequisiteIds) {
+      const row = document.createElement('div');
+      row.textContent = `${getTechName(prereqId)} · ${getPrerequisiteStatus(prereqId, civ)}`;
+      row.style.cssText = 'font-size:12px;line-height:1.4;opacity:0.86;';
+      inspector.appendChild(row);
     }
-
-    section.appendChild(createTechItem(tech, {
-      isCompleted: civ.techState.completed.includes(tech.id),
-      isCurrent: civ.techState.currentResearch === tech.id,
-      isAvailable: available.some(candidate => candidate.id === tech.id),
-      isNextLayer: nextLayerIds.has(tech.id),
-      turnsToResearch: available.some(candidate => candidate.id === tech.id)
-        ? estimateTurnsToComplete({ cost: tech.cost, outputPerTurn })
-        : null,
-      onQueueResearch: callbacks.onQueueResearch,
-    }));
   }
 
-  if (!section.querySelector('.tech-item')) {
-    return document.createElement('div');
+  if (queueableIds.has(selectedNode.tech.id)) {
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.dataset.action = 'queue-selected-tech';
+    action.textContent = civ.techState.currentResearch ? 'Add to queue' : 'Research';
+    action.style.cssText = 'margin-top:12px;padding:8px 10px;background:#e8c170;border:0;border-radius:6px;color:#1f1a12;font-weight:bold;cursor:pointer;';
+    action.addEventListener('click', () => onQueueResearch(selectedNode.tech.id));
+    inspector.appendChild(action);
   }
-
-  return section;
 }
 
 export function createTechPanel(
@@ -251,18 +299,31 @@ export function createTechPanel(
 
   const panel = document.createElement('div');
   panel.id = 'tech-panel';
-  panel.dataset.layout = 'tech-tree-grid';
-  panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
+  panel.dataset.layout = 'tech-dependency-panel';
+  panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;color:white;';
 
   const civ = state.civilizations[state.currentPlayer];
-  const available = getAvailableTechs(civ.techState);
-  const nextLayerIds = getNextLayerTechIds(civ);
   const sciencePerTurn = Math.max(
     1,
     civ.cities
       .reduce((total, cityId) => total + calculateProjectedCityYields(state, cityId).science, 0),
   );
   const queueTiming = getQueuedResearchTiming(civ, sciencePerTurn);
+
+  let zoom: TechTreeZoom = 'focus';
+  let selectedTechId: string | null = civ.techState.currentResearch
+    ?? civ.techState.researchQueue[0]
+    ?? (civ.techState.completed.length > 0 ? civ.techState.completed[civ.techState.completed.length - 1] : null);
+
+  const reopenPanel = () => {
+    panel.remove();
+    createTechPanel(container, state, callbacks);
+  };
+
+  const queueResearchAndReopen = (techId: string) => {
+    callbacks.onQueueResearch(techId);
+    reopenPanel();
+  };
 
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
@@ -322,7 +383,7 @@ export function createTechPanel(
       const tech = TECH_TREE.find(candidate => candidate.id === techId);
       const timing = queueTiming.get(techId);
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;';
+      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;gap:10px;';
 
       const labelWrap = document.createElement('div');
       const label = document.createElement('div');
@@ -338,7 +399,7 @@ export function createTechPanel(
       row.appendChild(labelWrap);
 
       const controls = document.createElement('div');
-      controls.style.cssText = 'display:flex;gap:6px;';
+      controls.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
 
       const isFirst = index === 0;
       const isLast = index === civ.techState.researchQueue.length - 1;
@@ -376,65 +437,141 @@ export function createTechPanel(
 
   panel.appendChild(queueSection);
 
-  const showAllButton = document.createElement('button');
-  showAllButton.type = 'button';
-  showAllButton.dataset.action = 'show-all-techs';
-  showAllButton.textContent = 'Show all techs';
-  showAllButton.style.cssText = 'margin-bottom:12px;';
-  panel.appendChild(showAllButton);
+  const zoomControls = document.createElement('div');
+  zoomControls.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;';
+  panel.appendChild(zoomControls);
 
-  const grid = document.createElement('div');
-  grid.dataset.layout = 'tech-tree-grid';
+  const body = document.createElement('div');
+  body.style.cssText = 'display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;';
 
-  const renderGrid = (showAll: boolean) => {
-    grid.textContent = '';
+  const mapWrap = document.createElement('div');
+  mapWrap.dataset.layout = 'tech-dependency-map';
+  mapWrap.style.cssText = 'position:relative;flex:1 1 620px;min-width:280px;overflow:auto;padding-bottom:12px;';
+  body.appendChild(mapWrap);
 
-    for (const track of TRACKS) {
-      const trackBlock = document.createElement('section');
-      trackBlock.className = 'tech-track';
-      trackBlock.dataset.track = track;
-      trackBlock.style.cssText = 'margin-bottom:16px;';
+  const inspector = document.createElement('aside');
+  body.appendChild(inspector);
+  panel.appendChild(body);
+  container.appendChild(panel);
 
-      const heading = document.createElement('h3');
-      heading.textContent = `${TRACK_ICONS[track]} ${titleCase(track)}`;
-      heading.style.cssText = 'font-size:14px;color:#e0d6c8;margin:0 0 8px;';
-      trackBlock.appendChild(heading);
+  const renderZoomControls = () => {
+    zoomControls.textContent = '';
+    const options: Array<{ value: TechTreeZoom; label: string }> = [
+      { value: 'focus', label: 'Focus' },
+      { value: 'known', label: 'Known tree' },
+      { value: 'all', label: 'All techs' },
+    ];
 
-      const techs = TECH_TREE.filter(tech => tech.track === track);
-      const eras = [...new Set(techs.map(tech => tech.era))].sort((a, b) => a - b);
-      for (const era of eras) {
-        const eraTechs = techs.filter(tech => tech.era === era);
-        const section = buildEraSection(era, eraTechs, civ, available, nextLayerIds, callbacks, sciencePerTurn, showAll);
-        if (section.childNodes.length > 0) {
-          trackBlock.appendChild(section);
-        }
-      }
-
-      if (trackBlock.querySelector('.tech-item')) {
-        grid.appendChild(trackBlock);
-      }
+    for (const option of options) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.zoom = option.value;
+      button.textContent = option.label;
+      button.style.cssText = option.value === zoom
+        ? 'padding:8px 10px;background:#e8c170;border:0;border-radius:6px;color:#1f1a12;font-weight:bold;cursor:pointer;'
+        : 'padding:8px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:6px;color:white;cursor:pointer;';
+      button.addEventListener('click', () => {
+        zoom = option.value;
+        renderTree();
+      });
+      zoomControls.appendChild(button);
     }
   };
 
-  renderGrid(false);
-  showAllButton.addEventListener('click', () => {
-    renderGrid(true);
-    showAllButton.remove();
-  });
+  const renderTree = () => {
+    renderZoomControls();
+    mapWrap.textContent = '';
+    const progression = buildTechProgressionView(civ.techState, { sciencePerTurn, zoom });
+    if (!selectedTechId) {
+      selectedTechId = progression.focusTechId
+        ?? progression.nodes.find(node => node.state === 'available')?.tech.id
+        ?? null;
+    }
 
-  panel.appendChild(grid);
-  container.appendChild(panel);
+    const visibleNodes = progression.nodes.filter(node => progression.visibleIds.has(node.tech.id));
+    const visibleIds = new Set(visibleNodes.map(node => node.tech.id));
+    const edgeLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    edgeLayer.setAttribute('data-role', 'tech-dependency-edges');
+    edgeLayer.setAttribute('width', '1');
+    edgeLayer.setAttribute('height', '1');
+    edgeLayer.style.cssText = 'position:absolute;left:0;top:0;width:1px;height:1px;pointer-events:none;';
 
-  const reopenPanel = () => {
-    panel.remove();
-    createTechPanel(container, state, callbacks);
+    for (const edge of progression.edges) {
+      if (!visibleIds.has(edge.fromId) || !visibleIds.has(edge.toId)) {
+        continue;
+      }
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.dataset.edgeFrom = edge.fromId;
+      path.dataset.edgeTo = edge.toId;
+      path.dataset.edgeState = edge.state;
+      path.setAttribute('d', 'M0 0 L1 1');
+      path.setAttribute('stroke', edge.state === 'satisfied' ? '#6b9b4b' : edge.state === 'planned' ? '#e8c170' : 'rgba(255,255,255,0.24)');
+      path.setAttribute('fill', 'none');
+      edgeLayer.appendChild(path);
+    }
+    mapWrap.appendChild(edgeLayer);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px, max-content);gap:14px;align-items:start;';
+    mapWrap.appendChild(grid);
+
+    const eras = [...new Set(visibleNodes.map(node => node.era))].sort((a, b) => a - b);
+    for (const era of eras) {
+      const eraColumn = document.createElement('section');
+      eraColumn.dataset.era = String(era);
+      eraColumn.style.cssText = 'min-width:210px;';
+
+      const eraHeading = document.createElement('h3');
+      eraHeading.textContent = getEraLabel(era);
+      eraHeading.style.cssText = era === 5
+        ? 'font-size:11px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:#e8c170;margin:0 0 8px;'
+        : 'font-size:11px;font-weight:bold;letter-spacing:0.04em;text-transform:uppercase;opacity:0.65;margin:0 0 8px;';
+      eraColumn.appendChild(eraHeading);
+
+      for (const track of progression.tracks) {
+        const trackNodes = visibleNodes.filter(node => node.era === era && node.track === track);
+        if (trackNodes.length === 0) {
+          continue;
+        }
+
+        const trackBlock = document.createElement('section');
+        trackBlock.className = 'tech-track';
+        trackBlock.dataset.track = track;
+        trackBlock.style.cssText = 'margin-bottom:12px;';
+
+        const trackHeading = document.createElement('div');
+        trackHeading.textContent = `${TRACK_ICONS[track]} ${titleCase(track)}`;
+        trackHeading.style.cssText = 'font-size:12px;color:#e0d6c8;margin:0 0 6px;';
+        trackBlock.appendChild(trackHeading);
+
+        for (const node of trackNodes) {
+          trackBlock.appendChild(createTechNode(node, {
+            isFocused: progression.focusTechId === node.tech.id,
+            isSelected: selectedTechId === node.tech.id,
+            onSelect: (techId) => {
+              selectedTechId = techId;
+              renderTree();
+            },
+            onQueueResearch: queueResearchAndReopen,
+          }));
+        }
+
+        eraColumn.appendChild(trackBlock);
+      }
+
+      grid.appendChild(eraColumn);
+    }
+
+    renderInspector(
+      inspector,
+      selectedTechId ? progression.nodesById.get(selectedTechId) : undefined,
+      civ,
+      progression.queueableIds,
+      queueResearchAndReopen,
+    );
   };
 
-  panel.querySelectorAll('[data-state="available"]').forEach(el => {
-    el.addEventListener('click', () => {
-      reopenPanel();
-    });
-  });
+  renderTree();
 
   panel.querySelectorAll('[data-queue-action]').forEach(el => {
     el.addEventListener('click', event => {
