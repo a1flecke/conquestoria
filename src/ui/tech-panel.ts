@@ -137,6 +137,7 @@ function createTechNode(
   opts: {
     isFocused: boolean;
     isSelected: boolean;
+    isPath: boolean;
     onSelect: (techId: string) => void;
     onQueueResearch: (techId: string) => void;
   },
@@ -151,6 +152,7 @@ function createTechNode(
   item.dataset.era = String(node.era);
   if (opts.isFocused) item.dataset.focused = 'true';
   if (opts.isSelected) item.dataset.selected = 'true';
+  if (opts.isPath) item.dataset.path = 'selected';
 
   let background = 'rgba(255,255,255,0.05)';
   let border = 'rgba(255,255,255,0.12)';
@@ -231,6 +233,7 @@ function renderInspector(
   selectedNode: TechProgressionNode | undefined,
   civ: GameState['civilizations'][string],
   queueableIds: Set<string>,
+  nextStepId: string | null,
   onQueueResearch: (techId: string) => void,
 ): void {
   inspector.textContent = '';
@@ -287,6 +290,16 @@ function renderInspector(
     action.style.cssText = 'margin-top:12px;padding:8px 10px;background:#e8c170;border:0;border-radius:6px;color:#1f1a12;font-weight:bold;cursor:pointer;';
     action.addEventListener('click', () => onQueueResearch(selectedNode.tech.id));
     inspector.appendChild(action);
+  } else if (nextStepId) {
+    const next = document.createElement('div');
+    next.textContent = `Next step: ${getTechName(nextStepId)}`;
+    next.style.cssText = 'font-size:12px;color:#e8c170;margin-top:12px;';
+    inspector.appendChild(next);
+  } else if (selectedNode.state === 'locked') {
+    const locked = document.createElement('div');
+    locked.textContent = 'No direct queue action yet';
+    locked.style.cssText = 'font-size:12px;opacity:0.72;margin-top:12px;';
+    inspector.appendChild(locked);
   }
 }
 
@@ -481,7 +494,7 @@ export function createTechPanel(
   const renderTree = () => {
     renderZoomControls();
     mapWrap.textContent = '';
-    const progression = buildTechProgressionView(civ.techState, { sciencePerTurn, zoom });
+    const progression = buildTechProgressionView(civ.techState, { sciencePerTurn, zoom, selectedTechId });
     if (!selectedTechId) {
       selectedTechId = progression.focusTechId
         ?? progression.nodes.find(node => node.state === 'available')?.tech.id
@@ -504,6 +517,9 @@ export function createTechPanel(
       path.dataset.edgeFrom = edge.fromId;
       path.dataset.edgeTo = edge.toId;
       path.dataset.edgeState = edge.state;
+      if (progression.selectedPathIds.has(edge.fromId) && progression.selectedPathIds.has(edge.toId)) {
+        path.dataset.edgePath = 'selected';
+      }
       path.setAttribute('d', 'M0 0 L1 1');
       path.setAttribute('stroke', edge.state === 'satisfied' ? '#6b9b4b' : edge.state === 'planned' ? '#e8c170' : 'rgba(255,255,255,0.24)');
       path.setAttribute('fill', 'none');
@@ -548,6 +564,7 @@ export function createTechPanel(
           trackBlock.appendChild(createTechNode(node, {
             isFocused: progression.focusTechId === node.tech.id,
             isSelected: selectedTechId === node.tech.id,
+            isPath: progression.selectedPathIds.has(node.tech.id),
             onSelect: (techId) => {
               selectedTechId = techId;
               renderTree();
@@ -567,6 +584,7 @@ export function createTechPanel(
       selectedTechId ? progression.nodesById.get(selectedTechId) : undefined,
       civ,
       progression.queueableIds,
+      progression.nextStepId,
       queueResearchAndReopen,
     );
   };

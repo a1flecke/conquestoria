@@ -159,6 +159,28 @@ describe('tech-panel', () => {
     expect(inspector?.textContent).toContain('Researching');
   });
 
+  it('highlights the selected path and exposes only the next legal queue action', () => {
+    const state = createNewGame(undefined, 'tech-path-action-test');
+    state.civilizations.player.techState.completed.push('gathering', 'pottery', 'fire', 'writing');
+
+    const queued: string[] = [];
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: (techId) => queued.push(techId),
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.click();
+    document.body.querySelector<HTMLElement>('[data-tech-id="medicine"]')?.click();
+
+    expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Philosophy');
+    expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Pottery');
+    expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-path')).toBe('selected');
+    expect(document.body.querySelector('[data-action="queue-selected-tech"]')).toBeFalsy();
+    expect(queued).toEqual([]);
+  });
+
   it('renders research queue controls', () => {
     const state = createNewGame(undefined, 'tech-queue-test');
     state.civilizations.player.techState.currentResearch = 'fire';

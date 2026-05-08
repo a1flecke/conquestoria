@@ -39,6 +39,9 @@ export interface TechProgressionView {
   queueableIds: Set<string>;
   focusTechId: string | null;
   zoom: TechTreeZoom;
+  selectedTechId: string | null;
+  selectedPathIds: Set<string>;
+  nextStepId: string | null;
 }
 
 export function getDerivedTechTracks(techs: Tech[] = TECH_TREE): TechTrack[] {
@@ -67,6 +70,16 @@ function getLastCompletedTechId(state: TechState): string | null {
   return state.completed.length > 0 ? state.completed[state.completed.length - 1] : null;
 }
 
+function collectPrerequisitePath(techId: string, path: Set<string>): void {
+  const tech = TECH_TREE.find(candidate => candidate.id === techId);
+  if (!tech || path.has(tech.id)) return;
+
+  for (const prereq of tech.prerequisites) {
+    path.add(prereq);
+  }
+  path.add(tech.id);
+}
+
 export function getQueueableResearchIds(state: TechState, techs: Tech[] = TECH_TREE): Set<string> {
   const queueable = new Set<string>();
   const planned = buildPlannedCompletionSet(state);
@@ -85,7 +98,7 @@ export function getQueueableResearchIds(state: TechState, techs: Tech[] = TECH_T
 
 export function buildTechProgressionView(
   state: TechState,
-  options: { sciencePerTurn?: number; zoom?: TechTreeZoom; initialFocusTechId?: string } = {},
+  options: { sciencePerTurn?: number; zoom?: TechTreeZoom; initialFocusTechId?: string; selectedTechId?: string | null } = {},
 ): TechProgressionView {
   const completed = new Set(state.completed);
   const planned = buildPlannedCompletionSet(state);
@@ -106,6 +119,11 @@ export function buildTechProgressionView(
     ...queueableIds,
   ]);
   const focusTech = focusTechId ? TECH_TREE.find(tech => tech.id === focusTechId) : undefined;
+  const selectedTechId = options.selectedTechId ?? focusTechId;
+  const selectedPathIds = new Set<string>();
+  if (selectedTechId) {
+    collectPrerequisitePath(selectedTechId, selectedPathIds);
+  }
 
   for (const tech of TECH_TREE) {
     const satisfiedPrerequisiteIds = tech.prerequisites.filter(prereq => planned.has(prereq));
@@ -205,5 +223,12 @@ export function buildTechProgressionView(
     queueableIds,
     focusTechId,
     zoom,
+    selectedTechId,
+    selectedPathIds,
+    nextStepId: [...selectedPathIds].find(techId =>
+      !completed.has(techId)
+      && state.currentResearch !== techId
+      && !state.researchQueue.includes(techId)
+      && queueableIds.has(techId)) ?? null,
   };
 }
