@@ -1510,14 +1510,12 @@ function executeAttack(attackerId: string, targetKey: string): void {
     showNotification('Our unit was destroyed!', 'warning');
   }
 
+  for (const reward of applied.rewards) {
+    bus.emit('combat:reward-earned', { reward });
+  }
+
   if (applied.defenderDefeated) {
     showNotification('Enemy unit destroyed!', 'success');
-    for (const reward of applied.rewards) {
-      bus.emit('combat:reward-earned', { reward });
-      if (reward.recipientCivId === gameState.currentPlayer) {
-        showNotification(reward.message, 'success');
-      }
-    }
 
     const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
     if (destroyedCamp.campId) {

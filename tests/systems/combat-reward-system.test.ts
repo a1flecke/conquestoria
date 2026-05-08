@@ -60,6 +60,15 @@ describe('combat-reward-system', () => {
     expect(reward.surprise).toBeNull();
   });
 
+  it('does not report gold rewards for victors without a gold ledger', () => {
+    const victor = { ...createUnit('warrior', 'barbarian', { q: 0, r: 0 }), id: 'winner', health: 60 };
+    const defeated = { ...createUnit('warrior', 'player', { q: 1, r: 0 }), id: 'fallen' };
+
+    const reward = calculateDefeatReward({ victor, defeated, seed: 64 });
+
+    expect(reward.goldAwarded).toBe(0);
+  });
+
   it('collects a reward for the surviving attacker when the defender dies', () => {
     const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'attacker', health: 50 };
     const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }), id: 'defender' };
@@ -81,6 +90,30 @@ describe('combat-reward-system', () => {
       recipientUnitId: 'attacker',
       recipientCivId: 'player',
       defeatedUnitId: 'defender',
+    });
+  });
+
+  it('collects a reward for the surviving defender when the attacker dies', () => {
+    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'attacker' };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }), id: 'defender', health: 50 };
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 100,
+      defenderDamage: 12,
+      attackerSurvived: false,
+      defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const rewards = collectCombatRewards(result, attacker, defender, 64);
+
+    expect(rewards).toHaveLength(1);
+    expect(rewards[0]).toMatchObject({
+      recipientUnitId: 'defender',
+      recipientCivId: 'ai-1',
+      defeatedUnitId: 'attacker',
     });
   });
 
@@ -180,6 +213,26 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.units.attacker.hasMoved).toBe(true);
     expect(applied.state.civilizations.player.gold).toBeGreaterThan(0);
     expect(applied.rewards[0]?.message).toMatch(/Combat reward/);
+  });
+
+  it('restores victory health from the survivor post-combat health', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, health: 100 };
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 20,
+      defenderDamage: 100,
+      attackerSurvived: true,
+      defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.rewards[0]?.healthRestored).toBe(8);
+    expect(applied.state.units.attacker.health).toBe(88);
   });
 
   it('does not award civilization gold to barbarian victors without a civ ledger', () => {

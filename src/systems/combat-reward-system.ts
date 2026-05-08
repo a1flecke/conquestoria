@@ -24,6 +24,7 @@ export interface DefeatRewardInput {
   victor: Unit;
   defeated: Unit;
   seed: number;
+  victorHealthAfterCombat?: number;
 }
 
 export interface DefeatRewardResult {
@@ -60,6 +61,10 @@ function seededRoll(seed: number, victorId: string, defeatedId: string): number 
   return state / 2147483647;
 }
 
+function canReceiveGoldReward(owner: string): boolean {
+  return owner !== 'barbarian' && owner !== 'rebels' && !owner.startsWith('mc-');
+}
+
 export function getVeterancyTierForExperience(experience: number): VeterancyTier {
   const xp = Math.max(0, experience);
   return [...VETERANCY_TIERS].reverse().find(tier => xp >= tier.minExperience) ?? VETERANCY_TIERS[0];
@@ -83,8 +88,12 @@ export function calculateDefeatReward(input: DefeatRewardInput): DefeatRewardRes
   const defeatedStrength = UNIT_DEFINITIONS[input.defeated.type]?.strength ?? 0;
   const defeatedCanFight = defeatedStrength > 0;
   const baseExperience = defeatedCanFight ? Math.max(8, Math.round(defeatedStrength * 0.8)) : 3;
-  const baseHealth = Math.min(100 - input.victor.health, defeatedCanFight ? 8 : 3);
-  const baseGold = defeatedCanFight ? (input.defeated.owner === 'barbarian' || input.defeated.owner === 'rebels' ? 8 : 4) : 1;
+  const victorHealth = Math.max(0, input.victorHealthAfterCombat ?? input.victor.health);
+  const baseHealth = Math.min(100 - victorHealth, defeatedCanFight ? 8 : 3);
+  const canReceiveGold = canReceiveGoldReward(input.victor.owner);
+  const baseGold = canReceiveGold
+    ? (defeatedCanFight ? (input.defeated.owner === 'barbarian' || input.defeated.owner === 'rebels' ? 8 : 4) : 1)
+    : 0;
   const roll = seededRoll(input.seed, input.victor.id, input.defeated.id);
 
   let surprise: CombatRewardSurprise | null = null;
@@ -95,7 +104,7 @@ export function calculateDefeatReward(input: DefeatRewardInput): DefeatRewardRes
       experienceAwarded: 4,
       goldAwarded: 0,
     };
-  } else if (defeatedCanFight && roll < 0.4) {
+  } else if (defeatedCanFight && canReceiveGold && roll < 0.4) {
     surprise = {
       type: 'salvaged_supplies',
       label: 'Salvaged Supplies',
@@ -128,7 +137,8 @@ export function collectCombatRewards(
 ): CombatReward[] {
   const rewards: CombatReward[] = [];
   if (!result.defenderSurvived && result.attackerSurvived) {
-    const values = calculateDefeatReward({ victor: attackerBefore, defeated: defenderBefore, seed });
+    const victorHealthAfterCombat = Math.max(1, attackerBefore.health - result.attackerDamage);
+    const values = calculateDefeatReward({ victor: attackerBefore, defeated: defenderBefore, seed, victorHealthAfterCombat });
     const reward = {
       recipientUnitId: attackerBefore.id,
       recipientCivId: attackerBefore.owner,
@@ -139,7 +149,8 @@ export function collectCombatRewards(
     rewards.push({ ...reward, message: formatCombatRewardMessage(reward) });
   }
   if (!result.attackerSurvived && result.defenderSurvived) {
-    const values = calculateDefeatReward({ victor: defenderBefore, defeated: attackerBefore, seed });
+    const victorHealthAfterCombat = Math.max(1, defenderBefore.health - result.defenderDamage);
+    const values = calculateDefeatReward({ victor: defenderBefore, defeated: attackerBefore, seed, victorHealthAfterCombat });
     const reward = {
       recipientUnitId: defenderBefore.id,
       recipientCivId: defenderBefore.owner,
