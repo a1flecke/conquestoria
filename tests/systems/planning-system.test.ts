@@ -69,6 +69,19 @@ describe('planning-system city queues', () => {
     expect(third.researchQueue).toEqual(['writing', 'wheel', 'gathering']);
   });
 
+  it('does not queue research whose prerequisites are outside the planned chain', () => {
+    const techState = {
+      ...createTechState(),
+      currentResearch: 'fire',
+      researchQueue: [],
+    };
+
+    const result = enqueueResearch(techState, 'banking');
+
+    expect(result.researchQueue).toEqual([]);
+    expect(result.currentResearch).toBe('fire');
+  });
+
   it('allows the same unit type to appear multiple times in the queue', () => {
     const city = { productionQueue: ['warrior'] } as any;
     const queued = enqueueCityProduction(city, 'warrior');

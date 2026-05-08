@@ -1,0 +1,209 @@
+import type { Tech, TechState, TechTrack } from '@/core/types';
+import { estimateTurnsToComplete } from '@/systems/pacing-model';
+import { TECH_TREE } from '@/systems/tech-system';
+
+export type TechNodeState = 'completed' | 'current' | 'queued' | 'available' | 'next-layer' | 'locked';
+export type TechEdgeState = 'satisfied' | 'planned' | 'open' | 'blocked';
+export type TechTreeZoom = 'focus' | 'known' | 'all';
+
+export interface TechProgressionNode {
+  tech: Tech;
+  state: TechNodeState;
+  track: TechTrack;
+  era: number;
+  visibleByDefault: boolean;
+  prerequisiteIds: string[];
+  satisfiedPrerequisiteIds: string[];
+  missingPrerequisiteIds: string[];
+  turnsToResearch: number | null;
+  revealed: boolean;
+  visibleInFocus: boolean;
+  visibleInKnown: boolean;
+}
+
+export interface TechProgressionEdge {
+  fromId: string;
+  toId: string;
+  state: TechEdgeState;
+  visibleByDefault: boolean;
+}
+
+export interface TechProgressionView {
+  tracks: TechTrack[];
+  nodes: TechProgressionNode[];
+  nodesById: Map<string, TechProgressionNode>;
+  edges: TechProgressionEdge[];
+  defaultVisibleIds: Set<string>;
+  visibleIds: Set<string>;
+  knownVisibleIds: Set<string>;
+  queueableIds: Set<string>;
+  focusTechId: string | null;
+  zoom: TechTreeZoom;
+}
+
+export function getDerivedTechTracks(techs: Tech[] = TECH_TREE): TechTrack[] {
+  const tracks: TechTrack[] = [];
+  for (const tech of techs) {
+    if (!tracks.includes(tech.track)) {
+      tracks.push(tech.track);
+    }
+  }
+  return tracks;
+}
+
+function buildPlannedCompletionSet(state: TechState): Set<string> {
+  return new Set([
+    ...state.completed,
+    ...(state.currentResearch ? [state.currentResearch] : []),
+    ...state.researchQueue,
+  ]);
+}
+
+function hasAllPrerequisites(tech: Tech, ids: Set<string>): boolean {
+  return tech.prerequisites.every(prereq => ids.has(prereq));
+}
+
+function getLastCompletedTechId(state: TechState): string | null {
+  return state.completed.length > 0 ? state.completed[state.completed.length - 1] : null;
+}
+
+export function getQueueableResearchIds(state: TechState, techs: Tech[] = TECH_TREE): Set<string> {
+  const queueable = new Set<string>();
+  const planned = buildPlannedCompletionSet(state);
+
+  for (const tech of techs) {
+    if (state.completed.includes(tech.id)) continue;
+    if (state.currentResearch === tech.id) continue;
+    if (state.researchQueue.includes(tech.id)) continue;
+    if (hasAllPrerequisites(tech, planned)) {
+      queueable.add(tech.id);
+    }
+  }
+
+  return queueable;
+}
+
+export function buildTechProgressionView(
+  state: TechState,
+  options: { sciencePerTurn?: number; zoom?: TechTreeZoom; initialFocusTechId?: string } = {},
+): TechProgressionView {
+  const completed = new Set(state.completed);
+  const planned = buildPlannedCompletionSet(state);
+  const queueableIds = getQueueableResearchIds(state);
+  const zoom = options.zoom ?? 'focus';
+  const focusTechId = options.initialFocusTechId
+    ?? state.currentResearch
+    ?? state.researchQueue[0]
+    ?? getLastCompletedTechId(state);
+  const nodes: TechProgressionNode[] = [];
+  const nodesById = new Map<string, TechProgressionNode>();
+  const defaultVisibleIds = new Set<string>();
+  const knownVisibleIds = new Set<string>();
+  const visibleIds = new Set<string>();
+  const sciencePerTurn = Math.max(1, options.sciencePerTurn ?? 1);
+  const completedOrPlannedOrAvailable = new Set([
+    ...planned,
+    ...queueableIds,
+  ]);
+  const focusTech = focusTechId ? TECH_TREE.find(tech => tech.id === focusTechId) : undefined;
+
+  for (const tech of TECH_TREE) {
+    const satisfiedPrerequisiteIds = tech.prerequisites.filter(prereq => planned.has(prereq));
+    const missingPrerequisiteIds = tech.prerequisites.filter(prereq => !planned.has(prereq));
+    const everyPrereqPlanned = missingPrerequisiteIds.length === 0;
+    const isAvailable = !completed.has(tech.id)
+      && state.currentResearch !== tech.id
+      && !state.researchQueue.includes(tech.id)
+      && tech.prerequisites.every(prereq => completed.has(prereq));
+    const isNextLayer = !isAvailable
+      && !completed.has(tech.id)
+      && state.currentResearch !== tech.id
+      && !state.researchQueue.includes(tech.id)
+      && everyPrereqPlanned;
+
+    const nodeState: TechNodeState = completed.has(tech.id)
+      ? 'completed'
+      : state.currentResearch === tech.id
+        ? 'current'
+        : state.researchQueue.includes(tech.id)
+          ? 'queued'
+          : isAvailable
+            ? 'available'
+            : isNextLayer
+              ? 'next-layer'
+              : 'locked';
+
+    const revealed = nodeState !== 'locked'
+      || tech.prerequisites.every(prereq => completedOrPlannedOrAvailable.has(prereq));
+    const isFocusTech = focusTechId === tech.id;
+    const isFocusParent = Boolean(focusTech?.prerequisites.includes(tech.id));
+    const isFocusChild = tech.prerequisites.includes(focusTechId ?? '') && revealed;
+    const isFocusNeighbor = isFocusTech || isFocusChild || isFocusParent;
+    const visibleInKnown = revealed;
+    const visibleInFocus = nodeState !== 'locked' || isFocusNeighbor || revealed;
+    const visibleByDefault = visibleInFocus;
+
+    if (visibleByDefault) defaultVisibleIds.add(tech.id);
+    if (visibleInKnown) knownVisibleIds.add(tech.id);
+    if (zoom === 'all' || (zoom === 'known' && visibleInKnown) || (zoom === 'focus' && visibleInFocus)) {
+      visibleIds.add(tech.id);
+    }
+
+    const node: TechProgressionNode = {
+      tech,
+      state: nodeState,
+      track: tech.track,
+      era: tech.era,
+      visibleByDefault,
+      prerequisiteIds: tech.prerequisites,
+      satisfiedPrerequisiteIds,
+      missingPrerequisiteIds,
+      turnsToResearch: queueableIds.has(tech.id)
+        ? estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: sciencePerTurn })
+        : null,
+      revealed,
+      visibleInFocus,
+      visibleInKnown,
+    };
+
+    nodes.push(node);
+    nodesById.set(tech.id, node);
+  }
+
+  const edges: TechProgressionEdge[] = [];
+  for (const tech of TECH_TREE) {
+    for (const prereq of tech.prerequisites) {
+      const prereqNode = nodesById.get(prereq);
+      const targetNode = nodesById.get(tech.id);
+      if (!prereqNode || !targetNode) continue;
+
+      const stateForEdge: TechEdgeState = completed.has(prereq)
+        ? 'satisfied'
+        : planned.has(prereq)
+          ? 'planned'
+          : queueableIds.has(prereq)
+            ? 'open'
+            : 'blocked';
+
+      edges.push({
+        fromId: prereq,
+        toId: tech.id,
+        state: stateForEdge,
+        visibleByDefault: prereqNode.visibleByDefault && targetNode.visibleByDefault,
+      });
+    }
+  }
+
+  return {
+    tracks: getDerivedTechTracks(),
+    nodes,
+    nodesById,
+    edges,
+    defaultVisibleIds,
+    visibleIds,
+    knownVisibleIds,
+    queueableIds,
+    focusTechId,
+    zoom,
+  };
+}
