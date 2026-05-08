@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createTechState, TECH_TREE } from '@/systems/tech-system';
 import {
   buildTechProgressionView,
+  canMoveQueuedResearch,
   getDerivedTechTracks,
   getQueueableResearchIds,
 } from '@/systems/tech-progression';
@@ -104,5 +105,21 @@ describe('tech progression view model', () => {
 
     expect(view.selectedPathIds).toEqual(new Set(['pottery', 'philosophy', 'medicine']));
     expect(view.selectedPathIds.has('astronomy')).toBe(false);
+  });
+
+  it('rejects queue reorders that would place a tech before its prerequisite', () => {
+    const techState = {
+      ...createTechState(),
+      currentResearch: 'fire',
+      researchQueue: ['writing', 'mathematics'],
+    };
+
+    expect(canMoveQueuedResearch(techState, 1, 0)).toBe(false);
+    expect(canMoveQueuedResearch(techState, 0, 1)).toBe(false);
+    expect(canMoveQueuedResearch({
+      ...createTechState(),
+      currentResearch: 'fire',
+      researchQueue: ['writing', 'wheel'],
+    }, 0, 1)).toBe(true);
   });
 });

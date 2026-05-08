@@ -66,6 +66,43 @@ function hasAllPrerequisites(tech: Tech, ids: Set<string>): boolean {
   return tech.prerequisites.every(prereq => ids.has(prereq));
 }
 
+function moveQueuedId<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  if (
+    fromIndex < 0
+    || toIndex < 0
+    || fromIndex >= items.length
+    || toIndex >= items.length
+    || fromIndex === toIndex
+  ) {
+    return [...items];
+  }
+
+  const next = [...items];
+  const [moved] = next.splice(fromIndex, 1);
+  if (moved === undefined) {
+    return [...items];
+  }
+  next.splice(toIndex, 0, moved);
+  return next;
+}
+
+function isQueueOrderValid(state: TechState, queue: string[]): boolean {
+  const satisfied = new Set([
+    ...state.completed,
+    ...(state.currentResearch ? [state.currentResearch] : []),
+  ]);
+
+  for (const techId of queue) {
+    const tech = TECH_TREE.find(candidate => candidate.id === techId);
+    if (!tech || !hasAllPrerequisites(tech, satisfied)) {
+      return false;
+    }
+    satisfied.add(tech.id);
+  }
+
+  return true;
+}
+
 function getLastCompletedTechId(state: TechState): string | null {
   return state.completed.length > 0 ? state.completed[state.completed.length - 1] : null;
 }
@@ -94,6 +131,10 @@ export function getQueueableResearchIds(state: TechState, techs: Tech[] = TECH_T
   }
 
   return queueable;
+}
+
+export function canMoveQueuedResearch(state: TechState, fromIndex: number, toIndex: number): boolean {
+  return isQueueOrderValid(state, moveQueuedId(state.researchQueue, fromIndex, toIndex));
 }
 
 export function buildTechProgressionView(
