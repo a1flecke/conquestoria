@@ -93,4 +93,16 @@ describe('tech progression view model', () => {
     expect(currentView.focusTechId).toBe('writing');
     expect(completedView.focusTechId).toBe('writing');
   });
+
+  it('returns the dependency path for a selected goal without including unrelated same-track techs', () => {
+    const techState = {
+      ...createTechState(),
+      completed: ['gathering', 'pottery', 'fire', 'writing', 'philosophy'],
+    };
+
+    const view = buildTechProgressionView(techState, { selectedTechId: 'medicine' });
+
+    expect(view.selectedPathIds).toEqual(new Set(['pottery', 'philosophy', 'medicine']));
+    expect(view.selectedPathIds.has('astronomy')).toBe(false);
+  });
 });
