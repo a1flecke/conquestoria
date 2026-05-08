@@ -3,6 +3,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import {
   buildTechProgressionView,
+  canMoveQueuedResearch,
   type TechProgressionNode,
   type TechTreeZoom,
 } from '@/systems/tech-progression';
@@ -414,24 +415,24 @@ export function createTechPanel(
       const controls = document.createElement('div');
       controls.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
 
-      const isFirst = index === 0;
-      const isLast = index === civ.techState.researchQueue.length - 1;
+      const canMoveUp = index > 0 && canMoveQueuedResearch(civ.techState, index, index - 1);
+      const canMoveDown = index < civ.techState.researchQueue.length - 1 && canMoveQueuedResearch(civ.techState, index, index + 1);
 
       const up = document.createElement('button');
       up.type = 'button';
       up.dataset.queueAction = 'up';
       up.dataset.queueIndex = String(index);
       up.textContent = '↑';
-      up.disabled = isFirst;
-      up.style.cssText = isFirst ? queueBtnDisabledStyle : queueBtnStyle;
+      up.disabled = !canMoveUp;
+      up.style.cssText = canMoveUp ? queueBtnStyle : queueBtnDisabledStyle;
 
       const down = document.createElement('button');
       down.type = 'button';
       down.dataset.queueAction = 'down';
       down.dataset.queueIndex = String(index);
       down.textContent = '↓';
-      down.disabled = isLast;
-      down.style.cssText = isLast ? queueBtnDisabledStyle : queueBtnStyle;
+      down.disabled = !canMoveDown;
+      down.style.cssText = canMoveDown ? queueBtnStyle : queueBtnDisabledStyle;
 
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -507,7 +508,7 @@ export function createTechPanel(
     edgeLayer.setAttribute('data-role', 'tech-dependency-edges');
     edgeLayer.setAttribute('width', '1');
     edgeLayer.setAttribute('height', '1');
-    edgeLayer.style.cssText = 'position:absolute;left:0;top:0;width:1px;height:1px;pointer-events:none;';
+    edgeLayer.style.cssText = 'position:absolute;left:0;top:0;width:1px;height:1px;pointer-events:none;z-index:0;';
 
     for (const edge of progression.edges) {
       if (!visibleIds.has(edge.fromId) || !visibleIds.has(edge.toId)) {
@@ -528,7 +529,7 @@ export function createTechPanel(
     mapWrap.appendChild(edgeLayer);
 
     const grid = document.createElement('div');
-    grid.style.cssText = 'display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px, max-content);gap:14px;align-items:start;';
+    grid.style.cssText = 'display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px, max-content);gap:14px;align-items:start;position:relative;z-index:1;';
     mapWrap.appendChild(grid);
 
     const eras = [...new Set(visibleNodes.map(node => node.era))].sort((a, b) => a - b);
@@ -579,6 +580,50 @@ export function createTechPanel(
       grid.appendChild(eraColumn);
     }
 
+    const updateEdgeGeometry = () => {
+      const mapRect = mapWrap.getBoundingClientRect();
+      const width = Math.max(mapWrap.scrollWidth, Math.ceil(mapRect.width), 1);
+      const height = Math.max(mapWrap.scrollHeight, Math.ceil(mapRect.height), 1);
+      edgeLayer.setAttribute('width', String(width));
+      edgeLayer.setAttribute('height', String(height));
+      edgeLayer.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      edgeLayer.style.width = `${width}px`;
+      edgeLayer.style.height = `${height}px`;
+
+      edgeLayer.querySelectorAll<SVGPathElement>('path').forEach(path => {
+        const fromId = path.dataset.edgeFrom;
+        const toId = path.dataset.edgeTo;
+        if (!fromId || !toId) {
+          return;
+        }
+
+        const fromEl = mapWrap.querySelector<HTMLElement>(`[data-tech-id="${fromId}"]`);
+        const toEl = mapWrap.querySelector<HTMLElement>(`[data-tech-id="${toId}"]`);
+        if (!fromEl || !toEl) {
+          return;
+        }
+
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+        if (fromRect.width === 0 && toRect.width === 0) {
+          return;
+        }
+
+        const startX = fromRect.right - mapRect.left + mapWrap.scrollLeft;
+        const startY = fromRect.top + fromRect.height / 2 - mapRect.top + mapWrap.scrollTop;
+        const endX = toRect.left - mapRect.left + mapWrap.scrollLeft;
+        const endY = toRect.top + toRect.height / 2 - mapRect.top + mapWrap.scrollTop;
+        const bend = Math.max(24, Math.abs(endX - startX) / 2);
+        path.setAttribute('d', `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`);
+        path.setAttribute('stroke-width', path.dataset.edgePath === 'selected' ? '3' : '1.5');
+      });
+    };
+
+    updateEdgeGeometry();
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(updateEdgeGeometry);
+    }
+
     renderInspector(
       inspector,
       selectedTechId ? progression.nodesById.get(selectedTechId) : undefined,
@@ -607,13 +652,17 @@ export function createTechPanel(
         return;
       }
 
-      if (action === 'up' && index > 0) {
+      if (action === 'up' && index > 0 && canMoveQueuedResearch(civ.techState, index, index - 1)) {
         callbacks.onMoveQueuedResearch(index, index - 1);
         reopenPanel();
         return;
       }
 
-      if (action === 'down' && index < civ.techState.researchQueue.length - 1) {
+      if (
+        action === 'down'
+        && index < civ.techState.researchQueue.length - 1
+        && canMoveQueuedResearch(civ.techState, index, index + 1)
+      ) {
         callbacks.onMoveQueuedResearch(index, index + 1);
         reopenPanel();
       }

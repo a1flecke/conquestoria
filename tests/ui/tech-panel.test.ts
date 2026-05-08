@@ -181,6 +181,21 @@ describe('tech-panel', () => {
     expect(queued).toEqual([]);
   });
 
+  it('uses meaningful zoom labels in compact map controls', () => {
+    const state = createNewGame(undefined, 'tech-a11y-test');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector<HTMLButtonElement>('[data-zoom="focus"]')?.textContent).toContain('Focus');
+    expect(panel.querySelector<HTMLButtonElement>('[data-zoom="known"]')?.textContent).toContain('Known tree');
+    expect(panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.textContent).toContain('All techs');
+    expect(panel.querySelector('[data-role="tech-detail"]')).toBeTruthy();
+  });
+
   it('renders research queue controls', () => {
     const state = createNewGame(undefined, 'tech-queue-test');
     state.civilizations.player.techState.currentResearch = 'fire';
@@ -302,6 +317,31 @@ describe('tech-panel', () => {
     downBtn!.click();
 
     expect(state.civilizations.player.techState.researchQueue).toEqual(['wheel', 'writing']);
+  });
+
+  it('does not allow reordering a queued tech before its prerequisite', () => {
+    const state = createNewGame(undefined, 'tech-invalid-reorder-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing', 'mathematics'];
+
+    createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: (from, to) => {
+        const queue = [...state.civilizations.player.techState.researchQueue];
+        const [moved] = queue.splice(from, 1);
+        if (moved) queue.splice(to, 0, moved);
+        state.civilizations.player.techState = {
+          ...state.civilizations.player.techState,
+          researchQueue: queue,
+        };
+      },
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    const upBtn = document.body.querySelector<HTMLButtonElement>('[data-queue-action="up"][data-queue-index="1"]');
+    expect(upBtn).toBeTruthy();
+    expect(upBtn!.disabled).toBe(true);
   });
 
   it('↑ button on the first research queue item (index 0) is disabled', () => {
