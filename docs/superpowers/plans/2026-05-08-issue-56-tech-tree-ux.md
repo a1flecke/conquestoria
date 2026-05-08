@@ -131,6 +131,7 @@ Selected-tech inspector:
 - Toggle `Focus`, `Known tree`, and `All techs` without mutating research state.
 - Remove a queued item and confirm node state, path highlight, queue order, and ETA text rerender.
 - Move queued research up and down and confirm the selected-path labels recalculate.
+- Attempt to move a queued tech before one of its prerequisites and confirm the control is disabled.
 - Repeat-click a card after the first mutation to ensure stale DOM does not call callbacks with old indices.
 - Reopen the tech panel and confirm current, queued, available, next-layer, and selected defaults match state.
 - Switch to `All techs` and confirm all `TECH_TREE` ids are present.
@@ -799,14 +800,14 @@ selectedPathIds: Set<string>;
 nextStepId: string | null;
 ```
 
-Add a deterministic recursive prerequisite collector:
+Add a deterministic direct-prerequisite collector:
 
 ```typescript
 function collectPrerequisitePath(techId: string, path: Set<string>): void {
   const tech = TECH_TREE.find(candidate => candidate.id === techId);
   if (!tech || path.has(tech.id)) return;
   for (const prereq of tech.prerequisites) {
-    collectPrerequisitePath(prereq, path);
+    path.add(prereq);
   }
   path.add(tech.id);
 }
@@ -877,6 +878,8 @@ Use inline styles or local helper constants consistent with the existing panel s
 - Node cards must use stable dimensions so state labels, ETA text, and selected styles do not resize the grid.
 - The inspector should appear below the map on narrow screens and to the side on wide screens.
 - Buttons should keep text short and never rely only on color.
+- Dependency edges should have real browser geometry, not only test data attributes.
+- Queue reorder buttons should be disabled when moving an item would place a tech before one of its prerequisites.
 
 - [ ] **Step 3: Confirm no unsafe DOM rendering**
 
