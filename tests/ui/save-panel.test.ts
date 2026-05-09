@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   loadAutoSave: vi.fn(),
   deleteSaveEntry: vi.fn(),
   renameSave: vi.fn(),
+  getSaveFileAdapter: vi.fn(),
+  exportMostRecentAutoSave: vi.fn(),
+  importSaveFromFile: vi.fn(),
 }));
 
 vi.mock('@/storage/save-manager', () => ({
@@ -16,6 +19,15 @@ vi.mock('@/storage/save-manager', () => ({
   loadAutoSave: mocks.loadAutoSave,
   deleteSaveEntry: mocks.deleteSaveEntry,
   renameSave: mocks.renameSave,
+}));
+
+vi.mock('@/platform/save-file-adapter', () => ({
+  getSaveFileAdapter: mocks.getSaveFileAdapter,
+}));
+
+vi.mock('@/storage/save-file-transfer', () => ({
+  exportMostRecentAutoSave: mocks.exportMostRecentAutoSave,
+  importSaveFromFile: mocks.importSaveFromFile,
 }));
 
 import { createSavePanel } from '@/ui/save-panel';
@@ -28,6 +40,10 @@ describe('save-panel', () => {
     mocks.loadAutoSave.mockReset();
     mocks.deleteSaveEntry.mockReset();
     mocks.renameSave.mockReset();
+    mocks.getSaveFileAdapter.mockReset();
+    mocks.exportMostRecentAutoSave.mockReset();
+    mocks.importSaveFromFile.mockReset();
+    mocks.getSaveFileAdapter.mockResolvedValue({ adapter: 'mock' });
   });
 
   afterEach(() => {
@@ -267,5 +283,91 @@ describe('save-panel', () => {
 
     expect(document.getElementById('evil-player')).toBeNull();
     expect(document.body.textContent).toContain('<span id="evil-player">Bob</span>');
+  });
+
+  it('shows an inline error when exporting without an available save', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaves.mockResolvedValue([]);
+    mocks.exportMostRecentAutoSave.mockResolvedValue({ status: 'error', message: 'No save to export.' });
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadSlot: () => {},
+    });
+
+    (document.querySelector('#btn-export-save') as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(document.body.textContent).toContain('No save to export.');
+    expect(document.querySelector('#save-panel')).not.toBeNull();
+  });
+
+  it('keeps the panel open without an error when import is cancelled', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaves.mockResolvedValue([]);
+    mocks.importSaveFromFile.mockResolvedValue({ status: 'cancelled' });
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadSlot: () => {},
+    });
+
+    (document.querySelector('#btn-import-save') as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(document.querySelector('#save-panel')).not.toBeNull();
+    expect(document.querySelector('#save-panel-status')?.textContent).toBe('');
+  });
+
+  it('keeps the panel open and shows an error when import data is invalid', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaves.mockResolvedValue([]);
+    mocks.importSaveFromFile.mockResolvedValue({
+      status: 'error',
+      message: 'Invalid save file: missing required game state fields.',
+    });
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadSlot: () => {},
+    });
+
+    (document.querySelector('#btn-import-save') as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(document.querySelector('#save-panel')).not.toBeNull();
+    expect(document.body.textContent).toContain('Invalid save file: missing required game state fields.');
+  });
+
+  it('imports a valid save through the shared callback and closes the panel', async () => {
+    const container = mountContainer();
+    const onImportSave = vi.fn();
+    const importedState = {
+      turn: 30,
+      currentPlayer: 'player',
+      civilizations: { player: { civType: 'egypt' } },
+    } as any;
+    mocks.hasAutoSave.mockResolvedValue(false);
+    mocks.listSaves.mockResolvedValue([]);
+    mocks.importSaveFromFile.mockResolvedValue({ status: 'success', state: importedState });
+
+    await createSavePanel(container, {
+      onNewGame: () => {},
+      onContinue: () => {},
+      onLoadSlot: () => {},
+      onImportSave,
+    });
+
+    (document.querySelector('#btn-import-save') as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(onImportSave).toHaveBeenCalledWith(importedState);
+    expect(document.querySelector('#save-panel')).toBeNull();
   });
 });
