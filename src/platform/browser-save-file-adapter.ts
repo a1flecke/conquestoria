@@ -18,6 +18,9 @@ export function createBrowserSaveFileAdapter(documentRef: Document = document): 
         const input = documentRef.createElement('input');
         input.type = 'file';
         input.accept = '.json,application/json';
+        input.addEventListener('cancel', () => {
+          resolve({ status: 'cancelled' });
+        }, { once: true });
         input.addEventListener('change', () => {
           const file = input.files?.[0];
           if (!file) {
