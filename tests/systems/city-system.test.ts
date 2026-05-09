@@ -7,6 +7,8 @@ import {
   getUnplacedBuildings,
   BUILDINGS,
   CITY_NAMES,
+  TRAINABLE_UNITS,
+  PRODUCTION_ICONS,
 } from '@/systems/city-system';
 import type { GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
@@ -340,5 +342,26 @@ describe('grid expansion', () => {
     const cost = purchaseGridExpansion(city, 30);
     expect(cost).toBe(0);
     expect(city.gridSize).toBe(3);
+  });
+});
+
+describe('PRODUCTION_ICONS coverage', () => {
+  it('has an entry for every building in BUILDINGS', () => {
+    for (const buildingId of Object.keys(BUILDINGS)) {
+      expect(PRODUCTION_ICONS[buildingId], `missing icon for building "${buildingId}"`).toBeTruthy();
+    }
+  });
+
+  it('has an entry for every unit in TRAINABLE_UNITS', () => {
+    for (const unit of TRAINABLE_UNITS) {
+      expect(PRODUCTION_ICONS[unit.type], `missing icon for unit "${unit.type}"`).toBeTruthy();
+    }
+  });
+
+  it('every icon is a non-empty string', () => {
+    for (const [id, icon] of Object.entries(PRODUCTION_ICONS)) {
+      expect(typeof icon, `icon for "${id}" must be string`).toBe('string');
+      expect(icon.length, `icon for "${id}" must be non-empty`).toBeGreaterThan(0);
+    }
   });
 });

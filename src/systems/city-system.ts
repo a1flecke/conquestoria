@@ -165,6 +165,54 @@ export function getProductionCostForItem(
     : Math.round(baseCost * multiplier);
 }
 
+export const PRODUCTION_ICONS: Record<string, string> = {
+  // Buildings
+  granary: '🌾',
+  herbalist: '🌿',
+  aqueduct: '💧',
+  workshop: '🔨',
+  forge: '🔥',
+  lumbermill: '🪵',
+  'quarry-building': '⛏️',
+  library: '📚',
+  archive: '📜',
+  observatory: '🔭',
+  marketplace: '🏪',
+  harbor: '⚓',
+  barracks: '🪖',
+  walls: '🧱',
+  stable: '🐴',
+  temple: '🛕',
+  monument: '🗿',
+  amphitheater: '🎭',
+  shrine: '⛩️',
+  forum: '📢',
+  safehouse: '🏠',
+  'intelligence-agency': '🛡️',
+  'security-bureau': '🔒',
+  // Units
+  warrior: '⚔️',
+  archer: '🏹',
+  scout: '🔍',
+  worker: '🪚',
+  settler: '🏕️',
+  swordsman: '🗡️',
+  pikeman: '🔱',
+  musketeer: '🔫',
+  galley: '⛵',
+  trireme: '🚢',
+  spy_scout: '👁️',
+  spy_informant: '📡',
+  spy_agent: '🕵️',
+  spy_operative: '🎯',
+  spy_hacker: '💻',
+  scout_hound: '🐕',
+  shadow_warden: '👤',
+  war_hound: '🐺',
+};
+
+export const PRODUCTION_ICON_FALLBACK = '🏗️';
+
 export function getTrainableUnitsForCiv(completedTechs: string[], civType?: string): TrainableUnitEntry[] {
   const replacedForCiv = new Set(
     TRAINABLE_UNITS
