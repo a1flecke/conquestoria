@@ -69,6 +69,17 @@ describe('save-file-transfer', () => {
     });
   });
 
+  it('rejects partial game-like JSON that cannot start a game', () => {
+    expect(parseSaveFile(JSON.stringify({
+      turn: 1,
+      currentPlayer: 'player',
+      civilizations: {},
+    }))).toEqual({
+      status: 'error',
+      message: 'Invalid save file: missing required game state fields.',
+    });
+  });
+
   it('exports the most recent autosave through the injected adapter', async () => {
     const adapter = makeAdapter();
     mocks.loadAutoSave.mockResolvedValue(makeState(14));
