@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: true,
       environment: 'node',
-      exclude: ['**/node_modules/**', '**/.worktrees/**', '**/.claude/worktrees/**'],
+      exclude: ['**/node_modules/**', '**/.worktrees/**', '**/.claude/worktrees/**', 'tests/e2e/**'],
     },
   };
 });

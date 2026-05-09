@@ -19,7 +19,11 @@ function isGameStateShape(value: unknown): value is GameState {
   return isRecord(value)
     && typeof value.turn === 'number'
     && typeof value.currentPlayer === 'string'
-    && isRecord(value.civilizations);
+    && isRecord(value.civilizations)
+    && isRecord(value.cities)
+    && isRecord(value.units)
+    && isRecord(value.map)
+    && Array.isArray(value.map.tiles);
 }
 
 export function serializeSaveFile(state: GameState): string {
