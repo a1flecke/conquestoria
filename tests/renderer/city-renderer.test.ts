@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Camera } from '@/renderer/camera';
-import { drawCities, getCityRenderData } from '@/renderer/city-renderer';
+import { drawCities, getCityRenderData, getProductionBadgeIcon } from '@/renderer/city-renderer';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
@@ -189,5 +189,23 @@ describe('city renderer', () => {
 
     const labels = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
     expect(labels).toContain(`${city.name} (${city.population})`);
+  });
+});
+
+describe('getProductionBadgeIcon', () => {
+  it('returns the matching icon when productionQueue[0] is a known building', () => {
+    expect(getProductionBadgeIcon({ productionQueue: ['granary'] })).toBe('🌾');
+  });
+
+  it('returns the matching icon when productionQueue[0] is a known unit', () => {
+    expect(getProductionBadgeIcon({ productionQueue: ['warrior'] })).toBe('⚔️');
+  });
+
+  it('returns the fallback icon when productionQueue[0] is unknown (e.g. legendary wonder)', () => {
+    expect(getProductionBadgeIcon({ productionQueue: ['some-legendary-wonder-id'] })).toBe('🏗️');
+  });
+
+  it('returns null when productionQueue is empty', () => {
+    expect(getProductionBadgeIcon({ productionQueue: [] })).toBeNull();
   });
 });
