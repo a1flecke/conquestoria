@@ -391,3 +391,66 @@ describe('worked tile normalization', () => {
     expect(yieldValue.science).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('calculateProjectedCityYields — idle production projection', () => {
+  it('shifts production into gold when city is idle with idleProduction=gold', () => {
+    const state = createNewGame(undefined, 'idle-proj-gold');
+    const city = addCity(state, 'player', { q: 14, r: 14 });
+
+    // Baseline: no idle setting
+    state.cities[city.id] = { ...city, productionQueue: [], idleProduction: null };
+    const baseYields = calculateProjectedCityYields(state, city.id);
+
+    // With idle gold
+    state.cities[city.id] = { ...city, productionQueue: [], idleProduction: 'gold' };
+    const idleYields = calculateProjectedCityYields(state, city.id);
+
+    expect(idleYields.production).toBe(0);
+    expect(idleYields.gold).toBe(baseYields.gold + baseYields.production);
+    expect(idleYields.science).toBe(baseYields.science);
+  });
+
+  it('shifts production into science when city is idle with idleProduction=science', () => {
+    const state = createNewGame(undefined, 'idle-proj-sci');
+    const city = addCity(state, 'player', { q: 14, r: 14 });
+
+    // Baseline: no idle setting
+    state.cities[city.id] = { ...city, productionQueue: [], idleProduction: null };
+    const baseYields = calculateProjectedCityYields(state, city.id);
+
+    // With idle science
+    state.cities[city.id] = { ...city, productionQueue: [], idleProduction: 'science' };
+    const idleYields = calculateProjectedCityYields(state, city.id);
+
+    expect(idleYields.production).toBe(0);
+    expect(idleYields.science).toBe(baseYields.science + baseYields.production);
+    expect(idleYields.gold).toBe(baseYields.gold);
+  });
+
+  it('does NOT shift when productionQueue is non-empty even with idleProduction set', () => {
+    const state = createNewGame(undefined, 'idle-proj-queued');
+    const city = addCity(state, 'player', { q: 14, r: 14 });
+
+    // Baseline: no idle setting
+    state.cities[city.id] = { ...city, productionQueue: [], idleProduction: null };
+    const baseYields = calculateProjectedCityYields(state, city.id);
+
+    // Queue non-empty with idle set — should not shift
+    state.cities[city.id] = { ...city, productionQueue: ['warrior'], idleProduction: 'gold' };
+    const queuedYields = calculateProjectedCityYields(state, city.id);
+
+    expect(queuedYields.production).toBe(baseYields.production);
+    expect(queuedYields.gold).toBe(baseYields.gold);
+  });
+
+  it('does NOT shift when idleProduction is null', () => {
+    const state = createNewGame(undefined, 'idle-proj-null');
+    const city = addCity(state, 'player', { q: 14, r: 14 });
+    state.cities[city.id] = { ...city, productionQueue: [], idleProduction: null };
+
+    const yields = calculateProjectedCityYields(state, city.id);
+
+    // Production must NOT be zeroed out when idleProduction is null
+    expect(yields.production).toBeGreaterThan(0);
+  });
+});

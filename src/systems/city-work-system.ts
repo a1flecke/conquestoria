@@ -245,5 +245,16 @@ export function calculateProjectedCityYields(
     ? normalizeWorkedTilesForCity(state, cityId)
     : assignCityFocus(state, cityId, city.focus);
   const projectedCity = workResult.state.cities[cityId] ?? city;
-  return calculateCityYields(projectedCity, workResult.state.map, bonusEffect);
+  const yields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect);
+
+  if (city.productionQueue.length === 0 && city.idleProduction) {
+    if (city.idleProduction === 'gold') {
+      return { ...yields, production: 0, gold: yields.gold + yields.production };
+    }
+    if (city.idleProduction === 'science') {
+      return { ...yields, production: 0, science: yields.science + yields.production };
+    }
+  }
+
+  return yields;
 }
