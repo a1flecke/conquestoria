@@ -31,11 +31,11 @@ describe('createBrowserSaveFileAdapter', () => {
 
   it('reports browser picker cancellation', async () => {
     const adapter = createBrowserSaveFileAdapter();
-    let input: HTMLInputElement | null = null;
+    const inputs: HTMLInputElement[] = [];
     vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
       const element = Document.prototype.createElement.call(document, tagName);
       if (tagName === 'input') {
-        input = element as HTMLInputElement;
+        inputs.push(element as HTMLInputElement);
         element.click = () => {
           element.dispatchEvent(new Event('cancel'));
         };
@@ -44,6 +44,6 @@ describe('createBrowserSaveFileAdapter', () => {
     }) as typeof document.createElement);
 
     await expect(adapter.importText()).resolves.toEqual({ status: 'cancelled' });
-    expect(input?.type).toBe('file');
+    expect(inputs[0]?.type).toBe('file');
   });
 });
