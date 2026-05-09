@@ -2,3 +2,7 @@
 node = "24.13.1"
 rust = "1.95.0"
 yarn = "latest"
+
+[tasks."macos:run"]
+description = "Build the ad-hoc signed macOS app bundle and launch it locally"
+run = "scripts/build-run-macos-app.sh"
