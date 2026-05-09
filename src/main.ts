@@ -122,6 +122,7 @@ import {
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
+import { initializeDesktopMenu } from '@/platform/desktop-menu';
 
 // --- App State ---
 let gameState: GameState;
@@ -2426,6 +2427,7 @@ bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
 // --- Initialization ---
 async function init(): Promise<void> {
   await registerConquestoriaServiceWorker();
+  await initializeDesktopMenu();
 
   createUI();
   persistedSettings = await loadSettings();

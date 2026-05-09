@@ -4,17 +4,27 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:tauri": "tsc && vite build --mode tauri",
     "preview": "vite preview",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:mac": "tauri build --bundles app,dmg",
     "setup:hooks": "git config core.hooksPath .githooks",
     "test": "vitest run && bash tests/hooks/run.sh",
     "test:hooks": "bash tests/hooks/run.sh",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.1",
     "@types/node": "^25.5.0",
     "jsdom": "^29.0.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.1",
     "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-fs": "^2.5.1"
   }
 }

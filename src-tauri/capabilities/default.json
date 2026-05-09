@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Desktop permissions for Conquestoria's main window",
+  "windows": ["main"],
+  "permissions": [
+    "dialog:default",
+    "fs:read-files",
+    "fs:write-files"
+  ]
+}
