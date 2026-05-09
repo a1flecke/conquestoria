@@ -30,8 +30,8 @@ function makeState(turn: number = 7): any {
 
 function makeAdapter(overrides: Partial<SaveFileAdapter> = {}): SaveFileAdapter {
   return {
-    exportText: vi.fn(async () => ({ status: 'success' })),
-    importText: vi.fn(async () => ({ status: 'success', text: serializeSaveFile(makeState(11)) })),
+    exportText: vi.fn(async () => ({ status: 'success' as const })),
+    importText: vi.fn(async () => ({ status: 'success' as const, text: serializeSaveFile(makeState(11)) })),
     ...overrides,
   };
 }
@@ -93,7 +93,7 @@ describe('save-file-transfer', () => {
 
   it('imports valid save text through the injected adapter', async () => {
     const adapter = makeAdapter({
-      importText: vi.fn(async () => ({ status: 'success', text: serializeSaveFile(makeState(21)) })),
+      importText: vi.fn(async () => ({ status: 'success' as const, text: serializeSaveFile(makeState(21)) })),
     });
 
     const result = await importSaveFromFile(adapter);
@@ -106,7 +106,7 @@ describe('save-file-transfer', () => {
 
   it('passes canceled import through without an error', async () => {
     const adapter = makeAdapter({
-      importText: vi.fn(async () => ({ status: 'cancelled' })),
+      importText: vi.fn(async () => ({ status: 'cancelled' as const })),
     });
 
     await expect(importSaveFromFile(adapter)).resolves.toEqual({ status: 'cancelled' });
