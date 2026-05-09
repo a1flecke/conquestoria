@@ -100,25 +100,22 @@ export function createCityPanel(
     </div>`;
   }
 
-  // Idle production selector (shown only when queue is empty)
-  let idleSelectorHtml = '';
-  if (city.productionQueue.length === 0) {
-    const activeMode = city.idleProduction ?? 'none';
-    const goldActive = activeMode === 'gold' ? 'border-color:#d4aa2c;background:rgba(212,170,44,0.3);' : '';
-    const sciActive = activeMode === 'science' ? 'border-color:#6496ff;background:rgba(100,150,255,0.3);' : '';
-    const noneActive = activeMode === 'none' ? 'border-color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.2);' : '';
-    idleSelectorHtml = `
-      <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;">
-        <div style="font-weight:bold;color:#e8c170;margin-bottom:6px;">Idle Production</div>
-        <div style="font-size:12px;opacity:0.7;margin-bottom:8px;">Queue is empty — convert +${yields.production}/turn production to:</div>
-        <div style="display:flex;gap:8px;">
-          <button type="button" data-idle-mode="gold" style="flex:1;padding:8px;background:rgba(212,170,44,0.15);border:1px solid rgba(212,170,44,0.4);border-radius:6px;color:white;cursor:pointer;font-size:12px;${goldActive}">💰 Gold +${yields.production}/turn</button>
-          <button type="button" data-idle-mode="science" style="flex:1;padding:8px;background:rgba(100,150,255,0.15);border:1px solid rgba(100,150,255,0.4);border-radius:6px;color:white;cursor:pointer;font-size:12px;${sciActive}">🔬 Science +${yields.production}/turn</button>
-          <button type="button" data-idle-mode="none" style="flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:12px;${noneActive}">None</button>
-        </div>
+  // Idle production selector — always visible; conversion only fires when queue is empty.
+  const activeMode = city.idleProduction ?? 'none';
+  const goldActive = activeMode === 'gold' ? 'border-color:#d4aa2c;background:rgba(212,170,44,0.3);' : '';
+  const sciActive = activeMode === 'science' ? 'border-color:#6496ff;background:rgba(100,150,255,0.3);' : '';
+  const noneActive = activeMode === 'none' ? 'border-color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.2);' : '';
+  const idleSelectorHtml = `
+    <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;">
+      <div style="font-weight:bold;color:#e8c170;margin-bottom:6px;">Idle Production</div>
+      <div style="font-size:12px;opacity:0.7;margin-bottom:8px;">When idle, convert +${yields.production}/turn production to:</div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" data-idle-mode="gold" style="flex:1;padding:8px;background:rgba(212,170,44,0.15);border:1px solid rgba(212,170,44,0.4);border-radius:6px;color:white;cursor:pointer;font-size:12px;${goldActive}">💰 Gold +${yields.production}/turn</button>
+        <button type="button" data-idle-mode="science" style="flex:1;padding:8px;background:rgba(100,150,255,0.15);border:1px solid rgba(100,150,255,0.4);border-radius:6px;color:white;cursor:pointer;font-size:12px;${sciActive}">🔬 Science +${yields.production}/turn</button>
+        <button type="button" data-idle-mode="none" style="flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:white;cursor:pointer;font-size:12px;${noneActive}">None</button>
       </div>
-    `;
-  }
+    </div>
+  `;
 
   // Current production placeholders
   let currentProductionHtml = '';
