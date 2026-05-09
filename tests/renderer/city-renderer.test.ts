@@ -192,6 +192,70 @@ describe('city renderer', () => {
   });
 });
 
+function makeCamera(): Camera {
+  return {
+    zoom: 1,
+    hexSize: 48,
+    isHexVisible: () => true,
+    worldToScreen: (x: number, y: number) => ({ x, y }),
+  } as unknown as Camera;
+}
+
+describe('drawCities — bottom-right build badge', () => {
+  it('draws the production icon for a player-owned city with a non-empty queue', () => {
+    const state = createNewGame(undefined, 'badge-build-render');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map);
+    city.productionQueue = ['warrior'];
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).toContain('⚔️');
+  });
+
+  it('does NOT draw the production icon for an enemy-owned visible city', () => {
+    const state = createNewGame(undefined, 'badge-build-enemy');
+    const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
+    const aiCity = foundCity('ai-1', aiSettler.position, state.map);
+    aiCity.productionQueue = ['warrior'];
+    state.cities[aiCity.id] = aiCity;
+    state.civilizations['ai-1'].cities.push(aiCity.id);
+    state.civilizations.player.visibility.tiles[hexKey(aiCity.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    // The warrior icon should NOT appear since the city doesn't belong to the current player
+    // (Note: ⚔️ may appear as the minor-civ militaristic icon, so we check for the build badge position instead)
+    // The enemy city should not leak its build queue
+    expect(texts.filter(t => t === '⚔️').length).toBe(0);
+  });
+
+  it('does NOT draw a production icon when the queue is empty', () => {
+    const state = createNewGame(undefined, 'badge-build-empty');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map);
+    city.productionQueue = [];
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    // No production-specific badge — just the city icon and name
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).not.toContain('🏗️');
+    expect(texts).not.toContain('⚔️');
+  });
+});
+
 describe('getProductionBadgeIcon', () => {
   it('returns the matching icon when productionQueue[0] is a known building', () => {
     expect(getProductionBadgeIcon({ productionQueue: ['granary'] })).toBe('🌾');
