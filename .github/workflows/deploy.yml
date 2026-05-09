@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  web-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
       - name: Build
         run: yarn build
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
@@ -55,13 +55,83 @@ jobs:
       - name: Run tests
         run: yarn test
 
+  web-smoke:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.1'
+
+      - name: Install dependencies
+        run: corepack enable && yarn install
+
+      - name: Install Playwright browser
+        run: yarn playwright install --with-deps chromium
+
+      - name: Run web smoke test
+        run: yarn test:web-smoke
+
+  tauri-frontend-build:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.1'
+
+      - name: Install dependencies
+        run: corepack enable && yarn install
+
+      - name: Build Tauri frontend
+        run: yarn build:tauri
+
+  tauri-macos-build:
+    runs-on: macos-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.1'
+
+      - name: Setup Rust
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup default 1.95.0
+
+      - name: Install dependencies
+        run: corepack enable && yarn install
+
+      - name: Build macOS app and DMG
+        run: yarn tauri:build:mac
+
+      - name: Check macOS artifacts
+        run: yarn tauri:check:mac-artifacts
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: conquestoria-macos
+          path: |
+            src-tauri/target/release/bundle/macos/Conquestoria.app
+            src-tauri/target/release/bundle/dmg/*.dmg
+
   deploy:
     if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: web-build
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
