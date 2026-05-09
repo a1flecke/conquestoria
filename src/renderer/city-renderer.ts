@@ -3,8 +3,15 @@ import { hexToPixel } from '@/systems/hex-utils';
 import { isVisible } from '@/systems/fog-of-war';
 import { getOccupiedCityMood } from '@/systems/city-occupation-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+
+export function getProductionBadgeIcon(city: { productionQueue: string[] }): string | null {
+  if (city.productionQueue.length === 0) return null;
+  const id = city.productionQueue[0];
+  return PRODUCTION_ICONS[id] ?? PRODUCTION_ICON_FALLBACK;
+}
 
 interface CityRenderInfo {
   name: string;
