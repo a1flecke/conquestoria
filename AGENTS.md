@@ -12,6 +12,8 @@ Claude-specific hook scripts in `.claude/hooks/` are enforcement helpers, not th
 ## Project Structure & Module Organization
 Core game code lives in `src/`. Use the existing domain split: `src/core/` for shared state and turn flow, `src/systems/` for gameplay rules, `src/renderer/` for Canvas rendering, `src/ui/` for DOM panels, `src/input/` for controls, `src/ai/` for opponents, `src/audio/` for sound, and `src/storage/` for saves. Static assets and PWA files live in `public/`. Tests live in `tests/` and generally mirror `src/` paths, for example `src/systems/map-generator.ts` pairs with `tests/systems/map-generator.test.ts`.
 
+Platform and distribution-specific code lives outside the gameplay core. Use `src/platform/` for browser-vs-Tauri capability boundaries and `src-tauri/` for the macOS shell, bundle config, capabilities, icons, and Rust entrypoint. Shared systems, renderer, UI panels, save format, and storage logic must stay distribution-neutral.
+
 ## Build, Test, and Development Commands
 Prefer the repo wrapper `./scripts/run-with-mise.sh` for project commands so Codex can reuse one stable approval path. In a fresh interactive shell, `eval "$(mise activate bash)"` still works. Main commands:
 
@@ -29,10 +31,21 @@ For legendary wonder, quest-race, or wonder-panel changes, run:
 
 - `./scripts/run-wonder-regressions.sh`
 
+Dual-release commands:
+
+- `./scripts/run-with-mise.sh yarn build` builds the GitHub Pages/PWA release and must keep `/conquestoria/` asset paths.
+- `./scripts/run-with-mise.sh yarn build:tauri` builds the frontend for the Tauri shell with relative asset paths.
+- `./scripts/run-with-mise.sh yarn tauri:dev` starts the macOS app in development mode.
+- `./scripts/run-with-mise.sh yarn tauri:build:mac` produces the personal unsigned macOS `.app` and `.dmg`.
+- `./scripts/run-with-mise.sh yarn tauri:check:mac-artifacts` verifies the expected macOS bundle artifacts exist after a desktop build.
+- `./scripts/run-with-mise.sh yarn test:web-smoke` runs the browser smoke test for the shared web frontend.
+
 ## Architecture Notes
 Respect the event-driven design: systems communicate through the event bus, while state mutations still happen directly in state-updating code. Shared gameplay consequences must live in canonical system helpers, not only in `main.ts` UI handlers. If the player, AI, and turn loop can all trigger the same outcome, the mutation path should be shared and the UI layer should only add viewer-specific notifications.
 
 Keep gameplay state serializable plain objects, not class instances. Use axial hex coordinates `(q, r)` throughout gameplay code and convert to pixels only inside renderer code. Canvas 2D renders the hex map; DOM/CSS handles UI panels. Mobile-first and offline-first assumptions still apply.
+
+Dual-release rule: GitHub Pages/PWA and macOS/Tauri are distribution layers around one shared game. Do not fork gameplay, UI rules, renderer behavior, or save format for macOS. Release-specific behavior must enter shared code through a small capability interface in `src/platform/`; shared modules must not directly import Tauri APIs or branch on Tauri/macOS globals. If a native-only feature is requested, first decide whether it belongs in the platform layer, a shared capability interface, or a deferred desktop-specific feature.
 
 ## Rule Files
 If you touch files in these areas, read the matching rule file before editing:
@@ -66,6 +79,16 @@ Before `git push`, PR creation, or merge when `HEAD` is ahead of `origin/main`, 
 - `git diff --stat`
 
 If either diff includes source changes, inspect the full diff before concluding review is complete.
+
+When touching `src/platform/**`, `src-tauri/**`, Vite distribution config, service worker registration, or save import/export:
+
+- run `scripts/check-src-rule-violations.sh` for any changed `src/` files
+- run the mirrored platform/storage/UI tests
+- run `./scripts/run-with-mise.sh yarn build`
+- run `./scripts/run-with-mise.sh yarn build:tauri`
+- if Tauri packaging changed, run `./scripts/run-with-mise.sh yarn tauri:build:mac` and `./scripts/run-with-mise.sh yarn tauri:check:mac-artifacts`
+
+Before claiming dual-release work is complete, confirm the web build still uses `/conquestoria/` and the Tauri build uses relative asset paths.
 
 ## Coding Style & Naming Conventions
 Follow `.editorconfig`: UTF-8, LF endings, 2-space indentation, final newline. Write TypeScript modules with one clear responsibility per file. Prefer kebab-case filenames such as `city-system.ts` and `fog-of-war.ts`; keep tests named `*.test.ts`. For DOM updates, use `textContent` or `createTextNode()` instead of `innerHTML`.
