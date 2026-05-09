@@ -134,6 +134,20 @@ export function drawCities(
           ctx.fillText(buildIcon, screen.x + size * 0.45, screen.y + size * 0.45);
         }
       }
+
+      // Top-left badge: idle production mode (player-owned, queue empty, idleProduction set)
+      if (
+        city.owner === playerCivId &&
+        city.productionQueue.length === 0 &&
+        (city.idleProduction === 'gold' || city.idleProduction === 'science')
+      ) {
+        const idleIcon = city.idleProduction === 'gold' ? '💰' : '🔬';
+        ctx.font = `${size * 0.28}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(idleIcon, screen.x - size * 0.45, screen.y - size * 0.45);
+      }
     }
   }
 }
