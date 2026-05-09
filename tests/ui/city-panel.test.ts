@@ -956,7 +956,7 @@ describe('city-panel idle production selector', () => {
     expect(html).toContain('data-idle-mode');
   });
 
-  it('does not show idle mode selector when production queue is non-empty', () => {
+  it('shows idle mode selector even when production queue is non-empty', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.productionQueue = ['warrior'];
     const panel = createCityPanel(container, city, state, {
@@ -965,7 +965,7 @@ describe('city-panel idle production selector', () => {
       onClose: () => {},
     });
     const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
-    expect(html).not.toContain('data-idle-mode');
+    expect(html).toContain('data-idle-mode');
   });
 
   it('shows per-turn production amount in the idle selector', () => {
@@ -997,5 +997,43 @@ describe('city-panel idle production selector', () => {
     expect(goldBtn).toBeTruthy();
     goldBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(onSetIdleProduction).toHaveBeenCalledWith(city.id, 'gold');
+  });
+
+  it('calls onSetIdleProduction with science when Science button is clicked', () => {
+    const { container, city, state } = makeIdleCityFixture();
+    const onSetIdleProduction = vi.fn();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetIdleProduction: (cityId: string, mode: 'gold' | 'science' | null) => {
+        state.cities[cityId] = { ...state.cities[cityId]!, idleProduction: mode };
+        onSetIdleProduction(cityId, mode);
+      },
+    });
+    const sciBtn = panel.querySelector<HTMLElement>('[data-idle-mode="science"]');
+    expect(sciBtn).toBeTruthy();
+    sciBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onSetIdleProduction).toHaveBeenCalledWith(city.id, 'science');
+  });
+
+  it('calls onSetIdleProduction with null when None button is clicked', () => {
+    const { container, city, state } = makeIdleCityFixture();
+    city.idleProduction = 'gold';
+    state.cities[city.id] = city;
+    const onSetIdleProduction = vi.fn();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onSetIdleProduction: (cityId: string, mode: 'gold' | 'science' | null) => {
+        state.cities[cityId] = { ...state.cities[cityId]!, idleProduction: mode };
+        onSetIdleProduction(cityId, mode);
+      },
+    });
+    const noneBtn = panel.querySelector<HTMLElement>('[data-idle-mode="none"]');
+    expect(noneBtn).toBeTruthy();
+    noneBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onSetIdleProduction).toHaveBeenCalledWith(city.id, null);
   });
 });
