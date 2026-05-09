@@ -122,6 +122,18 @@ export function drawCities(
         ctx.textBaseline = 'middle';
         ctx.fillText(city.unrestLevel === 2 ? '🔥' : '⚡', screen.x + size * 0.45, screen.y - size * 0.45);
       }
+
+      // Bottom-right badge: currently-building icon (player-owned, non-empty queue only)
+      if (city.owner === playerCivId) {
+        const buildIcon = getProductionBadgeIcon(city);
+        if (buildIcon) {
+          ctx.font = `${size * 0.28}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#fff';
+          ctx.fillText(buildIcon, screen.x + size * 0.45, screen.y + size * 0.45);
+        }
+      }
     }
   }
 }
