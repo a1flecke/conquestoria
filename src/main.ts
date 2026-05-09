@@ -121,6 +121,7 @@ import {
   routeWarDeclared,
   type NotificationSink,
 } from '@/ui/notification-routing';
+import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 
 // --- App State ---
 let gameState: GameState;
@@ -2424,14 +2425,7 @@ bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
 
 // --- Initialization ---
 async function init(): Promise<void> {
-  // Register service worker
-  if ('serviceWorker' in navigator) {
-    try {
-      await navigator.serviceWorker.register('/conquestoria/sw.js');
-    } catch {
-      // SW registration failed — game still works
-    }
-  }
+  await registerConquestoriaServiceWorker();
 
   createUI();
   persistedSettings = await loadSettings();
