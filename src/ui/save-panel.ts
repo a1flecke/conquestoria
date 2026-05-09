@@ -1,5 +1,7 @@
 import type { SaveSlotMeta, GameState } from '@/core/types';
-import { listSaves, deleteSaveEntry, hasAutoSave, loadAutoSave } from '@/storage/save-manager';
+import { listSaves, deleteSaveEntry, hasAutoSave } from '@/storage/save-manager';
+import { getSaveFileAdapter } from '@/platform/save-file-adapter';
+import { exportMostRecentAutoSave, importSaveFromFile } from '@/storage/save-file-transfer';
 
 interface SavePanelCallbacks {
   onNewGame: () => void;
@@ -51,6 +53,12 @@ export async function createSavePanel(
   }
 
   container.appendChild(panel);
+  const status = panel.querySelector('#save-panel-status');
+  const setStatus = (message: string): void => {
+    if (status) {
+      status.textContent = message;
+    }
+  };
 
   // Bind events
   panel.querySelector('#btn-new-game')?.addEventListener('click', () => {
@@ -74,38 +82,28 @@ export async function createSavePanel(
 
   // Export save
   panel.querySelector('#btn-export-save')?.addEventListener('click', async () => {
-    const state = await loadAutoSave();
-    if (!state) { alert('No save to export'); return; }
-    const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `conquestoria-save-turn${state.turn}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setStatus('');
+    const adapter = await getSaveFileAdapter();
+    const result = await exportMostRecentAutoSave(adapter);
+    if (result.status === 'error') {
+      setStatus(result.message);
+    }
   });
 
   // Import save
-  panel.querySelector('#btn-import-save')?.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.addEventListener('change', () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const state = JSON.parse(e.target?.result as string) as GameState;
-          panel.remove();
-          callbacks.onImportSave?.(state);
-        } catch {
-          alert('Invalid save file');
-        }
-      };
-      reader.readAsText(file);
-    });
-    input.click();
+  panel.querySelector('#btn-import-save')?.addEventListener('click', async () => {
+    setStatus('');
+    const adapter = await getSaveFileAdapter();
+    const result = await importSaveFromFile(adapter);
+    if (result.status === 'cancelled') {
+      return;
+    }
+    if (result.status === 'error') {
+      setStatus(result.message);
+      return;
+    }
+    panel.remove();
+    callbacks.onImportSave?.(result.state);
   });
 
   panel.addEventListener('click', async event => {
@@ -157,6 +155,7 @@ function renderBackupButtons(): string {
         <button id="btn-export-save" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;font-size:12px;cursor:pointer;">Export Save</button>
         <button id="btn-import-save" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;font-size:12px;cursor:pointer;">Import Save</button>
       </div>
+      <div id="save-panel-status" style="min-height:16px;margin-top:8px;text-align:center;font-size:11px;color:#f0a060;"></div>
     </div>
   `;
 }
