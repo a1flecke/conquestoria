@@ -273,3 +273,91 @@ describe('getProductionBadgeIcon', () => {
     expect(getProductionBadgeIcon({ productionQueue: [] })).toBeNull();
   });
 });
+
+describe('drawCities — top-left idle badge', () => {
+  it('draws 💰 for a player-owned idle city with idleProduction=gold', () => {
+    const state = createNewGame(undefined, 'badge-idle-gold');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map);
+    city.productionQueue = [];
+    city.idleProduction = 'gold';
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).toContain('💰');
+  });
+
+  it('draws 🔬 for a player-owned idle city with idleProduction=science', () => {
+    const state = createNewGame(undefined, 'badge-idle-sci');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map);
+    city.productionQueue = [];
+    city.idleProduction = 'science';
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).toContain('🔬');
+  });
+
+  it('does NOT draw the idle badge when queue is non-empty even with idleProduction set', () => {
+    const state = createNewGame(undefined, 'badge-idle-queued');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map);
+    city.productionQueue = ['warrior'];
+    city.idleProduction = 'gold';
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).not.toContain('💰');
+  });
+
+  it('does NOT draw the idle badge for an enemy-owned visible idle city', () => {
+    const state = createNewGame(undefined, 'badge-idle-enemy');
+    const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
+    const aiCity = foundCity('ai-1', aiSettler.position, state.map);
+    aiCity.productionQueue = [];
+    aiCity.idleProduction = 'gold';
+    state.cities[aiCity.id] = aiCity;
+    state.civilizations['ai-1'].cities.push(aiCity.id);
+    state.civilizations.player.visibility.tiles[hexKey(aiCity.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).not.toContain('💰');
+  });
+
+  it('does NOT draw the idle badge when idleProduction is null', () => {
+    const state = createNewGame(undefined, 'badge-idle-null');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map);
+    city.productionQueue = [];
+    city.idleProduction = null;
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).not.toContain('💰');
+    expect(texts).not.toContain('🔬');
+  });
+});
