@@ -16,18 +16,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  desktop-change-check:
+    runs-on: ubuntu-latest
+    outputs:
+      desktop_changed: ${{ steps.desktop-changes.outputs.desktop_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for desktop build inputs
+        id: desktop-changes
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "desktop_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}")"
+          desktop_changed=false
+
+          while IFS= read -r file; do
+            case "$file" in
+              src-tauri/*|src-tauri/**|package.json|yarn.lock|.yarnrc.yml|.yarn/**|.github/workflows/deploy.yml)
+                desktop_changed=true
+                break
+                ;;
+            esac
+          done <<< "$changed_files"
+
+          echo "desktop_changed=$desktop_changed" >> "$GITHUB_OUTPUT"
+
   web-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
-        run: corepack enable && yarn install
+        run: yarn install --immutable
 
       - name: Build
         run: yarn build
@@ -44,13 +81,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
-        run: corepack enable && yarn install
+        run: yarn install --immutable
 
       - name: Run tests
         run: yarn test
@@ -61,13 +103,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
-        run: corepack enable && yarn install
+        run: yarn install --immutable
+
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('yarn.lock') }}
 
       - name: Install Playwright browser
         run: yarn playwright install --with-deps chromium
@@ -81,49 +134,76 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
-        run: corepack enable && yarn install
+        run: yarn install --immutable
 
       - name: Build Tauri frontend
         run: yarn build:tauri
 
   tauri-macos-build:
     runs-on: macos-latest
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: desktop-change-check
+    if: github.ref == 'refs/heads/main' || needs.desktop-change-check.outputs.desktop_changed == 'true'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Setup Rust
         run: |
           rustup toolchain install 1.95.0 --profile minimal
           rustup default 1.95.0
 
-      - name: Install dependencies
-        run: corepack enable && yarn install
+      - name: Configure ad-hoc signing
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
 
-      - name: Build macOS app and DMG
-        run: yarn tauri:build:mac
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build macOS app
+        run: yarn tauri:build:mac-app
 
       - name: Check macOS artifacts
         run: yarn tauri:check:mac-artifacts
 
+      - name: Verify ad-hoc signed macOS app
+        run: codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Conquestoria.app
+
       - name: Upload macOS artifacts
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: conquestoria-macos
-          path: |
-            src-tauri/target/release/bundle/macos/Conquestoria.app
-            src-tauri/target/release/bundle/dmg/*.dmg
+          path: src-tauri/target/release/bundle/macos/Conquestoria.app
 
   deploy:
     if: github.ref == 'refs/heads/main'

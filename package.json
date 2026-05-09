@@ -9,6 +9,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:mac": "tauri build --bundles app,dmg",
+    "tauri:build:mac-app": "tauri build --bundles app",
     "tauri:check:mac-artifacts": "node scripts/check-tauri-macos-artifacts.mjs",
     "setup:hooks": "git config core.hooksPath .githooks",
     "test": "vitest run && bash tests/hooks/run.sh",
