@@ -1,5 +1,5 @@
 import type { City, CityFocus, GameState, HexCoord } from '@/core/types';
-import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS, getTrainableUnitsForCiv, getProductionCostForItem } from '@/systems/city-system';
+import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS, getTrainableUnitsForCiv, getProductionCostForItem, PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
@@ -80,7 +80,7 @@ export function createCityPanel(
     if (b.yields.science) yieldParts.push(`+${b.yields.science} 🔬`);
     const yieldStr = yieldParts.length > 0 ? yieldParts.join(' ') + ' · ' : '';
     buildItemPlaceholders += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-weight:bold;font-size:13px;">🏗️ <span data-text="build-name-${idx}"></span></div>
+      <div style="font-weight:bold;font-size:13px;">${PRODUCTION_ICONS[b.id] ?? PRODUCTION_ICON_FALLBACK} <span data-text="build-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns</div>
       <div style="font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></div>
     </div>`;
@@ -95,7 +95,7 @@ export function createCityPanel(
     const cost = getDisplayedCost(u.type);
     const turns = yields.production > 0 ? Math.ceil(cost / yields.production) : '∞';
     unitPlaceholders += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-weight:bold;font-size:13px;">⚔️ <span data-text="unit-name-${idx}"></span></div>
+      <div style="font-weight:bold;font-size:13px;">${PRODUCTION_ICONS[u.type] ?? PRODUCTION_ICON_FALLBACK} <span data-text="unit-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">Cost: ${cost} · ${turns} turns</div>
     </div>`;
   }
@@ -126,7 +126,7 @@ export function createCityPanel(
 
     currentProductionHtml = `
       <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
-        <div style="font-weight:bold;color:#e8c170;">Building: <span data-text="prod-name"></span></div>
+        <div style="font-weight:bold;color:#e8c170;">Building: ${PRODUCTION_ICONS[currentItem] ?? PRODUCTION_ICON_FALLBACK} <span data-text="prod-name"></span></div>
         <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining</div>
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
@@ -168,7 +168,7 @@ export function createCityPanel(
     queueRowsHtml += `
       <div data-queue-index="${idx}" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;">
         <div>
-          <div style="font-weight:bold;" data-text="queue-name-${idx}"></div>
+          <div style="font-weight:bold;">${PRODUCTION_ICONS[city.productionQueue[idx]] ?? PRODUCTION_ICON_FALLBACK} <span data-text="queue-name-${idx}"></span></div>
           <div style="font-size:11px;opacity:0.7;">${slotLabel}</div>
         </div>
         <div style="display:flex;gap:6px;">

@@ -1037,3 +1037,46 @@ describe('city-panel idle production selector', () => {
     expect(onSetIdleProduction).toHaveBeenCalledWith(city.id, null);
   });
 });
+
+describe('city-panel build list icons', () => {
+  it('renders the granary icon prefix in the available buildings list', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.productionQueue = [];
+    state.cities[city.id] = city;
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    expect(html).toContain('🌾');
+  });
+
+  it('renders the warrior icon prefix in the available units list', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.productionQueue = [];
+    state.cities[city.id] = city;
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    expect(html).toContain('⚔️');
+  });
+
+  it('renders the icon for the currently building item', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.productionQueue = ['workshop'];
+    city.productionProgress = 5;
+    state.cities[city.id] = city;
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
+    // 🔨 = workshop icon
+    expect(html).toContain('🔨');
+  });
+});
