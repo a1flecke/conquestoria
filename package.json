@@ -13,9 +13,11 @@
     "setup:hooks": "git config core.hooksPath .githooks",
     "test": "vitest run && bash tests/hooks/run.sh",
     "test:hooks": "bash tests/hooks/run.sh",
+    "test:web-smoke": "playwright test",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tauri-apps/cli": "^2.11.1",
     "@types/node": "^25.5.0",
     "jsdom": "^29.0.2",
