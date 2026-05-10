@@ -141,7 +141,9 @@ export function renderSelectedUnitInfo(
 
     if (charges > 0 && !unit.hasActed && callbacks.onWorkerAction) {
       const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
-      for (const action of getAvailableWorkerActions(tile, completedTechs, unit.owner)) {
+      const unitTileKey = hexKey(unit.position);
+      const isCityTile = Object.values(state.cities).some(city => hexKey(city.position) === unitTileKey);
+      for (const action of getAvailableWorkerActions(tile, completedTechs, unit.owner, { isCityTile })) {
         const color = action === 'farm'
           ? '#6b9b4b'
           : action === 'mine'

@@ -95,6 +95,19 @@ describe('tech progression view model', () => {
     expect(completedView.focusTechId).toBe('writing');
   });
 
+  it('computes ETA for current and queued tech nodes from science pacing', () => {
+    const view = buildTechProgressionView({
+      ...createTechState(),
+      currentResearch: 'stone-weapons',
+      researchProgress: 4,
+      researchQueue: ['fire'],
+    }, { sciencePerTurn: 3, zoom: 'all' });
+
+    expect(view.nodesById.get('stone-weapons')?.turnsToResearch).toBe(2);
+    expect(view.nodesById.get('fire')?.turnsToResearch).toBe(3);
+    expect(view.nodesById.get('banking')?.turnsToResearch).toBeNull();
+  });
+
   it('returns the dependency path for a selected goal without including unrelated same-track techs', () => {
     const techState = {
       ...createTechState(),

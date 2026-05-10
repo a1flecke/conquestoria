@@ -1,5 +1,6 @@
 import {
   canBuildImprovement,
+  canDrainSwamp,
   getAvailableWorkerActions,
   getImprovementDisplayName,
   getImprovementYieldBonus,
@@ -129,6 +130,14 @@ describe('lumber camp and watermill eligibility', () => {
   it('returns no worker actions for unowned or enemy-owned valid terrain', () => {
     expect(getAvailableWorkerActions(tile({ terrain: 'forest', owner: null }), [], 'p1')).toEqual([]);
     expect(getAvailableWorkerActions(tile({ terrain: 'forest', owner: 'enemy' }), [], 'p1')).toEqual([]);
+    expect(getAvailableWorkerActions(tile({ terrain: 'forest', owner: 'p1' }), [], 'p1')).toContain('lumber_camp');
+  });
+
+  it('rejects improvements and swamp drain on a city-center tile', () => {
+    expect(canBuildImprovement(tile({ terrain: 'plains', owner: 'p1' }), 'farm', [], 'p1', { isCityTile: true })).toBe(false);
+    expect(canBuildImprovement(tile({ terrain: 'hills', owner: 'p1' }), 'mine', [], 'p1', { isCityTile: true })).toBe(false);
+    expect(canDrainSwamp(tile({ terrain: 'swamp', owner: 'p1' }), 'p1', { isCityTile: true })).toBe(false);
+    expect(getAvailableWorkerActions(tile({ terrain: 'forest', owner: 'p1' }), [], 'p1', { isCityTile: true })).toEqual([]);
     expect(getAvailableWorkerActions(tile({ terrain: 'forest', owner: 'p1' }), [], 'p1')).toContain('lumber_camp');
   });
 

@@ -10,7 +10,7 @@ vi.mock('@/storage/db', () => ({
 }));
 
 import { createDefaultSettings } from '@/core/game-state';
-import { autoSave, deleteSaveEntry, listSaves, loadGame, loadMostRecentAutoSave, loadSettings, saveGame, saveSettings } from '@/storage/save-manager';
+import { autoSave, deleteSaveEntry, listSaveEpics, listSaves, loadGame, loadMostRecentAutoSave, loadSettings, saveGame, saveSettings } from '@/storage/save-manager';
 import type { CustomCivDefinition } from '@/core/types';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 
@@ -134,6 +134,27 @@ describe('save-manager autosave listing', () => {
     expect(gameB).toHaveLength(1);
     expect(gameA[0].gameTitle).toBe('Game A');
     expect(gameB[0].gameTitle).toBe('Game B');
+  });
+
+  it('groups loadable saves by game id and exposes only the newest five saves inside each epic', async () => {
+    await autoSave({ turn: 12, gameId: 'game-a', gameTitle: 'Daddy Alex', currentPlayer: 'player', civilizations: { player: { civType: 'rome' } } } as any);
+    await autoSave({ turn: 13, gameId: 'game-a', gameTitle: 'Daddy Alex', currentPlayer: 'player', civilizations: { player: { civType: 'rome' } } } as any);
+    await saveGame('slot-a-14', 'Manual A14', { turn: 14, gameId: 'game-a', gameTitle: 'Daddy Alex', currentPlayer: 'player', civilizations: { player: { civType: 'rome' } } } as any);
+    await saveGame('slot-a-15', 'Manual A15', { turn: 15, gameId: 'game-a', gameTitle: 'Daddy Alex', currentPlayer: 'player', civilizations: { player: { civType: 'rome' } } } as any);
+    await saveGame('slot-a-16', 'Manual A16', { turn: 16, gameId: 'game-a', gameTitle: 'Daddy Alex', currentPlayer: 'player', civilizations: { player: { civType: 'rome' } } } as any);
+    await saveGame('slot-a-17', 'Manual A17', { turn: 17, gameId: 'game-a', gameTitle: 'Daddy Alex', currentPlayer: 'player', civilizations: { player: { civType: 'rome' } } } as any);
+    await saveGame('slot-b', 'Manual B', { turn: 3, gameId: 'game-b', gameTitle: 'Tiny Epic', currentPlayer: 'player', civilizations: { player: { civType: 'egypt' } } } as any);
+    await saveGame('slot-c', 'Manual C', { turn: 2, gameId: 'game-c', gameTitle: 'Daddy Alex', currentPlayer: 'player', civilizations: { player: { civType: 'rome' } } } as any);
+
+    const groups = await listSaveEpics();
+
+    expect(groups.map(group => group.gameId)).toEqual(['game-a', 'game-b', 'game-c']);
+    expect(groups[0].title).toBe('Daddy Alex');
+    expect(groups[0].latestTurn).toBe(17);
+    expect(groups[0].saves.map(save => save.turn)).toEqual([17, 16, 15, 14, 13]);
+    expect(groups[0].saves).toHaveLength(5);
+    expect(groups[1].saves[0].id).toBe('slot-b');
+    expect(groups[2].title).toBe('Daddy Alex');
   });
 
   it('deletes a single autosave entry by id without leaving it in the list', async () => {

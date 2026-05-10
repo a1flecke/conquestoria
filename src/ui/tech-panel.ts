@@ -55,6 +55,12 @@ function getNodeStatusLabel(node: TechProgressionNode): string {
   return 'Locked';
 }
 
+function formatTechNodeEta(node: TechProgressionNode): string {
+  if (node.turnsToResearch !== null) return `${node.turnsToResearch} turns`;
+  if (node.state === 'locked') return 'ETA locked';
+  return 'ETA pending';
+}
+
 function getPrerequisiteStatus(prereqId: string, civ: GameState['civilizations'][string]): string {
   if (civ.techState.completed.includes(prereqId)) return 'Done';
   if (civ.techState.currentResearch === prereqId) return 'Researching';
@@ -214,7 +220,7 @@ function createTechNode(
 
   const detail = document.createElement('div');
   detail.style.cssText = 'font-size:11px;opacity:0.72;line-height:1.3;margin-top:5px;';
-  const etaText = node.turnsToResearch === null ? 'ETA unknown' : `${node.turnsToResearch} turns`;
+  const etaText = formatTechNodeEta(node);
   detail.textContent = `${node.tech.unlocks[0] ?? 'New options'} · ${etaText} · Cost: ${node.tech.cost}`;
   item.appendChild(detail);
 

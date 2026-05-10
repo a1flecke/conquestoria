@@ -454,6 +454,50 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     expect(buttons).not.toContain('Build Farm');
   });
 
+  it('hides worker action buttons on city-center tiles', () => {
+    const state = makeWorkerState({ terrain: 'forest' });
+    state.cities = {
+      'city-1': {
+        id: 'city-1',
+        name: 'Capital',
+        owner: 'player',
+        position: { q: 0, r: 0 },
+      } as any,
+    };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const text = collectAllText(container).join(' ');
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(text).toContain('Worker Charges: 2/2');
+    expect(buttons).not.toContain('Build Farm');
+    expect(buttons).not.toContain('Build Lumber Camp');
+  });
+
+  it('keeps worker action buttons on adjacent owned non-city tiles', () => {
+    const state = makeWorkerState({ terrain: 'forest' });
+    state.cities = {
+      'city-1': {
+        id: 'city-1',
+        name: 'Capital',
+        owner: 'player',
+        position: { q: 0, r: 1 },
+      } as any,
+    };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(buttons).toContain('Build Farm');
+    expect(buttons).toContain('Build Lumber Camp');
+  });
+
   it('fires onWorkerAction with the clicked action id', () => {
     const state = makeWorkerState({ terrain: 'forest' });
     const container = new MockElement('div');
