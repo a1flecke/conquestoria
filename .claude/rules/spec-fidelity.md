@@ -1,3 +1,10 @@
+---
+paths:
+  - "src/**"
+  - "docs/superpowers/specs/**"
+  - "docs/superpowers/plans/**"
+---
+
 # Spec Fidelity
 
 - When implementing from `docs/superpowers/specs/` or `docs/superpowers/plans/`, preserve the exact gameplay contract unless the user explicitly changes it.
