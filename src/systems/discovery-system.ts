@@ -2,6 +2,11 @@ import type { GameState, HexCoord } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { getVisibility } from './fog-of-war';
 
+export interface CivilizationContactTransition {
+  civA: string;
+  civB: string;
+}
+
 export function hasExploredCoord(state: GameState, viewerCivId: string, coord: HexCoord): boolean {
   const vis = state.civilizations[viewerCivId]?.visibility;
   if (!vis) return false;
@@ -23,14 +28,19 @@ export function hasDiscoveredCity(state: GameState, viewerCivId: string, cityId:
   return hasExploredCoord(state, viewerCivId, city.position);
 }
 
-export function recordCivilizationContact(state: GameState, civA: string, civB: string): void {
-  if (civA === civB) return;
+export function recordCivilizationContact(
+  state: GameState,
+  civA: string,
+  civB: string,
+): CivilizationContactTransition | null {
+  if (civA === civB) return null;
   const first = state.civilizations[civA];
   const second = state.civilizations[civB];
-  if (!first || !second) return;
+  if (!first || !second) return null;
 
   const firstKnown = first.knownCivilizations ?? ((first as GameState['civilizations'][string]).knownCivilizations = []);
   const secondKnown = second.knownCivilizations ?? ((second as GameState['civilizations'][string]).knownCivilizations = []);
+  const wasKnown = firstKnown.includes(civB) || secondKnown.includes(civA);
 
   if (!firstKnown.includes(civB)) {
     firstKnown.push(civB);
@@ -38,22 +48,30 @@ export function recordCivilizationContact(state: GameState, civA: string, civB: 
   if (!secondKnown.includes(civA)) {
     secondKnown.push(civA);
   }
+
+  return wasKnown ? null : { civA, civB };
 }
 
 export function refreshKnownCivilizations(state: GameState, civId: string): void {
   syncCivilizationContactsFromVisibility(state, civId);
 }
 
-export function syncCivilizationContactsFromVisibility(state: GameState, civId: string): void {
+export function syncCivilizationContactsFromVisibility(
+  state: GameState,
+  civId: string,
+): CivilizationContactTransition[] {
   const civ = state.civilizations[civId];
-  if (!civ) return;
+  if (!civ) return [];
 
+  const contacts: CivilizationContactTransition[] = [];
   for (const otherId of Object.keys(state.civilizations)) {
     if (otherId === civId) continue;
     if (hasMetCivilizationByCurrentEvidence(state, civId, otherId)) {
-      recordCivilizationContact(state, civId, otherId);
+      const contact = recordCivilizationContact(state, civId, otherId);
+      if (contact) contacts.push(contact);
     }
   }
+  return contacts;
 }
 
 export function hasMetCivilization(state: GameState, viewerCivId: string, targetCivId: string): boolean {

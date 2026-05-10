@@ -31,6 +31,31 @@ export interface ExecuteUnitMoveResult {
   };
 }
 
+export function isWorkerBusy(state: GameState, unitId: string): boolean {
+  const unit = state.units[unitId];
+  if (!unit || unit.type !== 'worker' || !unit.workerTask) return false;
+  const taskKey = hexKey(unit.workerTask.coord);
+  const tile = state.map.tiles[taskKey];
+  return hexKey(unit.position) === taskKey
+    && tile?.improvement === unit.workerTask.action
+    && tile.improvementTurnsLeft > 0;
+}
+
+export function abandonWorkerTask(state: GameState, unitId: string): void {
+  const unit = state.units[unitId];
+  if (!unit?.workerTask) return;
+  const key = hexKey(unit.workerTask.coord);
+  const tile = state.map.tiles[key];
+  if (tile?.improvement === unit.workerTask.action && tile.improvementTurnsLeft > 0) {
+    tile.improvement = 'none';
+    tile.improvementTurnsLeft = 0;
+  }
+  state.units = {
+    ...state.units,
+    [unitId]: { ...unit, workerTask: undefined },
+  };
+}
+
 function getCivUnits(state: GameState, civId: string) {
   return state.civilizations[civId]?.units
     .map(id => state.units[id])
@@ -74,7 +99,10 @@ export function executeUnitMove(
     const tile = state.map.tiles[hexKey(to)];
     cost = tile ? getMovementCost(tile.terrain) : 1;
   }
-  state.units[unitId] = moveUnit(unit, to, cost);
+  state.units = {
+    ...state.units,
+    [unitId]: moveUnit(unit, to, cost),
+  };
   options.bus?.emit('unit:move', { unitId, from, to });
 
   let villageOutcome: ExecuteUnitMoveResult['villageOutcome'];
@@ -105,7 +133,10 @@ export function executeUnitMove(
     state.map,
     getCivCityPositions(state, options.civId),
   );
-  syncCivilizationContactsFromVisibility(state, options.civId);
+  const contacts = syncCivilizationContactsFromVisibility(state, options.civId);
+  for (const contact of contacts) {
+    options.bus?.emit('civilization:first-contact', contact);
+  }
   if (revealedTiles.length > 0) {
     options.bus?.emit('fog:revealed', { tiles: revealedTiles });
   }

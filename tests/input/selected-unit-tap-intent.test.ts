@@ -39,12 +39,42 @@ function makeTapAssaultFixture(): GameState {
 }
 
 describe('selected-unit-tap-intent', () => {
-  it('returns assault-city for an ungarrisoned enemy major city in movement range', () => {
+  it('returns confirm-war-city for a neutral major city', () => {
     const state = makeTapAssaultFixture();
+    state.civilizations.player.diplomacy.atWarWith = [];
+    state.civilizations['ai-1'].diplomacy.atWarWith = [];
+
+    const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 });
+
+    expect(intent).toEqual({ kind: 'confirm-war-city', cityId: 'enemyCity', defenderId: 'ai-1' });
+  });
+
+  it('returns assault-city for an at-war ungarrisoned major city', () => {
+    const state = makeTapAssaultFixture();
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
 
     const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 });
 
     expect(intent).toEqual({ kind: 'assault-city', cityId: 'enemyCity' });
+  });
+
+  it('returns move for an allied major city', () => {
+    const state = makeTapAssaultFixture();
+    state.civilizations.player.diplomacy.treaties.push({ type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: 10 });
+
+    const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 }, [{ q: 1, r: 0 }]);
+
+    expect(intent).toEqual({ kind: 'move' });
+  });
+
+  it('still asks before entering a major city with only open borders', () => {
+    const state = makeTapAssaultFixture();
+    state.civilizations.player.diplomacy.treaties.push({ type: 'open_borders', civA: 'player', civB: 'ai-1', turnsRemaining: 10 });
+
+    const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 });
+
+    expect(intent).toEqual({ kind: 'confirm-war-city', cityId: 'enemyCity', defenderId: 'ai-1' });
   });
 
   it('returns assault-minor-civ for an ungarrisoned city-state city in movement range', () => {
@@ -116,6 +146,8 @@ describe('selected-unit-tap-intent', () => {
 
   it('returns assault-city when a friendly unit is stacked on the enemy city destination', () => {
     const state = makeTapAssaultFixture();
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
     const friendly = createUnit('worker', 'player', { q: 1, r: 0 });
     friendly.id = 'friendly-worker';
     state.units[friendly.id] = friendly;

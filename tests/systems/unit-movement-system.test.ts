@@ -1,92 +1,9 @@
 import { EventBus } from '@/core/event-bus';
-import type { GameMap, GameState, Unit } from '@/core/types';
-import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
-import { executeUnitMove } from '@/systems/unit-movement-system';
+import { abandonWorkerTask, executeUnitMove } from '@/systems/unit-movement-system';
 import { makeAutoExploreFixture } from './helpers/auto-explore-fixture';
-
-function createWrappedGrasslandMap(width: number, height: number): GameMap {
-  const tiles: GameMap['tiles'] = {};
-  for (let q = 0; q < width; q++) {
-    for (let r = 0; r < height; r++) {
-      tiles[hexKey({ q, r })] = {
-        coord: { q, r },
-        terrain: 'grassland',
-        elevation: 'lowland',
-        resource: null,
-        improvement: 'none',
-        owner: null,
-        improvementTurnsLeft: 0,
-        hasRiver: false,
-        wonder: null,
-      };
-    }
-  }
-
-  return {
-    width,
-    height,
-    wrapsHorizontally: true,
-    tiles,
-    rivers: [],
-  };
-}
-
-function makeEdgeMoveState(): { state: GameState; unitId: string } {
-  const map = createWrappedGrasslandMap(5, 4);
-  const unit: Unit = {
-    id: 'edge-warrior',
-    type: 'warrior',
-    owner: 'player',
-    position: { q: 0, r: 1 },
-    movementPointsLeft: 2,
-    health: 100,
-    experience: 0,
-    hasMoved: false,
-    hasActed: false,
-    isResting: false,
-  };
-
-  const state = {
-    turn: 1,
-    era: 1,
-    currentPlayer: 'player',
-    gameOver: false,
-    winner: null,
-    map,
-    units: { [unit.id]: unit },
-    cities: {},
-    civilizations: {
-      player: {
-        id: 'player',
-        name: 'Player',
-        color: '#4a90d9',
-        isHuman: true,
-        civType: 'generic',
-        cities: [],
-        units: [unit.id],
-        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} },
-        gold: 0,
-        visibility: { tiles: { '4,1': 'visible' } },
-        knownCivilizations: [],
-        score: 0,
-        diplomacy: createDiplomacyState(['player'], 'player'),
-      },
-    },
-    barbarianCamps: {},
-    minorCivs: {},
-    tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
-    settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {}, councilTalkLevel: 'normal' },
-    tribalVillages: {},
-    discoveredWonders: {},
-    wonderDiscoverers: {},
-    embargoes: [],
-    defensiveLeagues: [],
-  } as unknown as GameState;
-
-  return { state, unitId: unit.id };
-}
+import { makeEdgeMoveState } from './unit-movement-system.test-helpers';
 
 describe('unit-movement-system', () => {
   it('applies village rewards and removes the village when automation enters it', () => {
@@ -114,6 +31,22 @@ describe('unit-movement-system', () => {
 
     expect(result.revealedTiles.length).toBeGreaterThan(0);
     expect(state.civilizations.player.knownCivilizations).toContain(hiddenCivId);
+  });
+
+  it('emits first-contact when movement reveals a new civilization', () => {
+    const { state, unitId, hiddenCivId } = makeAutoExploreFixture({ foreignBorderNorth: true, safeFogNorth: true });
+    state.civilizations.traders.knownCivilizations = [];
+    const bus = new EventBus();
+    const contacts: Array<{ civA: string; civB: string }> = [];
+    bus.on('civilization:first-contact', event => contacts.push(event));
+
+    executeUnitMove(state, unitId, { q: 1, r: 0 }, {
+      actor: 'player',
+      civId: 'player',
+      bus,
+    });
+
+    expect(contacts).toEqual([{ civA: 'player', civB: hiddenCivId }]);
   });
 
   it('emits wonder discovery metadata when automation reveals a wonder tile', () => {
@@ -150,5 +83,21 @@ describe('unit-movement-system', () => {
     expect(fogRevealed).toHaveBeenCalledWith(expect.objectContaining({
       tiles: expect.arrayContaining([{ q: 0, r: 1 }]),
     }));
+  });
+
+  it('can abandon a busy worker task before moving', () => {
+    const { state, unitId } = makeEdgeMoveState();
+    state.units[unitId] = {
+      ...state.units[unitId],
+      type: 'worker',
+      workerTask: { action: 'farm', coord: { q: 0, r: 1 } },
+    };
+    state.map.tiles['0,1'].improvement = 'farm';
+    state.map.tiles['0,1'].improvementTurnsLeft = 3;
+
+    abandonWorkerTask(state, unitId);
+
+    expect(state.units[unitId].workerTask).toBeUndefined();
+    expect(state.map.tiles['0,1']).toMatchObject({ improvement: 'none', improvementTurnsLeft: 0 });
   });
 });

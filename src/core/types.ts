@@ -212,6 +212,11 @@ export interface UnitDefinition {
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
 }
 
+export interface WorkerTask {
+  action: BuildableImprovementType;
+  coord: HexCoord;
+}
+
 export interface Unit {
   id: string;
   type: UnitType;
@@ -224,6 +229,7 @@ export interface Unit {
   hasMoved: boolean;
   hasActed: boolean;         // used action this turn (build, found, etc.)
   chargesRemaining?: number; // workers default to 2; omitted on legacy saves
+  workerTask?: WorkerTask;    // active multi-turn improvement the worker is assigned to
   isResting: boolean;        // player explicitly chose to rest/heal this turn
   skippedTurn?: boolean;     // player chose to hold this unit out of unit cycling this turn
   automation?: {
@@ -1002,6 +1008,7 @@ export interface GameEvents {
   'fog:revealed': { tiles: HexCoord[] };
   'improvement:started': { unitId: string; coord: HexCoord; type: ImprovementType };
   'improvement:completed': { coord: HexCoord; type: ImprovementType };
+  'civilization:first-contact': { civA: string; civB: string };
   'barbarian:spawned': { campId: string; unitId: string };
   'barbarian:camp-destroyed': { campId: string; reward: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };

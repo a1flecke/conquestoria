@@ -4,8 +4,10 @@ import {
   routeBarbarianSpawned,
   routeCombatRewardEarned,
   routeCombatResolved,
+  queueFirstContactPendingEvents,
   routeLegendaryWonder,
   routeFactionTransition,
+  routeFirstContact,
   routePeaceMade,
   routePeaceRequested,
   routeWarDeclared,
@@ -74,6 +76,31 @@ describe('notification routing', () => {
         message: expect.stringMatching(/Alice requests peace/i),
         type: 'info',
       }),
+    ]);
+  });
+
+  it('first-contact writes encounter messages to both civ logs', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeFirstContact(state, 'p1', 'p2', sink);
+
+    expect(calls).toEqual([
+      expect.objectContaining({ civId: 'p1', message: expect.stringMatching(/encountered Bob/i), type: 'info' }),
+      expect.objectContaining({ civId: 'p2', message: expect.stringMatching(/encountered Alice/i), type: 'info' }),
+    ]);
+  });
+
+  it('first-contact queues hot-seat notable events for both players', () => {
+    const state = makeState({ pendingEvents: {} } as Partial<GameState>);
+
+    queueFirstContactPendingEvents(state, 'p1', 'p2');
+
+    expect(state.pendingEvents?.p1).toEqual([
+      expect.objectContaining({ type: 'first-contact', message: expect.stringMatching(/Encountered Bob/i), turn: state.turn }),
+    ]);
+    expect(state.pendingEvents?.p2).toEqual([
+      expect.objectContaining({ type: 'first-contact', message: expect.stringMatching(/Encountered Alice/i), turn: state.turn }),
     ]);
   });
 

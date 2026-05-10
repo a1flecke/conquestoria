@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameState, HexTile, Unit } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
-import { applyWorkerAction, getWorkerChargesRemaining } from '@/systems/worker-action-system';
+import { applyWorkerAction, clearCompletedWorkerTasksForImprovement, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 
 function tile(overrides: Partial<HexTile>): HexTile {
   return {
@@ -160,6 +160,47 @@ describe('worker action system', () => {
       improvementTurnsLeft: 5,
     });
     expect(result.state.units['worker-1']?.chargesRemaining).toBe(1);
+  });
+
+  it('records an active worker task when an improvement starts', () => {
+    const start = state();
+
+    const result = applyWorkerAction(start, 'worker-1', 'farm');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.units['worker-1']?.workerTask).toEqual({
+      action: 'farm',
+      coord: { q: 0, r: 0 },
+    });
+  });
+
+  it('clears the active worker task when its improvement completes', () => {
+    const start = state();
+    start.units['worker-1'] = worker({
+      position: { q: 0, r: 0 },
+      workerTask: { action: 'farm', coord: { q: 0, r: 0 } },
+    });
+    start.map.tiles['0,0'].improvement = 'farm';
+    start.map.tiles['0,0'].improvementTurnsLeft = 0;
+
+    const result = clearCompletedWorkerTasksForImprovement(start, { q: 0, r: 0 });
+
+    expect(result.units['worker-1'].workerTask).toBeUndefined();
+  });
+
+  it('keeps a worker busy while the assigned improvement still has turns left', () => {
+    const start = state();
+    start.units['worker-1'] = worker({
+      position: { q: 0, r: 0 },
+      workerTask: { action: 'farm', coord: { q: 0, r: 0 } },
+    });
+    start.map.tiles['0,0'].improvement = 'farm';
+    start.map.tiles['0,0'].improvementTurnsLeft = 2;
+
+    const result = clearCompletedWorkerTasksForImprovement(start, { q: 0, r: 0 });
+
+    expect(result.units['worker-1'].workerTask).toEqual({ action: 'farm', coord: { q: 0, r: 0 } });
   });
 
   it('converts forest farm to plains and grants production to nearest owned city', () => {

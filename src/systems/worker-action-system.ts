@@ -186,6 +186,9 @@ export function applyWorkerAction(
     hasActed: true,
     movementPointsLeft: 0,
     chargesRemaining: chargesAfter,
+    workerTask: isBuildableImprovement(action)
+      ? { action, coord: { ...tile.coord } }
+      : undefined,
   };
 
   let nextState: GameState = {
@@ -231,4 +234,30 @@ export function applyWorkerAction(
     forestProductionBonus,
     boostedCityId,
   };
+}
+
+export function clearCompletedWorkerTasksForImprovement(
+  state: GameState,
+  coord: HexCoord,
+): GameState {
+  const key = hexKey(coord);
+  const tile = state.map.tiles[key];
+  if (!tile || tile.improvementTurnsLeft > 0) return state;
+
+  let changed = false;
+  const nextUnits: GameState['units'] = {};
+  for (const [unitId, unit] of Object.entries(state.units)) {
+    if (
+      unit.workerTask
+      && hexKey(unit.workerTask.coord) === key
+      && unit.workerTask.action === tile.improvement
+    ) {
+      nextUnits[unitId] = { ...unit, workerTask: undefined };
+      changed = true;
+    } else {
+      nextUnits[unitId] = unit;
+    }
+  }
+
+  return changed ? { ...state, units: nextUnits } : state;
 }
