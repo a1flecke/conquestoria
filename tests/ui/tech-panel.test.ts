@@ -22,7 +22,8 @@ describe('tech-panel', () => {
     });
 
     expect(panel.textContent).toContain('Research');
-    expect(panel.querySelectorAll('.tech-track').length).toBeGreaterThan(3);
+    const visibleTracks = new Set(Array.from(panel.querySelectorAll('[data-track]')).map(el => (el as HTMLElement).dataset.track));
+    expect(visibleTracks.size).toBeGreaterThan(3);
     expect(panel.querySelector('[data-state="current"]')).toBeTruthy();
     expect(panel.querySelector('[data-state="available"]')).toBeTruthy();
   });
@@ -431,6 +432,139 @@ describe('tech-panel', () => {
     const upBtn = document.body.querySelector<HTMLButtonElement>('[data-queue-action="up"][data-queue-index="0"]');
     expect(upBtn).toBeTruthy();
     expect(upBtn!.disabled).toBe(true);
+  });
+
+  // --- Phase 2: era cap ---
+
+  it('Phase 2: focus zoom shows no nodes beyond era 2 with a fresh tech state', () => {
+    const state = createNewGame(undefined, 'tech-phase2-era-cap');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+    const cards = Array.from(panel.querySelectorAll('[data-tech-id]')) as HTMLElement[];
+    expect(cards.length).toBeGreaterThan(0);
+    for (const card of cards) {
+      expect(Number(card.dataset.era)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('Phase 2: completing an era-2 tech opens era-3 nodes in focus zoom', () => {
+    const state = createNewGame(undefined, 'tech-phase2-era-unlock');
+    state.civilizations.player.techState.completed = ['stone-weapons', 'bronze-working'];
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+    // fortification (era 3) requires bronze-working — should be visible after completing era-2 tech
+    expect(panel.querySelector('[data-tech-id="fortification"]')).toBeTruthy();
+    // No locked node with era > 3 should appear in focus zoom
+    const cards = Array.from(panel.querySelectorAll('[data-tech-id]')) as HTMLElement[];
+    for (const card of cards) {
+      const era = Number(card.dataset.era);
+      const techState = card.dataset.techState;
+      if (techState === 'locked') {
+        expect(era).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  // --- Phase 3: DAG layout ---
+
+  it('Phase 3: all visible cards have style.left set and no two share the same (left, top)', () => {
+    const state = createNewGame(undefined, 'tech-dag-unique-pos');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+    const cards = Array.from(panel.querySelectorAll('[data-tech-id]')) as HTMLElement[];
+    expect(cards.length).toBeGreaterThan(0);
+    const positions = new Set<string>();
+    for (const card of cards) {
+      expect(card.style.left).toBeTruthy();
+      expect(card.style.top).toBeTruthy();
+      const key = `${card.style.left},${card.style.top}`;
+      expect(positions.has(key)).toBe(false);
+      positions.add(key);
+    }
+  });
+
+  it('Phase 3: a tech with two prerequisites lands at depth = max(prereqDepths) + 1', () => {
+    // engineering: prerequisites [mathematics(depth=2), wheel(depth=1)] → expected depth=3
+    const state = createNewGame(undefined, 'tech-dag-depth');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+    panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.click();
+    const engineeringCard = document.body.querySelector<HTMLElement>('[data-tech-id="engineering"]');
+    expect(engineeringCard).toBeTruthy();
+    expect(Number(engineeringCard!.dataset.depth)).toBe(3);
+  });
+
+  it('Phase 3: mapWrap uses absolute-positioned cards, not flex-wrap', () => {
+    const state = createNewGame(undefined, 'tech-dag-nowrap');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+    const mapWrap = panel.querySelector<HTMLElement>('[data-layout="tech-dependency-map"]');
+    expect(mapWrap).toBeTruthy();
+    expect(mapWrap!.style.flexWrap).not.toBe('wrap');
+    expect(mapWrap!.style.position).toBe('relative');
+  });
+
+  it('Phase 3: for every visible edge the prerequisite card left < successor card left', () => {
+    const state = createNewGame(undefined, 'tech-dag-edge-order');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+    const edges = Array.from(panel.querySelectorAll('[data-edge-from][data-edge-to]')) as HTMLElement[];
+    expect(edges.length).toBeGreaterThan(0);
+    for (const edge of edges) {
+      const fromId = (edge as HTMLElement).dataset.edgeFrom!;
+      const toId = (edge as HTMLElement).dataset.edgeTo!;
+      const fromCard = panel.querySelector<HTMLElement>(`[data-tech-id="${fromId}"]`);
+      const toCard = panel.querySelector<HTMLElement>(`[data-tech-id="${toId}"]`);
+      if (!fromCard || !toCard) continue;
+      const fromDepth = Number(fromCard.dataset.depth);
+      const toDepth = Number(toCard.dataset.depth);
+      expect(fromDepth).toBeLessThan(toDepth);
+    }
+  });
+
+  it('Phase 3: sidebar icon count equals the number of distinct tracks among visible cards', () => {
+    const state = createNewGame(undefined, 'tech-dag-sidebar-tracks');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+    const visibleTrackSet = new Set(
+      Array.from(panel.querySelectorAll('[data-tech-id]'))
+        .map(el => (el as HTMLElement).dataset.track)
+        .filter(Boolean),
+    );
+    const sidebar = panel.querySelector('#tech-track-sidebar');
+    expect(sidebar).toBeTruthy();
+    const sidebarIcons = Array.from(sidebar!.querySelectorAll('div'));
+    expect(sidebarIcons.length).toBe(visibleTrackSet.size);
   });
 
   it('↓ button on the last research queue item is disabled', () => {

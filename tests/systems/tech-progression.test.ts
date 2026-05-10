@@ -120,6 +120,42 @@ describe('tech progression view model', () => {
     expect(view.selectedPathIds.has('astronomy')).toBe(false);
   });
 
+  // --- Phase 2: era cap ---
+
+  it('Phase 2: fresh focus zoom has no visible nodes beyond era 2', () => {
+    const view = buildTechProgressionView(createTechState(), { zoom: 'focus' });
+    for (const node of view.nodes) {
+      if (view.visibleIds.has(node.tech.id)) {
+        expect(node.era).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  it('Phase 2: completing an era-2 tech exposes era-3 revealed nodes in focus zoom', () => {
+    // bronze-working (era 2) → fortification (era 3) becomes revealed and era <= currentPlayerEra+1
+    const techState = {
+      ...createTechState(),
+      completed: ['stone-weapons', 'bronze-working'],
+    };
+    const view = buildTechProgressionView(techState, { zoom: 'focus' });
+    // currentPlayerEra = 2; era-3 revealed nodes must now be visible
+    expect(view.visibleIds.has('fortification')).toBe(true);
+    // No locked node with era > 3 should appear
+    for (const node of view.nodes) {
+      if (view.visibleIds.has(node.tech.id) && node.state === 'locked') {
+        expect(node.era).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it('Phase 2: focus zoom excludes locked nodes beyond era cap even when revealed', () => {
+    // With currentPlayerEra=1, era-3 locked nodes must stay hidden in focus zoom
+    const techState = createTechState();
+    const view = buildTechProgressionView(techState, { zoom: 'focus' });
+    // fortification is era 3 and should NOT be visible with no completed techs
+    expect(view.visibleIds.has('fortification')).toBe(false);
+  });
+
   it('rejects queue reorders that would place a tech before its prerequisite', () => {
     const techState = {
       ...createTechState(),

@@ -4,6 +4,7 @@ export interface GameShellCallbacks extends PrimaryActionBarCallbacks {
   onNextUnit: () => void;
   onOpenNotificationLog: () => void;
   onToggleIconLegend: () => void;
+  onOpenMenu: () => void;
   iconLegendOverlay?: HTMLElement;
 }
 
@@ -47,6 +48,7 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
 
   shell.appendChild(createFloatingButton('btn-notif-log', '📜', 'View message log', 52, callbacks.onOpenNotificationLog));
   shell.appendChild(createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', 92, callbacks.onToggleIconLegend));
+  shell.appendChild(createFloatingButton('btn-pause-menu', '☰', 'Pause menu', 132, callbacks.onOpenMenu));
 
   if (callbacks.iconLegendOverlay) {
     shell.appendChild(callbacks.iconLegendOverlay);

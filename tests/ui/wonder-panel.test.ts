@@ -330,4 +330,20 @@ describe('wonder-panel', () => {
     expect(rivalSection?.textContent).not.toContain('Quest steps:');
     expect(rivalSection?.textContent).not.toContain('Connect two cities');
   });
+
+  it('Start Build and Close buttons have styled background and color', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['masonry', 'writing', 'calendar'];
+    state.wonderDiscoverers = { 'natural-1': ['player'] };
+    const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const panel = createWonderPanel(container, seededState, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const allButtons = Array.from(panel.querySelectorAll('button')) as HTMLButtonElement[];
+    for (const btn of allButtons) {
+      expect(btn.style.background, `${btn.textContent} background`).not.toBe('');
+      expect(btn.style.color, `${btn.textContent} color`).not.toBe('');
+    }
+  });
 });

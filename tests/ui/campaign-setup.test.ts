@@ -456,4 +456,19 @@ describe('campaign-setup', () => {
 
     expect((container.querySelector('#civ-start') as HTMLButtonElement | null)?.textContent).toBe('Confirm Civilization');
   });
+
+  it('chooseCivButton, cancelButton, and startButton have styled background and color', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    showCampaignSetup(container, { onStartSolo: vi.fn(), onCancel: vi.fn() });
+
+    const chooseCiv = container.querySelector<HTMLButtonElement>('[data-action="choose-civ"]')!;
+    const cancel = Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Cancel') as HTMLButtonElement;
+    const start = Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Start Campaign') as HTMLButtonElement;
+
+    for (const btn of [chooseCiv, cancel, start]) {
+      expect(btn.style.background, `${btn.textContent} background`).not.toBe('');
+      expect(btn.style.color, `${btn.textContent} color`).not.toBe('');
+    }
+  });
 });

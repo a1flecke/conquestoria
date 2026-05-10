@@ -166,6 +166,12 @@ export function buildTechProgressionView(
     collectPrerequisitePath(selectedTechId, selectedPathIds);
   }
 
+  const currentPlayerEra = Math.max(
+    1,
+    ...state.completed.map(id => TECH_TREE.find(t => t.id === id)?.era ?? 1),
+    state.currentResearch ? (TECH_TREE.find(t => t.id === state.currentResearch)?.era ?? 1) : 1,
+  );
+
   for (const tech of TECH_TREE) {
     const satisfiedPrerequisiteIds = tech.prerequisites.filter(prereq => planned.has(prereq));
     const missingPrerequisiteIds = tech.prerequisites.filter(prereq => !planned.has(prereq));
@@ -199,7 +205,11 @@ export function buildTechProgressionView(
     const isFocusChild = tech.prerequisites.includes(focusTechId ?? '') && revealed;
     const isFocusNeighbor = isFocusTech || isFocusChild || isFocusParent;
     const visibleInKnown = revealed;
-    const visibleInFocus = nodeState !== 'locked' || isFocusNeighbor || revealed;
+    const visibleInFocus = (
+      nodeState !== 'locked'
+      || isFocusNeighbor
+      || (revealed && tech.era <= currentPlayerEra + 1)
+    );
     const visibleByDefault = visibleInFocus;
     const queuedIndex = state.researchQueue.indexOf(tech.id);
     const turnsToResearch = state.currentResearch === tech.id

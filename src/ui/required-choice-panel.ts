@@ -1,3 +1,5 @@
+import { createGameButton } from '@/ui/ui-kit';
+
 export interface RequiredChoiceConfig {
   researchChoices: Array<{ techId: string; label: string; turns: number }>;
   cityChoices: Array<{ cityId: string; cityName: string; itemId: string; label: string; turns: number }>;
@@ -59,9 +61,7 @@ export function createRequiredChoicePanel(
     });
   }
 
-  const openTechButton = document.createElement('button');
-  openTechButton.type = 'button';
-  openTechButton.textContent = 'Open Tech Panel';
+  const openTechButton = createGameButton('Open Tech Panel', 'secondary');
   openTechButton.addEventListener('click', () => config.onOpenTech());
   researchSection.appendChild(openTechButton);
   panel.appendChild(researchSection);
@@ -87,9 +87,7 @@ export function createRequiredChoicePanel(
       buildButton.addEventListener('click', () => config.onChooseCityBuild(choice.cityId, choice.itemId));
       row.appendChild(buildButton);
 
-      const openCityButton = document.createElement('button');
-      openCityButton.type = 'button';
-      openCityButton.textContent = 'Open City';
+      const openCityButton = createGameButton('Open City', 'secondary');
       openCityButton.addEventListener('click', () => config.onOpenCity(choice.cityId));
       row.appendChild(openCityButton);
 

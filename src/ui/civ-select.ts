@@ -2,6 +2,7 @@ import type { CivDefinition } from '@/core/types';
 import { CIV_DEFINITIONS } from '@/systems/civ-definitions';
 import { createRng } from '@/systems/map-generator';
 import { createSetupShell } from '@/ui/setup-shell';
+import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 
 export interface CivSelectCallbacks {
   onSelect: (civId: string) => void;
@@ -14,20 +15,6 @@ export interface CivSelectOptions {
   headerText?: string;
   civDefinitions?: CivDefinition[];
   primaryActionText?: string;
-}
-
-function createButton(label: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = label;
-  button.style.minHeight = '44px';
-  button.style.minWidth = '44px';
-  button.style.padding = '10px 20px';
-  button.style.borderRadius = '8px';
-  button.style.border = '1px solid rgba(255,255,255,0.2)';
-  button.style.cursor = 'pointer';
-  button.style.fontSize = '13px';
-  return button;
 }
 
 export function createCivSelectPanel(
@@ -123,10 +110,9 @@ export function createCivSelectPanel(
         otherCard.setAttribute('aria-pressed', 'false');
       }
       card.style.borderColor = '#e8c170';
-       card.dataset.selected = 'true';
-       card.setAttribute('aria-pressed', 'true');
-      startButton.disabled = false;
-      startButton.style.opacity = '1';
+      card.dataset.selected = 'true';
+      card.setAttribute('aria-pressed', 'true');
+      setButtonDisabled(startButton, false);
     });
 
     cards.push(card);
@@ -143,10 +129,8 @@ export function createCivSelectPanel(
   shell.actions.appendChild(actionBar);
 
   if (callbacks.onCancel) {
-    const cancelButton = createButton('Back');
+    const cancelButton = createGameButton('Back', 'ghost');
     cancelButton.dataset.action = 'cancel-civ-select';
-    cancelButton.style.background = 'transparent';
-    cancelButton.style.color = '#f4f1e8';
     cancelButton.addEventListener('click', () => {
       panel.remove();
       callbacks.onCancel?.();
@@ -154,30 +138,19 @@ export function createCivSelectPanel(
     actionBar.appendChild(cancelButton);
   }
 
-  const randomButton = createButton('Surprise Me');
+  const randomButton = createGameButton('Surprise Me', 'secondary');
   randomButton.id = 'civ-random';
-  randomButton.style.background = 'rgba(255,255,255,0.1)';
-  randomButton.style.color = 'white';
   actionBar.appendChild(randomButton);
 
   if (callbacks.onCreateCustomCiv) {
-    const createCustomButton = createButton('Create Custom Civilization');
+    const createCustomButton = createGameButton('Create Custom Civilization', 'secondary');
     createCustomButton.dataset.action = 'create-custom-civ';
-    createCustomButton.style.background = 'rgba(74,144,217,0.2)';
-    createCustomButton.style.color = '#dbeafe';
     createCustomButton.addEventListener('click', () => callbacks.onCreateCustomCiv?.());
     actionBar.appendChild(createCustomButton);
   }
 
-  const startButton = createButton(primaryActionText);
+  const startButton = createGameButton(primaryActionText, 'primary', { disabled: true });
   startButton.id = 'civ-start';
-  startButton.style.background = 'rgba(232,193,112,0.3)';
-  startButton.style.border = '2px solid #e8c170';
-  startButton.style.color = '#e8c170';
-  startButton.style.fontSize = '14px';
-  startButton.style.fontWeight = 'bold';
-  startButton.style.opacity = '0.4';
-  startButton.disabled = true;
   actionBar.appendChild(startButton);
 
   randomButton.addEventListener('click', () => {
@@ -192,8 +165,7 @@ export function createCivSelectPanel(
       card.dataset.selected = selected ? 'true' : 'false';
       card.setAttribute('aria-pressed', selected ? 'true' : 'false');
     }
-    startButton.disabled = false;
-    startButton.style.opacity = '1';
+    setButtonDisabled(startButton, false);
   });
 
   startButton.addEventListener('click', () => {

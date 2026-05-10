@@ -1,4 +1,5 @@
 import { createSetupSection, createSetupShell } from '@/ui/setup-shell';
+import { createGameButton } from '@/ui/ui-kit';
 
 export interface GameModeSelectCallbacks {
   initialTitle?: string;
@@ -48,21 +49,8 @@ function createModeButton(label: string, description: string, action: string): H
 }
 
 function createActionButton(label: string, action: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = label;
+  const button = createGameButton(label, 'ghost');
   button.dataset.action = action;
-  Object.assign(button.style, {
-    minHeight: '44px',
-    minWidth: '44px',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    border: '1px solid rgba(255,255,255,0.2)',
-    background: 'transparent',
-    color: '#f4f1e8',
-    cursor: 'pointer',
-    fontSize: '13px',
-  });
   return button;
 }
 

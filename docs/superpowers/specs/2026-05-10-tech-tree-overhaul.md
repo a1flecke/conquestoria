@@ -19,9 +19,11 @@
 
 ### Phase 1 — Fix wrapping bug (Bug A)
 
-**Change**: In `createTechPanel`, the `body` container currently has `flex-wrap:wrap`. Remove `flex-wrap` from `body`. Set `mapWrap` to `overflow-x:auto` with the inner grid set to `min-width:max-content` so it scrolls horizontally rather than reflowing.
+**Scope**: Fix the inner era-grid only; leave `body`'s flex layout intact (it holds both `mapWrap` and the `inspector` side panel — removing flex-wrap from `body` would break inspector layout on narrow screens). Phase 3 replaces the whole structure anyway.
 
-This is a pure layout fix; no logic changes. Edge geometry recalculation already fires via `requestAnimationFrame` and will produce correct curves once reflow is prevented.
+**Change**: In `createTechPanel`'s `renderTree()`, the inner era-columns grid has `grid-auto-flow:column; grid-auto-columns:minmax(210px, max-content)`. Add `min-width:max-content` to this grid element and ensure `mapWrap` has `overflow-x:auto`. This allows the era columns to overflow horizontally and scroll rather than wrapping to a second row.
+
+This is a pure CSS change; no logic changes. Edge geometry recalculation already fires via `requestAnimationFrame` and produces correct curves once reflow is prevented.
 
 ### Phase 2 — Fix era visibility in focus mode (Bug B)
 
@@ -47,6 +49,8 @@ const visibleInFocus = (
 
 Era cap for focus zoom: `currentPlayerEra + 1`. Players in Era 1 see Era 1 (available + completed) and Era 2 (the preview layer). This gives forward-looking context without exposing unreachable content.
 
+The `isFocusNeighbor` path is intentionally uncapped — a tech that is a direct neighbor of the selected tech is always shown regardless of its era. This allows the selected-path highlight to draw a complete picture of a tech's immediate context even when its successors span era boundaries.
+
 The `'known'` and `'all'` zoom levels remain unchanged — players who want to see the full tree can switch to those.
 
 **Test**: A fresh tech state (no completed techs, no current research) in focus zoom must not include any node with `era > 2`.
@@ -59,18 +63,27 @@ This is the primary UX fix. Replace the era-column × track-row matrix with a pr
 
 Run after `buildTechProgressionView` produces `visibleNodes`:
 
-1. **Topological depth**: For each visible node, compute `depth = max(prerequisites' depths) + 1`. Root nodes (no prerequisites in the visible set) get `depth = 0`.
-2. **Track assignment**: Assign each track a fixed row index. Derive track order from `getDerivedTechTracks()` — the same stable order already used for the track list.
+1. **Topological depth**: Compute depth over the **full TECH_TREE** graph (not just visible nodes), so that visible nodes at any zoom level are placed correctly relative to the full dependency chain. For each tech in topological order: `depth = max(prerequisites' depths, default -1) + 1`. Root techs (no prerequisites) get `depth = 0`. This ensures an Era 2 tech is never placed in the same column as a true Era 1 root tech, even when some prerequisite nodes are filtered from view.
+2. **Track assignment**: Collect the set of tracks that have ≥1 visible node. Derive stable track order from `getDerivedTechTracks()` filtered to those present tracks. Assign row indices 0, 1, 2, … only to tracks with visible nodes — do not allocate rows for empty tracks.
 3. **Pixel coordinates**:
    - `x = depth * (CARD_WIDTH + CARD_GAP_H)` where `CARD_WIDTH = 200`, `CARD_GAP_H = 28`
-   - `y = trackIndex * (CARD_HEIGHT + CARD_GAP_V)` where `CARD_HEIGHT = 92`, `CARD_GAP_V = 16`
-4. **Collision resolution** (same-depth, same-track): If two nodes land at the same `(x, y)`, offset the second by `CARD_HEIGHT + CARD_GAP_V` (push it down within that track row). This handles multi-path tracks where two different prerequisites produce the same depth for a successor.
+   - `y = rowIndex * (CARD_HEIGHT + CARD_GAP_V)` where `CARD_HEIGHT = 92`, `CARD_GAP_V = 16`, and `rowIndex` is the track's assigned row
+4. **Collision resolution** (same-depth, same-track): Maintain a `slotCount: Map<string, number>` keyed by `"${depth}-${rowIndex}"`. Before placing each node, look up `slotIndex = slotCount.get(key) ?? 0`, then increment the counter. The final y is `rowIndex * (CARD_HEIGHT + CARD_GAP_V) + slotIndex * (CARD_HEIGHT + CARD_GAP_V)`. This correctly stacks 3+ colliding nodes downward, not just pairs.
 
 #### Render
 
-Replace `display:grid` with `position:relative` on the inner container. Render each tech card as `position:absolute; left:{x}px; top:{y}px`. The container's intrinsic size is `width: maxX + CARD_WIDTH; height: maxY + CARD_HEIGHT`.
+Remove the existing era-column `<section>` elements and their "Era N" header rows entirely. Replace with two sibling elements inside the tech tree wrapper:
 
-`mapWrap` scrolls both axes: `overflow:auto`. Horizontal scroll is primary; vertical scroll handles tall track lists.
+```
+techTreeWrapper (display:flex; flex-direction:row; align-items:flex-start)
+  ├── trackSidebar (width:48px; flex-shrink:0; position:relative)
+  │    └── one icon div per visible track, positioned absolutely at y = rowIndex*(CARD_HEIGHT+CARD_GAP_V)
+  └── mapWrap (flex:1; overflow:auto)
+       └── contentContainer (position:relative; width:maxX+CARD_WIDTH; height:maxY+CARD_HEIGHT)
+            └── cards (position:absolute; left:x; top:y each)
+```
+
+The `trackSidebar` height equals `contentContainer` height so icons align with cards. It does not scroll — `mapWrap` scrolls independently. Track icons always stay pinned on the left as the user scrolls right.
 
 #### Era boundary markers
 
@@ -120,7 +133,8 @@ On panel open, `mapWrap.scrollLeft` is set so the currently-researching (or most
 - **Phase 3**: All visible cards have `position.left` set; no two cards share the same `(x, y)` coordinates.
 - **Phase 3**: A tech with two prerequisites lands at `depth = max(prereqDepths) + 1`.
 - **Phase 3**: `mapWrap` does not have `flex-wrap:wrap` or equivalent (wrapping regression).
-- **Phase 3**: SVG edges connect from the right edge of a prerequisite card to the left edge of its successor card (x-ordering matches dependency direction).
+- **Phase 3**: For every prerequisite→successor pair, the prerequisite's computed depth is strictly less than the successor's computed depth (data-level; no pixel assertion needed — jsdom returns zero from getBoundingClientRect).
+- **Phase 3**: Tracks with no visible nodes are not assigned rows — the rendered row count equals the number of tracks that have ≥1 visible node.
 
 `tests/systems/tech-progression.test.ts` addition:
 - `buildTechProgressionView` in focus zoom with empty tech state returns no node with `era > 2`.
