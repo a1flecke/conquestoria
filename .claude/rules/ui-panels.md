@@ -59,6 +59,13 @@ paths:
 - Recommendation sections may be selective. Browse/action sections may not become inaccessible because of recommendation ranking.
 - Persistent intel UI must render from viewer-safe snapshots, not from the richer source object if the player did not earn that detail.
 
+## No Bare Buttons
+- Every `document.createElement('button')` in `src/ui/` MUST receive a `style.cssText` or `Object.assign(button.style, {...})` that includes both `background` and `color` — or be constructed via `createGameButton()` from `src/ui/ui-kit.ts`.
+- `createGameButton(label, variant)` is the preferred path. Variants: `'primary'` (gold CTA), `'secondary'` (dark outlined), `'ghost'` (cancel/back), `'danger'` (destructive), `'close'` (panel ✕).
+- The only exceptions are `ui-kit.ts` itself and `primary-action-bar.ts` (which has a custom icon+label icon-bar design).
+- The `check-src-edit` hook flags new `createElement('button')` calls in `src/ui/` that lack adjacent style assignment — treat hook feedback as a required fix before continuing.
+- Buttons must set `min-height: 44px` for touch targets.
+
 ## Cities[0] Is Never The Answer (Extended)
 The "cycle through all cities" rule applies to EVERY surface that gives city-scoped advice, not just the main city panel. This includes:
 - Advisor triggers (`src/ui/advisor-system.ts`)
