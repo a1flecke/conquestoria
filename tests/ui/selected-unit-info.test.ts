@@ -536,3 +536,170 @@ describe('renderSelectedUnitInfo - veterancy', () => {
     expect(text).toContain('25 XP to Elite');
   });
 });
+
+describe('renderSelectedUnitInfo - found city button', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeSettlerState(cityOverrides: Record<string, unknown> = {}): GameState {
+    return {
+      turn: 1, era: 1, currentPlayer: 'player', gameOver: false, winner: null,
+      map: {
+        width: 20, height: 20, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '5,5': { coord: { q: 5, r: 5 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: {
+        'settler-1': { id: 'settler-1', type: 'settler', owner: 'player', position: { q: 5, r: 5 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+      },
+      cities: { ...cityOverrides },
+      civilizations: { player: { color: '#fff', techState: { completed: [] } } },
+      espionage: undefined,
+    } as unknown as GameState;
+  }
+
+  it('enables Found City button and fires callback when location is valid', () => {
+    const state = makeSettlerState();
+    const container = new MockElement('div');
+    let called = false;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'settler-1', {
+      onFoundCity: () => { called = true; },
+    });
+
+    const btn = findButtons(container).find(b => b.textContent === 'Found City');
+    expect(btn).toBeDefined();
+    btn!.click();
+    expect(called).toBe(true);
+  });
+
+  it('renders Found City as disabled and does not fire callback when too close to another city', () => {
+    // City at (5,6) is distance 1 from settler at (5,5) — less than MIN_CITY_CENTER_DISTANCE (4)
+    const state = makeSettlerState({
+      'city-1': { id: 'city-1', name: 'Rome', owner: 'player', position: { q: 5, r: 6 } },
+    });
+    const container = new MockElement('div');
+    let called = false;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'settler-1', {
+      onFoundCity: () => { called = true; },
+    });
+
+    const btn = findButtons(container).find(b => b.textContent === 'Found City');
+    expect(btn).toBeDefined(); // button still renders — visible but unavailable
+    btn!.click();
+    expect(called).toBe(false); // no click handler on disabled button
+  });
+
+  it('renders Found City as disabled and does not fire callback on invalid terrain (no tile)', () => {
+    // No tile at settler position → invalid terrain
+    const state = makeSettlerState();
+    state.map.tiles = {}; // remove all tiles
+    const container = new MockElement('div');
+    let called = false;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'settler-1', {
+      onFoundCity: () => { called = true; },
+    });
+
+    const btn = findButtons(container).find(b => b.textContent === 'Found City');
+    expect(btn).toBeDefined();
+    btn!.click();
+    expect(called).toBe(false);
+  });
+});
+
+describe('renderSelectedUnitInfo - fortify button', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeWarriorState(unitOverrides: Record<string, unknown> = {}): GameState {
+    return {
+      turn: 1, era: 1, currentPlayer: 'player', gameOver: false, winner: null,
+      map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+      units: {
+        'warrior-1': { id: 'warrior-1', type: 'warrior', owner: 'player', position: { q: 0, r: 0 }, health: 100, experience: 0, movementPointsLeft: 2, hasMoved: false, hasActed: false, isResting: false, ...unitOverrides },
+      },
+      cities: {},
+      civilizations: { player: { color: '#fff', techState: { completed: [] } } },
+    } as unknown as GameState;
+  }
+
+  it('renders Fortify button for a military unit that has not yet acted', () => {
+    const state = makeWarriorState();
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onFortify: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).toContain('Fortify');
+    expect(btns).not.toContain('Unfortify');
+  });
+
+  it('renders Unfortify button when unit is already fortified', () => {
+    const state = makeWarriorState({ isFortified: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onFortify: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).toContain('Unfortify');
+    expect(btns).not.toContain('Fortify');
+  });
+
+  it('does not render Fortify button for a non-combat unit (settler)', () => {
+    const state = makeWarriorState({ type: 'settler' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onFortify: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).not.toContain('Fortify');
+    expect(btns).not.toContain('Unfortify');
+  });
+
+  it('hides Fortify button when unit has already acted this turn', () => {
+    const state = makeWarriorState({ hasActed: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onFortify: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).not.toContain('Fortify');
+  });
+
+  it('fires onFortify with the unit id when Fortify is clicked', () => {
+    const state = makeWarriorState();
+    const container = new MockElement('div');
+    let fortifiedId: string | null = null;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onFortify: (uid) => { fortifiedId = uid; },
+    });
+
+    findButtons(container).find(b => b.textContent === 'Fortify')?.click();
+    expect(fortifiedId).toBe('warrior-1');
+  });
+
+  it('fires onFortify with the unit id when Unfortify is clicked', () => {
+    const state = makeWarriorState({ isFortified: true });
+    const container = new MockElement('div');
+    let fortifiedId: string | null = null;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onFortify: (uid) => { fortifiedId = uid; },
+    });
+
+    findButtons(container).find(b => b.textContent === 'Unfortify')?.click();
+    expect(fortifiedId).toBe('warrior-1');
+  });
+});

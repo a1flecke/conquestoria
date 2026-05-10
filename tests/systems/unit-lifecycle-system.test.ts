@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, moveUnit, resetUnitTurn } from '@/systems/unit-system';
 import {
   getUnmovedUnitsForEndTurn,
   removePlayerUnitFromState,
   skipUnitForTurn,
   skipUnitInState,
+  fortifyUnitInState,
+  unfortifyUnitInState,
 } from '@/systems/unit-lifecycle-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 
@@ -98,6 +100,33 @@ describe('unit-lifecycle-system', () => {
     expect(next.espionage?.[playerId]?.spies[spyUnit.id]).toBeUndefined();
   });
 
+  it('excludes fortified units from getUnmovedUnitsForEndTurn', () => {
+    const state = createNewGame(undefined, 'fortify-unmoved-test', 'small');
+    const playerId = state.currentPlayer;
+    const unitId = state.civilizations[playerId].units[0];
+
+    state.units[unitId] = { ...state.units[unitId], isFortified: true };
+
+    const unmoved = getUnmovedUnitsForEndTurn(state, playerId).map(u => u.id);
+    expect(unmoved).not.toContain(unitId);
+  });
+
+  it('clears isFortified when a unit moves', () => {
+    const unit = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const fortifiedUnit = { ...unit, isFortified: true };
+    const moved = moveUnit(fortifiedUnit, { q: 1, r: 0 }, 1);
+    expect(moved.isFortified).toBeUndefined();
+  });
+
+  it('preserves isFortified through resetUnitTurn (fortification persists across turns)', () => {
+    const unit = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const fortifiedAndActed = { ...unit, isFortified: true, hasActed: true, movementPointsLeft: 0 };
+    const reset = resetUnitTurn(fortifiedAndActed);
+    expect(reset.isFortified).toBe(true);
+    expect(reset.hasActed).toBe(false);
+    expect(reset.movementPointsLeft).toBeGreaterThan(0);
+  });
+
   it('returns only current-player units that still need orders at end turn', () => {
     const state = createNewGame(undefined, 'issue-154-unmoved', 'small');
     const playerId = state.currentPlayer;
@@ -119,5 +148,54 @@ describe('unit-lifecycle-system', () => {
     expect(warningUnits).not.toContain(firstUnitId);
     expect(warningUnits).not.toContain(secondUnitId);
     expect(warningUnits).not.toContain(enemyUnitId);
+  });
+});
+
+describe('fortifyUnitInState / unfortifyUnitInState', () => {
+  it('fortifyUnitInState sets isFortified, consumes the action, and zeroes movement', () => {
+    const state = createNewGame(undefined, 'fortify-state-test', 'small');
+    const playerId = state.currentPlayer;
+    const unitId = state.civilizations[playerId].units[0];
+    const original = state.units[unitId];
+
+    const next = fortifyUnitInState(state, playerId, unitId);
+
+    expect(next.units[unitId].isFortified).toBe(true);
+    expect(next.units[unitId].hasActed).toBe(true);
+    expect(next.units[unitId].movementPointsLeft).toBe(0);
+    // original state untouched
+    expect(original.isFortified).toBeUndefined();
+  });
+
+  it('fortifyUnitInState returns the same state object for an enemy unit', () => {
+    const state = createNewGame(undefined, 'fortify-enemy-test', 'small');
+    const playerId = state.currentPlayer;
+    const enemyUnitId = state.civilizations['ai-1'].units[0];
+
+    const next = fortifyUnitInState(state, playerId, enemyUnitId);
+
+    expect(next).toBe(state);
+  });
+
+  it('unfortifyUnitInState clears isFortified without changing other fields', () => {
+    const state = createNewGame(undefined, 'unfortify-test', 'small');
+    const playerId = state.currentPlayer;
+    const unitId = state.civilizations[playerId].units[0];
+    state.units[unitId] = { ...state.units[unitId], isFortified: true };
+
+    const next = unfortifyUnitInState(state, playerId, unitId);
+
+    expect(next.units[unitId].isFortified).toBeUndefined();
+    expect(next.units[unitId].id).toBe(unitId);
+  });
+
+  it('unfortifyUnitInState returns the same state object for an enemy unit', () => {
+    const state = createNewGame(undefined, 'unfortify-enemy-test', 'small');
+    const playerId = state.currentPlayer;
+    const enemyUnitId = state.civilizations['ai-1'].units[0];
+
+    const next = unfortifyUnitInState(state, playerId, enemyUnitId);
+
+    expect(next).toBe(state);
   });
 });

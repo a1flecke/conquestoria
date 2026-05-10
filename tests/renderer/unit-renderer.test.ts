@@ -101,3 +101,54 @@ describe('unit renderer wrap parity', () => {
     expect(ctx.fillText).toHaveBeenCalledWith('👷', expect.any(Number), expect.any(Number));
   });
 });
+
+describe('fortified unit badge', () => {
+  function makeCamera(): Camera {
+    return {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+  }
+
+  function makeState(): GameState {
+    return {
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {}, rivers: [] },
+    } as unknown as GameState;
+  }
+
+  it('draws an F badge for a fortified unit', () => {
+    const ctx = createContext();
+    const units: Record<string, Unit> = {
+      'unit-1': {
+        id: 'unit-1', owner: 'player', type: 'warrior',
+        position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+        experience: 0, hasMoved: false, hasActed: false, isResting: false,
+        isFortified: true,
+      } as unknown as Unit,
+    };
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible' } };
+
+    drawUnits(ctx, units, makeCamera(), visibility, makeState(), 'player', { player: '#4a90d9' });
+
+    expect(ctx.fillText).toHaveBeenCalledWith('F', expect.any(Number), expect.any(Number));
+  });
+
+  it('does not draw an F badge for a non-fortified unit', () => {
+    const ctx = createContext();
+    const units: Record<string, Unit> = {
+      'unit-1': {
+        id: 'unit-1', owner: 'player', type: 'warrior',
+        position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+        experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      } as unknown as Unit,
+    };
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible' } };
+
+    drawUnits(ctx, units, makeCamera(), visibility, makeState(), 'player', { player: '#4a90d9' });
+
+    const fillTextCalls = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls as [string, ...unknown[]][];
+    expect(fillTextCalls.some(([text]) => text === 'F')).toBe(false);
+  });
+});

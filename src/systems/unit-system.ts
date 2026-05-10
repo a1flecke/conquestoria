@@ -143,6 +143,7 @@ export function moveUnit(unit: Unit, to: HexCoord, cost: number): Unit {
     position: { ...to },
     movementPointsLeft: unit.movementPointsLeft - cost,
     hasMoved: true,
+    isFortified: undefined,
   };
 }
 
@@ -225,7 +226,7 @@ export function getUnmovedUnits(
   civId: string,
 ): Unit[] {
   return Object.values(units).filter(
-    u => u.owner === civId && !u.hasMoved && !u.hasActed && !u.skippedTurn,
+    u => u.owner === civId && !u.hasMoved && !u.hasActed && !u.skippedTurn && !u.isFortified,
   );
 }
 
