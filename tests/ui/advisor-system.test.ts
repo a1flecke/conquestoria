@@ -45,7 +45,9 @@ describe('AdvisorSystem', () => {
 
     advisor.check(state);
     advisor.check(state);
-    expect(messages).toHaveLength(1);
+    // Verify the welcome message fires exactly once (de-duplication check)
+    const welcomeCount = messages.filter(m => (m.message as string).includes('Welcome')).length;
+    expect(welcomeCount).toBe(1);
   });
 
   it('skips tutorial messages when tutorial is inactive', () => {
@@ -53,6 +55,7 @@ describe('AdvisorSystem', () => {
     const advisor = new AdvisorSystem(bus);
     const state = makeState();
     state.tutorial.active = false;
+    state.turn = 6; // past domination-hint window (turn <= 5)
     state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: true, treasurer: false, scholar: false, spymaster: false, artisan: false };
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));

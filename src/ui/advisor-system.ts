@@ -475,6 +475,15 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
         !mc.isDestroyed && mc.diplomacy.atWarWith.includes(state.currentPlayer) && mc.units.length > 1
       ),
   },
+  {
+    id: 'warchief_domination_hint',
+    advisor: 'warchief',
+    icon: '⚔️',
+    message: 'To win by Domination, conquer every rival civilization — leave no enemy city standing!',
+    trigger: (state: GameState) =>
+      state.turn <= 5 &&
+      Object.values(state.civilizations).some(c => c.id !== state.currentPlayer),
+  },
   // Minor Civ — Treasurer
   {
     id: 'treasurer_mercantile_ally',

@@ -29,7 +29,7 @@ function makeMinimalCiv(id: string, cityIds: string[]) {
       } as const,
     },
     gold: 0,
-    visibility: {},
+    visibility: { tiles: {} },
     score: 0,
     diplomacy: {
       relationships: {},
