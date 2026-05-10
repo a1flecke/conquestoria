@@ -1,5 +1,6 @@
 import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
+import { checkDominationVictory } from '@/systems/victory-system';
 import { resetUnitTurn, createUnit, healUnit, moveUnit } from '@/systems/unit-system';
 import { processCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
@@ -710,6 +711,15 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   newState.turn += 1;
 
   bus.emit('turn:start', { turn: newState.turn, playerId: newState.currentPlayer });
+
+  // --- Domination victory check ---
+  if (!newState.gameOver) {
+    const victorId = checkDominationVictory(newState);
+    if (victorId !== null) {
+      newState.gameOver = true;
+      newState.winner = victorId;
+    }
+  }
 
   return newState;
 }
