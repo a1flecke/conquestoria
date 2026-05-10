@@ -9,6 +9,11 @@ Canonical project policy lives in:
 
 Claude-specific hook scripts in `.claude/hooks/` are enforcement helpers, not the policy source. When Codex is working in this repo, follow the policy files above and run the repo checks listed below.
 
+## Codex Operating Loop
+Start new implementation work from a fresh branch or worktree based on the latest `origin/main`. In a new worktree, run `mise trust` if mise blocks project commands, then `./scripts/run-with-mise.sh yarn install` if Yarn says the project has not been installed.
+
+Before editing, read the rule files that match the files you will touch. While implementing, keep gameplay mutations in canonical systems/helpers, wire player-visible behavior all the way to the live UI/renderer path, and add the smallest regression that proves the exact behavior. Before reporting completion, run the required checks, inspect both committed and uncommitted diffs, and call out any checks you could not run.
+
 ## Project Structure & Module Organization
 Core game code lives in `src/`. Use the existing domain split: `src/core/` for shared state and turn flow, `src/systems/` for gameplay rules, `src/renderer/` for Canvas rendering, `src/ui/` for DOM panels, `src/input/` for controls, `src/ai/` for opponents, `src/audio/` for sound, and `src/storage/` for saves. Static assets and PWA files live in `public/`. Tests live in `tests/` and generally mirror `src/` paths, for example `src/systems/map-generator.ts` pairs with `tests/systems/map-generator.test.ts`.
 
@@ -19,7 +24,7 @@ Prefer the repo wrapper `./scripts/run-with-mise.sh` for project commands so Cod
 
 - `./scripts/run-with-mise.sh yarn dev` starts the Vite dev server.
 - `./scripts/run-with-mise.sh yarn build` runs `tsc` and then produces a production bundle with Vite.
-- `./scripts/run-with-mise.sh yarn test` runs the full Vitest suite once.
+- `./scripts/run-with-mise.sh yarn test` runs the full Vitest suite and hook smoke tests once. It does not type-check; use `yarn build` for TypeScript validation.
 - `./scripts/run-with-mise.sh yarn test:watch` runs Vitest in watch mode during feature work.
 
 For Codex command consistency, prefer:
@@ -55,12 +60,16 @@ If you touch files in these areas, read the matching rule file before editing:
 - `src/systems/**`, `src/core/**` for mechanic-completeness, wonder-race, and storage rules -> `.claude/rules/strategy-game-mechanics.md`
 - `src/**` -> `.claude/rules/end-to-end-wiring.md`
 - `docs/superpowers/specs/**`, `docs/superpowers/plans/**`, or any spec-driven implementation -> `.claude/rules/spec-fidelity.md`
+- `src/**` or `docs/superpowers/**` for partial MR/slice work -> `.claude/rules/incremental-mr-completion.md`
+- `.claude/**` or `tests/hooks/**` -> `.claude/rules/hooks-and-tooling.md`
 
 Use `CLAUDE.md` for repo-wide architecture, command, and gameplay conventions.
 
 When writing or updating implementation plans for interactive UI, queueing, or recommendation surfaces, also read `docs/superpowers/plans/README.md` and include its guardrail sections in the plan.
 
 ## Required Verification
+`./scripts/run-with-mise.sh yarn test` does not type-check. Run `./scripts/run-with-mise.sh yarn build` whenever TypeScript correctness matters, and always before `git push`, PR creation, or merge.
+
 After editing files under `src/`, run:
 
 - `scripts/check-src-rule-violations.sh path/to/changed-src-file.ts [more changed src files...]`
@@ -73,12 +82,21 @@ Test-selection rule:
 - If no mirrored test file exists for the changed area, run the smallest existing relevant test file in the same domain directory.
 - If no targeted test can be identified confidently, run `./scripts/run-with-mise.sh yarn test`.
 
-Before `git push`, PR creation, or merge when `HEAD` is ahead of `origin/main`, review both:
+Before `git push`, PR creation, or merge, run:
+
+- `./scripts/run-with-mise.sh yarn build`
+- `./scripts/run-with-mise.sh yarn test`
+
+When `HEAD` is ahead of `origin/main`, also review both:
 
 - `git diff --stat origin/main...HEAD`
 - `git diff --stat`
 
 If either diff includes source changes, inspect the full diff before concluding review is complete.
+
+After editing `.claude/hooks/**`, `.claude/settings.json`, or `tests/hooks/**`, run:
+
+- `./scripts/run-with-mise.sh yarn test:hooks`
 
 When touching `src/platform/**`, `src-tauri/**`, Vite distribution config, service worker registration, or save import/export:
 
