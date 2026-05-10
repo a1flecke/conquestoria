@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { checkDominationVictory } from '@/systems/victory-system';
+import { processTurn } from '@/core/turn-manager';
+import { EventBus } from '@/core/event-bus';
+import { createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
+import { collectUsedCityNames } from '@/systems/city-name-system';
 import type { GameState } from '@/core/types';
 
 function makeMinimalCiv(id: string, cityIds: string[]) {
@@ -80,5 +85,62 @@ describe('checkDominationVictory', () => {
       ['ai-2', []],
     ]);
     expect(checkDominationVictory(state)).toBe('player');
+  });
+});
+
+describe('processTurn victory wiring', () => {
+  it('sets gameOver and winner when only one civ has cities', () => {
+    const state = createNewGame('egypt', 'test-victory-seed');
+
+    const settler = Object.values(state.units).find(
+      u => u.owner === 'player' && u.type === 'settler',
+    );
+    const pos = settler?.position ?? { q: 5, r: 5 };
+    const city = foundCity('player', pos, state.map, {
+      civType: 'egypt',
+      usedNames: collectUsedCityNames(state),
+    });
+    state.cities[city.id] = city;
+    state.civilizations['player']!.cities = [city.id];
+    state.civilizations['ai-1']!.cities = [];
+
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+
+    expect(result.gameOver).toBe(true);
+    expect(result.winner).toBe('player');
+  });
+
+  it('does NOT set gameOver when both civs have cities', () => {
+    const state = createNewGame('egypt', 'test-no-victory-seed');
+
+    const playerSettler = Object.values(state.units).find(
+      u => u.owner === 'player' && u.type === 'settler',
+    );
+    const playerPos = playerSettler?.position ?? { q: 2, r: 2 };
+    const playerCity = foundCity('player', playerPos, state.map, {
+      civType: 'egypt',
+      usedNames: collectUsedCityNames(state),
+    });
+    state.cities[playerCity.id] = playerCity;
+    state.civilizations['player']!.cities = [playerCity.id];
+
+    const aiSettler = Object.values(state.units).find(
+      u => u.owner === 'ai-1' && u.type === 'settler',
+    );
+    const aiPos = aiSettler?.position ?? { q: 10, r: 10 };
+    const aiCiv = state.civilizations['ai-1'];
+    const aiCity = foundCity('ai-1', aiPos, state.map, {
+      civType: aiCiv?.civType ?? 'generic',
+      usedNames: collectUsedCityNames(state),
+    });
+    state.cities[aiCity.id] = aiCity;
+    state.civilizations['ai-1']!.cities = [aiCity.id];
+
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+
+    expect(result.gameOver).toBe(false);
+    expect(result.winner).toBeNull();
   });
 });
