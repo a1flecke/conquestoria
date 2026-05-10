@@ -107,6 +107,24 @@ export function drawUnits(
           ctx.fillStyle = healthRatio > 0.5 ? '#4caf50' : healthRatio > 0.25 ? '#ff9800' : '#f44336';
           ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
         }
+
+        if (unit.isFortified) {
+          const badgeR = size * 0.16;
+          const badgeX = unitX - size * 0.34;
+          const badgeY = unitY - size * 0.34;
+          ctx.beginPath();
+          ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(200,150,0,0.9)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.font = `${size * 0.18}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'white';
+          ctx.fillText('F', badgeX, badgeY);
+        }
       }
 
       if (stack.length > 1) {

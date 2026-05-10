@@ -61,3 +61,39 @@ export function getUnmovedUnitsForEndTurn(state: GameState, civId: string): Unit
   const roster = new Set(civ.units);
   return getUnmovedUnits(state.units, civId).filter(unit => roster.has(unit.id));
 }
+
+export function fortifyUnitInState(state: GameState, civId: string, unitId: string): GameState {
+  const unit = state.units[unitId];
+  if (!unit || unit.owner !== civId) {
+    return state;
+  }
+
+  return {
+    ...state,
+    units: {
+      ...state.units,
+      [unitId]: {
+        ...unit,
+        isFortified: true,
+        hasActed: true,
+        movementPointsLeft: 0,
+      },
+    },
+  };
+}
+
+export function unfortifyUnitInState(state: GameState, civId: string, unitId: string): GameState {
+  const unit = state.units[unitId];
+  if (!unit || unit.owner !== civId) {
+    return state;
+  }
+
+  const { isFortified: _removed, ...rest } = unit;
+  return {
+    ...state,
+    units: {
+      ...state.units,
+      [unitId]: rest,
+    },
+  };
+}

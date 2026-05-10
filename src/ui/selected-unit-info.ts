@@ -6,6 +6,7 @@ import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
 import { getAvailableWorkerActions, getWorkerActionLabel } from '@/systems/improvement-system';
 import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { hexKey } from '@/systems/hex-utils';
+import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 
 export interface SelectedUnitInfoCallbacks {
   onClose?: () => void;
@@ -14,6 +15,7 @@ export interface SelectedUnitInfoCallbacks {
   onRest?: () => void;
   onSkipTurn?: (unitId: string) => void;
   onDeleteUnit?: (unitId: string) => void;
+  onFortify?: (unitId: string) => void;
   onCancelAutoExplore?: () => void;
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
   onInfiltrate?: (unitId: string) => void;
@@ -129,7 +131,17 @@ export function renderSelectedUnitInfo(
   actionsDiv.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;';
 
   if (def.canFoundCity && callbacks.onFoundCity) {
-    actionsDiv.appendChild(makeButton('Found City', '#e8c170', callbacks.onFoundCity));
+    if (canFoundCityAt(state, unit.position)) {
+      actionsDiv.appendChild(makeButton('Found City', '#e8c170', callbacks.onFoundCity));
+    } else {
+      const blockers = getCityFoundingBlockers(state, unit.position);
+      const btn = makeButton('Found City', '#e8c170');
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+      btn.title = formatCityFoundingBlockerMessage(blockers);
+      actionsDiv.appendChild(btn);
+    }
   }
 
   if (def.canBuildImprovements) {
@@ -168,6 +180,14 @@ export function renderSelectedUnitInfo(
 
   if (callbacks.onDeleteUnit) {
     actionsDiv.appendChild(makeButton('Delete Unit', '#b91c1c', () => callbacks.onDeleteUnit!(unitId)));
+  }
+
+  if (def.strength > 0 && callbacks.onFortify) {
+    if (unit.isFortified) {
+      actionsDiv.appendChild(makeButton('Unfortify', '#6b7a8a', () => callbacks.onFortify!(unitId)));
+    } else if (!unit.hasActed) {
+      actionsDiv.appendChild(makeButton('Fortify', '#3b5268', () => callbacks.onFortify!(unitId)));
+    }
   }
 
   if (isSpyUnitType(unit.type) && !unit.hasActed && callbacks.onSetDisguise) {

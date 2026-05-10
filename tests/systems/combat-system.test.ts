@@ -128,3 +128,34 @@ describe('new terrain defense bonuses', () => {
     expect(getTerrainDefenseBonus('swamp')).toBe(0);
   });
 });
+
+describe('fortify defense bonus', () => {
+  let fortifyMap: GameMap;
+
+  beforeAll(() => {
+    fortifyMap = generateMap(30, 30, 'fortify-combat-test');
+  });
+
+  it('fortified defender takes less damage than an identical non-fortified defender', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 });
+    const defenderFortified = { ...defender, isFortified: true };
+
+    // Same seed → deterministic; only variable is isFortified
+    const resultBase = resolveCombat(attacker, defender, fortifyMap, 42);
+    const resultFortified = resolveCombat(attacker, defenderFortified, fortifyMap, 42);
+
+    expect(resultFortified.defenderDamage).toBeLessThan(resultBase.defenderDamage);
+  });
+
+  it('non-fortified combat produces identical results with the same seed', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 });
+
+    const r1 = resolveCombat(attacker, defender, fortifyMap, 99);
+    const r2 = resolveCombat(attacker, defender, fortifyMap, 99);
+
+    expect(r1.defenderDamage).toBe(r2.defenderDamage);
+    expect(r1.attackerDamage).toBe(r2.attackerDamage);
+  });
+});

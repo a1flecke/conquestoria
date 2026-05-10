@@ -232,6 +232,7 @@ export interface Unit {
   workerTask?: WorkerTask;    // active multi-turn improvement the worker is assigned to
   isResting: boolean;        // player explicitly chose to rest/heal this turn
   skippedTurn?: boolean;     // player chose to hold this unit out of unit cycling this turn
+  isFortified?: boolean;    // unit is in defensive stance; excluded from unmoved-unit cycling, +25% defense
   automation?: {
     mode: 'auto-explore';
     lastTargets: string[];

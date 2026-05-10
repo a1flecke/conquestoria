@@ -130,6 +130,7 @@ import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
 import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
 import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
+import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 
 // --- App State ---
 let gameState: GameState;
@@ -1085,6 +1086,20 @@ function selectUnit(unitId: string): void {
       onRest: () => restAction(),
       onSkipTurn: uid => getUnitTurnFlow().skipUnitAction(uid),
       onDeleteUnit: uid => getUnitTurnFlow().showDeleteUnitConfirmation(uid),
+      onFortify: uid => {
+        const unit = gameState.units[uid];
+        if (!unit || unit.owner !== gameState.currentPlayer) return;
+        if (unit.isFortified) {
+          gameState = unfortifyUnitInState(gameState, gameState.currentPlayer, uid);
+          showNotification('Unit unfortified.', 'info');
+        } else {
+          gameState = fortifyUnitInState(gameState, gameState.currentPlayer, uid);
+          showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
+        }
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(uid);
+      },
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
       onOpenStack: (coord) => {
         handleFriendlyUnitStackTap(gameState, coord, selectedUnitId, {

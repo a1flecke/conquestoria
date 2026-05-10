@@ -82,6 +82,10 @@ export function resolveCombat(
     }
   }
 
+  if (defender.isFortified) {
+    defStrength *= 1.25;
+  }
+
   if (
     context?.attackerBonus?.type === 'coastal_science'
     && (attacker.type === 'galley' || attacker.type === 'trireme')
