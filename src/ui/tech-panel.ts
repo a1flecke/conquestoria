@@ -149,50 +149,27 @@ function createTechNode(
     onQueueResearch: (techId: string) => void;
   },
 ): HTMLButtonElement {
-  const item = document.createElement('button');
-  item.type = 'button';
-  item.className = 'tech-item';
-  item.dataset.techId = node.tech.id;
-  item.dataset.state = node.state;
-  item.dataset.techState = node.state;
-  item.dataset.track = node.track;
-  item.dataset.era = String(node.era);
-  if (opts.isFocused) item.dataset.focused = 'true';
-  if (opts.isSelected) item.dataset.selected = 'true';
-  if (opts.isPath) item.dataset.path = 'selected';
-
   let background = 'rgba(255,255,255,0.05)';
   let border = 'rgba(255,255,255,0.12)';
   let opacity = '0.62';
-  let cursor = 'pointer';
 
   if (node.state === 'completed') {
-    background = 'rgba(107,155,75,0.28)';
-    border = '#6b9b4b';
-    opacity = '1';
+    background = 'rgba(107,155,75,0.28)'; border = '#6b9b4b'; opacity = '1';
   } else if (node.state === 'current') {
-    background = 'rgba(232,193,112,0.22)';
-    border = '#e8c170';
-    opacity = '1';
+    background = 'rgba(232,193,112,0.22)'; border = '#e8c170'; opacity = '1';
   } else if (node.state === 'queued') {
-    background = 'rgba(100,170,255,0.18)';
-    border = 'rgba(100,170,255,0.55)';
-    opacity = '1';
+    background = 'rgba(100,170,255,0.18)'; border = 'rgba(100,170,255,0.55)'; opacity = '1';
   } else if (node.state === 'available') {
-    background = 'rgba(255,255,255,0.11)';
-    border = 'rgba(255,255,255,0.36)';
-    opacity = '1';
+    background = 'rgba(255,255,255,0.11)'; border = 'rgba(255,255,255,0.36)'; opacity = '1';
   } else if (node.state === 'next-layer') {
-    background = 'rgba(232,193,112,0.1)';
-    border = 'rgba(232,193,112,0.28)';
-    opacity = '0.88';
+    background = 'rgba(232,193,112,0.1)'; border = 'rgba(232,193,112,0.28)'; opacity = '0.88';
   }
-
   if (opts.isFocused || opts.isSelected) {
     border = '#f0d48a';
     background = node.state === 'completed' ? 'rgba(107,155,75,0.34)' : 'rgba(232,193,112,0.18)';
   }
 
+  const item = document.createElement('button');
   item.style.cssText = [
     `background:${background}`,
     `border:1px solid ${border}`,
@@ -207,6 +184,16 @@ function createTechNode(
     'text-align:left',
     'width:190px',
   ].join(';');
+  item.type = 'button';
+  item.className = 'tech-item';
+  item.dataset.techId = node.tech.id;
+  item.dataset.state = node.state;
+  item.dataset.techState = node.state;
+  item.dataset.track = node.track;
+  item.dataset.era = String(node.era);
+  if (opts.isFocused) item.dataset.focused = 'true';
+  if (opts.isSelected) item.dataset.selected = 'true';
+  if (opts.isPath) item.dataset.path = 'selected';
 
   const title = document.createElement('div');
   title.style.cssText = 'font-weight:bold;font-size:13px;line-height:1.2;';
@@ -464,10 +451,19 @@ export function createTechPanel(
   const body = document.createElement('div');
   body.style.cssText = 'display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;';
 
+  const techTreeWrapper = document.createElement('div');
+  techTreeWrapper.style.cssText = 'display:flex;flex-direction:row;align-items:flex-start;flex:1 1 620px;min-width:280px;overflow:hidden;';
+  body.appendChild(techTreeWrapper);
+
+  const trackSidebar = document.createElement('div');
+  trackSidebar.id = 'tech-track-sidebar';
+  trackSidebar.style.cssText = 'width:48px;flex-shrink:0;position:relative;overflow:hidden;';
+  techTreeWrapper.appendChild(trackSidebar);
+
   const mapWrap = document.createElement('div');
   mapWrap.dataset.layout = 'tech-dependency-map';
-  mapWrap.style.cssText = 'position:relative;flex:1 1 620px;min-width:280px;overflow:auto;padding-bottom:12px;';
-  body.appendChild(mapWrap);
+  mapWrap.style.cssText = 'flex:1;overflow:auto;position:relative;padding-bottom:12px;';
+  techTreeWrapper.appendChild(mapWrap);
 
   const inspector = document.createElement('aside');
   body.appendChild(inspector);
@@ -498,6 +494,7 @@ export function createTechPanel(
     }
   };
 
+  let hasScrolledToFocus = false;
   const renderTree = () => {
     renderZoomControls();
     mapWrap.textContent = '';
@@ -532,58 +529,124 @@ export function createTechPanel(
       path.setAttribute('fill', 'none');
       edgeLayer.appendChild(path);
     }
-    mapWrap.appendChild(edgeLayer);
+    // --- Phase 3: DAG layout ---
+    const CARD_W = 200;
+    const CARD_H = 92;
+    const GAP_H = 28;
+    const GAP_V = 16;
 
-    const grid = document.createElement('div');
-    grid.style.cssText = 'display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px, max-content);gap:14px;align-items:start;position:relative;z-index:1;';
-    mapWrap.appendChild(grid);
+    // 1. Topological depth over full TECH_TREE
+    const depthMap = new Map<string, number>();
+    const visited = new Set<string>();
+    const inProg = new Set<string>();
+    const topoOrder: string[] = [];
+    function topoVisit(techId: string): void {
+      if (visited.has(techId) || inProg.has(techId)) return;
+      inProg.add(techId);
+      const t = TECH_TREE.find(x => x.id === techId);
+      if (t) { for (const p of t.prerequisites) topoVisit(p); topoOrder.push(techId); }
+      inProg.delete(techId); visited.add(techId);
+    }
+    for (const t of TECH_TREE) topoVisit(t.id);
+    for (const techId of topoOrder) {
+      const t = TECH_TREE.find(x => x.id === techId)!;
+      const maxPrereq = t.prerequisites.length > 0 ? Math.max(...t.prerequisites.map(p => depthMap.get(p) ?? 0)) : -1;
+      depthMap.set(techId, maxPrereq + 1);
+    }
 
-    const eras = [...new Set(visibleNodes.map(node => node.era))].sort((a, b) => a - b);
-    for (const era of eras) {
-      const eraColumn = document.createElement('section');
-      eraColumn.dataset.era = String(era);
-      eraColumn.style.cssText = 'min-width:210px;';
+    // 2. Track row indices (only visible tracks)
+    const trackOrder = Object.keys(TRACK_ICONS) as Tech['track'][];
+    const visibleTracks = trackOrder.filter(tr => visibleNodes.some(n => n.track === tr));
+    const trackRow = new Map<string, number>();
+    visibleTracks.forEach((tr, i) => trackRow.set(tr, i));
 
-      const eraHeading = document.createElement('h3');
-      eraHeading.textContent = getEraLabel(era);
-      eraHeading.style.cssText = era === 5
-        ? 'font-size:11px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:#e8c170;margin:0 0 8px;'
-        : 'font-size:11px;font-weight:bold;letter-spacing:0.04em;text-transform:uppercase;opacity:0.65;margin:0 0 8px;';
-      eraColumn.appendChild(eraHeading);
+    // 3. Pixel positions — sort by (depth, row) then pack downward per column
+    const sortedForLayout = [...visibleNodes].sort((a, b) => {
+      const da = depthMap.get(a.tech.id) ?? 0;
+      const db = depthMap.get(b.tech.id) ?? 0;
+      if (da !== db) return da - db;
+      return (trackRow.get(a.track) ?? 0) - (trackRow.get(b.track) ?? 0);
+    });
+    const colNextY = new Map<number, number>();
+    const nodePos = new Map<string, { x: number; y: number }>();
+    for (const node of sortedForLayout) {
+      const depth = depthMap.get(node.tech.id) ?? 0;
+      const row = trackRow.get(node.track) ?? 0;
+      const baseY = row * (CARD_H + GAP_V);
+      const prevY = colNextY.get(depth) ?? 0;
+      const y = Math.max(baseY, prevY);
+      colNextY.set(depth, y + CARD_H + GAP_V);
+      nodePos.set(node.tech.id, { x: depth * (CARD_W + GAP_H), y });
+    }
 
-      for (const track of progression.tracks) {
-        const trackNodes = visibleNodes.filter(node => node.era === era && node.track === track);
-        if (trackNodes.length === 0) {
-          continue;
-        }
+    const allPos = Array.from(nodePos.values());
+    const maxX = allPos.length > 0 ? Math.max(...allPos.map(p => p.x)) : 0;
+    const maxY = allPos.length > 0 ? Math.max(...allPos.map(p => p.y)) : 0;
+    const contentW = maxX + CARD_W;
+    const contentH = maxY + CARD_H;
 
-        const trackBlock = document.createElement('section');
-        trackBlock.className = 'tech-track';
-        trackBlock.dataset.track = track;
-        trackBlock.style.cssText = 'margin-bottom:12px;';
+    // 4. Content container
+    const contentContainer = document.createElement('div');
+    contentContainer.style.cssText = `position:relative;width:${contentW}px;height:${contentH}px;`;
+    contentContainer.appendChild(edgeLayer);
 
-        const trackHeading = document.createElement('div');
-        trackHeading.textContent = `${TRACK_ICONS[track]} ${titleCase(track)}`;
-        trackHeading.style.cssText = 'font-size:12px;color:#e0d6c8;margin:0 0 6px;';
-        trackBlock.appendChild(trackHeading);
+    // 5. Era boundary markers
+    const eraMinX = new Map<number, number>();
+    for (const node of visibleNodes) {
+      const pos = nodePos.get(node.tech.id);
+      if (!pos) continue;
+      const cur = eraMinX.get(node.era);
+      if (cur === undefined || pos.x < cur) eraMinX.set(node.era, pos.x);
+    }
+    for (const [era, x] of eraMinX) {
+      const marker = document.createElement('div');
+      marker.dataset.era = String(era);
+      marker.style.cssText = `position:absolute;left:${x > 0 ? x - GAP_H / 2 - 0.5 : 0}px;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.1);z-index:0;`;
+      const label = document.createElement('div');
+      label.textContent = getEraLabel(era);
+      label.style.cssText = 'position:absolute;top:2px;left:4px;font-size:10px;white-space:nowrap;opacity:0.5;letter-spacing:0.05em;color:#e8c170;';
+      marker.appendChild(label);
+      contentContainer.appendChild(marker);
+    }
 
-        for (const node of trackNodes) {
-          trackBlock.appendChild(createTechNode(node, {
-            isFocused: progression.focusTechId === node.tech.id,
-            isSelected: selectedTechId === node.tech.id,
-            isPath: progression.selectedPathIds.has(node.tech.id),
-            onSelect: (techId) => {
-              selectedTechId = techId;
-              renderTree();
-            },
-            onQueueResearch: queueResearchAndReopen,
-          }));
-        }
+    // 6. Cards
+    for (const node of visibleNodes) {
+      const pos = nodePos.get(node.tech.id);
+      if (!pos) continue;
+      const card = createTechNode(node, {
+        isFocused: progression.focusTechId === node.tech.id,
+        isSelected: selectedTechId === node.tech.id,
+        isPath: progression.selectedPathIds.has(node.tech.id),
+        onSelect: (techId) => { selectedTechId = techId; renderTree(); },
+        onQueueResearch: queueResearchAndReopen,
+      });
+      card.style.position = 'absolute';
+      card.style.left = `${pos.x}px`;
+      card.style.top = `${pos.y}px`;
+      card.style.width = `${CARD_W}px`;
+      card.dataset.depth = String(depthMap.get(node.tech.id) ?? 0);
+      contentContainer.appendChild(card);
+    }
 
-        eraColumn.appendChild(trackBlock);
-      }
+    mapWrap.appendChild(contentContainer);
 
-      grid.appendChild(eraColumn);
+    // 7. Track sidebar icons — align with first card in each visible track
+    const trackMinY = new Map<string, number>();
+    for (const node of visibleNodes) {
+      const pos = nodePos.get(node.tech.id);
+      if (!pos) continue;
+      const cur = trackMinY.get(node.track);
+      if (cur === undefined || pos.y < cur) trackMinY.set(node.track, pos.y);
+    }
+    trackSidebar.textContent = '';
+    trackSidebar.style.height = `${contentH}px`;
+    for (const tr of visibleTracks) {
+      const minY = trackMinY.get(tr) ?? (trackRow.get(tr) ?? 0) * (CARD_H + GAP_V);
+      const icon = document.createElement('div');
+      icon.title = titleCase(tr);
+      icon.textContent = TRACK_ICONS[tr];
+      icon.style.cssText = `position:absolute;left:0;top:${minY + CARD_H / 2 - 12}px;width:48px;height:24px;display:flex;align-items:center;justify-content:center;font-size:18px;`;
+      trackSidebar.appendChild(icon);
     }
 
     const updateEdgeGeometry = () => {
@@ -627,7 +690,17 @@ export function createTechPanel(
 
     updateEdgeGeometry();
     if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(updateEdgeGeometry);
+      requestAnimationFrame(() => {
+        updateEdgeGeometry();
+        if (!hasScrolledToFocus) {
+          hasScrolledToFocus = true;
+          const focusPos = progression.focusTechId ? nodePos.get(progression.focusTechId) : undefined;
+          if (focusPos && mapWrap.clientWidth > 0) {
+            const target = focusPos.x - (mapWrap.clientWidth / 2 - CARD_W / 2);
+            if (target > 0) mapWrap.scrollLeft = target;
+          }
+        }
+      });
     }
 
     renderInspector(

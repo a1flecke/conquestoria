@@ -61,4 +61,15 @@ describe('worker-task-warning-panel', () => {
     expect(document.querySelectorAll('#worker-task-warning-panel')).toHaveLength(1);
     expect(document.body.textContent).toContain('Mine');
   });
+
+  it('cancel and confirm buttons have styled background and color', () => {
+    const panel = createWorkerTaskWarningPanel(document.body, {
+      improvementName: 'Farm', onConfirm: vi.fn(), onCancel: vi.fn(),
+    });
+    const buttons = Array.from(panel.querySelectorAll('button')) as HTMLButtonElement[];
+    for (const btn of buttons) {
+      expect(btn.style.background, `${btn.textContent} background`).not.toBe('');
+      expect(btn.style.color, `${btn.textContent} color`).not.toBe('');
+    }
+  });
 });

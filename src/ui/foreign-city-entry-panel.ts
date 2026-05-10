@@ -5,6 +5,8 @@ export interface ForeignCityEntryPanelConfig {
   onCancel: () => void;
 }
 
+import { createGameButton } from '@/ui/ui-kit';
+
 export function createForeignCityEntryPanel(
   container: HTMLElement,
   config: ForeignCityEntryPanelConfig,
@@ -23,8 +25,7 @@ export function createForeignCityEntryPanel(
   const buttonRow = document.createElement('div');
   buttonRow.style.cssText = 'display:flex;gap:8px;';
 
-  const cancel = document.createElement('button');
-  cancel.textContent = 'Cancel';
+  const cancel = createGameButton('Cancel', 'ghost');
   cancel.addEventListener('click', () => {
     if (closed) return;
     closed = true;
@@ -32,8 +33,7 @@ export function createForeignCityEntryPanel(
     config.onCancel();
   });
 
-  const confirm = document.createElement('button');
-  confirm.textContent = 'Continue';
+  const confirm = createGameButton('Continue', 'secondary');
   confirm.addEventListener('click', () => {
     if (closed) return;
     closed = true;

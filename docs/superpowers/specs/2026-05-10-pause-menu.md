@@ -19,7 +19,7 @@ During active play the only visible affordances are the primary action bar (Coun
 
 ### Entry point: "☰" floating button in the game shell
 
-Add a `☰` button to `createGameShell`, positioned at `right: 132px` (immediately left of the existing 🗺️ at `right: 92px`). Requires adding `onOpenMenu: () => void` to `GameShellCallbacks` and `PrimaryActionBarCallbacks`.
+Add a `☰` button to `createGameShell`, positioned at `right: 132px` (immediately left of the existing 🗺️ at `right: 92px`). Requires adding `onOpenMenu: () => void` to `GameShellCallbacks` only — **not** `PrimaryActionBarCallbacks`. The menu button is a floating button added in `createGameShell`'s body, not part of the primary action bar that `createPrimaryActionBar` manages.
 
 Button style: matches existing floating buttons (same `cssText` pattern as `btn-notif-log`, `btn-icon-legend`).
 
@@ -38,7 +38,7 @@ Button style: matches existing floating buttons (same `cssText` pattern as `btn-
 
 Panel is a centered overlay (`z-index: 55`, above all game chrome). All three buttons use `createGameButton` from `ui-kit.ts`:
 - **Return to Game**: `'secondary'` variant — closes the panel, returns to active game
-- **Save Game**: `'secondary'` variant — opens `createSavePanel(container, callbacks, 'save')` from the existing save system; when save completes or is cancelled, returns to pause menu
+- **Save Game**: `'secondary'` variant — opens `createSavePanel(container, callbacks, 'save')` from the existing save system. `onSaveToSlot` callback calls `saveGame(slotId, name, gameState)` (note signature: `slotId` first, `name` second, `state` third), shows a "Game saved" notification, then re-renders the pause menu. The pause menu is NOT removed before opening the save panel — the save panel (z-index 60) layers above the pause menu (z-index 55). When save panel closes (after save or on back), the pause menu is revealed without needing to be re-created.
 - **New Game…**: `'secondary'` variant — triggers the "Save First?" confirmation sub-flow below
 
 ### "New Game → Save First?" confirmation sub-flow
@@ -74,7 +74,7 @@ onOpenMenu: () => {
     civName: gameState.civilizations[gameState.currentPlayer].name,
     onResume: () => {},
     onSave: async (slotId, name) => {
-      await saveGame(gameState, slotId, name);
+      await saveGame(slotId, name, gameState); // note: slotId, name, state order
       showNotification('Game saved.', 'info');
     },
     onNewGame: () => showGameModeSelection(),
@@ -82,6 +82,8 @@ onOpenMenu: () => {
   });
 },
 ```
+
+**Victory panel**: The victory panel's "New Game" button continues to call `showGameModeSelection()` directly without a save-first prompt. At game-over the game is complete — saving is not meaningful. This is intentional and not a gap.
 
 No changes to the existing `startGame()`, `autoSave()`, or `showGameModeSelection()` functions.
 

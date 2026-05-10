@@ -4,6 +4,8 @@ export interface WorkerTaskWarningPanelConfig {
   onCancel: () => void;
 }
 
+import { createGameButton } from '@/ui/ui-kit';
+
 export function createWorkerTaskWarningPanel(
   container: HTMLElement,
   config: WorkerTaskWarningPanelConfig,
@@ -22,8 +24,7 @@ export function createWorkerTaskWarningPanel(
   const buttonRow = document.createElement('div');
   buttonRow.style.cssText = 'display:flex;gap:8px;';
 
-  const cancel = document.createElement('button');
-  cancel.textContent = 'Keep working';
+  const cancel = createGameButton('Keep working', 'ghost');
   cancel.addEventListener('click', () => {
     if (closed) return;
     closed = true;
@@ -31,8 +32,7 @@ export function createWorkerTaskWarningPanel(
     config.onCancel();
   });
 
-  const confirm = document.createElement('button');
-  confirm.textContent = 'Move anyway';
+  const confirm = createGameButton('Move anyway', 'danger');
   confirm.addEventListener('click', () => {
     if (closed) return;
     closed = true;

@@ -131,6 +131,7 @@ import { initializeDesktopMenu } from '@/platform/desktop-menu';
 import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
 import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
+import { showPauseMenu } from '@/ui/pause-menu-panel';
 
 // --- App State ---
 let gameState: GameState;
@@ -199,6 +200,19 @@ function createUI(): void {
     onNextUnit: () => selectNextUnit(),
     onOpenNotificationLog: () => toggleNotificationLog(),
     onToggleIconLegend: () => toggleIconLegend(),
+    onOpenMenu: () => {
+      showPauseMenu(uiLayer, {
+        turn: gameState.turn,
+        civName: gameState.civilizations[gameState.currentPlayer].name,
+        onResume: () => {},
+        onSave: async (slotId, name) => {
+          await saveGame(slotId, name, gameState);
+          showNotification('Game saved.', 'info');
+        },
+        onNewGame: () => showGameModeSelection(),
+        autoSave: () => autoSave(gameState),
+      });
+    },
     iconLegendOverlay: createIconLegendOverlay(),
   });
 }

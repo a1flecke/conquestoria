@@ -1,6 +1,7 @@
 import type { GameState, LegendaryWonderIntelEntry } from '@/core/types';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
+import { createGameButton } from '@/ui/ui-kit';
 
 export interface WonderPanelCallbacks {
   onStartBuild: (cityId: string, wonderId: string) => void;
@@ -127,8 +128,7 @@ function appendProjectCard(
   article.appendChild(race);
 
   if (project.phase === 'ready_to_build') {
-    const startBuild = document.createElement('button');
-    startBuild.textContent = 'Start Build';
+    const startBuild = createGameButton('Start Build', 'primary');
     startBuild.addEventListener('click', () => callbacks.onStartBuild(project.cityId, project.wonderId));
     article.appendChild(startBuild);
   }
@@ -279,8 +279,7 @@ export function createWonderPanel(
   appendProjectSection(panel, 'All ambitions in this city', 'all-city-wonders', laterProjects, state, callbacks);
   appendRivalIntelSection(panel, 'In progress elsewhere', 'rival-wonders', rivalIntel.slice(0, 3));
 
-  const close = document.createElement('button');
-  close.textContent = 'Close';
+  const close = createGameButton('Close', 'ghost');
   close.addEventListener('click', () => callbacks.onClose());
   panel.appendChild(close);
 

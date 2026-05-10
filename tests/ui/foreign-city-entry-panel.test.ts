@@ -64,4 +64,15 @@ describe('foreign-city-entry-panel', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(document.querySelector('#foreign-city-entry-panel')).toBeNull();
   });
+
+  it('cancel and confirm buttons have styled background and color (not browser-default)', () => {
+    const panel = createForeignCityEntryPanel(document.body, {
+      cityName: 'Athens', defenderName: 'Greece', onConfirm: vi.fn(), onCancel: vi.fn(),
+    });
+    const buttons = Array.from(panel.querySelectorAll('button')) as HTMLButtonElement[];
+    for (const btn of buttons) {
+      expect(btn.style.background, `${btn.textContent} background`).not.toBe('');
+      expect(btn.style.color, `${btn.textContent} color`).not.toBe('');
+    }
+  });
 });

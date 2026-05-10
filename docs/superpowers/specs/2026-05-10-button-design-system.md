@@ -31,7 +31,7 @@
 
 ### 1. `src/ui/ui-kit.ts` — centralized button factory
 
-Single exported function:
+Two exported functions:
 
 ```ts
 export function createGameButton(
@@ -39,7 +39,11 @@ export function createGameButton(
   variant: ButtonVariant,
   options?: { disabled?: boolean; type?: 'button' | 'submit' }
 ): HTMLButtonElement
+
+export function setButtonDisabled(btn: HTMLButtonElement, disabled: boolean): void
 ```
+
+`setButtonDisabled` applies/removes the disabled visual state (opacity, cursor, pointer-events) without replacing the element. Use it when a button's enabled state changes after creation (e.g. Start Campaign becomes enabled once a civ is selected).
 
 **Variants:**
 
@@ -82,7 +86,11 @@ Replace bare `createElement('button')` calls in the 6 affected files with `creat
 
 ### 3. Migration of existing per-file helpers
 
-`game-mode-select.ts` has a private `createActionButton` — migrate it to delegate to `createGameButton`. `civ-select.ts`'s `createButton` is replaced entirely.
+`game-mode-select.ts` has two private helpers:
+- `createActionButton` (Back button) — migrate to `createGameButton(label, 'ghost')`.
+- `createModeButton` (Solo/Hot Seat mode tiles with 96px height, two-line label+description layout) — **do NOT migrate**; this is a selection tile, not a button variant. Keep as-is with a comment `// mode-tile: intentionally not a createGameButton variant`.
+
+`civ-select.ts`'s `createButton` helper is replaced entirely with `createGameButton(label, 'ghost')`.
 
 No other well-styled buttons need to change; they are already correct and may keep their inline styles for now (they're consistent with what `createGameButton` would produce).
 
@@ -102,10 +110,18 @@ Add section **"No Bare Buttons"**:
 
 ### 6. Hook extension (`.claude/hooks/check-src-edit.sh`)
 
-Add a check that runs only on `src/ui/*.ts` files:
-- Grep for lines matching `createElement\('button'\)` 
-- For each match, check that within the next 5 lines there is either `style.cssText` or `createGameButton` — if not, report a violation
-- Exception: `ui-kit.ts` itself (where the implementation lives), `primary-action-bar.ts` (intentionally custom icon+label design)
+Add a check that runs only on `src/ui/*.ts` files (exempt: `ui-kit.ts`, `primary-action-bar.ts`):
+- For each line containing `createElement('button')`, read lines N..N+8 using `sed`.
+- If none of those lines match `\.style\.|cssText|createGameButton|Object\.assign`, flag the button.
+- This approach (bash `while read` + `sed`) is safe: no awk `getline` stream consumption, handles multiple buttons at any spacing, and matches all style-setting patterns (individual property access, cssText, Object.assign, or createGameButton).
+
+### 7. Hook smoke test additions (`tests/hooks/check-src-edit.test.sh`)
+
+Add to the existing smoke test:
+- **Block**: `src/ui/bare.ts` containing `const btn = document.createElement('button');` with no style on following lines → exit 2.
+- **Allow**: `src/ui/styled.ts` containing `createElement('button')` followed by `btn.style.background = '#e8c170'` → exit 0.
+- **Allow**: `src/ui/kit.ts` containing `createElement('button')` → exit 0 (exempt because filename matches `ui-kit.ts`... use a fixture path like `src/ui/ui-kit.ts`).
+- **Allow**: `src/ui/game-btn.ts` containing `createGameButton('label', 'primary')` → exit 0.
 
 ### 7. Project-level skill (`.claude/skills/button-styling.md`)
 

@@ -92,4 +92,34 @@ if [ "$rc" != "0" ]; then
   echo "expected exit 0 for empty payload, got $rc ($out)"; fail=1
 fi
 
+# --- block: bare createElement('button') without adjacent style in src/ui/ ---
+cat > "$tmp/src/ui/bare.ts" <<'EOF'
+const btn = document.createElement('button');
+btn.textContent = 'Do it';
+btn.addEventListener('click', () => {});
+EOF
+expect_block "$tmp/src/ui/bare.ts" "bare button in src/ui"
+
+# --- allow: button with adjacent style assignment ---
+cat > "$tmp/src/ui/styled.ts" <<'EOF'
+const btn = document.createElement('button');
+btn.style.background = '#e8c170';
+btn.style.color = '#1f1a12';
+btn.textContent = 'OK';
+EOF
+expect_allow "$tmp/src/ui/styled.ts" "styled button in src/ui"
+
+# --- allow: createGameButton call (no bare createElement) ---
+cat > "$tmp/src/ui/game-btn.ts" <<'EOF'
+const btn = createGameButton('label', 'primary');
+EOF
+expect_allow "$tmp/src/ui/game-btn.ts" "createGameButton call (no createElement)"
+
+# --- allow: ui-kit.ts is exempt ---
+cat > "$tmp/src/ui/ui-kit.ts" <<'EOF'
+const btn = document.createElement('button');
+btn.textContent = label;
+EOF
+expect_allow "$tmp/src/ui/ui-kit.ts" "bare button in ui-kit.ts (exempt)"
+
 exit "$fail"

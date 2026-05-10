@@ -7,6 +7,7 @@ import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions 
 import { createDefaultSettings } from '@/core/game-state';
 import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { createSetupSection, createSetupShell } from '@/ui/setup-shell';
+import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 
 export interface CampaignSetupCallbacks {
   onStartSolo: (config: SoloSetupConfig) => void;
@@ -115,10 +116,8 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   civSummary.textContent = 'No civilization selected yet';
   civSection.content.appendChild(civSummary);
 
-  const chooseCivButton = document.createElement('button');
-  chooseCivButton.type = 'button';
+  const chooseCivButton = createGameButton('Choose civilization', 'secondary');
   chooseCivButton.dataset.action = 'choose-civ';
-  chooseCivButton.textContent = 'Choose civilization';
   chooseCivButton.style.alignSelf = 'flex-start';
   civSection.content.appendChild(chooseCivButton);
 
@@ -249,8 +248,9 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     civSummary.textContent = selectedDefinition
       ? `Leading civilization: ${selectedDefinition.name}`
       : 'No civilization selected yet';
-    startButton.disabled = !selectedCivId || !gameTitle;
-    startButton.dataset.ready = startButton.disabled ? 'false' : 'true';
+    const isDisabled = !selectedCivId || !gameTitle;
+    setButtonDisabled(startButton, isDisabled);
+    startButton.dataset.ready = isDisabled ? 'false' : 'true';
   };
 
   const replaceSetupOverlay = (render: () => void): void => {
@@ -315,19 +315,14 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   const buttonRow = document.createElement('div');
   buttonRow.style.cssText = 'display:flex;gap:12px;';
 
-  const cancelButton = document.createElement('button');
-  cancelButton.type = 'button';
-  cancelButton.textContent = 'Cancel';
+  const cancelButton = createGameButton('Cancel', 'ghost');
   cancelButton.addEventListener('click', () => {
     panel.remove();
     callbacks.onCancel();
   });
   buttonRow.appendChild(cancelButton);
 
-  const startButton = document.createElement('button');
-  startButton.type = 'button';
-  startButton.textContent = 'Start Campaign';
-  startButton.disabled = true;
+  const startButton = createGameButton('Start Campaign', 'primary', { disabled: true });
   startButton.addEventListener('click', () => {
     if (!selectedCivId) {
       return;

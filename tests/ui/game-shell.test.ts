@@ -20,6 +20,7 @@ describe('game-shell', () => {
       onNextUnit: () => {},
       onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {},
+      onOpenMenu: () => {},
     });
 
     const shell = createGameShell(document.body, {
@@ -33,6 +34,7 @@ describe('game-shell', () => {
       onNextUnit: () => {},
       onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {},
+      onOpenMenu: () => {},
     });
 
     expect(document.querySelectorAll('#bottom-bar')).toHaveLength(1);

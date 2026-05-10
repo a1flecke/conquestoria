@@ -58,4 +58,21 @@ describe('required-choice-panel', () => {
     expect(document.getElementById('tech-panel')).toBeNull();
     expect(document.getElementById('city-panel')).toBeNull();
   });
+
+  it('Open Tech Panel and Open City buttons have styled background and color', () => {
+    const panel = createRequiredChoicePanel(document.body, {
+      researchChoices: [{ techId: 'fire', label: 'Fire', turns: 4 }],
+      cityChoices: [{ cityId: 'city-1', cityName: 'Roma', itemId: 'warrior', label: 'Warrior', turns: 3 }],
+      onChooseResearch: vi.fn(),
+      onChooseCityBuild: vi.fn(),
+      onOpenTech: vi.fn(),
+      onOpenCity: vi.fn(),
+    });
+    const openTech = Array.from(panel.querySelectorAll('button')).find(b => b.textContent === 'Open Tech Panel') as HTMLButtonElement;
+    const openCity = Array.from(panel.querySelectorAll('button')).find(b => b.textContent === 'Open City') as HTMLButtonElement;
+    expect(openTech.style.background).not.toBe('');
+    expect(openTech.style.color).not.toBe('');
+    expect(openCity.style.background).not.toBe('');
+    expect(openCity.style.color).not.toBe('');
+  });
 });
