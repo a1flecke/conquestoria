@@ -68,6 +68,54 @@ if grep -nE 'innerHTML\s*=\s*`[^`]*\$\{' "$file_path" >/dev/null; then
 $lines"
 fi
 
+# --- bare createElement('button') without style in src/ui/ ---
+# Exceptions: ui-kit.ts (implementation) and primary-action-bar.ts (custom icon-bar design)
+case "$file_path" in
+  */src/ui/ui-kit.ts|*/src/ui/primary-action-bar.ts)
+    : # exempt
+    ;;
+  */src/ui/*.ts)
+    # For each line that creates a button, check that within the next 5 lines
+    # there is a style assignment or a createGameButton call on the same button variable.
+    # We use awk: when we see createElement('button'), read up to 5 subsequent lines
+    # and flag if none contains style\. or cssText or createGameButton.
+    bare_buttons="$(awk '
+      /createElement\('"'"'button'"'"'\)/ {
+        found_style = 0
+        lineno = NR
+        varname = $0
+        sub(/.*const ([a-zA-Z]+).*/, "\\1", varname)
+        # Check current line and next 5
+        buf[0] = $0
+        for (i = 1; i <= 5; i++) {
+          if ((getline line) > 0) {
+            buf[i] = line
+          } else {
+            buf[i] = ""
+          }
+        }
+        for (i = 0; i <= 5; i++) {
+          if (buf[i] ~ /style\.cssText|style\[|Object\.assign.*style|createGameButton/) {
+            found_style = 1
+            break
+          }
+        }
+        if (!found_style) {
+          print lineno ": " buf[0]
+        }
+        # Replay buffered lines (they may contain their own createElement calls)
+        for (i = 1; i <= 5; i++) {
+          if (buf[i] != "") print buf[i] | "cat >&2"
+        }
+      }
+    ' "$file_path" 2>/dev/null)"
+    if [ -n "$bare_buttons" ]; then
+      append "Bare createElement('button') without adjacent style assignment in src/ui/ — use createGameButton() from src/ui/ui-kit.ts (see .claude/rules/ui-panels.md#no-bare-buttons):
+$bare_buttons"
+    fi
+    ;;
+esac
+
 # --- dead return field (heuristic: literal 0/null followed by 'computed' comment) ---
 if grep -nE ':\s*(0|null|\[\])\s*,\s*//\s*calculated' "$file_path" >/dev/null; then
   lines="$(grep -nE ':\s*(0|null|\[\])\s*,\s*//\s*calculated' "$file_path" | head -5)"

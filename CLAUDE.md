@@ -13,7 +13,7 @@ Civilization-building strategy game. TypeScript + Canvas 2D + Vite.
 
 Detailed rules live in `.claude/rules/` and auto-apply based on the files you edit:
 - `.claude/rules/game-systems.md` — RNG, events-vs-state, diplomacy, unit types, **immutable turn processing**, **diplomacy lifecycle**, **no dead return fields**, **spawn occupancy**
-- `.claude/rules/ui-panels.md` — hot-seat `currentPlayer`, **cities[0] is never the answer**, **privacy and discovery**, **no silent destructive UI**, **panel rerender after interaction**, XSS-safe rendering
+- `.claude/rules/ui-panels.md` — hot-seat `currentPlayer`, **cities[0] is never the answer**, **privacy and discovery**, **no silent destructive UI**, **panel rerender after interaction**, XSS-safe rendering, **no bare buttons**
 - `.claude/rules/strategy-game-mechanics.md` — combat, tech gating, victory
 - `.claude/rules/end-to-end-wiring.md` — computed-data-must-render
 - `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, and visible-UI contract preservation
@@ -21,6 +21,11 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests
 
 A PostToolUse hook (`.claude/hooks/check-src-edit.sh`) greps every Write/Edit under `src/` for known rule violations and returns feedback in the same turn.
+
+## Skills
+
+Project-level skills live in `.claude/skills/` and are invoked by the Skill tool:
+- `.claude/skills/button-styling.md` — `createGameButton()` API reference; invoke before writing any button in `src/ui/`
 
 When planning interactive UI or queue work, use `docs/superpowers/plans/README.md` as the minimum checklist for player-visible state transitions, misleading derived labels, and replayable interaction coverage.
 
