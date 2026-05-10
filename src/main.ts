@@ -69,6 +69,7 @@ import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
+import { showVictoryPanel } from '@/ui/victory-panel';
 import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupancy';
 import {
   type PendingCityCaptureChoice,
@@ -1971,7 +1972,26 @@ function handleHexLongPress(rawCoord: HexCoord): void {
   showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + getImprovementDisplayName(tile.improvement) : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
 }
 
+function handleVictoryIfNeeded(): boolean {
+  if (!gameState.gameOver || !gameState.winner) return false;
+  const winnerCiv = gameState.civilizations[gameState.winner];
+  const winnerName = winnerCiv?.name ?? gameState.winner;
+  uiInteractions.setBlockingOverlay('victory');
+  showVictoryPanel(uiLayer, {
+    winnerName,
+    victoryType: 'Domination Victory',
+    turn: gameState.turn,
+    onNewGame: () => {
+      document.getElementById('victory-panel')?.remove();
+      uiInteractions.setBlockingOverlay(null);
+      showGameModeSelection();
+    },
+  });
+  return true;
+}
+
 async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
+  if (gameState.gameOver) return;
   try {
     if (showRequiredChoicesIfNeeded()) {
       showNotification('Choose production and research before ending the turn.', 'info');
@@ -1998,6 +2018,8 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
         }
 
         gameState = processTurn(gameState, bus);
+
+        if (handleVictoryIfNeeded()) return;
 
         if (gameState.settings.musicEnabled && gameState.era !== audio.getCurrentEra()) {
           audio.playProceduralMusic(gameState.era);
@@ -2027,6 +2049,8 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
 
       gameState = processAITurn(gameState, 'ai-1', bus);
       gameState = processTurn(gameState, bus);
+
+      if (handleVictoryIfNeeded()) return;
 
       renderLoop.setGameState(gameState);
       updateHUD();
