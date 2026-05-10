@@ -17,10 +17,12 @@ import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
+import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
+import { createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { applyWorkerAction } from '@/systems/worker-action-system';
+import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
@@ -102,7 +104,7 @@ import {
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { canUpgradeUnit, applyUpgrade } from '@/systems/unit-upgrade-system';
-import { executeUnitMove } from '@/systems/unit-movement-system';
+import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import type { GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
@@ -115,6 +117,8 @@ import {
   routeCombatRewardEarned,
   routeCombatResolved,
   routeFactionTransition,
+  queueFirstContactPendingEvents,
+  routeFirstContact,
   routeLegendaryWonder,
   routePeaceMade,
   routePeaceRequested,
@@ -123,6 +127,8 @@ import {
 } from '@/ui/notification-routing';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
+import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
+import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
 
 // --- App State ---
 let gameState: GameState;
@@ -1302,7 +1308,9 @@ function refreshCurrentPlayerVisibility(): void {
     .filter((position): position is HexCoord => position !== undefined);
 
   updateVisibility(civ.visibility, playerUnits, gameState.map, cityPositions);
-  syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer);
+  for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
+    bus.emit('civilization:first-contact', contact);
+  }
 }
 
 function getUnitTurnFlow() {
@@ -1372,7 +1380,9 @@ function foundCityAction(): void {
     .map(id => gameState.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
   updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
-  syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer);
+  for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
+    bus.emit('civilization:first-contact', contact);
+  }
 
   renderLoop.setGameState(gameState);
   updateHUD();
@@ -1802,6 +1812,36 @@ function handleHexTap(rawCoord: HexCoord): void {
         return;
       }
 
+      if (tapIntent.kind === 'confirm-war-city') {
+        const selectedId = selectedUnitId;
+        const city = gameState.cities[tapIntent.cityId];
+        const defender = gameState.civilizations[tapIntent.defenderId];
+        createForeignCityEntryPanel(uiLayer, {
+          cityName: city?.name ?? 'this city',
+          defenderName: defender?.name ?? tapIntent.defenderId,
+          onConfirm: () => {
+            const begun = beginConfirmedForeignCityEntry(gameState, selectedId, tapIntent.cityId, bus);
+            gameState = begun.state;
+            pendingCityCaptureChoice = begun.pending;
+            const captureCity = gameState.cities[tapIntent.cityId];
+            if (captureCity) {
+              createCityCapturePanel(uiLayer, {
+                cityName: captureCity.name,
+                occupiedPopulation: begun.pending.occupiedPopulation,
+                razeGold: begun.pending.razeGold,
+                onOccupy: () => finalizePendingCityCaptureChoice('occupy'),
+                onRaze: () => finalizePendingCityCaptureChoice('raze'),
+              });
+            }
+            SFX.tap();
+            renderLoop.setGameState(gameState);
+            updateHUD();
+          },
+          onCancel: () => selectUnit(selectedId),
+        });
+        return;
+      }
+
       if (tapIntent.kind === 'assault-minor-civ') {
         const mc = gameState.minorCivs[tapIntent.minorCivId];
         if (mc && !mc.isDestroyed) {
@@ -1828,6 +1868,31 @@ function handleHexTap(rawCoord: HexCoord): void {
       }
 
       // Move unit
+      if (isWorkerBusy(gameState, selectedUnitId)) {
+        const selectedId = selectedUnitId;
+        const task = gameState.units[selectedId]?.workerTask;
+        createWorkerTaskWarningPanel(uiLayer, {
+          improvementName: task ? getImprovementDisplayName(task.action) : 'Improvement',
+          onCancel: () => selectUnit(selectedId),
+          onConfirm: () => {
+            confirmBusyWorkerMove(gameState, selectedId, coord, {
+              actor: 'player',
+              civId: gameState.currentPlayer,
+              bus,
+            });
+            SFX.tap();
+            renderLoop.setGameState(gameState);
+            updateHUD();
+            if (gameState.units[selectedId]?.movementPointsLeft > 0) {
+              selectUnit(selectedId);
+            } else {
+              selectNextUnit();
+            }
+          },
+        });
+        return;
+      }
+
       executeUnitMove(gameState, selectedUnitId, coord, {
         actor: 'player',
         civId: gameState.currentPlayer,
@@ -1988,6 +2053,7 @@ function processImprovements(): void {
       tile.improvementTurnsLeft--;
       if (tile.improvementTurnsLeft === 0) {
         bus.emit('improvement:completed', { coord: tile.coord, type: tile.improvement });
+        gameState = clearCompletedWorkerTasksForImprovement(gameState, tile.coord);
         showNotification(`${getImprovementDisplayName(tile.improvement)} completed!`, 'success');
       }
     }
@@ -2282,6 +2348,11 @@ bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId 
 
 bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
   routeWarDeclared(gameState, attackerId, defenderId, appendToCivLog);
+});
+
+bus.on('civilization:first-contact', ({ civA, civB }) => {
+  routeFirstContact(gameState, civA, civB, appendToCivLog);
+  queueFirstContactPendingEvents(gameState, civA, civB);
 });
 
 bus.on('diplomacy:peace-requested', ({ fromCivId, toCivId }) => {

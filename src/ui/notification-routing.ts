@@ -1,4 +1,5 @@
 import type { CombatResult, CombatRewardNotification, GameState } from '@/core/types';
+import { collectEvent } from '@/core/hotseat-events';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import type { NotificationEntry } from '@/ui/notification-log';
@@ -118,6 +119,30 @@ export function routePeaceRequested(
 ): void {
   const fromName = state.civilizations[fromCivId]?.name ?? 'Unknown';
   sink(toCivId, `${fromName} requests peace.`, 'info');
+}
+
+export function routeFirstContact(
+  state: GameState,
+  civA: string,
+  civB: string,
+  sink: NotificationSink,
+): void {
+  const aName = state.civilizations[civA]?.name ?? civA;
+  const bName = state.civilizations[civB]?.name ?? civB;
+  sink(civA, `You have encountered ${bName}.`, 'info');
+  sink(civB, `You have encountered ${aName}.`, 'info');
+}
+
+export function queueFirstContactPendingEvents(
+  state: GameState,
+  civA: string,
+  civB: string,
+): void {
+  state.pendingEvents ??= {};
+  const aName = state.civilizations[civA]?.name ?? civA;
+  const bName = state.civilizations[civB]?.name ?? civB;
+  collectEvent(state.pendingEvents, civA, { type: 'first-contact', message: `Encountered ${bName}.`, turn: state.turn });
+  collectEvent(state.pendingEvents, civB, { type: 'first-contact', message: `Encountered ${aName}.`, turn: state.turn });
 }
 
 // Routes to the defender's owner regardless of who is currently acting.

@@ -985,7 +985,9 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     .map(id => newState.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
   updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
-  syncCivilizationContactsFromVisibility(newState, civId);
+  for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
+    bus.emit('civilization:first-contact', contact);
+  }
 
   return newState;
 }

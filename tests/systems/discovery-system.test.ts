@@ -125,6 +125,55 @@ describe('discovery-system', () => {
     expect(state.civilizations.player.knownCivilizations).toContain('outsider');
   });
 
+  it('returns a first-contact transition only when contact is newly recorded', () => {
+    const { state } = makeBreakawayFixture({ includeThirdCiv: true });
+    state.cities['outsider-city'] = {
+      ...state.cities['city-border'],
+      id: 'outsider-city',
+      owner: 'outsider',
+      name: 'Outsider Camp',
+      position: { q: 6, r: 0 },
+      ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.civilizations.outsider.cities = ['outsider-city'];
+    state.map.tiles['6,0'] = {
+      ...state.map.tiles['4,0'],
+      coord: { q: 6, r: 0 },
+      owner: 'outsider',
+    };
+    state.civilizations.player.visibility.tiles['6,0'] = 'visible';
+    state.civilizations.player.knownCivilizations = [];
+    state.civilizations.outsider.knownCivilizations = [];
+
+    const first = syncCivilizationContactsFromVisibility(state, 'player');
+    const second = syncCivilizationContactsFromVisibility(state, 'player');
+
+    expect(first).toContainEqual({ civA: 'player', civB: 'outsider' });
+    expect(second).toEqual([]);
+  });
+
+  it('does not return first-contact when the other civ already knows the viewer', () => {
+    const { state } = makeBreakawayFixture({ includeThirdCiv: true });
+    state.units['unit-outsider'] = {
+      id: 'unit-outsider',
+      type: 'warrior',
+      owner: 'outsider',
+      position: { q: 2, r: 0 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.civilizations.outsider.units = ['unit-outsider'];
+    state.civilizations.outsider.knownCivilizations = ['player'];
+    state.civilizations.player.visibility.tiles['2,0'] = 'visible';
+
+    expect(syncCivilizationContactsFromVisibility(state, 'player')).toEqual([]);
+    expect(state.civilizations.player.knownCivilizations).toContain('outsider');
+  });
+
   it('does not lose first contact when visibility changes again before end turn', () => {
     const { state } = makeBreakawayFixture({ includeThirdCiv: true });
     state.map.tiles['0,0'] = {

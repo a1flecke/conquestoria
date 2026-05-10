@@ -290,7 +290,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
     // Update visibility
     updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
-    syncCivilizationContactsFromVisibility(newState, civId);
+    for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
+      bus.emit('civilization:first-contact', contact);
+    }
 
     for (const [targetCivId, turnsRemaining] of Object.entries(currentCivState.satelliteSurveillanceTargets ?? {})) {
       if (turnsRemaining > 0) {
