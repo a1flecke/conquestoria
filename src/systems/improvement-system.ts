@@ -18,6 +18,10 @@ export interface ImprovementDefinition {
   preservesTerrain: boolean;
 }
 
+export interface WorkerActionEligibilityOptions {
+  isCityTile?: boolean;
+}
+
 export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, ImprovementDefinition> = {
   farm: {
     type: 'farm',
@@ -76,9 +80,11 @@ export function canBuildImprovement(
   type: BuildableImprovementType,
   completedTechs: string[] = [],
   ownerId?: string,
+  options: WorkerActionEligibilityOptions = {},
 ): boolean {
   const definition = IMPROVEMENT_DEFINITIONS[type];
   if (!definition) return false;
+  if (options.isCityTile) return false;
   if (ownerId && tile.owner !== ownerId) return false;
   if (tile.improvement !== 'none') return false;
   if (!definition.validTerrains.includes(tile.terrain)) return false;
@@ -87,7 +93,12 @@ export function canBuildImprovement(
   return true;
 }
 
-export function canDrainSwamp(tile: HexTile, ownerId?: string): boolean {
+export function canDrainSwamp(
+  tile: HexTile,
+  ownerId?: string,
+  options: WorkerActionEligibilityOptions = {},
+): boolean {
+  if (options.isCityTile) return false;
   if (ownerId && tile.owner !== ownerId) return false;
   return tile.terrain === 'swamp' && tile.improvement === 'none';
 }
@@ -96,13 +107,14 @@ export function getAvailableWorkerActions(
   tile: HexTile | undefined,
   completedTechs: string[] = [],
   ownerId?: string,
+  options: WorkerActionEligibilityOptions = {},
 ): WorkerActionType[] {
   if (!tile) return [];
   const actions: WorkerActionType[] = [];
   for (const type of Object.keys(IMPROVEMENT_DEFINITIONS) as BuildableImprovementType[]) {
-    if (canBuildImprovement(tile, type, completedTechs, ownerId)) actions.push(type);
+    if (canBuildImprovement(tile, type, completedTechs, ownerId, options)) actions.push(type);
   }
-  if (canDrainSwamp(tile, ownerId)) actions.push('drain_swamp');
+  if (canDrainSwamp(tile, ownerId, options)) actions.push('drain_swamp');
   return actions;
 }
 

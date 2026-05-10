@@ -188,6 +188,42 @@ function compareSaveMeta(a: SaveSlotMeta, b: SaveSlotMeta): number {
   return a.name.localeCompare(b.name);
 }
 
+export interface SaveEpic {
+  gameId: string;
+  title: string;
+  latestTurn: number;
+  latestPlayed: string;
+  gameMode: SaveSlotMeta['gameMode'];
+  playerNames?: string[];
+  saves: SaveSlotMeta[];
+}
+
+export function groupSaveEpics(saves: SaveSlotMeta[]): SaveEpic[] {
+  const groups = new Map<string, SaveSlotMeta[]>();
+  for (const save of saves) {
+    const gameId = save.gameId ?? save.id;
+    groups.set(gameId, [...(groups.get(gameId) ?? []), save]);
+  }
+
+  return [...groups.entries()]
+    .map(([gameId, entries]) => {
+      const sorted = [...entries].sort(compareSaveMeta);
+      const newestFive = sorted.slice(0, 5);
+      const latest = newestFive[0]!;
+      const epic: SaveEpic = {
+        gameId,
+        title: latest.gameTitle ?? latest.name,
+        latestTurn: latest.turn,
+        latestPlayed: latest.lastPlayed,
+        gameMode: latest.gameMode,
+        saves: newestFive,
+      };
+      if (latest.playerNames) epic.playerNames = latest.playerNames;
+      return epic;
+    })
+    .sort((left, right) => right.latestTurn - left.latestTurn || Date.parse(right.latestPlayed) - Date.parse(left.latestPlayed));
+}
+
 function getSaveStorageKey(id: string, kind: 'manual' | 'autosave'): string {
   return kind === 'autosave' ? id : `${SAVE_PREFIX}${id}`;
 }
@@ -421,6 +457,10 @@ export async function listSaves(options: { includeAutoSave?: boolean } = {}): Pr
     buildSaveMeta(LEGACY_AUTO_SAVE_KEY, `Autosave Turn ${legacyAuto.turn}`, legacyAuto, 'autosave'),
     ...visibleManualSaves,
   ].sort(compareSaveMeta);
+}
+
+export async function listSaveEpics(): Promise<SaveEpic[]> {
+  return groupSaveEpics(await listSaves({ includeAutoSave: true }));
 }
 
 export async function renameSave(slotId: string, newName: string): Promise<void> {

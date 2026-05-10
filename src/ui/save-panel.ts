@@ -1,5 +1,5 @@
 import type { SaveSlotMeta, GameState } from '@/core/types';
-import { listSaves, deleteSaveEntry, hasAutoSave } from '@/storage/save-manager';
+import { listSaves, listSaveEpics, deleteSaveEntry, hasAutoSave, type SaveEpic } from '@/storage/save-manager';
 import { getSaveFileAdapter } from '@/platform/save-file-adapter';
 import { exportMostRecentAutoSave, importSaveFromFile } from '@/storage/save-file-transfer';
 
@@ -23,11 +23,12 @@ export async function createSavePanel(
   panel.id = 'save-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.97);z-index:60;overflow-y:auto;padding:16px;';
 
-  const saves = await listSaves({ includeAutoSave: mode === 'start' });
+  const epics = mode === 'start' ? await listSaveEpics() : [];
+  const saves = mode === 'save'
+    ? (await listSaves({ includeAutoSave: false })).filter(save => save.kind !== 'autosave')
+    : [];
   const hasAuto = await hasAutoSave();
-  const displaySaves = mode === 'save'
-    ? saves.filter(save => save.kind !== 'autosave')
-    : saves;
+  let activeGameId: string | null = null;
 
   panel.innerHTML = `
     <div style="max-width:400px;margin:0 auto;">
@@ -35,9 +36,8 @@ export async function createSavePanel(
       <p style="text-align:center;font-size:11px;opacity:0.5;margin-bottom:20px;">Build your civilization</p>
       ${mode === 'start' ? renderStartButtons(hasAuto) : ''}
       <div style="margin-top:16px;">
-        <div style="font-size:14px;color:#e8c170;margin-bottom:8px;">${mode === 'save' ? 'Save Game' : 'Saved Games'}</div>
+        <div id="save-panel-heading" style="font-size:14px;color:#e8c170;margin-bottom:8px;">${mode === 'save' ? 'Save Game' : 'Saved Games'}</div>
         ${mode === 'save' ? renderNewSlotInput() : ''}
-        ${displaySaves.length === 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;padding:16px;">No saved games yet</div>' : ''}
         <div id="save-slots" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
       ${mode === 'start' ? renderBackupButtons() : ''}
@@ -45,12 +45,61 @@ export async function createSavePanel(
   `;
 
   const saveSlots = panel.querySelector('#save-slots');
-  if (saveSlots) {
-    saveSlots.innerHTML = '';
-    for (const save of displaySaves) {
-      saveSlots.appendChild(createSlotCard(save, mode));
+  const heading = panel.querySelector('#save-panel-heading');
+  const renderEmpty = (message: string): void => {
+    if (!saveSlots) return;
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:12px;opacity:0.5;text-align:center;padding:16px;';
+    empty.textContent = message;
+    saveSlots.appendChild(empty);
+  };
+  const renderSaveMode = (): void => {
+    if (!saveSlots) return;
+    saveSlots.textContent = '';
+    if (saves.length === 0) {
+      renderEmpty('No saved games yet');
+      return;
     }
-  }
+    for (const save of saves) {
+      saveSlots.appendChild(createSlotCard(save, 'save'));
+    }
+  };
+  const renderEpicList = (items: SaveEpic[]): void => {
+    if (!saveSlots) return;
+    activeGameId = null;
+    if (heading) heading.textContent = 'Saved Games';
+    saveSlots.textContent = '';
+    if (items.length === 0) {
+      renderEmpty('No saved games yet');
+      return;
+    }
+    for (const epic of items) {
+      saveSlots.appendChild(createEpicCard(epic));
+    }
+  };
+  const renderEpicDetail = (epic: SaveEpic): void => {
+    if (!saveSlots) return;
+    activeGameId = epic.gameId;
+    if (heading) heading.textContent = epic.title;
+    saveSlots.textContent = '';
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.dataset.role = 'back-to-epics';
+    back.style.cssText = 'align-self:flex-start;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;font-size:11px;cursor:pointer;';
+    back.textContent = 'Back to campaigns';
+    saveSlots.appendChild(back);
+
+    if (epic.saves.length === 0) {
+      renderEmpty('No saved games yet');
+      return;
+    }
+    for (const save of epic.saves) {
+      saveSlots.appendChild(createSlotCard(save, 'start'));
+    }
+  };
+
+  if (mode === 'save') renderSaveMode();
+  else renderEpicList(epics);
 
   container.appendChild(panel);
   const status = panel.querySelector('#save-panel-status');
@@ -112,7 +161,19 @@ export async function createSavePanel(
 
     const slotId = target.dataset.slotId;
     const slotKind = target.dataset.slotKind as 'manual' | 'autosave' | undefined;
+    const gameId = target.dataset.gameId;
     const role = target.dataset.role;
+
+    if (role === 'open-epic' && gameId) {
+      const epic = epics.find(candidate => candidate.gameId === gameId);
+      if (epic) renderEpicDetail(epic);
+      return;
+    }
+
+    if (role === 'back-to-epics') {
+      renderEpicList(epics);
+      return;
+    }
 
     if (role === 'load-slot' && slotId && slotKind) {
       panel.remove();
@@ -132,6 +193,14 @@ export async function createSavePanel(
 
     if (role === 'delete-slot' && slotId && slotKind) {
       await deleteSaveEntry(slotId, slotKind);
+      if (mode === 'start') {
+        const refreshedEpics = await listSaveEpics();
+        epics.splice(0, epics.length, ...refreshedEpics);
+        const refreshedActive = activeGameId ? epics.find(epic => epic.gameId === activeGameId) : null;
+        if (refreshedActive) renderEpicDetail(refreshedActive);
+        else renderEpicList(epics);
+        return;
+      }
       panel.remove();
       await createSavePanel(container, callbacks, mode);
     }
@@ -167,6 +236,39 @@ function renderNewSlotInput(): string {
       <button id="btn-save-new" style="padding:8px 16px;border-radius:8px;background:#6b9b4b;border:none;color:white;font-weight:bold;cursor:pointer;">Save</button>
     </div>
   `;
+}
+
+function createEpicCard(epic: SaveEpic): HTMLElement {
+  const card = document.createElement('div');
+  card.dataset.saveEpicCard = 'true';
+  card.style.cssText = 'background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;';
+
+  const content = document.createElement('div');
+  content.style.cssText = 'flex:1;';
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:13px;font-weight:bold;';
+  title.textContent = epic.title;
+  content.appendChild(title);
+
+  const date = new Date(epic.latestPlayed);
+  const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const meta = document.createElement('div');
+  meta.style.cssText = 'font-size:11px;opacity:0.5;';
+  const modeText = epic.gameMode === 'hotseat' ? `Hot Seat (${epic.playerNames?.join(', ') ?? ''})` : 'Solo';
+  meta.textContent = `Latest turn ${epic.latestTurn} · ${epic.saves.length} save${epic.saves.length === 1 ? '' : 's'} · ${modeText} · ${dateStr}`;
+  content.appendChild(meta);
+  card.appendChild(content);
+
+  const open = document.createElement('button');
+  open.type = 'button';
+  open.dataset.role = 'open-epic';
+  open.dataset.gameId = epic.gameId;
+  open.style.cssText = 'padding:6px 12px;border-radius:6px;background:#4a90d9;border:none;color:white;font-size:11px;cursor:pointer;';
+  open.textContent = 'Open';
+  card.appendChild(open);
+
+  return card;
 }
 
 function createSlotCard(save: SaveSlotMeta, mode: 'start' | 'save'): HTMLElement {

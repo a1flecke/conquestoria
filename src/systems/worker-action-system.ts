@@ -77,6 +77,11 @@ function findNearestOwnedCity(state: GameState, owner: string, coord: HexCoord):
   return cities[0] ?? null;
 }
 
+function isCityCenterTile(state: GameState, coord: HexCoord): boolean {
+  const key = hexKey(coord);
+  return Object.values(state.cities).some(city => hexKey(city.position) === key);
+}
+
 function removeUnit(state: GameState, unit: Unit): GameState {
   const { [unit.id]: _removed, ...remainingUnits } = state.units;
   const civ = state.civilizations[unit.owner];
@@ -118,11 +123,12 @@ export function applyWorkerAction(
   if (!tile) return { ok: false, state, reason: 'missing-tile', events: [] };
 
   const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
+  const eligibilityOptions = { isCityTile: isCityCenterTile(state, unit.position) };
   if (isBuildableImprovement(action)) {
-    if (!canBuildImprovement(tile, action, completedTechs, unit.owner)) {
+    if (!canBuildImprovement(tile, action, completedTechs, unit.owner, eligibilityOptions)) {
       return { ok: false, state, reason: 'invalid-action', events: [] };
     }
-  } else if (!canDrainSwamp(tile, unit.owner)) {
+  } else if (!canDrainSwamp(tile, unit.owner, eligibilityOptions)) {
     return { ok: false, state, reason: 'invalid-action', events: [] };
   }
 

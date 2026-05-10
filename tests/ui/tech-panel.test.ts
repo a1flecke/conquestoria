@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { enqueueResearch } from '@/systems/planning-system';
 import { startResearch, TECH_TREE } from '@/systems/tech-system';
@@ -66,6 +66,23 @@ describe('tech-panel', () => {
     });
 
     expect(panel.textContent).toContain('Turns remaining');
+  });
+
+  it('does not show ETA unknown for the current research node when pacing is known', () => {
+    const state = createNewGame(undefined, 'tech-current-node-eta-test');
+    state.civilizations.player.techState.currentResearch = 'stone-weapons';
+    state.civilizations.player.techState.researchProgress = 4;
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    const currentNode = panel.querySelector('[data-tech-id="stone-weapons"]');
+    expect(currentNode?.textContent).toContain('turns');
+    expect(currentNode?.textContent).not.toContain('ETA unknown');
   });
 
   it('keeps deep locked items out of the default view while keeping zoom affordances', () => {
@@ -211,6 +228,61 @@ describe('tech-panel', () => {
     expect(panel.textContent).toContain('Research Queue');
     expect(panel.querySelector('[data-queue-action="remove"]')).toBeTruthy();
     expect(panel.textContent).toContain('Starts in');
+  });
+
+  it('keeps queued ETAs visible after queue reorder and remove actions', () => {
+    const state = createNewGame(undefined, 'tech-queue-eta-refresh-test');
+    state.civilizations.player.techState.currentResearch = 'fire';
+    state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+
+    createTechPanel(document.body, state, {
+      onQueueResearch: vi.fn(),
+      onMoveQueuedResearch: (fromIndex, toIndex) => {
+        const queue = [...state.civilizations.player.techState.researchQueue];
+        const [moved] = queue.splice(fromIndex, 1);
+        if (moved) {
+          queue.splice(toIndex, 0, moved);
+        }
+        state.civilizations.player.techState = {
+          ...state.civilizations.player.techState,
+          researchQueue: queue,
+        };
+      },
+      onRemoveQueuedResearch: (index) => {
+        state.civilizations.player.techState = {
+          ...state.civilizations.player.techState,
+          researchQueue: state.civilizations.player.techState.researchQueue.filter((_, queueIndex) => queueIndex !== index),
+        };
+      },
+      onClose: () => {},
+    });
+
+    document.body.querySelector<HTMLButtonElement>('[data-queue-action="down"][data-queue-index="0"]')?.click();
+    document.body.querySelector<HTMLButtonElement>('[data-queue-action="remove"][data-queue-index="0"]')?.click();
+
+    const panelAfter = document.body.querySelector('#tech-panel');
+    const remainingQueuedNode = panelAfter?.querySelector('[data-tech-id="writing"]');
+    expect(state.civilizations.player.techState.researchQueue).toEqual(['writing']);
+    expect(panelAfter?.textContent).toContain('Queue slot 1');
+    expect(remainingQueuedNode?.textContent).toContain('turns');
+    expect(remainingQueuedNode?.textContent).not.toContain('ETA unknown');
+  });
+
+  it('labels deep locked tech ETA as locked instead of unknown or numeric', () => {
+    const state = createNewGame(undefined, 'tech-locked-eta-test');
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.click();
+
+    const banking = document.body.querySelector('[data-tech-id="banking"]');
+    expect(banking?.textContent).toContain('ETA locked');
+    expect(banking?.textContent).not.toContain('ETA unknown');
+    expect(banking?.textContent).not.toMatch(/\d+ turns/);
   });
 
   it('styles queue control buttons consistently (not browser default)', () => {

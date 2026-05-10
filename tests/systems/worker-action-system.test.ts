@@ -223,6 +223,34 @@ describe('worker action system', () => {
     expect(result.state.cities['city-1'].productionProgress).toBe(0);
   });
 
+  it('rejects worker improvements on a city-center tile even when the terrain is otherwise valid', () => {
+    const start = state();
+    start.cities['city-1'] = city({ position: { q: 0, r: 0 }, ownedTiles: [{ q: 0, r: 0 }] });
+    start.map.tiles['0,0'] = tile({ terrain: 'plains', owner: 'player' });
+    start.units['worker-1'] = worker({ position: { q: 0, r: 0 } });
+
+    const result = applyWorkerAction(start, 'worker-1', 'farm');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('invalid-action');
+    expect(result.state.map.tiles['0,0']).toMatchObject({ improvement: 'none', improvementTurnsLeft: 0 });
+    expect(result.state.units['worker-1']).toBeDefined();
+  });
+
+  it('still allows worker improvements on owned non-city tiles', () => {
+    const start = state();
+    start.cities['city-1'] = city({ position: { q: 0, r: 1 }, ownedTiles: [{ q: 0, r: 0 }, { q: 0, r: 1 }] });
+    start.map.tiles['0,0'] = tile({ terrain: 'plains', owner: 'player' });
+    start.units['worker-1'] = worker({ position: { q: 0, r: 0 } });
+
+    const result = applyWorkerAction(start, 'worker-1', 'farm');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.map.tiles['0,0']).toMatchObject({ improvement: 'farm', improvementTurnsLeft: 4 });
+  });
+
   it('drains swamp to grassland without placing an improvement when the worker survives', () => {
     const start = state();
     start.map.tiles['0,0'] = tile({ terrain: 'swamp' });

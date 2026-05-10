@@ -201,6 +201,15 @@ export function buildTechProgressionView(
     const visibleInKnown = revealed;
     const visibleInFocus = nodeState !== 'locked' || isFocusNeighbor || revealed;
     const visibleByDefault = visibleInFocus;
+    const queuedIndex = state.researchQueue.indexOf(tech.id);
+    const turnsToResearch = state.currentResearch === tech.id
+      ? estimateTurnsToComplete({
+        cost: Math.max(0, tech.cost - state.researchProgress),
+        outputPerTurn: sciencePerTurn,
+      })
+      : queuedIndex >= 0 || queueableIds.has(tech.id)
+        ? estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: sciencePerTurn })
+        : null;
 
     if (visibleByDefault) defaultVisibleIds.add(tech.id);
     if (visibleInKnown) knownVisibleIds.add(tech.id);
@@ -217,9 +226,7 @@ export function buildTechProgressionView(
       prerequisiteIds: tech.prerequisites,
       satisfiedPrerequisiteIds,
       missingPrerequisiteIds,
-      turnsToResearch: queueableIds.has(tech.id)
-        ? estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: sciencePerTurn })
-        : null,
+      turnsToResearch,
       revealed,
       visibleInFocus,
       visibleInKnown,

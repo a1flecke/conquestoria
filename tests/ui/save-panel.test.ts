@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   listSaves: vi.fn(),
+  listSaveEpics: vi.fn(),
   hasAutoSave: vi.fn(),
   loadAutoSave: vi.fn(),
   deleteSaveEntry: vi.fn(),
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/storage/save-manager', () => ({
   listSaves: mocks.listSaves,
+  listSaveEpics: mocks.listSaveEpics,
   hasAutoSave: mocks.hasAutoSave,
   loadAutoSave: mocks.loadAutoSave,
   deleteSaveEntry: mocks.deleteSaveEntry,
@@ -36,6 +38,7 @@ describe('save-panel', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     mocks.listSaves.mockReset();
+    mocks.listSaveEpics.mockReset();
     mocks.hasAutoSave.mockReset();
     mocks.loadAutoSave.mockReset();
     mocks.deleteSaveEntry.mockReset();
@@ -59,16 +62,25 @@ describe('save-panel', () => {
   it('renders listed saves into the mounted save-slots container in start mode', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(true);
-    mocks.listSaves.mockResolvedValue([
+    mocks.listSaveEpics.mockResolvedValue([
       {
-        id: 'autosave:game-1:9',
-        name: 'Autosave Turn 9',
-        civType: 'egypt',
-        turn: 9,
-        lastPlayed: '2026-04-08T12:00:00.000Z',
-        kind: 'autosave',
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
         gameMode: 'solo',
-        gameTitle: 'Desert Run',
+        saves: [
+          {
+            id: 'autosave:game-1:9',
+            name: 'Autosave Turn 9',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'autosave',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
       },
     ]);
 
@@ -78,8 +90,8 @@ describe('save-panel', () => {
       onLoadSlot: () => {},
     });
 
-    expect(document.querySelectorAll('#save-panel [data-save-slot-card="true"]')).toHaveLength(1);
-    expect(document.body.textContent).toContain('Autosave Turn 9');
+    expect(document.querySelectorAll('#save-panel [data-save-epic-card="true"]')).toHaveLength(1);
+    expect(document.body.textContent).not.toContain('Autosave Turn 9');
     expect(document.body.textContent).toContain('Desert Run');
   });
 
@@ -123,16 +135,25 @@ describe('save-panel', () => {
   it('routes autosave row deletion through the autosave delete path', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(true);
-    mocks.listSaves.mockResolvedValue([
+    mocks.listSaveEpics.mockResolvedValue([
       {
-        id: 'autosave:game-1:9',
-        name: 'Autosave Turn 9',
-        civType: 'egypt',
-        turn: 9,
-        lastPlayed: '2026-04-08T12:00:00.000Z',
-        kind: 'autosave',
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
         gameMode: 'solo',
-        gameTitle: 'Desert Run',
+        saves: [
+          {
+            id: 'autosave:game-1:9',
+            name: 'Autosave Turn 9',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'autosave',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
       },
     ]);
 
@@ -142,6 +163,7 @@ describe('save-panel', () => {
       onLoadSlot: () => {},
     });
 
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="delete-slot"]') as HTMLButtonElement).click();
 
     expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('autosave:game-1:9', 'autosave');
@@ -152,16 +174,25 @@ describe('save-panel', () => {
     const onContinue = vi.fn();
     const onLoadSlot = vi.fn();
     mocks.hasAutoSave.mockResolvedValue(true);
-    mocks.listSaves.mockResolvedValue([
+    mocks.listSaveEpics.mockResolvedValue([
       {
-        id: 'autosave:game-1:9',
-        name: 'Autosave Turn 9',
-        civType: 'egypt',
-        turn: 9,
-        lastPlayed: '2026-04-08T12:00:00.000Z',
-        kind: 'autosave',
+        gameId: 'game-1',
+        title: 'Desert Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
         gameMode: 'solo',
-        gameTitle: 'Desert Run',
+        saves: [
+          {
+            id: 'autosave:game-1:9',
+            name: 'Autosave Turn 9',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'autosave',
+            gameMode: 'solo',
+            gameTitle: 'Desert Run',
+          },
+        ],
       },
     ]);
 
@@ -171,6 +202,7 @@ describe('save-panel', () => {
       onLoadSlot,
     });
 
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="load-slot"]') as HTMLButtonElement).click();
 
     expect(onLoadSlot).toHaveBeenCalledWith('autosave:game-1:9');
@@ -180,39 +212,57 @@ describe('save-panel', () => {
   it('rerenders the list after deleting one row and keeps the remaining rows visible', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(false);
-    mocks.listSaves
+    mocks.listSaveEpics
       .mockResolvedValueOnce([
         {
-          id: 'slot-1',
-          name: 'Manual Save A',
-          civType: 'egypt',
-          turn: 9,
-          lastPlayed: '2026-04-08T12:00:00.000Z',
-          kind: 'manual',
+          gameId: 'game-1',
+          title: 'Desert Run',
+          latestTurn: 10,
+          latestPlayed: '2026-04-08T12:05:00.000Z',
           gameMode: 'solo',
-          gameTitle: 'Desert Run',
-        },
-        {
-          id: 'slot-2',
-          name: 'Manual Save B',
-          civType: 'egypt',
-          turn: 10,
-          lastPlayed: '2026-04-08T12:05:00.000Z',
-          kind: 'manual',
-          gameMode: 'solo',
-          gameTitle: 'Desert Run',
+          saves: [
+            {
+              id: 'slot-2',
+              name: 'Manual Save B',
+              civType: 'egypt',
+              turn: 10,
+              lastPlayed: '2026-04-08T12:05:00.000Z',
+              kind: 'manual',
+              gameMode: 'solo',
+              gameTitle: 'Desert Run',
+            },
+            {
+              id: 'slot-1',
+              name: 'Manual Save A',
+              civType: 'egypt',
+              turn: 9,
+              lastPlayed: '2026-04-08T12:00:00.000Z',
+              kind: 'manual',
+              gameMode: 'solo',
+              gameTitle: 'Desert Run',
+            },
+          ],
         },
       ])
       .mockResolvedValueOnce([
         {
-          id: 'slot-2',
-          name: 'Manual Save B',
-          civType: 'egypt',
-          turn: 10,
-          lastPlayed: '2026-04-08T12:05:00.000Z',
-          kind: 'manual',
+          gameId: 'game-1',
+          title: 'Desert Run',
+          latestTurn: 10,
+          latestPlayed: '2026-04-08T12:05:00.000Z',
           gameMode: 'solo',
-          gameTitle: 'Desert Run',
+          saves: [
+            {
+              id: 'slot-2',
+              name: 'Manual Save B',
+              civType: 'egypt',
+              turn: 10,
+              lastPlayed: '2026-04-08T12:05:00.000Z',
+              kind: 'manual',
+              gameMode: 'solo',
+              gameTitle: 'Desert Run',
+            },
+          ],
         },
       ]);
 
@@ -222,6 +272,7 @@ describe('save-panel', () => {
       onLoadSlot: () => {},
     });
 
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="delete-slot"][data-slot-id="slot-1"]') as HTMLButtonElement).click();
     await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -234,16 +285,25 @@ describe('save-panel', () => {
   it('renders user-controlled save labels as literal text', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(false);
-    mocks.listSaves.mockResolvedValue([
+    mocks.listSaveEpics.mockResolvedValue([
       {
-        id: 'slot-1',
-        name: '<span id="evil-save">Owned</span>',
-        civType: 'egypt',
-        turn: 9,
-        lastPlayed: '2026-04-08T12:00:00.000Z',
-        kind: 'manual',
+        gameId: 'game-1',
+        title: '<span id="evil-title">Injected</span>',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
         gameMode: 'solo',
-        gameTitle: '<span id="evil-title">Injected</span>',
+        saves: [
+          {
+            id: 'slot-1',
+            name: '<span id="evil-save">Owned</span>',
+            civType: 'egypt',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'manual',
+            gameMode: 'solo',
+            gameTitle: '<span id="evil-title">Injected</span>',
+          },
+        ],
       },
     ]);
 
@@ -255,23 +315,38 @@ describe('save-panel', () => {
 
     expect(document.getElementById('evil-save')).toBeNull();
     expect(document.getElementById('evil-title')).toBeNull();
+    expect(document.body.textContent).toContain('<span id="evil-title">Injected</span>');
+
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
+
+    expect(document.getElementById('evil-save')).toBeNull();
     expect(document.body.textContent).toContain('<span id="evil-save">Owned</span>');
   });
 
   it('renders hot-seat player names as plain text instead of markup', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(false);
-    mocks.listSaves.mockResolvedValue([
+    mocks.listSaveEpics.mockResolvedValue([
       {
-        id: 'slot-1',
-        name: 'Manual Save',
-        civType: 'hotseat',
-        turn: 9,
-        lastPlayed: '2026-04-08T12:00:00.000Z',
-        kind: 'manual',
+        gameId: 'game-1',
+        title: 'Hot Seat Run',
+        latestTurn: 9,
+        latestPlayed: '2026-04-08T12:00:00.000Z',
         gameMode: 'hotseat',
         playerNames: ['Alice', '<span id="evil-player">Bob</span>'],
-        gameTitle: 'Hot Seat Run',
+        saves: [
+          {
+            id: 'slot-1',
+            name: 'Manual Save',
+            civType: 'hotseat',
+            turn: 9,
+            lastPlayed: '2026-04-08T12:00:00.000Z',
+            kind: 'manual',
+            gameMode: 'hotseat',
+            playerNames: ['Alice', '<span id="evil-player">Bob</span>'],
+            gameTitle: 'Hot Seat Run',
+          },
+        ],
       },
     ]);
 
@@ -288,7 +363,7 @@ describe('save-panel', () => {
   it('shows an inline error when exporting without an available save', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(false);
-    mocks.listSaves.mockResolvedValue([]);
+    mocks.listSaveEpics.mockResolvedValue([]);
     mocks.exportMostRecentAutoSave.mockResolvedValue({ status: 'error', message: 'No save to export.' });
 
     await createSavePanel(container, {
@@ -307,7 +382,7 @@ describe('save-panel', () => {
   it('keeps the panel open without an error when import is cancelled', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(false);
-    mocks.listSaves.mockResolvedValue([]);
+    mocks.listSaveEpics.mockResolvedValue([]);
     mocks.importSaveFromFile.mockResolvedValue({ status: 'cancelled' });
 
     await createSavePanel(container, {
@@ -326,7 +401,7 @@ describe('save-panel', () => {
   it('keeps the panel open and shows an error when import data is invalid', async () => {
     const container = mountContainer();
     mocks.hasAutoSave.mockResolvedValue(false);
-    mocks.listSaves.mockResolvedValue([]);
+    mocks.listSaveEpics.mockResolvedValue([]);
     mocks.importSaveFromFile.mockResolvedValue({
       status: 'error',
       message: 'Invalid save file: missing required game state fields.',
@@ -354,7 +429,7 @@ describe('save-panel', () => {
       civilizations: { player: { civType: 'egypt' } },
     } as any;
     mocks.hasAutoSave.mockResolvedValue(false);
-    mocks.listSaves.mockResolvedValue([]);
+    mocks.listSaveEpics.mockResolvedValue([]);
     mocks.importSaveFromFile.mockResolvedValue({ status: 'success', state: importedState });
 
     await createSavePanel(container, {
@@ -369,5 +444,120 @@ describe('save-panel', () => {
 
     expect(onImportSave).toHaveBeenCalledWith(importedState);
     expect(document.querySelector('#save-panel')).toBeNull();
+  });
+
+  it('shows epics first and opens a turn list for the selected epic', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(true);
+    mocks.listSaveEpics.mockResolvedValue([
+      {
+        gameId: 'game-a',
+        title: 'Daddy Alex',
+        latestTurn: 9,
+        latestPlayed: '2026-05-10T01:00:00Z',
+        gameMode: 'solo',
+        saves: [
+          { id: 'autosave:game-a:9', name: 'Autosave Turn 9', civType: 'rome', turn: 9, lastPlayed: '2026-05-10T01:00:00Z', kind: 'autosave', gameMode: 'solo', gameId: 'game-a', gameTitle: 'Daddy Alex' },
+          { id: 'autosave:game-a:8', name: 'Autosave Turn 8', civType: 'rome', turn: 8, lastPlayed: '2026-05-10T00:00:00Z', kind: 'autosave', gameMode: 'solo', gameId: 'game-a', gameTitle: 'Daddy Alex' },
+        ],
+      },
+      {
+        gameId: 'game-b',
+        title: 'Tiny Epic',
+        latestTurn: 4,
+        latestPlayed: '2026-05-09T00:00:00Z',
+        gameMode: 'solo',
+        saves: [
+          { id: 'slot-b', name: 'Manual Save', civType: 'egypt', turn: 4, lastPlayed: '2026-05-09T00:00:00Z', kind: 'manual', gameMode: 'solo', gameId: 'game-b', gameTitle: 'Tiny Epic' },
+        ],
+      },
+    ]);
+    const onLoadSlot = vi.fn();
+
+    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadSlot });
+
+    expect(document.body.textContent).toContain('Daddy Alex');
+    expect(document.body.textContent).toContain('Tiny Epic');
+    expect(document.body.textContent).not.toContain('Autosave Turn 8');
+
+    (document.querySelector('[data-role="open-epic"][data-game-id="game-a"]') as HTMLButtonElement).click();
+
+    expect(document.body.textContent).toContain('Back to campaigns');
+    expect(document.body.textContent).toContain('Autosave Turn 9');
+    expect(document.body.textContent).toContain('Autosave Turn 8');
+  });
+
+  it('loads an exact save id from the opened epic detail', async () => {
+    const container = mountContainer();
+    const onLoadSlot = vi.fn();
+    mocks.hasAutoSave.mockResolvedValue(true);
+    mocks.listSaveEpics.mockResolvedValue([
+      {
+        gameId: 'game-a',
+        title: 'Daddy Alex',
+        latestTurn: 9,
+        latestPlayed: '2026-05-10T01:00:00Z',
+        gameMode: 'solo',
+        saves: [
+          { id: 'autosave:game-a:9', name: 'Autosave Turn 9', civType: 'rome', turn: 9, lastPlayed: '2026-05-10T01:00:00Z', kind: 'autosave', gameMode: 'solo', gameId: 'game-a', gameTitle: 'Daddy Alex' },
+        ],
+      },
+    ]);
+
+    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadSlot });
+    (document.querySelector('[data-role="open-epic"][data-game-id="game-a"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="load-slot"][data-slot-id="autosave:game-a:9"]') as HTMLButtonElement).click();
+
+    expect(onLoadSlot).toHaveBeenCalledWith('autosave:game-a:9');
+  });
+
+  it('returns from an epic detail to the campaign list', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(true);
+    mocks.listSaveEpics.mockResolvedValue([
+      { gameId: 'game-a', title: 'Daddy Alex', latestTurn: 9, latestPlayed: '2026-05-10T01:00:00Z', gameMode: 'solo', saves: [
+        { id: 'autosave:game-a:9', name: 'Autosave Turn 9', civType: 'rome', turn: 9, lastPlayed: '2026-05-10T01:00:00Z', kind: 'autosave', gameMode: 'solo', gameId: 'game-a', gameTitle: 'Daddy Alex' },
+      ] },
+      { gameId: 'game-b', title: 'Tiny Epic', latestTurn: 4, latestPlayed: '2026-05-09T00:00:00Z', gameMode: 'solo', saves: [
+        { id: 'slot-b', name: 'Manual Save', civType: 'egypt', turn: 4, lastPlayed: '2026-05-09T00:00:00Z', kind: 'manual', gameMode: 'solo', gameId: 'game-b', gameTitle: 'Tiny Epic' },
+      ] },
+    ]);
+
+    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadSlot: vi.fn() });
+    (document.querySelector('[data-role="open-epic"][data-game-id="game-a"]') as HTMLButtonElement).click();
+    expect(document.body.textContent).toContain('Back to campaigns');
+
+    (document.querySelector('[data-role="back-to-epics"]') as HTMLButtonElement).click();
+
+    expect(document.body.textContent).toContain('Daddy Alex');
+    expect(document.body.textContent).toContain('Tiny Epic');
+    expect(document.body.textContent).not.toContain('Autosave Turn 9');
+  });
+
+  it('refreshes the opened epic detail after deleting one turn save', async () => {
+    const container = mountContainer();
+    mocks.hasAutoSave.mockResolvedValue(true);
+    mocks.listSaveEpics
+      .mockResolvedValueOnce([
+        { gameId: 'game-a', title: 'Daddy Alex', latestTurn: 9, latestPlayed: '2026-05-10T01:00:00Z', gameMode: 'solo', saves: [
+          { id: 'autosave:game-a:9', name: 'Autosave Turn 9', civType: 'rome', turn: 9, lastPlayed: '2026-05-10T01:00:00Z', kind: 'autosave', gameMode: 'solo', gameId: 'game-a', gameTitle: 'Daddy Alex' },
+          { id: 'autosave:game-a:8', name: 'Autosave Turn 8', civType: 'rome', turn: 8, lastPlayed: '2026-05-10T00:00:00Z', kind: 'autosave', gameMode: 'solo', gameId: 'game-a', gameTitle: 'Daddy Alex' },
+        ] },
+      ])
+      .mockResolvedValueOnce([
+        { gameId: 'game-a', title: 'Daddy Alex', latestTurn: 8, latestPlayed: '2026-05-10T00:00:00Z', gameMode: 'solo', saves: [
+          { id: 'autosave:game-a:8', name: 'Autosave Turn 8', civType: 'rome', turn: 8, lastPlayed: '2026-05-10T00:00:00Z', kind: 'autosave', gameMode: 'solo', gameId: 'game-a', gameTitle: 'Daddy Alex' },
+        ] },
+      ]);
+
+    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadSlot: vi.fn() });
+    (document.querySelector('[data-role="open-epic"][data-game-id="game-a"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-role="delete-slot"][data-slot-id="autosave:game-a:9"]') as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mocks.deleteSaveEntry).toHaveBeenCalledWith('autosave:game-a:9', 'autosave');
+    expect(document.body.textContent).toContain('Autosave Turn 8');
+    expect(document.body.textContent).not.toContain('Autosave Turn 9');
+    expect(document.body.textContent).toContain('Back to campaigns');
   });
 });
