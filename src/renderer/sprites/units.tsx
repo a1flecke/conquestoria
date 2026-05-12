@@ -327,11 +327,11 @@ export function TriremeSprite({ palette, svgOnly = false }: UnitSpriteProps): st
 
 /* === SPY FAMILY (shared base) === */
 
-function spyBase({ palette, hat, gadget, cloak = '#2a2a32' }: {
-  palette: FactionPalette; hat: string; gadget: string; cloak?: string;
+function spyBase({ palette, hat, gadget, cloak = '#2a2a32', svgOnly = false }: {
+  palette: FactionPalette; hat: string; gadget: string; cloak?: string; svgOnly?: boolean;
 }): string {
   return (
-    <SpriteFrame svgOnly={false} hexTint="#241a36">
+    <SpriteFrame svgOnly={svgOnly} hexTint="#241a36">
       <Shadow />
       <path d="M44,40 Q64,36 84,40 L92,98 Q64,104 36,98 Z" fill={cloak} stroke={P.ink.line} strokeWidth="1" />
       <path d="M52,42 L60,98 M76,42 L68,98" stroke={P.ink.line} strokeWidth="0.5" opacity="0.6" />
@@ -342,43 +342,48 @@ function spyBase({ palette, hat, gadget, cloak = '#2a2a32' }: {
   );
 }
 
-export function SpyScoutSprite({ palette, svgOnly: _svgOnly = false }: UnitSpriteProps): string {
+export function SpyScoutSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return spyBase({
     palette,
+    svgOnly,
     hat: <path d="M-12,-36 Q0,-46 12,-36 L10,-32 L-10,-32 Z" fill="#1a1410" />,
     gadget: <g transform="translate(82 56)"><circle r="5" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.6" /><circle r="3" fill={P.ground.water} /></g>,
   });
 }
 
-export function SpyInformantSprite({ palette, svgOnly: _svgOnly = false }: UnitSpriteProps): string {
+export function SpyInformantSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return spyBase({
     palette,
+    svgOnly,
     hat: <ellipse cx="0" cy="-38" rx="14" ry="4" fill="#1a1410" />,
     gadget: <g transform="translate(82 60)"><rect x="-4" y="-6" width="8" height="12" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" /><line x1="-3" y1="-2" x2="3" y2="-2" stroke={P.ink.line} strokeWidth="0.5" /><line x1="-3" y1="1" x2="3" y2="1" stroke={P.ink.line} strokeWidth="0.5" /><line x1="-3" y1="4" x2="3" y2="4" stroke={P.ink.line} strokeWidth="0.5" /></g>,
   });
 }
 
-export function SpyAgentSprite({ palette, svgOnly: _svgOnly = false }: UnitSpriteProps): string {
+export function SpyAgentSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return spyBase({
     palette,
+    svgOnly,
     cloak: '#1c1c24',
     hat: <path d="M-13,-36 L13,-36 L11,-40 L-11,-40 Z M-15,-36 L15,-36 L15,-34 L-15,-34 Z" fill="#0a0a10" />,
     gadget: <g transform="translate(82 60)"><rect x="-4" y="-3" width="10" height="6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" /><circle cx="6" cy="0" r="1.4" fill={palette.bright} /></g>,
   });
 }
 
-export function SpyOperativeSprite({ palette, svgOnly: _svgOnly = false }: UnitSpriteProps): string {
+export function SpyOperativeSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return spyBase({
     palette,
+    svgOnly,
     cloak: '#16161c',
     hat: <path d="M-11,-40 Q0,-44 11,-40 L11,-30 L-11,-30 Z" fill="#0a0a10" />,
     gadget: <g transform="translate(82 56)"><path d="M-2,-8 L2,-8 L2,4 L4,8 L-4,8 L-2,4 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" /><circle cx="0" cy="-10" r="2" fill={palette.bright} /></g>,
   });
 }
 
-export function SpyHackerSprite({ palette, svgOnly: _svgOnly = false }: UnitSpriteProps): string {
+export function SpyHackerSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return spyBase({
     palette,
+    svgOnly,
     cloak: '#0e1820',
     hat: <path d="M-12,-40 Q0,-46 12,-40 L12,-28 L-12,-28 Z" fill="#0a0a10" />,
     gadget: (
