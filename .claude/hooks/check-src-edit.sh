@@ -13,7 +13,7 @@ file_path="$(printf '%s' "$payload" | jq -r '.tool_input.file_path // empty')"
 
 # Only police TypeScript source under src/
 case "$file_path" in
-  */src/*.ts|*/src/**/*.ts) : ;;
+  */src/*.ts|*/src/**/*.ts|*/src/*.tsx|*/src/**/*.tsx) : ;;
   *) exit 0 ;;
 esac
 
@@ -100,6 +100,22 @@ if grep -nE ':\s*(0|null|\[\])\s*,\s*//\s*calculated' "$file_path" >/dev/null; t
   append "Placeholder return field with 'calculated elsewhere' comment — populate it or remove the field (see .claude/rules/game-systems.md#no-dead-return-fields):
 $lines"
 fi
+
+# --- Object.assign(window or React import in sprite files ---
+case "$file_path" in
+  */src/renderer/sprites/*.tsx|*/src/renderer/sprites/*.ts)
+    if grep -nE 'Object\.assign\(window' "$file_path" >/dev/null; then
+      lines="$(grep -nE 'Object\.assign\(window' "$file_path" | head -5)"
+      append "Object.assign(window,...) is banned in sprite files — use named exports (see .claude/rules/sprites.md):
+$lines"
+    fi
+    if grep -nE "from ['\"]react['\"]|from ['\"]react-dom" "$file_path" >/dev/null; then
+      lines="$(grep -nE "from ['\"]react['\"]|from ['\"]react-dom" "$file_path" | head -5)"
+      append "React imports are banned in sprite files — use the custom jsx-runtime (see .claude/rules/sprites.md):
+$lines"
+    fi
+    ;;
+esac
 
 if [ -n "$violations" ]; then
   printf 'check-src-edit: possible rule violations in %s\n%s\n' "$file_path" "$violations" >&2
