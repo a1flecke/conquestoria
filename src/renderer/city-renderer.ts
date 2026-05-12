@@ -6,11 +6,22 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+import { spriteCache } from './sprites/sprite-loader';
+import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 
 export function getProductionBadgeIcon(city: { productionQueue: string[] }): string | null {
   if (city.productionQueue.length === 0) return null;
   const id = city.productionQueue[0];
   return PRODUCTION_ICONS[id] ?? PRODUCTION_ICON_FALLBACK;
+}
+
+export function getProductionBadgeSprite(
+  city: { productionQueue: string[] },
+  civId: string,
+): HTMLImageElement | null {
+  if (city.productionQueue.length === 0) return null;
+  const id = city.productionQueue[0];
+  return spriteCache.getBuilding(id, civId) ?? null;
 }
 
 interface CityRenderInfo {
@@ -125,13 +136,27 @@ export function drawCities(
 
       // Bottom-right badge: currently-building icon (player-owned, non-empty queue only)
       if (city.owner === playerCivId) {
-        const buildIcon = getProductionBadgeIcon(city);
-        if (buildIcon) {
-          ctx.font = `${size * 0.28}px system-ui`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#fff';
-          ctx.fillText(buildIcon, screen.x + size * 0.45, screen.y + size * 0.45);
+        const badgeSprite = camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD
+          ? getProductionBadgeSprite(city, playerCivId)
+          : null;
+        if (badgeSprite) {
+          const badgeSize = size * 0.30;
+          ctx.drawImage(
+            badgeSprite,
+            screen.x + size * 0.45 - badgeSize / 2,
+            screen.y + size * 0.45 - badgeSize / 2,
+            badgeSize,
+            badgeSize,
+          );
+        } else {
+          const buildIcon = getProductionBadgeIcon(city);
+          if (buildIcon) {
+            ctx.font = `${size * 0.28}px system-ui`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(buildIcon, screen.x + size * 0.45, screen.y + size * 0.45);
+          }
         }
       }
 
