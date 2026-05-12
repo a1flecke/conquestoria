@@ -3,6 +3,7 @@ import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/
 import { processTurn } from '@/core/turn-manager';
 import { processAITurn } from '@/ai/basic-ai';
 import { RenderLoop, type HexHighlight } from '@/renderer/render-loop';
+import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
@@ -2747,6 +2748,13 @@ function showGameModeSelection(): void {
 }
 
 function startGame(): void {
+  // Warm sprite cache non-blocking — renderers fall back to emoji while loading
+  const civColors: Record<string, string> = {};
+  for (const [civId, civ] of Object.entries(gameState.civilizations)) {
+    civColors[civId] = civ.color;
+  }
+  initSprites(civColors);
+
   // Center camera on current player's starting position
   centerOnCurrentPlayer();
 
