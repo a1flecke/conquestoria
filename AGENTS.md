@@ -62,6 +62,7 @@ If you touch files in these areas, read the matching rule file before editing:
 - `docs/superpowers/specs/**`, `docs/superpowers/plans/**`, or any spec-driven implementation -> `.claude/rules/spec-fidelity.md`
 - `src/**` or `docs/superpowers/**` for partial MR/slice work -> `.claude/rules/incremental-mr-completion.md`
 - `.claude/**` or `tests/hooks/**` -> `.claude/rules/hooks-and-tooling.md`
+- `src/renderer/sprites/**` -> `.claude/rules/sprites.md`
 
 Use `CLAUDE.md` for repo-wide architecture, command, and gameplay conventions.
 
@@ -153,6 +154,8 @@ When adding or changing legendary wonder rules:
 
 ## Commit & Pull Request Guidelines
 Recent history uses concise Conventional Commit style, often with scopes, for example `fix(m5): wire marketplace supply/demand from game state` or `docs: triage open issues`. Keep commit subjects imperative and specific. PRs should explain gameplay impact, list tests run, link the relevant issue or milestone, and include screenshots when UI or rendering changes are visible.
+
+When adding a new unit or building type with a sprite, add one line to `UNIT_SPRITE_CATALOG` or `BUILDING_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts` in the same PR — the catalog coverage test enforces this.
 
 ## Spec Fidelity
 When working from `docs/superpowers/specs/` or `docs/superpowers/plans/`, preserve the exact gameplay contract unless the user explicitly changes it. Do not broaden gated mission effects, relax resolution conditions, or leave bonus-effect fields partially wired. Review branch work against both `origin/main...HEAD` and the local uncommitted delta, not just untracked files, before claiming review coverage.
