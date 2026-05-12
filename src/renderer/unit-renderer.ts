@@ -3,23 +3,28 @@ import { hexToPixel } from '@/systems/hex-utils';
 import { isVisible, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+import { spriteCache } from './sprites/sprite-loader';
+import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 
 const UNIT_ICONS: Record<string, string> = {
-  settler: '🏕️',
-  worker: '👷',
-  scout: '🔭',
-  warrior: '⚔️',
-  swordsman: '🗡️',
-  pikeman: '🔱',
-  musketeer: '🔫',
-  spy_scout: '🕵️',
+  settler:       '🏕️',
+  worker:        '👷',
+  scout:         '🔭',
+  warrior:       '⚔️',
+  archer:        '🏹',
+  swordsman:     '🗡️',
+  pikeman:       '🔱',
+  musketeer:     '🔫',
+  galley:        '⛵',
+  trireme:       '🚢',
+  spy_scout:     '🕵️',
   spy_informant: '🕵️',
-  spy_agent: '🕵️',
+  spy_agent:     '🕵️',
   spy_operative: '🕵️',
-  spy_hacker: '💻',
-  scout_hound: '🐕',
+  spy_hacker:    '💻',
+  scout_hound:   '🐕',
   shadow_warden: '🦅',
-  war_hound: '🐺',
+  war_hound:     '🐺',
 };
 
 const OWNER_COLORS: Record<string, string> = {
@@ -81,18 +86,26 @@ export function drawUnits(
         const unitY = screen.y + offset.y * size;
         const ownerColor = colorLookup?.[unit.owner] ?? OWNER_COLORS[unit.owner] ?? '#888';
 
-        ctx.beginPath();
-        ctx.arc(unitX, unitY, size * (stack.length === 1 ? 0.35 : 0.25), 0, Math.PI * 2);
-        ctx.fillStyle = ownerColor;
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        const sprite = camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD
+          ? spriteCache.getUnit(unit.type, unit.owner)
+          : null;
 
-        ctx.font = `${size * (stack.length === 1 ? 0.4 : 0.28)}px system-ui`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(UNIT_ICONS[unit.type] ?? '?', unitX, unitY);
+        if (sprite) {
+          const drawSize = size * (stack.length === 1 ? 0.9 : 0.65);
+          ctx.drawImage(sprite, unitX - drawSize / 2, unitY - drawSize / 2, drawSize, drawSize);
+        } else {
+          ctx.beginPath();
+          ctx.arc(unitX, unitY, size * (stack.length === 1 ? 0.35 : 0.25), 0, Math.PI * 2);
+          ctx.fillStyle = ownerColor;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.font = `${size * (stack.length === 1 ? 0.4 : 0.28)}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(UNIT_ICONS[unit.type] ?? '?', unitX, unitY);
+        }
 
         if (unit.health < 100) {
           const barWidth = size * 0.42;
