@@ -140,7 +140,7 @@ export function Humanoid({
 interface SpriteFrameProps {
   size?: number; svgOnly?: boolean; hex?: boolean; hexTint?: string;
   label?: string; sub?: string; animate?: string;
-  children: string;
+  children: string | string[];
 }
 export function SpriteFrame({
   size = 128, svgOnly = false, hex = true, hexTint = '#000',
@@ -152,7 +152,8 @@ export function SpriteFrame({
     : '';
   // Omit animation CSS in svgOnly mode — browsers block CSS animations in SVG loaded as <img>
   const styleEl = svgOnly ? '' : `<style>${ANIM_CSS}</style>`;
-  const svgEl = `<svg viewBox="0 0 ${size} ${size}" width="${svgOnly ? size : '100%'}" height="${svgOnly ? size : '100%'}" class="${animClass}" xmlns="http://www.w3.org/2000/svg">${styleEl}${hexEl}<g class="cq-sprite-figure">${children}</g></svg>`;
+  const childStr = Array.isArray(children) ? children.join('') : (children ?? '');
+  const svgEl = `<svg viewBox="0 0 ${size} ${size}" width="${svgOnly ? size : '100%'}" height="${svgOnly ? size : '100%'}" class="${animClass}" xmlns="http://www.w3.org/2000/svg">${styleEl}${hexEl}<g class="cq-sprite-figure">${childStr}</g></svg>`;
   if (svgOnly) return svgEl;
   const labelEl = label ? `<div class="cq-sprite-label">${label}${sub ? ` · ${sub}` : ''}</div>` : '';
   return `<div class="cq-sprite-wrap" data-animate="${animate}">${svgEl}${labelEl}</div>`;

@@ -37,7 +37,14 @@ export function jsx(
   props: Props | null,
 ): string {
   const p = props ?? {};
-  if (typeof tag === 'function') return tag(p);
+  if (typeof tag === 'function') {
+    // Normalize children to a string before calling function components so they
+    // don't have to handle the string[] case themselves.
+    const normalized = p.children !== undefined
+      ? { ...p, children: flatChildren(p.children) }
+      : p;
+    return tag(normalized);
+  }
 
   const children = flatChildren(p.children);
   const attrs = Object.entries(p)
