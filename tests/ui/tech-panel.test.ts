@@ -2,6 +2,9 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 import { enqueueResearch } from '@/systems/planning-system';
 import { startResearch, TECH_TREE } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
@@ -583,5 +586,76 @@ describe('tech-panel', () => {
     const downBtn = document.body.querySelector<HTMLButtonElement>('[data-queue-action="down"][data-queue-index="1"]');
     expect(downBtn).toBeTruthy();
     expect(downBtn!.disabled).toBe(true);
+  });
+
+  function makeBronzeWorkingPanelState(scienceInvestment: 'baseline' | 'idle-science' = 'baseline') {
+    const state = createNewGame(undefined, 'tech-panel-bronze-working-eta', 'small');
+    const player = state.civilizations.player;
+    const settlerId = player.units.find(unitId => state.units[unitId]?.type === 'settler');
+    expect(settlerId).toBeDefined();
+
+    const city = foundCity('player', state.units[settlerId!].position, state.map);
+    state.cities[city.id] = {
+      ...city,
+      productionQueue: [],
+      idleProduction: scienceInvestment === 'idle-science' ? 'science' : null,
+    };
+    player.cities.push(city.id);
+    for (const coord of city.ownedTiles) {
+      const key = hexKey(coord);
+      state.map.tiles[key] = {
+        ...state.map.tiles[key],
+        terrain: 'grassland',
+        resource: null,
+        improvement: 'none',
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+        owner: 'player',
+      };
+    }
+
+    player.techState.completed = ['stone-weapons'];
+    player.techState.currentResearch = 'bronze-working';
+    player.techState.researchProgress = 0;
+    player.techState.researchQueue = [];
+
+    expect(calculateProjectedCityYields(state, city.id).science).toBe(
+      scienceInvestment === 'idle-science' ? 2 : 1,
+    );
+
+    return state;
+  }
+
+  it('shows live Bronze Working ETA from current science instead of audit-profile math', () => {
+    const state = makeBronzeWorkingPanelState();
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Researching: Bronze Working');
+    expect(panel.textContent).toMatch(/Turns remaining: (9|10|11)/);
+    expect(panel.textContent).not.toContain('50');
+    expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).toMatch(/(9|10|11) turns/);
+  });
+
+  it('updates visible Bronze Working ETA when opening production is invested into science', () => {
+    const state = makeBronzeWorkingPanelState('idle-science');
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Researching: Bronze Working');
+    expect(panel.textContent).toMatch(/Turns remaining: (5|6|7)/);
+    expect(panel.textContent).not.toMatch(/Turns remaining: (9|10|11)/);
+    expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).toMatch(/(5|6|7) turns/);
   });
 });

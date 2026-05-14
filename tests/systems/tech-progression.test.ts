@@ -103,8 +103,8 @@ describe('tech progression view model', () => {
       researchQueue: ['fire'],
     }, { sciencePerTurn: 3, zoom: 'all' });
 
-    expect(view.nodesById.get('stone-weapons')?.turnsToResearch).toBe(2);
-    expect(view.nodesById.get('fire')?.turnsToResearch).toBe(3);
+    expect(view.nodesById.get('stone-weapons')?.turnsToResearch).toBe(0);
+    expect(view.nodesById.get('fire')?.turnsToResearch).toBe(2);
     expect(view.nodesById.get('banking')?.turnsToResearch).toBeNull();
   });
 
