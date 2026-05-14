@@ -12,7 +12,7 @@ Replace the single procedural map generator with a **map script** system. Player
 | **Earth** | Recognizable real-world continents; real civ homelands; real-world resources |
 | **Old World** | Europe, Asia, Africa; same homeland/resource rules as Earth |
 | **New World** | North and South America; Aztec homeland; colonizer spots for England/France/Spain/Viking |
-| **Balanced World** | Procedural; algorithmically fair zone-per-civ terrain and resources; contested luxury hotspot at center |
+| **Balanced World** | Procedural; algorithmically fair zone-per-civ terrain and resources; contested luxury hotspot between civilizations |
 | **Single Continent** | Procedural; one large connected landmass; island fringe with bonus resources |
 
 All five scripts support small (30×30), medium (50×50), and large (80×80) maps.
@@ -46,8 +46,8 @@ A short description line below the type row updates when the selection changes. 
 |---|---|
 | Earth | "Real-world geography. Civilizations start near their historical homelands; fantasy and out-of-region civs get good constrained starts. Resources follow real-world distribution." |
 | Old World | "Europe, Asia, and Africa. Historical civilizations start at their homelands. Best for Old World civs — Aztec gets a constrained random start. Resources follow real-world distribution." |
-| New World | "North and South America. Aztec starts in Central Mexico. England, France, Spain, and Viking begin as colonizers on the eastern seaboard. Other civs get a constrained random start." |
-| Balanced World | "Procedurally generated. Each civilization receives an equal share of terrain and resources. A cluster of luxury resources in the middle creates a natural conflict hotspot." |
+| New World | "North and South America. Aztec starts in Central Mexico. England and France land on the eastern seaboard; Spain lands on the Gulf of Mexico; Viking land in Newfoundland. Other civs get a constrained random start." |
+| Balanced World | "Procedurally generated. Each civilization receives an equal share of terrain and resources. A cluster of luxury resources between civilizations creates a natural conflict hotspot." |
 | Single Continent | "One large connected landmass with small islands in the surrounding ocean. Fast early contact between civilizations; islands reward naval exploration with bonus resources." |
 
 **Row 2 — Size** (3 card buttons, unchanged):  
@@ -85,7 +85,9 @@ Also add `mapScript: MapScript` to `GameState` (copied from `GameConfig` in `cre
 
 ### `createNewGame` dispatch
 
-`createNewGame` copies `config.mapScript` onto the returned `GameState` immediately after construction (`state.mapScript = config.mapScript`).
+`createNewGame` includes `mapScript: config.mapScript` in the **initial `GameState` object literal** — not as a post-construction mutation. Mutating state after construction conflicts with the project's immutable-state rules (`game-systems.md`).
+
+AI civ types (for opponent players) must be determined **before** the `findStartPositions` call so their IDs are available for historical-start lookup. The ordering in `createNewGame` is: (1) determine all civ types, (2) generate map, (3) call `findStartPositions` with the full `civIds` list, (4) place units.
 
 Switch on `config.mapScript` before generating the map:
 
@@ -134,19 +136,21 @@ Three committed TypeScript data files live in `src/systems/`:
 - `old-world-map-data.ts`
 - `new-world-map-data.ts`
 
-Each exports two constants:
+`GeoTile` is defined once and exported from `src/systems/geo-map-loader.ts` (where it's also consumed), so the generation script and data files can import from that single source.
 
 ```typescript
-type GeoTile = { q: number; r: number; terrain: TerrainType; resource: string | null };
+// src/systems/geo-map-loader.ts (exported)
+export type GeoTile = { q: number; r: number; terrain: TerrainType; resource: string | null };
+```
 
+Each data file follows the same export structure (shown here for Earth; Old World and New World replace `EARTH_` with `OLD_WORLD_` and `NEW_WORLD_` respectively):
+
+```typescript
 export const EARTH_TILES: Record<'small' | 'medium' | 'large', GeoTile[]>;
 export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<string, HexCoord>>;
 // e.g. { medium: { egypt: {q:24,r:28}, rome: {q:26,r:22}, ... } }
-```
-
-Rivers are stored as a parallel export (using the existing `RiverSegment` type from `src/systems/river-system.ts`):
-```typescript
 export const EARTH_RIVERS: Record<'small' | 'medium' | 'large', RiverSegment[]>;
+// RiverSegment from src/systems/river-system.ts
 ```
 
 ---
@@ -160,26 +164,28 @@ export const EARTH_RIVERS: Record<'small' | 'medium' | 'large', RiverSegment[]>;
 ### Algorithm
 
 1. Read two committed data files from `scripts/data/`:
-   - `ne_110m_admin_0_countries.geojson` — land/ocean polygons from [Natural Earth](https://www.naturalearthdata.com/) (public domain, ~100 KB).
-   - `mountain-ranges.json` — a hand-authored list of approximate lat/lon bounding polygons for major mountain ranges (Himalayas, Andes, Rockies, Alps, Urals, Atlas, Caucasus, Hindu Kush, Zagros, Ethiopian Highlands). This replaces a raster elevation dataset, which would be large and complex to process. The script fetches and caches both files on first run if missing.
+   - `ne_110m_admin_0_countries.geojson` — land/ocean polygons from [Natural Earth](https://www.naturalearthdata.com/) (public domain, ~100 KB). The script fetches and caches this file on first run if missing.
+   - `mountain-ranges.json` — a **hand-authored** list of approximate lat/lon bounding polygons for major mountain ranges (Himalayas, Andes, Rockies, Alps, Urals, Atlas, Caucasus, Hindu Kush, Zagros, Ethiopian Highlands). This file must be created manually and committed; it cannot be auto-fetched. It replaces a raster elevation dataset, which would be large and complex to process.
 2. For each map script × size, define a hex grid of the target dimensions.
 3. For each hex, compute the lat/lon of its center using an inverse Mercator projection, cropped to the map's geographic bounds:
    - Earth: full world (−180°→+180° lon, −80°→+80° lat)
    - Old World: −15°→+150° lon, −40°→+70° lat
    - New World: −170°→−30° lon, −60°→+75° lat
 4. Determine land/ocean by point-in-polygon test against the country features. Land tiles adjacent to ocean tiles become `coast`.
-5. Assign terrain from lat/lon zone rules (applied in priority order — first match wins):
+5. Assign terrain from lat/lon zone rules (applied in priority order — first match wins). This is a deterministic geographic script with no noise function, so all rules use lat/lon and mountain-polygon membership only:
    - Inside a mountain-range polygon (core): `mountain`
-   - Inside a mountain-range polygon (edge/buffer): `hills`
-   - |lat| > 65°: `snow` (if noise < 0.5) or `tundra`
-   - |lat| < 20°, land: `jungle` (if within 30° of a coast or river) or `desert`
-   - |lat| < 30°, interior land, low moisture proxy (distance from coast > 10° lon): `desert`
+   - Inside a mountain-range polygon (edge/buffer, within 1° of polygon boundary): `hills`
+   - |lat| > 70°: `snow`
+   - 65° < |lat| ≤ 70°: `tundra`
+   - |lat| < 20°, land, within 15° of longitude from the nearest coast hex in the same row: `jungle`
+   - |lat| < 30°, interior land (more than 15° of longitude from nearest coast hex): `desert`
    - Central Asian interior (35–55°N, 50–100°E), non-mountain: `plains`
-   - Mediterranean (30–47°N, −5°→+37°E), coastal/low: `grassland`
-   - Default land, moist/temperate: `forest` (higher lat) or `grassland` / `plains` (mid lat)
+   - Mediterranean (30–47°N, −5°→+37°E), within 10° lon of coast: `grassland`
+   - 47°–65° lat, land: `forest`
+   - Default (mid-latitude temperate): `grassland` or `plains` (alternate by hex parity for variety)
 6. Place resources from the geographic zone table (see below). Resource placement is determined at build time using a fixed internal seed — geo map resources are the same in every game (unlike procedural maps where placement is seed-dependent).
 7. Define `RiverSegment[]` arrays for named river corridors (Nile, Amazon, Yangtze, Mississippi, Congo, Rhine, Ganges, Volga) as hand-authored hex-edge sequences. Store these in the data file as `EARTH_RIVERS` etc. Do **not** set `hasRiver` directly — `loadGeoMap` calls `applyRiversToMap` at runtime to set those flags from the segment data.
-8. Apply hand-authored historical start positions (hardcoded in the script, validated against the grid — abort with an error if any coord resolves to ocean or mountain).
+8. Apply and validate all hand-authored start positions — both historical starts and colonizer starts — against the grid. Abort with an error if any coord resolves to ocean or mountain.
 9. Write TypeScript source files.
 
 ### Geographic Resource Zone Table
@@ -205,28 +211,30 @@ Resources are assigned by lat/lon bounding boxes. A hex receives a resource if i
 
 ### Historical starts (precomputed in data files, per size)
 
-| Civ | Earth & Old World anchor | New World |
-|---|---|---|
-| Egypt | Nile delta | constrained random |
-| Rome | Italian peninsula | constrained random |
-| Greece | Aegean coast | constrained random |
-| Babylon | Mesopotamia | constrained random |
-| Persia | Iranian plateau | constrained random |
-| India | Indus Valley / Ganges plain | constrained random |
-| China | Yellow River valley | constrained random |
-| Mongolia | Mongolian steppe | constrained random |
-| Japan | Japanese islands | constrained random |
-| Zulu | Southern Africa | constrained random |
-| England | British Isles | Virginia coast (colonizer) |
-| France | Northern France | St. Lawrence mouth (colonizer) |
-| Spain | Iberian Peninsula | Gulf of Mexico coast (colonizer) |
-| Viking | Scandinavia | Newfoundland (colonizer) |
-| Germany | Central Europe | constrained random |
-| Russia | Eastern European plain | constrained random |
-| Ottoman | Anatolia | constrained random |
-| Aztec | Central Mexico (Earth only) | Central Mexico |
+| Civ | Earth | Old World | New World |
+|---|---|---|---|
+| Egypt | Nile delta | Nile delta | constrained random |
+| Rome | Italian peninsula | Italian peninsula | constrained random |
+| Greece | Aegean coast | Aegean coast | constrained random |
+| Babylon | Mesopotamia | Mesopotamia | constrained random |
+| Persia | Iranian plateau | Iranian plateau | constrained random |
+| India | Indus Valley / Ganges plain | Indus Valley / Ganges plain | constrained random |
+| China | Yellow River valley | Yellow River valley | constrained random |
+| Mongolia | Mongolian steppe | Mongolian steppe | constrained random |
+| Japan | Japanese islands | Japanese islands | constrained random |
+| Zulu | Southern Africa | Southern Africa | constrained random |
+| England | British Isles | British Isles | Virginia coast (colonizer) |
+| France | Northern France | Northern France | St. Lawrence mouth (colonizer) |
+| Spain | Iberian Peninsula | Iberian Peninsula | Gulf of Mexico coast (colonizer) |
+| Viking | Scandinavia | Scandinavia | Newfoundland (colonizer) |
+| Germany | Central Europe | Central Europe | constrained random |
+| Russia | Eastern European plain | Eastern European plain | constrained random |
+| Ottoman | Anatolia | Anatolia | constrained random |
+| Aztec | Central Mexico | constrained random | Central Mexico |
 
-Aztec does not have a defined start on Old World — treated as constrained random there.
+Note: Aztec's homeland (Central Mexico) is outside the Old World map bounds (−15°→+150° lon), so it gets constrained random there.
+
+**Japan on Small Old World maps:** Japan's islands may occupy only 1–2 hexes at 30×30 resolution. Players choosing Japan on Small Old World should expect minimal early expansion — naval access from turn 1 is the defining characteristic of that start.
 
 ### Fallback rule
 
@@ -244,25 +252,32 @@ A "colonizer start" is just a pre-authored `HexCoord` stored in the `NEW_WORLD_S
 generateBalancedMap(width, height, seed, civCount): { map: GameMap; startPositions: HexCoord[] }
 ```
 
-`generateBaseTerrain` is exported from `src/systems/map-generator.ts`. `generateBalancedMap` and `generateContinentMap` both import it. `generateMap` is refactored to call `generateBaseTerrain` internally, preserving its existing public API. `civCount` is `config.players.length` (human + opponents) in `createNewGame`.
+Two helpers are exported from `src/systems/map-generator.ts`:
+- `generateBaseTerrain(width, height, seed): Record<string, HexTile>` — full noise-based map (ocean + land terrain). Used by Balanced World and `generateMap`.
+- `getLandTerrain(q, r, moistureNoise, elevationNoise, tempNoise, r, height): TerrainType` — terrain-type classifier for a **known-land** hex (never returns `ocean` or `coast`). Extracted from `getTerrain`. Used by Single Continent.
+
+`generateMap` is refactored to call `generateBaseTerrain` internally, preserving its existing public API. `civCount` is `config.players.length` (human + opponents) in `createNewGame`.
 
 `createNewGame` uses the `startPositions` returned by this function directly and **does not call `findStartPositions` again** — doing so would recompute different starts and break the balance guarantee.
 
 Both `generateBalancedMap` and `generateContinentMap` set `map.wrapsHorizontally = true` on the `GameMap` they return.
 
+`placeResources` is exported from `src/systems/map-generator.ts` so both `generateBalancedMap` and `generateContinentMap` can import it.
+
 **Steps:**
-1. Call `generateBaseTerrain(width, height, seed)` for noise + terrain assignment (no resources, no rivers).
+1. Call `generateBaseTerrain(width, height, seed)` for noise + terrain assignment (no resources, no rivers). This produces ocean, coast, and land tiles from noise — the Balanced World's land/ocean layout comes entirely from the noise function, not flood-fill.
 2. Collect all land tile candidates; run the greedy start-position algorithm to pick `civCount` well-spaced starts.
-3. Voronoi-assign every hex to its nearest start by wrapped hex distance — each start "owns" a zone.
+3. Voronoi-assign every hex to its nearest start by wrapped hex distance — each start "owns" a zone. Ocean and mountain hexes are included in zones but scored 0 and excluded from resource targeting.
 4. Audit each zone — two independent metrics:
    - **Resource count:** total resources in the zone.
-   - **Terrain quality score:** sum of per-tile scores (grassland/plains = 3, forest/hills = 2, coast = 1, desert/tundra/mountain = 0).
+   - **Terrain quality score:** sum of per-tile scores (grassland/plains = 3, forest/hills = 2, coast = 1, ocean/desert/tundra/mountain = 0).
 5. Level-up under-served zones:
-   - For each zone whose resource count is below the mean: add one resource to a valid unoccupied terrain hex in that zone. If no valid hex exists, skip.
-   - For each zone whose terrain quality score is below the mean: convert up to 2 desert or tundra hexes within the zone to plains (only if they are land tiles, not coast). This is a light nudge, not a guarantee of parity.
-6. Compute the **centroid of all start positions** (average q and r). Search outward from the centroid until a land tile (not ocean, mountain, or tundra) is found. Place a cluster of 3–5 luxury resources on land hexes within 4 tiles of that anchor point, covering 2–3 distinct luxury types.
-7. Place standard resources on remaining land tiles procedurally (same 15% chance as `placeResources`).
-8. Return `{ map, startPositions }` where `startPositions` are the `civCount` greedy picks from step 2.
+   - For each zone whose resource count is below the mean: add one resource to a valid unoccupied terrain hex in that zone (land, not ocean/coast/mountain). If no valid hex exists, skip.
+   - For each zone whose terrain quality score is below the mean: convert up to 2 desert or tundra hexes within the zone to `plains` (land tiles only — not coast, not mountain). This is a light nudge, not a guarantee of parity.
+6. Compute the **centroid of all start positions** (average q and r). Search outward from the centroid in BFS order until a land tile (not ocean, coast, mountain, or tundra) is found. Place a cluster of 3–5 luxury resources on land hexes within 4 tiles of that anchor point, covering 2–3 distinct luxury types.
+7. Call `placeResources(tiles, rng)` for standard resource placement. **`placeResources` must be updated to skip tiles that already have a resource** (the existing implementation unconditionally overwrites — fix it to `if (!tile.resource && rng() < 0.15)`). This prevents step 7 from overwriting the luxury cluster placed in step 6.
+8. Apply rivers using `generateRivers(map, seed)` and `applyRiversToMap(map, rivers)` (same pipeline as `generateMap`).
+9. Return `{ map, startPositions }` where `startPositions` are the `civCount` greedy picks from step 2.
 
 ---
 
@@ -279,10 +294,12 @@ generateContinentMap(width, height, seed): { map: GameMap; continentHexes: Set<s
 2. Mark the center hex as land unconditionally, then flood-fill BFS outward: expand to a neighbor if `landNoise(q, r) > threshold` (initial threshold 0.1). Continue until ~55% of non-edge hexes are land. If the BFS exhausts reachable candidates before 55%, lower `threshold` by 0.05 and restart. Retry up to 10 times; if 55% is still not reached, accept the largest continent achieved.
 3. Force a 3-hex ocean border at all map edges (set any land hex within 3 of the edge back to ocean). Track the surviving land hexes as `continentHexes`.
 4. Scatter 3–5 island clusters in the ocean region: pick a random ocean hex ≥5 hexes from the nearest continent edge hex, flood-fill an 8–15 hex blob. Island hexes are **not** added to `continentHexes`.
-5. Assign terrain within all land hexes (continent + islands) using `generateBaseTerrain`.
-6. Place standard resources procedurally on continent hexes. Place bonus resources (gems, ivory, spices) on island hexes to reward naval exploration.
-7. Set `map.wrapsHorizontally = true`.
-8. Return `{ map, continentHexes }`.
+5. Post-process coast: any land hex (continent or island) adjacent to an ocean hex becomes `coast` terrain.
+6. Assign terrain types to non-coast land hexes. **Do not call `generateBaseTerrain` here** — that function derives the ocean/land layout from noise, which would wipe the flood-fill continent shape. Instead, for each land hex that is not `coast`, call the noise-based terrain-type classifier directly: `getLandTerrain(q, r, moistureNoise, elevationNoise, tempNoise, r, height)`. This is a new helper extracted from `getTerrain` in `map-generator.ts` that selects among land terrain types only (forest, plains, grassland, desert, hills, mountain, tundra, snow, jungle, swamp, volcanic) without ever returning ocean or coast.
+7. Call `placeResources(tiles, rng)` on continent hexes. For island hexes, place 1–2 bonus resources per cluster, chosen randomly from `[gems, ivory, spices]` — not blanket-applied to every island hex.
+8. Apply rivers using `generateRivers(map, seed)` and `applyRiversToMap(map, rivers)`.
+9. Set `map.wrapsHorizontally = true`.
+10. Return `{ map, continentHexes }`.
 
 ---
 
@@ -302,11 +319,11 @@ Tests live in `tests/systems/` mirroring `src/systems/`.
 
 | Test file | What it covers |
 |---|---|
-| `tests/systems/geo-map-loader.test.ts` | `loadGeoMap` produces correct `Record<string, HexTile>`; `elevation` derived correctly; `wrapsHorizontally` set from parameter; rivers applied via `applyRiversToMap`; defaults initialised for `wonder`, `owner`, etc. |
-| `tests/systems/balanced-map-generator.test.ts` | Zone resource counts within 1 of each other after levelling; luxury cluster exists within 4 tiles of start centroid and covers ≥2 distinct types; `startPositions.length === civCount`; `wrapsHorizontally === true`. |
-| `tests/systems/continent-map-generator.test.ts` | Land coverage 50–60%; no land within 3 hexes of any map edge; `continentHexes` contains no island tiles; islands contain bonus resources; `wrapsHorizontally === true`. |
-| `tests/systems/map-generator.test.ts` (extend) | `findStartPositions` with a geo script returns positions in `civIds` order; known civ gets table coord; unknown civ gets valid land coord; island-excluded candidate set respected. |
-| `tests/ui/campaign-setup.test.ts` (extend) | Map type cards render for all 5 scripts; selecting a type updates the description text; `mapScript` is passed through to `GameConfig` on start. |
+| `tests/systems/geo-map-loader.test.ts` | `loadGeoMap` produces correct `Record<string, HexTile>`; `elevation` derived correctly from terrain type; `wrapsHorizontally` set from parameter; rivers applied via `applyRiversToMap`; non-geographic defaults (`wonder`, `owner`, `improvement`, `improvementTurnsLeft`, `hasRiver`) initialised correctly. |
+| `tests/systems/balanced-map-generator.test.ts` | Zone resource counts within 1 of the mean after levelling; no zone has more than 2 desert/tundra tiles converted; luxury cluster within 4 tiles of start centroid, covers ≥2 distinct types, not overwritten by standard resource pass; `startPositions.length === civCount`; `wrapsHorizontally === true`; rivers present on map. |
+| `tests/systems/continent-map-generator.test.ts` | Land coverage 50–60%; no land within 3 hexes of any map edge; `continentHexes` contains no island hex keys; coast tiles exist at land-ocean boundaries; islands contain exactly 1–2 bonus resources per cluster (not on every island hex); standard resources present on continent; `wrapsHorizontally === true`; rivers present. |
+| `tests/systems/map-generator.test.ts` (extend) | `findStartPositions` with a geo script returns positions in the **same order as `civIds`**; known civ gets its table coord; unknown civ gets a valid land coord; island-excluded `candidateHexes` set is respected (no start placed on island tile); `placeResources` skips tiles with existing resources. |
+| `tests/ui/campaign-setup.test.ts` (extend) | Map type cards render for all 5 scripts; selecting a type updates description text to the correct string; `mapScript` is included in `GameConfig` when start is triggered; advisor fires colonizer notification on turn 1 for colonizer-start civs; no notification fires for Aztec on New World. |
 
 ---
 
