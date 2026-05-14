@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import {
-  appendNotification,
-  createNotificationLog,
-  getNotificationsForPlayer,
-} from '@/ui/notification-log';
+import { appendNotification, createNotificationLog, getNotificationsForPlayer } from '@/ui/notification-log';
 
-describe('notification log hot-seat scoping', () => {
+describe('notification log', () => {
   it('appends to the active player only', () => {
     const log = createNotificationLog();
     appendNotification(log, 'player', { message: 'P1 trained warrior', type: 'info', turn: 1 });
     appendNotification(log, 'ai-1', { message: 'P2 researched archery', type: 'info', turn: 1 });
+
     expect(getNotificationsForPlayer(log, 'player').map(e => e.message)).toEqual(['P1 trained warrior']);
     expect(getNotificationsForPlayer(log, 'ai-1').map(e => e.message)).toEqual(['P2 researched archery']);
   });
@@ -20,6 +17,7 @@ describe('notification log hot-seat scoping', () => {
       appendNotification(log, 'player', { message: `m${i}`, type: 'info', turn: i });
     }
     appendNotification(log, 'ai-1', { message: 'only-one', type: 'info', turn: 0 });
+
     const p1 = getNotificationsForPlayer(log, 'player');
     expect(p1.length).toBe(50);
     expect(p1[0].message).toBe('m10');
@@ -29,6 +27,35 @@ describe('notification log hot-seat scoping', () => {
 
   it('returns an empty array for a civId with no entries', () => {
     const log = createNotificationLog();
+
     expect(getNotificationsForPlayer(log, 'never-seen')).toEqual([]);
+  });
+
+  it('preserves map target metadata on stored entries', () => {
+    const log = createNotificationLog();
+
+    appendNotification(log, 'player', {
+      message: 'Barbarian raiders spotted!',
+      type: 'warning',
+      turn: 12,
+      target: {
+        kind: 'map',
+        coord: { q: 4, r: 3 },
+        label: 'Barbarian raiders',
+      },
+    });
+
+    expect(getNotificationsForPlayer(log, 'player')).toEqual([
+      {
+        message: 'Barbarian raiders spotted!',
+        type: 'warning',
+        turn: 12,
+        target: {
+          kind: 'map',
+          coord: { q: 4, r: 3 },
+          label: 'Barbarian raiders',
+        },
+      },
+    ]);
   });
 });

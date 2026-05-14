@@ -8,7 +8,7 @@ import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexesInRange, wrapHexCoord } from '@/systems/hex-utils';
-import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit } from '@/systems/unit-system';
+import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
@@ -37,6 +37,8 @@ import { AdvisorSystem } from '@/ui/advisor-system';
 import { createCouncilPanel } from '@/ui/council-panel';
 import { createGameShell } from '@/ui/game-shell';
 import { createContextMenu } from '@/ui/context-menu';
+import { createNotificationLogPanel } from '@/ui/notification-log-panel';
+import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
@@ -46,6 +48,7 @@ import { showCampaignSetup } from '@/ui/campaign-setup';
 import { showGameModeSelect } from '@/ui/game-mode-select';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { canInspectUnitForViewer } from '@/systems/viewer-intel';
 import {
   acceptDiplomaticRequest,
   applyDiplomaticAction,
@@ -287,33 +290,53 @@ function updateHUD(): void {
 }
 
 // --- Notification queue ---
-const notificationQueue: Array<{ message: string; type: 'info' | 'success' | 'warning' }> = [];
+const notificationQueue: Array<Pick<NotificationEntry, 'message' | 'type' | 'target'>> = [];
 const notificationLog = createNotificationLog();
 let isShowingNotification = false;
 let currentDismissTimer: ReturnType<typeof setTimeout> | null = null;
 
-function showNotification(message: string, type: 'info' | 'success' | 'warning' = 'info'): void {
-  notificationQueue.push({ message, type });
+function enqueueToast(
+  message: string,
+  type: NotificationEntry['type'],
+  target?: NotificationEntry['target'],
+): void {
+  notificationQueue.push({ message, type, target });
+  if (!isShowingNotification) displayNextNotification();
+}
+
+function showNotification(
+  message: string,
+  type: NotificationEntry['type'] = 'info',
+  target?: NotificationEntry['target'],
+): void {
+  enqueueToast(message, type, target);
   if (gameState) {
     appendNotification(notificationLog, gameState.currentPlayer, {
       message,
       type,
       turn: gameState.turn,
+      target,
     });
   }
-  if (!isShowingNotification) displayNextNotification();
 }
 
 // Appends to a specific civ's log. If that civ is the active player, also
 // surfaces a toast. Used by routers that fan out global/bilateral events.
-const appendToCivLog: NotificationSink = (civId, message, type) => {
+const appendToCivLog: NotificationSink = (civId, message, type, target) => {
   if (!gameState) return;
-  appendNotification(notificationLog, civId, { message, type, turn: gameState.turn });
+  appendNotification(notificationLog, civId, { message, type, turn: gameState.turn, target });
   if (civId === gameState.currentPlayer) {
-    notificationQueue.push({ message, type });
-    if (!isShowingNotification) displayNextNotification();
+    enqueueToast(message, type, target);
   }
 };
+
+function focusNotificationTarget(target: NotificationEntry['target']): void {
+  if (!target) return;
+  renderLoop.camera.centerOn(target.coord);
+  const visibility = currentCiv().visibility;
+  const isCurrentlyVisible = visibility ? getVisibility(visibility, target.coord) === 'visible' : false;
+  enqueueToast(formatNotificationTargetFocusMessage(target, isCurrentlyVisible), 'info');
+}
 
 function displayNextNotification(): void {
   const area = document.getElementById('notifications');
@@ -348,7 +371,10 @@ function displayNextNotification(): void {
     }, 200);
   };
 
-  notif.addEventListener('click', dismiss);
+  notif.addEventListener('click', () => {
+    focusNotificationTarget(next.target);
+    dismiss();
+  });
   area.innerHTML = '';
   area.appendChild(notif);
 
@@ -366,49 +392,15 @@ function toggleNotificationLog(): void {
   const ul = document.getElementById('ui-layer');
   if (!ul) return;
 
-  const panel = document.createElement('div');
-  panel.id = 'notification-log';
-  panel.style.cssText = 'position:absolute;top:70px;right:12px;width:280px;max-height:300px;overflow-y:auto;background:rgba(10,10,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:10px;z-index:25;padding:12px;';
-
-  const colors = { info: '#e8c170', success: '#6b9b4b', warning: '#d94a4a' };
-
-  const header = document.createElement('div');
-  header.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:8px;display:flex;justify-content:space-between;';
-  const headerTitle = document.createElement('span');
-  headerTitle.textContent = 'Message Log';
-  const closeBtn = document.createElement('span');
-  closeBtn.id = 'close-log';
-  closeBtn.style.cssText = 'cursor:pointer;opacity:0.6;';
-  closeBtn.textContent = '✕';
-  header.appendChild(headerTitle);
-  header.appendChild(closeBtn);
-  panel.appendChild(header);
-
   const entries = gameState
     ? getNotificationsForPlayer(notificationLog, gameState.currentPlayer)
     : [];
-
-  if (entries.length === 0) {
-    const empty = document.createElement('div');
-    empty.style.cssText = 'font-size:11px;opacity:0.5;text-align:center;';
-    empty.textContent = 'No messages yet';
-    panel.appendChild(empty);
-  } else {
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const entry = entries[i];
-      const row = document.createElement('div');
-      row.style.cssText = 'font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);';
-      const turnSpan = document.createElement('span');
-      turnSpan.style.cssText = `color:${colors[entry.type]};opacity:0.7;margin-right:4px;`;
-      turnSpan.textContent = `T${entry.turn}`;
-      row.appendChild(turnSpan);
-      row.appendChild(document.createTextNode(entry.message));
-      panel.appendChild(row);
-    }
-  }
+  const panel = createNotificationLogPanel(entries, {
+    onClose: () => panel.remove(),
+    onFocusTarget: focusNotificationTarget,
+  });
 
   ul.appendChild(panel);
-  closeBtn.addEventListener('click', () => panel.remove());
 
   setTimeout(() => {
     const handler = (e: Event) => {
@@ -1615,6 +1607,7 @@ function restAction(): void {
 function visibleUnitEntriesAtKey(key: string): Array<[string, Unit]> {
   return Object.entries(gameState.units).filter(([, unit]) =>
     hexKey(unit.position) === key
+    && canInspectUnitForViewer(gameState, gameState.currentPlayer, unit.id)
     && (unit.owner === gameState.currentPlayer || !isForestConcealedUnit(gameState, gameState.currentPlayer, unit))
   );
 }
@@ -1647,6 +1640,21 @@ function handleHexTap(rawCoord: HexCoord): void {
       onOpenStackPicker: openUnitStackPicker,
     })) {
       return;
+    }
+  }
+
+  if (selectedUnitId && !selectedUnitCanMoveToTappedHex) {
+    const selectedUnit = gameState.units[selectedUnitId];
+    if (selectedUnit) {
+      const civ = currentCiv();
+      const visibilityState = civ.visibility ? getVisibility(civ.visibility, coord) : undefined;
+      const reason = getMovementBlockerReason(selectedUnit, coord, gameState.map, { visibilityState });
+      if (reason) {
+        const type = reason.code === 'unexplored' || reason.code === 'unknown-tile' ? 'info' : 'warning';
+        showNotification(reason.message, type);
+        selectUnit(selectedUnitId);
+        return;
+      }
     }
   }
 

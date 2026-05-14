@@ -1,10 +1,11 @@
-import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, CivBonusEffect } from '@/core/types';
+import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, CivBonusEffect, VisibilityState } from '@/core/types';
 import {
   hexKey,
   hexNeighbors,
   hexDistance,
   getWrappedHexNeighbors,
   wrappedHexDistance,
+  wrapHexCoord,
 } from './hex-utils';
 
 let nextUnitId = 1;
@@ -238,6 +239,61 @@ export function getMovementCost(terrain: string): number {
     mountain: Infinity, ocean: Infinity, coast: Infinity,
   };
   return costs[terrain] ?? Infinity;
+}
+
+export interface MovementBlockerReason {
+  code:
+    | 'unexplored'
+    | 'unknown-tile'
+    | 'impassable-mountain'
+    | 'impassable-water'
+    | 'impassable-terrain'
+    | 'unreachable'
+    | 'insufficient-movement';
+  message: string;
+}
+
+export function getMovementBlockerReason(
+  unit: Unit,
+  to: HexCoord,
+  map: GameMap,
+  options: { visibilityState?: VisibilityState } = {},
+): MovementBlockerReason | null {
+  if (options.visibilityState === 'unexplored') {
+    return { code: 'unexplored', message: 'Too far away to spot.' };
+  }
+
+  const target = map.wrapsHorizontally ? wrapHexCoord(to, map.width) : to;
+  const tile = map.tiles[hexKey(target)];
+  if (!tile) {
+    return { code: 'unknown-tile', message: 'Too far away to spot.' };
+  }
+
+  const cost = getMovementCost(tile.terrain);
+  if (cost === Infinity) {
+    if (tile.terrain === 'mountain') {
+      return { code: 'impassable-mountain', message: 'Mountain too steep to climb.' };
+    }
+    if (tile.terrain === 'ocean' || tile.terrain === 'coast') {
+      return { code: 'impassable-water', message: 'Land units cannot cross water yet.' };
+    }
+    return { code: 'impassable-terrain', message: 'This terrain cannot be entered.' };
+  }
+
+  const path = findPath(unit.position, target, map);
+  if (!path) {
+    return { code: 'unreachable', message: 'No passable route to that tile.' };
+  }
+
+  const pathCost = path.slice(1).reduce((total, coord) => {
+    const stepTile = map.tiles[hexKey(coord)];
+    return total + (stepTile ? getMovementCost(stepTile.terrain) : Infinity);
+  }, 0);
+  if (pathCost > unit.movementPointsLeft) {
+    return { code: 'insufficient-movement', message: 'Not enough movement left this turn.' };
+  }
+
+  return null;
 }
 
 function isPassable(terrain: string): boolean {

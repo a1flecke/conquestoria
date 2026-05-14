@@ -8,7 +8,8 @@ import {
 } from '@/systems/diplomacy-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { hasDiscoveredMinorCiv, hasMetCivilization } from '@/systems/discovery-system';
+import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
+import { shouldListMajorCivForViewer } from '@/systems/viewer-intel';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getQuestDescriptionForPlayer } from '@/systems/quest-system';
 
@@ -68,8 +69,8 @@ export function createDiplomacyPanel(
   let civIdx = 0;
   for (const [civId, civ] of Object.entries(state.civilizations)) {
     if (civId === state.currentPlayer) continue;
+    if (!shouldListMajorCivForViewer(state, state.currentPlayer, civId)) continue;
 
-    const hasMet = hasMetCivilization(state, state.currentPlayer, civId);
     const civDef = resolveCivDefinition(state, civ.civType ?? '');
     const relationship = getRelationship(playerDiplomacy, civId);
     const atWar = isAtWar(playerDiplomacy, civId);
@@ -78,11 +79,9 @@ export function createDiplomacyPanel(
       : pendingPeaceRequest.toCivId === state.currentPlayer ? 'incoming'
       : pendingPeaceRequest.fromCivId === state.currentPlayer ? 'outgoing'
       : 'none';
-    const actions = hasMet
-      ? getAvailableActions(
-          playerDiplomacy, civId, playerCiv.techState.completed, state.era,
-        )
-      : [];
+    const actions = getAvailableActions(
+      playerDiplomacy, civId, playerCiv.techState.completed, state.era,
+    );
 
     let barColor = '#888';
     if (relationship > 30) barColor = '#4a9b4a';
@@ -120,13 +119,13 @@ export function createDiplomacyPanel(
     civRows.push({
       civId,
       civIdx,
-      name: hasMet ? civ.name : `Unknown Civilization ${civIdx + 1}`,
+      name: civ.name,
       color: civ.color,
-      bonusName: hasMet ? (civDef?.bonusName ?? '') : 'Unknown bonus',
-      relationship: hasMet ? relationship : 0,
-      barWidth: hasMet ? Math.max(2, (relationship + 100) / 2) : 50,
-      barColor: hasMet ? barColor : '#888',
-      statusText: hasMet ? statusText : 'Unknown rival',
+      bonusName: civDef?.bonusName ?? '',
+      relationship,
+      barWidth: Math.max(2, (relationship + 100) / 2),
+      barColor,
+      statusText,
       treaties,
       actions: rowActions
         .filter(action => !(action === 'request_peace' && peaceRequestState !== 'none'))

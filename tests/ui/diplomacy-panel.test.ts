@@ -43,7 +43,7 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(rendered).not.toContain('reabsorb breakaway');
   });
 
-  it('renders unmet major civs as Unknown Civilization placeholders', () => {
+  it('omits unmet major civs from the panel', () => {
     const { container, state } = makeDiplomacyFixture({
       currentPlayer: 'player',
       includeBreakaway: true,
@@ -57,7 +57,7 @@ describe('diplomacy-panel breakaway rows', () => {
     });
 
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
-    expect(rendered).toContain('Unknown Civilization');
+    expect(rendered).not.toContain('Unknown Civilization');
     expect(rendered).not.toContain('Outsider');
   });
 
@@ -168,7 +168,7 @@ describe('diplomacy-panel breakaway rows', () => {
     });
 
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
-    expect(rendered).toContain('Unknown Civilization');
+    expect(rendered).not.toContain('Unknown Civilization');
     expect(rendered).not.toContain('Outsider');
   });
 

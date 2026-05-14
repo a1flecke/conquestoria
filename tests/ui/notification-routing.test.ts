@@ -23,8 +23,8 @@ vi.mock('@/systems/legendary-wonder-definitions', () => ({
 }));
 
 function makeSink() {
-  const calls: Array<{ civId: string; message: string; type: string }> = [];
-  const sink: NotificationSink = (civId, message, type) => calls.push({ civId, message, type });
+  const calls: Array<{ civId: string; message: string; type: string; target?: unknown }> = [];
+  const sink: NotificationSink = (civId, message, type, target) => calls.push({ civId, message, type, target });
   return { sink, calls };
 }
 
@@ -286,6 +286,11 @@ describe('notification routing', () => {
 
     routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-1', dedup, sink, isVisible);
     expect(calls.map(c => c.civId)).toEqual(['p1']);
+    expect(calls[0]!.target).toEqual({
+      kind: 'map',
+      coord: { q: 0, r: 0 },
+      label: 'Barbarian raiders',
+    });
 
     routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-1', dedup, sink, isVisible);
     expect(calls).toHaveLength(1);
