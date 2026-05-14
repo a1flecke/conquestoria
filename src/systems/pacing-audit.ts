@@ -1,6 +1,10 @@
 import { BUILDINGS, TRAINABLE_UNITS, getCatalogProductionCost } from '@/systems/city-system';
 import {
+  type ResearchOutputProfile,
   getProductionOutputProfileForEra,
+  getRecommendedTechCost,
+  getRecommendedTechTurnWindow,
+  getResearchOutputProfileForTech,
   getTargetTurnWindow,
   estimateTurnsToComplete,
   resolveBuildingPacingBand,
@@ -21,6 +25,8 @@ export interface PacingAuditRow {
   target: { min: number; max: number };
   outlier: boolean;
   outlierReason: string;
+  researchProfile?: ResearchOutputProfile['name'];
+  liveBaselineTurns?: number;
 }
 
 function getUnlockEra(techId?: string | null): number {
@@ -35,10 +41,11 @@ function buildAuditSignals(
   currentCost: number,
   outputPerTurn: number,
   target: { min: number; max: number },
+  recommendedCostOverride?: number,
 ): Pick<PacingAuditRow, 'estimatedTurns' | 'recommendedCost' | 'outlier' | 'outlierReason'> {
   const estimatedTurns = estimateTurnsToComplete({ cost: currentCost, outputPerTurn });
   const recommendedTurns = Math.round((target.min + target.max) / 2);
-  const recommendedCost = recommendedTurns * outputPerTurn;
+  const recommendedCost = recommendedCostOverride ?? recommendedTurns * outputPerTurn;
   const outlier = estimatedTurns < target.min || estimatedTurns > target.max;
   const outlierReason = estimatedTurns > target.max
     ? 'Slower than target window'
@@ -101,21 +108,22 @@ export function buildPacingAudit(options: { era?: number } = {}): PacingAuditRow
     }),
     ...TECH_TREE.map(tech => {
       const band = resolveTechPacingBand(tech);
-      const outputPerTurn = tech.era === 1 ? 3 : 8;
-      const target = getTargetTurnWindow({
-        era: tech.era,
-        band,
-        contentType: 'tech',
-      });
+      const profile = getResearchOutputProfileForTech(tech);
+      const target = getRecommendedTechTurnWindow(tech);
+      const currentCost = tech.cost;
       return {
         id: tech.id,
         label: tech.name,
         contentType: 'tech' as const,
         era: tech.era,
         band,
-        currentCost: tech.cost,
+        currentCost,
         target,
-        ...buildAuditSignals(tech.cost, outputPerTurn, target),
+        researchProfile: profile.name,
+        liveBaselineTurns: profile.name === 'opening-baseline'
+          ? estimateTurnsToComplete({ cost: currentCost, outputPerTurn: 1 })
+          : undefined,
+        ...buildAuditSignals(currentCost, profile.outputPerTurn, target, getRecommendedTechCost(tech)),
       };
     }),
   ];

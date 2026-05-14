@@ -65,3 +65,25 @@ describe('pacing-audit', () => {
     expect(slowOutliers).toEqual([]);
   });
 });
+
+describe('tech pacing audit', () => {
+  it('reports research profile and live baseline fields for tech rows', () => {
+    const bronze = buildPacingAudit().find(row => row.id === 'bronze-working');
+
+    expect(bronze).toBeDefined();
+    expect(bronze?.contentType).toBe('tech');
+    expect(bronze?.researchProfile).toBe('opening-baseline');
+    expect(bronze?.liveBaselineTurns).toBe(bronze?.estimatedTurns);
+    expect(bronze?.liveBaselineTurns).toBeGreaterThan(11);
+    expect(bronze?.recommendedCost).toBeGreaterThan(0);
+  });
+
+  it('flags current Bronze Working as a slow opening outlier before the retune', () => {
+    const bronze = buildPacingAudit().find(row => row.id === 'bronze-working');
+
+    expect(bronze?.estimatedTurns).toBe(50);
+    expect(bronze?.target).toEqual({ min: 9, max: 11 });
+    expect(bronze?.outlier).toBe(true);
+    expect(bronze?.outlierReason).toBe('Slower than target window');
+  });
+});
