@@ -99,11 +99,11 @@ describe('tech progression view model', () => {
     const view = buildTechProgressionView({
       ...createTechState(),
       currentResearch: 'stone-weapons',
-      researchProgress: 4,
+      researchProgress: 1,
       researchQueue: ['fire'],
     }, { sciencePerTurn: 3, zoom: 'all' });
 
-    expect(view.nodesById.get('stone-weapons')?.turnsToResearch).toBe(0);
+    expect(view.nodesById.get('stone-weapons')?.turnsToResearch).toBe(1);
     expect(view.nodesById.get('fire')?.turnsToResearch).toBe(2);
     expect(view.nodesById.get('banking')?.turnsToResearch).toBeNull();
   });
