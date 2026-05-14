@@ -126,6 +126,8 @@ describe('research pacing model', () => {
   it('uses the opening baseline profile for starter and first real unlock techs', () => {
     expect(getResearchOutputProfileForTech(tech('stone-weapons'))).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });
     expect(getResearchOutputProfileForTech(tech('bronze-working'))).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });
+    expect(getResearchOutputProfileForTech(tech('espionage-scouting'))).toEqual({ name: 'era-2-established', outputPerTurn: 4 });
+    expect(getResearchOutputProfileForTech(tech('lookouts'))).toEqual({ name: 'era-2-established', outputPerTurn: 4 });
     expect(getResearchOutputProfileForTech(tech('early-empire'))).toEqual({ name: 'era-2-established', outputPerTurn: 4 });
   });
 
@@ -274,6 +276,10 @@ export function isFirstRealUnlockTech(tech: Tech, techs: Tech[] = TECH_TREE): bo
 export function getResearchOutputProfileForTech(tech: Tech, techs: Tech[] = TECH_TREE): ResearchOutputProfile {
   if (isStarterPrerequisiteTech(tech) || isFirstRealUnlockTech(tech, techs)) {
     return RESEARCH_OUTPUT_BY_ERA[1];
+  }
+
+  if (tech.era <= 1) {
+    return RESEARCH_OUTPUT_BY_ERA[2];
   }
 
   return getResearchOutputProfileForEra(tech.era);
@@ -1039,6 +1045,7 @@ If Step 4 shows no changes, do not create an empty commit.
 - Science-investment target: Task 3 verifies Bronze Working 5-7 turns with idle production converted to science.
 - Structural first-real-unlock definition: Task 1 tests helper membership; Task 4 tests inclusion and exclusion spot checks.
 - Specialized root protection: Task 1 and Task 4 test Espionage Scouting and Lookouts stay out of starter/first-unlock flattening.
+- Specialized profile protection: Task 1 verifies non-starter Era 1 espionage techs use the established profile instead of the opening baseline profile.
 - Audit contract: Task 2 adds profile/live-baseline audit fields; Task 4 proves no slow opening tech outliers after retune.
 - UI contract: Task 3 verifies visible tech panel ETA from live science and actual `Tech.cost`.
 - Boundaries: Task 5 diff inspection checks no turn-processing, save, prerequisite, queue, or hidden multiplier changes.
