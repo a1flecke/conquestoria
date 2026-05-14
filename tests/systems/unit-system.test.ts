@@ -7,6 +7,7 @@ import {
   UNIT_DEFINITIONS,
   getUnmovedUnits,
   healUnit,
+  getMovementBlockerReason,
 } from '@/systems/unit-system';
 import type { GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
@@ -204,6 +205,45 @@ describe('moveUnit', () => {
     expect(moved.position).toEqual({ q: 6, r: 5 });
     expect(moved.movementPointsLeft).toBe(unit.movementPointsLeft - 1);
     expect(moved.hasMoved).toBe(true);
+  });
+});
+
+describe('getMovementBlockerReason', () => {
+  it('explains why a scout cannot enter a mountain tile', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'mountain' };
+    const scout = createUnit('scout', 'player', { q: 2, r: 1 });
+
+    expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map)).toEqual({
+      code: 'impassable-mountain',
+      message: 'Mountain too steep to climb.',
+    });
+  });
+
+  it('uses a distinct reason for land units tapping water', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'coast' };
+    const scout = createUnit('scout', 'player', { q: 2, r: 1 });
+
+    expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map)?.code).toBe('impassable-water');
+  });
+
+  it('explains a passable destination that costs more movement than remains', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    const scout = createUnit('scout', 'player', { q: 0, r: 0 });
+    scout.movementPointsLeft = 1;
+
+    expect(getMovementBlockerReason(scout, { q: 2, r: 0 }, map)?.code).toBe('insufficient-movement');
+  });
+
+  it('uses the scouting message for an unexplored tapped tile', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    const scout = createUnit('scout', 'player', { q: 2, r: 1 });
+
+    expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map, { visibilityState: 'unexplored' })).toEqual({
+      code: 'unexplored',
+      message: 'Too far away to spot.',
+    });
   });
 });
 

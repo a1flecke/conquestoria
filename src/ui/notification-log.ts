@@ -1,7 +1,16 @@
+import type { HexCoord } from '@/core/types';
+
+export interface NotificationMapTarget {
+  kind: 'map';
+  coord: HexCoord;
+  label: string;
+}
+
 export interface NotificationEntry {
   message: string;
   type: 'info' | 'success' | 'warning';
   turn: number;
+  target?: NotificationMapTarget;
 }
 
 export type NotificationLog = Record<string, NotificationEntry[]>;

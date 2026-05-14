@@ -4,7 +4,12 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import type { NotificationEntry } from '@/ui/notification-log';
 
-export type NotificationSink = (civId: string, message: string, type: NotificationEntry['type']) => void;
+export type NotificationSink = (
+  civId: string,
+  message: string,
+  type: NotificationEntry['type'],
+  target?: NotificationEntry['target'],
+) => void;
 
 type FactionTransitionEvent =
   | { type: 'faction:unrest-started'; cityId: string; owner: string }
@@ -219,6 +224,10 @@ export function routeBarbarianSpawned(
     if (seen.has(campId)) continue;
     seen.add(campId);
     alreadyNotifiedPerCiv.set(civId, seen);
-    sink(civId, 'Barbarian raiders spotted!', 'warning');
+    sink(civId, 'Barbarian raiders spotted!', 'warning', {
+      kind: 'map',
+      coord: { ...unitPosition },
+      label: 'Barbarian raiders',
+    });
   }
 }
