@@ -17,17 +17,38 @@ Replace the single procedural map generator with a **map script** system. Player
 
 All five scripts support small (30×30), medium (50×50), and large (80×80) maps.
 
+### Horizontal wrapping per script
+
+| Script | `wrapsHorizontally` |
+|---|---|
+| Earth | `true` — the globe wraps east→west |
+| Old World | `false` — cropped region, edges are real boundaries |
+| New World | `false` — cropped region, edges are real boundaries |
+| Balanced World | `true` — inherits existing behaviour |
+| Single Continent | `true` — ocean on both sides of the continent connects |
+
+`loadGeoMap` sets `wrapsHorizontally` on the returned `GameMap` based on the script. The renderer's ghost-tile pass and the input coordinate-normalisation path both read `map.wrapsHorizontally`, so no additional changes are needed there.
+
 ---
 
 ## Campaign Setup UI
 
 The existing "Map size" section becomes a combined **Map** section with two rows:
 
-**Row 1 — Map type** (5 card buttons, full width):  
+**Row 1 — Map type** (5 card buttons):  
 `🌍 Earth` · `🗺️ Old World` · `🌎 New World` · `⚖️ Balanced` · `🏝️ Continent`
 
-A short description line below the row updates to describe the selected type. Example for Earth:  
-> "Real-world geography. Civilizations start near their historical homelands; fantasy and out-of-region civs get good constrained starts. Resources follow real-world distribution."
+**Mobile layout:** five cards in a single row is too narrow on a 375 px screen (~67 px each). Use a 3+2 grid instead: first row has Earth, Old World, New World; second row has Balanced, Continent (centred). On screens ≥ 480 px wide, all five can appear in a single row with `repeat(5, minmax(0, 1fr))`.
+
+A short description line below the type row updates when the selection changes. All five strings:
+
+| Script | Description shown in UI |
+|---|---|
+| Earth | "Real-world geography. Civilizations start near their historical homelands; fantasy and out-of-region civs get good constrained starts. Resources follow real-world distribution." |
+| Old World | "Europe, Asia, and Africa. Historical civilizations start at their homelands. Best for Old World civs — New World civs get a constrained random start. Resources follow real-world distribution." |
+| New World | "North and South America. Aztec starts in Central Mexico. England, France, Spain, and Viking begin as colonizers on the eastern seaboard. Other civs get a constrained random start." |
+| Balanced World | "Procedurally generated. Each civilization receives an equal share of terrain and resources. A cluster of luxury resources in the middle creates a natural conflict hotspot." |
+| Single Continent | "One large connected landmass with small islands in the surrounding ocean. Fast early contact between civilizations; islands reward naval exploration with bonus resources." |
 
 **Row 2 — Size** (3 card buttons, unchanged):  
 `Small · 30×30 · up to 3 civs` · `Medium · 50×50 · up to 5 civs` · `Large · 80×80 · up to 8 civs`
@@ -52,13 +73,19 @@ export type MapScript =
   | 'single-continent';
 ```
 
-`'procedural'` is the existing noise-based generator, kept as-is for backwards compatibility with saved games that predate this feature.
+`'procedural'` is the existing noise-based generator, kept as-is for backwards compatibility with saved games that predate this feature. It is **not** a selectable option in the campaign setup UI — new games must use one of the five named scripts. The campaign setup defaults to `'earth'`.
 
 ### `GameConfig` (`src/core/game-state.ts`)
 
 Add `mapScript: MapScript` (default `'procedural'`). Existing `mapSize` field is unchanged. Saved games that predate this feature and therefore lack `mapScript` must deserialize with `mapScript: 'procedural'` so they continue to work correctly.
 
+### `GameState` (`src/core/types.ts`)
+
+Also add `mapScript: MapScript` to `GameState` (copied from `GameConfig` in `createNewGame`). `GameConfig` is ephemeral; `GameState` is what gets saved and loaded. Without this, the active script is lost after save/reload. Old saves that lack this field deserialize as `'procedural'`.
+
 ### `createNewGame` dispatch
+
+`createNewGame` copies `config.mapScript` onto the returned `GameState` immediately after construction (`state.mapScript = config.mapScript`).
 
 Switch on `config.mapScript` before generating the map:
 
@@ -71,11 +98,15 @@ Switch on `config.mapScript` before generating the map:
 'single-continent'  → generateContinentMap(w, h, seed)
 ```
 
-`loadGeoMap(tiles, size)` lives in a new file `src/systems/geo-map-loader.ts`. It converts the flat tile array for the given size into the `Record<string, HexTile>` format the renderer expects, then applies the river list from the data file.
+`loadGeoMap(tiles, rivers, size, wrapsHorizontally)` lives in a new file `src/systems/geo-map-loader.ts`. It converts the flat tile array for the given size into the `Record<string, HexTile>` format the renderer expects, sets `map.rivers` from the river export for the given size, and sets `map.wrapsHorizontally` from the parameter.
 
 ### `findStartPositions` (`src/systems/map-generator.ts`)
 
-Gains a `mapScript: MapScript` and `civIds: string[]` parameter (civ IDs come from `config.players.map(p => p.civId)` in `createNewGame`). For geo scripts, looks up each civ's coord in the precomputed `*_START_POSITIONS` table for the given size, then falls back to the existing greedy constrained-random algorithm for any civ not in the table.
+Gains a `mapScript: MapScript` and `civIds: string[]` parameter (civ IDs come from `config.players.map(p => p.civId)` in `createNewGame`). Returns `HexCoord[]` in the **same order as `civIds`** — `positions[i]` is the start for `civIds[i]`. Callers depend on this ordering.
+
+For geo scripts, looks up each civ's coord in the precomputed `*_START_POSITIONS` table for the given size. Any civ without a table entry falls back to the greedy constrained-random algorithm.
+
+**Small-map proximity relaxation:** on geo scripts, precomputed historical start positions are used as-is even if they violate `MIN_MAJOR_CIV_START_DISTANCE`. Europe contains many civs in a small area and they will naturally be closer than the normal minimum. The distance constraint is only enforced for fallback constrained-random positions.
 
 ---
 
@@ -149,6 +180,7 @@ Resources are assigned by lat/lon bounding boxes. A hex receives a resource if i
 | Ivory | Sub-Saharan Africa (−15–10°N, 10–40°E) |
 | Wine | Mediterranean coast (35–47°N, −5–30°E) |
 | Copper | Andes (−35–10°S, 65–80°W); Iberia (37–43°N, 5–9°W) |
+| Stone | Near mountain terrain globally — not zone-specific; applied to any `hills` hex adjacent to a `mountain` hex, with an 8% chance (matching the existing `placeResources` rule) |
 
 ---
 
@@ -201,8 +233,8 @@ generateBalancedMap(width, height, seed, civCount) → GameMap
 4. Audit each zone:
    - Score terrain quality (grassland/plains > forest/hills > desert/tundra).
    - Count existing resources.
-5. For each zone below the median resource count: add one resource to a valid unoccupied terrain hex within the zone.
-6. Place a cluster of 3–5 luxury resources on hexes within 3 tiles of the geographic center of the map, creating a contested region equidistant from all starts.
+5. For each zone whose resource count is below the mean across all zones: add one resource to a valid, unoccupied terrain hex within that zone. If no valid hex exists in the zone (e.g., the zone is mostly ocean or mountain), skip it — the zone is inherently poor and accepted as-is.
+6. Compute the **centroid of all start positions** (average q and r). Place a cluster of 3–5 luxury resources on land hexes within 4 tiles of that centroid, covering 2–3 distinct luxury types (not all of the same type). Using the centroid instead of the geographic map center prevents civ[0] — whose first position is placed near the map center by the greedy algorithm — from having an unfair proximity advantage.
 7. Return the adjusted `GameMap`; start positions are the `civCount` greedy picks from step 2.
 
 ---
@@ -214,10 +246,10 @@ generateContinentMap(width, height, seed) → GameMap
 ```
 
 1. Initialize all hexes as ocean.
-2. Flood-fill outward from the map center: at each step, expand to a neighbor if `landNoise(q, r) > threshold`. Continue until ~55% of non-edge hexes are land.
+2. Mark the center hex as land unconditionally, then flood-fill BFS outward: expand to a neighbor if `landNoise(q, r) > threshold` (initial threshold 0.1). Continue until ~55% of non-edge hexes are land. If the flood-fill exhausts all reachable candidates before hitting 55% (can happen when noise is uniformly low), lower the threshold by 0.05 and restart from the center until the target is reached.
 3. Force a 3-hex ocean border at all map edges so the continent never reaches the horizontal wrap seam.
 4. Scatter 3–5 island clusters in the ocean ring: pick a random ocean hex ≥5 hexes from the continent edge, flood-fill a 8–15 hex blob using the same noise function with a higher threshold.
-5. Assign terrain within all land hexes using the existing `getTerrain` noise functions.
+5. Assign terrain within all land hexes using `generateBaseTerrain` (same shared helper as Balanced World) to keep terrain-assignment logic centralised.
 6. Place standard resources procedurally on the continent; place bonus resources (gems, ivory, spices) on island hexes to reward naval exploration.
 7. Start positions use the existing greedy max-distance algorithm restricted to continent hexes (islands excluded from start candidates).
 
