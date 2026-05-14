@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
+import {
+  estimateTurnsToComplete,
+  getResearchOutputProfileForTech,
+  isFirstRealUnlockTech,
+  isStarterPrerequisiteTech,
+} from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
   it('has exactly 125 techs after adding late-era Slice 3 scaffolding', () => {
@@ -118,5 +124,91 @@ describe('tech definitions', () => {
   it('has no orphan late-era nodes', () => {
     const lateEra = TECH_TREE.filter(t => t.era >= 5);
     expect(lateEra.every(t => t.prerequisites.length > 0)).toBe(true);
+  });
+});
+
+describe('opening research pacing data', () => {
+  it('keeps starter prerequisites inside the 2-5 turn baseline window', () => {
+    const starters = TECH_TREE.filter(tech => isStarterPrerequisiteTech(tech));
+    expect(starters.map(tech => tech.id)).toEqual(expect.arrayContaining([
+      'stone-weapons',
+      'gathering',
+      'fire',
+      'tribal-council',
+      'pathfinding',
+      'foraging',
+      'herbalism',
+      'oral-tradition',
+      'cave-painting',
+      'rafts',
+      'copper-working',
+      'mud-brick',
+      'drums',
+      'animism',
+    ]));
+    expect(starters.map(tech => tech.id)).not.toContain('espionage-scouting');
+
+    const outliers = starters
+      .map(tech => `${tech.id}:${estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: 1 })}`)
+      .filter(entry => {
+        const turns = Number(entry.split(':')[1]);
+        return turns < 2 || turns > 5;
+      });
+
+    expect(outliers).toEqual([]);
+  });
+
+  it('keeps structural first real unlocks inside the 8-12 turn baseline window', () => {
+    const firstUnlocks = TECH_TREE.filter(tech => isFirstRealUnlockTech(tech));
+    expect(firstUnlocks.map(tech => tech.id)).toEqual(expect.arrayContaining([
+      'archery',
+      'bronze-working',
+      'writing',
+      'wheel',
+      'pottery',
+      'animal-husbandry',
+      'code-of-laws',
+      'cartography',
+      'sailing',
+      'domestication',
+      'granary-design',
+      'bone-setting',
+      'midwifery',
+      'mythology',
+      'rhetoric',
+      'storytelling',
+      'fishing',
+      'smelting',
+      'thatching',
+      'foundations',
+      'smoke-signals',
+      'burial-rites',
+    ]));
+    expect(firstUnlocks.map(tech => tech.id)).not.toContain('early-empire');
+    expect(firstUnlocks.map(tech => tech.id)).not.toContain('lookouts');
+    expect(firstUnlocks.map(tech => tech.id)).not.toContain('music');
+    expect(firstUnlocks.map(tech => tech.id)).not.toContain('tool-making');
+    expect(firstUnlocks.map(tech => tech.id)).not.toContain('messengers');
+    expect(firstUnlocks.map(tech => tech.id)).not.toContain('sacred-sites');
+
+    const outliers = firstUnlocks
+      .filter(tech => tech.id !== 'bronze-working')
+      .map(tech => `${tech.id}:${estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: 1 })}`)
+      .filter(entry => {
+        const turns = Number(entry.split(':')[1]);
+        return turns < 8 || turns > 12;
+      });
+
+    expect(outliers).toEqual([]);
+  });
+
+  it('keeps Bronze Working in its explicit 9-11 turn baseline window', () => {
+    const bronze = TECH_TREE.find(tech => tech.id === 'bronze-working');
+    expect(bronze).toBeDefined();
+    expect(getResearchOutputProfileForTech(bronze!)).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });
+    expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 1 })).toBeGreaterThanOrEqual(9);
+    expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 1 })).toBeLessThanOrEqual(11);
+    expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 2 })).toBeGreaterThanOrEqual(5);
+    expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 2 })).toBeLessThanOrEqual(7);
   });
 });

@@ -62,6 +62,8 @@ describe('research pacing model', () => {
   it('uses the opening baseline profile for starter and first real unlock techs', () => {
     expect(getResearchOutputProfileForTech(tech('stone-weapons'))).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });
     expect(getResearchOutputProfileForTech(tech('bronze-working'))).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });
+    expect(getResearchOutputProfileForTech(tech('espionage-scouting'))).toEqual({ name: 'era-2-established', outputPerTurn: 4 });
+    expect(getResearchOutputProfileForTech(tech('lookouts'))).toEqual({ name: 'era-2-established', outputPerTurn: 4 });
     expect(getResearchOutputProfileForTech(tech('early-empire'))).toEqual({ name: 'era-2-established', outputPerTurn: 4 });
   });
 

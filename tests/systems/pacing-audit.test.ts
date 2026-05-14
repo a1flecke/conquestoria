@@ -74,16 +74,28 @@ describe('tech pacing audit', () => {
     expect(bronze?.contentType).toBe('tech');
     expect(bronze?.researchProfile).toBe('opening-baseline');
     expect(bronze?.liveBaselineTurns).toBe(bronze?.estimatedTurns);
-    expect(bronze?.liveBaselineTurns).toBeGreaterThan(11);
+    expect(bronze?.liveBaselineTurns).toBeGreaterThanOrEqual(9);
+    expect(bronze?.liveBaselineTurns).toBeLessThanOrEqual(11);
     expect(bronze?.recommendedCost).toBeGreaterThan(0);
   });
 
-  it('flags current Bronze Working as a slow opening outlier before the retune', () => {
+  it('keeps retuned Bronze Working inside its opening target window', () => {
     const bronze = buildPacingAudit().find(row => row.id === 'bronze-working');
 
-    expect(bronze?.estimatedTurns).toBe(50);
+    expect(bronze?.estimatedTurns).toBeGreaterThanOrEqual(9);
+    expect(bronze?.estimatedTurns).toBeLessThanOrEqual(11);
     expect(bronze?.target).toEqual({ min: 9, max: 11 });
-    expect(bronze?.outlier).toBe(true);
-    expect(bronze?.outlierReason).toBe('Slower than target window');
+    expect(bronze?.outlier).toBe(false);
+    expect(bronze?.outlierReason).toBe('Within target window');
+  });
+
+  it('has no slow tech outliers among opening-baseline tech rows after retune', () => {
+    const slowOutliers = buildPacingAudit()
+      .filter(row => row.contentType === 'tech')
+      .filter(row => row.researchProfile === 'opening-baseline')
+      .filter(row => row.estimatedTurns > row.target.max)
+      .map(row => `${row.id}:${row.estimatedTurns}/${row.target.max}`);
+
+    expect(slowOutliers).toEqual([]);
   });
 });

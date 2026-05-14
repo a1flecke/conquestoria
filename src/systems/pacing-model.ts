@@ -102,6 +102,10 @@ export function getResearchOutputProfileForTech(tech: Tech, techs: Tech[] = TECH
     return RESEARCH_OUTPUT_BY_ERA[1];
   }
 
+  if (tech.era <= 1) {
+    return RESEARCH_OUTPUT_BY_ERA[2];
+  }
+
   return getResearchOutputProfileForEra(tech.era);
 }
 
