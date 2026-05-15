@@ -1,5 +1,11 @@
-import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig } from './types';
+import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig, MapScript, GameMap, HexCoord } from './types';
 import { generateMap, findStartPositions, createRng } from '@/systems/map-generator';
+import { loadGeoMap } from '@/systems/geo-map-loader';
+import { EARTH_TILES, EARTH_START_POSITIONS, EARTH_RIVERS } from '@/systems/earth-map-data';
+import { OLD_WORLD_TILES, OLD_WORLD_START_POSITIONS, OLD_WORLD_RIVERS } from '@/systems/old-world-map-data';
+import { NEW_WORLD_TILES, NEW_WORLD_START_POSITIONS, NEW_WORLD_RIVERS } from '@/systems/new-world-map-data';
+import { generateBalancedMap } from '@/systems/balanced-map-generator';
+import { generateContinentMap } from '@/systems/continent-map-generator';
 import { createUnit, resetUnitId } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
@@ -81,6 +87,7 @@ function normalizeSoloSetupConfig(
       gameTitle: arg1.gameTitle,
       settingsOverrides: arg1.settingsOverrides,
       customCivilizations: arg1.customCivilizations,
+      mapScript: arg1.mapScript,
     };
   }
 
@@ -113,18 +120,9 @@ export function createNewGame(
   const boundedOpponentCount = Math.max(1, Math.min(config.opponentCount, dims.maxPlayers - 1));
   const gameSeed = config.seed ?? `game-${Date.now()}`;
   const resolvedGameTitle = config.gameTitle.trim() || 'Solo Campaign';
-  const map = generateMap(dims.width, dims.height, gameSeed);
-  const startPositions = findStartPositions(
-    map,
-    Array.from({ length: 1 + boundedOpponentCount }, (_, i) => `civ-${i}`),
-    'procedural',
-    actualSize,
-  );
+  const mapScript: MapScript = config.mapScript ?? 'procedural';
 
-  // Place wonders and villages
-  placeWonders(map, startPositions, actualSize, gameSeed);
-  const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
-
+  // Determine civ types before map generation so findStartPositions can use real civ IDs
   const settings = createDefaultSettings(actualSize, {
     ...config.settingsOverrides,
     customCivilizations: config.customCivilizations,
@@ -137,10 +135,49 @@ export function createNewGame(
     [aiCivPool[i], aiCivPool[j]] = [aiCivPool[j], aiCivPool[i]];
   }
   const aiCivDefs = aiCivPool.slice(0, boundedOpponentCount);
-
   const allCivIds = ['player', ...aiCivDefs.map((_, index) => `ai-${index + 1}`)];
-
   const playerStartBonus = getDiplomacyStartBonus(settings, config.civType);
+
+  const civTypeIds = [config.civType ?? 'generic', ...aiCivDefs.map(d => d.id)];
+
+  // Generate map and start positions based on map script
+  let map: GameMap;
+  let startPositions: HexCoord[];
+
+  switch (mapScript) {
+    case 'earth':
+      map = loadGeoMap(EARTH_TILES[actualSize], EARTH_RIVERS[actualSize], dims, true);
+      startPositions = findStartPositions(map, civTypeIds, 'earth', actualSize);
+      break;
+    case 'old-world':
+      map = loadGeoMap(OLD_WORLD_TILES[actualSize], OLD_WORLD_RIVERS[actualSize], dims, false);
+      startPositions = findStartPositions(map, civTypeIds, 'old-world', actualSize);
+      break;
+    case 'new-world':
+      map = loadGeoMap(NEW_WORLD_TILES[actualSize], NEW_WORLD_RIVERS[actualSize], dims, false);
+      startPositions = findStartPositions(map, civTypeIds, 'new-world', actualSize);
+      break;
+    case 'balanced': {
+      const result = generateBalancedMap(dims.width, dims.height, gameSeed, civTypeIds.length);
+      map = result.map;
+      startPositions = result.startPositions;
+      break;
+    }
+    case 'single-continent': {
+      const result = generateContinentMap(dims.width, dims.height, gameSeed);
+      map = result.map;
+      startPositions = findStartPositions(map, civTypeIds, 'single-continent', actualSize, result.continentHexes);
+      break;
+    }
+    default: // 'procedural' and old saves
+      map = generateMap(dims.width, dims.height, gameSeed);
+      startPositions = findStartPositions(map, civTypeIds, 'procedural', actualSize);
+      break;
+  }
+
+  // Place wonders and villages
+  placeWonders(map, startPositions, actualSize, gameSeed);
+  const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
 
   // Create player civilization
   const playerCiv: Civilization = {
@@ -244,6 +281,7 @@ export function createNewGame(
     defensiveLeagues: [],
     pendingDiplomacyRequests: [],
     settings,
+    mapScript,
   };
 
   // Place minor civilizations
