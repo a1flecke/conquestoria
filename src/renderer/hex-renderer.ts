@@ -288,7 +288,7 @@ function drawHex(
   // Draw ownership indicator
   const renderOwnership = viewerVisibility
     ? shouldRenderOwnedTileBorderForPresentation(presentationKind, currentPlayer, tile.owner)
-    : shouldRenderOwnedTileBorder(viewerVisibility, currentPlayer, tile.owner, tile.coord);
+    : shouldRenderOwnedTileBorder(viewerVisibility, currentPlayer, tile.owner ?? undefined, tile.coord);
   if (tile.owner && currentPlayer && renderOwnership) {
     ctx.strokeStyle = tile.owner === currentPlayer ? 'rgba(74,144,217,0.5)' : 'rgba(217,74,74,0.5)';
     ctx.lineWidth = 2;
