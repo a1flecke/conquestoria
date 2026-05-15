@@ -6,6 +6,7 @@ import { foundCity } from '@/systems/city-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
+import { createUnit } from '@/systems/unit-system';
 
 function makeAiRebelState(): GameState {
   return {
@@ -127,6 +128,51 @@ function makeAiRebelState(): GameState {
     defensiveLeagues: [],
   } as GameState;
 }
+
+describe('AI attack targeting', () => {
+  it('does not let AI melee units attack non-adjacent targets', () => {
+    const state = createNewGame(undefined, 'ai-melee-range', 'small');
+    const attacker = createUnit('warrior', 'ai-1', { q: 0, r: 0 });
+    attacker.id = 'ai-warrior';
+    const defender = createUnit('warrior', 'player', { q: 2, r: 0 });
+    defender.id = 'player-warrior';
+    state.units = { [attacker.id]: attacker, [defender.id]: defender };
+    state.civilizations['ai-1'].units = [attacker.id];
+    state.civilizations.player.units = [defender.id];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    const combatEvents: unknown[] = [];
+    const bus = new EventBus();
+    bus.on('combat:resolved', payload => combatEvents.push(payload));
+
+    processAITurn(state, 'ai-1', bus);
+
+    expect(combatEvents).toHaveLength(0);
+    expect(state.units[attacker.id]).toBeDefined();
+    expect(state.units[defender.id]).toBeDefined();
+  });
+
+  it('lets AI archers attack visible-by-rule hostile units at explicit range', () => {
+    const state = createNewGame(undefined, 'ai-archer-range', 'small');
+    const attacker = createUnit('archer', 'ai-1', { q: 0, r: 0 });
+    attacker.id = 'ai-archer';
+    const defender = createUnit('warrior', 'player', { q: 2, r: 0 });
+    defender.id = 'player-warrior';
+    state.units = { [attacker.id]: attacker, [defender.id]: defender };
+    state.civilizations['ai-1'].units = [attacker.id];
+    state.civilizations.player.units = [defender.id];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    const combatEvents: unknown[] = [];
+    const bus = new EventBus();
+    bus.on('combat:resolved', payload => combatEvents.push(payload));
+
+    processAITurn(state, 'ai-1', bus);
+
+    expect(combatEvents).toHaveLength(1);
+    expect(state.units[attacker.id]?.position).toEqual({ q: 0, r: 0 });
+  });
+});
 
 function makeAiDefenseSpyState(): GameState {
   return {

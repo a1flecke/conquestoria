@@ -51,6 +51,7 @@ function isVisibleToViewer(state: GameState, viewerId: string | undefined, coord
 
 function canAttackOwner(state: GameState, attackerOwner: string, targetOwner: string): boolean {
   if (targetOwner === attackerOwner) return false;
+  if (attackerOwner === 'barbarian' || attackerOwner === 'rebels') return true;
   if (targetOwner === 'barbarian' || targetOwner === 'rebels' || targetOwner.startsWith('mc-')) return true;
   const diplomacy = state.civilizations[attackerOwner]?.diplomacy;
   return diplomacy ? isAtWar(diplomacy, targetOwner) : false;

@@ -349,6 +349,53 @@ describe('scuffles between minor civs', () => {
     processScuffles(state, bus);
     expect(state).toBeDefined();
   });
+
+  it('does not resolve scuffle combat when minor-civ melee units are not adjacent', () => {
+    const state = createNewGame(undefined, 'mc-scuffle-range', 'small');
+    state.turn = 13;
+    state.minorCivs = {
+      'mc-sparta': {
+        id: 'mc-sparta',
+        definitionId: 'sparta',
+        cityId: 'city-sparta',
+        units: ['sparta-warrior'],
+        diplomacy: {} as any,
+        activeQuests: {},
+        isDestroyed: false,
+        garrisonCooldown: 0,
+        lastEraUpgrade: 1,
+      },
+      'mc-carthage': {
+        id: 'mc-carthage',
+        definitionId: 'carthage',
+        cityId: 'city-carthage',
+        units: ['carthage-warrior'],
+        diplomacy: {} as any,
+        activeQuests: {},
+        isDestroyed: false,
+        garrisonCooldown: 0,
+        lastEraUpgrade: 1,
+      },
+    };
+    state.cities = {
+      'city-sparta': { id: 'city-sparta', name: 'Sparta', owner: 'mc-sparta', position: { q: 0, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
+      'city-carthage': { id: 'city-carthage', name: 'Carthage', owner: 'mc-carthage', position: { q: 1, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
+    };
+    const attacker = createUnit('warrior', 'mc-sparta', { q: 0, r: 0 });
+    attacker.id = 'sparta-warrior';
+    const defender = createUnit('warrior', 'mc-carthage', { q: 2, r: 0 });
+    defender.id = 'carthage-warrior';
+    state.units = { [attacker.id]: attacker, [defender.id]: defender };
+    const scuffles: unknown[] = [];
+    const localBus = new EventBus();
+    localBus.on('minor-civ:scuffle', payload => scuffles.push(payload));
+
+    processScuffles(state, localBus);
+
+    expect(scuffles).toHaveLength(0);
+    expect(state.units['sparta-warrior'].health).toBe(100);
+    expect(state.units['carthage-warrior'].health).toBe(100);
+  });
 });
 
 describe('diplomatic agency', () => {
