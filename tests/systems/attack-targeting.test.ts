@@ -74,6 +74,23 @@ describe('attack-targeting', () => {
     });
   });
 
+  it('allows human players to target minor-civ units without making AI treat them as hostile', () => {
+    const attacker = unit('attacker', 'warrior', 'player', { q: 0, r: 0 });
+    const minor = unit('minor-warrior', 'warrior', 'mc-sparta', { q: 1, r: 0 });
+    const aiAttacker = unit('ai-attacker', 'warrior', 'ai-1', { q: 2, r: 0 });
+    const state = stateWithUnits({ attacker, 'minor-warrior': minor, 'ai-attacker': aiAttacker }, { '1,0': 'visible' });
+
+    expect(canUnitAttackTarget(state, attacker, { q: 1, r: 0 }, { viewerId: 'player' })).toMatchObject({
+      ok: true,
+      targetType: 'unit',
+      targetUnitId: 'minor-warrior',
+    });
+    expect(canUnitAttackTarget(state, aiAttacker, { q: 1, r: 0 }, { requireVisibility: false })).toEqual({
+      ok: false,
+      reason: 'not-hostile',
+    });
+  });
+
   it('rejects ordinary archer attacks against cities from range', () => {
     const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
     const state = stateWithUnits({ attacker }, { '2,0': 'visible' });
