@@ -8,6 +8,7 @@ import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-wor
 import { processResearch, getTechById } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import { resolveCombat } from '@/systems/combat-system';
+import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { calculateCityYields } from '@/systems/resource-system';
@@ -455,6 +456,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const attacker = newState.units[attack.attackerUnitId];
     const defender = newState.units[attack.defenderUnitId];
     if (!attacker || !defender) continue;
+    const legality = canUnitAttackTarget(newState, attacker, defender.position, { requireVisibility: false });
+    if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
     const combatSeed = barbSeed ^ attack.attackerUnitId.charCodeAt(0);
     const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
     const applied = applyCombatOutcomeToState(newState, result, combatSeed);

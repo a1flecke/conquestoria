@@ -1,5 +1,6 @@
 import type { BarbarianCamp, GameMap, GameState, HexCoord, Unit } from '@/core/types';
-import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
+import { canAttackByProfileOnMap } from './attack-targeting';
+import { hexKey, hexDistance, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import { selectDefenderForAttack } from './combat-system';
 
 // Seeded LCG — avoids Math.random() per project rules
@@ -184,7 +185,9 @@ export function processBarbarians(
     let nearestTarget: Unit | null = null;
     let nearestDist = BARBARIAN_CHASE_RANGE + 1;
     for (const playerUnit of playerUnits) {
-      const dist = hexDistance(barbUnit.position, playerUnit.position);
+      const dist = map.wrapsHorizontally
+        ? wrappedHexDistance(barbUnit.position, playerUnit.position, map.width)
+        : hexDistance(barbUnit.position, playerUnit.position);
       if (dist < nearestDist) {
         nearestDist = dist;
         nearestTarget = playerUnit;
@@ -194,7 +197,7 @@ export function processBarbarians(
     if (!nearestTarget) continue;
 
     // If adjacent to target, issue an attack order
-    if (nearestDist === 1) {
+    if (canAttackByProfileOnMap(barbUnit, nearestTarget, map)) {
       const targetKey = hexKey(nearestTarget.position);
       const defender = selectPlayerDefenderAtTarget(playerUnits, targetKey, map) ?? nearestTarget;
       attackOrders.push({ attackerUnitId: barbUnit.id, defenderUnitId: defender.id });

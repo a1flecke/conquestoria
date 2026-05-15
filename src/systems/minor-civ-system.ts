@@ -11,6 +11,7 @@ import { collectUsedCityNames } from './city-name-system';
 import { generateQuest, checkQuestCompletion, processQuestExpiry, awardQuestReward } from './quest-system';
 import { resolveCombat } from './combat-system';
 import { hasDiscoveredMinorCiv } from './discovery-system';
+import { canAttackByProfileOnMap } from './attack-targeting';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -422,19 +423,18 @@ export function processScuffles(state: GameState, bus: EventBus): void {
       if (hexDistance(mcCity.position, otherCity.position) <= 8) {
         const attackerUnit = mc.units.map(uid => state.units[uid]).find(u => u);
         const defenderUnit = other.units.map(uid => state.units[uid]).find(u => u);
-        if (attackerUnit && defenderUnit) {
+        if (attackerUnit && defenderUnit && canAttackByProfileOnMap(attackerUnit, defenderUnit, state.map)) {
           const seed = state.turn * 16807 + attackerUnit.id.charCodeAt(0);
           const result = resolveCombat(attackerUnit, defenderUnit, state.map, seed, undefined, state.era);
           attackerUnit.health = Math.max(1, attackerUnit.health - result.attackerDamage);
           defenderUnit.health = Math.max(1, defenderUnit.health - result.defenderDamage);
+          bus.emit('minor-civ:scuffle', {
+            attackerId: mc.id,
+            defenderId: other.id,
+            position: otherCity.position,
+          });
+          break;
         }
-
-        bus.emit('minor-civ:scuffle', {
-          attackerId: mc.id,
-          defenderId: other.id,
-          position: otherCity.position,
-        });
-        break;
       }
     }
   }

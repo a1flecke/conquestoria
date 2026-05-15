@@ -1,13 +1,14 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { hexKey } from '@/systems/hex-utils';
 import { foundCity, getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { buildUnitOccupancy } from '@/systems/unit-occupancy';
-import { resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
+import { resolveCombat } from '@/systems/combat-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { getAttackTargets } from '@/systems/attack-targeting';
+import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -348,25 +349,11 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   for (const unit of militaryUnits) {
     if (unit.movementPointsLeft <= 0) continue;
 
-    const occupancy = buildUnitOccupancy(newState.units);
-
-    // Check for nearby enemies to attack
-    const neighbors = hexNeighbors(unit.position);
     let attacked = false;
-    for (const neighbor of neighbors) {
-      const neighborKey = hexKey(neighbor);
-      const occupantIds = occupancy.unitIdsByHex[neighborKey] ?? [];
-      if (occupantIds.length > 0) {
-        const attackableDefenders = occupantIds
-          .map(id => newState.units[id])
-          .filter((candidate): candidate is Unit => {
-            if (!candidate || candidate.owner === civId) return false;
-            const isBarbarian = candidate.owner === 'barbarian';
-            const isRebel = candidate.owner === 'rebels';
-            const atWar = civ.diplomacy?.atWarWith.includes(candidate.owner) ?? false;
-            return isBarbarian || isRebel || atWar;
-          });
-        const occupant = selectDefenderForAttack(attackableDefenders, newState.map);
+    const attackTargets = getAttackTargets(newState, unit, { requireVisibility: false });
+    for (const target of attackTargets) {
+      if (target.result.targetType === 'unit') {
+        const occupant = newState.units[target.result.targetUnitId];
         if (occupant) {
           const seed = newState.turn * 16807 + unit.id.charCodeAt(0);
           const attackerBonus = resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect;
@@ -430,6 +417,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
 
     // Explore: move toward unexplored territory
+    const occupancy = buildUnitOccupancy(newState.units);
     const range = getMovementRange(unit, newState.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId);
     if (range.length > 0) {
       const unexplored = range.filter(

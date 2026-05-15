@@ -101,6 +101,34 @@ describe('processBarbarians', () => {
       defenderUnitId: 'warrior-second',
     });
   });
+
+  it('does not let barbarian melee units attack non-adjacent targets', () => {
+    const map = generateMap(30, 30, 'barb-melee-range');
+    const barbarian = createUnit('warrior', 'barbarian', { q: 10, r: 10 });
+    barbarian.id = 'barb';
+    const warrior = createUnit('warrior', 'player', { q: 12, r: 10 });
+    warrior.id = 'player-warrior';
+
+    const result = processBarbarians([], map, [warrior], 42, [barbarian]);
+
+    expect(result.attackOrders).toHaveLength(0);
+  });
+
+  it('uses wrapped distance when barbarian melee units attack across the horizontal edge', () => {
+    const map = generateMap(10, 6, 'barb-wrap-range');
+    map.wrapsHorizontally = true;
+    const barbarian = createUnit('warrior', 'barbarian', { q: 0, r: 2 });
+    barbarian.id = 'barb';
+    const warrior = createUnit('warrior', 'player', { q: 9, r: 2 });
+    warrior.id = 'player-warrior';
+
+    const result = processBarbarians([], map, [warrior], 42, [barbarian]);
+
+    expect(result.attackOrders).toContainEqual({
+      attackerUnitId: 'barb',
+      defenderUnitId: 'player-warrior',
+    });
+  });
 });
 
 describe('barbarian camp evolution', () => {
