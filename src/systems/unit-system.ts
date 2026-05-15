@@ -35,6 +35,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     type: 'archer', name: 'Archer', movementPoints: 2,
     visionRange: 2, strength: 15, canFoundCity: false,
     canBuildImprovements: false, productionCost: 35,
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit'] },
   },
   swordsman: {
     type: 'swordsman', name: 'Swordsman', movementPoints: 2,
