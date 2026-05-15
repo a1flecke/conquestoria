@@ -42,6 +42,15 @@ Each spec is one brainstorm → plan → MR cycle. Ship in order.
 3. **Spec 3 — Adaptive Music + Voice Lines** *(later)* — `2026-05-15-audio-overhaul-spec-3-adaptive-voice.md`
    Remaining adaptive states, voice-line system per civ, full stinger set, per-channel mixer UI.
 
+4. **Spec 4 — Audio Polish** *(candidate; create only if Spec 3 fills up)* — `2026-05-15-audio-overhaul-spec-4-polish.md`
+   Reserved bucket for items pushed out of Specs 1–3.
+
+   **Spec 4 candidate items:**
+   - **Ac2 upgrade** — accent per (family × era), 60 loops total. Replaces Spec 1's Ac1.
+   - **Musical-time-aware transitions** — snap snapshot changes to bar boundaries instead of linear time fades (Spec 1 limitation M1).
+   - **Audio quality tiers** — Low/Med/High OGG variants with runtime selection (Spec 1 limitation M2).
+   - **Catalog ergonomics** — `defineEra({...})` helper to reduce per-era Record duplication (Spec 1 limitation M3).
+
 ## Cross-cutting deferred questions
 
 Assigned to the spec that needs to answer them:
