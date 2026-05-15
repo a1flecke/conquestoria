@@ -107,8 +107,8 @@ describe('campaign-setup', () => {
     const sizeCards = Array.from(document.querySelectorAll('[data-size]')) as HTMLButtonElement[];
     const opponentsSelect = document.querySelector('#campaign-opponents') as HTMLSelectElement;
     expect(sizeCards.map(card => card.dataset.size)).toEqual(['small', 'medium', 'large']);
-    expect(document.querySelector('[data-size="small"]')?.getAttribute('data-selected')).toBe('true');
-    expect(Array.from(document.querySelectorAll('[data-opponent-count]')).map(card => card.getAttribute('data-opponent-count'))).toEqual(['1', '2']);
+    expect(document.querySelector('[data-size="medium"]')?.getAttribute('data-selected')).toBe('true');
+    expect(Array.from(document.querySelectorAll('[data-opponent-count]')).map(card => card.getAttribute('data-opponent-count'))).toEqual(['1', '2', '3', '4']);
     expect(opponentsSelect.value).toBe('1');
     expect(document.querySelector('[data-role="start-spacing-note"]')?.textContent)
       .toContain('Balanced starts keep rival civilizations from beginning next door');
@@ -470,5 +470,80 @@ describe('campaign-setup', () => {
       expect(btn.style.background, `${btn.textContent} background`).not.toBe('');
       expect(btn.style.color, `${btn.textContent} color`).not.toBe('');
     }
+  });
+});
+
+describe('map type selection', () => {
+  const MAP_SCRIPTS = ['earth', 'old-world', 'new-world', 'balanced', 'single-continent'] as const;
+
+  function renderSetup(): void {
+    const container = document.body;
+    showCampaignSetup(container, {
+      onStartSolo: vi.fn(),
+      onCancel: vi.fn(),
+    });
+  }
+
+  it('renders a card button for each of the 5 map scripts', () => {
+    renderSetup();
+    for (const script of MAP_SCRIPTS) {
+      const btn = document.querySelector(`[data-map-script="${script}"]`);
+      expect(btn, `missing card for ${script}`).not.toBeNull();
+    }
+  });
+
+  it('defaults to Earth selected', () => {
+    renderSetup();
+    const earthBtn = document.querySelector('[data-map-script="earth"]') as HTMLButtonElement;
+    expect(earthBtn.dataset.selected).toBe('true');
+  });
+
+  it('defaults to Medium size selected', () => {
+    renderSetup();
+    const mediumBtn = document.querySelector('[data-size="medium"]') as HTMLButtonElement;
+    expect(mediumBtn.dataset.selected).toBe('true');
+  });
+
+  it('shows description text when a map type is selected', () => {
+    renderSetup();
+    const desc = document.querySelector('[data-role="map-description"]') as HTMLElement;
+    expect(desc).not.toBeNull();
+    expect(desc.textContent).toContain('Real-world geography');
+  });
+
+  it('updates description when a different map type is clicked', () => {
+    renderSetup();
+    const balancedBtn = document.querySelector('[data-map-script="balanced"]') as HTMLButtonElement;
+    balancedBtn.click();
+    const desc = document.querySelector('[data-role="map-description"]') as HTMLElement;
+    expect(desc.textContent).toContain('algorithmically fair');
+  });
+
+  it('includes mapScript in the GameConfig passed to onStartSolo', async () => {
+    const onStartSolo = vi.fn();
+    const container = document.body;
+    showCampaignSetup(container, { onStartSolo, onCancel: vi.fn() });
+
+    const continentBtn = document.querySelector('[data-map-script="single-continent"]') as HTMLButtonElement;
+    continentBtn.click();
+
+    const mediumBtn = document.querySelector('[data-size="medium"]') as HTMLButtonElement;
+    mediumBtn.click();
+
+    (document.querySelector('#campaign-title') as HTMLInputElement).value = 'Test';
+    (document.querySelector('#campaign-title') as HTMLInputElement).dispatchEvent(new Event('input'));
+
+    clickButtonWithText('Choose civilization');
+    await flushAsyncWork();
+    const firstCivCard = document.querySelector('.civ-card') as HTMLElement;
+    firstCivCard.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushAsyncWork();
+    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+    await flushAsyncWork();
+    clickButtonWithText('Start Campaign');
+
+    expect(onStartSolo).toHaveBeenCalled();
+    const config = onStartSolo.mock.calls[0][0];
+    expect(config.mapScript).toBe('single-continent');
   });
 });
