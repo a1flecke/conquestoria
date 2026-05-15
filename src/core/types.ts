@@ -746,6 +746,16 @@ export interface CombatRewardNotification {
   message: string;
 }
 
+// --- Map Scripts ---
+
+export type MapScript =
+  | 'procedural'
+  | 'earth'
+  | 'old-world'
+  | 'new-world'
+  | 'balanced'
+  | 'single-continent';
+
 // --- Game Modes ---
 
 export type GameMode = 'solo' | 'hotseat';
@@ -772,6 +782,7 @@ export interface SoloSetupConfig {
   settingsOverrides?: Partial<GameSettings>;
   seed?: string;
   customCivilizations?: CustomCivDefinition[];
+  mapScript?: MapScript;
 }
 
 export interface GameEvent {
@@ -960,6 +971,7 @@ export interface GameState {
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];
   pendingDiplomacyRequests?: PendingDiplomaticRequest[];
+  mapScript?: MapScript;  // undefined on old saves → treat as 'procedural'
 }
 
 export interface GameSettings {
