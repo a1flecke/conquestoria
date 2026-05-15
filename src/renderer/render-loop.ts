@@ -201,6 +201,7 @@ export class RenderLoop {
   ): void {
     if (!this.state) return;
     const remaining: typeof this.unitMovementAnimations = [];
+    const completedCallbacks: Array<() => void> = [];
     for (const animation of this.unitMovementAnimations) {
       const elapsed = now - animation.startTime;
       const progress = Math.min(1, elapsed / animation.duration);
@@ -232,10 +233,13 @@ export class RenderLoop {
       if (progress < 1) {
         remaining.push(animation);
       } else {
-        animation.onComplete?.();
+        if (animation.onComplete) completedCallbacks.push(animation.onComplete);
       }
     }
     this.unitMovementAnimations = remaining;
+    for (const callback of completedCallbacks) {
+      callback();
+    }
   }
 
   private drawEmbeddedSpyIndicators(): void {

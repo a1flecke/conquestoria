@@ -1270,9 +1270,15 @@ function isUnitAnimationLocked(unitId: string | null): boolean {
 function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
   const movedUnit = gameState.units[unitId];
   if (!movedUnit) return;
+  movementRange = [];
+  attackRange = [];
+  renderLoop.clearHighlights();
   renderLoop.animateUnitMove({ ...movedUnit, position: from }, from, to, () => {
     renderLoop.setGameState(gameState);
     updateHUD();
+    if (selectedUnitId === unitId && gameState.units[unitId]?.owner === gameState.currentPlayer) {
+      selectUnit(unitId);
+    }
   });
 }
 
@@ -1960,9 +1966,7 @@ function handleHexTap(rawCoord: HexCoord): void {
             SFX.tap();
             renderLoop.setGameState(gameState);
             updateHUD();
-            if (gameState.units[selectedId]?.movementPointsLeft > 0) {
-              selectUnit(selectedId);
-            } else {
+            if ((gameState.units[selectedId]?.movementPointsLeft ?? 0) <= 0) {
               selectNextUnit();
             }
           },
@@ -1979,9 +1983,7 @@ function handleHexTap(rawCoord: HexCoord): void {
       SFX.tap();
 
       // Re-select to update movement range, or advance to next unit
-      if (gameState.units[selectedUnitId]?.movementPointsLeft > 0) {
-        selectUnit(selectedUnitId);
-      } else {
+      if ((gameState.units[selectedUnitId]?.movementPointsLeft ?? 0) <= 0) {
         selectNextUnit();
       }
     }
