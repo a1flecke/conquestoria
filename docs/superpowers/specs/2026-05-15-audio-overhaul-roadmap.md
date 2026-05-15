@@ -21,8 +21,20 @@ This file is the **index**. Decisions and child specs live in sibling files; thi
 
 Each spec is one brainstorm → plan → MR cycle. Ship in order.
 
-1. **Spec 1 — Music Foundation** *(next to brainstorm)* — `2026-05-15-audio-overhaul-spec-1-music-foundation.md`
+1. **Spec 1 — Music Foundation** *(design in progress)* — `2026-05-15-audio-overhaul-spec-1-music-foundation.md`
    Layered music engine, era + civ accents, one adaptive layer (war), stinger architecture, asset-loading pipeline. Fixes the reported hum bug.
+
+   **Spec 1 locked-in decisions:**
+   - Eras: **Er2** — explicit configs for eras 1–5; era N>5 falls back to era 5 track.
+   - Civ accents: **C2** — 12 cultural families (see Spec 1 doc for table); fantasy civs proxy Celtic/Nordic/dark-medieval source material.
+   - Accent×era variation: **Ac1** for Spec 1 (one era-agnostic accent per family); **Ac2** (family × era matrix) is the long-term goal, deferred.
+   - Hot-seat: **H2** — solo play uses human civ's accent persistently; in hot-seat, accent crossfades on `currentPlayer` rotation *after* the handoff screen (no spoilers).
+   - Loading: **L2** — lazy fetch + Service Worker cache. War layer pre-bundled; era N+1 preloaded when civ approaches era advance.
+   - War adaptive layer: **W1** — binary on `civilizations[currentPlayer].atWarWith.length > 0`; current-player-scoped; ~2s fade.
+   - Stinger set: **St2** — era-advance (×5, era-flavored) + city-founded (generic) + war-declared (generic). Event-driven architecture; music ducks ~6 dB during stinger; queue if <500ms apart.
+   - File format: **F1** — OGG Vorbis only.
+   - Legacy code: **D1** — delete `src/audio/music-generator.ts` (it is the bug being fixed). Cold start = silence until first track loads (~1–2s).
+   - Settings UI: **U1** — keep existing music/sfx toggles + volume sliders; no per-channel UI in Spec 1 (deferred to Spec 3).
 
 2. **Spec 2 — Combat & Action SFX** *(later)* — `2026-05-15-audio-overhaul-spec-2-combat-sfx.md`
    Per-unit-type sounds, movement audio, death audio, new SFX trigger points.
