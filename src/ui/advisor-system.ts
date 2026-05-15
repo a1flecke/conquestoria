@@ -1,6 +1,7 @@
 import type { GameState, TutorialStep, AdvisorType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
+import { NEW_WORLD_START_POSITIONS } from '@/systems/new-world-map-data';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { getNextCouncilCallback, markCouncilCallbackDelivered } from '@/systems/council-memory';
 import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
@@ -602,6 +603,21 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       return Object.values(playerEsp.spies).some(
         s => s.status === 'stationed' && !s.currentMission,
       );
+    },
+  },
+  {
+    id: 'colonizer-new-world',
+    advisor: 'explorer',
+    icon: '⛵',
+    message: 'Your civilization has established a colonial presence in the New World. Explore and expand to claim this untamed land.',
+    trigger: (state: GameState) => {
+      if (state.mapScript !== 'new-world') return false;
+      const civ = state.civilizations[state.currentPlayer];
+      if (!civ?.isHuman) return false;
+      const civType = civ.civType;
+      if (civType === 'aztec') return false;
+      const size = state.settings.mapSize;
+      return civType in NEW_WORLD_START_POSITIONS[size];
     },
   },
 ];
