@@ -1,6 +1,11 @@
 import {
   generateMap,
   findStartPositions,
+  generateBaseTerrain,
+  getLandTerrain,
+  placeResources,
+  createNoise,
+  createRng,
   getMinimumStartDistance,
   getStartPositionDistance,
 } from '@/systems/map-generator';
@@ -106,6 +111,62 @@ describe('new terrain types', () => {
   });
 });
 
+describe('generateBaseTerrain', () => {
+  it('returns a full grid of tiles', () => {
+    const tiles = generateBaseTerrain(20, 20, 'base-terrain-test');
+    expect(Object.keys(tiles).length).toBe(400);
+  });
+
+  it('all tiles have required fields', () => {
+    const tiles = generateBaseTerrain(10, 10, 'base-terrain-fields');
+    for (const tile of Object.values(tiles)) {
+      expect(tile.terrain).toBeDefined();
+      expect(tile.coord).toBeDefined();
+      expect(tile.hasRiver).toBe(false);
+      expect(tile.resource).toBeNull();
+    }
+  });
+
+  it('is deterministic with same seed', () => {
+    const a = generateBaseTerrain(10, 10, 'same-seed');
+    const b = generateBaseTerrain(10, 10, 'same-seed');
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+});
+
+describe('getLandTerrain', () => {
+  it('never returns ocean or coast', () => {
+    const terrains = new Set<string>();
+    for (let i = 0; i < 20; i++) {
+      const t = getLandTerrain(i / 20, i / 20, i / 20, 5, 20);
+      terrains.add(t);
+    }
+    expect(terrains).not.toContain('ocean');
+    expect(terrains).not.toContain('coast');
+  });
+
+  it('returns snow or tundra at polar rows', () => {
+    const t = getLandTerrain(0.4, 0.2, 0.4, 0, 30);
+    expect(['snow', 'tundra']).toContain(t);
+  });
+
+  it('returns mountain for high elevation', () => {
+    const t = getLandTerrain(0.4, 0.7, 0.4, 15, 30);
+    expect(t).toBe('mountain');
+  });
+});
+
+describe('placeResources', () => {
+  it('does not overwrite pre-existing resources', () => {
+    const tiles = generateBaseTerrain(10, 10, 'resource-overwrite-test');
+    const grassTile = Object.values(tiles).find(t => t.terrain === 'grassland');
+    if (!grassTile) return;
+    grassTile.resource = 'horses';
+    placeResources(tiles, createRng('resource-rng'));
+    expect(grassTile.resource).toBe('horses');
+  });
+});
+
 describe('findStartPositions', () => {
   it('treats horizontally wrapped edge starts as adjacent for spacing checks', () => {
     const map = generateMap(30, 30, 'issue-172-distance-helper');
@@ -117,7 +178,13 @@ describe('findStartPositions', () => {
   it('keeps generated start positions outside the wrapped minimum distance for supported map sizes', () => {
     for (const setup of SUPPORTED_START_CASES) {
       const map = generateMap(setup.width, setup.height, setup.seed);
-      const positions = findStartPositions(map, setup.count);
+      const size = setup.width === 30 ? 'small' : setup.width === 50 ? 'medium' : 'large';
+      const positions = findStartPositions(
+        map,
+        Array.from({ length: setup.count }, (_, i) => `civ-${i}`),
+        'procedural',
+        size,
+      );
       const minimumDistance = getMinimumStartDistance(map);
 
       expect(positions).toHaveLength(setup.count);
@@ -131,7 +198,7 @@ describe('findStartPositions', () => {
 
   it('finds requested number of start positions on land', () => {
     const map = generateMap(30, 30, 'start-pos-seed');
-    const positions = findStartPositions(map, 2);
+    const positions = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small');
     expect(positions).toHaveLength(2);
 
     for (const pos of positions) {
@@ -145,7 +212,7 @@ describe('findStartPositions', () => {
 
   it('places start positions far apart', () => {
     const map = generateMap(30, 30, 'start-pos-seed');
-    const positions = findStartPositions(map, 2);
+    const positions = findStartPositions(map, ['civ-0', 'civ-1'], 'procedural', 'small');
     const dist = getStartPositionDistance(map, positions[0], positions[1]);
     expect(dist).toBeGreaterThan(8);
   });
@@ -156,7 +223,13 @@ describe('findStartPositions', () => {
     for (const setup of SUPPORTED_START_CASES) {
       for (const seed of seeds) {
         const map = generateMap(setup.width, setup.height, `${setup.seed}-${seed}`);
-        const positions = findStartPositions(map, setup.count);
+        const size = setup.width === 30 ? 'small' : setup.width === 50 ? 'medium' : 'large';
+        const positions = findStartPositions(
+          map,
+          Array.from({ length: setup.count }, (_, i) => `civ-${i}`),
+          'procedural',
+          size,
+        );
         const minimumDistance = getMinimumStartDistance(map);
 
         expect(positions, `${setup.width}x${setup.height} ${seed}`).toHaveLength(setup.count);

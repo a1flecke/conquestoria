@@ -1,4 +1,4 @@
-import type { GameMap, HexTile, HexCoord, TerrainType, Elevation } from '@/core/types';
+import type { GameMap, HexTile, HexCoord, TerrainType, Elevation, MapScript } from '@/core/types';
 import {
   hexKey,
   hexDistance,
@@ -7,6 +7,10 @@ import {
   wrappedHexDistance,
 } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
+// Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
+import { EARTH_START_POSITIONS } from './earth-map-data';
+import { OLD_WORLD_START_POSITIONS } from './old-world-map-data';
+import { NEW_WORLD_START_POSITIONS } from './new-world-map-data';
 
 // Simple seeded PRNG (mulberry32)
 export function createRng(seed: string): () => number {
@@ -23,7 +27,7 @@ export function createRng(seed: string): () => number {
 }
 
 // Simple 2D value noise for terrain generation
-function createNoise(rng: () => number) {
+export function createNoise(rng: () => number) {
   const perm = Array.from({ length: 256 }, (_, i) => i);
   for (let i = 255; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -120,7 +124,7 @@ function getTerrain(
   return 'plains';
 }
 
-export function generateMap(width: number, height: number, seed: string): GameMap {
+export function generateBaseTerrain(width: number, height: number, seed: string): Record<string, HexTile> {
   const rng = createRng(seed);
   const landNoise = createNoise(rng);
   const moistureNoise = createNoise(rng);
@@ -131,8 +135,8 @@ export function generateMap(width: number, height: number, seed: string): GameMa
 
   for (let r = 0; r < height; r++) {
     for (let q = 0; q < width; q++) {
-      const nx = q / width * 4;
-      const ny = r / height * 4;
+      const nx = (q / width) * 4;
+      const ny = (r / height) * 4;
 
       const land = landNoise(nx, ny) + 0.5 * landNoise(nx * 2, ny * 2);
       const moisture = moistureNoise(nx + 100, ny + 100);
@@ -141,13 +145,17 @@ export function generateMap(width: number, height: number, seed: string): GameMa
 
       const terrain = getTerrain(land, moisture, elev, temp, r, height);
       const elevation = getElevation(elev);
-
       const key = hexKey({ q, r });
 
       tiles[key] = {
         coord: { q, r },
         terrain,
-        elevation: terrain === 'mountain' ? 'mountain' : terrain === 'hills' ? 'highland' : terrain === 'volcanic' ? 'highland' : elevation === 'mountain' ? 'highland' : elevation,
+        elevation:
+          terrain === 'mountain' ? 'mountain'
+          : terrain === 'hills' ? 'highland'
+          : terrain === 'volcanic' ? 'highland'
+          : elevation === 'mountain' ? 'highland'
+          : elevation,
         resource: null,
         improvement: 'none',
         owner: null,
@@ -157,11 +165,35 @@ export function generateMap(width: number, height: number, seed: string): GameMa
       };
     }
   }
+  return tiles;
+}
 
-  // Place resources on tiles
+/** Terrain classifier for a known-land hex — never returns ocean or coast. */
+export function getLandTerrain(
+  moistureVal: number,
+  elevationVal: number,
+  tempVal: number,
+  r: number,
+  height: number,
+): TerrainType {
+  const distFromEdge = Math.min(r, height - 1 - r) / (height / 2);
+  if (distFromEdge < 0.1) return tempVal > 0.5 ? 'tundra' : 'snow';
+  const elevation = getElevation(elevationVal);
+  if (elevation === 'mountain') return 'mountain';
+  if (elevationVal > 0.45 && moistureVal < 0.2) return 'volcanic';
+  if (elevation === 'highland') return moistureVal > 0.5 ? 'forest' : 'hills';
+  if (moistureVal > 0.6 && tempVal > 0.3) return 'swamp';
+  if (tempVal > 0.65 && moistureVal > 0.5) return 'jungle';
+  if (moistureVal > 0.5) return 'forest';
+  if (tempVal > 0.6 && moistureVal < 0.3) return 'desert';
+  if (moistureVal > 0.3) return 'grassland';
+  return 'plains';
+}
+
+export function generateMap(width: number, height: number, seed: string): GameMap {
+  const tiles = generateBaseTerrain(width, height, seed);
   const resourceRng = createRng(seed + '-resources');
   placeResources(tiles, resourceRng);
-
   const mapResult: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
   const rivers = generateRivers(mapResult, seed);
   applyRiversToMap(mapResult, rivers);
@@ -177,11 +209,12 @@ const TERRAIN_RESOURCES: Record<string, string[]> = {
   desert: ['incense'],
 };
 
-function placeResources(tiles: Record<string, HexTile>, rng: () => number): void {
+export function placeResources(tiles: Record<string, HexTile>, rng: () => number): void {
   for (const tile of Object.values(tiles)) {
+    if (tile.resource) continue;  // never overwrite existing resource
     const candidates = TERRAIN_RESOURCES[tile.terrain];
     if (!candidates || candidates.length === 0) continue;
-    if (rng() < 0.15) { // 15% chance
+    if (rng() < 0.15) {
       tile.resource = candidates[Math.floor(rng() * candidates.length)];
     }
   }
@@ -228,86 +261,101 @@ function getMinimumDistanceToExistingStarts(
   return Math.min(...positions.map(position => getStartPositionDistance(map, coord, position)));
 }
 
-export function findStartPositions(map: GameMap, count: number): HexCoord[] {
-  // Collect all suitable land tiles (not at edges)
-  const candidates: HexCoord[] = [];
-  for (const tile of Object.values(map.tiles)) {
-    if (
-      isLandTerrain(tile.terrain) &&
-      tile.coord.r > 3 &&
-      tile.coord.r < map.height - 4
-    ) {
-      // Check that there's enough land nearby
-      const nearby = getCandidateNeighborhood(map, tile.coord, 2);
-      const landCount = nearby.filter(n => {
-        const t = map.tiles[hexKey(n)];
-        return t && isLandTerrain(t.terrain);
-      }).length;
-      if (landCount >= 10) {
-        candidates.push(tile.coord);
+const GEO_START_TABLES: Partial<Record<MapScript, Record<'small' | 'medium' | 'large', Record<string, HexCoord>>>> = {
+  earth: EARTH_START_POSITIONS,
+  'old-world': OLD_WORLD_START_POSITIONS,
+  'new-world': NEW_WORLD_START_POSITIONS,
+};
+
+/**
+ * Find start positions for all civs. Returns positions in the same order as civTypeIds.
+ *
+ * For geo scripts, precomputed historical starts are looked up first;
+ * unknown civs fall back to the greedy spacing algorithm. Precomputed
+ * positions bypass MIN_MAJOR_CIV_START_DISTANCE (e.g. Europe has many
+ * civs in a small area). The greedy fallback respects candidateHexes if provided.
+ */
+export function findStartPositions(
+  map: GameMap,
+  civTypeIds: string[],
+  mapScript: MapScript,
+  size: 'small' | 'medium' | 'large',
+  candidateHexes?: Set<string>,
+): HexCoord[] {
+  const count = civTypeIds.length;
+  const positions: Array<HexCoord | null> = new Array(count).fill(null);
+
+  // Pass 1: fill in precomputed geo starts for known civs.
+  const table = GEO_START_TABLES[mapScript]?.[size];
+  if (table) {
+    for (let i = 0; i < civTypeIds.length; i++) {
+      const precomputed = table[civTypeIds[i]];
+      if (precomputed && map.tiles[hexKey(precomputed)]) {
+        positions[i] = precomputed;
       }
     }
   }
 
-  if (candidates.length < count) {
-    // Fallback: relax constraints
-    const candidateKeys = new Set(candidates.map(hexKey));
+  // Collect candidates for greedy fallback.
+  const allCandidates: HexCoord[] = [];
+  for (const tile of Object.values(map.tiles)) {
+    if (!isLandTerrain(tile.terrain)) continue;
+    if (tile.coord.r <= 3 || tile.coord.r >= map.height - 4) continue;
+    if (candidateHexes && !candidateHexes.has(hexKey(tile.coord))) continue;
+    const nearby = getCandidateNeighborhood(map, tile.coord, 2);
+    const landCount = nearby.filter(n => {
+      const t = map.tiles[hexKey(n)];
+      return t && isLandTerrain(t.terrain);
+    }).length;
+    if (landCount >= 10) allCandidates.push(tile.coord);
+  }
+
+  if (allCandidates.length === 0) {
+    // Relaxed fallback: any non-ocean land tile.
     for (const tile of Object.values(map.tiles)) {
       if (!isLandTerrain(tile.terrain)) continue;
-      const key = hexKey(tile.coord);
-      if (candidateKeys.has(key)) continue;
-      candidates.push(tile.coord);
-      candidateKeys.add(key);
+      if (candidateHexes && !candidateHexes.has(hexKey(tile.coord))) continue;
+      allCandidates.push(tile.coord);
     }
   }
 
-  // Pick positions that are far apart using greedy algorithm
-  const positions: HexCoord[] = [];
-  const used = new Set<string>();
+  // Pass 2: greedy for slots without precomputed positions.
+  const used = new Set<string>(
+    positions.filter(Boolean).map(p => hexKey(p!)),
+  );
+  const placedPositions = positions.filter(Boolean) as HexCoord[];
 
-  // First position: near center of map
-  const centerQ = Math.floor(map.width / 2);
-  const centerR = Math.floor(map.height / 2);
-  let best = candidates[0];
-  let bestDist = Infinity;
-  for (const c of candidates) {
-    const d = hexDistance(c, { q: centerQ, r: centerR });
-    if (d < bestDist) {
-      bestDist = d;
-      best = c;
-    }
-  }
-  positions.push(best);
-  used.add(hexKey(best));
-
-  // Remaining positions: maximize minimum wrapped distance to existing positions.
   const minimumDistance = getMinimumStartDistance(map);
-  for (let i = 1; i < count; i++) {
+  for (let i = 0; i < count; i++) {
+    if (positions[i] !== null) continue;
+
     let bestCandidate: HexCoord | null = null;
     let bestMinDist = -1;
-    let bestFallbackCandidate: HexCoord | null = null;
+    let bestFallback: HexCoord | null = null;
     let bestFallbackDist = -1;
 
-    for (const c of candidates) {
+    for (const c of allCandidates) {
       if (used.has(hexKey(c))) continue;
-      const minDist = getMinimumDistanceToExistingStarts(map, c, positions);
+      const minDist = placedPositions.length === 0
+        ? Infinity
+        : Math.min(...placedPositions.map(p => getStartPositionDistance(map, c, p)));
+
       if (minDist > bestFallbackDist) {
         bestFallbackDist = minDist;
-        bestFallbackCandidate = c;
+        bestFallback = c;
       }
-
-      if (minDist < minimumDistance) continue;
-      if (minDist > bestMinDist) {
+      if (minDist >= minimumDistance && minDist > bestMinDist) {
         bestMinDist = minDist;
         bestCandidate = c;
       }
     }
 
-    const selected = bestCandidate ?? bestFallbackCandidate;
+    const selected = bestCandidate ?? bestFallback;
     if (!selected) break;
-    positions.push(selected);
+    positions[i] = selected;
     used.add(hexKey(selected));
+    placedPositions.push(selected);
   }
 
-  return positions;
+  return positions.filter(Boolean) as HexCoord[];
 }
