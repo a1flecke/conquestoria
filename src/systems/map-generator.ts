@@ -286,12 +286,18 @@ export function findStartPositions(
   const positions: Array<HexCoord | null> = new Array(count).fill(null);
 
   // Pass 1: fill in precomputed geo starts for known civs.
+  // Duplicate detection: if two civs map to the same hex, only the first keeps the
+  // precomputed slot; the second falls through to the greedy Pass 2.
   const table = GEO_START_TABLES[mapScript]?.[size];
   if (table) {
+    const claimedKeys = new Set<string>();
     for (let i = 0; i < civTypeIds.length; i++) {
       const precomputed = table[civTypeIds[i]];
-      if (precomputed && map.tiles[hexKey(precomputed)]) {
+      if (!precomputed || !map.tiles[hexKey(precomputed)]) continue;
+      const key = hexKey(precomputed);
+      if (!claimedKeys.has(key)) {
         positions[i] = precomputed;
+        claimedKeys.add(key);
       }
     }
   }
