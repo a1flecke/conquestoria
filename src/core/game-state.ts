@@ -20,6 +20,7 @@ import { placeWonders } from '@/systems/wonder-system';
 import { placeVillages } from '@/systems/village-system';
 import { placeMinorCivs } from '@/systems/minor-civ-system';
 import { initializeEspionage } from '@/systems/espionage-system';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 
 function hashSeed(s: string): number {
   let h = 0;
@@ -291,6 +292,7 @@ export function createNewGame(
   Object.assign(state.units, mcResult.units);
 
   for (const civId of Object.keys(state.civilizations)) {
+    refreshLastSeenPresentationsForCiv(state, civId);
     syncCivilizationContactsFromVisibility(state, civId);
   }
 
@@ -407,6 +409,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
   Object.assign(state.units, mcResult.units);
 
   for (const civId of Object.keys(state.civilizations)) {
+    refreshLastSeenPresentationsForCiv(state, civId);
     syncCivilizationContactsFromVisibility(state, civId);
   }
 

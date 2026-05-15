@@ -5,7 +5,7 @@ import { getWonderVisionBonus } from './wonder-system';
 import { resolveCivDefinition } from './civ-registry';
 
 export function createVisibilityMap(): VisibilityMap {
-  return { tiles: {} };
+  return { tiles: {}, lastSeen: {} };
 }
 
 export function getVisibility(vis: VisibilityMap, coord: HexCoord): VisibilityState {
