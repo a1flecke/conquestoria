@@ -5,6 +5,9 @@ import {
 } from './sprite-catalog';
 import type { UnitType } from '@/core/types';
 import type { FactionPalette } from './sprite-system';
+import type { UnitSpriteMotion } from './units';
+
+const UNIT_MOTIONS: UnitSpriteMotion[] = ['idle', 'move-a', 'move-b'];
 
 function svgStringToImage(svgString: string, size: number): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -24,12 +27,17 @@ class SpriteCache {
   async loadCiv(civId: string, civColor: string): Promise<void> {
     const palette: FactionPalette = derivePalette(civColor);
 
-    const unitWork = Object.entries(UNIT_SPRITE_CATALOG).map(async ([type, fn]) => {
-      const svg = fn({ palette, svgOnly: true });
-      if (!svg) return;
-      const img = await svgStringToImage(svg, UNIT_SPRITE_SIZE);
-      this.units.set(`${type}:${civId}`, img);
-    });
+    const unitWork = Object.entries(UNIT_SPRITE_CATALOG).flatMap(([type, fn]) =>
+      UNIT_MOTIONS.map(async (motion) => {
+        const svg = fn({ palette, svgOnly: true, motion });
+        if (!svg) return;
+        const img = await svgStringToImage(svg, UNIT_SPRITE_SIZE);
+        this.units.set(`${type}:${civId}:${motion}`, img);
+        if (motion === 'idle') {
+          this.units.set(`${type}:${civId}`, img);
+        }
+      }),
+    );
 
     const buildingWork = Object.entries(BUILDING_SPRITE_CATALOG).map(async ([id, fn]) => {
       const svg = fn({ palette, svgOnly: true });
@@ -43,6 +51,10 @@ class SpriteCache {
 
   getUnit(type: UnitType, civId: string): HTMLImageElement | null {
     return this.units.get(`${type}:${civId}`) ?? null;
+  }
+
+  getUnitMotion(type: UnitType, civId: string, motion: UnitSpriteMotion): HTMLImageElement | null {
+    return this.units.get(`${type}:${civId}:${motion}`) ?? null;
   }
 
   getBuilding(buildingId: string, civId: string): HTMLImageElement | null {

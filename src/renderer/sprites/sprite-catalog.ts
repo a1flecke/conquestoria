@@ -1,5 +1,5 @@
 import type { UnitType } from '@/core/types';
-import type { UnitSpriteProps } from './units';
+import type { UnitSpriteMotion, UnitSpriteProps } from './units';
 import type { BuildingSpriteProps } from './buildings';
 import {
   SettlerSprite, WorkerSprite, ScoutSprite, ScoutHoundSprite,
@@ -21,25 +21,78 @@ import {
 export type UnitSpriteComponent = (props: UnitSpriteProps) => string;
 export type BuildingSpriteComponent = (props: BuildingSpriteProps) => string;
 
+type UnitMotionStyle = 'humanoid' | 'animal' | 'naval';
+
+const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
+  settler: 'humanoid',
+  worker: 'humanoid',
+  scout: 'humanoid',
+  scout_hound: 'animal',
+  war_hound: 'animal',
+  shadow_warden: 'humanoid',
+  warrior: 'humanoid',
+  swordsman: 'humanoid',
+  pikeman: 'humanoid',
+  archer: 'humanoid',
+  musketeer: 'humanoid',
+  galley: 'naval',
+  trireme: 'naval',
+  spy_scout: 'humanoid',
+  spy_informant: 'humanoid',
+  spy_agent: 'humanoid',
+  spy_operative: 'humanoid',
+  spy_hacker: 'humanoid',
+};
+
+function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
+  if (motion === 'idle') return '';
+  if (style === 'animal') {
+    return motion === 'move-a'
+      ? 'translate(-3 -2) rotate(-2 64 70)'
+      : 'translate(3 1) rotate(2 64 70)';
+  }
+  if (style === 'naval') {
+    return motion === 'move-a'
+      ? 'translate(-2 1) rotate(-1 64 82)'
+      : 'translate(2 -1) rotate(1 64 82)';
+  }
+  return motion === 'move-a'
+    ? 'translate(0 -2) rotate(-2 64 70)'
+    : 'translate(0 1) rotate(2 64 70)';
+}
+
+function applyUnitMotion(svg: string, style: UnitMotionStyle, motion: UnitSpriteMotion = 'idle'): string {
+  const transform = motionTransform(style, motion);
+  const attrs = `data-motion="${motion}"${transform ? ` transform="${transform}"` : ''}`;
+  return svg.replace('<g class="cq-sprite-figure">', `<g ${attrs} class="cq-sprite-figure">`);
+}
+
+function withMotion(type: UnitType, render: UnitSpriteComponent): UnitSpriteComponent {
+  return (props: UnitSpriteProps) => {
+    const motion = props.motion ?? 'idle';
+    return applyUnitMotion(render({ ...props, motion }), UNIT_MOTION_STYLES[type], motion);
+  };
+}
+
 export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
-  settler:        SettlerSprite,
-  worker:         WorkerSprite,
-  scout:          ScoutSprite,
-  scout_hound:    ScoutHoundSprite,
-  war_hound:      WarHoundSprite,
-  shadow_warden:  ShadowWardenSprite,
-  warrior:        WarriorSprite,
-  swordsman:      SwordsmanSprite,
-  pikeman:        PikemanSprite,
-  archer:         ArcherSprite,
-  musketeer:      MusketeerSprite,
-  galley:         GalleySprite,
-  trireme:        TriremeSprite,
-  spy_scout:      SpyScoutSprite,
-  spy_informant:  SpyInformantSprite,
-  spy_agent:      SpyAgentSprite,
-  spy_operative:  SpyOperativeSprite,
-  spy_hacker:     SpyHackerSprite,
+  settler:        withMotion('settler', SettlerSprite),
+  worker:         withMotion('worker', WorkerSprite),
+  scout:          withMotion('scout', ScoutSprite),
+  scout_hound:    withMotion('scout_hound', ScoutHoundSprite),
+  war_hound:      withMotion('war_hound', WarHoundSprite),
+  shadow_warden:  withMotion('shadow_warden', ShadowWardenSprite),
+  warrior:        withMotion('warrior', WarriorSprite),
+  swordsman:      withMotion('swordsman', SwordsmanSprite),
+  pikeman:        withMotion('pikeman', PikemanSprite),
+  archer:         withMotion('archer', ArcherSprite),
+  musketeer:      withMotion('musketeer', MusketeerSprite),
+  galley:         withMotion('galley', GalleySprite),
+  trireme:        withMotion('trireme', TriremeSprite),
+  spy_scout:      withMotion('spy_scout', SpyScoutSprite),
+  spy_informant:  withMotion('spy_informant', SpyInformantSprite),
+  spy_agent:      withMotion('spy_agent', SpyAgentSprite),
+  spy_operative:  withMotion('spy_operative', SpyOperativeSprite),
+  spy_hacker:     withMotion('spy_hacker', SpyHackerSprite),
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {

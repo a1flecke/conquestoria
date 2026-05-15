@@ -7,7 +7,8 @@ import {
   SpriteFrame,
 } from './sprite-system';
 
-export type UnitSpriteProps = { palette: FactionPalette; svgOnly?: boolean };
+export type UnitSpriteMotion = 'idle' | 'move-a' | 'move-b';
+export type UnitSpriteProps = { palette: FactionPalette; svgOnly?: boolean; motion?: UnitSpriteMotion };
 
 /* === CIVILIAN === */
 
