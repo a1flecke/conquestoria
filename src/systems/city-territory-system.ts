@@ -1,5 +1,5 @@
 import type { City, GameMap, GameState, HexCoord } from '@/core/types';
-import { hexDistance, hexKey, wrapHexCoord, wrappedHexDistance } from './hex-utils';
+import { hexDistance, hexesInRange, hexKey, wrapHexCoord, wrappedHexDistance } from './hex-utils';
 
 export const MIN_CITY_CENTER_DISTANCE = 4;
 
@@ -23,12 +23,165 @@ export interface CityWorkClaimNormalizationResult {
   changedCityIds: string[];
 }
 
+export type TerritoryRecalculationReason =
+  | 'founding'
+  | 'capture'
+  | 'raze'
+  | 'city-loss'
+  | 'turn'
+  | 'load';
+
+export interface TerritoryClaim {
+  cityId: string;
+  civId: string;
+  coord: HexCoord;
+  radiusBand: number;
+  pressure: number;
+  reason: TerritoryRecalculationReason;
+}
+
+export interface TerritoryResolution {
+  coord: HexCoord;
+  previousOwner: string | null;
+  winningCityId: string | null;
+  winningCivId: string | null;
+  competingClaims: TerritoryClaim[];
+  reason: TerritoryRecalculationReason;
+}
+
+export interface TerritoryRecalculationOptions {
+  reason: TerritoryRecalculationReason;
+  preserveForeignHolders?: boolean;
+}
+
+export interface TerritoryRecalculationResult {
+  state: GameState;
+  resolutions: TerritoryResolution[];
+  contestedResolutions: TerritoryResolution[];
+}
+
 export function canonicalizeCityCoord(coord: HexCoord, map: GameMap): HexCoord {
   return map.wrapsHorizontally ? wrapHexCoord(coord, map.width) : { ...coord };
 }
 
 export function cityDistance(a: HexCoord, b: HexCoord, map: GameMap): number {
   return map.wrapsHorizontally ? wrappedHexDistance(a, b, map.width) : hexDistance(a, b);
+}
+
+function canClaimTile(tile: GameState['map']['tiles'][string] | undefined): boolean {
+  return Boolean(tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain');
+}
+
+export function getBaseTerritoryRadius(_city: City): number {
+  return 2;
+}
+
+export function generateTerritoryClaimsForCity(
+  state: GameState,
+  city: City,
+  reason: TerritoryRecalculationReason,
+): TerritoryClaim[] {
+  const claims: TerritoryClaim[] = [];
+  for (const rawCoord of hexesInRange(city.position, getBaseTerritoryRadius(city))) {
+    const coord = canonicalizeCityCoord(rawCoord, state.map);
+    const tile = state.map.tiles[hexKey(coord)];
+    if (!canClaimTile(tile)) continue;
+    claims.push({
+      cityId: city.id,
+      civId: city.owner,
+      coord,
+      radiusBand: cityDistance(city.position, coord, state.map),
+      pressure: 0,
+      reason,
+    });
+  }
+  return claims;
+}
+
+function chooseTerritoryWinner(
+  claims: TerritoryClaim[],
+  previousOwner: string | null,
+  options: TerritoryRecalculationOptions,
+): TerritoryClaim | null {
+  if (options.preserveForeignHolders && previousOwner) {
+    const holderClaim = claims.find(claim => claim.civId === previousOwner);
+    if (holderClaim) return holderClaim;
+    return null;
+  }
+
+  return claims.slice().sort((left, right) => {
+    if (left.radiusBand !== right.radiusBand) return left.radiusBand - right.radiusBand;
+    return left.cityId.localeCompare(right.cityId);
+  })[0] ?? null;
+}
+
+export function recalculateTerritory(
+  state: GameState,
+  options: TerritoryRecalculationOptions,
+): TerritoryRecalculationResult {
+  const claimsByTile = new Map<string, TerritoryClaim[]>();
+  for (const city of Object.values(state.cities)) {
+    for (const claim of generateTerritoryClaimsForCity(state, city, options.reason)) {
+      const key = hexKey(claim.coord);
+      claimsByTile.set(key, [...(claimsByTile.get(key) ?? []), claim]);
+    }
+  }
+
+  const nextTiles = { ...state.map.tiles };
+  const nextCities: GameState['cities'] = {};
+  const ownedByCity = new Map<string, HexCoord[]>();
+  const resolutions: TerritoryResolution[] = [];
+
+  for (const city of Object.values(state.cities)) {
+    nextCities[city.id] = { ...city, ownedTiles: [] };
+  }
+
+  for (const [key, claims] of claimsByTile.entries()) {
+    const tile = state.map.tiles[key];
+    if (!tile) continue;
+
+    const previousOwner = tile.owner ?? null;
+    const winner = chooseTerritoryWinner(claims, previousOwner, options);
+    if (winner) {
+      nextTiles[key] = { ...tile, owner: winner.civId };
+      ownedByCity.set(winner.cityId, [...(ownedByCity.get(winner.cityId) ?? []), winner.coord]);
+    }
+
+    if ((winner?.civId ?? previousOwner) !== previousOwner) {
+      resolutions.push({
+        coord: tile.coord,
+        previousOwner,
+        winningCityId: winner?.cityId ?? null,
+        winningCivId: winner?.civId ?? null,
+        competingClaims: claims,
+        reason: options.reason,
+      });
+    }
+  }
+
+  for (const [cityId, city] of Object.entries(nextCities)) {
+    const seen = new Set<string>();
+    nextCities[cityId] = {
+      ...city,
+      ownedTiles: (ownedByCity.get(cityId) ?? []).filter(coord => {
+        const key = hexKey(coord);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }),
+    };
+  }
+
+  const normalized = normalizeCityWorkClaims({
+    ...state,
+    map: {
+      ...state.map,
+      tiles: nextTiles,
+    },
+    cities: nextCities,
+  });
+
+  return { state: normalized.state, resolutions, contestedResolutions: [] };
 }
 
 function isValidCityCenterTerrain(state: GameState, position: HexCoord): boolean {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { City, GameState } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 import {
   buildCityWorkClaimIndex,
   canonicalizeCityCoord,
@@ -10,6 +11,8 @@ import {
   getCityFoundingBlockers,
   MIN_CITY_CENTER_DISTANCE,
   normalizeCityWorkClaims,
+  recalculateTerritory,
+  type TerritoryResolution,
 } from '@/systems/city-territory-system';
 
 function addCity(state: GameState, owner: string, q: number, r: number): City {
@@ -99,6 +102,67 @@ describe('city founding territory rules', () => {
       { reason: 'too-close', cityName: 'Ephyra', distance: 2 },
     ])).toBe('Too close to Ephyra.');
     expect(formatCityFoundingBlockerMessage([{ reason: 'invalid-terrain' }])).toBe('Cities must be founded on land.');
+  });
+
+  it('recalculates a founded city to radius 2 without claiming ocean or mountains', () => {
+    const state = createNewGame(undefined, 'territory-radius-2');
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    const city = foundCity('player', { q: 10, r: 10 }, state.map);
+    city.id = 'city-player';
+    state.cities[city.id] = { ...city, ownedTiles: [] };
+    state.civilizations.player.cities = [city.id];
+    state.map.tiles['10,10'] = { ...state.map.tiles['10,10'], terrain: 'grassland', owner: null };
+    state.map.tiles['10,12'] = { ...state.map.tiles['10,12'], terrain: 'grassland', owner: null };
+    state.map.tiles['11,10'] = { ...state.map.tiles['11,10'], terrain: 'mountain', owner: null };
+    state.map.tiles['12,10'] = { ...state.map.tiles['12,10'], terrain: 'ocean', owner: null };
+
+    const result = recalculateTerritory(state, { reason: 'founding', preserveForeignHolders: true });
+    const ownedKeys = result.state.cities[city.id].ownedTiles.map(hexKey);
+
+    expect(ownedKeys).toContain('10,10');
+    expect(ownedKeys).toContain('10,12');
+    expect(ownedKeys).not.toContain('11,10');
+    expect(ownedKeys).not.toContain('12,10');
+    for (const key of ownedKeys) {
+      expect(result.state.map.tiles[key]?.owner).toBe('player');
+    }
+  });
+
+  it('does not steal valid foreign-held tiles during MR1 founding recalculation', () => {
+    const state = createNewGame(undefined, 'territory-foreign-holder');
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    const city = foundCity('player', { q: 10, r: 10 }, state.map);
+    city.id = 'city-player';
+    state.cities[city.id] = { ...city, ownedTiles: [] };
+    state.civilizations.player.cities = [city.id];
+    state.map.tiles['11,10'] = { ...state.map.tiles['11,10'], terrain: 'grassland', owner: 'ai-1' };
+
+    const result = recalculateTerritory(state, { reason: 'founding', preserveForeignHolders: true });
+
+    expect(result.state.map.tiles['11,10'].owner).toBe('ai-1');
+    expect(result.state.cities[city.id].ownedTiles.map(hexKey)).not.toContain('11,10');
+  });
+
+  it('returns changed-tile metadata when ownership changes', () => {
+    const state = createNewGame(undefined, 'territory-resolution-metadata');
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    const city = foundCity('player', { q: 10, r: 10 }, state.map);
+    city.id = 'city-player';
+    state.cities[city.id] = { ...city, ownedTiles: [] };
+    state.civilizations.player.cities = [city.id];
+
+    const result = recalculateTerritory(state, { reason: 'founding', preserveForeignHolders: true });
+    const centerResolution = result.resolutions.find((resolution: TerritoryResolution) => hexKey(resolution.coord) === '10,10');
+
+    expect(centerResolution).toMatchObject({
+      previousOwner: null,
+      winningCityId: city.id,
+      winningCivId: 'player',
+      reason: 'founding',
+    });
   });
 });
 
