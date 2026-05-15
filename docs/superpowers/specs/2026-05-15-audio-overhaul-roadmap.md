@@ -36,6 +36,22 @@ Each spec is one brainstorm → plan → MR cycle. Ship in order.
    - Legacy code: **D1** — delete `src/audio/music-generator.ts` (it is the bug being fixed). Cold start = silence until first track loads (~1–2s).
    - Settings UI: **U1** — keep existing music/sfx toggles + volume sliders; no per-channel UI in Spec 1 (deferred to Spec 3).
 
+   **Spec 1 design-review refinements (locked):**
+   - **R1** — delete `audio-manager.ts` facade; update `main.ts` call sites directly to a new `AudioSystem` entry point.
+   - **R2** — game events carry payload state; `MusicDirector` handlers are pure functions of their payload (no state-getter injection).
+   - **R3** — `AudioSystem` owns `AudioContext` lifecycle: starts suspended, one-time `pointerdown` resume listener, single dep injected into `AudioMixer`.
+   - **G1** — `AudioSystem.start(state)` runs identically on save-load and new-game cold-start.
+   - **G2** — on `game:ended`, fade music master to silence over 4s (no asset; defeat/victory stingers ship in Spec 3).
+   - **G3** — `AudioSystem` subscribes to `document.visibilitychange`; suspends `AudioContext` when hidden, resumes when visible.
+   - **G4** — pause menu = music continues at normal volume (no duck, no pause).
+   - **A1** — era-base crossfade is triggered at stinger-end (duck-restore boundary), not at a hardcoded mid-stinger offset.
+   - **A2** — `mixer.playOneShot()` is duck-neutral. Ducking is an explicit `mixer.setSnapshot('stinger-duck')` before the stinger and re-assertion of the intended snapshot after.
+   - **A3** — `MusicDirector` owns the "intended" snapshot state (`peace` / `at-war`); mixer applies snapshots imperatively and remains stateless beyond Web Audio internals.
+   - **A4** — Spec 1 scope includes wiring a `currentPlayer:changed-after-handoff` event from the handoff confirmation modal if it does not already emit one.
+   - **A5** — director ignores events whose payload does not reference the current player (no per-civ era tracking).
+   - **D-A9** — overlapping stingers (< 500ms apart): second stinger truncates the first via a 200ms cross-cut. Known edge; revisit if audible during curation.
+   - **D-A10** — `mixer.setBusSource(bus, buffer, { loopStart, loopEnd }, fadeMs)` plumbs loop points from the catalog entry.
+
 2. **Spec 2 — Combat & Action SFX** *(later)* — `2026-05-15-audio-overhaul-spec-2-combat-sfx.md`
    Per-unit-type sounds, movement audio, death audio, new SFX trigger points.
 
