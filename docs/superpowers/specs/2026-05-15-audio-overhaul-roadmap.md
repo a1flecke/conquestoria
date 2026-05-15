@@ -103,23 +103,65 @@ Each spec is one brainstorm → plan → MR cycle. Ship in order.
    - **Voice-line localization** — non-English voice packs (deferred from Spec 3).
    - **Ambient looping audio** — forest birds, ocean waves, urban hubbub, gated by tile-type the camera is centered on.
 
+## Sequencing & milestones
+
+Linear order. Each phase is a hard gate for starting the next *engineering* work; curation is user-paced and parallel.
+
+1. **Spec 1 brainstorm** — complete (this roadmap + its child files).
+2. **Spec 1 implementation plan** — written via `superpowers:writing-plans`. Decomposes into MR-sized tasks.
+3. **Spec 1 engineering MRs** — architecture, mixer, director, loader, catalog, civ-family, sfx refactor, placeholder OGGs. Ships behind no flag; user-visible benefit is "no hum."
+4. **Spec 1 curation MR series** *(parallel-safe with #5 onwards)* — user-paced. Each MR swaps one or a few placeholder OGGs for real audio. Order per the [assets doc](./2026-05-15-audio-overhaul-spec-1-assets-and-curation.md): era bases → war layers → accents → stingers → transition cues.
+5. **Spec 2 brainstorm** — begins after Spec 1 engineering MRs merge (#3 done). Does **not** wait for curation #4 to complete. Spec 2 reuses the SFX bus and loader already shipped in Spec 1.
+6. **Spec 2 implementation plan + engineering MRs + curation MR series** — same pattern as Spec 1.
+7. **Spec 3 brainstorm** — begins after Spec 2 engineering MRs merge.
+8. **Spec 3 implementation + curation** — same pattern. Spec 3 includes Q-Attribution Att3 work (in-game credits screen) and the per-channel mixer UI.
+9. **Spec 4 brainstorm** — begins only if Spec 3 fills up *or* a candidate item becomes a real player pain point. Optional.
+
 ## Cross-cutting deferred questions
 
-Assigned to the spec that needs to answer them:
+Assigned to the spec or milestone that resolves them:
 
-- **Bundle size cap** — Spec 1 sets a tentative target; Spec 3 confirms total. (Initial estimate: 40–65 MB total across all specs.)
-- **Eras supported** — current audio config covers 1–4; game has 5+. Spec 1 fixes for music; Spec 2 for SFX.
-- **Civilization accent list** — which playable factions get accent loops. Spec 1.
-- **Hot-seat civ-switching music behavior** — `currentPlayer` rotates every turn; mix must handle frequent civ changes gracefully. Spec 1.
-- **Mixer UI scope** — per-channel sliders deferred to Spec 3; Spec 1 keeps existing music/SFX toggles working.
+- **Bundle size cap** — Spec 1 locked it (5 MB initial / 25 MB total / 2.5 MB per file per H-6). Spec 2 confirms SFX fits. Spec 3 confirms voice + adaptive layers fit total.
+- **Eras supported** — Spec 1 (Er2). Spec 2 confirms unit SFX work across eras as new units are unlocked.
+- **Civilization accent list** — Spec 1 (C2 + H-5).
+- **Hot-seat civ-switching music behavior** — Spec 1 (H2 + revised Flow I).
+- **Mixer UI scope** — Spec 3 (per-channel sliders + credits screen per Q-Attribution Att3).
+- **Q-Attribution display** — **Att3 locked**: Spec 1 ships `AUDIO-CREDITS.md` at repo root + one line in README pointing to it. Spec 3 adds an in-game credits screen alongside the mixer UI.
+- **UI-1 audio settings panel location** — plan-writing investigation: identify where existing `musicEnabled` / `sfxEnabled` toggles live (likely pause menu or settings panel). Spec 1 keeps existing location; Spec 3 mixer UI inherits or expands it.
+- **G-4 music spoiler in multiplayer** — revisit when network multiplayer is designed. Hot-seat (Spec 1) handles this via the H2 + UX-2 handoff rules; remote multiplayer would need additional thought.
+- **Bluetooth / external audio routing** — default Web Audio behavior is sufficient: audio continues when a Bluetooth device connects, goes silent when it disconnects mid-stream. No special handling in Spec 1. Verify during Spec 1 manual smoke test on a phone.
+- **Service Worker cache eviction** — Spec 1's 25 MB cap is well under typical mobile SW quotas (50+ MB on modern devices). No eviction logic in Spec 1. If real-world reports show storage pressure, add to Spec 4 as a new candidate.
+- **Performance budget on low-end mobile** — Spec 1 verification gate includes a manual smoke on a phone-class device. Web Audio with 4 simultaneous looped sources + occasional stingers is light; no specific budget set. Raise as a Spec 4 candidate if real-world testing reveals problems.
+
+## Rejected items (intentionally not planned)
+
+These were considered and deliberately not pursued. Recorded so future-us doesn't relitigate.
+
+- **Currently-playing indicator UI (UI-2)** — too much in-game chrome for limited value; not adding.
+- **Procedural fallback when assets fail to load** — replaced by silent fallback (per D1 + AudioLoader silent-buffer fallback). The procedural drone is the bug being fixed; never re-add.
+- **CC-BY-SA or CC-BY-NC sourced audio** — license incompatibility with the project's distribution. CC0 and CC-BY only.
+- **Voice-line localization in initial Spec 3** — English-only Spec 3 voice lines; localization is a Spec 4 candidate to keep Spec 3 shippable.
+- **Music intensity tied to UI mouse motion / scroll** — common in some web experiences; intentionally not used here. Music ties to game state, not input gestures.
 
 ## Curation workflow
 
-Per-asset cycle:
-1. Claude proposes shortlist with source URL, license, length, BPM/key, rationale.
+Per-asset cycle (full version in the [Spec 1 assets doc](./2026-05-15-audio-overhaul-spec-1-assets-and-curation.md)):
+
+1. Claude proposes shortlist of 3–5 candidates per slot: source URL, license, length, BPM/key, rationale.
 2. User listens, approves/rejects, requests alternates.
-3. Claude commits approved asset to repo and updates `AUDIO-CREDITS.md` (CC-BY attribution).
+3. Claude commits the approved asset (after user runs the `curl` + `ffmpeg` commands locally), updates `AUDIO-CREDITS.md`, updates the catalog entry, opens an MR.
+
+Each curation MR is small (1–few assets). Order: era bases first (set the key/BPM zone), then war layers, accents, stingers, transition cues.
 
 ## Living-doc protocol
 
-When a child spec is written, decision changes, or a deferred question is resolved — update this index. It is the single source of truth for what is locked in vs. open.
+This roadmap is the single source of truth for what is locked in vs. open. Update it when:
+
+- A child spec is brainstormed and locked → record the spec's locked decisions and refinements here.
+- A locked decision changes → update the decision *and* note the date/reason of the change.
+- A deferred question is resolved → move it from the deferred list to its locked spec.
+- A curation MR introduces an unplanned scope change → record under the relevant spec.
+- A new item must be deferred → add to the cross-cutting deferred list or to Spec 4 candidates.
+- A previously planned item is rejected → move to "Rejected items" with the reason.
+
+Updates are committed alongside whatever change triggered them.
