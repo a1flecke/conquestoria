@@ -1,4 +1,4 @@
-import type { CustomCivDefinition, SoloSetupConfig } from '@/core/types';
+import type { CustomCivDefinition, SoloSetupConfig, MapScript } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createCustomCivPanel } from '@/ui/custom-civ-panel';
@@ -122,10 +122,97 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   civSection.content.appendChild(chooseCivButton);
 
   const mapSection = createSetupSection({
-    title: 'Map size',
-    description: 'Choose the world footprint for this campaign.',
+    title: 'Map',
+    description: 'Choose your world and its size.',
   });
   hero.appendChild(mapSection.section);
+
+  const MAP_SCRIPT_LABELS: Record<string, { emoji: string; label: string; description: string }> = {
+    earth: {
+      emoji: '🌍', label: 'Earth',
+      description: 'Real-world geography. Civilizations start near their historical homelands; fantasy and out-of-region civs get good constrained starts. Resources follow real-world distribution.',
+    },
+    'old-world': {
+      emoji: '🗺️', label: 'Old World',
+      description: 'Europe, Asia, and Africa. Historical civilizations start at their homelands. Best for Old World civs — Aztec gets a constrained random start. Resources follow real-world distribution.',
+    },
+    'new-world': {
+      emoji: '🌎', label: 'New World',
+      description: 'North and South America. Aztec starts in Central Mexico. England and France land on the eastern seaboard; Spain lands on the Gulf of Mexico; Viking land in Newfoundland. Other civs get a constrained random start.',
+    },
+    balanced: {
+      emoji: '⚖️', label: 'Balanced',
+      description: 'Procedurally generated. Each civilization receives an algorithmically fair share of terrain and resources. A cluster of luxury resources between civilizations creates a natural conflict hotspot.',
+    },
+    'single-continent': {
+      emoji: '🏝️', label: 'Continent',
+      description: 'One large connected landmass with small islands in the surrounding ocean. Fast early contact between civilizations; islands reward naval exploration with bonus resources.',
+    },
+  };
+
+  const MAP_SCRIPT_ORDER = ['earth', 'old-world', 'new-world', 'balanced', 'single-continent'] as const;
+  type MapScriptKey = typeof MAP_SCRIPT_ORDER[number];
+
+  const mapScriptSelect = document.createElement('select');
+  mapScriptSelect.hidden = true;
+  mapScriptSelect.id = 'campaign-map-script';
+  for (const script of MAP_SCRIPT_ORDER) {
+    const opt = document.createElement('option');
+    opt.value = script;
+    mapScriptSelect.appendChild(opt);
+  }
+  mapScriptSelect.value = 'earth';
+  mapSection.content.appendChild(mapScriptSelect);
+
+  const mapTypeRow = document.createElement('div');
+  Object.assign(mapTypeRow.style, {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: '8px',
+    marginBottom: '10px',
+  });
+  const mapTypeStyleTag = document.createElement('style');
+  mapTypeStyleTag.textContent = `@media (min-width: 480px) { #map-type-row { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; } }`;
+  document.head.appendChild(mapTypeStyleTag);
+  mapTypeRow.id = 'map-type-row';
+  mapSection.content.appendChild(mapTypeRow);
+
+  const mapDescEl = document.createElement('p');
+  mapDescEl.dataset.role = 'map-description';
+  Object.assign(mapDescEl.style, {
+    margin: '0 0 10px',
+    fontSize: '12px',
+    opacity: '0.82',
+    lineHeight: '1.45',
+  });
+  mapSection.content.appendChild(mapDescEl);
+
+  const mapScriptCards = new Map<MapScriptKey, HTMLButtonElement>();
+
+  const syncMapScriptCards = (): void => {
+    const current = mapScriptSelect.value as MapScriptKey;
+    for (const [script, btn] of mapScriptCards.entries()) {
+      syncChoiceButtonState(btn, script === current);
+    }
+    mapDescEl.textContent = MAP_SCRIPT_LABELS[current]?.description ?? '';
+  };
+
+  for (const script of MAP_SCRIPT_ORDER) {
+    const info = MAP_SCRIPT_LABELS[script];
+    const btn = createChoiceButton(`${info.emoji} ${info.label}`);
+    btn.dataset.mapScript = script;
+    btn.style.flexDirection = 'column';
+    btn.style.gap = '2px';
+    btn.style.fontSize = '12px';
+    btn.addEventListener('click', () => {
+      mapScriptSelect.value = script;
+      syncMapScriptCards();
+    });
+    mapScriptCards.set(script, btn);
+    mapTypeRow.appendChild(btn);
+  }
+
+  syncMapScriptCards();
 
   const mapSizeCardRow = document.createElement('div');
   Object.assign(mapSizeCardRow.style, {
@@ -154,6 +241,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     option.textContent = size;
     mapSizeField.select.appendChild(option);
   }
+  mapSizeField.select.value = 'medium';
   mapSection.content.appendChild(mapSizeField.wrapper);
 
   const mapSizeCards = new Map<'small' | 'medium' | 'large', HTMLButtonElement>();
@@ -338,6 +426,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       opponentCount: Number(opponentsField.select.value),
       gameTitle,
       customCivilizations,
+      mapScript: mapScriptSelect.value as MapScript,
     });
   });
   buttonRow.appendChild(startButton);
