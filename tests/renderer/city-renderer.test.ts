@@ -167,6 +167,62 @@ describe('city renderer', () => {
     expect(overlayTexts).toContain('☹');
   });
 
+  it('renders fogged cities from last-seen presentation without live production or unrest badges', () => {
+    const state = createNewGame(undefined, 'city-last-seen-render', 'small');
+    state.cities.enemyCity = {
+      id: 'enemyCity',
+      name: 'Live City',
+      owner: 'player',
+      position: { q: 0, r: 0 },
+      population: 9,
+      buildings: [],
+      productionQueue: ['warrior'],
+      productionProgress: 0,
+      food: 0,
+      foodNeeded: 10,
+      workedTiles: [],
+      ownedTiles: [{ q: 0, r: 0 }],
+      focus: 'balanced',
+      maturity: 'outpost',
+      grid: [],
+      gridSize: 3,
+      unrestLevel: 2,
+      unrestTurns: 3,
+      spyUnrestBonus: 0,
+    };
+    state.civilizations.player.visibility = {
+      tiles: { '0,0': 'fog' },
+      lastSeen: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          improvementTurnsLeft: 0,
+          owner: 'ai-1',
+          hasRiver: false,
+          wonder: null,
+          city: { id: 'enemyCity', name: 'Old City', owner: 'ai-1', population: 2 },
+        },
+      },
+    };
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const camera = {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    drawCities(ctx, state, camera, 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(texts).toContain('Old City (2)');
+    expect(texts).not.toContain('Live City (9)');
+    expect(texts).not.toContain('🔥');
+  });
+
   it('renders wrapped ghost cities at the horizontal seam when only the mirrored copy is on screen', () => {
     const state = createNewGame(undefined, 'wrapped-city-render');
     state.map.wrapsHorizontally = true;

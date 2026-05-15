@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { hexToPixel } from '@/systems/hex-utils';
-import { isVisible } from '@/systems/fog-of-war';
+import { getVisibility } from '@/systems/fog-of-war';
 import { getOccupiedCityMood } from '@/systems/city-occupation-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
@@ -35,6 +35,15 @@ interface CityRenderInfo {
   breakawayTurnsLeft?: number;
 }
 
+interface CityRenderProjection {
+  name: string;
+  position: HexCoord;
+  population: number;
+  owner: string;
+  isLive: boolean;
+  liveCityId?: string;
+}
+
 const OWNER_COLORS: Record<string, string> = {
   player: '#4a90d9',
   'ai-1': '#d94a4a',
@@ -67,16 +76,16 @@ export function drawCities(
   const vis = state.civilizations[playerCivId]?.visibility;
   if (!vis) return;
 
-  for (const city of Object.values(state.cities)) {
-    if (!isVisible(vis, city.position)) continue;
-    const mcState = city.owner.startsWith('mc-') ? state.minorCivs?.[city.owner] : null;
+  for (const projection of getCityRenderProjection(state, playerCivId)) {
+    const city = projection.liveCityId ? state.cities[projection.liveCityId] : undefined;
+    const mcState = projection.isLive && projection.owner.startsWith('mc-') ? state.minorCivs?.[projection.owner] : null;
     const mcDef = mcState ? MINOR_CIV_DEFINITIONS.find(d => d.id === mcState.definitionId) : null;
-    const color = mcDef?.color ?? state.civilizations[city.owner]?.color ?? OWNER_COLORS[city.owner] ?? '#888';
-    const breakaway = state.civilizations[city.owner]?.breakaway;
+    const color = mcDef?.color ?? state.civilizations[projection.owner]?.color ?? OWNER_COLORS[projection.owner] ?? '#888';
+    const breakaway = projection.isLive ? state.civilizations[projection.owner]?.breakaway : undefined;
 
     const renderCoords = state.map.wrapsHorizontally
-      ? getHorizontalWrapRenderCoords(city.position, state.map.width, camera)
-      : [city.position];
+      ? getHorizontalWrapRenderCoords(projection.position, state.map.width, camera)
+      : [projection.position];
 
     for (const renderCoord of renderCoords) {
       if (!camera.isHexVisible(renderCoord)) continue;
@@ -98,9 +107,9 @@ export function drawCities(
       ctx.font = `${size * 0.45}px system-ui`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const isMinorCiv = city.owner.startsWith('mc-');
+      const isMinorCiv = projection.isLive && projection.owner.startsWith('mc-');
       if (isMinorCiv) {
-        const mcState = state.minorCivs?.[city.owner];
+        const mcState = state.minorCivs?.[projection.owner];
         const def = mcState ? MINOR_CIV_DEFINITIONS.find(d => d.id === mcState.definitionId) : null;
         const icon = def?.archetype === 'militaristic' ? '⚔️'
           : def?.archetype === 'mercantile' ? '🪙'
@@ -115,19 +124,19 @@ export function drawCities(
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(`${city.name} (${city.population})`, screen.x, screen.y + size * 0.5);
+      ctx.fillText(`${projection.name} (${projection.population})`, screen.x, screen.y + size * 0.5);
 
-      if (breakaway) {
+      if (projection.isLive && city && breakaway) {
         ctx.font = `${size * 0.28}px system-ui`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(breakaway.status === 'secession' ? '⛓' : '👑', screen.x + size * 0.45, screen.y - size * 0.45);
-      } else if (city.occupation) {
+      } else if (projection.isLive && city?.occupation) {
         ctx.font = `${size * 0.28}px system-ui`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(getOccupiedCityMood(city) === 2 ? '☹' : '⚡', screen.x + size * 0.45, screen.y - size * 0.45);
-      } else if (city.unrestLevel > 0) {
+      } else if (projection.isLive && city && city.unrestLevel > 0) {
         ctx.font = `${size * 0.28}px system-ui`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -135,7 +144,7 @@ export function drawCities(
       }
 
       // Bottom-right badge: currently-building icon (player-owned, non-empty queue only)
-      if (city.owner === playerCivId) {
+      if (projection.isLive && city && city.owner === playerCivId) {
         const badgeSprite = camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD
           ? getProductionBadgeSprite(city, playerCivId)
           : null;
@@ -162,6 +171,8 @@ export function drawCities(
 
       // Top-left badge: idle production mode (player-owned, queue empty, idleProduction set)
       if (
+        projection.isLive &&
+        city &&
         city.owner === playerCivId &&
         city.productionQueue.length === 0 &&
         (city.idleProduction === 'gold' || city.idleProduction === 'science')
@@ -175,4 +186,32 @@ export function drawCities(
       }
     }
   }
+}
+
+function getCityRenderProjection(state: GameState, playerCivId: string): CityRenderProjection[] {
+  const vis = state.civilizations[playerCivId]?.visibility;
+  if (!vis) return [];
+
+  const liveCities = Object.values(state.cities)
+    .filter(city => getVisibility(vis, city.position) === 'visible')
+    .map(city => ({
+      name: city.name,
+      position: city.position,
+      population: city.population,
+      owner: city.owner,
+      isLive: true,
+      liveCityId: city.id,
+    }));
+
+  const staleCities = Object.values(vis.lastSeen ?? {})
+    .filter(snapshot => getVisibility(vis, snapshot.coord) === 'fog' && snapshot.city)
+    .map(snapshot => ({
+      name: snapshot.city!.name,
+      position: snapshot.coord,
+      population: snapshot.city!.population,
+      owner: snapshot.city!.owner,
+      isLive: false,
+    }));
+
+  return [...liveCities, ...staleCities];
 }

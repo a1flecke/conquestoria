@@ -85,7 +85,22 @@ describe('hex renderer privacy', () => {
 
   it('keeps player ownership borders on fogged tiles', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
-    const visibility: VisibilityMap = { tiles: { '0,0': 'fog', '1,0': 'unexplored' } };
+    const visibility: VisibilityMap = {
+      tiles: { '0,0': 'fog', '1,0': 'unexplored' },
+      lastSeen: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'grassland',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          improvementTurnsLeft: 0,
+          owner: 'player',
+          hasRiver: false,
+          wonder: null,
+        },
+      },
+    };
 
     drawHexMap(ctx, makeMap(), makeCamera(), undefined, 'player', visibility);
 

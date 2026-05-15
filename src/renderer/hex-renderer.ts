@@ -2,7 +2,8 @@ import type { GameMap, HexCoord, HexTile, TerrainType, VisibilityMap } from '@/c
 import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY } from '@/systems/hex-utils';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
-import { shouldRenderOwnedTileBorder } from './render-visibility';
+import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
+import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
 
 // --- Terrain labels ---
 
@@ -57,8 +58,9 @@ function drawTileAtScreen(
   currentPlayer: string | undefined,
   viewerVisibility: VisibilityMap | undefined,
   zoom: number,
+  presentationKind: TilePresentationKind,
 ): void {
-  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility);
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind);
   if (shouldShowTerrainLabel(zoom)) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -91,7 +93,18 @@ export function drawHexMap(
       const pixel = hexToPixel(renderCoord, size);
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const scaledSize = size * camera.zoom;
-      drawTileAtScreen(ctx, screen, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, camera.zoom);
+      const presentation = resolveTilePresentationForViewer(map, viewerVisibility, renderCoord);
+      drawTileAtScreen(
+        ctx,
+        screen,
+        scaledSize,
+        presentation.tile,
+        isVillage && presentation.kind === 'live',
+        currentPlayer,
+        viewerVisibility,
+        camera.zoom,
+        presentation.kind,
+      );
     }
   }
 }
@@ -116,8 +129,15 @@ export function drawWrapGhostRivers(
   ctx: CanvasRenderingContext2D,
   map: GameMap,
   camera: Camera,
+  viewerVisibility?: VisibilityMap,
 ): void {
   for (const river of map.rivers) {
+    if (
+      !canRenderRiverEndpoint(map, viewerVisibility, river.from)
+      && !canRenderRiverEndpoint(map, viewerVisibility, river.to)
+    ) {
+      continue;
+    }
     for (const offset of getHorizontalWrapOffsetsForRiver(river.from, river.to, map.width)) {
       const ghostFrom: HexCoord = { q: river.from.q + offset, r: river.from.r };
       const ghostTo: HexCoord = { q: river.to.q + offset, r: river.to.r };
@@ -131,19 +151,31 @@ export function drawRivers(
   ctx: CanvasRenderingContext2D,
   map: GameMap,
   camera: Camera,
+  viewerVisibility?: VisibilityMap,
 ): void {
   ctx.strokeStyle = '#4a8faf';
   ctx.lineWidth = 3 * camera.zoom;
   ctx.lineCap = 'round';
 
   for (const river of map.rivers) {
+    if (
+      !canRenderRiverEndpoint(map, viewerVisibility, river.from)
+      && !canRenderRiverEndpoint(map, viewerVisibility, river.to)
+    ) {
+      continue;
+    }
     if (!camera.isHexVisible(river.from) && !camera.isHexVisible(river.to)) continue;
     drawRiverSegment(ctx, camera, river.from, river.to);
   }
 
   if (map.wrapsHorizontally) {
-    drawWrapGhostRivers(ctx, map, camera);
+    drawWrapGhostRivers(ctx, map, camera, viewerVisibility);
   }
+}
+
+function canRenderRiverEndpoint(map: GameMap, visibility: VisibilityMap | undefined, coord: HexCoord): boolean {
+  const presentation = resolveTilePresentationForViewer(map, visibility, coord);
+  return presentation.kind === 'live' || presentation.kind === 'last-seen';
 }
 
 function drawRiverSegment(
@@ -183,6 +215,7 @@ function drawHex(
   isVillage: boolean = false,
   currentPlayer?: string,
   viewerVisibility?: VisibilityMap,
+  presentationKind: TilePresentationKind = 'live',
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -253,7 +286,10 @@ function drawHex(
   }
 
   // Draw ownership indicator
-  if (tile.owner && currentPlayer && shouldRenderOwnedTileBorder(viewerVisibility, currentPlayer, tile.owner, tile.coord)) {
+  const renderOwnership = viewerVisibility
+    ? shouldRenderOwnedTileBorderForPresentation(presentationKind, currentPlayer, tile.owner)
+    : shouldRenderOwnedTileBorder(viewerVisibility, currentPlayer, tile.owner, tile.coord);
+  if (tile.owner && currentPlayer && renderOwnership) {
     ctx.strokeStyle = tile.owner === currentPlayer ? 'rgba(74,144,217,0.5)' : 'rgba(217,74,74,0.5)';
     ctx.lineWidth = 2;
     ctx.stroke();
