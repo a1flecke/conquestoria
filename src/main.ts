@@ -11,7 +11,7 @@ import { hexKey, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-u
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
-import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
+import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
@@ -1398,22 +1398,19 @@ function foundCityAction(): void {
   gameState.cities[city.id] = city;
   currentCiv().cities.push(city.id);
   gameState = initializeLegendaryWonderProjectsForCity(gameState, cp, city.id);
-
-  // Mark tiles as owned
-  for (const coord of city.ownedTiles) {
-    const key = hexKey(coord);
-    if (gameState.map.tiles[key]) {
-      gameState.map.tiles[key].owner = cp;
-    }
-  }
+  gameState = recalculateTerritory(gameState, {
+    reason: 'founding',
+    preserveForeignHolders: true,
+  }).state;
 
   // Remove settler
   delete gameState.units[selectedUnitId];
   currentCiv().units = currentCiv().units.filter(id => id !== selectedUnitId);
 
   deselectUnit();
-  bus.emit('city:founded', { city });
-  showNotification(`${city.name} has been founded!`, 'success');
+  const foundedCity = gameState.cities[city.id] ?? city;
+  bus.emit('city:founded', { city: foundedCity });
+  showNotification(`${foundedCity.name} has been founded!`, 'success');
   SFX.foundCity();
 
   // Update visibility
