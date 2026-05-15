@@ -200,6 +200,12 @@ export type UnitType =
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound';
 
+export interface UnitAttackProfile {
+  kind: 'melee' | 'ranged' | 'siege' | 'bombard';
+  range: number;
+  targets: Array<'unit' | 'city'>;
+}
+
 export interface UnitDefinition {
   type: UnitType;
   name: string;
@@ -210,6 +216,7 @@ export interface UnitDefinition {
   canBuildImprovements: boolean;
   productionCost: number;
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
+  attackProfile?: UnitAttackProfile;
 }
 
 export interface WorkerTask {
