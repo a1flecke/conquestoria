@@ -138,6 +138,7 @@ import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow'
 import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 
 // --- App State ---
 let gameState: GameState;
@@ -1327,6 +1328,7 @@ function refreshCurrentPlayerVisibility(): void {
     .filter((position): position is HexCoord => position !== undefined);
 
   updateVisibility(civ.visibility, playerUnits, gameState.map, cityPositions);
+  refreshLastSeenPresentationsForCiv(gameState, gameState.currentPlayer);
   for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
     bus.emit('civilization:first-contact', contact);
   }
@@ -1399,6 +1401,7 @@ function foundCityAction(): void {
     .map(id => gameState.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
   updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
+  refreshLastSeenPresentationsForCiv(gameState, gameState.currentPlayer);
   for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
     bus.emit('civilization:first-contact', contact);
   }

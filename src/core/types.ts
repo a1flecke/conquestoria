@@ -190,6 +190,27 @@ export interface GameMap {
 
 export interface VisibilityMap {
   tiles: Record<string, VisibilityState>; // key is "q,r"
+  lastSeen?: Record<string, LastSeenTilePresentation>;
+}
+
+export interface LastSeenCityPresentation {
+  id: string;
+  name: string;
+  owner: string;
+  population: number;
+}
+
+export interface LastSeenTilePresentation {
+  coord: HexCoord;
+  terrain: TerrainType;
+  elevation: Elevation;
+  resource: string | null;
+  improvement: ImprovementType;
+  improvementTurnsLeft: number;
+  owner: string | null;
+  hasRiver: boolean;
+  wonder: string | null;
+  city?: LastSeenCityPresentation;
 }
 
 // --- Units ---

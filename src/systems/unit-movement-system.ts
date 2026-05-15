@@ -6,6 +6,7 @@ import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, findPath } from '@/systems/unit-system';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 
 export interface ExecuteUnitMoveOptions {
   actor: 'player' | 'automation' | 'ai';
@@ -133,6 +134,7 @@ export function executeUnitMove(
     state.map,
     getCivCityPositions(state, options.civId),
   );
+  refreshLastSeenPresentationsForCiv(state, options.civId);
   const contacts = syncCivilizationContactsFromVisibility(state, options.civId);
   for (const contact of contacts) {
     options.bus?.emit('civilization:first-contact', contact);

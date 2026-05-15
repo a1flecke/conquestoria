@@ -15,6 +15,7 @@ import { calculateCityYields } from '@/systems/resource-system';
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import {
   processRelationshipDrift,
   decayEvents,
@@ -321,6 +322,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         applySharedVision(newState.civilizations[civId].visibility, mcPositions, newState.map);
       }
     }
+    refreshLastSeenPresentationsForCiv(newState, civId);
 
     // Clear expired advisor disable timers after all start-of-turn effects are processed.
     if (currentCivState.advisorDisabledUntil) {
