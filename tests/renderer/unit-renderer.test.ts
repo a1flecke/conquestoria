@@ -6,7 +6,11 @@ import type { Camera } from '@/renderer/camera';
 function createContext(): CanvasRenderingContext2D {
   return {
     beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    closePath: vi.fn(),
     arc: vi.fn(),
+    drawImage: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
     fillText: vi.fn(),
@@ -115,6 +119,7 @@ describe('fortified unit badge', () => {
   function makeState(): GameState {
     return {
       map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      civilizations: {},
     } as unknown as GameState;
   }
 
@@ -150,5 +155,55 @@ describe('fortified unit badge', () => {
 
     const fillTextCalls = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls as [string, ...unknown[]][];
     expect(fillTextCalls.some(([text]) => text === 'F')).toBe(false);
+  });
+});
+
+describe('unit role markers', () => {
+  function makeCamera(): Camera {
+    return {
+      zoom: 0.2,
+      hexSize: 48,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+  }
+
+  function makeState(): GameState {
+    return {
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      civilizations: {},
+    } as unknown as GameState;
+  }
+
+  it('draws a chevron marker for barbarian units', () => {
+    const ctx = createContext();
+    const units: Record<string, Unit> = {
+      barb: {
+        id: 'barb', owner: 'barbarian', type: 'warrior',
+        position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+        experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      },
+    };
+
+    drawUnits(ctx, units, makeCamera(), { tiles: { '0,0': 'visible' } }, makeState(), 'player', { barbarian: '#8b4513' });
+
+    expect(ctx.moveTo).toHaveBeenCalled();
+    expect(ctx.lineTo).toHaveBeenCalled();
+  });
+
+  it('draws a diamond marker for minor-civ units', () => {
+    const ctx = createContext();
+    const units: Record<string, Unit> = {
+      minor: {
+        id: 'minor', owner: 'mc-sparta', type: 'warrior',
+        position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+        experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      },
+    };
+
+    drawUnits(ctx, units, makeCamera(), { tiles: { '0,0': 'visible' } }, makeState(), 'player', { 'mc-sparta': '#8a6f2a' });
+
+    expect(ctx.moveTo).toHaveBeenCalled();
+    expect(ctx.lineTo).toHaveBeenCalled();
   });
 });
