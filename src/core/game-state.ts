@@ -114,7 +114,12 @@ export function createNewGame(
   const gameSeed = config.seed ?? `game-${Date.now()}`;
   const resolvedGameTitle = config.gameTitle.trim() || 'Solo Campaign';
   const map = generateMap(dims.width, dims.height, gameSeed);
-  const startPositions = findStartPositions(map, 1 + boundedOpponentCount);
+  const startPositions = findStartPositions(
+    map,
+    Array.from({ length: 1 + boundedOpponentCount }, (_, i) => `civ-${i}`),
+    'procedural',
+    actualSize,
+  );
 
   // Place wonders and villages
   placeWonders(map, startPositions, actualSize, gameSeed);
@@ -268,7 +273,12 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
   const resolvedGameTitle = gameTitle?.trim() || 'Hot Seat Campaign';
   const dims = MAP_DIMENSIONS[config.mapSize];
   const map = generateMap(dims.width, dims.height, gameSeed);
-  const startPositions = findStartPositions(map, config.players.length);
+  const startPositions = findStartPositions(
+    map,
+    config.players.map(p => p.civType),
+    'procedural',
+    config.mapSize,
+  );
 
   // Place wonders and villages
   placeWonders(map, startPositions, config.mapSize, gameSeed);
