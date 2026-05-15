@@ -23,7 +23,19 @@ Captured in the roadmap, summarized here so this file stands alone:
 - **F1** OGG Vorbis only
 - **D1** delete `music-generator.ts` outright
 - **U1** keep existing music/sfx toggles + volume sliders (per-channel UI deferred to Spec 3)
-- **R1–R3, G1–G4, A1–A5, D-A9, D-A10** — design-review refinements; see roadmap for full text
+- **R1–R3, G1–G4, A1–A5, D-A9, D-A10** — first-pass design-review refinements; see roadmap for full text
+- **M-1, M-2** — mute semantics: `musicEnabled=false` zeros master music gain instantly, sources keep running, hard-overrides in-flight fades
+- **W-Scope** — war snapshot triggers on at-war with any opponent (major civ, minor civ, barbarian); tiered split deferred to Spec 4 (W-Tier)
+- **UX-1** — game-end music fade is **1.5s** (revised from 4s) to align with post-game screen reveal
+- **UX-2** — cross-era hot-seat handoff plays a softened single-chord transition cue, not the full advance stinger; new asset slot `STINGER.eraTransitionCue`
+- **UX-3** — defensive iOS Safari resume: if context fails to resume on `visibilitychange`, re-arm a `pointerdown` listener
+- **UX-4** — `pointerdown` resume listener is on `document` (not bound to "New Game"), handles deep-link save-load with no prior user gesture
+- **Au-2** — volume sliders use a square-law perceptual curve (`gain = v * v`)
+- **H-3** — SFX routing: `sfx.ts` exports a `routeSfxThrough(node)` setup function called once by `AudioSystem` with `mixer.getSfxRoutingNode()`
+- **H-5** — minor civ family heuristic: each minor civ maps to the audio family of its closest historical/cultural parent
+- **H-6** — bundle caps: initial install ≤ 5 MB, full cache ≤ 25 MB, per-file ≤ 2.5 MB
+- **C-4** — `TrackEntry.loop: LoopPoints` (deduplicated with mixer's loop-point type)
+- **Cf-2** — era-stinger suppression on handoff is its own locked rule, not a parenthetical
 
 ## Subsection files
 
