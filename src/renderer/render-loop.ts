@@ -95,7 +95,7 @@ export class RenderLoop {
     drawHexMap(this.ctx, this.state.map, this.camera, villagePositions, viewerId, viewerVisibility);
 
     // Draw rivers
-    drawRivers(this.ctx, this.state.map, this.camera);
+    drawRivers(this.ctx, this.state.map, this.camera, viewerVisibility);
 
     // Draw minor civ territory
     if (this.state.minorCivs) {

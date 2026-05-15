@@ -1,5 +1,6 @@
 import type { HexCoord, VisibilityMap } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
+import type { TilePresentationKind } from './tile-presentation';
 
 export function shouldRenderOwnedTileBorder(
   visibility: VisibilityMap | undefined,
@@ -15,4 +16,15 @@ export function shouldRenderOwnedTileBorder(
   }
 
   return visibilityState === 'visible';
+}
+
+export function shouldRenderOwnedTileBorderForPresentation(
+  presentationKind: TilePresentationKind,
+  viewerCivId: string | undefined,
+  ownerId: string | null | undefined,
+): boolean {
+  if (!viewerCivId || !ownerId) return false;
+  if (presentationKind === 'unexplored' || presentationKind === 'unknown-fog') return false;
+  if (ownerId === viewerCivId) return true;
+  return presentationKind === 'live' || presentationKind === 'last-seen';
 }
