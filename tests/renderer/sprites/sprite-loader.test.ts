@@ -53,4 +53,13 @@ describe('SpriteCache after initSprites', () => {
   it('getUnitMotion returns null for an uncached civ', () => {
     expect(spriteCache.getUnitMotion('warrior', 'uncached-civ', 'move-a')).toBeNull();
   });
+
+  it('can load a neutral civ palette on demand', async () => {
+    spriteCache.ensureCiv('mc-on-demand-test', '#8a6f2a');
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(spriteCache.getUnit('warrior', 'mc-on-demand-test')).toBeInstanceOf(HTMLImageElement);
+    expect(spriteCache.getUnitMotion('warrior', 'mc-on-demand-test', 'move-a')).toBeInstanceOf(HTMLImageElement);
+  });
 });

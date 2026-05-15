@@ -23,6 +23,7 @@ function svgStringToImage(svgString: string, size: number): Promise<HTMLImageEle
 class SpriteCache {
   private units = new Map<string, HTMLImageElement>();
   private buildings = new Map<string, HTMLImageElement>();
+  private civLoads = new Map<string, Promise<void>>();
 
   async loadCiv(civId: string, civColor: string): Promise<void> {
     const palette: FactionPalette = derivePalette(civColor);
@@ -55,6 +56,16 @@ class SpriteCache {
 
   getUnitMotion(type: UnitType, civId: string, motion: UnitSpriteMotion): HTMLImageElement | null {
     return this.units.get(`${type}:${civId}:${motion}`) ?? null;
+  }
+
+  ensureCiv(civId: string, civColor: string): void {
+    if (this.units.has(`warrior:${civId}`) || this.civLoads.has(civId)) return;
+    const load = this.loadCiv(civId, civColor)
+      .catch(() => undefined)
+      .finally(() => {
+        this.civLoads.delete(civId);
+      });
+    this.civLoads.set(civId, load);
   }
 
   getBuilding(buildingId: string, civId: string): HTMLImageElement | null {

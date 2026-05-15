@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { drawUnits } from '@/renderer/unit-renderer';
+import { drawUnitGlyph, drawUnits } from '@/renderer/unit-renderer';
 import type { GameState, Unit, VisibilityMap } from '@/core/types';
 import type { Camera } from '@/renderer/camera';
+import { spriteCache } from '@/renderer/sprites/sprite-loader';
 
 function createContext(): CanvasRenderingContext2D {
   return {
@@ -205,6 +206,47 @@ describe('unit role markers', () => {
 
     expect(ctx.moveTo).toHaveBeenCalled();
     expect(ctx.lineTo).toHaveBeenCalled();
+  });
+
+  it('requests an uncached neutral unit sprite palette when sprites are enabled', () => {
+    const ctx = createContext();
+    const ensureSpy = vi.spyOn(spriteCache, 'ensureCiv').mockImplementation(() => undefined);
+    const unit: Unit = {
+      id: 'minor', owner: 'mc-renderer-cache-test', type: 'warrior',
+      position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+      experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+
+    drawUnitGlyph(ctx, makeState(), unit, 24, 24, 48, { 'mc-renderer-cache-test': '#8a6f2a' }, {
+      stackSize: 1,
+      stackIndex: 0,
+      useSprites: true,
+    });
+
+    expect(ensureSpy).toHaveBeenCalledWith('mc-renderer-cache-test', '#8a6f2a');
+    ensureSpy.mockRestore();
+  });
+
+  it('keeps low zoom on fallback glyphs even when a sprite override is available', () => {
+    const ctx = createContext();
+    const ensureSpy = vi.spyOn(spriteCache, 'ensureCiv').mockImplementation(() => undefined);
+    const unit: Unit = {
+      id: 'warrior', owner: 'player', type: 'warrior',
+      position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+      experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+
+    drawUnitGlyph(ctx, makeState(), unit, 24, 24, 48, { player: '#4a90d9' }, {
+      stackSize: 1,
+      stackIndex: 0,
+      useSprites: false,
+      spriteOverride: {} as HTMLImageElement,
+    });
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith('⚔️', expect.any(Number), expect.any(Number));
+    expect(ensureSpy).not.toHaveBeenCalled();
+    ensureSpy.mockRestore();
   });
 });
 
