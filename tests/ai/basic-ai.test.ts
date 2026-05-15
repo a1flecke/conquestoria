@@ -172,6 +172,24 @@ describe('AI attack targeting', () => {
     expect(combatEvents).toHaveLength(1);
     expect(state.units[attacker.id]?.position).toEqual({ q: 0, r: 0 });
   });
+
+  it('does not make AI units opportunistically attack minor-civ units', () => {
+    const state = createNewGame(undefined, 'ai-minor-neutral-range', 'small');
+    const attacker = createUnit('warrior', 'ai-1', { q: 0, r: 0 });
+    attacker.id = 'ai-warrior';
+    const defender = createUnit('warrior', 'mc-sparta', { q: 1, r: 0 });
+    defender.id = 'minor-warrior';
+    state.units = { [attacker.id]: attacker, [defender.id]: defender };
+    state.civilizations['ai-1'].units = [attacker.id];
+    const combatEvents: unknown[] = [];
+    const bus = new EventBus();
+    bus.on('combat:resolved', payload => combatEvents.push(payload));
+
+    processAITurn(state, 'ai-1', bus);
+
+    expect(combatEvents).toHaveLength(0);
+    expect(state.units[defender.id]).toBeDefined();
+  });
 });
 
 function makeAiDefenseSpyState(): GameState {
