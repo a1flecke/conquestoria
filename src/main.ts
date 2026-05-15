@@ -2,13 +2,13 @@ import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import { processAITurn } from '@/ai/basic-ai';
-import { RenderLoop, type HexHighlight } from '@/renderer/render-loop';
+import { RenderLoop } from '@/renderer/render-loop';
 import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
-import { hexKey, hexesInRange, wrapHexCoord } from '@/systems/hex-utils';
-import { getMovementRange, moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
+import { hexKey, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
+import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { foundCity } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
@@ -22,6 +22,8 @@ import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
 import { createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
+import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
@@ -141,6 +143,7 @@ import { showPauseMenu } from '@/ui/pause-menu-panel';
 let gameState: GameState;
 let selectedUnitId: string | null = null;
 let movementRange: HexCoord[] = [];
+let attackRange: HexCoord[] = [];
 let currentCityIndex = 0;
 let inputInitialized = false;
 let councilPanelOpen = false;
@@ -1070,18 +1073,10 @@ function selectUnit(unitId: string): void {
   const unit = gameState.units[unitId];
   if (!unit || unit.owner !== gameState.currentPlayer) return;
 
-  const occupancy = buildUnitOccupancy(gameState.units);
-  movementRange = getMovementRange(unit, gameState.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId);
-
-  // Classify hexes as move or attack and send to renderer
-  const highlights: HexHighlight[] = movementRange.map(coord => {
-    const k = hexKey(coord);
-    if (visibleHostileUnitEntriesAtKey(k).length > 0) {
-      return { coord, type: 'attack' as const };
-    }
-    return { coord, type: 'move' as const };
-  });
-  renderLoop.setHighlights(highlights);
+  const highlightResult = buildSelectedUnitHighlights(gameState, unitId);
+  movementRange = highlightResult.movementRange;
+  attackRange = highlightResult.attackTargets.map(target => target.coord);
+  renderLoop.setHighlights(highlightResult.highlights);
 
   // Show unit info panel
   const panel = document.getElementById('info-panel');
@@ -1254,6 +1249,7 @@ function selectUnit(unitId: string): void {
 function deselectUnit(): void {
   selectedUnitId = null;
   movementRange = [];
+  attackRange = [];
   renderLoop.clearHighlights();
   const panel = document.getElementById('info-panel');
   if (panel) {
@@ -1514,10 +1510,17 @@ function beginPlayerCityAssault(
 
 function executeAttack(attackerId: string, targetKey: string): void {
   const attacker = gameState.units[attackerId];
-  const defenderEntry = selectDefenderEntryAtKey(targetKey);
-  if (!attacker || !defenderEntry) return;
+  const targetCoord = parseHexKey(targetKey);
+  const legality = canUnitAttackTarget(gameState, attacker, targetCoord, { viewerId: gameState.currentPlayer });
+  if (!attacker || !legality.ok || legality.targetType !== 'unit') {
+    showNotification('That target is no longer attackable.', 'warning');
+    if (selectedUnitId) selectUnit(selectedUnitId);
+    return;
+  }
 
-  const [defenderId, defender] = defenderEntry;
+  const defenderId = legality.targetUnitId;
+  const defender = gameState.units[defenderId];
+  if (!defender) return;
 
   const defOwnerCiv = defender.owner;
   const isBarbarian = defOwnerCiv === 'barbarian' || defOwnerCiv.startsWith('mc-');
@@ -1634,7 +1637,8 @@ function handleHexTap(rawCoord: HexCoord): void {
   const key = hexKey(coord);
 
   const selectedUnitCanMoveToTappedHex = selectedUnitId && movementRange.some(h => hexKey(h) === key);
-  if (!selectedUnitCanMoveToTappedHex) {
+  const selectedUnitCanAttackTappedHex = selectedUnitId && attackRange.some(h => hexKey(h) === key);
+  if (!selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
     if (handleFriendlyUnitStackTap(gameState, coord, selectedUnitId, {
       onSelectUnit: selectUnit,
       onOpenStackPicker: openUnitStackPicker,
@@ -1643,7 +1647,7 @@ function handleHexTap(rawCoord: HexCoord): void {
     }
   }
 
-  if (selectedUnitId && !selectedUnitCanMoveToTappedHex) {
+  if (selectedUnitId && !selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
     const selectedUnit = gameState.units[selectedUnitId];
     if (selectedUnit) {
       const civ = currentCiv();
@@ -1746,14 +1750,14 @@ function handleHexTap(rawCoord: HexCoord): void {
     }
   }
 
-  // If unit is selected and tapping a movement target
-  if (selectedUnitId && movementRange.some(h => hexKey(h) === key)) {
+  // If unit is selected and tapping a movement or attack target
+  if (selectedUnitId && (selectedUnitCanMoveToTappedHex || selectedUnitCanAttackTappedHex)) {
     const unit = gameState.units[selectedUnitId];
     if (!unit) return;
 
     // Check for enemy unit at target — show combat preview
     const defenderEntry = selectDefenderEntryAtKey(key);
-    if (defenderEntry) {
+    if (selectedUnitCanAttackTappedHex && defenderEntry) {
       const defender = defenderEntry[1];
       const atkDef = UNIT_DEFINITIONS[unit.type];
       const defDef = UNIT_DEFINITIONS[defender.type];
@@ -1834,6 +1838,13 @@ function handleHexTap(rawCoord: HexCoord): void {
 
         cancelBtn.addEventListener('click', deselectUnit);
         attackBtn.addEventListener('click', () => {
+          const attacker = selectedUnitId ? gameState.units[selectedUnitId] : undefined;
+          const legality = canUnitAttackTarget(gameState, attacker, coord, { viewerId: gameState.currentPlayer });
+          if (!legality.ok || legality.targetType !== 'unit') {
+            showNotification('That target is no longer attackable.', 'warning');
+            if (selectedUnitId) selectUnit(selectedUnitId);
+            return;
+          }
           executeAttack(selectedUnitId!, key);
         });
         return; // Wait for button press

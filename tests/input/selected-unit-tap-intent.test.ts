@@ -183,4 +183,29 @@ describe('selected-unit-tap-intent', () => {
 
     expect(intent).toEqual({ kind: 'move' });
   });
+
+  it('returns move when a melee unit taps a non-adjacent hostile city inside movement range', () => {
+    const state = makeTapAssaultFixture();
+    state.cities.enemyCity.position = { q: 2, r: 0 };
+    state.cities.enemyCity.ownedTiles = [{ q: 2, r: 0 }];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+
+    const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 2, r: 0 }, [{ q: 1, r: 0 }, { q: 2, r: 0 }]);
+
+    expect(intent).toEqual({ kind: 'move' });
+  });
+
+  it('returns move when an ordinary archer taps a non-adjacent hostile city', () => {
+    const state = makeTapAssaultFixture();
+    state.units['unit-1'] = { ...createUnit('archer', 'player', { q: 0, r: 0 }), id: 'unit-1', movementPointsLeft: 2 };
+    state.cities.enemyCity.position = { q: 2, r: 0 };
+    state.cities.enemyCity.ownedTiles = [{ q: 2, r: 0 }];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+
+    const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 2, r: 0 }, [{ q: 1, r: 0 }, { q: 2, r: 0 }]);
+
+    expect(intent).toEqual({ kind: 'move' });
+  });
 });

@@ -1,5 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
-import { hexKey } from '@/systems/hex-utils';
+import { getUnitAttackProfile } from '@/systems/attack-targeting';
+import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
 import { getMovementRange } from '@/systems/unit-system';
 
@@ -19,6 +20,17 @@ function hasTreaty(state: GameState, civA: string, civB: string, type: string): 
 
 function canEnterForeignCityPeacefully(state: GameState, owner: string, targetOwner: string): boolean {
   return hasTreaty(state, owner, targetOwner, 'alliance');
+}
+
+function canReachCityAssault(state: GameState, unitId: string, targetCoord: HexCoord): boolean {
+  const unit = state.units[unitId];
+  if (!unit) return false;
+  const profile = getUnitAttackProfile(unit.type);
+  if (!profile.targets.includes('city')) return false;
+  const distance = state.map.wrapsHorizontally
+    ? wrappedHexDistance(unit.position, targetCoord, state.map.width)
+    : hexDistance(unit.position, targetCoord);
+  return distance > 0 && distance <= profile.range;
 }
 
 export function resolveSelectedUnitTapIntent(
@@ -51,6 +63,10 @@ export function resolveSelectedUnitTapIntent(
     && city.owner !== state.currentPlayer,
   );
   if (!cityAtTarget) {
+    return { kind: 'move' };
+  }
+
+  if (!canReachCityAssault(state, unitId, targetCoord)) {
     return { kind: 'move' };
   }
 
