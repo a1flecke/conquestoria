@@ -207,3 +207,32 @@ describe('unit role markers', () => {
     expect(ctx.lineTo).toHaveBeenCalled();
   });
 });
+
+describe('moving unit rendering', () => {
+  it('does not draw stationary copy for hidden moving unit ids', () => {
+    const ctx = createContext();
+    const units: Record<string, Unit> = {
+      mover: {
+        id: 'mover', owner: 'player', type: 'warrior',
+        position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+        experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      },
+    };
+    const state = {
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      civilizations: {},
+    } as unknown as GameState;
+    const camera = {
+      zoom: 0.2,
+      hexSize: 48,
+      isHexVisible: () => true,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    drawUnits(ctx, units, camera, { tiles: { '0,0': 'visible' } }, state, 'player', { player: '#4a90d9' }, {
+      hiddenUnitIds: new Set(['mover']),
+    });
+
+    expect(ctx.fillText).not.toHaveBeenCalledWith('⚔️', expect.any(Number), expect.any(Number));
+  });
+});

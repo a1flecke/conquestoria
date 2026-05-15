@@ -1070,6 +1070,10 @@ function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
 }
 
 function selectUnit(unitId: string): void {
+  if (renderLoop.hasMovingUnit(unitId)) {
+    showNotification('Unit is moving.', 'info');
+    return;
+  }
   selectedUnitId = unitId;
   const unit = gameState.units[unitId];
   if (!unit || unit.owner !== gameState.currentPlayer) return;
@@ -1257,6 +1261,19 @@ function deselectUnit(): void {
     panel.style.display = 'none';
     panel.replaceChildren();
   }
+}
+
+function isUnitAnimationLocked(unitId: string | null): boolean {
+  return Boolean(unitId && renderLoop.hasMovingUnit(unitId));
+}
+
+function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
+  const movedUnit = gameState.units[unitId];
+  if (!movedUnit) return;
+  renderLoop.animateUnitMove({ ...movedUnit, position: from }, from, to, () => {
+    renderLoop.setGameState(gameState);
+    updateHUD();
+  });
 }
 
 function startAutoExplore(unitId: string): void {
@@ -1639,6 +1656,11 @@ function handleHexTap(rawCoord: HexCoord): void {
     : rawCoord;
   const key = hexKey(coord);
 
+  if (isUnitAnimationLocked(selectedUnitId)) {
+    showNotification('Unit is moving.', 'info');
+    return;
+  }
+
   const selectedUnitCanMoveToTappedHex = selectedUnitId && movementRange.some(h => hexKey(h) === key);
   const selectedUnitCanAttackTappedHex = selectedUnitId && attackRange.some(h => hexKey(h) === key);
   if (!selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
@@ -1900,11 +1922,12 @@ function handleHexTap(rawCoord: HexCoord): void {
         if (mc && !mc.isDestroyed) {
           const cityName = gameState.cities[tapIntent.cityId]?.name ?? 'City-State';
           // Move the unit onto the city hex (updates fog, position, movement cost).
-          executeUnitMove(gameState, selectedUnitId, coord, {
+          const moveResult = executeUnitMove(gameState, selectedUnitId, coord, {
             actor: 'player',
             civId: gameState.currentPlayer,
             bus,
           });
+          animateMovedUnit(selectedUnitId, moveResult.from, moveResult.to);
           // Conquering a city ends the unit's turn regardless of remaining movement.
           const movedUnit = gameState.units[selectedUnitId];
           if (movedUnit) {
@@ -1928,11 +1951,12 @@ function handleHexTap(rawCoord: HexCoord): void {
           improvementName: task ? getImprovementDisplayName(task.action) : 'Improvement',
           onCancel: () => selectUnit(selectedId),
           onConfirm: () => {
-            confirmBusyWorkerMove(gameState, selectedId, coord, {
+            const moveResult = confirmBusyWorkerMove(gameState, selectedId, coord, {
               actor: 'player',
               civId: gameState.currentPlayer,
               bus,
             });
+            animateMovedUnit(selectedId, moveResult.from, moveResult.to);
             SFX.tap();
             renderLoop.setGameState(gameState);
             updateHUD();
@@ -1946,11 +1970,12 @@ function handleHexTap(rawCoord: HexCoord): void {
         return;
       }
 
-      executeUnitMove(gameState, selectedUnitId, coord, {
+      const moveResult = executeUnitMove(gameState, selectedUnitId, coord, {
         actor: 'player',
         civId: gameState.currentPlayer,
         bus,
       });
+      animateMovedUnit(selectedUnitId, moveResult.from, moveResult.to);
       SFX.tap();
 
       // Re-select to update movement range, or advance to next unit

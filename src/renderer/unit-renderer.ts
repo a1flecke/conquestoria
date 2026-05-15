@@ -135,9 +135,12 @@ export function drawUnits(
   state: GameState,
   currentPlayer: string,
   colorLookup?: Record<string, string>,
+  options: { hiddenUnitIds?: Set<string> } = {},
 ): void {
   const visibleUnits = Object.values(units).filter(unit =>
-    isVisible(playerVisibility, unit.position) && !isForestConcealedUnit(state, currentPlayer, unit),
+    !options.hiddenUnitIds?.has(unit.id)
+    && isVisible(playerVisibility, unit.position)
+    && !isForestConcealedUnit(state, currentPlayer, unit),
   );
 
   for (const stack of Object.values(groupUnitsByHex(visibleUnits))) {

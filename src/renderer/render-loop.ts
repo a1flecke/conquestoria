@@ -1,4 +1,4 @@
-import type { GameState, HexCoord } from '@/core/types';
+import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
 import { Camera } from './camera';
 import { drawHexMap, drawRivers, drawMinorCivTerritory, drawHexHighlight } from './hex-renderer';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
@@ -9,6 +9,12 @@ import { AnimationSystem } from './animation-system';
 import { hexToPixel } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
+import { getVisibility } from '@/systems/fog-of-war';
+import { createMovementAnimation, getMovementAnimationPosition, getMovingUnitIds, type UnitMovementAnimation } from './unit-movement-animation';
+import { resolveUnitVisual } from './unit-visual-resolver';
+import { drawUnitGlyph } from './unit-renderer';
+import { spriteCache } from './sprites/sprite-loader';
+import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 
 export interface HexHighlight {
   coord: HexCoord;
@@ -24,6 +30,7 @@ export class RenderLoop {
   private running = false;
   private animFrameId = 0;
   private highlights: HexHighlight[] = [];
+  private unitMovementAnimations: Array<UnitMovementAnimation & { startTime: number; onComplete?: () => void }> = [];
 
   setHighlights(highlights: HexHighlight[]): void {
     this.highlights = highlights;
@@ -31,6 +38,19 @@ export class RenderLoop {
 
   clearHighlights(): void {
     this.highlights = [];
+  }
+
+  animateUnitMove(unit: Unit, from: HexCoord, to: HexCoord, onComplete?: () => void): void {
+    if (!this.state) return;
+    this.unitMovementAnimations.push({
+      ...createMovementAnimation(unit, from, to, this.state.map),
+      startTime: performance.now(),
+      onComplete,
+    });
+  }
+
+  hasMovingUnit(unitId: string): boolean {
+    return this.unitMovementAnimations.some(animation => animation.unit.id === unitId);
   }
 
   constructor(canvas: HTMLCanvasElement) {
@@ -152,7 +172,10 @@ export class RenderLoop {
         if (def) colorLookup[mc.id] = def.color;
       }
       const visibleUnits = getVisibleUnitsForPlayer(this.state.units, this.state, viewerId);
-      drawUnits(this.ctx, visibleUnits, this.camera, viewerVisibility, this.state, viewerId, colorLookup);
+      drawUnits(this.ctx, visibleUnits, this.camera, viewerVisibility, this.state, viewerId, colorLookup, {
+        hiddenUnitIds: getMovingUnitIds(this.unitMovementAnimations),
+      });
+      this.drawUnitMovementAnimations(performance.now(), colorLookup, viewerVisibility);
     }
 
     // Draw fog of war
@@ -169,6 +192,48 @@ export class RenderLoop {
 
     // Draw animations
     this.animations.update(this.ctx, performance.now());
+  }
+
+  private drawUnitMovementAnimations(
+    now: number,
+    colorLookup: Record<string, string>,
+    viewerVisibility: VisibilityMap,
+  ): void {
+    if (!this.state) return;
+    const remaining: typeof this.unitMovementAnimations = [];
+    for (const animation of this.unitMovementAnimations) {
+      const elapsed = now - animation.startTime;
+      const progress = Math.min(1, elapsed / animation.duration);
+      const frame = getMovementAnimationPosition(animation, progress);
+      if (getVisibility(viewerVisibility, animation.to) === 'unexplored') {
+        if (progress < 1) remaining.push(animation);
+        continue;
+      }
+      const renderCoords = this.state.map.wrapsHorizontally
+        ? getHorizontalWrapRenderCoords(frame.coord, this.state.map.width, this.camera)
+        : [frame.coord];
+      const visual = resolveUnitVisual(this.state, animation.unit, colorLookup, frame.motion);
+      const sprite = this.camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD
+        ? spriteCache.getUnitMotion(animation.unit.type, visual.spriteOwnerId, frame.motion)
+        : null;
+      for (const renderCoord of renderCoords) {
+        if (!this.camera.isHexVisible(renderCoord)) continue;
+        const pixel = hexToPixel(renderCoord, this.camera.hexSize);
+        const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+        drawUnitGlyph(this.ctx, this.state, animation.unit, screen.x, screen.y, this.camera.hexSize * this.camera.zoom, colorLookup, {
+          stackSize: 1,
+          stackIndex: 0,
+          motion: frame.motion,
+          spriteOverride: sprite,
+        });
+      }
+      if (progress < 1) {
+        remaining.push(animation);
+      } else {
+        animation.onComplete?.();
+      }
+    }
+    this.unitMovementAnimations = remaining;
   }
 
   private drawEmbeddedSpyIndicators(): void {
