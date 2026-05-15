@@ -58843,8 +58843,8 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
       "r": 10
     },
     "spain": {
-      "q": 25,
-      "r": 20
+      "q": 26,
+      "r": 21
     },
     "aztec": {
       "q": 25,
@@ -58862,7 +58862,7 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
     },
     "spain": {
       "q": 41,
-      "r": 32
+      "r": 33
     },
     "viking": {
       "q": 66,
