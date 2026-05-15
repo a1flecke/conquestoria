@@ -14,12 +14,10 @@ A new `AudioMixer` replaces the current `AudioManager` + `MusicGenerator`. It ow
                 │                      │
                 └─ Stinger bus ────────┤
                                        ├──→ Master gain ──→ destination
-   SFX  ──────── SFX bus ──────────────┤
-                                       │
-   (Voice/UI buses reserved for Spec 3)┘
+   SFX  ──────── SFX bus ──────────────┘
 ```
 
-Each bus is a `GainNode` fed by an `AudioBufferSourceNode` (looped for music buses, one-shot for stingers and SFX). The master gain is driven by `state.settings.musicVolume`. SFX volume routes through the SFX bus, governed by `state.settings.sfxVolume`.
+Each bus is a `GainNode` fed by an `AudioBufferSourceNode` (looped for music buses, one-shot for stingers and SFX). The master gain is driven by `state.settings.musicVolume` through a square-law perceptual curve (`gain = v * v` per Au-2) so the slider feels linear to the ear. SFX volume routes through the SFX bus, also via the square-law curve. Spec 3 adds Voice and UI buses to this graph; they are not present in Spec 1.
 
 ## Snapshots
 
@@ -32,7 +30,7 @@ A snapshot is a named static gain preset across the music buses. The mixer holds
 | `at-war` | 1.0 | 0.5 | 0.8 | 1.0 |
 | `stinger-duck` | 0.5 | 0.35 | 0.4 | 1.0 |
 
-`setSnapshot(id, fadeMs)` ramps every music bus to its preset value simultaneously. The Stinger bus's gain stays at 1.0 across snapshots so stingers are always full-volume; the duck attenuates the other three music buses, not the stinger itself.
+`setSnapshot(id, fadeMs)` ramps every music bus to its preset value simultaneously. The Stinger bus's gain stays at 1.0 across snapshots so when a stinger fires it plays at full volume; the duck attenuates the other three music buses, not the stinger itself. Outside an active `playOneShot`, the Stinger bus has no source so its 1.0 gain is silent — the value defines the envelope a stinger plays *into*, not a steady tone.
 
 ## Module map
 
@@ -102,13 +100,16 @@ class AudioMixer {
   playOneShot(bus: BusId, buffer: AudioBuffer): Promise<void>;  // Resolves when buffer playback ends. Duck-neutral (A2).
   setSnapshot(id: SnapshotId, fadeMs: number): void;
   setMasterMusicVolume(v: number, fadeMs?: number): void;       // For game-end fade (G2).
-  setMusicEnabled(b: boolean): void;
-  setSfxEnabled(b: boolean): void;
+  setMusicEnabled(b: boolean): void;       // Per M-1: hard-overrides master music gain to 0 when false. Sources keep running.
+  setSfxEnabled(b: boolean): void;         // Per M-1: hard-overrides SFX bus gain to 0 when false.
+  getSfxRoutingNode(): AudioNode;          // Returned to sfx.ts so it can route through the SFX bus (H-3).
   dispose(): void;
 }
 ```
 
-Snapshot table is a private constant in the mixer module. Mixer does not track which snapshot is "current" beyond the running gain ramps — that ownership belongs to the director (A3).
+The mixer tracks Web Audio source-node lifecycle internally (so it can crossfade them) but is stateless w.r.t. game-domain state. The snapshot table is a private constant in the mixer module. Mixer does not track which snapshot is "currently intended" — that ownership belongs to the director (A3).
+
+**Mute behavior (M-1, M-2)**: `setMusicEnabled(false)` forces master music gain to 0 immediately, regardless of any in-flight fade (including the G2 game-end fade). Re-enabling restores master gain to the configured `musicVolume` and the currently-running snapshot continues from where it was — no buffer restart. Same for `setSfxEnabled`. The context is never suspended due to mute; only `visibilitychange` (G3) suspends the context.
 
 ### `MusicDirector` (`src/audio/music-director.ts`)
 
@@ -161,10 +162,9 @@ interface TrackEntry {
   file: string;
   bpm: number;
   key: string;
-  loopStart: number;
-  loopEnd: number;
+  loop: LoopPoints;                        // Same shape as AudioMixer.LoopPoints (C-4 dedup).
   idealCrossfadeOutAt?: number;
-  qualityTier?: 'low' | 'med' | 'high';  // Reserved for Spec 4; default 'med'.
+  qualityTier?: 'low' | 'med' | 'high';    // Reserved for Spec 4; default 'med'.
 }
 
 export const ERA_BASE: Record<EraId, TrackEntry>;
@@ -172,6 +172,7 @@ export const ACCENT: Record<AudioFamily, TrackEntry>;
 export const WAR_LAYER: Record<EraId, TrackEntry>;
 export const STINGER: {
   eraAdvance: Record<EraId, TrackEntry>;
+  eraTransitionCue: Record<EraId, TrackEntry>;  // Softened cue for cross-era hot-seat handoff (UX-2).
   cityFounded: TrackEntry;
   warDeclared: TrackEntry;
 };
@@ -180,6 +181,8 @@ export function resolveEra(era: number): EraId;  // Clamps era >5 to 5 per Er2.
 ```
 
 Initial values point at silent placeholder OGGs in `public/audio/`. Real files swap in via the curation MR series; code is unchanged.
+
+The `eraTransitionCue` slot is new in this revision (UX-2). It is a short, sustained single-chord cue (~1.5s) used only when hot-seat handoff crosses an era boundary. It does not play on the real `era:advanced` event — that path uses the louder, more cinematic `eraAdvance` stinger. The cue preserves hot-seat privacy (no spoilers about the next player's tech progress) while giving an audible signal that the music is changing.
 
 ### `CivAudioFamily` (`src/audio/civ-audio-family.ts`)
 
@@ -212,11 +215,11 @@ Mapping table (29 major civs):
 | fantasy-dark | isengard, annuvin |
 | fantasy-mystical | atlantis, prydain |
 
-Minor civ mapping is decided per-civ during implementation by reading `src/systems/minor-civ-definitions.ts`.
+**Minor civ mapping heuristic (H-5):** each minor civ maps to the audio family of its closest historical/cultural parent. For example: `carthage` → `mediterranean-antiquity`, `sparta` → `mediterranean-antiquity`, `byzantium` → `middle-eastern`, `tibet` → `east-asian`, `mali` → `african`, `inca` → `mesoamerican`. The implementation step enumerates all minor civs from `src/systems/minor-civ-definitions.ts` and assigns each one explicitly using this rule. Unknown/unmapped minor civs fall through to `getFamilyForCiv`'s default (`mediterranean-antiquity`), which is also the fallback for any civ ID not in either map.
 
 ## Existing files touched
 
-- `src/main.ts` — replaces `new AudioManager()` and `audio.playProceduralMusic(era)` call sites with `new AudioSystem(bus, () => gameState)` and event-driven control. ~6 call sites total.
-- `src/audio/sfx.ts` — replaces `getContext()`/`ctx.destination` plumbing with a routing function provided by `AudioSystem` so SFX go through `mixer.sfx`. No change to the sound set itself.
-- Service Worker source — adds `/audio/*` to the cache-first list. Exact file location verified during plan-writing.
-- `state.settings` — no schema change (existing `musicEnabled`, `sfxEnabled`, `musicVolume`, `sfxVolume` are sufficient for Spec 1 per U1).
+- `src/main.ts` — replaces `new AudioManager()` and `audio.playProceduralMusic(era)` call sites with `new AudioSystem(eventBus)` plus an `audioSystem.start(gameState)` call when the game starts or a save is loaded. ~6 call sites total.
+- `src/audio/sfx.ts` — refactored to route through the mixer's SFX bus. New shape: `sfx.ts` exports a `routeSfxThrough(node: AudioNode)` setup function called once by `AudioSystem` with `mixer.getSfxRoutingNode()`. The existing `playTone` helper changes from `gain.connect(ctx.destination)` to `gain.connect(routedNode)`. Sound set unchanged (Spec 2 redesigns it).
+- Service Worker source — adds `/audio/*` to the cache-first list. Exact source-file location verified during plan-writing.
+- `state.settings` — no schema change (existing `musicEnabled`, `sfxEnabled`, `musicVolume`, `sfxVolume` are sufficient for Spec 1 per U1). Saves do not contain audio system internals — confirmed by inspection (`AudioManager` state was always transient).
