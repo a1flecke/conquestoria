@@ -547,3 +547,54 @@ describe('map type selection', () => {
     expect(config.mapScript).toBe('single-continent');
   });
 });
+
+describe('colonizer start notification', () => {
+  function makeState(civType: string, mapScript: string) {
+    return {
+      mapScript,
+      turn: 1,
+      currentPlayer: 'player',
+      civilizations: {
+        player: { id: 'player', civType, isHuman: true, advisorDisabledUntil: {} },
+      },
+      settings: { mapSize: 'medium', advisorsEnabled: { explorer: true } },
+      tutorial: { active: false, completedSteps: [] },
+    } as unknown as import('@/core/types').GameState;
+  }
+
+  it('fires advisor message for colonizer civ on new-world map', async () => {
+    const { AdvisorSystem } = await import('@/ui/advisor-system');
+    const { EventBus } = await import('@/core/event-bus');
+    const bus = new EventBus();
+    const system = new AdvisorSystem(bus);
+    const messages: string[] = [];
+    bus.on('advisor:message', (payload: { message: string }) => { messages.push(payload.message); });
+
+    system.check(makeState('england', 'new-world'));
+    expect(messages.some(m => m.includes('colonial'))).toBe(true);
+  });
+
+  it('does NOT fire for Aztec on new-world map (Aztec homeland, not colonizer)', async () => {
+    const { AdvisorSystem } = await import('@/ui/advisor-system');
+    const { EventBus } = await import('@/core/event-bus');
+    const bus = new EventBus();
+    const system = new AdvisorSystem(bus);
+    const messages: string[] = [];
+    bus.on('advisor:message', (payload: { message: string }) => { messages.push(payload.message); });
+
+    system.check(makeState('aztec', 'new-world'));
+    expect(messages.some(m => m.includes('colonial'))).toBe(false);
+  });
+
+  it('does NOT fire on non-new-world maps', async () => {
+    const { AdvisorSystem } = await import('@/ui/advisor-system');
+    const { EventBus } = await import('@/core/event-bus');
+    const bus = new EventBus();
+    const system = new AdvisorSystem(bus);
+    const messages: string[] = [];
+    bus.on('advisor:message', (payload: { message: string }) => { messages.push(payload.message); });
+
+    system.check(makeState('england', 'earth'));
+    expect(messages.some(m => m.includes('colonial'))).toBe(false);
+  });
+});
