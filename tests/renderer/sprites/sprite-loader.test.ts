@@ -44,4 +44,13 @@ describe('SpriteCache after initSprites', () => {
   it('getUnit returns null for an uncached civ', () => {
     expect(spriteCache.getUnit('warrior', 'uncached-civ')).toBeNull();
   });
+
+  it('getUnitMotion returns moving frames for a loaded civ', () => {
+    expect(spriteCache.getUnitMotion('warrior', 'player', 'move-a')).toBeInstanceOf(HTMLImageElement);
+    expect(spriteCache.getUnitMotion('warrior', 'player', 'move-b')).toBeInstanceOf(HTMLImageElement);
+  });
+
+  it('getUnitMotion returns null for an uncached civ', () => {
+    expect(spriteCache.getUnitMotion('warrior', 'uncached-civ', 'move-a')).toBeNull();
+  });
 });
