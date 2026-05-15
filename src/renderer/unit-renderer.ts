@@ -5,33 +5,7 @@ import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { spriteCache } from './sprites/sprite-loader';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
-
-const UNIT_ICONS: Record<string, string> = {
-  settler:       '🏕️',
-  worker:        '👷',
-  scout:         '🔭',
-  warrior:       '⚔️',
-  archer:        '🏹',
-  swordsman:     '🗡️',
-  pikeman:       '🔱',
-  musketeer:     '🔫',
-  galley:        '⛵',
-  trireme:       '🚢',
-  spy_scout:     '🕵️',
-  spy_informant: '🕵️',
-  spy_agent:     '🕵️',
-  spy_operative: '🕵️',
-  spy_hacker:    '💻',
-  scout_hound:   '🐕',
-  shadow_warden: '🦅',
-  war_hound:     '🐺',
-};
-
-const OWNER_COLORS: Record<string, string> = {
-  player: '#4a90d9',
-  'ai-1': '#d94a4a',
-  barbarian: '#8b4513',
-};
+import { resolveUnitVisual, type UnitMotionState, type UnitRoleMarker } from './unit-visual-resolver';
 
 const STACK_OFFSETS = [
   { x: 0, y: 0 },
@@ -50,6 +24,107 @@ function groupUnitsByHex(units: Unit[]): Record<string, Unit[]> {
     group.sort((a, b) => a.id.localeCompare(b.id));
   }
   return groups;
+}
+
+function drawRoleMarker(
+  ctx: CanvasRenderingContext2D,
+  marker: UnitRoleMarker,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  if (!marker) return;
+  const markerX = x + size * 0.28;
+  const markerY = y - size * 0.3;
+  ctx.beginPath();
+  if (marker === 'chevron') {
+    ctx.moveTo(markerX - size * 0.1, markerY - size * 0.06);
+    ctx.lineTo(markerX, markerY + size * 0.08);
+    ctx.lineTo(markerX + size * 0.1, markerY - size * 0.06);
+  } else {
+    ctx.moveTo(markerX, markerY - size * 0.11);
+    ctx.lineTo(markerX + size * 0.11, markerY);
+    ctx.lineTo(markerX, markerY + size * 0.11);
+    ctx.lineTo(markerX - size * 0.11, markerY);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.72)';
+  ctx.lineWidth = Math.max(1, size * 0.025);
+  ctx.stroke();
+}
+
+export interface UnitGlyphDrawOptions {
+  stackSize: number;
+  stackIndex: number;
+  motion?: UnitMotionState;
+  spriteOverride?: HTMLImageElement | null;
+}
+
+export function drawUnitGlyph(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  unit: Unit,
+  x: number,
+  y: number,
+  size: number,
+  colorLookup: Record<string, string> | undefined,
+  options: UnitGlyphDrawOptions,
+): void {
+  const visual = resolveUnitVisual(state, unit, colorLookup, options.motion ?? 'idle');
+  const sprite = options.spriteOverride ?? spriteCache.getUnit(unit.type, visual.spriteOwnerId);
+
+  if (sprite) {
+    const drawSize = size * (options.stackSize === 1 ? 0.9 : 0.65);
+    ctx.drawImage(sprite, x - drawSize / 2, y - drawSize / 2, drawSize, drawSize);
+  } else {
+    ctx.beginPath();
+    ctx.arc(x, y, size * (options.stackSize === 1 ? 0.35 : 0.25), 0, Math.PI * 2);
+    ctx.fillStyle = visual.color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.font = `${size * (options.stackSize === 1 ? 0.4 : 0.28)}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(visual.fallbackIcon, x, y);
+  }
+
+  drawRoleMarker(ctx, visual.roleMarker, x, y, size);
+
+  if (unit.health < 100) {
+    const barWidth = size * 0.42;
+    const barHeight = size * 0.06;
+    const barX = x - barWidth / 2;
+    const barY = y + size * 0.28;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    const healthRatio = unit.health / 100;
+    ctx.fillStyle = healthRatio > 0.5 ? '#4caf50' : healthRatio > 0.25 ? '#ff9800' : '#f44336';
+    ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
+  }
+
+  if (unit.isFortified) {
+    const badgeR = size * 0.16;
+    const badgeX = x - size * 0.34;
+    const badgeY = y - size * 0.34;
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(200,150,0,0.9)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.font = `${size * 0.18}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'white';
+    ctx.fillText('F', badgeX, badgeY);
+  }
 }
 
 export function drawUnits(
@@ -84,60 +159,14 @@ export function drawUnits(
         const offset = stack.length === 1 ? STACK_OFFSETS[0] : STACK_OFFSETS[index];
         const unitX = screen.x + offset.x * size;
         const unitY = screen.y + offset.y * size;
-        const ownerColor = colorLookup?.[unit.owner] ?? OWNER_COLORS[unit.owner] ?? '#888';
-
         const sprite = camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD
           ? spriteCache.getUnit(unit.type, unit.owner)
           : null;
-
-        if (sprite) {
-          const drawSize = size * (stack.length === 1 ? 0.9 : 0.65);
-          ctx.drawImage(sprite, unitX - drawSize / 2, unitY - drawSize / 2, drawSize, drawSize);
-        } else {
-          ctx.beginPath();
-          ctx.arc(unitX, unitY, size * (stack.length === 1 ? 0.35 : 0.25), 0, Math.PI * 2);
-          ctx.fillStyle = ownerColor;
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-          ctx.font = `${size * (stack.length === 1 ? 0.4 : 0.28)}px system-ui`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(UNIT_ICONS[unit.type] ?? '?', unitX, unitY);
-        }
-
-        if (unit.health < 100) {
-          const barWidth = size * 0.42;
-          const barHeight = size * 0.06;
-          const barX = unitX - barWidth / 2;
-          const barY = unitY + size * 0.28;
-
-          ctx.fillStyle = 'rgba(0,0,0,0.5)';
-          ctx.fillRect(barX, barY, barWidth, barHeight);
-
-          const healthRatio = unit.health / 100;
-          ctx.fillStyle = healthRatio > 0.5 ? '#4caf50' : healthRatio > 0.25 ? '#ff9800' : '#f44336';
-          ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
-        }
-
-        if (unit.isFortified) {
-          const badgeR = size * 0.16;
-          const badgeX = unitX - size * 0.34;
-          const badgeY = unitY - size * 0.34;
-          ctx.beginPath();
-          ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(200,150,0,0.9)';
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.font = `${size * 0.18}px system-ui`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = 'white';
-          ctx.fillText('F', badgeX, badgeY);
-        }
+        drawUnitGlyph(ctx, state, unit, unitX, unitY, size, colorLookup, {
+          stackSize: stack.length,
+          stackIndex: index,
+          spriteOverride: sprite,
+        });
       }
 
       if (stack.length > 1) {
