@@ -213,7 +213,8 @@ export class RenderLoop {
         ? getHorizontalWrapRenderCoords(frame.coord, this.state.map.width, this.camera)
         : [frame.coord];
       const visual = resolveUnitVisual(this.state, animation.unit, colorLookup, frame.motion);
-      const sprite = this.camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD
+      const useSprites = this.camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD;
+      const sprite = useSprites
         ? spriteCache.getUnitMotion(animation.unit.type, visual.spriteOwnerId, frame.motion)
         : null;
       for (const renderCoord of renderCoords) {
@@ -224,6 +225,7 @@ export class RenderLoop {
           stackSize: 1,
           stackIndex: 0,
           motion: frame.motion,
+          useSprites,
           spriteOverride: sprite,
         });
       }

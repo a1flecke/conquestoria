@@ -59,6 +59,7 @@ export interface UnitGlyphDrawOptions {
   stackSize: number;
   stackIndex: number;
   motion?: UnitMotionState;
+  useSprites?: boolean;
   spriteOverride?: HTMLImageElement | null;
 }
 
@@ -73,7 +74,14 @@ export function drawUnitGlyph(
   options: UnitGlyphDrawOptions,
 ): void {
   const visual = resolveUnitVisual(state, unit, colorLookup, options.motion ?? 'idle');
-  const sprite = options.spriteOverride ?? spriteCache.getUnit(unit.type, visual.spriteOwnerId);
+  const useSprites = options.useSprites ?? true;
+  const sprite = useSprites
+    ? ('spriteOverride' in options ? options.spriteOverride ?? null : spriteCache.getUnit(unit.type, visual.spriteOwnerId))
+    : null;
+
+  if (useSprites && !sprite) {
+    spriteCache.ensureCiv(visual.spriteOwnerId, visual.color);
+  }
 
   if (sprite) {
     const drawSize = size * (options.stackSize === 1 ? 0.9 : 0.65);
@@ -162,13 +170,10 @@ export function drawUnits(
         const offset = stack.length === 1 ? STACK_OFFSETS[0] : STACK_OFFSETS[index];
         const unitX = screen.x + offset.x * size;
         const unitY = screen.y + offset.y * size;
-        const sprite = camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD
-          ? spriteCache.getUnit(unit.type, unit.owner)
-          : null;
         drawUnitGlyph(ctx, state, unit, unitX, unitY, size, colorLookup, {
           stackSize: stack.length,
           stackIndex: index,
-          spriteOverride: sprite,
+          useSprites: camera.zoom >= LOD_SPRITE_ZOOM_THRESHOLD,
         });
       }
 
