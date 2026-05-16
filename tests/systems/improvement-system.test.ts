@@ -4,6 +4,7 @@ import {
   getAvailableWorkerActions,
   getImprovementDisplayName,
   getImprovementYieldBonus,
+  getWorkerActionBlockerReason,
 } from '@/systems/improvement-system';
 import type { HexTile } from '@/core/types';
 
@@ -144,5 +145,16 @@ describe('lumber camp and watermill eligibility', () => {
   it('returns expected yields for lumber camp and watermill', () => {
     expect(getImprovementYieldBonus('lumber_camp')).toEqual({ food: 0, production: 2, gold: 0, science: 0 });
     expect(getImprovementYieldBonus('watermill')).toEqual({ food: 1, production: 1, gold: 0, science: 0 });
+  });
+
+  it('explains outside-territory worker blockers before terrain blockers', () => {
+    expect(getWorkerActionBlockerReason(tile({ terrain: 'forest', owner: 'enemy' }), 'farm', [], 'p1')).toBe('outside-territory');
+    expect(getWorkerActionBlockerReason(tile({ terrain: 'forest', owner: null }), 'farm', [], 'p1')).toBe('outside-territory');
+  });
+
+  it('explains local worker blockers inside owned territory', () => {
+    expect(getWorkerActionBlockerReason(tile({ terrain: 'plains', owner: 'p1', improvement: 'mine' }), 'farm', [], 'p1')).toBe('already-improved');
+    expect(getWorkerActionBlockerReason(tile({ terrain: 'plains', owner: 'p1', hasRiver: false }), 'watermill', [], 'p1')).toBe('requires-river');
+    expect(getWorkerActionBlockerReason(tile({ terrain: 'coast', owner: 'p1' }), 'farm', [], 'p1')).toBe('invalid-terrain');
   });
 });

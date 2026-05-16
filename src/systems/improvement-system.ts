@@ -22,6 +22,15 @@ export interface WorkerActionEligibilityOptions {
   isCityTile?: boolean;
 }
 
+export type WorkerActionBlockerReason =
+  | 'outside-territory'
+  | 'city-center'
+  | 'already-improved'
+  | 'invalid-terrain'
+  | 'requires-river'
+  | 'requires-tech'
+  | 'none';
+
 export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, ImprovementDefinition> = {
   farm: {
     type: 'farm',
@@ -116,6 +125,41 @@ export function getAvailableWorkerActions(
   }
   if (canDrainSwamp(tile, ownerId, options)) actions.push('drain_swamp');
   return actions;
+}
+
+export function getWorkerActionBlockerReason(
+  tile: HexTile | undefined,
+  action: WorkerActionType,
+  completedTechs: string[] = [],
+  ownerId?: string,
+  options: WorkerActionEligibilityOptions = {},
+): WorkerActionBlockerReason {
+  if (!tile) return 'invalid-terrain';
+  if (ownerId && tile.owner !== ownerId) return 'outside-territory';
+  if (options.isCityTile) return 'city-center';
+  if (tile.improvement !== 'none') return 'already-improved';
+
+  if (action === 'drain_swamp') {
+    return tile.terrain === 'swamp' ? 'none' : 'invalid-terrain';
+  }
+
+  const definition = IMPROVEMENT_DEFINITIONS[action];
+  if (!definition.validTerrains.includes(tile.terrain)) return 'invalid-terrain';
+  if (definition.requiresRiver && !tile.hasRiver) return 'requires-river';
+  if (definition.requiredTech && !completedTechs.includes(definition.requiredTech)) return 'requires-tech';
+  return 'none';
+}
+
+export function formatWorkerActionBlockerReason(reason: WorkerActionBlockerReason): string {
+  switch (reason) {
+    case 'outside-territory': return 'Outside your territory';
+    case 'city-center': return 'City centers cannot be improved';
+    case 'already-improved': return 'Already improved';
+    case 'invalid-terrain': return 'No worker improvement fits this terrain';
+    case 'requires-river': return 'Requires river';
+    case 'requires-tech': return 'Requires technology';
+    case 'none': return '';
+  }
 }
 
 export function getImprovementYieldBonus(type: ImprovementType): ResourceYield {
