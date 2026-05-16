@@ -352,6 +352,53 @@ export interface CityProcessResult {
   idleScienceBonus: number;
 }
 
+export interface CityProductionCompletionResult {
+  city: City;
+  completedBuilding: string | null;
+  completedUnit: UnitType | null;
+}
+
+export function completeCityProductionItem(city: City, itemId: string): CityProductionCompletionResult {
+  const newQueue = [...city.productionQueue];
+  const newBuildings = [...city.buildings];
+  let completedBuilding: string | null = null;
+  let completedUnit: UnitType | null = null;
+
+  if (newQueue[0] === itemId) {
+    newQueue.shift();
+  }
+
+  const building = BUILDINGS[itemId];
+  if (building) {
+    if (!newBuildings.includes(building.id)) {
+      newBuildings.push(building.id);
+      completedBuilding = building.id;
+    }
+  } else {
+    const unitDef = TRAINABLE_UNITS.find(u => u.type === itemId);
+    if (unitDef) {
+      completedUnit = unitDef.type;
+    }
+  }
+
+  let nextCity: City = {
+    ...city,
+    productionQueue: newQueue,
+    productionProgress: 0,
+    buildings: newBuildings,
+  };
+
+  if (completedBuilding) {
+    nextCity = placeBuildingInGrid(nextCity, completedBuilding);
+  }
+
+  return {
+    city: nextCity,
+    completedBuilding,
+    completedUnit,
+  };
+}
+
 export function processCity(
   city: City,
   map: GameMap,
@@ -383,6 +430,7 @@ export function processCity(
   let newProgress = city.productionProgress;
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
+  let newGrid = city.grid;
 
   // Drop queued unit types that aren't trainable for this civ's tech state
   if (completedTechs.length > 0 && newQueue.length > 0) {
@@ -405,23 +453,20 @@ export function processCity(
     newProgress += productionYield;
     const currentItem = newQueue[0];
 
-    // Check if it's a building
-    const building = BUILDINGS[currentItem];
-    if (building && newProgress >= getProductionCostForItem(currentItem, { city, bonusEffect, era })) {
-      if (!newBuildings.includes(building.id)) {
-        newBuildings.push(building.id);
-        completedBuilding = building.id;
-      }
-      newQueue.shift();
-      newProgress = 0;
-    }
-
-    // Check if it's a unit
     const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    if (unitDef && newProgress >= getProductionCostForItem(currentItem, { city, bonusEffect, era })) {
-      newQueue.shift();
-      newProgress = 0;
-      completedUnit = unitDef.type;
+    if ((BUILDINGS[currentItem] || unitDef) && newProgress >= getProductionCostForItem(currentItem, { city, bonusEffect, era })) {
+      const completion = completeCityProductionItem(
+        { ...city, productionQueue: newQueue, productionProgress: newProgress, buildings: newBuildings },
+        currentItem,
+      );
+      newQueue.length = 0;
+      newQueue.push(...completion.city.productionQueue);
+      newBuildings.length = 0;
+      newBuildings.push(...completion.city.buildings);
+      newProgress = completion.city.productionProgress;
+      newGrid = completion.city.grid;
+      completedBuilding = completion.completedBuilding;
+      completedUnit = completion.completedUnit;
     }
   }
 
@@ -443,11 +488,8 @@ export function processCity(
     productionProgress: newProgress,
     productionQueue: newQueue,
     buildings: newBuildings,
+    grid: newGrid,
   };
-
-  if (completedBuilding) {
-    nextCity = placeBuildingInGrid(nextCity, completedBuilding);
-  }
 
   return {
     city: nextCity,

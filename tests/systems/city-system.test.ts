@@ -2,6 +2,7 @@ import {
   foundCity,
   getAvailableBuildings,
   processCity,
+  completeCityProductionItem,
   checkGridExpansion,
   purchaseGridExpansion,
   getUnplacedBuildings,
@@ -319,6 +320,43 @@ describe('processCity', () => {
     expect(era4Result.completedUnit).toBeNull();
     expect(era4Result.city.productionQueue).toEqual(['settler']);
     expect(era4Result.city.productionProgress).toBe(40);
+  });
+});
+
+describe('completeCityProductionItem', () => {
+  it('uses the same completion path for direct building completion as turn production', () => {
+    const map = generateMap(30, 30, 'direct-building-completion');
+    const city = {
+      ...foundCity('p1', { q: 10, r: 10 }, map),
+      productionQueue: ['workshop', 'warrior'],
+      productionProgress: 4,
+    };
+
+    const result = completeCityProductionItem(city, 'workshop');
+
+    expect(result.completedBuilding).toBe('workshop');
+    expect(result.completedUnit).toBeNull();
+    expect(result.city.productionQueue).toEqual(['warrior']);
+    expect(result.city.productionProgress).toBe(0);
+    expect(result.city.buildings).toContain('workshop');
+    expect(result.city.grid.flat()).toContain('workshop');
+  });
+
+  it('uses the same completion path for direct unit completion as turn production', () => {
+    const map = generateMap(30, 30, 'direct-unit-completion');
+    const city = {
+      ...foundCity('p1', { q: 10, r: 10 }, map),
+      productionQueue: ['warrior', 'workshop'],
+      productionProgress: 4,
+    };
+
+    const result = completeCityProductionItem(city, 'warrior');
+
+    expect(result.completedBuilding).toBeNull();
+    expect(result.completedUnit).toBe('warrior');
+    expect(result.city.productionQueue).toEqual(['workshop']);
+    expect(result.city.productionProgress).toBe(0);
+    expect(result.city.buildings).toEqual([]);
   });
 });
 
