@@ -160,7 +160,7 @@ describe('syncUnitIdCounter — save/load ID collision prevention', () => {
     const loadedUnits = {
       'unit-847': highIdUnit,
       'unit-3':   lowIdUnit,
-    } as Record<string, ReturnType<typeof createUnit>>;
+    } as Record<string, { id: string }>;
 
     syncUnitIdCounter(loadedUnits);
 
@@ -179,7 +179,7 @@ describe('syncUnitIdCounter — save/load ID collision prevention', () => {
     const alienUnits = {
       'barbarian-warrior-1': { id: 'barbarian-warrior-1' },
       'mc-unit-xyz':         { id: 'mc-unit-xyz' },
-    } as Record<string, ReturnType<typeof createUnit>>;
+    } as Record<string, { id: string }>;
 
     syncUnitIdCounter(alienUnits);
 
