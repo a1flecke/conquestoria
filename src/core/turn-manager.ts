@@ -46,6 +46,7 @@ import { processDetection } from '@/systems/detection-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
+import { recalculateTerritory } from '@/systems/city-territory-system';
 import {
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
@@ -359,6 +360,11 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       city.productionDisabledTurns = Math.max(0, (city.productionDisabledTurns ?? 0) - 1);
     }
   }
+
+  newState = recalculateTerritory(newState, {
+    reason: 'turn',
+    preserveCurrentHolderOnTie: true,
+  }).state;
 
   newState = tickLegendaryWonderProjects(newState, bus);
 

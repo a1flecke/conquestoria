@@ -9,6 +9,7 @@ import {
   cityDistance,
   formatCityFoundingBlockerMessage,
   getCityFoundingBlockers,
+  getCulturalTerritoryRadius,
   MIN_CITY_CENTER_DISTANCE,
   normalizeCityWorkClaims,
   recalculateTerritory,
@@ -176,6 +177,24 @@ describe('city founding territory rules', () => {
 
     expect(result.state.cities[city.id].workedTiles).toEqual([]);
     expect(result.state.map.tiles['11,10'].owner).toBe('ai-1');
+  });
+
+  it('keeps outpost population 3 without culture buildings at radius 2', () => {
+    const state = createNewGame(undefined, 'territory-growth-no');
+    const city = addCity(state, 'player', 10, 10);
+    state.cities[city.id] = { ...city, population: 3, maturity: 'outpost', buildings: [] };
+
+    expect(getCulturalTerritoryRadius(state.cities[city.id])).toBe(2);
+  });
+
+  it('grows to radius 3 from population, maturity, or culture buildings', () => {
+    const state = createNewGame(undefined, 'territory-growth-yes');
+    const city = addCity(state, 'player', 10, 10);
+
+    expect(getCulturalTerritoryRadius({ ...city, population: 4 })).toBe(3);
+    expect(getCulturalTerritoryRadius({ ...city, maturity: 'town' })).toBe(3);
+    expect(getCulturalTerritoryRadius({ ...city, population: 3, buildings: ['shrine'] })).toBe(3);
+    expect(getCulturalTerritoryRadius({ ...city, buildings: ['shrine', 'monument'] })).toBe(3);
   });
 });
 

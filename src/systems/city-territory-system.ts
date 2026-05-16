@@ -1,4 +1,5 @@
 import type { City, GameMap, GameState, HexCoord } from '@/core/types';
+import { BUILDINGS } from './city-system';
 import { hexDistance, hexesInRange, hexKey, wrapHexCoord, wrappedHexDistance } from './hex-utils';
 
 export const MIN_CITY_CENTER_DISTANCE = 4;
@@ -74,8 +75,27 @@ function canClaimTile(tile: GameState['map']['tiles'][string] | undefined): bool
   return Boolean(tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain');
 }
 
-export function getBaseTerritoryRadius(_city: City): number {
+const CULTURE_BUILDING_IDS = new Set(
+  Object.values(BUILDINGS)
+    .filter(building => building.category === 'culture')
+    .map(building => building.id),
+);
+
+export function countCultureBuildings(city: City): number {
+  return city.buildings.filter(id => CULTURE_BUILDING_IDS.has(id)).length;
+}
+
+export function getCulturalTerritoryRadius(city: City): number {
+  const cultureBuildings = countCultureBuildings(city);
+  if (city.population >= 4) return 3;
+  if (city.maturity === 'town' || city.maturity === 'city' || city.maturity === 'metropolis') return 3;
+  if (city.population >= 3 && cultureBuildings >= 1) return 3;
+  if (cultureBuildings >= 2) return 3;
   return 2;
+}
+
+export function getBaseTerritoryRadius(city: City): number {
+  return getCulturalTerritoryRadius(city);
 }
 
 export function generateTerritoryClaimsForCity(
