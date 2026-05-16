@@ -52,6 +52,8 @@ export interface TerritoryResolution {
 export interface TerritoryRecalculationOptions {
   reason: TerritoryRecalculationReason;
   preserveForeignHolders?: boolean;
+  preserveCurrentHolderOnTie?: boolean;
+  cityIds?: string[];
 }
 
 export interface TerritoryRecalculationResult {
@@ -111,6 +113,12 @@ function chooseTerritoryWinner(
 
   return claims.slice().sort((left, right) => {
     if (left.radiusBand !== right.radiusBand) return left.radiusBand - right.radiusBand;
+    if (left.pressure !== right.pressure) return right.pressure - left.pressure;
+    if (options.preserveCurrentHolderOnTie && previousOwner) {
+      const leftHeld = left.civId === previousOwner ? 0 : 1;
+      const rightHeld = right.civId === previousOwner ? 0 : 1;
+      if (leftHeld !== rightHeld) return leftHeld - rightHeld;
+    }
     return left.cityId.localeCompare(right.cityId);
   })[0] ?? null;
 }
@@ -136,23 +144,32 @@ export function recalculateTerritory(
     nextCities[city.id] = { ...city, ownedTiles: [] };
   }
 
-  for (const [key, claims] of claimsByTile.entries()) {
+  const keysToResolve = new Set<string>(claimsByTile.keys());
+  for (const [key, tile] of Object.entries(state.map.tiles)) {
+    if (tile.owner) keysToResolve.add(key);
+  }
+
+  for (const key of keysToResolve) {
+    const claims = claimsByTile.get(key) ?? [];
     const tile = state.map.tiles[key];
     if (!tile) continue;
 
     const previousOwner = tile.owner ?? null;
     const winner = chooseTerritoryWinner(claims, previousOwner, options);
+    const winningCivId = winner?.civId ?? (options.preserveForeignHolders && previousOwner ? previousOwner : null);
     if (winner) {
       nextTiles[key] = { ...tile, owner: winner.civId };
       ownedByCity.set(winner.cityId, [...(ownedByCity.get(winner.cityId) ?? []), winner.coord]);
+    } else if (!options.preserveForeignHolders || !previousOwner) {
+      nextTiles[key] = { ...tile, owner: null };
     }
 
-    if ((winner?.civId ?? previousOwner) !== previousOwner) {
+    if (winningCivId !== previousOwner) {
       resolutions.push({
         coord: tile.coord,
         previousOwner,
         winningCityId: winner?.cityId ?? null,
-        winningCivId: winner?.civId ?? null,
+        winningCivId,
         competingClaims: claims,
         reason: options.reason,
       });

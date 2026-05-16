@@ -164,6 +164,19 @@ describe('city founding territory rules', () => {
       reason: 'founding',
     });
   });
+
+  it('normalizes city work claims after territory loss', () => {
+    const state = createNewGame(undefined, 'territory-work-normalize');
+    const city = addCity(state, 'player', 10, 10);
+    const lost = { q: 11, r: 10 };
+    state.map.tiles['11,10'] = { ...state.map.tiles['11,10'], owner: 'ai-1', terrain: 'grassland' };
+    state.cities[city.id] = { ...city, ownedTiles: [city.position, lost], workedTiles: [lost] };
+
+    const result = recalculateTerritory(state, { reason: 'load', preserveForeignHolders: true });
+
+    expect(result.state.cities[city.id].workedTiles).toEqual([]);
+    expect(result.state.map.tiles['11,10'].owner).toBe('ai-1');
+  });
 });
 
 describe('work claim indexing', () => {

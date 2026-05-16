@@ -19,6 +19,7 @@ describe('city-capture-system', () => {
     state.civilizations['ai-1'].cities = [];
     state.civilizations.player.diplomacy.relationships['ai-1'] = 0;
     state.civilizations['ai-1'].diplomacy.relationships.player = 0;
+    state.cities = {};
 
     state.cities.athens = {
       ...foundCity('ai-1', { q: 1, r: 0 }, state.map),
@@ -89,6 +90,18 @@ describe('city-capture-system', () => {
     }
   });
 
+  it('recalculates captured city territory when legacy owned tiles are missing', () => {
+    const state = makeExposedCityCaptureState({ population: 6, buildings: [] });
+    state.cities.athens = { ...state.cities.athens, ownedTiles: [] };
+    state.map.tiles[hexKey({ q: 1, r: 0 })].owner = 'ai-1';
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(result.outcome).toBe('occupied');
+    expect(result.state.cities.athens.ownedTiles.map(hexKey)).toContain('1,0');
+    expect(result.state.map.tiles[hexKey({ q: 1, r: 0 })].owner).toBe('player');
+  });
+
   it('reassigns legendary wonder projects to the new owner when a city is occupied', () => {
     const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary'] });
     addLegendaryProject(state, 'ai-1', 'athens');
@@ -146,5 +159,35 @@ describe('city-capture-system', () => {
 
     expect(result.state.cities.athens).toBeUndefined();
     expect(result.state.legendaryWonderProjects).toEqual({});
+  });
+
+  it('preserves another current holder when razing a city with stale owned tiles', () => {
+    const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+    const shared = { q: 1, r: 1 };
+    state.cities.rome = {
+      ...foundCity('player', { q: 3, r: 1 }, state.map),
+      id: 'rome',
+      name: 'Rome',
+      owner: 'player',
+      position: { q: 3, r: 1 },
+      ownedTiles: [shared],
+      workedTiles: [shared],
+    };
+    state.civilizations.player.cities = ['rome'];
+    state.map.tiles[hexKey(shared)] = {
+      ...state.map.tiles[hexKey(shared)],
+      terrain: 'grassland',
+      owner: 'player',
+    };
+    state.cities.athens = {
+      ...state.cities.athens,
+      ownedTiles: [state.cities.athens.position, shared],
+    };
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
+
+    expect(result.outcome).toBe('razed');
+    expect(result.state.map.tiles[hexKey(shared)].owner).toBe('player');
+    expect(result.state.cities.rome.workedTiles).toEqual([shared]);
   });
 });
