@@ -1044,7 +1044,7 @@ export interface GameEvents {
   'unit:move': { unitId: string; from: HexCoord; to: HexCoord };
   'unit:created': { unit: Unit };
   'unit:destroyed': { unitId: string; position: HexCoord };
-  'city:founded': { city: City };
+  'city:founded': { city: City; founderId: string };
   'city:captured': { cityId: string; newOwner: string; previousOwner: string };
   'diplomacy:vassalage-offered': { fromCivId: string; toCivId: string };
   'diplomacy:vassalage-accepted': { vassalId: string; overlordId: string };
@@ -1088,9 +1088,11 @@ export interface GameEvents {
   'game:over': { winnerId: string };
   'grid:slot-unlocked': { cityId: string; newGridSize: number };
   'grid:building-placed': { cityId: string; buildingId: string; row: number; col: number };
-  'diplomacy:war-declared': { attackerId: string; defenderId: string };
+  'diplomacy:war-declared': { attackerId: string; defenderId: string; opponentKind: 'major' | 'minor' | 'barbarian' };
   'diplomacy:peace-requested': { fromCivId: string; toCivId: string };
   'diplomacy:peace-made': { civA: string; civB: string };
+  'era:advanced': { era: number };
+  'currentPlayer:changed-after-handoff': { civId: string };
   'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
   'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };

@@ -1,7 +1,7 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
 import { beginPlayerCityAssaultChoice, type PendingCityCaptureChoice } from '@/input/city-assault-flow';
-import { declareWar } from '@/systems/diplomacy-system';
+import { declareWar, resolveOpponentKind } from '@/systems/diplomacy-system';
 
 export function beginConfirmedForeignCityEntry(
   state: GameState,
@@ -36,7 +36,7 @@ export function beginConfirmedForeignCityEntry(
         },
       },
     };
-    bus?.emit('diplomacy:war-declared', { attackerId: attackerCivId, defenderId });
+    bus?.emit('diplomacy:war-declared', { attackerId: attackerCivId, defenderId, opponentKind: resolveOpponentKind(defenderId) });
   }
 
   return beginPlayerCityAssaultChoice(nextState, attackerId, cityId);

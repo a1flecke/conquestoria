@@ -59,6 +59,7 @@ import {
   makePeace,
   modifyRelationship,
   rejectDiplomaticRequest,
+  resolveOpponentKind,
 } from '@/systems/diplomacy-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
@@ -1413,7 +1414,7 @@ function foundCityAction(): void {
 
   deselectUnit();
   const foundedCity = gameState.cities[city.id] ?? city;
-  bus.emit('city:founded', { city: foundedCity });
+  bus.emit('city:founded', { city: foundedCity, founderId: gameState.currentPlayer });
   showNotification(`${foundedCity.name} has been founded!`, 'success');
   SFX.foundCity();
 
@@ -1471,7 +1472,7 @@ function ensurePlayerWarState(targetCivId: string): void {
 
   currentCiv().diplomacy = declareWar(currentCiv().diplomacy, targetCivId, gameState.turn);
   targetCiv.diplomacy = declareWar(targetCiv.diplomacy, cp, gameState.turn);
-  bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId });
+  bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
 }
 
 function emitTerritoryTileFlippedEvents(events: GameEvents['territory:tile-flipped'][]): void {

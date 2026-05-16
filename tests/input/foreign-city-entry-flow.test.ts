@@ -48,7 +48,7 @@ describe('foreign-city-entry-flow', () => {
     expect(result.state.civilizations['ai-1'].diplomacy.atWarWith).toContain('player');
     expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
     expect(result.pending.cityId).toBe('athens');
-    expect(warDeclared).toHaveBeenCalledWith({ attackerId: 'player', defenderId: 'ai-1' });
+    expect(warDeclared).toHaveBeenCalledWith({ attackerId: 'player', defenderId: 'ai-1', opponentKind: 'major' });
   });
 
   it('does not duplicate war declarations when already at war', () => {

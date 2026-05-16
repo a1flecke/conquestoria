@@ -16,6 +16,13 @@ import {
   tryReabsorbBreakaway,
 } from '@/systems/breakaway-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+
+export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
+  if (civId.startsWith('barbarian')) return 'barbarian';
+  if (MINOR_CIV_DEFINITIONS.some(d => d.id === civId)) return 'minor';
+  return 'major';
+}
 
 export function createDiplomacyState(
   allCivIds: string[],
@@ -316,7 +323,7 @@ export function applyDiplomaticAction(
 
   switch (action) {
     case 'declare_war':
-      bus.emit('diplomacy:war-declared', { attackerId: actorId, defenderId: targetCivId });
+      bus.emit('diplomacy:war-declared', { attackerId: actorId, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
       return {
         ...state,
         civilizations: {
