@@ -213,3 +213,50 @@ describe('AudioMixer.getSfxRoutingNode()', () => {
     expect(mixer.getSfxRoutingNode()).toBeTruthy();
   });
 });
+
+describe('AudioMixer SFX volume + enable symmetry', () => {
+  it('setSfxEnabled(true) restores square-law SFX volume, not hardcoded 1.0', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    mixer.setSfxVolume(0.5); // currentSfxVolume = 0.5; perceptual = 0.25
+    ctx.clearTranscript();
+
+    mixer.setSfxEnabled(false);
+    mixer.setSfxEnabled(true);
+
+    const restores = ctx.opsOf('setValueAtTime').filter(
+      e => Math.abs((e.args[0] as number) - 0.25) < 0.001,
+    );
+    expect(restores.length).toBeGreaterThan(0);
+  });
+
+  it('setSfxVolume does not apply when SFX is muted', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    mixer.setSfxEnabled(false);
+    ctx.clearTranscript();
+
+    mixer.setSfxVolume(0.8);
+
+    // Gain should not update while muted
+    const nonZero = ctx.opsOf('setValueAtTime').filter(e => (e.args[0] as number) !== 0);
+    expect(nonZero.length).toBe(0);
+  });
+
+  it('playOneShot clears b.source on natural end (no stale ref for next call)', async () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+
+    const buf = makeBuf(ctx);
+    const promise = mixer.playOneShot('stinger', buf);
+
+    const mixerAny = mixer as unknown as Record<string, unknown>;
+    const musicBuses = mixerAny['musicBuses'] as Record<string, { source: import('../helpers/mock-audio-context').MockBufferSourceNode | null }>;
+    const src = musicBuses['stinger']?.source;
+    if (src) src.stop(); // triggers onended synchronously
+    await promise;
+
+    // After natural end, b.source should be null
+    expect(musicBuses['stinger']?.source).toBeNull();
+  });
+});
