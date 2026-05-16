@@ -72,8 +72,9 @@ describe('AudioLoader.get()', () => {
     await loader.get('audio/flaky.ogg');
     await loader.get('audio/flaky.ogg');
 
-    // Two attempts for a failed URL is acceptable
     expect(loader.isCached('audio/flaky.ogg')).toBe(false);
+    // Each failed call must issue its own fetch (inflight map must clear on failure)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('concurrent fetches for the same URL share one inflight Promise', async () => {

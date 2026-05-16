@@ -27,6 +27,8 @@ export class AudioMixer {
   private musicMasterGain: GainNode;
   private currentMusicVolume = 1.0;
   private musicEnabled = true;
+  private currentSfxVolume = 1.0;
+  private sfxEnabled = true;
 
   constructor(private ctx: AudioContext) {
     this.musicMasterGain = ctx.createGain();
@@ -117,7 +119,10 @@ export class AudioMixer {
       src.buffer = buffer;
       src.loop = false;
       src.connect(b.snapshotGain);
-      src.onended = () => resolve();
+      src.onended = () => {
+        if (b.source === src) b.source = null;
+        resolve();
+      };
       src.start();
       b.source = src;
     });
@@ -170,13 +175,22 @@ export class AudioMixer {
   }
 
   setSfxEnabled(enabled: boolean): void {
-    const sfxLevel = enabled ? 1.0 : 0;
-    this.sfxBus.snapshotGain.gain.setValueAtTime(sfxLevel, this.ctx.currentTime);
+    this.sfxEnabled = enabled;
+    const now = this.ctx.currentTime;
+    if (enabled) {
+      const perceptual = this.currentSfxVolume * this.currentSfxVolume;
+      this.sfxBus.snapshotGain.gain.setValueAtTime(perceptual, now);
+    } else {
+      this.sfxBus.snapshotGain.gain.setValueAtTime(0, now);
+    }
   }
 
   setSfxVolume(v: number): void {
-    const clamped = Math.max(0, Math.min(1, v));
-    this.sfxBus.snapshotGain.gain.setValueAtTime(clamped * clamped, this.ctx.currentTime);
+    this.currentSfxVolume = Math.max(0, Math.min(1, v));
+    if (this.sfxEnabled) {
+      const perceptual = this.currentSfxVolume * this.currentSfxVolume;
+      this.sfxBus.snapshotGain.gain.setValueAtTime(perceptual, this.ctx.currentTime);
+    }
   }
 
   getSfxRoutingNode(): AudioNode {
