@@ -150,7 +150,8 @@ export class MockAudioContext {
   }
 
   clearTranscript(): void {
-    this.transcript = [];
+    // Splice in place so nodes that captured a reference to this array still push here
+    this.transcript.splice(0);
   }
 
   advanceTime(ms: number): void {
