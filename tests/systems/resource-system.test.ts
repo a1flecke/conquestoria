@@ -1,7 +1,9 @@
 import { calculateCityYields, TERRAIN_YIELDS } from '@/systems/resource-system';
 import type { GameMap, HexCoord, TerrainType } from '@/core/types';
+import { createNewGame } from '@/core/game-state';
 import { generateMap } from '@/systems/map-generator';
 import { foundCity } from '@/systems/city-system';
+import { recalculateTerritory } from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
 
 describe('calculateCityYields', () => {
@@ -132,6 +134,42 @@ describe('calculateCityYields', () => {
 
     expect(yields.food).toBeGreaterThanOrEqual(3);
     expect(yields.production).toBeGreaterThanOrEqual(2);
+  });
+
+  it('counts a transferred completed farm only for the new owner after reassignment', () => {
+    const state = createNewGame(undefined, 'farm-transfer-yield', 'small');
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    state.civilizations['ai-1'].cities = [];
+    const holder = { ...foundCity('player', { q: 10, r: 10 }, state.map), id: 'holder' };
+    const challenger = { ...foundCity('ai-1', { q: 13, r: 10 }, state.map), id: 'challenger' };
+    const overlap = { q: 12, r: 10 };
+    state.map.tiles[hexKey(overlap)] = {
+      ...state.map.tiles[hexKey(overlap)],
+      coord: overlap,
+      terrain: 'plains',
+      owner: 'player',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: null,
+    };
+    state.cities.holder = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap], workedTiles: [overlap] };
+    state.cities.challenger = { ...challenger, population: 6, maturity: 'town', buildings: ['shrine'], ownedTiles: [], workedTiles: [] };
+    state.civilizations.player.cities = ['holder'];
+    state.civilizations['ai-1'].cities = ['challenger'];
+
+    const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+    const oldOwnerYields = calculateCityYields(result.state.cities.holder, result.state.map);
+    const newOwnerYields = calculateCityYields(
+      { ...result.state.cities.challenger, population: 1, workedTiles: [overlap] },
+      result.state.map,
+    );
+
+    expect(result.state.map.tiles[hexKey(overlap)].owner).toBe('ai-1');
+    expect(result.state.cities.holder.workedTiles).not.toContainEqual(overlap);
+    expect(newOwnerYields.food).toBeGreaterThan(oldOwnerYields.food);
   });
 });
 

@@ -98,6 +98,22 @@ export function getBaseTerritoryRadius(city: City): number {
   return getCulturalTerritoryRadius(city);
 }
 
+const MATURITY_PRESSURE_BONUS: Record<City['maturity'], number> = {
+  outpost: 0,
+  village: 1,
+  town: 2,
+  city: 3,
+  metropolis: 4,
+};
+
+export function calculateCityPressureForTile(state: GameState, city: City, coord: HexCoord): number {
+  return 6
+    + MATURITY_PRESSURE_BONUS[city.maturity]
+    + Math.floor(city.population / 2)
+    + Math.min(3, countCultureBuildings(city))
+    - cityDistance(city.position, coord, state.map);
+}
+
 export function generateTerritoryClaimsForCity(
   state: GameState,
   city: City,
@@ -113,7 +129,7 @@ export function generateTerritoryClaimsForCity(
       civId: city.owner,
       coord,
       radiusBand: cityDistance(city.position, coord, state.map),
-      pressure: 0,
+      pressure: calculateCityPressureForTile(state, city, coord),
       reason,
     });
   }
@@ -131,16 +147,37 @@ function chooseTerritoryWinner(
     return null;
   }
 
-  return claims.slice().sort((left, right) => {
+  const holderClaim = previousOwner ? claims.find(claim => claim.civId === previousOwner) ?? null : null;
+  const strongest = claims.slice().sort((left, right) => {
+    if (right.pressure !== left.pressure) return right.pressure - left.pressure;
     if (left.radiusBand !== right.radiusBand) return left.radiusBand - right.radiusBand;
-    if (left.pressure !== right.pressure) return right.pressure - left.pressure;
-    if (options.preserveCurrentHolderOnTie && previousOwner) {
-      const leftHeld = left.civId === previousOwner ? 0 : 1;
-      const rightHeld = right.civId === previousOwner ? 0 : 1;
-      if (leftHeld !== rightHeld) return leftHeld - rightHeld;
-    }
     return left.cityId.localeCompare(right.cityId);
   })[0] ?? null;
+  if (
+    options.preserveCurrentHolderOnTie
+    && holderClaim
+    && strongest
+    && strongest.civId !== holderClaim.civId
+    && strongest.pressure - holderClaim.pressure < 2
+  ) {
+    return holderClaim;
+  }
+  return strongest;
+}
+
+function clearWorkerTasksForCoord(units: GameState['units'], coord: HexCoord): GameState['units'] {
+  const key = hexKey(coord);
+  let changed = false;
+  const nextUnits: GameState['units'] = {};
+  for (const [unitId, unit] of Object.entries(units)) {
+    if (unit.workerTask && hexKey(unit.workerTask.coord) === key) {
+      nextUnits[unitId] = { ...unit, workerTask: undefined };
+      changed = true;
+    } else {
+      nextUnits[unitId] = unit;
+    }
+  }
+  return changed ? nextUnits : units;
 }
 
 export function recalculateTerritory(
@@ -157,6 +194,7 @@ export function recalculateTerritory(
 
   const nextTiles = { ...state.map.tiles };
   const nextCities: GameState['cities'] = {};
+  let nextUnits = state.units;
   const ownedByCity = new Map<string, HexCoord[]>();
   const resolutions: TerritoryResolution[] = [];
 
@@ -178,10 +216,20 @@ export function recalculateTerritory(
     const winner = chooseTerritoryWinner(claims, previousOwner, options);
     const winningCivId = winner?.civId ?? (options.preserveForeignHolders && previousOwner ? previousOwner : null);
     if (winner) {
-      nextTiles[key] = { ...tile, owner: winner.civId };
+      let nextTile = { ...tile, owner: winner.civId };
+      if (previousOwner !== winner.civId && tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
+        nextTile = { ...nextTile, improvement: 'none', improvementTurnsLeft: 0 };
+        nextUnits = clearWorkerTasksForCoord(nextUnits, tile.coord);
+      }
+      nextTiles[key] = nextTile;
       ownedByCity.set(winner.cityId, [...(ownedByCity.get(winner.cityId) ?? []), winner.coord]);
     } else if (!options.preserveForeignHolders || !previousOwner) {
-      nextTiles[key] = { ...tile, owner: null };
+      let nextTile = { ...tile, owner: null };
+      if (previousOwner !== null && tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
+        nextTile = { ...nextTile, improvement: 'none', improvementTurnsLeft: 0 };
+        nextUnits = clearWorkerTasksForCoord(nextUnits, tile.coord);
+      }
+      nextTiles[key] = nextTile;
     }
 
     if (winningCivId !== previousOwner) {
@@ -216,6 +264,7 @@ export function recalculateTerritory(
       tiles: nextTiles,
     },
     cities: nextCities,
+    units: nextUnits,
   });
 
   return { state: normalized.state, resolutions, contestedResolutions: [] };

@@ -196,6 +196,36 @@ describe('city founding territory rules', () => {
     expect(getCulturalTerritoryRadius({ ...city, population: 3, buildings: ['shrine'] })).toBe(3);
     expect(getCulturalTerritoryRadius({ ...city, buildings: ['shrine', 'monument'] })).toBe(3);
   });
+
+  it('does not flip an overlap when pressure margin is only one', () => {
+    const state = createNewGame(undefined, 'territory-soft-trim-margin-one');
+    state.cities = {};
+    const holder = addCity(state, 'player', 10, 10);
+    const challenger = addCity(state, 'ai-1', 13, 10);
+    const overlap = { q: 12, r: 10 };
+    state.map.tiles[hexKey(overlap)] = { ...state.map.tiles[hexKey(overlap)], terrain: 'grassland', owner: 'player' };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+    state.cities[challenger.id] = { ...challenger, population: 3, maturity: 'outpost', ownedTiles: [] };
+
+    const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+
+    expect(result.state.map.tiles[hexKey(overlap)].owner).toBe('player');
+  });
+
+  it('flips an overlap when rival pressure margin is at least two', () => {
+    const state = createNewGame(undefined, 'territory-soft-trim-margin-two');
+    state.cities = {};
+    const holder = addCity(state, 'player', 10, 10);
+    const challenger = addCity(state, 'ai-1', 13, 10);
+    const overlap = { q: 12, r: 10 };
+    state.map.tiles[hexKey(overlap)] = { ...state.map.tiles[hexKey(overlap)], terrain: 'grassland', owner: 'player' };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+    state.cities[challenger.id] = { ...challenger, population: 6, maturity: 'town', buildings: ['shrine'], ownedTiles: [] };
+
+    const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+
+    expect(result.state.map.tiles[hexKey(overlap)].owner).toBe('ai-1');
+  });
 });
 
 describe('work claim indexing', () => {
