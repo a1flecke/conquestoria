@@ -730,6 +730,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   const newEra = checkEraAdvancement(newState);
   if (newEra > newState.era) {
     newState.era = newEra;
+    bus.emit('era:advanced', { era: newEra });
     for (const mc of Object.values(newState.minorCivs)) {
       processMinorCivEraUpgrade(newState, mc);
     }

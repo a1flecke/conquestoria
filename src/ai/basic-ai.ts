@@ -24,6 +24,7 @@ import {
   offerVassalage,
   joinEmbargo,
   inviteToLeague,
+  resolveOpponentKind,
 } from '@/systems/diplomacy-system';
 import { resolveMajorCityCapture } from '@/systems/city-capture-system';
 import {
@@ -299,7 +300,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       newState.turn,
       false,
     );
-    bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: ownedBreakaway.id });
+    bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: ownedBreakaway.id, opponentKind: resolveOpponentKind(ownedBreakaway.id) });
   }
 
   const abandonment = abandonLostLegendaryWonderRace(newState, civId);
@@ -336,7 +337,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
       delete newState.units[settler.id];
       civ.units = civ.units.filter(id => id !== settler.id);
-      bus.emit('city:founded', { city });
+      bus.emit('city:founded', { city, founderId: civId });
       city.productionQueue = ['warrior'];
     }
   }
@@ -561,7 +562,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
               newState.civilizations[decision.targetCiv].diplomacy, civId, newState.turn,
             );
           }
-          bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv });
+          bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv, opponentKind: resolveOpponentKind(decision.targetCiv) });
           break;
         case 'request_peace':
           newState = enqueuePeaceRequest(newState, civId, decision.targetCiv, bus);
