@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
 import { createEmptyCityGrid } from '@/systems/city-system';
+import { createUnit } from '@/systems/unit-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
@@ -282,26 +283,14 @@ describe('city-panel navigation', () => {
     const { container, city, state } = makeMultiCityFixture();
     city.productionQueue = ['workshop'];
     city.productionProgress = 2;
-    state.economyStatusByCiv = {
-      [state.currentPlayer]: {
-        civId: state.currentPlayer,
-        grossGoldPerTurn: 0,
-        maintenanceGoldPerTurn: 50,
-        netGoldPerTurn: -50,
-        projectedGold: 0,
-        unpaidMaintenance: 50,
-        strainLevel: 'critical',
-        rushBuyDisabled: true,
-        breakdown: {
-          buildingUpkeep: 0,
-          unitUpkeep: 50,
-          freeBuildings: 0,
-          freeUnits: 0,
-          paidBuildings: 0,
-          paidUnits: 50,
-        },
-      },
-    };
+    state.civilizations[state.currentPlayer].gold = 0;
+    state.civilizations[state.currentPlayer].units = [];
+    state.units = {};
+    for (let index = 0; index < 40; index++) {
+      const unit = createUnit('warrior', state.currentPlayer, city.position);
+      state.units[unit.id] = unit;
+      state.civilizations[state.currentPlayer].units.push(unit.id);
+    }
 
     const panel = createCityPanel(container, city, state, {
       onBuild: () => {},
@@ -782,7 +771,7 @@ describe('city-panel navigation', () => {
     });
 
     const rendered = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
-    expect(rendered).toContain('Building:');      // current build block is present
+    expect(rendered).toContain('Producing:');     // current build block is present
     expect(rendered).not.toContain('Production Queue'); // no follow-up queue section
   });
 

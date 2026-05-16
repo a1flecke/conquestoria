@@ -364,9 +364,10 @@ export function completeCityProductionItem(city: City, itemId: string): CityProd
   let completedBuilding: string | null = null;
   let completedUnit: UnitType | null = null;
 
-  if (newQueue[0] === itemId) {
-    newQueue.shift();
+  if (newQueue[0] !== itemId) {
+    return { city, completedBuilding, completedUnit };
   }
+  newQueue.shift();
 
   const building = BUILDINGS[itemId];
   if (building) {

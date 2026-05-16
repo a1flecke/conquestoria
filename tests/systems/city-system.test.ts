@@ -358,6 +358,22 @@ describe('completeCityProductionItem', () => {
     expect(result.city.productionProgress).toBe(0);
     expect(result.city.buildings).toEqual([]);
   });
+
+  it('does not complete an item that is not the active production item', () => {
+    const map = generateMap(30, 30, 'direct-completion-active-only');
+    const city = {
+      ...foundCity('p1', { q: 10, r: 10 }, map),
+      productionQueue: ['warrior', 'workshop'],
+      productionProgress: 4,
+    };
+
+    const result = completeCityProductionItem(city, 'workshop');
+
+    expect(result.completedBuilding).toBeNull();
+    expect(result.completedUnit).toBeNull();
+    expect(result.city.productionQueue).toEqual(['warrior', 'workshop']);
+    expect(result.city.buildings).toEqual([]);
+  });
 });
 
 describe('expanded buildings', () => {
