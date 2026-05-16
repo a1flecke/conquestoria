@@ -139,7 +139,7 @@ export function resetUnitId(): void {
   nextUnitId = 1;
 }
 
-export function syncUnitIdCounter(units: Record<string, { id: string }>): void {
+export function syncUnitIdCounter(units: Record<string, unknown>): void {
   let max = 0;
   for (const id of Object.keys(units)) {
     const match = /^unit-(\d+)$/.exec(id);
