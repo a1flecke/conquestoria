@@ -319,7 +319,7 @@ export function getEconomyStatusForCiv(state: GameState, civId: string): Economy
 export function getRushBuyQuote(state: GameState, cityId: string): RushBuyQuote {
   const city = state.cities[cityId];
   const civ = city ? state.civilizations[city.owner] : undefined;
-  const status = city ? getEconomyStatusForCiv(state, city.owner) : calculateCivEconomy(state, '');
+  const status = city ? calculateCivEconomy(state, city.owner) : calculateCivEconomy(state, '');
 
   if (!city || !civ) {
     return { available: false, itemId: null, cost: 0, reason: 'City not found.', status };
@@ -344,7 +344,8 @@ export function getRushBuyQuote(state: GameState, cityId: string): RushBuyQuote 
     };
   }
 
-  const cost = getProductionCostForItem(itemId, { city, era: state.era });
+  const civDef = resolveCivDefinition(state, civ.civType ?? '');
+  const cost = getProductionCostForItem(itemId, { city, bonusEffect: civDef?.bonusEffect, era: state.era });
   if (cost <= 0) {
     return { available: false, itemId, cost: 0, reason: 'This item cannot be rush bought.', status };
   }

@@ -7,7 +7,7 @@ import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/c
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createCityGrid } from './city-grid';
-import { formatMaintenanceTooltip, getEconomyStatusForCiv, getRushBuyQuote } from '@/systems/economy-system';
+import { calculateCivEconomy, formatMaintenanceTooltip, getRushBuyQuote } from '@/systems/economy-system';
 
 export interface CityPanelCallbacks {
   onBuild: (cityId: string, itemId: string) => void;
@@ -58,7 +58,7 @@ export function createCityPanel(
   });
   const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles);
   const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
-  const economyStatus = getEconomyStatusForCiv(state, city.owner);
+  const economyStatus = calculateCivEconomy(state, city.owner);
   const maintenanceTooltip = formatMaintenanceTooltip(economyStatus);
   const rushBuyQuote = getRushBuyQuote(state, city.id);
 
@@ -138,7 +138,7 @@ export function createCityPanel(
 
     currentProductionHtml = `
       <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
-        <div style="font-weight:bold;color:#e8c170;">Building: ${PRODUCTION_ICONS[currentItem] ?? PRODUCTION_ICON_FALLBACK} <span data-text="prod-name"></span></div>
+        <div style="font-weight:bold;color:#e8c170;">Producing: ${PRODUCTION_ICONS[currentItem] ?? PRODUCTION_ICON_FALLBACK} <span data-text="prod-name"></span></div>
         <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining</div>
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
