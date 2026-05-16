@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 import {
   beginPlayerCityAssaultChoice,
   finalizePlayerCityAssaultChoice,
@@ -80,5 +81,28 @@ describe('city-assault-flow', () => {
       owner: 'player',
       population: 1,
     });
+  });
+
+  it('preserves territory flip events when finalizing an occupied city', () => {
+    const state = makePlayerAssaultState({ population: 4 });
+    const farmCoord = { q: 1, r: 0 };
+    state.map.tiles[hexKey(farmCoord)] = {
+      ...state.map.tiles[hexKey(farmCoord)],
+      terrain: 'grassland',
+      owner: 'ai-1',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+    };
+
+    const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+    const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
+
+    expect(result.territoryEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        previousOwner: 'ai-1',
+        newOwner: 'player',
+        improvement: 'farm',
+      }),
+    ]));
   });
 });

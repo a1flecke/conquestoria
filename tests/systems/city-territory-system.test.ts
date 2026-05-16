@@ -16,6 +16,7 @@ import {
   normalizeCityWorkClaims,
   processTerritoryFrontiers,
   recalculateTerritory,
+  TERRITORY_PRESSURE_BALANCE,
   type TerritoryResolution,
 } from '@/systems/city-territory-system';
 
@@ -311,6 +312,30 @@ describe('city founding territory rules', () => {
       challengerCityId: challenger.id,
     });
     expect(frontier?.reason).toContain('cultural pressure');
+  });
+
+  it('keeps frontier progress below flip threshold after one marginal pressure turn', () => {
+    const state = createNewGame(undefined, 'territory-balance-marginal-frontier');
+    state.cities = {};
+    const holder = addCity(state, 'player', 10, 10);
+    const challenger = addCity(state, 'ai-1', 13, 10);
+    const coord = { q: 12, r: 10 };
+    state.map.tiles[hexKey(coord)] = { ...state.map.tiles[hexKey(coord)], terrain: 'grassland', owner: 'player' };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [coord] };
+    state.cities[challenger.id] = { ...challenger, population: 3, maturity: 'outpost', ownedTiles: [] };
+
+    const result = processTerritoryFrontiers(state);
+    const frontier = result.territoryFrontiers?.[hexKey(coord)];
+
+    expect(frontier?.progress).toBeGreaterThan(0);
+    expect(frontier?.progress).toBeLessThan(TERRITORY_PRESSURE_BALANCE.frontierFlipProgress);
+    expect(result.map.tiles[hexKey(coord)].owner).toBe('player');
+  });
+
+  it('uses named balance thresholds for likely-to-flip and final frontier flips', () => {
+    expect(TERRITORY_PRESSURE_BALANCE.softTrimMargin).toBe(2);
+    expect(TERRITORY_PRESSURE_BALANCE.likelyToFlipProgress).toBe(8);
+    expect(TERRITORY_PRESSURE_BALANCE.frontierFlipProgress).toBe(10);
   });
 
   it('flips a contested frontier tile when accumulated progress reaches the threshold', () => {

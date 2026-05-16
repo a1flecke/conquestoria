@@ -412,6 +412,9 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         newState.turn,
       );
       newState = captureResult.state;
+      for (const event of captureResult.territoryEvents) {
+        bus.emit('territory:tile-flipped', event);
+      }
       civ = newState.civilizations[civId];
       continue;
     }

@@ -102,19 +102,26 @@ export function getBaseTerritoryRadius(city: City): number {
   return getCulturalTerritoryRadius(city);
 }
 
-const MATURITY_PRESSURE_BONUS: Record<City['maturity'], number> = {
-  outpost: 0,
-  village: 1,
-  town: 2,
-  city: 3,
-  metropolis: 4,
-};
+export const TERRITORY_PRESSURE_BALANCE = {
+  basePressure: 6,
+  softTrimMargin: 2,
+  cultureBuildingCap: 3,
+  likelyToFlipProgress: 8,
+  frontierFlipProgress: 10,
+  maturityBonus: {
+    outpost: 0,
+    village: 1,
+    town: 2,
+    city: 3,
+    metropolis: 4,
+  } satisfies Record<City['maturity'], number>,
+} as const;
 
 export function calculateCityPressureForTile(state: GameState, city: City, coord: HexCoord): number {
-  return 6
-    + MATURITY_PRESSURE_BONUS[city.maturity]
+  return TERRITORY_PRESSURE_BALANCE.basePressure
+    + TERRITORY_PRESSURE_BALANCE.maturityBonus[city.maturity]
     + Math.floor(city.population / 2)
-    + Math.min(3, countCultureBuildings(city))
+    + Math.min(TERRITORY_PRESSURE_BALANCE.cultureBuildingCap, countCultureBuildings(city))
     - cityDistance(city.position, coord, state.map);
 }
 
@@ -175,7 +182,7 @@ function chooseTerritoryWinner(
     && holderClaim
     && strongest
     && strongest.civId !== holderClaim.civId
-    && strongest.pressure - holderClaim.pressure < 2
+    && strongest.pressure - holderClaim.pressure < TERRITORY_PRESSURE_BALANCE.softTrimMargin
   ) {
     return holderClaim;
   }
@@ -384,8 +391,8 @@ export function applyTerritoryFrontierProgressWithEvents(
     const key = hexKey(resolution.coord);
     const previous = frontiers[key]?.progress ?? 0;
     const delta = Math.max(1, challengerClaim.pressure - holderClaim.pressure);
-    const progress = Math.min(10, previous + delta);
-    if (progress >= 10) {
+    const progress = Math.min(TERRITORY_PRESSURE_BALANCE.frontierFlipProgress, previous + delta);
+    if (progress >= TERRITORY_PRESSURE_BALANCE.frontierFlipProgress) {
       flippedResolutions.push({
         ...resolution,
         winningCityId: challengerClaim.cityId,
@@ -401,7 +408,7 @@ export function applyTerritoryFrontierProgressWithEvents(
       holderCityId: holderClaim.cityId,
       challengerCityId: challengerClaim.cityId,
       progress,
-      trend: progress >= 8 ? 'likely-to-flip' : 'contested',
+      trend: progress >= TERRITORY_PRESSURE_BALANCE.likelyToFlipProgress ? 'likely-to-flip' : 'contested',
       reason: `${challenger} cultural pressure is challenging ${holder}.`,
     };
   }

@@ -112,7 +112,7 @@ import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { canUpgradeUnit, applyUpgrade } from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
-import type { GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
+import type { GameEvents, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
   createNotificationLog,
@@ -138,7 +138,7 @@ import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
 import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
 import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
-import { renderTerritoryFrontierInfo } from '@/ui/territory-frontier-info';
+import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
@@ -1473,6 +1473,12 @@ function ensurePlayerWarState(targetCivId: string): void {
   bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId });
 }
 
+function emitTerritoryTileFlippedEvents(events: GameEvents['territory:tile-flipped'][]): void {
+  for (const event of events) {
+    bus.emit('territory:tile-flipped', event);
+  }
+}
+
 function finalizePendingCityCaptureChoice(
   disposition: 'occupy' | 'raze',
   attackerBonus?: CivBonusEffect,
@@ -1488,6 +1494,7 @@ function finalizePendingCityCaptureChoice(
   pendingCityCaptureChoice = null;
   document.getElementById('city-capture-panel')?.remove();
   gameState = result.state;
+  emitTerritoryTileFlippedEvents(result.territoryEvents);
 
   if (result.outcome === 'occupied') {
     const capturingCiv = currentCiv();
@@ -2014,6 +2021,18 @@ function handleHexTap(rawCoord: HexCoord): void {
   SFX.tap();
 }
 
+function openTerritoryInspectionPanel(coord: HexCoord): void {
+  document.getElementById('territory-inspection-panel')?.remove();
+  const panel = createTerritoryInspectionPanel(gameState, coord, gameState.currentPlayer, () => {
+    document.getElementById('territory-inspection-panel')?.remove();
+  });
+  uiLayer.appendChild(panel);
+}
+
+function closeTerritoryInspectionPanel(): void {
+  document.getElementById('territory-inspection-panel')?.remove();
+}
+
 function handleHexLongPress(rawCoord: HexCoord): void {
   const coord = gameState.map.wrapsHorizontally
     ? wrapHexCoord(rawCoord, gameState.map.width)
@@ -2027,12 +2046,13 @@ function handleHexLongPress(rawCoord: HexCoord): void {
   const visibility = getVisibility(vis, coord);
 
   if (visibility === 'unexplored') {
+    closeTerritoryInspectionPanel();
     showNotification('Unexplored territory');
     return;
   }
 
   if (visibility === 'fog') {
-    showNotification(`${tile.terrain} (last seen)`);
+    openTerritoryInspectionPanel(coord);
     return;
   }
 
@@ -2042,15 +2062,13 @@ function handleHexLongPress(rawCoord: HexCoord): void {
       && unit.position.r === coord.r,
   );
   if (unitAtHex) {
+    closeTerritoryInspectionPanel();
     selectUnit(unitAtHex.id);
     openUnitContextMenu(unitAtHex.id);
     return;
   }
 
-  const wonderInfo = tile.wonder ? ` · ⭐ ${getWonderDefinition(tile.wonder)?.name ?? tile.wonder}` : '';
-  const frontier = gameState.territoryFrontiers?.[hexKey(coord)];
-  const frontierInfo = frontier ? ` · ${renderTerritoryFrontierInfo(frontier).textContent ?? ''}` : '';
-  showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + getImprovementDisplayName(tile.improvement) : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}${frontierInfo}`);
+  openTerritoryInspectionPanel(coord);
 }
 
 function handleVictoryIfNeeded(): boolean {

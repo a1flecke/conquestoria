@@ -1,6 +1,11 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { moveUnit } from '@/systems/unit-system';
-import { computeRazeGold, resolveMajorCityCapture, type MajorCityCaptureDisposition } from '@/systems/city-capture-system';
+import {
+  computeRazeGold,
+  resolveMajorCityCapture,
+  type MajorCityCaptureDisposition,
+  type MajorCityCaptureResult,
+} from '@/systems/city-capture-system';
 
 export interface PendingCityCaptureChoice {
   attackerId: string;
@@ -56,6 +61,6 @@ export function finalizePlayerCityAssaultChoice(
   pending: PendingCityCaptureChoice,
   disposition: MajorCityCaptureDisposition,
   turn: number,
-): { state: GameState; outcome: 'occupied' | 'razed'; goldAwarded: number } {
+): MajorCityCaptureResult {
   return resolveMajorCityCapture(state, pending.cityId, state.currentPlayer, disposition, turn);
 }
