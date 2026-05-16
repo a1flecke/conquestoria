@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameState, HexTile, Unit } from '@/core/types';
+import { recalculateTerritory } from '@/systems/city-territory-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 
@@ -201,6 +202,28 @@ describe('worker action system', () => {
     const result = clearCompletedWorkerTasksForImprovement(start, { q: 0, r: 0 });
 
     expect(result.units['worker-1'].workerTask).toEqual({ action: 'farm', coord: { q: 0, r: 0 } });
+  });
+
+  it('cancels in-progress improvement and clears worker task when territory flips', () => {
+    const start = state();
+    start.map.tiles['0,0'] = tile({ terrain: 'plains', owner: 'player', improvement: 'farm', improvementTurnsLeft: 3 });
+    start.units['worker-1'] = worker({ workerTask: { action: 'farm', coord: { q: 0, r: 0 } } });
+    start.civilizations['ai-1'] = {
+      ...start.civilizations.player,
+      id: 'ai-1',
+      name: 'AI',
+      isHuman: false,
+      cities: [],
+      units: [],
+      diplomacy: createDiplomacyState(['player', 'ai-1'], 'ai-1'),
+    };
+    start.cities['enemy-city'] = city({ id: 'enemy-city', owner: 'ai-1', position: { q: 1, r: 0 }, population: 8, maturity: 'town', ownedTiles: [] });
+    start.civilizations['ai-1'].cities.push('enemy-city');
+
+    const result = recalculateTerritory(start, { reason: 'turn', preserveCurrentHolderOnTie: true });
+
+    expect(result.state.map.tiles['0,0']).toMatchObject({ owner: 'ai-1', improvement: 'none', improvementTurnsLeft: 0 });
+    expect(result.state.units['worker-1'].workerTask).toBeUndefined();
   });
 
   it('converts forest farm to plains and grants production to nearest owned city', () => {
