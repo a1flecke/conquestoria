@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CombatResult, GameState } from '@/core/types';
 import {
+  getNotificationTargetsForEvent,
   routeBarbarianSpawned,
   routeCombatRewardEarned,
   routeCombatResolved,
@@ -297,5 +298,23 @@ describe('notification routing', () => {
 
     routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-2', dedup, sink, isVisible);
     expect(calls.map(c => c.civId)).toEqual(['p1', 'p1']);
+  });
+
+  it('routes territory improvement transfer notifications to involved civs and visible observers', () => {
+    const state = makeState();
+    (state.civilizations.p1 as any).visibility = { tiles: { '5,5': 'visible' } };
+    (state.civilizations.p2 as any).visibility = { tiles: { '5,5': 'visible' } };
+    (state.civilizations.p3 as any).visibility = { tiles: { '5,5': 'visible' } };
+
+    const targets = getNotificationTargetsForEvent(state, {
+      type: 'territory:tile-flipped',
+      coord: { q: 5, r: 5 },
+      previousOwner: 'p1',
+      newOwner: 'p2',
+      improvement: 'farm',
+      constructionCancelled: false,
+    });
+
+    expect(targets.sort()).toEqual(['p1', 'p2', 'p3']);
   });
 });

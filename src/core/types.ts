@@ -1061,6 +1061,13 @@ export interface GameEvents {
   'fog:revealed': { tiles: HexCoord[] };
   'improvement:started': { unitId: string; coord: HexCoord; type: ImprovementType };
   'improvement:completed': { coord: HexCoord; type: ImprovementType };
+  'territory:tile-flipped': {
+    coord: HexCoord;
+    previousOwner: string;
+    newOwner: string;
+    improvement: ImprovementType;
+    constructionCancelled: boolean;
+  };
   'civilization:first-contact': { civA: string; civB: string };
   'barbarian:spawned': { campId: string; unitId: string };
   'barbarian:camp-destroyed': { campId: string; reward: number };

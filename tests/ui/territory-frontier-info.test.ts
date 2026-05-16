@@ -28,12 +28,20 @@ class MockDocument {
 }
 
 describe('renderTerritoryFrontierInfo', () => {
+  const originalDocument = globalThis.document;
+
   beforeEach(() => {
-    (globalThis as typeof globalThis & { document?: unknown }).document = new MockDocument();
+    Object.defineProperty(globalThis, 'document', {
+      value: new MockDocument() as unknown as Document,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
-    (globalThis as typeof globalThis & { document?: unknown }).document = undefined;
+    Object.defineProperty(globalThis, 'document', {
+      value: originalDocument,
+      configurable: true,
+    });
   });
 
   it('renders a likely-to-flip frontier title and reason', () => {

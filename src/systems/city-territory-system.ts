@@ -1,4 +1,4 @@
-import type { City, GameMap, GameState, HexCoord, TerritoryFrontierState } from '@/core/types';
+import type { City, GameEvents, GameMap, GameState, HexCoord, TerritoryFrontierState } from '@/core/types';
 import { BUILDINGS } from './city-system';
 import { hexDistance, hexesInRange, hexKey, wrapHexCoord, wrappedHexDistance } from './hex-utils';
 
@@ -54,13 +54,17 @@ export interface TerritoryRecalculationOptions {
   reason: TerritoryRecalculationReason;
   preserveForeignHolders?: boolean;
   preserveCurrentHolderOnTie?: boolean;
-  cityIds?: string[];
 }
 
 export interface TerritoryRecalculationResult {
   state: GameState;
   resolutions: TerritoryResolution[];
   contestedResolutions: TerritoryResolution[];
+}
+
+export interface TerritoryFrontierProgressResult {
+  state: GameState;
+  flippedResolutions: TerritoryResolution[];
 }
 
 export function canonicalizeCityCoord(coord: HexCoord, map: GameMap): HexCoord {
@@ -193,6 +197,17 @@ function clearWorkerTasksForCoord(units: GameState['units'], coord: HexCoord): G
   return changed ? nextUnits : units;
 }
 
+function addOwnedTile(city: City, coord: HexCoord): City {
+  const key = hexKey(coord);
+  if (city.ownedTiles.some(owned => hexKey(owned) === key)) return city;
+  return { ...city, ownedTiles: [...city.ownedTiles, coord] };
+}
+
+function removeOwnedTile(city: City, coord: HexCoord): City {
+  const key = hexKey(coord);
+  return { ...city, ownedTiles: city.ownedTiles.filter(owned => hexKey(owned) !== key) };
+}
+
 export function recalculateTerritory(
   state: GameState,
   options: TerritoryRecalculationOptions,
@@ -297,20 +312,67 @@ export function recalculateTerritory(
   return { state: normalized.state, resolutions, contestedResolutions };
 }
 
+export function buildTerritoryTileFlippedEvents(
+  before: GameState,
+  after: GameState,
+  resolutions: TerritoryResolution[],
+): GameEvents['territory:tile-flipped'][] {
+  const events: GameEvents['territory:tile-flipped'][] = [];
+  for (const resolution of resolutions) {
+    if (!resolution.previousOwner || !resolution.winningCivId || resolution.previousOwner === resolution.winningCivId) {
+      continue;
+    }
+    const key = hexKey(resolution.coord);
+    const beforeTile = before.map.tiles[key];
+    const afterTile = after.map.tiles[key];
+    if (!beforeTile || !afterTile) continue;
+    events.push({
+      coord: resolution.coord,
+      previousOwner: resolution.previousOwner,
+      newOwner: resolution.winningCivId,
+      improvement: afterTile.improvement,
+      constructionCancelled: beforeTile.improvement !== 'none'
+        && beforeTile.improvementTurnsLeft > 0
+        && afterTile.improvement === 'none'
+        && afterTile.improvementTurnsLeft === 0,
+    });
+  }
+  return events;
+}
+
+function hasStrongerCompetingFrontierClaim(state: GameState, frontier: TerritoryFrontierState): boolean {
+  const holderCity = state.cities[frontier.holderCityId];
+  const challengerCity = state.cities[frontier.challengerCityId];
+  if (!holderCity || !challengerCity) return false;
+  const key = hexKey(frontier.coord);
+  const holderClaim = generateTerritoryClaimsForCity(state, holderCity, 'turn')
+    .find(claim => hexKey(claim.coord) === key && claim.civId === frontier.holderCivId);
+  const challengerClaim = generateTerritoryClaimsForCity(state, challengerCity, 'turn')
+    .find(claim => hexKey(claim.coord) === key && claim.civId === frontier.challengerCivId);
+  return Boolean(holderClaim && challengerClaim && challengerClaim.pressure > holderClaim.pressure);
+}
+
 export function cleanupTerritoryFrontiers(state: GameState): GameState {
   const next: Record<string, TerritoryFrontierState> = {};
   for (const [key, frontier] of Object.entries(state.territoryFrontiers ?? {})) {
     if (!state.cities[frontier.holderCityId] || !state.cities[frontier.challengerCityId]) continue;
     const tile = state.map.tiles[key];
     if (!tile || tile.owner !== frontier.holderCivId) continue;
+    if (!hasStrongerCompetingFrontierClaim(state, frontier)) continue;
     next[key] = frontier;
   }
   return { ...state, territoryFrontiers: next };
 }
 
-export function processTerritoryFrontiers(state: GameState): GameState {
-  const territory = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+export function applyTerritoryFrontierProgress(territory: TerritoryRecalculationResult): GameState {
+  return applyTerritoryFrontierProgressWithEvents(territory).state;
+}
+
+export function applyTerritoryFrontierProgressWithEvents(
+  territory: TerritoryRecalculationResult,
+): TerritoryFrontierProgressResult {
   const frontiers: Record<string, TerritoryFrontierState> = { ...(territory.state.territoryFrontiers ?? {}) };
+  const flippedResolutions: TerritoryResolution[] = [];
 
   for (const resolution of territory.contestedResolutions) {
     const holder = resolution.previousOwner;
@@ -323,6 +385,15 @@ export function processTerritoryFrontiers(state: GameState): GameState {
     const previous = frontiers[key]?.progress ?? 0;
     const delta = Math.max(1, challengerClaim.pressure - holderClaim.pressure);
     const progress = Math.min(10, previous + delta);
+    if (progress >= 10) {
+      flippedResolutions.push({
+        ...resolution,
+        winningCityId: challengerClaim.cityId,
+        winningCivId: challengerClaim.civId,
+      });
+      delete frontiers[key];
+      continue;
+    }
     frontiers[key] = {
       coord: resolution.coord,
       holderCivId: holder,
@@ -335,7 +406,48 @@ export function processTerritoryFrontiers(state: GameState): GameState {
     };
   }
 
-  return cleanupTerritoryFrontiers({ ...territory.state, territoryFrontiers: frontiers });
+  let nextState = cleanupTerritoryFrontiers({ ...territory.state, territoryFrontiers: frontiers });
+  if (flippedResolutions.length === 0) {
+    return { state: nextState, flippedResolutions };
+  }
+
+  let nextUnits = nextState.units;
+  const nextTiles = { ...nextState.map.tiles };
+  const nextCities = { ...nextState.cities };
+  const appliedResolutions: TerritoryResolution[] = [];
+  for (const resolution of flippedResolutions) {
+    if (!resolution.previousOwner || !resolution.winningCivId || !resolution.winningCityId) continue;
+    const key = hexKey(resolution.coord);
+    const tile = nextTiles[key];
+    if (!tile || tile.owner !== resolution.previousOwner) continue;
+    let nextTile = { ...tile, owner: resolution.winningCivId };
+    if (tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
+      nextTile = { ...nextTile, improvement: 'none', improvementTurnsLeft: 0 };
+      nextUnits = clearWorkerTasksForCoord(nextUnits, tile.coord);
+    }
+    nextTiles[key] = nextTile;
+    const holderCity = nextCities[resolution.competingClaims.find(claim => claim.civId === resolution.previousOwner)?.cityId ?? ''];
+    const challengerCity = nextCities[resolution.winningCityId];
+    if (holderCity) nextCities[holderCity.id] = removeOwnedTile(holderCity, resolution.coord);
+    if (challengerCity) nextCities[challengerCity.id] = addOwnedTile(challengerCity, resolution.coord);
+    delete nextState.territoryFrontiers?.[key];
+    appliedResolutions.push(resolution);
+  }
+
+  nextState = normalizeCityWorkClaims({
+    ...nextState,
+    map: { ...nextState.map, tiles: nextTiles },
+    cities: nextCities,
+    units: nextUnits,
+  }).state;
+
+  return { state: nextState, flippedResolutions: appliedResolutions };
+}
+
+export function processTerritoryFrontiers(state: GameState): GameState {
+  return applyTerritoryFrontierProgress(
+    recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true }),
+  );
 }
 
 function isValidCityCenterTerrain(state: GameState, position: HexCoord): boolean {

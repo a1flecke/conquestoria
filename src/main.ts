@@ -129,6 +129,8 @@ import {
   routeLegendaryWonder,
   routePeaceMade,
   routePeaceRequested,
+  routeTerritoryTileFlipped,
+  getTerritoryTileFlippedMessage,
   routeWarDeclared,
   type NotificationSink,
 } from '@/ui/notification-routing';
@@ -136,6 +138,7 @@ import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
 import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
 import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
+import { renderTerritoryFrontierInfo } from '@/ui/territory-frontier-info';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
@@ -2045,7 +2048,9 @@ function handleHexLongPress(rawCoord: HexCoord): void {
   }
 
   const wonderInfo = tile.wonder ? ` · ⭐ ${getWonderDefinition(tile.wonder)?.name ?? tile.wonder}` : '';
-  showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + getImprovementDisplayName(tile.improvement) : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}`);
+  const frontier = gameState.territoryFrontiers?.[hexKey(coord)];
+  const frontierInfo = frontier ? ` · ${renderTerritoryFrontierInfo(frontier).textContent ?? ''}` : '';
+  showNotification(`${tile.terrain} · ${tile.elevation}${tile.improvement !== 'none' ? ' · ' + getImprovementDisplayName(tile.improvement) : ''}${tile.resource ? ' · ' + tile.resource : ''}${wonderInfo}${frontierInfo}`);
 }
 
 function handleVictoryIfNeeded(): boolean {
@@ -2481,6 +2486,13 @@ bus.on('combat:resolved', ({ result }) => {
 
 bus.on('combat:reward-earned', ({ reward }) => {
   routeCombatRewardEarned(gameState, reward, appendToCivLog);
+});
+
+bus.on('territory:tile-flipped', event => {
+  routeTerritoryTileFlipped(gameState, { type: 'territory:tile-flipped', ...event }, appendToCivLog);
+  if (event.previousOwner === gameState.currentPlayer || event.newOwner === gameState.currentPlayer) {
+    showNotification(getTerritoryTileFlippedMessage(event), event.constructionCancelled ? 'warning' : 'info');
+  }
 });
 
 bus.on('barbarian:spawned', ({ campId, unitId }) => {
