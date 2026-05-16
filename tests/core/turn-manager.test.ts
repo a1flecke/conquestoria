@@ -291,6 +291,36 @@ describe('processTurn', () => {
     expect(updated.productionProgress).toBe(3);
   });
 
+  it('recalculates cultural territory before marketplace supply counts city territory', () => {
+    const state = createNewGame(undefined, 'turn-territory-growth', 'small');
+    const playerCiv = state.civilizations.player;
+    const startPos = state.units[playerCiv.units[0]].position;
+    const city = foundCity('player', startPos, state.map);
+    const radius3 = state.map.wrapsHorizontally
+      ? { q: (city.position.q + 3) % state.map.width, r: city.position.r }
+      : { q: city.position.q + 3, r: city.position.r };
+    const key = hexKey(radius3);
+    state.map.tiles[key] = {
+      ...state.map.tiles[key],
+      coord: radius3,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      owner: null,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      resource: 'horses',
+    };
+    state.cities[city.id] = { ...city, population: 4, ownedTiles: [city.position] };
+    playerCiv.cities = [city.id];
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.cities[city.id].ownedTiles.map(hexKey)).toContain(key);
+    expect(next.map.tiles[key].owner).toBe('player');
+  });
+
   it('reassigns focused city worked tiles after growth without working the city center', () => {
     const state = createNewGame(undefined, 'focused-growth-worked-tiles', 'small');
     const bus = new EventBus();
