@@ -186,6 +186,17 @@ export interface GameMap {
   rivers: Array<{ from: HexCoord; to: HexCoord }>;
 }
 
+export interface TerritoryFrontierState {
+  coord: HexCoord;
+  holderCivId: string;
+  challengerCivId: string;
+  holderCityId: string;
+  challengerCityId: string;
+  progress: number;
+  trend: 'held' | 'contested' | 'likely-to-flip';
+  reason: string;
+}
+
 // --- Visibility (per player) ---
 
 export interface VisibilityMap {
@@ -999,6 +1010,7 @@ export interface GameState {
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];
   pendingDiplomacyRequests?: PendingDiplomaticRequest[];
+  territoryFrontiers?: Record<string, TerritoryFrontierState>;
   mapScript?: MapScript;  // undefined on old saves → treat as 'procedural'
 }
 

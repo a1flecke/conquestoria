@@ -1,4 +1,4 @@
-import type { City, GameMap, GameState, HexCoord } from '@/core/types';
+import type { City, GameMap, GameState, HexCoord, TerritoryFrontierState } from '@/core/types';
 import { BUILDINGS } from './city-system';
 import { hexDistance, hexesInRange, hexKey, wrapHexCoord, wrappedHexDistance } from './hex-utils';
 
@@ -114,6 +114,19 @@ export function calculateCityPressureForTile(state: GameState, city: City, coord
     - cityDistance(city.position, coord, state.map);
 }
 
+function getStrongestChallengerClaim(
+  claims: TerritoryClaim[],
+  holderCivId: string,
+): TerritoryClaim | null {
+  return claims
+    .filter(claim => claim.civId !== holderCivId)
+    .sort((left, right) => {
+      if (right.pressure !== left.pressure) return right.pressure - left.pressure;
+      if (left.radiusBand !== right.radiusBand) return left.radiusBand - right.radiusBand;
+      return left.cityId.localeCompare(right.cityId);
+    })[0] ?? null;
+}
+
 export function generateTerritoryClaimsForCity(
   state: GameState,
   city: City,
@@ -197,6 +210,7 @@ export function recalculateTerritory(
   let nextUnits = state.units;
   const ownedByCity = new Map<string, HexCoord[]>();
   const resolutions: TerritoryResolution[] = [];
+  const contestedResolutions: TerritoryResolution[] = [];
 
   for (const city of Object.values(state.cities)) {
     nextCities[city.id] = { ...city, ownedTiles: [] };
@@ -241,6 +255,19 @@ export function recalculateTerritory(
         competingClaims: claims,
         reason: options.reason,
       });
+    } else if (previousOwner && winner?.civId === previousOwner && claims.length > 1) {
+      const holderClaim = claims.find(claim => claim.civId === previousOwner) ?? null;
+      const challengerClaim = getStrongestChallengerClaim(claims, previousOwner);
+      if (holderClaim && challengerClaim && challengerClaim.pressure > holderClaim.pressure) {
+        contestedResolutions.push({
+          coord: tile.coord,
+          previousOwner,
+          winningCityId: challengerClaim.cityId,
+          winningCivId: challengerClaim.civId,
+          competingClaims: claims,
+          reason: options.reason,
+        });
+      }
     }
   }
 
@@ -267,7 +294,48 @@ export function recalculateTerritory(
     units: nextUnits,
   });
 
-  return { state: normalized.state, resolutions, contestedResolutions: [] };
+  return { state: normalized.state, resolutions, contestedResolutions };
+}
+
+export function cleanupTerritoryFrontiers(state: GameState): GameState {
+  const next: Record<string, TerritoryFrontierState> = {};
+  for (const [key, frontier] of Object.entries(state.territoryFrontiers ?? {})) {
+    if (!state.cities[frontier.holderCityId] || !state.cities[frontier.challengerCityId]) continue;
+    const tile = state.map.tiles[key];
+    if (!tile || tile.owner !== frontier.holderCivId) continue;
+    next[key] = frontier;
+  }
+  return { ...state, territoryFrontiers: next };
+}
+
+export function processTerritoryFrontiers(state: GameState): GameState {
+  const territory = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+  const frontiers: Record<string, TerritoryFrontierState> = { ...(territory.state.territoryFrontiers ?? {}) };
+
+  for (const resolution of territory.contestedResolutions) {
+    const holder = resolution.previousOwner;
+    const challenger = resolution.winningCivId;
+    if (!holder || !challenger || holder === challenger) continue;
+    const holderClaim = resolution.competingClaims.find(claim => claim.civId === holder);
+    const challengerClaim = resolution.competingClaims.find(claim => claim.civId === challenger);
+    if (!holderClaim || !challengerClaim) continue;
+    const key = hexKey(resolution.coord);
+    const previous = frontiers[key]?.progress ?? 0;
+    const delta = Math.max(1, challengerClaim.pressure - holderClaim.pressure);
+    const progress = Math.min(10, previous + delta);
+    frontiers[key] = {
+      coord: resolution.coord,
+      holderCivId: holder,
+      challengerCivId: challenger,
+      holderCityId: holderClaim.cityId,
+      challengerCityId: challengerClaim.cityId,
+      progress,
+      trend: progress >= 8 ? 'likely-to-flip' : 'contested',
+      reason: `${challenger} cultural pressure is challenging ${holder}.`,
+    };
+  }
+
+  return cleanupTerritoryFrontiers({ ...territory.state, territoryFrontiers: frontiers });
 }
 
 function isValidCityCenterTerrain(state: GameState, position: HexCoord): boolean {
