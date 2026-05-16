@@ -256,6 +256,66 @@ describe('city-panel navigation', () => {
     expect(rendered).toContain('Done in 10 turns');
   });
 
+  it('shows maintenance, net treasury, and rush buy for active production', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.productionQueue = ['workshop'];
+    city.productionProgress = 2;
+    state.civilizations[state.currentPlayer].gold = 100;
+    const onRushBuyActiveProduction = vi.fn(() => state);
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onRushBuyActiveProduction,
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Maintenance: -0/turn');
+    expect(rendered).toContain('Net treasury:');
+    expect(rendered).toContain('Rush buy (25 gold)');
+    clickElement(panel.querySelector('[data-rush-buy]'));
+    expect(onRushBuyActiveProduction).toHaveBeenCalledWith(city.id);
+  });
+
+  it('disables rush buy with a visible reason during critical treasury strain', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.productionQueue = ['workshop'];
+    city.productionProgress = 2;
+    state.economyStatusByCiv = {
+      [state.currentPlayer]: {
+        civId: state.currentPlayer,
+        grossGoldPerTurn: 0,
+        maintenanceGoldPerTurn: 50,
+        netGoldPerTurn: -50,
+        projectedGold: 0,
+        unpaidMaintenance: 50,
+        strainLevel: 'critical',
+        rushBuyDisabled: true,
+        breakdown: {
+          buildingUpkeep: 0,
+          unitUpkeep: 50,
+          freeBuildings: 0,
+          freeUnits: 0,
+          paidBuildings: 0,
+          paidUnits: 50,
+        },
+      },
+    };
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onRushBuyActiveProduction: () => state,
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const rushButton = panel.querySelector<HTMLButtonElement>('[data-rush-buy]');
+
+    expect(collectText(panel)).toContain('Rush buy disabled: treasury strain is critical.');
+    expect(collectText(panel)).toContain('Critical strain');
+    expect(rushButton?.disabled).toBe(true);
+  });
+
   it('renders Overview, Buildings/Core, and Worked Land And Water sections in the Grid tab', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.focus = 'balanced';
