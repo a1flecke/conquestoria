@@ -977,6 +977,15 @@ export interface TutorialState {
   completedSteps: TutorialStep[];
 }
 
+// --- ID Counters ---
+
+export interface IdCounters {
+  nextUnitId:  number;
+  nextCityId:  number;
+  nextCampId:  number;
+  nextQuestId: number;
+}
+
 // --- Game State (the whole thing) ---
 
 export interface GameState {
@@ -1007,6 +1016,7 @@ export interface GameState {
   legendaryWonderHistory?: LegendaryWonderHistory;
   legendaryWonderIntel?: Record<string, LegendaryWonderIntelEntry[]>;
   espionage?: EspionageState;
+  idCounters: IdCounters;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];
   pendingDiplomacyRequests?: PendingDiplomaticRequest[];
