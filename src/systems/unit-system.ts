@@ -139,6 +139,18 @@ export function resetUnitId(): void {
   nextUnitId = 1;
 }
 
+export function syncUnitIdCounter(units: Record<string, { id: string }>): void {
+  let max = 0;
+  for (const id of Object.keys(units)) {
+    const match = /^unit-(\d+)$/.exec(id);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (n > max) max = n;
+    }
+  }
+  if (max >= nextUnitId) nextUnitId = max + 1;
+}
+
 export function moveUnit(unit: Unit, to: HexCoord, cost: number): Unit {
   return {
     ...unit,
