@@ -1,5 +1,7 @@
-import type { CombatResult, CombatRewardNotification, GameState } from '@/core/types';
+import type { CombatResult, CombatRewardNotification, GameEvents, GameState } from '@/core/types';
 import { collectEvent } from '@/core/hotseat-events';
+import { hexKey } from '@/systems/hex-utils';
+import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import type { NotificationEntry } from '@/ui/notification-log';
@@ -18,6 +20,55 @@ type FactionTransitionEvent =
   | { type: 'faction:breakaway-started'; cityId: string; oldOwner: string; breakawayId: string }
   | { type: 'faction:breakaway-established'; civId: string; originOwnerId: string }
   | { type: 'faction:critical-status'; cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string };
+
+type TerritoryTileFlippedRoutingEvent =
+  GameEvents['territory:tile-flipped'] & { type: 'territory:tile-flipped' };
+
+type NotificationRoutingEvent = TerritoryTileFlippedRoutingEvent;
+
+export function getNotificationTargetsForEvent(
+  state: GameState,
+  event: NotificationRoutingEvent,
+): string[] {
+  if (event.type !== 'territory:tile-flipped') return [];
+
+  const key = hexKey(event.coord);
+  const targets = new Set<string>();
+  if (state.civilizations[event.previousOwner]) targets.add(event.previousOwner);
+  if (state.civilizations[event.newOwner]) targets.add(event.newOwner);
+  for (const [civId, civ] of Object.entries(state.civilizations)) {
+    const visibility = civ.visibility?.tiles?.[key];
+    if (visibility === 'visible' || visibility === 'fog') {
+      targets.add(civId);
+    }
+  }
+  return [...targets];
+}
+
+export function getTerritoryTileFlippedMessage(event: GameEvents['territory:tile-flipped']): string {
+  if (event.constructionCancelled) {
+    return 'Border shifted; in-progress construction was cancelled.';
+  }
+  if (event.improvement !== 'none') {
+    return `Border shifted; ${getImprovementDisplayName(event.improvement)} transferred.`;
+  }
+  return 'Border shifted.';
+}
+
+export function routeTerritoryTileFlipped(
+  state: GameState,
+  event: TerritoryTileFlippedRoutingEvent,
+  sink: NotificationSink,
+): void {
+  const message = getTerritoryTileFlippedMessage(event);
+  for (const civId of getNotificationTargetsForEvent(state, event)) {
+    sink(civId, message, event.constructionCancelled ? 'warning' : 'info', {
+      kind: 'map',
+      coord: { ...event.coord },
+      label: 'Border shifted',
+    });
+  }
+}
 
 export function routeFactionTransition(
   state: GameState,

@@ -5,7 +5,7 @@ export function renderTerritoryFrontierInfo(frontier: TerritoryFrontierState): H
   panel.dataset.territoryFrontier = frontier.trend;
 
   const title = document.createElement('div');
-  title.textContent = frontier.trend === 'likely-to-flip' ? 'Border likely to shift' : 'Contested border';
+  title.textContent = frontier.trend === 'likely-to-flip' ? 'Border likely to shift: ' : 'Contested border: ';
 
   const reason = document.createElement('p');
   reason.textContent = frontier.reason;

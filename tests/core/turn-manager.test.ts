@@ -130,6 +130,132 @@ describe('processTurn', () => {
     expect(Object.keys(result.minorCivs).length).toBeGreaterThan(0);
   });
 
+  it('emits territory tile-flipped events during turn territory recalculation', () => {
+    const state = createNewGame(undefined, 'turn-territory-flip-event', 'small');
+    state.cities = {};
+    state.units = {};
+    state.barbarianCamps = {};
+    state.minorCivs = {};
+    state.civilizations.player.cities = [];
+    state.civilizations.player.units = [];
+    state.civilizations['ai-1'].cities = [];
+    state.civilizations['ai-1'].units = [];
+    const holder = foundCity('player', { q: 6, r: 6 }, state.map);
+    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map);
+    holder.id = 'holder-city';
+    challenger.id = 'challenger-city';
+    const overlap = { q: 8, r: 6 };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+    state.cities[challenger.id] = { ...challenger, population: 6, maturity: 'town', buildings: ['shrine'], ownedTiles: [] };
+    state.civilizations.player.cities = [holder.id];
+    state.civilizations['ai-1'].cities = [challenger.id];
+    state.map.tiles[hexKey(overlap)] = {
+      ...state.map.tiles[hexKey(overlap)],
+      terrain: 'grassland',
+      owner: 'player',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+    };
+    const bus = new EventBus();
+    const tileFlipped = vi.fn();
+    bus.on('territory:tile-flipped', tileFlipped);
+
+    processTurn(state, bus);
+
+    expect(tileFlipped).toHaveBeenCalledWith(expect.objectContaining({
+      coord: overlap,
+      previousOwner: 'player',
+      newOwner: 'ai-1',
+      improvement: 'farm',
+      constructionCancelled: false,
+    }));
+  });
+
+  it('advances cultural frontier pressure during turn processing before a tile flips', () => {
+    const state = createNewGame(undefined, 'turn-territory-frontier-progress', 'small');
+    state.cities = {};
+    state.units = {};
+    state.barbarianCamps = {};
+    state.minorCivs = {};
+    state.civilizations.player.cities = [];
+    state.civilizations.player.units = [];
+    state.civilizations['ai-1'].cities = [];
+    state.civilizations['ai-1'].units = [];
+    const holder = foundCity('player', { q: 6, r: 6 }, state.map);
+    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map);
+    holder.id = 'frontier-holder';
+    challenger.id = 'frontier-challenger';
+    const overlap = { q: 8, r: 6 };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+    state.cities[challenger.id] = { ...challenger, population: 3, maturity: 'outpost', ownedTiles: [] };
+    state.civilizations.player.cities = [holder.id];
+    state.civilizations['ai-1'].cities = [challenger.id];
+    state.map.tiles[hexKey(overlap)] = { ...state.map.tiles[hexKey(overlap)], terrain: 'grassland', owner: 'player' };
+
+    const result = processTurn(state, new EventBus());
+
+    expect(result.territoryFrontiers?.[hexKey(overlap)]).toEqual(expect.objectContaining({
+      holderCivId: 'player',
+      challengerCivId: 'ai-1',
+      holderCityId: holder.id,
+      challengerCityId: challenger.id,
+    }));
+  });
+
+  it('emits a territory event when frontier progress reaches a tile flip', () => {
+    const state = createNewGame(undefined, 'turn-territory-frontier-flip-event', 'small');
+    state.cities = {};
+    state.units = {};
+    state.barbarianCamps = {};
+    state.minorCivs = {};
+    state.civilizations.player.cities = [];
+    state.civilizations.player.units = [];
+    state.civilizations['ai-1'].cities = [];
+    state.civilizations['ai-1'].units = [];
+    const holder = foundCity('player', { q: 6, r: 6 }, state.map);
+    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map);
+    holder.id = 'frontier-event-holder';
+    challenger.id = 'frontier-event-challenger';
+    const overlap = { q: 8, r: 6 };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+    state.cities[challenger.id] = { ...challenger, population: 3, maturity: 'outpost', ownedTiles: [] };
+    state.civilizations.player.cities = [holder.id];
+    state.civilizations['ai-1'].cities = [challenger.id];
+    state.map.tiles[hexKey(overlap)] = {
+      ...state.map.tiles[hexKey(overlap)],
+      terrain: 'grassland',
+      owner: 'player',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+    };
+    state.territoryFrontiers = {
+      [hexKey(overlap)]: {
+        coord: overlap,
+        holderCivId: 'player',
+        challengerCivId: 'ai-1',
+        holderCityId: holder.id,
+        challengerCityId: challenger.id,
+        progress: 9,
+        trend: 'likely-to-flip',
+        reason: 'ai-1 cultural pressure is challenging player.',
+      },
+    };
+    const bus = new EventBus();
+    const tileFlipped = vi.fn();
+    bus.on('territory:tile-flipped', tileFlipped);
+
+    const result = processTurn(state, bus);
+
+    expect(result.map.tiles[hexKey(overlap)].owner).toBe('ai-1');
+    expect(tileFlipped).toHaveBeenCalledWith(expect.objectContaining({
+      coord: overlap,
+      previousOwner: 'player',
+      newOwner: 'ai-1',
+      improvement: 'farm',
+      constructionCancelled: false,
+    }));
+  });
+
   it('awards barbarian units experience when they defeat a player unit during turn processing', () => {
     const state = createNewGame(undefined, 'barbarian-reward', 'small');
     state.turn = 5;

@@ -46,7 +46,11 @@ import { processDetection } from '@/systems/detection-system';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
-import { recalculateTerritory } from '@/systems/city-territory-system';
+import {
+  applyTerritoryFrontierProgressWithEvents,
+  buildTerritoryTileFlippedEvents,
+  recalculateTerritory,
+} from '@/systems/city-territory-system';
 import {
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
@@ -361,10 +365,23 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     }
   }
 
-  newState = recalculateTerritory(newState, {
+  const territoryBefore = newState;
+  const territoryResult = recalculateTerritory(territoryBefore, {
     reason: 'turn',
     preserveCurrentHolderOnTie: true,
-  }).state;
+  });
+  for (const event of buildTerritoryTileFlippedEvents(territoryBefore, territoryResult.state, territoryResult.resolutions)) {
+    bus.emit('territory:tile-flipped', event);
+  }
+  const frontierResult = applyTerritoryFrontierProgressWithEvents(territoryResult);
+  for (const event of buildTerritoryTileFlippedEvents(
+    territoryResult.state,
+    frontierResult.state,
+    frontierResult.flippedResolutions,
+  )) {
+    bus.emit('territory:tile-flipped', event);
+  }
+  newState = frontierResult.state;
 
   newState = tickLegendaryWonderProjects(newState, bus);
 

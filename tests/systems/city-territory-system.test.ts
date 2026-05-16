@@ -5,6 +5,7 @@ import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import {
   buildCityWorkClaimIndex,
+  buildTerritoryTileFlippedEvents,
   canonicalizeCityCoord,
   cityDistance,
   cleanupTerritoryFrontiers,
@@ -229,6 +230,66 @@ describe('city founding territory rules', () => {
     expect(result.state.map.tiles[hexKey(overlap)].owner).toBe('ai-1');
   });
 
+  it('builds tile-flipped events for completed improvements that transfer owners', () => {
+    const state = createNewGame(undefined, 'territory-transfer-event');
+    state.cities = {};
+    const holder = addCity(state, 'player', 10, 10);
+    const challenger = addCity(state, 'ai-1', 13, 10);
+    const overlap = { q: 12, r: 10 };
+    state.map.tiles[hexKey(overlap)] = {
+      ...state.map.tiles[hexKey(overlap)],
+      terrain: 'grassland',
+      owner: 'player',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+    };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+    state.cities[challenger.id] = { ...challenger, population: 6, maturity: 'town', buildings: ['shrine'], ownedTiles: [] };
+
+    const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+    const events = buildTerritoryTileFlippedEvents(state, result.state, result.resolutions);
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        coord: overlap,
+        previousOwner: 'player',
+        newOwner: 'ai-1',
+        improvement: 'farm',
+        constructionCancelled: false,
+      }),
+    ]);
+  });
+
+  it('marks tile-flipped events when in-progress construction is cancelled by a border shift', () => {
+    const state = createNewGame(undefined, 'territory-transfer-cancel-event');
+    state.cities = {};
+    const holder = addCity(state, 'player', 10, 10);
+    const challenger = addCity(state, 'ai-1', 13, 10);
+    const overlap = { q: 12, r: 10 };
+    state.map.tiles[hexKey(overlap)] = {
+      ...state.map.tiles[hexKey(overlap)],
+      terrain: 'grassland',
+      owner: 'player',
+      improvement: 'farm',
+      improvementTurnsLeft: 2,
+    };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [overlap] };
+    state.cities[challenger.id] = { ...challenger, population: 6, maturity: 'town', buildings: ['shrine'], ownedTiles: [] };
+
+    const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
+    const events = buildTerritoryTileFlippedEvents(state, result.state, result.resolutions);
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        coord: overlap,
+        previousOwner: 'player',
+        newOwner: 'ai-1',
+        improvement: 'none',
+        constructionCancelled: true,
+      }),
+    ]);
+  });
+
   it('records frontier progress for contested held tiles before flipping', () => {
     const state = createNewGame(undefined, 'territory-frontier-progress');
     state.territoryFrontiers = {};
@@ -252,6 +313,37 @@ describe('city founding territory rules', () => {
     expect(frontier?.reason).toContain('cultural pressure');
   });
 
+  it('flips a contested frontier tile when accumulated progress reaches the threshold', () => {
+    const state = createNewGame(undefined, 'territory-frontier-threshold-flip');
+    state.cities = {};
+    const holder = addCity(state, 'player', 10, 10);
+    const challenger = addCity(state, 'ai-1', 13, 10);
+    const coord = { q: 12, r: 10 };
+    state.map.tiles[hexKey(coord)] = { ...state.map.tiles[hexKey(coord)], terrain: 'grassland', owner: 'player' };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [coord], workedTiles: [coord] };
+    state.cities[challenger.id] = { ...challenger, population: 3, maturity: 'outpost', ownedTiles: [] };
+    state.territoryFrontiers = {
+      [hexKey(coord)]: {
+        coord,
+        holderCivId: 'player',
+        challengerCivId: 'ai-1',
+        holderCityId: holder.id,
+        challengerCityId: challenger.id,
+        progress: 9,
+        trend: 'likely-to-flip',
+        reason: 'ai-1 cultural pressure is challenging player.',
+      },
+    };
+
+    const result = processTerritoryFrontiers(state);
+
+    expect(result.map.tiles[hexKey(coord)].owner).toBe('ai-1');
+    expect(result.cities[holder.id].ownedTiles.map(hexKey)).not.toContain(hexKey(coord));
+    expect(result.cities[holder.id].workedTiles).toEqual([]);
+    expect(result.cities[challenger.id].ownedTiles.map(hexKey)).toContain(hexKey(coord));
+    expect(result.territoryFrontiers?.[hexKey(coord)]).toBeUndefined();
+  });
+
   it('cleans frontier records when a source city is gone', () => {
     const state = createNewGame(undefined, 'territory-frontier-cleanup');
     state.territoryFrontiers = {
@@ -262,6 +354,31 @@ describe('city founding territory rules', () => {
         holderCityId: 'missing-city',
         challengerCityId: 'also-missing',
         progress: 3,
+        trend: 'contested',
+        reason: 'Stale frontier',
+      },
+    };
+
+    const result = cleanupTerritoryFrontiers(state);
+
+    expect(result.territoryFrontiers).toEqual({});
+  });
+
+  it('cleans frontier records when the challenger no longer has a stronger competing claim', () => {
+    const state = createNewGame(undefined, 'territory-frontier-cleanup-no-competition');
+    state.cities = {};
+    const holder = addCity(state, 'player', 10, 10);
+    const challenger = addCity(state, 'ai-1', 20, 20);
+    const coord = { q: 12, r: 10 };
+    state.map.tiles[hexKey(coord)] = { ...state.map.tiles[hexKey(coord)], terrain: 'grassland', owner: 'player' };
+    state.territoryFrontiers = {
+      [hexKey(coord)]: {
+        coord,
+        holderCivId: 'player',
+        challengerCivId: 'ai-1',
+        holderCityId: holder.id,
+        challengerCityId: challenger.id,
+        progress: 4,
         trend: 'contested',
         reason: 'Stale frontier',
       },
