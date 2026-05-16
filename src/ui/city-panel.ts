@@ -7,6 +7,7 @@ import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/c
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createCityGrid } from './city-grid';
+import { formatMaintenanceTooltip, getEconomyStatusForCiv, getRushBuyQuote } from '@/systems/economy-system';
 
 export interface CityPanelCallbacks {
   onBuild: (cityId: string, itemId: string) => void;
@@ -21,6 +22,7 @@ export interface CityPanelCallbacks {
   onNextCity?: () => void;
   onUpgradeUnit?: (unitId: string) => void;
   onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => void;
+  onRushBuyActiveProduction?: (cityId: string) => GameState | void;
 }
 
 type CityPanelTab = 'list' | 'grid';
@@ -56,6 +58,9 @@ export function createCityPanel(
   });
   const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles);
   const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
+  const economyStatus = getEconomyStatusForCiv(state, city.owner);
+  const maintenanceTooltip = formatMaintenanceTooltip(economyStatus);
+  const rushBuyQuote = getRushBuyQuote(state, city.id);
 
   // Build placeholders for dynamic data; style attributes with pure numbers (progress%) are safe
   let buildingPlaceholders = '';
@@ -124,6 +129,12 @@ export function createCityPanel(
     const currentItem = city.productionQueue[0];
     const totalCost = getDisplayedCost(currentItem);
     const progress = totalCost > 0 ? Math.round((city.productionProgress / totalCost) * 100) : 0;
+    const rushBuyLabel = rushBuyQuote.cost > 0 ? `Rush buy (${rushBuyQuote.cost} gold)` : 'Rush buy';
+    const rushDisabled = !rushBuyQuote.available || !callbacks.onRushBuyActiveProduction;
+    const rushDisabledAttr = rushDisabled ? 'disabled' : '';
+    const rushButtonStyle = rushDisabled
+      ? 'background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.45);cursor:not-allowed;'
+      : 'background:#d4aa2c;border:1px solid rgba(255,255,255,0.2);color:#1f1700;cursor:pointer;';
 
     currentProductionHtml = `
       <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
@@ -131,6 +142,10 @@ export function createCityPanel(
         <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining</div>
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <button type="button" data-rush-buy="active" ${rushDisabledAttr} title="" style="min-height:34px;padding:7px 10px;border-radius:6px;font-size:12px;font-weight:bold;${rushButtonStyle}">${rushBuyLabel}</button>
+          ${rushBuyQuote.reason ? '<span style="font-size:11px;color:#d9a25c;" data-text="rush-reason"></span>' : ''}
         </div>
       </div>
     `;
@@ -208,6 +223,11 @@ export function createCityPanel(
       <span>💰 +<span data-text="yield-gold"></span></span>
       <span>🔬 +<span data-text="yield-science"></span></span>
     </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:#d9d3c0;">
+      <span title="" data-maintenance-summary>Maintenance: -${economyStatus.maintenanceGoldPerTurn}/turn</span>
+      <span>Net treasury: ${economyStatus.netGoldPerTurn >= 0 ? '+' : ''}${economyStatus.netGoldPerTurn}/turn</span>
+      ${economyStatus.strainLevel !== 'stable' ? '<span style="color:#d9a25c;" data-text="economy-strain"></span>' : ''}
+    </div>
 
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">List</div>
@@ -258,6 +278,16 @@ export function createCityPanel(
     const turnsLeft = yields.production > 0 ? Math.ceil((totalCost - city.productionProgress) / yields.production) : '∞';
     setText('prod-name', building?.name ?? unit?.name ?? currentItem);
     setText('prod-turns', String(turnsLeft));
+    if (rushBuyQuote.reason) {
+      setText('rush-reason', rushBuyQuote.reason);
+    }
+    const rushButton = panel.querySelector<HTMLElement>('[data-rush-buy]');
+    if (rushButton && rushBuyQuote.reason) rushButton.title = rushBuyQuote.reason;
+  }
+  const maintenanceSummary = panel.querySelector<HTMLElement>('[data-maintenance-summary]');
+  if (maintenanceSummary) maintenanceSummary.title = maintenanceTooltip;
+  if (economyStatus.strainLevel !== 'stable') {
+    setText('economy-strain', economyStatus.strainLevel === 'critical' ? 'Critical strain' : 'Treasury strained');
   }
 
   let bldgIdx = 0;
@@ -350,6 +380,13 @@ export function createCityPanel(
         callbacks.onMoveQueueItem?.(city.id, index, index + 1);
         rerenderPanel();
       }
+    });
+  });
+
+  panel.querySelectorAll<HTMLElement>('[data-rush-buy]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const nextState = callbacks.onRushBuyActiveProduction?.(city.id);
+      rerenderPanel(nextState);
     });
   });
 

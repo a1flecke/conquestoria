@@ -11,7 +11,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { scanIdCounters } from '@/core/id-counters';
-import { foundCity, BUILDINGS, getUnplacedBuildings, placeBuilding } from '@/systems/city-system';
+import { completeCityProductionItem, foundCity, BUILDINGS, TRAINABLE_UNITS, getUnplacedBuildings, placeBuilding } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
@@ -104,6 +104,7 @@ import {
   executeSpy,
   startInterrogation,
   isSpyUnitType,
+  createSpyFromUnit,
   missionRequiresPlacedSpy,
   recallSpy,
   resolveMissionResult,
@@ -126,6 +127,7 @@ import {
   routeBarbarianSpawned,
   routeCombatRewardEarned,
   routeCombatResolved,
+  routeEconomyTreasuryStrain,
   routeFactionTransition,
   queueFirstContactPendingEvents,
   routeFirstContact,
@@ -144,6 +146,7 @@ import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel'
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
+import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, getRushBuyQuote } from '@/systems/economy-system';
 
 // --- App State ---
 let gameState: GameState;
@@ -242,16 +245,16 @@ function updateHUD(): void {
   const civ = currentCiv();
 
   // Sum yields across all cities
-  let totalFood = 0, totalProd = 0, totalGold = 0, totalScience = 0;
+  let totalFood = 0, totalProd = 0, totalScience = 0;
   for (const cityId of civ.cities) {
     const city = gameState.cities[cityId];
     if (!city) continue;
     const y = calculateProjectedCityYields(gameState, cityId);
     totalFood += y.food;
     totalProd += y.production;
-    totalGold += y.gold;
     totalScience += y.science;
   }
+  const economyStatus = calculateCivEconomy(gameState, civ.id);
 
   const techName = civ.techState.currentResearch ?? 'None';
   hud.textContent = '';
@@ -268,7 +271,8 @@ function updateHUD(): void {
   yieldsRow.appendChild(prodSpan);
 
   const goldSpan = document.createElement('span');
-  goldSpan.textContent = `💰 ${civ.gold} (+${totalGold})`;
+  goldSpan.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
+  goldSpan.title = formatMaintenanceTooltip(economyStatus);
   yieldsRow.appendChild(goldSpan);
 
   const sciSpan = document.createElement('span');
@@ -645,6 +649,59 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       gameState = { ...gameState, cities: { ...gameState.cities, [cityId]: updated } };
       renderLoop.setGameState(gameState);
       openCityPanelForCity(updated);
+    },
+    onRushBuyActiveProduction: (cityId) => {
+      const targetCity = gameState.cities[cityId];
+      if (!targetCity) return gameState;
+      const quote = getRushBuyQuote(gameState, cityId);
+      if (!quote.available || !quote.itemId) {
+        showNotification(quote.reason ?? 'Rush buy is not available.', 'warning');
+        return gameState;
+      }
+
+      const civId = targetCity.owner;
+      const civ = gameState.civilizations[civId];
+      if (!civ) return gameState;
+      const completion = completeCityProductionItem(targetCity, quote.itemId);
+      const nextCiv = { ...civ, gold: civ.gold - quote.cost, units: [...civ.units] };
+      gameState.cities[cityId] = completion.city;
+      gameState.civilizations[civId] = nextCiv;
+
+      if (completion.completedBuilding) {
+        bus.emit('city:building-complete', { cityId, buildingId: completion.completedBuilding });
+      }
+
+      if (completion.completedUnit) {
+        const civDef = resolveCivDefinition(gameState, civ.civType ?? '');
+        const newUnit = createUnit(completion.completedUnit, civId, targetCity.position, civDef?.bonusEffect);
+        gameState.units[newUnit.id] = newUnit;
+        gameState.civilizations[civId].units.push(newUnit.id);
+        bus.emit('city:unit-trained', { cityId, unitType: completion.completedUnit });
+
+        if (isSpyUnitType(completion.completedUnit) && gameState.espionage?.[civId]) {
+          const { state: updatedEsp, spy } = createSpyFromUnit(
+            gameState.espionage[civId],
+            newUnit.id,
+            civId,
+            completion.completedUnit,
+            `spy-unit-${newUnit.id}-${gameState.turn}`,
+          );
+          gameState.espionage[civId] = updatedEsp;
+          bus.emit('espionage:spy-recruited', { civId, spy });
+        }
+      }
+
+      gameState.economyStatusByCiv = {
+        ...(gameState.economyStatusByCiv ?? {}),
+        [civId]: calculateCivEconomy(gameState, civId),
+      };
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      const itemName = BUILDINGS[quote.itemId]?.name
+        ?? TRAINABLE_UNITS.find(unit => unit.type === quote.itemId)?.name
+        ?? quote.itemId;
+      showNotification(`${targetCity.name}: rush bought ${itemName} for ${quote.cost} gold.`, 'success');
+      return gameState;
     },
   });
 }
@@ -2548,6 +2605,18 @@ bus.on('faction:breakaway-established', event => {
 
 bus.on('faction:critical-status', event => {
   routeFactionTransition(gameState, { type: 'faction:critical-status', ...event }, appendFactionNotice);
+});
+
+bus.on('economy:treasury-strain', event => {
+  routeEconomyTreasuryStrain(gameState, event, appendToCivLog);
+  if (event.civId === gameState.currentPlayer) {
+    showNotification(
+      event.level === 'critical'
+        ? 'Treasury strain is critical. Rush buy is disabled.'
+        : 'Treasury is strained by maintenance.',
+      'warning',
+    );
+  }
 });
 
 bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisguised, position }) => {

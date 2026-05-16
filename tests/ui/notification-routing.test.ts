@@ -5,6 +5,7 @@ import {
   routeBarbarianSpawned,
   routeCombatRewardEarned,
   routeCombatResolved,
+  routeEconomyTreasuryStrain,
   queueFirstContactPendingEvents,
   routeLegendaryWonder,
   routeFactionTransition,
@@ -76,6 +77,25 @@ describe('notification routing', () => {
         civId: 'p2',
         message: expect.stringMatching(/Alice requests peace/i),
         type: 'info',
+      }),
+    ]);
+  });
+
+  it('routes treasury strain to the affected civilization with the rush-buy consequence', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeEconomyTreasuryStrain(
+      state,
+      { civId: 'p1', level: 'critical', netGoldPerTurn: -12, unpaidMaintenance: 4 },
+      sink,
+    );
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'p1',
+        message: expect.stringMatching(/Rush buy is disabled/i),
+        type: 'warning',
       }),
     ]);
   });

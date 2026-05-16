@@ -134,6 +134,26 @@ export function routeFactionTransition(
   sink(event.originOwnerId, `${city?.name ?? civ?.name ?? 'A breakaway state'} is now an established civilization.`, 'warning');
 }
 
+export function routeEconomyTreasuryStrain(
+  state: GameState,
+  event: GameEvents['economy:treasury-strain'],
+  sink: NotificationSink,
+): void {
+  const civ = state.civilizations[event.civId];
+  if (!civ) return;
+  const maintenanceNote = event.unpaidMaintenance > 0
+    ? ` ${event.unpaidMaintenance} maintenance went unpaid.`
+    : '';
+  const action = event.level === 'critical'
+    ? ' Rush buy is disabled until the treasury recovers.'
+    : ' Consider more gold income before expanding further.';
+  sink(
+    event.civId,
+    `Treasury ${event.level === 'critical' ? 'is in critical strain' : 'is strained'} (${event.netGoldPerTurn}/turn).${maintenanceNote}${action}`,
+    'warning',
+  );
+}
+
 // Writes to both parties' logs from their own perspective.
 export function routeWarDeclared(
   state: GameState,
