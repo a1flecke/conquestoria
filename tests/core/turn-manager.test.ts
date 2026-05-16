@@ -14,6 +14,7 @@ import { calculateCityYields } from '@/systems/resource-system';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
+import { createUnit } from '@/systems/unit-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -101,6 +102,59 @@ describe('processTurn', () => {
 
     const newState = processTurn(state, bus);
     expect(newState).toBeDefined();
+  });
+
+  it('stores net economy status and applies maintenance during turn processing', () => {
+    const state = createNewGame(undefined, 'turn-economy', 'small');
+    const bus = new EventBus();
+    const city = foundCity('player', { q: 2, r: 2 }, state.map);
+    city.id = 'capital';
+    city.population = 2;
+    city.buildings = ['marketplace'];
+    city.workedTiles = [];
+    city.productionQueue = [];
+    state.cities = { capital: city };
+    state.civilizations.player.cities = ['capital'];
+    state.civilizations.player.units = [];
+    state.units = {};
+    state.civilizations.player.gold = 20;
+
+    const result = processTurn(state, bus);
+    const status = result.economyStatusByCiv?.player;
+
+    expect(status).toBeDefined();
+    expect(status!.netGoldPerTurn).toBe(status!.grossGoldPerTurn - status!.maintenanceGoldPerTurn);
+    expect(result.civilizations.player.gold).toBe(status!.projectedGold);
+    expect(state.civilizations.player.gold).toBe(20);
+  });
+
+  it('caps gold at zero and emits critical treasury strain when upkeep cannot be paid', () => {
+    const state = createNewGame(undefined, 'turn-economy-critical', 'small');
+    const bus = new EventBus();
+    const listener = vi.fn();
+    bus.on('economy:treasury-strain', listener);
+    const city = foundCity('player', { q: 2, r: 2 }, state.map);
+    city.id = 'capital';
+    city.population = 1;
+    city.workedTiles = [];
+    city.productionQueue = [];
+    state.cities = { capital: city };
+    state.civilizations.player.cities = ['capital'];
+    state.civilizations.player.units = [];
+    state.units = {};
+    state.civilizations.player.gold = 0;
+    for (let index = 0; index < 40; index++) {
+      const unit = createUnit('warrior', 'player', city.position);
+      state.units[unit.id] = unit;
+      state.civilizations.player.units.push(unit.id);
+    }
+
+    const result = processTurn(state, bus);
+
+    expect(result.civilizations.player.gold).toBe(0);
+    expect(result.economyStatusByCiv?.player.strainLevel).toBe('critical');
+    expect(result.economyStatusByCiv?.player.rushBuyDisabled).toBe(true);
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ civId: 'player', level: 'critical' }));
   });
 
   it('applies occupied-city penalties and decrements the occupation timer during turn processing', () => {
