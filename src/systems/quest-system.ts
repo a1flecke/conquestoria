@@ -1,4 +1,4 @@
-import type { MinorCivArchetype, Quest, QuestReward, QuestTarget, QuestType, GameState } from '@/core/types';
+import type { MinorCivArchetype, Quest, QuestReward, QuestTarget, QuestType, GameState, IdCounters } from '@/core/types';
 import { hexDistance } from './hex-utils';
 import {
   getQuestDescriptionForPlayer as getQuestDescriptionForPlayerFromPresentation,
@@ -26,6 +26,7 @@ export function generateQuest(
   currentTurn: number,
   state: Pick<GameState, 'barbarianCamps' | 'era' | 'minorCivs' | 'cities' | 'units'>,
   rng: () => number,
+  counters: IdCounters,
 ): Quest | null {
   const weights = QUEST_WEIGHTS[archetype];
   const candidates = (Object.entries(weights) as [QuestType, number][])
@@ -45,12 +46,12 @@ export function generateQuest(
   for (const candidate of candidates) {
     cumulative += candidate.weight;
     if (roll < cumulative) {
-      return makeQuest(candidate.type, candidate.target, currentTurn, minorCivId);
+      return makeQuest(candidate.type, candidate.target, currentTurn, counters, minorCivId);
     }
   }
 
   const fallback = candidates[candidates.length - 1];
-  return makeQuest(fallback.type, fallback.target, currentTurn, minorCivId);
+  return makeQuest(fallback.type, fallback.target, currentTurn, counters, minorCivId);
 }
 
 function buildQuestTarget(
@@ -92,11 +93,10 @@ function buildQuestTarget(
   }
 }
 
-function makeQuest(type: QuestType, target: QuestTarget, currentTurn: number, minorCivId?: string): Quest {
-  questIdCounter++;
+function makeQuest(type: QuestType, target: QuestTarget, currentTurn: number, counters: IdCounters, minorCivId?: string): Quest {
   const reward = getRewardForType(type);
   return {
-    id: `quest-${questIdCounter}`,
+    id: `quest-${counters.nextQuestId++}`,
     type,
     description: getQuestDescription(type, target),
     target,

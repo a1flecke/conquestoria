@@ -1,4 +1,4 @@
-import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, CivBonusEffect, VisibilityState } from '@/core/types';
+import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, CivBonusEffect, VisibilityState, IdCounters } from '@/core/types';
 import {
   hexKey,
   hexNeighbors,
@@ -113,6 +113,7 @@ export function createUnit(
   type: UnitType,
   owner: string,
   position: HexCoord,
+  counters: IdCounters,
   bonusEffect?: CivBonusEffect,
 ): Unit {
   const movementBonus =
@@ -120,7 +121,7 @@ export function createUnit(
       ? bonusEffect.movementBonus
       : 0;
   return {
-    id: `unit-${nextUnitId++}`,
+    id: `unit-${counters.nextUnitId++}`,
     type,
     owner,
     position: { ...position },

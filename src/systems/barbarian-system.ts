@@ -1,4 +1,4 @@
-import type { BarbarianCamp, GameMap, GameState, HexCoord, Unit } from '@/core/types';
+import type { BarbarianCamp, GameMap, GameState, HexCoord, IdCounters, Unit } from '@/core/types';
 import { canAttackByProfileOnMap } from './attack-targeting';
 import { hexKey, hexDistance, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import { selectDefenderForAttack } from './combat-system';
@@ -19,6 +19,7 @@ export function spawnBarbarianCamp(
   cityPositions: HexCoord[],
   existingCamps: BarbarianCamp[],
   seed: number,
+  counters: IdCounters,
 ): BarbarianCamp | null {
   const rng = lcg(seed);
   const existingPositions = new Set(existingCamps.map(c => hexKey(c.position)));
@@ -46,7 +47,7 @@ export function spawnBarbarianCamp(
   const chosen = candidates[Math.floor(rng() * candidates.length)];
 
   return {
-    id: `camp-${nextCampId++}`,
+    id: `camp-${counters.nextCampId++}`,
     position: { ...chosen.coord },
     strength: 5 + Math.floor(rng() * 5),
     spawnCooldown: 5,
