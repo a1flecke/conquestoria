@@ -12,9 +12,10 @@ vi.mock('@/storage/db', () => ({
   dbGetAllKeys: vi.fn(async () => Array.from(dbState.keys())),
 }));
 
-import { loadGame, migrateLegacyNamingState, saveGame } from '@/storage/save-manager';
+import { loadGame, migrateLegacyNamingState, normalizeLoadedStateForTest, saveGame } from '@/storage/save-manager';
 import type { CustomCivDefinition, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 
 // --- Minimal in-memory localStorage mock ---
 function makeLocalStorageMock() {
@@ -176,6 +177,26 @@ describe('save persistence (#38)', () => {
     const loaded = await loadGame('slot-pending-peace');
 
     expect(loaded?.pendingDiplomacyRequests).toEqual(state.pendingDiplomacyRequests);
+  });
+
+  it('preserves legacy tile owner as holder when normalizing ambiguous territory', async () => {
+    const state = createNewGame(undefined, 'legacy-territory-holder');
+    const city = {
+      ...foundCity('player', { q: 10, r: 10 }, state.map),
+      id: 'legacy-city',
+      position: { q: 10, r: 10 },
+    };
+    state.cities = { [city.id]: city };
+    state.civilizations.player.cities = [city.id];
+    const coord = { q: city.position.q + 1, r: city.position.r };
+    const key = hexKey(coord);
+    state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'grassland', owner: 'ai-1' };
+    state.cities[city.id] = { ...city, ownedTiles: [...city.ownedTiles, coord], workedTiles: [coord] };
+
+    const normalized = normalizeLoadedStateForTest(state);
+
+    expect(normalized.map.tiles[key].owner).toBe('ai-1');
+    expect(normalized.cities[city.id].workedTiles).not.toContainEqual(coord);
   });
 
   it('normalizes older saves without pending diplomacy requests', async () => {

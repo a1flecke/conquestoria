@@ -1,8 +1,8 @@
 import type { City, GameState, LegendaryWonderProject } from '@/core/types';
 import { reconquerBreakawayCity } from '@/systems/breakaway-system';
 import { BUILDINGS } from '@/systems/city-system';
+import { recalculateTerritory } from '@/systems/city-territory-system';
 import { modifyRelationship } from '@/systems/diplomacy-system';
-import { hexKey } from '@/systems/hex-utils';
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
 
@@ -79,15 +79,20 @@ export function resolveMajorCityCapture(
 
   if (forcedDisposition === 'occupy' && previousOwner?.breakaway?.originOwnerId === newOwnerId) {
     const reconquered = reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId);
+    const nextState = {
+      ...reconquered,
+      legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
+        reconquered.legendaryWonderProjects,
+        cityId,
+        newOwnerId,
+      ),
+    };
+    const territoryResult = recalculateTerritory(nextState, {
+      reason: 'capture',
+      preserveCurrentHolderOnTie: true,
+    });
     return {
-      state: {
-        ...reconquered,
-        legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
-          reconquered.legendaryWonderProjects,
-          cityId,
-          newOwnerId,
-        ),
-      },
+      state: territoryResult.state,
       outcome: 'occupied',
       goldAwarded: 0,
     };
@@ -108,58 +113,44 @@ export function resolveMajorCityCapture(
       },
     };
 
-    const nextTiles = { ...state.map.tiles };
-    for (const coord of occupiedCity.ownedTiles) {
-      const key = hexKey(coord);
-      if (nextTiles[key]) {
-        nextTiles[key] = { ...nextTiles[key], owner: newOwnerId };
-      }
-    }
+    const nextState: GameState = {
+      ...state,
+      cities: {
+        ...state.cities,
+        [cityId]: occupiedCity,
+      },
+      civilizations: {
+        ...state.civilizations,
+        ...(previousOwner ? {
+          [previousOwnerId]: {
+            ...previousOwner,
+            cities: previousOwner.cities.filter(id => id !== cityId),
+          },
+        } : {}),
+        [newOwnerId]: {
+          ...capturingCiv,
+          cities: capturingCiv.cities.includes(cityId) ? capturingCiv.cities : [...capturingCiv.cities, cityId],
+        },
+      },
+      legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
+        state.legendaryWonderProjects,
+        cityId,
+        newOwnerId,
+      ),
+    };
+    const territoryResult = recalculateTerritory(nextState, {
+      reason: 'capture',
+      preserveCurrentHolderOnTie: true,
+    });
 
     return {
-      state: {
-        ...state,
-        map: {
-          ...state.map,
-          tiles: nextTiles,
-        },
-        cities: {
-          ...state.cities,
-          [cityId]: occupiedCity,
-        },
-        civilizations: {
-          ...state.civilizations,
-          ...(previousOwner ? {
-            [previousOwnerId]: {
-              ...previousOwner,
-              cities: previousOwner.cities.filter(id => id !== cityId),
-            },
-          } : {}),
-          [newOwnerId]: {
-            ...capturingCiv,
-            cities: capturingCiv.cities.includes(cityId) ? capturingCiv.cities : [...capturingCiv.cities, cityId],
-          },
-        },
-        legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
-          state.legendaryWonderProjects,
-          cityId,
-          newOwnerId,
-        ),
-      },
+      state: territoryResult.state,
       outcome: 'occupied',
       goldAwarded: 0,
     };
   }
 
   const goldAwarded = computeRazeGold(city);
-  const nextTiles = { ...state.map.tiles };
-  for (const coord of city.ownedTiles) {
-    const key = hexKey(coord);
-    if (nextTiles[key]) {
-      nextTiles[key] = { ...nextTiles[key], owner: null };
-    }
-  }
-
   const nextCivilizations = {
     ...state.civilizations,
     ...(previousOwner ? {
@@ -178,17 +169,19 @@ export function resolveMajorCityCapture(
   const nextCities = { ...state.cities };
   delete nextCities[cityId];
 
+  const nextState: GameState = {
+    ...state,
+    cities: nextCities,
+    civilizations: nextCivilizations,
+    legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
+  };
+  const territoryResult = recalculateTerritory(nextState, {
+    reason: 'raze',
+    preserveCurrentHolderOnTie: true,
+  });
+
   return {
-    state: {
-      ...state,
-      map: {
-        ...state.map,
-        tiles: nextTiles,
-      },
-      cities: nextCities,
-      civilizations: nextCivilizations,
-      legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
-    },
+    state: territoryResult.state,
     outcome: 'razed',
     goldAwarded,
   };
@@ -213,10 +206,13 @@ export function transferCapturedCityOwnership(
   }
 
   if (previousOwner?.breakaway?.originOwnerId === newOwnerId) {
-    return reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId);
+    return recalculateTerritory(
+      reconquerBreakawayCity(state, newOwnerId, previousOwnerId, cityId),
+      { reason: 'capture', preserveCurrentHolderOnTie: true },
+    ).state;
   }
 
-  return {
+  const nextState: GameState = {
     ...state,
     cities: {
       ...state.cities,
@@ -243,4 +239,8 @@ export function transferCapturedCityOwnership(
       },
     },
   };
+  return recalculateTerritory(nextState, {
+    reason: 'capture',
+    preserveCurrentHolderOnTie: true,
+  }).state;
 }

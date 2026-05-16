@@ -2,7 +2,7 @@ import type { City, CityFocus, CityMaturity, GameState, SaveSlotMeta } from '@/c
 import { drawNextCityName } from '@/systems/city-name-system';
 import { createEmptyCityGrid } from '@/systems/city-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from '@/systems/city-maturity-system';
-import { canonicalizeCityCoord, normalizeCityWorkClaims } from '@/systems/city-territory-system';
+import { canonicalizeCityCoord, normalizeCityWorkClaims, recalculateTerritory } from '@/systems/city-territory-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
@@ -69,24 +69,39 @@ function normalizeLegacyCitySimState(state: GameState): GameState {
   for (const [cityId, city] of Object.entries(state.cities ?? {})) {
     const rawGridSize = Number(city.gridSize);
     const gridSize: 3 | 5 | 7 = rawGridSize >= 7 ? 7 : rawGridSize >= 5 ? 5 : 3;
+    const canonicalizeLoadedCoord = (coord: { q: number; r: number }) => (
+      state.map ? canonicalizeCityCoord(coord, state.map) : { ...coord }
+    );
     cities[cityId] = {
       ...city,
-      ownedTiles: (city.ownedTiles ?? []).map(coord => canonicalizeCityCoord(coord, state.map)),
-      workedTiles: (city.workedTiles ?? []).map(coord => canonicalizeCityCoord(coord, state.map)),
+      ownedTiles: (city.ownedTiles ?? []).map(canonicalizeLoadedCoord),
+      workedTiles: (city.workedTiles ?? []).map(canonicalizeLoadedCoord),
       focus: (city.focus ?? INITIAL_CITY_FOCUS) as CityFocus,
       maturity: (city.maturity ?? INITIAL_CITY_MATURITY) as CityMaturity,
       grid: normalizeCityGrid(city.grid),
       gridSize,
     };
   }
-  return normalizeCityWorkClaims({ ...state, cities }).state;
+  return { ...state, cities };
 }
 
 function normalizeLoadedState(state: GameState): GameState {
-  const normalized = normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state))));
+  const normalizedCityState = normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state))));
+  if (!normalizedCityState.map?.tiles) {
+    normalizedCityState.pendingDiplomacyRequests ??= [];
+    return normalizedCityState;
+  }
+  const territoryNormalized = recalculateTerritory(normalizedCityState, {
+    reason: 'load',
+    preserveForeignHolders: true,
+    preserveCurrentHolderOnTie: true,
+  }).state;
+  const normalized = normalizeCityWorkClaims(territoryNormalized).state;
   normalized.pendingDiplomacyRequests ??= [];
   return normalized;
 }
+
+export const normalizeLoadedStateForTest = normalizeLoadedState;
 
 function getCityNamingInfo(state: GameState, ownerId: string): { civType: string; civName: string; namingPool?: string[] } {
   const majorCiv = state.civilizations[ownerId];
