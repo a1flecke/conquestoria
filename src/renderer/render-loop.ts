@@ -18,8 +18,16 @@ import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 
 export interface HexHighlight {
   coord: HexCoord;
-  type: 'move' | 'attack';
+  type: 'move' | 'attack' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked';
 }
+
+const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
+  move: 'rgba(74, 144, 217, 0.35)',
+  attack: 'rgba(217, 74, 74, 0.45)',
+  'worker-buildable': 'rgba(80, 200, 120, 0.45)',
+  'worker-owned-blocked': 'rgba(232, 193, 112, 0.40)',
+  'worker-foreign-blocked': 'rgba(217, 74, 74, 0.35)',
+};
 
 export class RenderLoop {
   private ctx: CanvasRenderingContext2D;
@@ -150,7 +158,7 @@ export class RenderLoop {
         const pixel = hexToPixel(renderCoord, this.camera.hexSize);
         const screen = this.camera.worldToScreen(pixel.x, pixel.y);
         const scaledSize = this.camera.hexSize * this.camera.zoom;
-        const color = highlight.type === 'move' ? 'rgba(74, 144, 217, 0.35)' : 'rgba(217, 74, 74, 0.45)';
+        const color = HEX_HIGHLIGHT_COLORS[highlight.type];
         drawHexHighlight(this.ctx, screen.x, screen.y, scaledSize, color);
       }
     }

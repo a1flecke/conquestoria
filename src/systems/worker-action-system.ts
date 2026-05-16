@@ -12,8 +12,7 @@ import { createRng } from './map-generator';
 import { hexDistance, hexKey } from './hex-utils';
 import {
   IMPROVEMENT_BUILD_TURNS,
-  canBuildImprovement,
-  canDrainSwamp,
+  getWorkerActionBlockerReason,
   getWorkerActionLabel,
 } from './improvement-system';
 
@@ -31,6 +30,7 @@ export type WorkerActionFailureReason =
   | 'not-worker'
   | 'missing-tile'
   | 'invalid-action'
+  | 'outside-territory'
   | 'no-charges'
   | 'already-acted';
 
@@ -124,12 +124,14 @@ export function applyWorkerAction(
 
   const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
   const eligibilityOptions = { isCityTile: isCityCenterTile(state, unit.position) };
-  if (isBuildableImprovement(action)) {
-    if (!canBuildImprovement(tile, action, completedTechs, unit.owner, eligibilityOptions)) {
-      return { ok: false, state, reason: 'invalid-action', events: [] };
-    }
-  } else if (!canDrainSwamp(tile, unit.owner, eligibilityOptions)) {
-    return { ok: false, state, reason: 'invalid-action', events: [] };
+  const blockerReason = getWorkerActionBlockerReason(tile, action, completedTechs, unit.owner, eligibilityOptions);
+  if (blockerReason !== 'none') {
+    return {
+      ok: false,
+      state,
+      reason: blockerReason === 'outside-territory' ? 'outside-territory' : 'invalid-action',
+      events: [],
+    };
   }
 
   const chargesAfter = Math.max(0, chargesBefore - 1);

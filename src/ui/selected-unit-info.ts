@@ -3,7 +3,14 @@ import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-sys
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
 import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
-import { getAvailableWorkerActions, getWorkerActionLabel } from '@/systems/improvement-system';
+import {
+  formatWorkerActionBlockerReason,
+  getAvailableWorkerActions,
+  getWorkerActionBlockerReason,
+  getWorkerActionLabel,
+  type WorkerActionBlockerReason,
+  type WorkerActionEligibilityOptions,
+} from '@/systems/improvement-system';
 import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
@@ -40,6 +47,24 @@ function nextTierLabel(currentLabel: string): string | null {
   if (currentLabel === 'Seasoned') return 'Veteran';
   if (currentLabel === 'Veteran') return 'Elite';
   return null;
+}
+
+const WORKER_ACTIONS: WorkerActionType[] = ['farm', 'mine', 'lumber_camp', 'watermill', 'drain_swamp'];
+
+function chooseWorkerBlockerReason(
+  tile: GameState['map']['tiles'][string] | undefined,
+  completedTechs: string[],
+  ownerId: string,
+  options: WorkerActionEligibilityOptions,
+): WorkerActionBlockerReason {
+  let fallback: WorkerActionBlockerReason = 'invalid-terrain';
+  for (const action of WORKER_ACTIONS) {
+    const reason = getWorkerActionBlockerReason(tile, action, completedTechs, ownerId, options);
+    if (reason === 'none') return 'none';
+    if (reason !== 'invalid-terrain' && reason !== 'requires-tech') return reason;
+    fallback = reason;
+  }
+  return fallback;
 }
 
 export function renderSelectedUnitInfo(
@@ -155,7 +180,8 @@ export function renderSelectedUnitInfo(
       const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
       const unitTileKey = hexKey(unit.position);
       const isCityTile = Object.values(state.cities).some(city => hexKey(city.position) === unitTileKey);
-      for (const action of getAvailableWorkerActions(tile, completedTechs, unit.owner, { isCityTile })) {
+      const workerActions = getAvailableWorkerActions(tile, completedTechs, unit.owner, { isCityTile });
+      for (const action of workerActions) {
         const color = action === 'farm'
           ? '#6b9b4b'
           : action === 'mine'
@@ -166,6 +192,16 @@ export function renderSelectedUnitInfo(
                 ? '#3f7f8f'
                 : '#64748b';
         actionsDiv.appendChild(makeButton(getWorkerActionLabel(action), color, () => callbacks.onWorkerAction!(action)));
+      }
+      if (workerActions.length === 0) {
+        const blockerReason = chooseWorkerBlockerReason(tile, completedTechs, unit.owner, { isCityTile });
+        const blockerText = formatWorkerActionBlockerReason(blockerReason);
+        if (blockerText) {
+          const blockerDiv = document.createElement('div');
+          blockerDiv.style.cssText = 'font-size:11px;color:#f8d28a;margin-top:4px;';
+          blockerDiv.textContent = blockerText;
+          wrapper.appendChild(blockerDiv);
+        }
       }
     }
   }

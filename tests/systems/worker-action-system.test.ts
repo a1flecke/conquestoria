@@ -248,7 +248,7 @@ describe('worker action system', () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason).toBe('invalid-action');
+    expect(result.reason).toBe('outside-territory');
     expect(result.state.map.tiles['0,0']).toMatchObject({ terrain: 'forest', improvement: 'none' });
   });
 
@@ -260,8 +260,19 @@ describe('worker action system', () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.reason).toBe('invalid-action');
+    expect(result.reason).toBe('outside-territory');
     expect(result.state.cities['city-1'].productionProgress).toBe(0);
+  });
+
+  it('returns outside-territory for valid terrain outside worker territory', () => {
+    const start = state();
+    start.map.tiles['0,0'] = tile({ terrain: 'forest', owner: 'enemy' });
+
+    const result = applyWorkerAction(start, 'worker-1', 'farm');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('outside-territory');
   });
 
   it('rejects worker improvements on a city-center tile even when the terrain is otherwise valid', () => {

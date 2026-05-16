@@ -413,6 +413,32 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     }
   });
 
+  it('explains outside-territory worker blockers on the current tile', () => {
+    const state = makeWorkerState({ terrain: 'forest', owner: 'enemy' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const text = collectAllText(container).join(' ');
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(text).toContain('Outside your territory');
+    expect(buttons).not.toContain('Build Farm');
+  });
+
+  it('explains local worker blockers on owned current tiles', () => {
+    const state = makeWorkerState({ terrain: 'plains', owner: 'player', improvement: 'mine' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Already improved');
+  });
+
   it('hides worker actions after the worker has already acted', () => {
     const state = makeWorkerState({ terrain: 'forest' }, { hasActed: true });
     const container = new MockElement('div');
