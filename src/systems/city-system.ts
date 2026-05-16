@@ -1,4 +1,4 @@
-import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry } from '@/core/types';
+import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters } from '@/core/types';
 import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
@@ -240,7 +240,7 @@ export function createEmptyCityGrid(): (string | null)[][] {
   return grid;
 }
 
-export function foundCity(owner: string, position: HexCoord, map: GameMap, options: FoundCityOptions = {}): City {
+export function foundCity(owner: string, position: HexCoord, map: GameMap, counters: IdCounters, options: FoundCityOptions = {}): City {
   const canonicalPosition = map.wrapsHorizontally ? wrapHexCoord(position, map.width) : { ...position };
   const name = drawNextCityName(options.civType ?? owner, options.usedNames ?? new Set<string>(), {
     namingPool: options.namingPool,
@@ -262,7 +262,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, optio
   const grid = createEmptyCityGrid();
 
   return {
-    id: `city-${nextCityId++}`,
+    id: `city-${counters.nextCityId++}`,
     name,
     owner,
     position: canonicalPosition,
