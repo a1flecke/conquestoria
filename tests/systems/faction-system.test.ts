@@ -262,6 +262,58 @@ describe('faction-system', () => {
     expect(events).toEqual([]);
   });
 
+  it('ignores treasury strain before Era 3 so the early game stays forgiving', () => {
+    const state = makeState({ era: 2 });
+    state.economyStatusByCiv = {
+      player: {
+        civId: 'player',
+        grossGoldPerTurn: 0,
+        maintenanceGoldPerTurn: 30,
+        netGoldPerTurn: -30,
+        projectedGold: 0,
+        unpaidMaintenance: 30,
+        strainLevel: 'critical',
+        rushBuyDisabled: true,
+        breakdown: {
+          buildingUpkeep: 0,
+          unitUpkeep: 30,
+          freeBuildings: 0,
+          freeUnits: 0,
+          paidBuildings: 0,
+          paidUnits: 30,
+        },
+      },
+    };
+
+    expect(computeUnrestPressure('city-1', state)).toBe(0);
+  });
+
+  it('adds treasury strain pressure from Era 3 onward', () => {
+    const state = makeState({ era: 3 });
+    state.economyStatusByCiv = {
+      player: {
+        civId: 'player',
+        grossGoldPerTurn: 0,
+        maintenanceGoldPerTurn: 30,
+        netGoldPerTurn: -30,
+        projectedGold: 0,
+        unpaidMaintenance: 30,
+        strainLevel: 'critical',
+        rushBuyDisabled: true,
+        breakdown: {
+          buildingUpkeep: 0,
+          unitUpkeep: 30,
+          freeBuildings: 0,
+          freeUnits: 0,
+          paidBuildings: 0,
+          paidUnits: 30,
+        },
+      },
+    };
+
+    expect(computeUnrestPressure('city-1', state)).toBe(20);
+  });
+
   it('clears existing unrest state in Era 1 instead of preserving penalties from saves', () => {
     const state = makeState({
       era: 1,

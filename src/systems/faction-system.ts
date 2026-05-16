@@ -5,6 +5,7 @@ import { createRng } from './map-generator';
 import { createUnit } from './unit-system';
 import { hexDistance } from './hex-utils';
 import { createBreakawayFromCity } from './breakaway-system';
+import { getEconomyStatusForCiv } from './economy-system';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
@@ -16,6 +17,7 @@ const GOLD_APPEASE_COST_PER_POP = 15;
 const MAX_PRESSURE_EMPIRE = 30;
 const MAX_PRESSURE_DISTANCE = 20;
 const MAX_PRESSURE_WAR = 24;
+const MAX_PRESSURE_ECONOMY = 20;
 
 // --- Pressure computation ---
 
@@ -54,6 +56,15 @@ export function computeUnrestPressure(cityId: string, state: GameState): number 
 
   // Spy unrest bonus
   pressure += city.spyUnrestBonus;
+
+  if (state.era >= 3) {
+    const economy = getEconomyStatusForCiv(state, owner);
+    if (economy.strainLevel === 'critical') {
+      pressure += Math.min(MAX_PRESSURE_ECONOMY, 12 + economy.unpaidMaintenance * 2);
+    } else if (economy.strainLevel === 'strained') {
+      pressure += 8;
+    }
+  }
 
   return Math.min(100, pressure);
 }
