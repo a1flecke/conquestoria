@@ -6,13 +6,12 @@ import { OLD_WORLD_TILES, OLD_WORLD_START_POSITIONS, OLD_WORLD_RIVERS } from '@/
 import { NEW_WORLD_TILES, NEW_WORLD_START_POSITIONS, NEW_WORLD_RIVERS } from '@/systems/new-world-map-data';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
-import { createUnit, resetUnitId } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
 import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
-import { spawnBarbarianCamp, resetCampId } from '@/systems/barbarian-system';
-import { resetCityId } from '@/systems/city-system';
-import { _resetSpyIdCounter } from '@/systems/espionage-system';
+import { spawnBarbarianCamp } from '@/systems/barbarian-system';
+import { emptyIdCounters } from '@/core/id-counters';
 import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createMarketplaceState } from '@/systems/trade-system';
@@ -109,11 +108,7 @@ export function createNewGame(
   mapSize?: 'small' | 'medium' | 'large',
   gameTitle?: string,
 ): GameState {
-  // Reset all ID counters before creating new game
-  resetUnitId();
-  resetCityId();
-  resetCampId();
-  _resetSpyIdCounter();
+  const idCounters = emptyIdCounters();
 
   const config = normalizeSoloSetupConfig(arg1, seed, mapSize, gameTitle);
   const actualSize = config.mapSize ?? 'small';
@@ -224,8 +219,8 @@ export function createNewGame(
   // Create starting units
   const units: Record<string, Unit> = {};
 
-  const playerSettler = createUnit('settler', 'player', startPositions[0], playerCivDef?.bonusEffect);
-  const playerWarrior = createUnit('warrior', 'player', startPositions[0], playerCivDef?.bonusEffect);
+  const playerSettler = createUnit('settler', 'player', startPositions[0], idCounters, playerCivDef?.bonusEffect);
+  const playerWarrior = createUnit('warrior', 'player', startPositions[0], idCounters, playerCivDef?.bonusEffect);
   units[playerSettler.id] = playerSettler;
   units[playerWarrior.id] = playerWarrior;
   playerCiv.units = [playerSettler.id, playerWarrior.id];
@@ -233,8 +228,8 @@ export function createNewGame(
   for (let index = 0; index < aiCivDefs.length; index++) {
     const civId = `ai-${index + 1}`;
     const aiCivDef = aiCivDefs[index];
-    const aiSettler = createUnit('settler', civId, startPositions[index + 1], aiCivDef?.bonusEffect);
-    const aiWarrior = createUnit('warrior', civId, startPositions[index + 1], aiCivDef?.bonusEffect);
+    const aiSettler = createUnit('settler', civId, startPositions[index + 1], idCounters, aiCivDef?.bonusEffect);
+    const aiWarrior = createUnit('warrior', civId, startPositions[index + 1], idCounters, aiCivDef?.bonusEffect);
     units[aiSettler.id] = aiSettler;
     units[aiWarrior.id] = aiWarrior;
     civilizations[civId].units = [aiSettler.id, aiWarrior.id];
@@ -253,7 +248,7 @@ export function createNewGame(
   const cityPositions = startPositions;
   const barbSeedBase = hashSeed(gameSeed);
   for (let i = 0; i < 3; i++) {
-    const camp = spawnBarbarianCamp(map, cityPositions, Object.values(barbarianCamps), barbSeedBase + i);
+    const camp = spawnBarbarianCamp(map, cityPositions, Object.values(barbarianCamps), barbSeedBase + i, idCounters);
     if (camp) barbarianCamps[camp.id] = camp;
   }
 
@@ -268,6 +263,7 @@ export function createNewGame(
     cities: {},
     barbarianCamps,
     minorCivs: {},
+    idCounters,
     marketplace: createMarketplaceState(),
     tutorial: { active: true, currentStep: 'welcome', completedSteps: [] },
     currentPlayer: 'player',
@@ -303,11 +299,7 @@ export function createNewGame(
 }
 
 export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitle?: string): GameState {
-  // Reset all ID counters before creating new game
-  resetUnitId();
-  resetCityId();
-  resetCampId();
-  _resetSpyIdCounter();
+  const idCounters = emptyIdCounters();
 
   const gameSeed = seed ?? `hotseat-${Date.now()}`;
   const resolvedGameTitle = gameTitle?.trim() || 'Hot Seat Campaign';
@@ -356,8 +348,8 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
       diplomacy: createDiplomacyState(allSlotIds, player.slotId, startBonus),
     };
 
-    const settler = createUnit('settler', player.slotId, startPositions[i], civDef?.bonusEffect);
-    const warrior = createUnit('warrior', player.slotId, startPositions[i], civDef?.bonusEffect);
+    const settler = createUnit('settler', player.slotId, startPositions[i], idCounters, civDef?.bonusEffect);
+    const warrior = createUnit('warrior', player.slotId, startPositions[i], idCounters, civDef?.bonusEffect);
     units[settler.id] = settler;
     units[warrior.id] = warrior;
     civ.units = [settler.id, warrior.id];
@@ -369,7 +361,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
   const campCount = config.mapSize === 'large' ? 8 : config.mapSize === 'medium' ? 5 : 3;
   const hotSeatBarbSeed = hashSeed(gameSeed);
   for (let i = 0; i < campCount; i++) {
-    const camp = spawnBarbarianCamp(map, startPositions, Object.values(barbarianCamps), hotSeatBarbSeed + i);
+    const camp = spawnBarbarianCamp(map, startPositions, Object.values(barbarianCamps), hotSeatBarbSeed + i, idCounters);
     if (camp) barbarianCamps[camp.id] = camp;
   }
 
@@ -384,6 +376,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     cities: {},
     barbarianCamps,
     minorCivs: {},
+    idCounters,
     marketplace: createMarketplaceState(),
     tutorial: { active: false, currentStep: 'welcome', completedSteps: [] },
     currentPlayer: config.players[0].slotId,
