@@ -7,11 +7,13 @@ import {
   buildCityWorkClaimIndex,
   canonicalizeCityCoord,
   cityDistance,
+  cleanupTerritoryFrontiers,
   formatCityFoundingBlockerMessage,
   getCityFoundingBlockers,
   getCulturalTerritoryRadius,
   MIN_CITY_CENTER_DISTANCE,
   normalizeCityWorkClaims,
+  processTerritoryFrontiers,
   recalculateTerritory,
   type TerritoryResolution,
 } from '@/systems/city-territory-system';
@@ -225,6 +227,49 @@ describe('city founding territory rules', () => {
     const result = recalculateTerritory(state, { reason: 'turn', preserveCurrentHolderOnTie: true });
 
     expect(result.state.map.tiles[hexKey(overlap)].owner).toBe('ai-1');
+  });
+
+  it('records frontier progress for contested held tiles before flipping', () => {
+    const state = createNewGame(undefined, 'territory-frontier-progress');
+    state.territoryFrontiers = {};
+    state.cities = {};
+    const holder = addCity(state, 'player', 10, 10);
+    const challenger = addCity(state, 'ai-1', 13, 10);
+    const coord = { q: 12, r: 10 };
+    state.map.tiles[hexKey(coord)] = { ...state.map.tiles[hexKey(coord)], terrain: 'grassland', owner: 'player' };
+    state.cities[holder.id] = { ...holder, population: 2, maturity: 'outpost', ownedTiles: [coord] };
+    state.cities[challenger.id] = { ...challenger, population: 3, maturity: 'outpost', ownedTiles: [] };
+
+    const result = processTerritoryFrontiers(state);
+    const frontier = result.territoryFrontiers?.[hexKey(coord)];
+
+    expect(frontier).toMatchObject({
+      holderCivId: 'player',
+      challengerCivId: 'ai-1',
+      holderCityId: holder.id,
+      challengerCityId: challenger.id,
+    });
+    expect(frontier?.reason).toContain('cultural pressure');
+  });
+
+  it('cleans frontier records when a source city is gone', () => {
+    const state = createNewGame(undefined, 'territory-frontier-cleanup');
+    state.territoryFrontiers = {
+      '5,5': {
+        coord: { q: 5, r: 5 },
+        holderCivId: 'player',
+        challengerCivId: 'ai-1',
+        holderCityId: 'missing-city',
+        challengerCityId: 'also-missing',
+        progress: 3,
+        trend: 'contested',
+        reason: 'Stale frontier',
+      },
+    };
+
+    const result = cleanupTerritoryFrontiers(state);
+
+    expect(result.territoryFrontiers).toEqual({});
   });
 });
 
