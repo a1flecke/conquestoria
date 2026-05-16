@@ -427,6 +427,35 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     expect(buttons).not.toContain('Build Farm');
   });
 
+  it('updates worker current-tile reason after territory ownership changes', () => {
+    const state = makeWorkerState({ terrain: 'plains', owner: 'player', improvement: 'none' });
+    const first = new MockElement('div');
+    renderSelectedUnitInfo(first as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    expect(collectAllText(first).join(' ')).not.toContain('Outside your territory');
+    expect(findButtons(first).map(button => button.textContent)).toContain('Build Farm');
+
+    const changed: GameState = {
+      ...state,
+      map: {
+        ...state.map,
+        tiles: {
+          ...state.map.tiles,
+          '0,0': { ...state.map.tiles['0,0'], owner: 'ai-1' },
+        },
+      },
+    };
+    const second = new MockElement('div');
+    renderSelectedUnitInfo(second as unknown as HTMLElement, changed, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    expect(collectAllText(second).join(' ')).toContain('Outside your territory');
+    expect(findButtons(second).map(button => button.textContent)).not.toContain('Build Farm');
+  });
+
   it('explains local worker blockers on owned current tiles', () => {
     const state = makeWorkerState({ terrain: 'plains', owner: 'player', improvement: 'mine' });
     const container = new MockElement('div');

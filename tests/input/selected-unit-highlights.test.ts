@@ -106,4 +106,32 @@ describe('selected-unit-highlights', () => {
     expect(result.highlights).toContainEqual({ coord: { q: 29, r: 0 }, type: 'worker-owned-blocked' });
     expect(result.highlights).toContainEqual({ coord: { q: 1, r: -1 }, type: 'worker-foreign-blocked' });
   });
+
+  it('does not add foreign-blocked worker guidance on unexplored plausible terrain', () => {
+    const state = createNewGame(undefined, 'worker-guidance-unexplored-no-leak', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      worker: { ...createUnit('worker', 'player', { q: 0, r: 0 }), id: 'worker', movementPointsLeft: 2 },
+    };
+    state.civilizations.player.units = ['worker'];
+    state.civilizations.player.visibility.tiles = {
+      '0,0': 'visible',
+      '1,0': 'visible',
+    };
+    state.map.tiles['1,-1'] = {
+      coord: { q: 1, r: -1 },
+      terrain: 'plains',
+      elevation: 'lowland',
+      resource: null,
+      owner: 'ai-1',
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+    };
+
+    const result = buildSelectedUnitHighlights(state, 'worker');
+
+    expect(result.highlights).not.toContainEqual({ coord: { q: 1, r: -1 }, type: 'worker-foreign-blocked' });
+  });
 });

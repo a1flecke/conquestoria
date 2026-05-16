@@ -1,10 +1,21 @@
-import type { City, GameState, LegendaryWonderProject } from '@/core/types';
+import type { City, GameEvents, GameState, LegendaryWonderProject } from '@/core/types';
 import { reconquerBreakawayCity } from '@/systems/breakaway-system';
 import { BUILDINGS } from '@/systems/city-system';
-import { recalculateTerritory } from '@/systems/city-territory-system';
+import {
+  buildTerritoryTileFlippedEvents,
+  recalculateTerritory,
+  type TerritoryRecalculationResult,
+} from '@/systems/city-territory-system';
 import { modifyRelationship } from '@/systems/diplomacy-system';
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
+
+export interface MajorCityCaptureResult {
+  state: GameState;
+  outcome: 'occupied' | 'razed';
+  goldAwarded: number;
+  territoryEvents: GameEvents['territory:tile-flipped'][];
+}
 
 export function computeRazeGold(city: City): number {
   const salvage = city.buildings.reduce((sum, buildingId) => {
@@ -52,27 +63,49 @@ function removeLegendaryWonderProjectsForCity(
   return Object.fromEntries(entries.filter(([, project]) => project.cityId !== cityId));
 }
 
+function buildCaptureResult(
+  beforeTerritoryState: GameState,
+  territoryResult: TerritoryRecalculationResult,
+  outcome: MajorCityCaptureResult['outcome'],
+  goldAwarded: number,
+): MajorCityCaptureResult {
+  return {
+    state: territoryResult.state,
+    outcome,
+    goldAwarded,
+    territoryEvents: buildTerritoryTileFlippedEvents(
+      beforeTerritoryState,
+      territoryResult.state,
+      territoryResult.resolutions,
+    ),
+  };
+}
+
+function buildUnchangedCaptureResult(
+  state: GameState,
+  outcome: MajorCityCaptureResult['outcome'],
+  goldAwarded: number,
+): MajorCityCaptureResult {
+  return { state, outcome, goldAwarded, territoryEvents: [] };
+}
+
 export function resolveMajorCityCapture(
   state: GameState,
   cityId: string,
   newOwnerId: string,
   disposition: MajorCityCaptureDisposition,
   turn: number,
-): {
-  state: GameState;
-  outcome: 'occupied' | 'razed';
-  goldAwarded: number;
-} {
+): MajorCityCaptureResult {
   const city = state.cities[cityId];
   if (!city) {
-    return { state, outcome: 'razed', goldAwarded: 0 };
+    return buildUnchangedCaptureResult(state, 'razed', 0);
   }
 
   const previousOwnerId = city.owner;
   const previousOwner = state.civilizations[previousOwnerId];
   const capturingCiv = state.civilizations[newOwnerId];
   if (!capturingCiv || previousOwnerId === newOwnerId) {
-    return { state, outcome: 'razed', goldAwarded: 0 };
+    return buildUnchangedCaptureResult(state, 'razed', 0);
   }
 
   const forcedDisposition: MajorCityCaptureDisposition = disposition;
@@ -91,11 +124,7 @@ export function resolveMajorCityCapture(
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
     });
-    return {
-      state: territoryResult.state,
-      outcome: 'occupied',
-      goldAwarded: 0,
-    };
+    return buildCaptureResult(nextState, territoryResult, 'occupied', 0);
   }
 
   if (forcedDisposition === 'occupy') {
@@ -143,11 +172,7 @@ export function resolveMajorCityCapture(
       preserveCurrentHolderOnTie: true,
     });
 
-    return {
-      state: territoryResult.state,
-      outcome: 'occupied',
-      goldAwarded: 0,
-    };
+    return buildCaptureResult(nextState, territoryResult, 'occupied', 0);
   }
 
   const goldAwarded = computeRazeGold(city);
@@ -180,11 +205,7 @@ export function resolveMajorCityCapture(
     preserveCurrentHolderOnTie: true,
   });
 
-  return {
-    state: territoryResult.state,
-    outcome: 'razed',
-    goldAwarded,
-  };
+  return buildCaptureResult(nextState, territoryResult, 'razed', goldAwarded);
 }
 
 export function transferCapturedCityOwnership(

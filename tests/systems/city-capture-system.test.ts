@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import type { GameState } from '@/core/types';
+import type { GameEvents, GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
@@ -100,6 +100,49 @@ describe('city-capture-system', () => {
     expect(result.outcome).toBe('occupied');
     expect(result.state.cities.athens.ownedTiles.map(hexKey)).toContain('1,0');
     expect(result.state.map.tiles[hexKey({ q: 1, r: 0 })].owner).toBe('player');
+  });
+
+  it('returns territory tile-flipped events when occupation transfers improved territory', () => {
+    const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary'] });
+    const farmCoord = { q: 1, r: 1 };
+    state.map.tiles[hexKey(farmCoord)] = {
+      ...state.map.tiles[hexKey(farmCoord)],
+      terrain: 'grassland',
+      owner: 'ai-1',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+    };
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(result.territoryEvents).toContainEqual<GameEvents['territory:tile-flipped']>({
+      coord: farmCoord,
+      previousOwner: 'ai-1',
+      newOwner: 'player',
+      improvement: 'farm',
+      constructionCancelled: false,
+    });
+  });
+
+  it('returns no territory flip event for razed tiles that become neutral', () => {
+    const state = makeExposedCityCaptureState({ population: 4, buildings: ['granary'] });
+    const ownedCoord = { q: 1, r: 1 };
+    state.cities.athens = {
+      ...state.cities.athens,
+      ownedTiles: [state.cities.athens.position, ownedCoord],
+    };
+    state.map.tiles[hexKey(ownedCoord)] = {
+      ...state.map.tiles[hexKey(ownedCoord)],
+      terrain: 'grassland',
+      owner: 'ai-1',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+    };
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
+
+    expect(result.outcome).toBe('razed');
+    expect(result.territoryEvents).toEqual([]);
   });
 
   it('reassigns legendary wonder projects to the new owner when a city is occupied', () => {

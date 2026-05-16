@@ -1,7 +1,7 @@
 import { processAITurn } from '@/ai/basic-ai';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import type { GameState } from '@/core/types';
+import type { GameEvents, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey } from '@/systems/hex-utils';
@@ -1157,6 +1157,30 @@ describe('processAITurn', () => {
     expect(result.cities['city-player'].owner).toBe('ai-1');
     expect(result.cities['city-player'].population).toBe(2);
     expect(result.cities['city-player'].occupation?.turnsRemaining).toBe(10);
+  });
+
+  it('emits territory tile-flipped events when AI captures an improved city tile', () => {
+    const state = makeAdjacentExposedCityState({ population: 5 });
+    state.map.tiles[hexKey({ q: 1, r: 0 })] = {
+      ...state.map.tiles[hexKey({ q: 1, r: 0 })],
+      terrain: 'grassland',
+      owner: 'player',
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+    };
+    const bus = new EventBus();
+    const territoryEvents: GameEvents['territory:tile-flipped'][] = [];
+    bus.on('territory:tile-flipped', event => territoryEvents.push(event));
+
+    processAITurn(state, 'ai-1', bus);
+
+    expect(territoryEvents).toContainEqual(expect.objectContaining({
+      coord: { q: 1, r: 0 },
+      previousOwner: 'player',
+      newOwner: 'ai-1',
+      improvement: 'farm',
+      constructionCancelled: false,
+    }));
   });
 
   it('does not throw on a fresh game', () => {
