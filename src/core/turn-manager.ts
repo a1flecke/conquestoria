@@ -57,6 +57,7 @@ import {
   initializeLegendaryWonderProjectsForAllCities,
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
+import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
@@ -67,6 +68,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   newState = processFactionTurn(newState, bus);
   newState = processBreakawayTurn(newState, bus);
   newState = tickOccupiedCities(newState);
+  const grossGoldByCiv: Record<string, number> = {};
+  const previousEconomyStatusByCiv = newState.economyStatusByCiv ?? {};
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
@@ -197,18 +200,16 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
     }
 
-    // Update gold
-    newState.civilizations[civId].gold += totalGold;
-
     // Vassalage tribute (25% of gold income flows to overlord)
     if (civ.diplomacy?.vassalage.overlord) {
       const tribute = processVassalageTribute(totalGold);
-      newState.civilizations[civId].gold -= tribute.tributeAmount;
+      totalGold -= tribute.tributeAmount;
       const overlordId = civ.diplomacy.vassalage.overlord;
       if (newState.civilizations[overlordId]) {
-        newState.civilizations[overlordId].gold += tribute.tributeAmount;
+        grossGoldByCiv[overlordId] = (grossGoldByCiv[overlordId] ?? 0) + tribute.tributeAmount;
       }
     }
+    grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + totalGold;
 
     // Update peak counts (read from newState to pick up earlier mutations in this loop)
     if (currentCivState.diplomacy) {
@@ -289,7 +290,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       // Trade agreement gold income
       for (const treaty of dipState.treaties) {
         if (treaty.type === 'trade_agreement' && treaty.goldPerTurn) {
-          newState.civilizations[civId].gold += treaty.goldPerTurn;
+          grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + treaty.goldPerTurn;
         }
       }
 
@@ -387,17 +388,6 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // --- Process marketplace ---
   if (newState.marketplace) {
-    // Trade route income for each civ
-    for (const [civId, civ] of Object.entries(newState.civilizations)) {
-      const civRouteIncome = processTradeRouteIncome(
-        newState.marketplace.tradeRoutes.filter(r => {
-          const city = newState.cities[r.fromCityId];
-          return city?.owner === civId;
-        }),
-      );
-      newState.civilizations[civId].gold += civRouteIncome;
-    }
-
     // Simple fashion cycle with seeded rng
     let rngState = newState.turn * 16807;
     const simpleRng = () => {
@@ -713,6 +703,18 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     newState.embargoes = cleanupEmbargoes(newState.embargoes);
   }
 
+  if (newState.marketplace) {
+    for (const civId of Object.keys(newState.civilizations)) {
+      const civRouteIncome = processTradeRouteIncome(
+        newState.marketplace.tradeRoutes.filter(route => {
+          const city = newState.cities[route.fromCityId];
+          return city?.owner === civId;
+        }),
+      );
+      grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + civRouteIncome;
+    }
+  }
+
   // --- League dissolution check ---
   if (newState.defensiveLeagues) {
     const warPairs: Array<{ civA: string; civB: string }> = [];
@@ -741,6 +743,11 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     for (const mc of Object.values(newState.minorCivs)) {
       processMinorCivEraUpgrade(newState, mc);
     }
+  }
+
+  for (const civId of Object.keys(newState.civilizations)) {
+    newState = applyEconomyTurn(newState, civId, grossGoldByCiv[civId] ?? 0);
+    emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus);
   }
 
   // --- Advance turn ---
