@@ -7,7 +7,7 @@ import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
-import { hexKey, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
+import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { scanIdCounters } from '@/core/id-counters';
 import { foundCity } from '@/systems/city-system';
@@ -1281,7 +1281,11 @@ function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
   renderLoop.animateUnitMove({ ...movedUnit, position: from }, from, to, () => {
     renderLoop.setGameState(gameState);
     updateHUD();
-    if (selectedUnitId === unitId && gameState.units[unitId]?.owner === gameState.currentPlayer) {
+    const unit = gameState.units[unitId];
+    if (!unit || unit.owner !== gameState.currentPlayer) return;
+    if ((unit.movementPointsLeft ?? 0) <= 0) {
+      selectNextUnit();
+    } else if (selectedUnitId === unitId) {
       selectUnit(unitId);
     }
   });
@@ -1617,7 +1621,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
           renderLoop.setGameState(gameState);
           updateHUD();
           if (assaultStatus === 'resolved') {
-            selectNextUnit();
+            setTimeout(() => selectNextUnit(), 400);
           }
           return;
         }
@@ -1625,10 +1629,14 @@ function executeAttack(attackerId: string, targetKey: string): void {
     }
   }
 
+  // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
+  const worldPixel = hexToPixel(attacker.position, renderLoop.camera.hexSize);
+  const screen = renderLoop.camera.worldToScreen(worldPixel.x, worldPixel.y);
+  const size = renderLoop.camera.hexSize * renderLoop.camera.zoom;
   SFX.combat();
   renderLoop.setGameState(gameState);
   updateHUD();
-  selectNextUnit();
+  renderLoop.animations.add('combat-flash', 400, { x: screen.x, y: screen.y, size }, () => selectNextUnit());
 }
 
 function restAction(): void {
@@ -1897,7 +1905,7 @@ function handleHexTap(rawCoord: HexCoord): void {
         renderLoop.setGameState(gameState);
         updateHUD();
         if (assaultStatus === 'resolved') {
-          selectNextUnit();
+          setTimeout(() => selectNextUnit(), 400);
         }
         return;
       }
@@ -1950,11 +1958,16 @@ function handleHexTap(rawCoord: HexCoord): void {
           }
           conquestMinorCiv(gameState, tapIntent.minorCivId, gameState.currentPlayer, bus);
           showNotification(`${cityName} has been conquered!`, 'success');
+          SFX.tap();
+          renderLoop.setGameState(gameState);
+          updateHUD();
+          // selectNextUnit fires in animateMovedUnit's onComplete (movementPointsLeft === 0)
+        } else {
+          SFX.tap();
+          renderLoop.setGameState(gameState);
+          updateHUD();
+          setTimeout(() => selectNextUnit(), 400);
         }
-        SFX.tap();
-        renderLoop.setGameState(gameState);
-        updateHUD();
-        selectNextUnit();
         return;
       }
 
@@ -1975,9 +1988,6 @@ function handleHexTap(rawCoord: HexCoord): void {
             SFX.tap();
             renderLoop.setGameState(gameState);
             updateHUD();
-            if ((gameState.units[selectedId]?.movementPointsLeft ?? 0) <= 0) {
-              selectNextUnit();
-            }
           },
         });
         return;
@@ -1990,11 +2000,6 @@ function handleHexTap(rawCoord: HexCoord): void {
       });
       animateMovedUnit(selectedUnitId, moveResult.from, moveResult.to);
       SFX.tap();
-
-      // Re-select to update movement range, or advance to next unit
-      if ((gameState.units[selectedUnitId]?.movementPointsLeft ?? 0) <= 0) {
-        selectNextUnit();
-      }
     }
 
     renderLoop.setGameState(gameState);
