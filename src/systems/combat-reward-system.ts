@@ -215,6 +215,7 @@ export function applyCombatOutcomeToState(
       health: Math.max(1, attackerBefore.health - result.attackerDamage),
       movementPointsLeft: 0,
       hasMoved: true,
+      hasActed: true,
     };
   } else {
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.attackerId);
