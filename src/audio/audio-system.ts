@@ -13,6 +13,8 @@ export class AudioSystem {
   private unsubscribers: Array<() => void> = [];
   private warCount = 0;
   private currentPlayerId = '';
+  private currentCivType = '';
+  private civTypeById: Record<string, string> = {};
   private started = false;
   private iosResumeListeners: Array<() => void> = [];
 
@@ -27,6 +29,12 @@ export class AudioSystem {
     this.started = true;
     this.currentPlayerId = state.currentPlayer;
 
+    // Snapshot civType lookup — civ identities are fixed for a game's lifetime
+    for (const [id, civ] of Object.entries(state.civilizations ?? {})) {
+      this.civTypeById[id] = (civ as { civType: string }).civType;
+    }
+    this.currentCivType = this.civTypeById[this.currentPlayerId] ?? this.currentPlayerId;
+
     const settings = state.settings;
     this.mixer.setMusicEnabled(settings.musicEnabled);
     this.mixer.setSfxEnabled(settings.soundEnabled);
@@ -36,11 +44,12 @@ export class AudioSystem {
     this.wireEvents(bus);
     this.armIosResume();
 
-    void this.preloadForEra(state.era, this.currentPlayerId);
+    void this.preloadForEra(state.era, this.currentCivType);
 
-    // Restore correct snapshot when resuming a saved game mid-era
-    if (state.era > 1 && settings.musicEnabled) {
-      this.director.handleEraAdvanced({ era: state.era, civType: this.currentPlayerId });
+    // Restore correct snapshot state machine when resuming a saved game mid-era.
+    // Guard on era only, not musicEnabled — director state must be correct even when muted.
+    if (state.era > 1) {
+      this.director.handleEraAdvanced({ era: state.era, civType: this.currentCivType });
     }
   }
 
@@ -69,14 +78,18 @@ export class AudioSystem {
     this.unsubscribers = [];
     this.disarmIosResume();
     this.mixer.dispose();
+    this.warCount = 0;
+    this.currentPlayerId = '';
+    this.currentCivType = '';
+    this.civTypeById = {};
     this.started = false;
   }
 
   private wireEvents(bus: EventBus): void {
     this.unsubscribers.push(
       bus.on('era:advanced', p => {
-        void this.preloadForEra(p.era, this.currentPlayerId);
-        this.director.handleEraAdvanced({ era: p.era, civType: this.currentPlayerId });
+        void this.preloadForEra(p.era, this.currentCivType);
+        this.director.handleEraAdvanced({ era: p.era, civType: this.currentCivType });
       }),
 
       bus.on('diplomacy:war-declared', p => {
@@ -99,13 +112,14 @@ export class AudioSystem {
 
       bus.on('city:founded', p => {
         if (p.founderId !== this.currentPlayerId) return;
-        this.director.handleCityFounded({ civType: this.currentPlayerId });
+        this.director.handleCityFounded({ civType: this.currentCivType });
       }),
 
       bus.on('currentPlayer:changed-after-handoff', p => {
         this.currentPlayerId = p.civId;
+        this.currentCivType = this.civTypeById[p.civId] ?? p.civId;
         this.warCount = 0;
-        this.director.handlePlayerChanged({ civType: p.civId });
+        this.director.handlePlayerChanged({ civType: this.currentCivType });
       }),
 
       bus.on('game:over', p => {
