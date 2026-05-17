@@ -30,8 +30,8 @@ import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/sy
 import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
-import { AudioManager } from '@/audio/audio-manager';
-import { SFX } from '@/audio/sfx';
+import { AudioSystem } from '@/audio/audio-system';
+import { SFX, routeSfxThrough } from '@/audio/sfx';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createEspionagePanel } from '@/ui/espionage-panel';
@@ -178,7 +178,8 @@ function currentCivDef() {
   return resolveCivDefinition(gameState, currentCiv().civType ?? '');
 }
 const bus = new EventBus();
-const audio = new AudioManager();
+const audioCtx = new AudioContext();
+const audio = new AudioSystem(audioCtx);
 const advisorSystem = new AdvisorSystem(bus);
 const uiInteractions = createUiInteractionState();
 
@@ -2122,9 +2123,6 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
 
         if (handleVictoryIfNeeded()) return;
 
-        if (gameState.settings.musicEnabled && gameState.era !== audio.getCurrentEra()) {
-          audio.playProceduralMusic(gameState.era);
-        }
       }
 
       // Advance to next human player
@@ -2142,6 +2140,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
           centerOnCurrentPlayer();
           renderLoop.setGameState(gameState);
           updateHUD();
+          bus.emit('currentPlayer:changed-after-handoff', { civId: nextSlotId });
         },
       });
     } else {
@@ -2158,10 +2157,6 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
 
       showNotification(`Turn ${gameState.turn}`, 'info');
       advisorSystem.check(gameState);
-
-      if (gameState.settings.musicEnabled && gameState.era !== audio.getCurrentEra()) {
-        audio.playProceduralMusic(gameState.era);
-      }
 
       await autoSave(gameState);
       bus.emit('game:saved', { turn: gameState.turn });
@@ -2870,10 +2865,8 @@ function startGame(): void {
     inputInitialized = true;
   }
 
-  // Start procedural music
-  if (gameState.settings.musicEnabled) {
-    audio.playProceduralMusic(gameState.era);
-  }
+  audio.start(gameState, bus);
+  routeSfxThrough(audio.getSfxRoutingNode());
 
   // Initial advisor check
   advisorSystem.check(gameState);
