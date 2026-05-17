@@ -5,8 +5,13 @@
  * Prerequisites (run once):
  *   bash scripts/run-with-mise.sh yarn add -D @babel/core @babel/preset-react react react-dom
  *
- * Usage:
- *   node scripts/serialize-sprites.mjs
+ * Usage (must use yarn node for PnP resolution):
+ *   bash scripts/run-with-mise.sh yarn node scripts/serialize-sprites.mjs
+ *
+ * To add a new sprite:
+ *   1. Add the V2 component to design/conquestoria-sprites/lib/units-v2.jsx (or buildings-v2.jsx)
+ *   2. Add a [id, ComponentName] entry to UNIT_SPRITES or BUILDING_SPRITES below
+ *   3. Re-run this script
  *
  * Output: src/renderer/sprites/v2/<name>.svg.ts
  *   export const svg: Record<string, string> = { imperials: '...', vikings: '...', ... };

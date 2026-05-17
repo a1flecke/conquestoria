@@ -362,7 +362,66 @@
   animation-delay: calc(var(--phase, 0) * -1.4s);
 }
 
-/* Reduced motion */
+/* ─────────────────────────── NAVAL — ship rock + sail billow ─────────────────────────── */
+
+/* Naval body override: replace humanoid breathe with a slow side-to-side rock.
+   Applies to both idle and walk (ships don't have legs, just slower/faster rocking). */
+@keyframes cq2-ship-rock {
+  0%, 100% { transform: rotate(-1.4deg) translateY(0); }
+  50%      { transform: rotate(1.4deg) translateY(-1.4px); }
+}
+.cq-v2[data-state="idle"][data-kind="naval"] .cq-sprite-figure {
+  animation: cq2-ship-rock 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.4s);
+}
+.cq-v2[data-state="walk"][data-kind="naval"] .cq-sprite-figure {
+  animation: cq2-ship-rock 1.8s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.8s);
+}
+
+/* Sail billow — independent of body rock, slightly offset so they feel layered. */
+.cq-v2 .cq-sail {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+@keyframes cq2-sail-billow {
+  0%, 100% { transform: skewX(-2deg) scaleX(1); }
+  50%      { transform: skewX(2deg) scaleX(1.02); }
+}
+.cq-v2[data-state="idle"] .cq-sail,
+.cq-v2[data-state="walk"] .cq-sail {
+  animation: cq2-sail-billow 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.4s + 0.5s);
+}
+
+/* ─────────────────────────── MUZZLE FLASH ─────────────────────────── */
+
+/* Default hidden; appears only at the strike frame (32-48%), matching cq2-hit-spark timing. */
+.cq-v2 .cq-muzzle-flash {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes cq2-flash {
+  0%, 28%, 52%, 100% { opacity: 0; transform: scale(0.5); }
+  32%, 44%           { opacity: 1; transform: scale(1.3); }
+  48%                { opacity: 0.7; transform: scale(1.1); }
+}
+.cq-v2[data-state="attack"] .cq-muzzle-flash {
+  animation: cq2-flash 1.4s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* ─────────────────────────── REDUCED MOTION ─────────────────────────── */
+
 @media (prefers-reduced-motion: reduce) {
   .cq-v2 *, .cq-v2 .cq-sprite-figure { animation: none !important; }
+  /* Death animation is forwards-fill — without it the unit looks alive.
+     Provide a static "fallen" visual so the dead state still reads correctly. */
+  .cq-v2[data-state="death"] .cq-sprite-figure {
+    opacity: 0.2;
+    transform: rotate(-90deg);
+    transform-origin: 50% 100%;
+    transform-box: fill-box;
+  }
 }
