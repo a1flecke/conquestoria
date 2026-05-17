@@ -13,6 +13,11 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     currentPlayer: 'rome',
     era: 1,
     settings: { musicEnabled: true, soundEnabled: true, musicVolume: 0.8, sfxVolume: 0.8 },
+    civilizations: {
+      rome:  { civType: 'rome' },
+      egypt: { civType: 'egypt' },
+      gaul:  { civType: 'gaul' },
+    },
     ...overrides,
   } as unknown as GameState;
 }
@@ -60,8 +65,8 @@ describe('AudioSystem integration', () => {
   // Flow B: save-load reload
   it('Flow B: start() with era>1 and musicEnabled=true moves to peace snapshot', () => {
     system.start(makeState({ era: 3 }), busHelper.bus);
-    // peace snapshot applied via setSnapshot → linearRampToValueAtTime
-    expect(ctx.transcript.some(e => e.op === 'setValueAtTime' || e.op === 'linearRampToValueAtTime')).toBe(true);
+    // setSnapshot('peace', 2000) fires via handleEraAdvanced → linearRampToValueAtTime for each music bus
+    expect(ctx.transcript.some(e => e.op === 'linearRampToValueAtTime')).toBe(true);
   });
 
   // Flow C: era advance
@@ -102,9 +107,9 @@ describe('AudioSystem integration', () => {
     busHelper.emit('diplomacy:war-declared', { attackerId: 'rome', defenderId: 'gaul', opponentKind: 'major' });
     const before = ctx.transcript.length;
     busHelper.emit('diplomacy:peace-made', { civA: 'rome', civB: 'egypt' });
-    // warCount goes to 1 — handlePeaceSigned returns early, no snapshot change
+    // warCount goes to 1 — handlePeaceSigned returns early (remainingWars > 0), no new entries
     const after = ctx.transcript.length;
-    expect(after).toBeGreaterThanOrEqual(before);
+    expect(after).toBe(before);
   });
 
   // Flow G: city founded
