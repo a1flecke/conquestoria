@@ -28,7 +28,7 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
-import { updateVisibility, isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
+import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
@@ -143,7 +143,7 @@ import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
 import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
-import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 
 // --- App State ---
 let gameState: GameState;
@@ -1350,18 +1350,8 @@ function selectNextUnit(): void {
 }
 
 function refreshCurrentPlayerVisibility(): void {
-  const civ = currentCiv();
-  if (!civ?.visibility) return;
-
-  const playerUnits = civ.units
-    .map(id => gameState.units[id])
-    .filter((unit): unit is Unit => unit !== undefined);
-  const cityPositions = civ.cities
-    .map(id => gameState.cities[id]?.position)
-    .filter((position): position is HexCoord => position !== undefined);
-
-  updateVisibility(civ.visibility, playerUnits, gameState.map, cityPositions);
-  refreshLastSeenPresentationsForCiv(gameState, gameState.currentPlayer);
+  if (!currentCiv()?.visibility) return;
+  updateAndRefreshVisibility(gameState, gameState.currentPlayer);
   for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
     bus.emit('civilization:first-contact', contact);
   }
@@ -1424,14 +1414,7 @@ function foundCityAction(): void {
   SFX.foundCity();
 
   // Update visibility
-  const playerUnits = currentCiv().units
-    .map(id => gameState.units[id])
-    .filter((u): u is Unit => u !== undefined);
-  const cityPositions = currentCiv().cities
-    .map(id => gameState.cities[id]?.position)
-    .filter((p): p is HexCoord => p !== undefined);
-  updateVisibility(currentCiv().visibility, playerUnits, gameState.map, cityPositions);
-  refreshLastSeenPresentationsForCiv(gameState, gameState.currentPlayer);
+  updateAndRefreshVisibility(gameState, gameState.currentPlayer);
   for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
     bus.emit('civilization:first-contact', contact);
   }
