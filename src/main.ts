@@ -2174,7 +2174,15 @@ function processImprovements(): void {
       if (tile.improvementTurnsLeft === 0) {
         bus.emit('improvement:completed', { coord: tile.coord, type: tile.improvement });
         gameState = clearCompletedWorkerTasksForImprovement(gameState, tile.coord);
-        showNotification(`${getImprovementDisplayName(tile.improvement)} completed!`, 'success');
+        if (tile.improvementOwner) {
+          appendToCivLog(
+            tile.improvementOwner,
+            `${getImprovementDisplayName(tile.improvement)} completed!`,
+            'success',
+            { kind: 'map', coord: { ...tile.coord }, label: getImprovementDisplayName(tile.improvement) },
+          );
+          tile.improvementOwner = undefined;
+        }
       }
     }
   }
