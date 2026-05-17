@@ -1,4 +1,10 @@
 let audioContext: AudioContext | null = null;
+let sfxDestination: AudioNode | null = null;
+
+export function routeSfxThrough(node: AudioNode): void {
+  sfxDestination = node;
+  audioContext = node.context as AudioContext;
+}
 
 function getContext(): AudioContext {
   if (!audioContext) {
@@ -19,7 +25,7 @@ function playTone(frequency: number, duration: number, volume: number, type: Osc
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(sfxDestination ?? ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + duration);
   } catch {
