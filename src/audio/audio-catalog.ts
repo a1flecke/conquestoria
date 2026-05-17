@@ -23,11 +23,11 @@ function ph(id: string, file: string, duration = 30): TrackEntry {
 }
 
 export const ERA_BASE: Record<EraId, TrackEntry> = {
-  1: { id: 'era1-base', file: 'audio/era/era1-base.ogg', bpm: 100, key: 'C#-minor',    loop: { loopStart: 0, loopEnd: 165.35 } },
+  1: { id: 'era1-base', file: 'audio/era/era1-base.ogg', bpm: 100, key: 'C#-minor',    loop: { loopStart: 0, loopEnd: 165.356 } },
   2: { id: 'era2-base', file: 'audio/era/era2-base.ogg', bpm: 112, key: 'C-minor',     loop: { loopStart: 0, loopEnd: 186.49 } },
   3: { id: 'era3-base', file: 'audio/era/era3-base.ogg', bpm: 0,   key: 'G-minor',     loop: { loopStart: 0, loopEnd: 198.74 } },
   4: { id: 'era4-base', file: 'audio/era/era4-base.ogg', bpm: 0,   key: 'C-Phrygian',  loop: { loopStart: 0, loopEnd: 180.00 } },
-  5: { id: 'era5-base', file: 'audio/era/era5-base.ogg', bpm: 95,  key: 'Bb-minor',    loop: { loopStart: 0, loopEnd: 212.53 } },
+  5: { id: 'era5-base', file: 'audio/era/era5-base.ogg', bpm: 95,  key: 'Bb-minor',    loop: { loopStart: 0, loopEnd: 212.533 } },
 };
 
 export const WAR_LAYER: Record<EraId, TrackEntry> = {

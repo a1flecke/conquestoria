@@ -1,6 +1,6 @@
 # Audio Credits
 
-All audio in Conquestoria is licensed under CC0 (public domain dedication) or CC-BY 4.0 (attribution required).
+All audio in Conquestoria is licensed under CC0 (public domain dedication) or CC-BY 3.0 or later (attribution required).
 
 ## Music
 
@@ -12,7 +12,7 @@ All audio in Conquestoria is licensed under CC0 (public domain dedication) or CC
 
 - "Lord of the Land" by Kevin MacLeod (incompetech.com)
   Licensed under CC-BY 3.0 — https://creativecommons.org/licenses/by/3.0/
-  Source: https://kevinmacleod.bandcamp.com/track/lord-of-the-land-112bpm
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400022
   Used as: era 2 base loop
   Modified: none
 
