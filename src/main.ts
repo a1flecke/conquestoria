@@ -2393,32 +2393,27 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
 
 // --- Event listeners ---
 bus.on('tech:completed', ({ civId, techId }) => {
-  if (civId === gameState.currentPlayer) {
-    showNotification(`Research complete: ${techId}!`, 'success');
-    SFX.research();
-  }
+  appendToCivLog(civId, `Research complete: ${techId}!`, 'success');
+  if (civId === gameState.currentPlayer) SFX.research();
 });
 
 bus.on('city:grew', ({ cityId, newPopulation }) => {
   const city = gameState.cities[cityId];
-  if (city && city.owner === gameState.currentPlayer) {
-    showNotification(`${city.name} grew to ${newPopulation} population!`, 'success');
-  }
+  if (!city) return;
+  appendToCivLog(city.owner, `${city.name} grew to ${newPopulation} population!`, 'success');
 });
 
 bus.on('city:maturity-upgraded', ({ cityId, current }) => {
   const city = gameState.cities[cityId];
-  if (city && city.owner === gameState.currentPlayer) {
-    const label = `${current[0].toUpperCase()}${current.slice(1)}`;
-    showNotification(`${city.name} became a ${label}. New city slots unlocked.`, 'success');
-  }
+  if (!city) return;
+  const label = `${current[0].toUpperCase()}${current.slice(1)}`;
+  appendToCivLog(city.owner, `${city.name} became a ${label}. New city slots unlocked.`, 'success');
 });
 
 bus.on('city:building-complete', ({ cityId, buildingId }) => {
   const city = gameState.cities[cityId];
-  if (city && city.owner === gameState.currentPlayer) {
-    showNotification(`${city.name}: ${buildingId} completed!`, 'success');
-  }
+  if (!city) return;
+  appendToCivLog(city.owner, `${city.name}: ${buildingId} completed!`, 'success');
 });
 
 bus.on('village:visited', ({ civId, outcome, message }) => {
@@ -2426,28 +2421,16 @@ bus.on('village:visited', ({ civId, outcome, message }) => {
   if (outcome === 'science') advisorSystem.resetMessage('scholar_village_science');
   if (outcome === 'free_tech') advisorSystem.resetMessage('scholar_village_tech');
   advisorSystem.check(gameState);
-
-  if (civId === gameState.currentPlayer) {
-    showNotification(message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
-  }
+  appendToCivLog(civId, message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
 });
 
 bus.on('wonder:discovered', ({ civId, wonderId, isFirstDiscoverer }) => {
-  if (civId !== gameState.currentPlayer) {
-    return;
-  }
   const wonderDef = getWonderDefinition(wonderId);
-  if (!wonderDef) {
-    return;
-  }
-  if (isFirstDiscoverer) {
-    showNotification(
-      `Discovered ${wonderDef.name}! +${wonderDef.discoveryBonus.amount} ${wonderDef.discoveryBonus.type}`,
-      'success',
-    );
-    return;
-  }
-  showNotification(`Found ${wonderDef.name}!`, 'info');
+  if (!wonderDef) return;
+  const message = isFirstDiscoverer
+    ? `Discovered ${wonderDef.name}! +${wonderDef.discoveryBonus.amount} ${wonderDef.discoveryBonus.type}`
+    : `Found ${wonderDef.name}!`;
+  appendToCivLog(civId, message, isFirstDiscoverer ? 'success' : 'info');
 });
 
 bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
@@ -2611,23 +2594,17 @@ bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
 });
 
 bus.on('unit:obsolete', ({ civId, unitType }) => {
-  if (civId === gameState.currentPlayer) {
-    const name = UNIT_DEFINITIONS[unitType]?.name ?? unitType;
-    showNotification(`Your ${name} is now obsolete — upgrade it in your home city.`, 'info');
-  }
+  const name = UNIT_DEFINITIONS[unitType]?.name ?? unitType;
+  appendToCivLog(civId, `Your ${name} is now obsolete — upgrade it in your home city.`, 'info');
 });
 
 bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
-  if (civId === gameState.currentPlayer) {
-    showNotification(`${spyName}'s network dissolved — ${unitType} era ended. No diplomatic penalty.`, 'info');
-  }
+  appendToCivLog(civId, `${spyName}'s network dissolved — ${unitType} era ended. No diplomatic penalty.`, 'info');
 });
 
 bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
-  if (civId === gameState.currentPlayer) {
-    const city = gameState.cities[cityId];
-    showNotification(`Your spy was auto-exfiltrated from ${city?.name ?? 'a city'} after it changed hands.`, 'info');
-  }
+  const city = gameState.cities[cityId];
+  appendToCivLog(civId, `Your spy was auto-exfiltrated from ${city?.name ?? 'a city'} after it changed hands.`, 'info');
 });
 
 // --- Initialization ---
