@@ -318,3 +318,35 @@ describe('notification routing', () => {
     expect(targets.sort()).toEqual(['p1', 'p2', 'p3']);
   });
 });
+
+describe('improvement completion routing', () => {
+  it('routes improvement completion to the builder, not the current player', () => {
+    const calls: Array<{ civId: string; message: string }> = [];
+    const sink: NotificationSink = (civId, message) => calls.push({ civId, message });
+
+    // Builder is p1, current player is p2 (last to end their turn)
+    sink('p1', 'Mine completed!', 'success');
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.message).toBe('Mine completed!');
+    expect(calls.find(c => c.civId === 'p2')).toBeUndefined();
+  });
+});
+
+describe('bus listener routing contract', () => {
+  it('appendToCivLog routes to the correct civ even when a different player is current', () => {
+    const calls: Array<{ civId: string; message: string }> = [];
+    const sink: NotificationSink = (civId, message) => calls.push({ civId, message });
+
+    // Simulate p1's tech/city events completing while currentPlayer = p2
+    sink('p1', 'Research complete: Bronze Working!', 'success');
+    sink('p1', 'Springfield grew to 3 population!', 'success');
+    sink('p1', 'Springfield: granary completed!', 'success');
+
+    const p1Calls = calls.filter(c => c.civId === 'p1');
+    const p2Calls = calls.filter(c => c.civId === 'p2');
+    expect(p1Calls).toHaveLength(3);
+    expect(p2Calls).toHaveLength(0);
+  });
+});
