@@ -6,7 +6,7 @@ import {
   getEspionagePanelViewModel,
   getSpyActions,
 } from '@/ui/espionage-panel';
-import { createEspionageCivState, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { createEspionageCivState } from '@/systems/espionage-system';
 import type { GameState, Spy } from '@/core/types';
 
 // MR1: legacy fixture helper — spies are now created via city production, not recruitSpy
@@ -145,7 +145,6 @@ function makeEspUiState(): GameState {
 
 describe('espionage-panel', () => {
   beforeEach(() => {
-    _resetSpyIdCounter();
     installMockDocument();
   });
 

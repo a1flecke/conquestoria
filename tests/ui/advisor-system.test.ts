@@ -5,6 +5,8 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import type { GameState, Unit } from '@/core/types';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makeState(overrides?: Partial<GameState>): GameState {
   const state = createNewGame(undefined, 'advisor-test');
   return { ...state, ...overrides };
@@ -14,7 +16,7 @@ function stateWithCity(): GameState {
   const state = makeState();
   // Found a city using the settler
   const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-  const city = foundCity('player', settler.position, state.map);
+  const city = foundCity('player', settler.position, state.map, state.idCounters);
   state.cities[city.id] = city;
   state.civilizations.player.cities.push(city.id);
   delete state.units[settler.id];
@@ -253,7 +255,7 @@ describe('AdvisorSystem', () => {
     state.tutorial.active = true;
     state.tutorial.completedSteps = ['welcome', 'found_city', 'explore', 'build_improvement', 'research_tech'];
 
-    const secondCity = foundCity('player', { q: 3, r: 0 }, state.map);
+    const secondCity = foundCity('player', { q: 3, r: 0 }, state.map, state.idCounters);
     secondCity.productionQueue = [];
     state.cities[secondCity.id] = secondCity;
     state.civilizations.player.cities.push(secondCity.id);

@@ -6,6 +6,8 @@ import { foundCity } from '@/systems/city-system';
 import { createCouncilPanel } from '@/ui/council-panel';
 import { makeCouncilFixture } from './helpers/council-fixture';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('council-panel', () => {
   it('renders do-now, soon, to-win, and drama buckets with talk-level controls', () => {
     const { state, container } = makeCouncilFixture();
@@ -78,7 +80,7 @@ describe('council-panel', () => {
     if (!playerCityId) {
       const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
       if (settler) {
-        const city = foundCity('player', settler.position, state.map);
+        const city = foundCity('player', settler.position, state.map, mkC());
         state.cities[city.id] = city;
         state.civilizations.player.cities.push(city.id);
         playerCityId = city.id;
@@ -113,7 +115,7 @@ describe('council-panel', () => {
     if (!cityId) {
       const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
       if (settler) {
-        const city = foundCity('player', settler.position, state.map);
+        const city = foundCity('player', settler.position, state.map, mkC());
         state.cities[city.id] = city;
         state.civilizations.player.cities.push(city.id);
         cityId = city.id;

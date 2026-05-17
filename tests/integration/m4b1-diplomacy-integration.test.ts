@@ -11,6 +11,8 @@ import {
 import { getCivDefinition } from '@/systems/civ-definitions';
 import { foundCity } from '@/systems/city-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('M4b-1 integration', () => {
   let bus: EventBus;
 
@@ -44,7 +46,7 @@ describe('M4b-1 integration', () => {
 
     // Give the player a city with a marketplace so gold income >= 4/turn (tribute = floor(gold * 0.25) >= 1)
     const startPos = { q: 0, r: 0 };
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     city.buildings = ['marketplace']; // adds 3 gold + 1 base = 4/turn -> tribute of 1
     state.cities[city.id] = city;
     state.civilizations['player'].cities = [city.id];
@@ -78,7 +80,7 @@ describe('M4b-1 integration', () => {
 
     // Create a player city so cityOwners will map city -> 'player'
     const startPos = { q: 0, r: 0 };
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     state.cities[city.id] = city;
     state.civilizations['player'].cities = [city.id];
 

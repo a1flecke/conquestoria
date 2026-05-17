@@ -117,6 +117,7 @@ function makeState(): GameState {
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   } as GameState;
 }
 

@@ -6,6 +6,8 @@ import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 class MockCanvasContext {
   fillTextCalls: Array<{ text: string; x: number; y: number }> = [];
   fillStyle = '';
@@ -38,7 +40,7 @@ describe('city renderer', () => {
     const state = createNewGame(undefined, 'city-render-test');
     const mcCityCount = Object.keys(state.cities).length;
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
 
@@ -56,11 +58,11 @@ describe('city renderer', () => {
     const state = createNewGame(undefined, 'city-render-test');
     const mcCityCount = Object.keys(state.cities).length;
     const playerSettler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const playerCity = foundCity('player', playerSettler.position, state.map);
+    const playerCity = foundCity('player', playerSettler.position, state.map, state.idCounters);
     state.cities[playerCity.id] = playerCity;
 
     const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
-    const aiCity = foundCity('ai-1', aiSettler.position, state.map);
+    const aiCity = foundCity('ai-1', aiSettler.position, state.map, state.idCounters);
     state.cities[aiCity.id] = aiCity;
 
     const data = getCityRenderData(state);
@@ -73,7 +75,7 @@ describe('city renderer', () => {
   it('exposes unrest state for overlay rendering', () => {
     const state = createNewGame(undefined, 'city-render-test');
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     city.unrestLevel = 2;
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
@@ -87,14 +89,14 @@ describe('city renderer', () => {
     const state = createNewGame(undefined, 'city-render-test');
     const vis = state.civilizations.player.visibility.tiles;
     const playerSettler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const playerCity = foundCity('player', playerSettler.position, state.map);
+    const playerCity = foundCity('player', playerSettler.position, state.map, state.idCounters);
     playerCity.unrestLevel = 1;
     state.cities[playerCity.id] = playerCity;
     state.civilizations.player.cities.push(playerCity.id);
     vis[`${playerCity.position.q},${playerCity.position.r}`] = 'visible';
 
     const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
-    const revoltCity = foundCity('ai-1', aiSettler.position, state.map);
+    const revoltCity = foundCity('ai-1', aiSettler.position, state.map, state.idCounters);
     revoltCity.unrestLevel = 2;
     state.cities[revoltCity.id] = revoltCity;
     state.civilizations['ai-1'].cities.push(revoltCity.id);
@@ -146,7 +148,7 @@ describe('city renderer', () => {
   it('renders an occupied-city badge separately from ordinary unrest', () => {
     const state = createNewGame(undefined, 'occupied-render', 'small');
     const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     city.id = 'occupied-city';
     city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 9 };
     state.cities[city.id] = city;
@@ -228,7 +230,7 @@ describe('city renderer', () => {
     state.map.wrapsHorizontally = true;
     state.map.width = 5;
 
-    const city = foundCity('player', { q: 0, r: 0 }, state.map);
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
     state.civilizations.player.visibility.tiles['0,0'] = 'visible';
@@ -261,7 +263,7 @@ describe('drawCities — bottom-right build badge', () => {
   it('draws the production icon for a player-owned city with a non-empty queue', () => {
     const state = createNewGame(undefined, 'badge-build-render');
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     city.productionQueue = ['warrior'];
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
@@ -277,7 +279,7 @@ describe('drawCities — bottom-right build badge', () => {
   it('does NOT draw the production icon for an enemy-owned visible city', () => {
     const state = createNewGame(undefined, 'badge-build-enemy');
     const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
-    const aiCity = foundCity('ai-1', aiSettler.position, state.map);
+    const aiCity = foundCity('ai-1', aiSettler.position, state.map, state.idCounters);
     aiCity.productionQueue = ['warrior'];
     state.cities[aiCity.id] = aiCity;
     state.civilizations['ai-1'].cities.push(aiCity.id);
@@ -296,7 +298,7 @@ describe('drawCities — bottom-right build badge', () => {
   it('does NOT draw a production icon when the queue is empty', () => {
     const state = createNewGame(undefined, 'badge-build-empty');
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     city.productionQueue = [];
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
@@ -334,7 +336,7 @@ describe('drawCities — top-left idle badge', () => {
   it('draws 💰 for a player-owned idle city with idleProduction=gold', () => {
     const state = createNewGame(undefined, 'badge-idle-gold');
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     city.productionQueue = [];
     city.idleProduction = 'gold';
     state.cities[city.id] = city;
@@ -351,7 +353,7 @@ describe('drawCities — top-left idle badge', () => {
   it('draws 🔬 for a player-owned idle city with idleProduction=science', () => {
     const state = createNewGame(undefined, 'badge-idle-sci');
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     city.productionQueue = [];
     city.idleProduction = 'science';
     state.cities[city.id] = city;
@@ -368,7 +370,7 @@ describe('drawCities — top-left idle badge', () => {
   it('does NOT draw the idle badge when queue is non-empty even with idleProduction set', () => {
     const state = createNewGame(undefined, 'badge-idle-queued');
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     city.productionQueue = ['warrior'];
     city.idleProduction = 'gold';
     state.cities[city.id] = city;
@@ -385,7 +387,7 @@ describe('drawCities — top-left idle badge', () => {
   it('does NOT draw the idle badge for an enemy-owned visible idle city', () => {
     const state = createNewGame(undefined, 'badge-idle-enemy');
     const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
-    const aiCity = foundCity('ai-1', aiSettler.position, state.map);
+    const aiCity = foundCity('ai-1', aiSettler.position, state.map, state.idCounters);
     aiCity.productionQueue = [];
     aiCity.idleProduction = 'gold';
     state.cities[aiCity.id] = aiCity;
@@ -402,7 +404,7 @@ describe('drawCities — top-left idle badge', () => {
   it('does NOT draw the idle badge when idleProduction is null', () => {
     const state = createNewGame(undefined, 'badge-idle-null');
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
     city.productionQueue = [];
     city.idleProduction = null;
     state.cities[city.id] = city;

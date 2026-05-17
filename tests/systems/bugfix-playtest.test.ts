@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { UNIT_DEFINITIONS, getMovementCost, moveUnit, createUnit } from '@/systems/unit-system';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('playtest bugfixes', () => {
   it('archer unit exists and is gated by archery tech (#34)', () => {
     expect(UNIT_DEFINITIONS.archer).toBeDefined();
@@ -12,7 +14,7 @@ describe('playtest bugfixes', () => {
   });
 
   it('movement deducts correct terrain cost (#27)', () => {
-    const unit = createUnit('warrior', 'civ-a', { q: 0, r: 0 });
+    const unit = createUnit('warrior', 'civ-a', { q: 0, r: 0 }, mkC());
     const moved = moveUnit(unit, { q: 1, r: 0 }, 2); // forest cost
     expect(moved.movementPointsLeft).toBe(0); // 2 - 2 = 0
   });

@@ -7,6 +7,8 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit } from '@/systems/unit-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 const bus = new EventBus();
 
 describe('minor civ placement', () => {
@@ -131,7 +133,7 @@ describe('minor civ turn processing', () => {
     mc.garrisonCooldown = 0;
 
     // Place a player unit on the city hex
-    const occupier = createUnit('warrior', 'player', city.position);
+    const occupier = createUnit('warrior', 'player', city.position, mkC());
     state.units[occupier.id] = occupier;
 
     const result = processMinorCivTurn(state, bus);
@@ -381,9 +383,9 @@ describe('scuffles between minor civs', () => {
       'city-sparta': { id: 'city-sparta', name: 'Sparta', owner: 'mc-sparta', position: { q: 0, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
       'city-carthage': { id: 'city-carthage', name: 'Carthage', owner: 'mc-carthage', position: { q: 1, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
     };
-    const attacker = createUnit('warrior', 'mc-sparta', { q: 0, r: 0 });
+    const attacker = createUnit('warrior', 'mc-sparta', { q: 0, r: 0 }, mkC());
     attacker.id = 'sparta-warrior';
-    const defender = createUnit('warrior', 'mc-carthage', { q: 2, r: 0 });
+    const defender = createUnit('warrior', 'mc-carthage', { q: 2, r: 0 }, mkC());
     defender.id = 'carthage-warrior';
     state.units = { [attacker.id]: attacker, [defender.id]: defender };
     const scuffles: unknown[] = [];

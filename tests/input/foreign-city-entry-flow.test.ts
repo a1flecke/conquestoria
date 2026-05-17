@@ -5,6 +5,8 @@ import type { GameState } from '@/core/types';
 import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
 import { foundCity } from '@/systems/city-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makeForeignCityEntryState(): GameState {
   const state = createNewGame(undefined, 'foreign-city-entry-flow', 'small');
   state.currentPlayer = 'player';
@@ -19,7 +21,7 @@ function makeForeignCityEntryState(): GameState {
   };
   state.civilizations.player.units = ['unit-1'];
   state.cities.athens = {
-    ...foundCity('ai-1', { q: 1, r: 0 }, state.map),
+    ...foundCity('ai-1', { q: 1, r: 0 }, state.map, mkC()),
     id: 'athens',
     name: 'Athens',
     owner: 'ai-1',

@@ -4,6 +4,8 @@ import { createUnit, getMovementCost } from '@/systems/unit-system';
 import type { GameState, HexCoord, TerrainType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('Unit Movement Regression', () => {
   it('should correctly subtract total path cost for multi-tile moves', () => {
     const startPos: HexCoord = { q: 0, r: 0 };
@@ -16,7 +18,7 @@ describe('Unit Movement Regression', () => {
     const state: Partial<GameState> = {
       turn: 1,
       units: {
-        'unit-1': createUnit('warrior', 'player', startPos),
+        'unit-1': createUnit('warrior', 'player', startPos, mkC()),
       },
       civilizations: {
         'player': {
@@ -73,7 +75,7 @@ describe('Unit Movement Regression', () => {
     const state: Partial<GameState> = {
       turn: 1,
       units: {
-        'unit-2': createUnit('warrior', 'player', startPos),
+        'unit-2': createUnit('warrior', 'player', startPos, mkC()),
       },
       civilizations: {
         'player': {

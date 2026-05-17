@@ -9,6 +9,8 @@ import {
   shouldPromptForPlayerCityCapture,
 } from '@/input/city-assault-flow';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makePlayerAssaultState({ population }: { population: number }): GameState {
   const state = createNewGame(undefined, 'player-assault', 'small');
   state.currentPlayer = 'player';
@@ -28,7 +30,7 @@ function makePlayerAssaultState({ population }: { population: number }): GameSta
   state.civilizations.player.units = ['unit-1'];
 
   state.cities.athens = {
-    ...foundCity('ai-1', { q: 1, r: 0 }, state.map),
+    ...foundCity('ai-1', { q: 1, r: 0 }, state.map, mkC()),
     id: 'athens',
     name: 'Athens',
     owner: 'ai-1',

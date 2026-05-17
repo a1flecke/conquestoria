@@ -11,6 +11,8 @@ import {
 import { getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
 import type { Quest } from '@/core/types';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('quest system', () => {
   describe('generateQuest', () => {
     it('generates destroy_camp quest for militaristic archetype', () => {
@@ -29,7 +31,7 @@ describe('quest system', () => {
           },
         },
         units: {},
-      } as any, () => 0.1);
+      } as any, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect(quest!.type).toBe('destroy_camp');
       expect(quest!.status).toBe('active');
@@ -40,7 +42,7 @@ describe('quest system', () => {
       const quest = generateQuest('mercantile', 'mc-carthage', 'player', 5, {
         barbarianCamps: {},
         era: 1,
-      } as any, () => 0.1);
+      } as any, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect(quest!.type).toBe('gift_gold');
       expect((quest!.target as any).amount).toBe(25);
@@ -50,7 +52,7 @@ describe('quest system', () => {
       const quest = generateQuest('mercantile', 'mc-carthage', 'player', 5, {
         barbarianCamps: {},
         era: 3,
-      } as any, () => 0.1);
+      } as any, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect((quest!.target as any).amount).toBe(75);
     });
@@ -59,7 +61,7 @@ describe('quest system', () => {
       const quest = generateQuest('militaristic', 'mc-sparta', 'player', 1, {
         barbarianCamps: {},
         era: 1,
-      } as any, () => 0.0);
+      } as any, () => 0.0, mkC());
       // Should fall back to another type or return null
       expect(quest === null || quest.type !== 'destroy_camp').toBe(true);
     });
@@ -68,7 +70,7 @@ describe('quest system', () => {
       const quest = generateQuest('mercantile', 'mc-carthage', 'player', 10, {
         barbarianCamps: {},
         era: 1,
-      } as any, () => 0.1);
+      } as any, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect(quest!.expiresOnTurn).toBe(30);
     });
@@ -77,7 +79,7 @@ describe('quest system', () => {
       const quest = generateQuest('mercantile', 'mc-carthage', 'player', 1, {
         barbarianCamps: {},
         era: 1,
-      } as any, () => 0.1);
+      } as any, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect(quest!.chainNext).toBeUndefined();
     });
@@ -102,7 +104,7 @@ describe('quest system', () => {
           player: { units: [], cities: [] },
         },
         map: { tiles: {} },
-      } as any, () => 0.8);
+      } as any, () => 0.8, mkC());
       expect(quest?.type).not.toBe('trade_route');
     });
 
@@ -126,7 +128,7 @@ describe('quest system', () => {
           player: { units: [], cities: [] },
         },
         map: { tiles: {} },
-      } as any, () => 0.8);
+      } as any, () => 0.8, mkC());
       expect(quest).toBeNull();
     });
 
@@ -153,7 +155,7 @@ describe('quest system', () => {
           player: { units: [], cities: [] },
         },
         map: { tiles: {} },
-      } as any, () => 0.1);
+      } as any, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect((quest!.target as any).campId).toBe('near');
     });

@@ -13,6 +13,8 @@ import type { GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function createWrappedGrasslandMap(width: number, height: number): GameMap {
   const tiles: GameMap['tiles'] = {};
   for (let q = 0; q < width; q++) {
@@ -70,7 +72,7 @@ function createStackCorridorMap(): GameMap {
 
 describe('createUnit', () => {
   it('creates a unit with full movement points', () => {
-    const unit = createUnit('warrior', 'p1', { q: 5, r: 5 });
+    const unit = createUnit('warrior', 'p1', { q: 5, r: 5 }, mkC());
     expect(unit.type).toBe('warrior');
     expect(unit.owner).toBe('p1');
     expect(unit.position).toEqual({ q: 5, r: 5 });
@@ -79,7 +81,7 @@ describe('createUnit', () => {
   });
 
   it('creates workers with two default charges', () => {
-    const worker = createUnit('worker', 'player', { q: 0, r: 0 });
+    const worker = createUnit('worker', 'player', { q: 0, r: 0 }, mkC());
 
     expect(worker.chargesRemaining).toBe(2);
   });
@@ -89,6 +91,7 @@ describe('createUnit', () => {
       'warrior',
       'p1',
       { q: 5, r: 5 },
+      mkC(),
       { type: 'naval_raiding', movementBonus: 1, coastalVisionBonus: 1 },
     );
     expect(unit.movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints + 1);
@@ -107,7 +110,7 @@ describe('getMovementRange', () => {
     const landTile = Object.values(map.tiles).find(
       t => t.terrain === 'grassland' || t.terrain === 'plains'
     )!;
-    const unit = createUnit('scout', 'p1', landTile.coord);
+    const unit = createUnit('scout', 'p1', landTile.coord, mkC());
     const range = getMovementRange(unit, map, {});
     expect(range.length).toBeGreaterThan(0);
     expect(range.length).toBeGreaterThanOrEqual(1);
@@ -117,7 +120,7 @@ describe('getMovementRange', () => {
     const landTile = Object.values(map.tiles).find(
       t => t.terrain === 'grassland' || t.terrain === 'plains'
     )!;
-    const unit = createUnit('warrior', 'p1', landTile.coord);
+    const unit = createUnit('warrior', 'p1', landTile.coord, mkC());
     // Find a neighbor tile that's also passable
     const neighborTiles = Object.values(map.tiles).filter(t =>
       (t.terrain === 'grassland' || t.terrain === 'plains') &&
@@ -142,8 +145,8 @@ describe('getMovementRange', () => {
 
   it('includes same-owner occupied tiles as stackable movement destinations', () => {
     const map = createWrappedGrasslandMap(5, 3);
-    const unit = createUnit('warrior', 'p1', { q: 1, r: 1 });
-    const friendly = createUnit('worker', 'p1', { q: 2, r: 1 });
+    const unit = createUnit('warrior', 'p1', { q: 1, r: 1 }, mkC());
+    const friendly = createUnit('worker', 'p1', { q: 2, r: 1 }, mkC());
     friendly.id = 'friendly-worker';
 
     const range = getMovementRange(unit, map, {
@@ -159,7 +162,7 @@ describe('getMovementRange', () => {
 
   it('can path through same-owner stacks but not through hostile stacks', () => {
     const map = createStackCorridorMap();
-    const unit = createUnit('scout', 'p1', { q: 1, r: 1 });
+    const unit = createUnit('scout', 'p1', { q: 1, r: 1 }, mkC());
 
     const friendlyRange = getMovementRange(unit, map, {
       [hexKey(unit.position)]: [unit.id],
@@ -186,7 +189,7 @@ describe('getMovementRange', () => {
     const landTile = Object.values(map.tiles).find(
       t => t.terrain === 'grassland'
     )!;
-    const unit = createUnit('warrior', 'p1', landTile.coord);
+    const unit = createUnit('warrior', 'p1', landTile.coord, mkC());
     const range = getMovementRange(unit, map, {});
     for (const hex of range) {
       const tile = map.tiles[hexKey(hex)];
@@ -200,7 +203,7 @@ describe('getMovementRange', () => {
 
 describe('moveUnit', () => {
   it('updates unit position and deducts movement', () => {
-    const unit = createUnit('scout', 'p1', { q: 5, r: 5 });
+    const unit = createUnit('scout', 'p1', { q: 5, r: 5 }, mkC());
     const moved = moveUnit(unit, { q: 6, r: 5 }, 1);
     expect(moved.position).toEqual({ q: 6, r: 5 });
     expect(moved.movementPointsLeft).toBe(unit.movementPointsLeft - 1);
@@ -212,7 +215,7 @@ describe('getMovementBlockerReason', () => {
   it('explains why a scout cannot enter a mountain tile', () => {
     const map = createWrappedGrasslandMap(5, 5);
     map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'mountain' };
-    const scout = createUnit('scout', 'player', { q: 2, r: 1 });
+    const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
 
     expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map)).toEqual({
       code: 'impassable-mountain',
@@ -223,14 +226,14 @@ describe('getMovementBlockerReason', () => {
   it('uses a distinct reason for land units tapping water', () => {
     const map = createWrappedGrasslandMap(5, 5);
     map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'coast' };
-    const scout = createUnit('scout', 'player', { q: 2, r: 1 });
+    const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
 
     expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map)?.code).toBe('impassable-water');
   });
 
   it('explains a passable destination that costs more movement than remains', () => {
     const map = createWrappedGrasslandMap(5, 5);
-    const scout = createUnit('scout', 'player', { q: 0, r: 0 });
+    const scout = createUnit('scout', 'player', { q: 0, r: 0 }, mkC());
     scout.movementPointsLeft = 1;
 
     expect(getMovementBlockerReason(scout, { q: 2, r: 0 }, map)?.code).toBe('insufficient-movement');
@@ -238,7 +241,7 @@ describe('getMovementBlockerReason', () => {
 
   it('uses the scouting message for an unexplored tapped tile', () => {
     const map = createWrappedGrasslandMap(5, 5);
-    const scout = createUnit('scout', 'player', { q: 2, r: 1 });
+    const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
 
     expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map, { visibilityState: 'unexplored' })).toEqual({
       code: 'unexplored',
@@ -287,7 +290,7 @@ describe('findPath', () => {
 describe('wrapped movement', () => {
   it('includes horizontally wrapped neighbors in movement range', () => {
     const wrappedMap = createWrappedGrasslandMap(5, 3);
-    const unit = createUnit('warrior', 'p1', { q: 0, r: 1 });
+    const unit = createUnit('warrior', 'p1', { q: 0, r: 1 }, mkC());
     const range = getMovementRange(unit, wrappedMap, {});
     expect(range).toContainEqual({ q: 4, r: 1 });
   });
@@ -295,7 +298,7 @@ describe('wrapped movement', () => {
 
 describe('resetUnitTurn', () => {
   it('restores movement points and clears flags', () => {
-    let unit = createUnit('warrior', 'p1', { q: 5, r: 5 });
+    let unit = createUnit('warrior', 'p1', { q: 5, r: 5 }, mkC());
     unit = moveUnit(unit, { q: 6, r: 5 }, 1);
     expect(unit.hasMoved).toBe(true);
 
@@ -309,13 +312,13 @@ describe('resetUnitTurn', () => {
 describe('skippedTurn cycling flag', () => {
   it('excludes skipped units from unmoved cycling without treating skip as movement or action', () => {
     const skipped = {
-      ...createUnit('scout', 'player', { q: 2, r: 2 }),
+      ...createUnit('scout', 'player', { q: 2, r: 2 }, mkC()),
       id: 'unit-skipped',
       skippedTurn: true,
       movementPointsLeft: 0,
     };
     const fresh = {
-      ...createUnit('warrior', 'player', { q: 3, r: 2 }),
+      ...createUnit('warrior', 'player', { q: 3, r: 2 }, mkC()),
       id: 'unit-fresh',
     };
 
@@ -328,7 +331,7 @@ describe('skippedTurn cycling flag', () => {
 
   it('still allows passive healing for a skipped unit that did not move or act', () => {
     const skipped = {
-      ...createUnit('scout', 'player', { q: 2, r: 2 }),
+      ...createUnit('scout', 'player', { q: 2, r: 2 }, mkC()),
       health: 50,
       skippedTurn: true,
       movementPointsLeft: 0,
@@ -341,7 +344,7 @@ describe('skippedTurn cycling flag', () => {
 
   it('clears skippedTurn during turn reset', () => {
     const skipped = {
-      ...createUnit('scout', 'player', { q: 2, r: 2 }),
+      ...createUnit('scout', 'player', { q: 2, r: 2 }, mkC()),
       skippedTurn: true,
       movementPointsLeft: 0,
     };
@@ -355,7 +358,7 @@ describe('skippedTurn cycling flag', () => {
 
 describe('new unit types', () => {
   it('swordsman has correct stats', () => {
-    const unit = createUnit('swordsman', 'player', { q: 0, r: 0 });
+    const unit = createUnit('swordsman', 'player', { q: 0, r: 0 }, mkC());
     expect(unit.type).toBe('swordsman');
     expect(UNIT_DEFINITIONS.swordsman.strength).toBe(25);
     expect(UNIT_DEFINITIONS.swordsman.movementPoints).toBe(2);
@@ -364,14 +367,14 @@ describe('new unit types', () => {
   });
 
   it('pikeman has correct stats', () => {
-    const unit = createUnit('pikeman', 'player', { q: 0, r: 0 });
+    const unit = createUnit('pikeman', 'player', { q: 0, r: 0 }, mkC());
     expect(unit.type).toBe('pikeman');
     expect(UNIT_DEFINITIONS.pikeman.strength).toBe(35);
     expect(UNIT_DEFINITIONS.pikeman.productionCost).toBe(70);
   });
 
   it('musketeer has correct stats', () => {
-    const unit = createUnit('musketeer', 'player', { q: 0, r: 0 });
+    const unit = createUnit('musketeer', 'player', { q: 0, r: 0 }, mkC());
     expect(unit.type).toBe('musketeer');
     expect(UNIT_DEFINITIONS.musketeer.strength).toBe(50);
     expect(UNIT_DEFINITIONS.musketeer.productionCost).toBe(90);

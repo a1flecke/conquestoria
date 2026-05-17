@@ -262,6 +262,7 @@ export function makeAutoExploreFixture(options: AutoExploreFixtureOptions = {}):
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   };
 
   return { state, unitId: scout.id, villageId, hiddenCivId: options.foreignBorderNorth ? 'traders' : undefined };

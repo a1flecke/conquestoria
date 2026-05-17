@@ -15,6 +15,8 @@ import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 const customCiv: CustomCivDefinition = {
   id: 'custom-sunfolk',
   name: 'Sunfolk',
@@ -104,7 +106,7 @@ describe('processTurn', () => {
   it('applies occupied-city penalties and decrements the occupation timer during turn processing', () => {
     const state = createNewGame(undefined, 'occupied-turn', 'small');
     const bus = new EventBus();
-    const city = foundCity('player', { q: 1, r: 0 }, state.map);
+    const city = foundCity('player', { q: 1, r: 0 }, state.map, mkC());
     city.id = 'athens';
     city.population = 4;
     city.buildings = ['granary'];
@@ -140,8 +142,8 @@ describe('processTurn', () => {
     state.civilizations.player.units = [];
     state.civilizations['ai-1'].cities = [];
     state.civilizations['ai-1'].units = [];
-    const holder = foundCity('player', { q: 6, r: 6 }, state.map);
-    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map);
+    const holder = foundCity('player', { q: 6, r: 6 }, state.map, mkC());
+    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map, mkC());
     holder.id = 'holder-city';
     challenger.id = 'challenger-city';
     const overlap = { q: 8, r: 6 };
@@ -181,8 +183,8 @@ describe('processTurn', () => {
     state.civilizations.player.units = [];
     state.civilizations['ai-1'].cities = [];
     state.civilizations['ai-1'].units = [];
-    const holder = foundCity('player', { q: 6, r: 6 }, state.map);
-    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map);
+    const holder = foundCity('player', { q: 6, r: 6 }, state.map, mkC());
+    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map, mkC());
     holder.id = 'frontier-holder';
     challenger.id = 'frontier-challenger';
     const overlap = { q: 8, r: 6 };
@@ -212,8 +214,8 @@ describe('processTurn', () => {
     state.civilizations.player.units = [];
     state.civilizations['ai-1'].cities = [];
     state.civilizations['ai-1'].units = [];
-    const holder = foundCity('player', { q: 6, r: 6 }, state.map);
-    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map);
+    const holder = foundCity('player', { q: 6, r: 6 }, state.map, mkC());
+    const challenger = foundCity('ai-1', { q: 9, r: 6 }, state.map, mkC());
     holder.id = 'frontier-event-holder';
     challenger.id = 'frontier-event-challenger';
     const overlap = { q: 8, r: 6 };
@@ -312,7 +314,7 @@ describe('processTurn', () => {
 
     state.civilizations.player.visibility.tiles['4,1'] = 'fog';
 
-    const minorCity = foundCity('mc-geneva', { q: 0, r: 1 }, state.map);
+    const minorCity = foundCity('mc-geneva', { q: 0, r: 1 }, state.map, mkC());
     minorCity.id = 'city-geneva';
     minorCity.name = 'Geneva';
     minorCity.owner = 'mc-geneva';
@@ -341,7 +343,7 @@ describe('processTurn', () => {
     // Found a city for the player so they produce science
     const playerCiv = state.civilizations.player;
     const startPos = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     state.cities[city.id] = city;
     playerCiv.cities.push(city.id);
 
@@ -359,7 +361,7 @@ describe('processTurn', () => {
     const bus = new EventBus();
     const playerCiv = state.civilizations.player;
     const startPos = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     state.cities[city.id] = {
       ...city,
       population: 5,
@@ -383,7 +385,7 @@ describe('processTurn', () => {
     const bus = new EventBus();
     const playerCiv = state.civilizations.player;
     const startPos = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     const hills = { q: startPos.q + 1, r: startPos.r };
 
     state.map.tiles[hexKey(city.position)].owner = 'player';
@@ -421,7 +423,7 @@ describe('processTurn', () => {
     const state = createNewGame(undefined, 'turn-territory-growth', 'small');
     const playerCiv = state.civilizations.player;
     const startPos = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     const radius3 = state.map.wrapsHorizontally
       ? { q: (city.position.q + 3) % state.map.width, r: city.position.r }
       : { q: city.position.q + 3, r: city.position.r };
@@ -452,7 +454,7 @@ describe('processTurn', () => {
     const bus = new EventBus();
     const playerCiv = state.civilizations.player;
     const startPos = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     const workable = [
       { q: startPos.q + 1, r: startPos.r },
       { q: startPos.q, r: startPos.r + 1 },
@@ -501,7 +503,7 @@ describe('processTurn', () => {
 
     // Found a city for player
     const startPos = state.units[state.civilizations.player.units[0]].position;
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
 
@@ -630,7 +632,7 @@ describe('processTurn', () => {
     const bus = new EventBus();
     const playerCiv = state.civilizations.player;
     const startPos = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     city.buildings = ['workshop'];
     city.productionQueue = ['worker'];
     city.productionProgress = 4;
@@ -659,7 +661,7 @@ describe('processTurn', () => {
     const bus = new EventBus();
     const playerCiv = state.civilizations.player;
     const startPos = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPos, state.map);
+    const city = foundCity('player', startPos, state.map, mkC());
     city.buildings = ['library'];
     state.cities[city.id] = city;
     playerCiv.cities.push(city.id);
@@ -739,7 +741,7 @@ describe('processTurn', () => {
     const bus = new EventBus();
 
     // Player starts with a settler, not a city — found one so targetCityId is valid
-    const city = foundCity('player', { q: 1, r: 0 }, state.map);
+    const city = foundCity('player', { q: 1, r: 0 }, state.map, mkC());
     state.cities[city.id] = city;
     state.civilizations.player.cities = [city.id];
 

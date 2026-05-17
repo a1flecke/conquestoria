@@ -8,8 +8,7 @@ import {
   initializeEspionage,
   turnCapturedSpy,
   verifyAgent,
-  _resetSpyIdCounter,
-} from '@/systems/espionage-system';
+  } from '@/systems/espionage-system';
 import type { GameState, EspionageState, Spy } from '@/core/types';
 
 // MR1: legacy fixture helper — spies are now created via city production, not recruitSpy
@@ -107,6 +106,7 @@ function makeTestGameState(): GameState {
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   } as GameState;
 }
 
@@ -115,7 +115,6 @@ describe('espionage integration', () => {
 
   beforeEach(() => {
     bus = new EventBus();
-    _resetSpyIdCounter();
   });
 
   describe('initializeEspionage', () => {
@@ -237,7 +236,6 @@ describe('hot seat espionage safety', () => {
 
   beforeEach(() => {
     bus = new EventBus();
-    _resetSpyIdCounter();
   });
 
   it('never exposes one players spy data to another', () => {
@@ -313,7 +311,6 @@ describe('M4a full integration', () => {
 
   beforeEach(() => {
     bus = new EventBus();
-    _resetSpyIdCounter();
   });
 
   it('complete espionage lifecycle: recruit → assign → travel → station → mission → success', () => {
@@ -501,7 +498,6 @@ describe('M4a full integration', () => {
 
   it('espionage works with seeded RNG — same seed produces same outcomes', () => {
     const makeScenario = () => {
-      _resetSpyIdCounter();
       const state = makeTestGameState();
       state.espionage = initializeEspionage(state);
       const spy = makeTestSpy('spy-determ', 'player', {

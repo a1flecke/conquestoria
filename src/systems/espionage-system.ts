@@ -21,8 +21,6 @@ const SPY_NAMES = [
   'Thorn', 'Mist', 'Echo', 'Blade', 'Ember',
 ];
 
-let nextSpyId = 1;
-
 // --- Mission difficulty config ---
 
 // counter_espionage is passive (assignSpyDefensive) and not a startable mission
@@ -1287,7 +1285,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             const pos = result.spawnPosition as HexCoord;
             const key = `${pos.q},${pos.r}`;
             if (state.map.tiles[key]) {
-              const hostileUnit = createUnit('warrior', 'rebels', pos);
+              const hostileUnit = createUnit('warrior', 'rebels', pos, state.idCounters);
               state = { ...state, units: { ...state.units, [hostileUnit.id]: hostileUnit } };
               bus.emit('unit:created', { unit: hostileUnit });
             }
@@ -1637,7 +1635,3 @@ export function attemptInfiltration(
   }
 }
 
-// Reset the ID counter (for testing)
-export function _resetSpyIdCounter(): void {
-  nextSpyId = 1;
-}

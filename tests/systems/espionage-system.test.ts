@@ -23,8 +23,7 @@ import {
   setCounterIntelligence,
   turnCapturedSpy,
   verifyAgent,
-  _resetSpyIdCounter,
-} from '@/systems/espionage-system';
+  } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 
 // MR1: legacy fixture helper for tests that need a spy in state without going through city production
@@ -169,7 +168,6 @@ describe('espionage tech definitions', () => {
 
 describe('espionage-system', () => {
   beforeEach(() => {
-    _resetSpyIdCounter();
   });
 
   describe('createEspionageCivState', () => {
@@ -246,7 +244,6 @@ describe('espionage-system', () => {
 
 describe('missions', () => {
   beforeEach(() => {
-    _resetSpyIdCounter();
   });
 
   describe('getAvailableMissions', () => {
@@ -457,6 +454,7 @@ describe('resolveMissionResult', () => {
       wonderDiscoverers: {},
       embargoes: [],
       defensiveLeagues: [],
+      idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     } as GameState;
   }
 
@@ -683,6 +681,7 @@ describe('espionage diplomatic consequences', () => {
         wonderDiscoverers: {},
         embargoes: [],
         defensiveLeagues: [],
+        idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
         espionage: {
           player: {
             spies: {

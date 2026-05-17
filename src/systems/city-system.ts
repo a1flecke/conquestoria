@@ -5,7 +5,6 @@ import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 import { findOptimalSlot } from './adjacency-system';
 
-let nextCityId = 1;
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
 
 export interface FoundCityOptions {
@@ -283,10 +282,6 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
     spyUnrestBonus: 0,
     idleProduction: null,
   };
-}
-
-export function resetCityId(): void {
-  nextCityId = 1;
 }
 
 export function getAvailableBuildings(city: City, completedTechs: string[]): Building[] {

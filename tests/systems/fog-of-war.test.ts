@@ -289,6 +289,7 @@ describe('satellite surveillance', () => {
       wonderDiscoverers: {},
       embargoes: [],
       defensiveLeagues: [],
+      idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     } as GameState;
   }
 
@@ -340,6 +341,7 @@ describe('forest concealment', () => {
       wonderDiscoverers: {},
       embargoes: [],
       defensiveLeagues: [],
+      idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     } as GameState;
 
     expect(isForestConcealedUnit(state, 'player', state.units.hidden)).toBe(true);
@@ -374,6 +376,7 @@ describe('forest concealment', () => {
       wonderDiscoverers: {},
       embargoes: [],
       defensiveLeagues: [],
+      idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     } as GameState;
     state.map.tiles['4,1'] = { ...state.map.tiles['4,1'], terrain: 'forest' };
 
@@ -407,6 +410,7 @@ describe('forest concealment', () => {
       wonderDiscoverers: {},
       embargoes: [],
       defensiveLeagues: [],
+      idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     } as GameState;
     state.map.tiles['4,1'] = { ...state.map.tiles['4,1'], terrain: 'forest' };
 

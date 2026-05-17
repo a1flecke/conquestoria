@@ -6,6 +6,8 @@ import { createUnit } from '@/systems/unit-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makeTapAssaultFixture(): GameState {
   const state = createNewGame(undefined, 'tap-assault', 'small');
   state.currentPlayer = 'player';
@@ -25,7 +27,7 @@ function makeTapAssaultFixture(): GameState {
   state.civilizations.player.units = ['unit-1'];
 
   state.cities.enemyCity = {
-    ...foundCity('ai-1', { q: 1, r: 0 }, state.map),
+    ...foundCity('ai-1', { q: 1, r: 0 }, state.map, mkC()),
     id: 'enemyCity',
     name: 'Enemy City',
     owner: 'ai-1',
@@ -84,7 +86,7 @@ describe('selected-unit-tap-intent', () => {
     state.civilizations['ai-1'].cities = [];
 
     state.cities['mc-city'] = {
-      ...foundCity('mc-warriors', { q: 1, r: 0 }, state.map),
+      ...foundCity('mc-warriors', { q: 1, r: 0 }, state.map, mkC()),
       id: 'mc-city',
       name: 'Warriors Haven',
       owner: 'mc-warriors',
@@ -115,7 +117,7 @@ describe('selected-unit-tap-intent', () => {
     state.civilizations['ai-1'].cities = [];
 
     state.cities['mc-city'] = {
-      ...foundCity('mc-warriors', { q: 1, r: 0 }, state.map),
+      ...foundCity('mc-warriors', { q: 1, r: 0 }, state.map, mkC()),
       id: 'mc-city',
       name: 'Warriors Haven',
       owner: 'mc-warriors',
@@ -124,7 +126,7 @@ describe('selected-unit-tap-intent', () => {
       ownedTiles: [{ q: 1, r: 0 }],
     };
     // Use createUnit so all required Unit fields are populated correctly.
-    const garrison = createUnit('warrior', 'mc-warriors', { q: 1, r: 0 });
+    const garrison = createUnit('warrior', 'mc-warriors', { q: 1, r: 0 }, mkC());
     state.minorCivs['mc-warriors'] = {
       id: 'mc-warriors',
       definitionId: 'warriors',
@@ -148,7 +150,7 @@ describe('selected-unit-tap-intent', () => {
     const state = makeTapAssaultFixture();
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
     state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
-    const friendly = createUnit('worker', 'player', { q: 1, r: 0 });
+    const friendly = createUnit('worker', 'player', { q: 1, r: 0 }, mkC());
     friendly.id = 'friendly-worker';
     state.units[friendly.id] = friendly;
     state.civilizations.player.units.push(friendly.id);
@@ -162,7 +164,7 @@ describe('selected-unit-tap-intent', () => {
     const state = makeTapAssaultFixture();
     delete state.cities.enemyCity;
     state.civilizations['ai-1'].cities = [];
-    const friendly = createUnit('worker', 'player', { q: 1, r: 0 });
+    const friendly = createUnit('worker', 'player', { q: 1, r: 0 }, mkC());
     friendly.id = 'friendly-worker';
     state.units[friendly.id] = friendly;
     state.civilizations.player.units.push(friendly.id);
@@ -174,7 +176,7 @@ describe('selected-unit-tap-intent', () => {
 
   it('keeps hostile garrisoned cities out of direct city assault intent', () => {
     const state = makeTapAssaultFixture();
-    const garrison = createUnit('warrior', 'ai-1', { q: 1, r: 0 });
+    const garrison = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC());
     garrison.id = 'enemy-garrison';
     state.units[garrison.id] = garrison;
     state.civilizations['ai-1'].units.push(garrison.id);
@@ -198,7 +200,7 @@ describe('selected-unit-tap-intent', () => {
 
   it('returns move when an ordinary archer taps a non-adjacent hostile city', () => {
     const state = makeTapAssaultFixture();
-    state.units['unit-1'] = { ...createUnit('archer', 'player', { q: 0, r: 0 }), id: 'unit-1', movementPointsLeft: 2 };
+    state.units['unit-1'] = { ...createUnit('archer', 'player', { q: 0, r: 0 }, mkC()), id: 'unit-1', movementPointsLeft: 2 };
     state.cities.enemyCity.position = { q: 2, r: 0 };
     state.cities.enemyCity.ownedTiles = [{ q: 2, r: 0 }];
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];

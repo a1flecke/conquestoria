@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
-  createUnit, resetUnitId, resetUnitTurn, healUnit, restUnit, canHeal,
+  createUnit, resetUnitTurn, healUnit, restUnit, canHeal,
   getUnmovedUnits, HEAL_PASSIVE, HEAL_RESTING, HEAL_IN_CITY, HEAL_IN_TERRITORY,
 } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
@@ -9,6 +9,8 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import type { GameMap, HexTile } from '@/core/types';
 import type { NotificationEntry } from '@/ui/notification-log';
+
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 // --- Combat balance helpers ---
 const makePlainsTile = (q: number, r: number): HexTile => ({
@@ -25,59 +27,58 @@ const makeMap = (): GameMap => ({
 // --- Healing tests (#15) ---
 
 describe('unit healing (#15)', () => {
-  beforeEach(() => resetUnitId());
 
   it('canHeal returns false at full health', () => {
-    const u = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const u = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     expect(u.health).toBe(100);
     expect(canHeal(u)).toBe(false);
   });
 
   it('canHeal returns true when damaged', () => {
-    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), health: 70 };
+    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), health: 70 };
     expect(canHeal(u)).toBe(true);
   });
 
   it('passive heal when idle (no move, no act)', () => {
-    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), health: 60 };
+    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), health: 60 };
     const healed = healUnit(u, false, false);
     expect(healed.health).toBe(60 + HEAL_PASSIVE);
   });
 
   it('resting heal is higher than passive', () => {
-    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), health: 50, isResting: true };
+    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), health: 50, isResting: true };
     const healed = healUnit(u, false, false);
     expect(healed.health).toBe(50 + HEAL_RESTING);
     expect(HEAL_RESTING).toBeGreaterThan(HEAL_PASSIVE);
   });
 
   it('city heal is highest', () => {
-    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), health: 50 };
+    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), health: 50 };
     const healed = healUnit(u, true, false);
     expect(healed.health).toBe(50 + HEAL_IN_CITY);
     expect(HEAL_IN_CITY).toBeGreaterThan(HEAL_RESTING);
   });
 
   it('territory heal when in friendly territory but not city', () => {
-    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), health: 60 };
+    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), health: 60 };
     const healed = healUnit(u, false, true);
     expect(healed.health).toBe(60 + HEAL_IN_TERRITORY);
   });
 
   it('no heal when moved and not resting', () => {
-    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), health: 60, hasMoved: true };
+    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), health: 60, hasMoved: true };
     const healed = healUnit(u, false, false);
     expect(healed.health).toBe(60); // no change
   });
 
   it('heal caps at 100', () => {
-    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), health: 98 };
+    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), health: 98 };
     const healed = healUnit(u, true, false);
     expect(healed.health).toBe(100);
   });
 
   it('restUnit sets isResting and blocks movement', () => {
-    const u = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const u = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     const resting = restUnit(u);
     expect(resting.isResting).toBe(true);
     expect(resting.hasActed).toBe(true);
@@ -85,13 +86,13 @@ describe('unit healing (#15)', () => {
   });
 
   it('resetUnitTurn clears isResting', () => {
-    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), isResting: true };
+    const u = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), isResting: true };
     const reset = resetUnitTurn(u);
     expect(reset.isResting).toBe(false);
   });
 
   it('worker can also rest (gets hurt by illness)', () => {
-    const u = { ...createUnit('worker', 'player', { q: 0, r: 0 }), health: 60 };
+    const u = { ...createUnit('worker', 'player', { q: 0, r: 0 }, mkC()), health: 60 };
     const resting = restUnit(u);
     expect(resting.isResting).toBe(true);
   });
@@ -100,15 +101,14 @@ describe('unit healing (#15)', () => {
 // --- Stone Age combat balance tests (#14) ---
 
 describe('stone age combat balance (#14)', () => {
-  beforeEach(() => resetUnitId());
 
   it('stone age warrior vs warrior resolves in 2-4 hits on average', () => {
     let totalHitsToKill = 0;
     const trials = 30;
 
     for (let i = 0; i < trials; i++) {
-      const attacker = createUnit('warrior', 'player', { q: 0, r: 0 });
-      const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 });
+      const attacker = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+      const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC());
       let hp = 100;
       let hits = 0;
       while (hp > 0 && hits < 10) {
@@ -132,16 +132,16 @@ describe('stone age combat balance (#14)', () => {
   });
 
   it('stone age combat deals more damage than later eras (same seed)', () => {
-    const attacker = createUnit('warrior', 'player', { q: 0, r: 0 });
-    const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 });
+    const attacker = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC());
     const stoneResult = resolveCombat(attacker, defender, makeMap(), 42, undefined, 0);
     const ironResult = resolveCombat(attacker, defender, makeMap(), 42, undefined, 3);
     expect(stoneResult.defenderDamage).toBeGreaterThan(ironResult.defenderDamage);
   });
 
   it('default era (undefined) uses normal scale', () => {
-    const attacker = createUnit('warrior', 'player', { q: 0, r: 0 });
-    const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 });
+    const attacker = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC());
     const defaultResult = resolveCombat(attacker, defender, makeMap(), 42);
     const era3Result = resolveCombat(attacker, defender, makeMap(), 42, undefined, 3);
     expect(defaultResult.defenderDamage).toBe(era3Result.defenderDamage);
@@ -151,12 +151,12 @@ describe('stone age combat balance (#14)', () => {
 // --- Unit cycling tests (#25) ---
 
 describe('unit cycling (#25)', () => {
-  beforeEach(() => resetUnitId());
 
   it('getUnmovedUnits returns units that have not moved or acted', () => {
-    const u1 = createUnit('warrior', 'player', { q: 0, r: 0 });
-    const u2 = { ...createUnit('archer', 'player', { q: 1, r: 0 }), hasMoved: true };
-    const u3 = { ...createUnit('scout', 'player', { q: 2, r: 0 }), hasActed: true };
+    const c = mkC();
+    const u1 = createUnit('warrior', 'player', { q: 0, r: 0 }, c);
+    const u2 = { ...createUnit('archer', 'player', { q: 1, r: 0 }, c), hasMoved: true };
+    const u3 = { ...createUnit('scout', 'player', { q: 2, r: 0 }, c), hasActed: true };
     const units = { [u1.id]: u1, [u2.id]: u2, [u3.id]: u3 };
     const unmoved = getUnmovedUnits(units, 'player');
     expect(unmoved).toHaveLength(1);
@@ -164,8 +164,9 @@ describe('unit cycling (#25)', () => {
   });
 
   it('getUnmovedUnits excludes other players', () => {
-    const u1 = createUnit('warrior', 'player', { q: 0, r: 0 });
-    const u2 = createUnit('warrior', 'ai-1', { q: 1, r: 0 });
+    const c = mkC();
+    const u1 = createUnit('warrior', 'player', { q: 0, r: 0 }, c);
+    const u2 = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, c);
     const units = { [u1.id]: u1, [u2.id]: u2 };
     const unmoved = getUnmovedUnits(units, 'player');
     expect(unmoved).toHaveLength(1);
@@ -173,8 +174,9 @@ describe('unit cycling (#25)', () => {
   });
 
   it('getUnmovedUnits returns empty when all have moved', () => {
-    const u1 = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), hasMoved: true };
-    const u2 = { ...createUnit('archer', 'player', { q: 1, r: 0 }), hasActed: true };
+    const c = mkC();
+    const u1 = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, c), hasMoved: true };
+    const u2 = { ...createUnit('archer', 'player', { q: 1, r: 0 }, c), hasActed: true };
     const units = { [u1.id]: u1, [u2.id]: u2 };
     expect(getUnmovedUnits(units, 'player')).toHaveLength(0);
   });
@@ -215,7 +217,7 @@ describe('slice 2 council guidance', () => {
       return;
     }
 
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, mkC());
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
 
@@ -247,7 +249,7 @@ describe('slice 4 council wonder guidance', () => {
         .map(id => state.units[id])
         .find(unit => unit?.type === 'settler');
       if (settler) {
-        const city = foundCity('player', settler.position, state.map);
+        const city = foundCity('player', settler.position, state.map, mkC());
         state.cities[city.id] = city;
         state.civilizations.player.cities.push(city.id);
         cityId = city.id;

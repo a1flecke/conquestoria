@@ -3,10 +3,12 @@ import type { GameMap, Unit } from '@/core/types';
 import { createMovementAnimation, getMovementAnimationPosition, getMovementDurationMs, getMovingUnitIds } from '@/renderer/unit-movement-animation';
 import { createUnit } from '@/systems/unit-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 const map = { width: 6, height: 4, wrapsHorizontally: true, tiles: {}, rivers: [] } as GameMap;
 
 function unit(id: string): Unit {
-  return { ...createUnit('warrior', 'player', { q: 0, r: 1 }), id };
+  return { ...createUnit('warrior', 'player', { q: 0, r: 1 }, mkC()), id };
 }
 
 describe('unit-movement-animation', () => {

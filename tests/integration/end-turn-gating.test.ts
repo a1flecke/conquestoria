@@ -3,6 +3,8 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('end-turn gating', () => {
   it('detects when the player has no active research but valid options exist', () => {
     const state = createNewGame(undefined, 'end-turn-gating-seed', 'small');
@@ -16,8 +18,8 @@ describe('end-turn gating', () => {
     expect(settlerId).toBeDefined();
     const basePosition = state.units[settlerId!].position;
 
-    const firstCity = foundCity(playerId, basePosition, state.map);
-    const secondCity = foundCity(playerId, { q: basePosition.q + 2, r: basePosition.r }, state.map);
+    const firstCity = foundCity(playerId, basePosition, state.map, state.idCounters);
+    const secondCity = foundCity(playerId, { q: basePosition.q + 2, r: basePosition.r }, state.map, state.idCounters);
     state.cities[firstCity.id] = firstCity;
     state.cities[secondCity.id] = secondCity;
     state.civilizations[playerId].cities.push(firstCity.id, secondCity.id);

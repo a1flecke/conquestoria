@@ -13,6 +13,8 @@ import {
 } from '@/systems/council-memory';
 import { makeCouncilFixture } from '../ui/helpers/council-fixture';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function ensurePlayerCity(state: GameState): string {
   const existing = state.civilizations.player.cities[0];
   if (existing) {
@@ -22,7 +24,7 @@ function ensurePlayerCity(state: GameState): string {
   if (!settler) {
     throw new Error('expected player settler for council memory fixture');
   }
-  const city = foundCity('player', settler.position, state.map);
+  const city = foundCity('player', settler.position, state.map, mkC());
   state.cities[city.id] = city;
   state.civilizations.player.cities.push(city.id);
   return city.id;

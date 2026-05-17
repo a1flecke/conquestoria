@@ -7,6 +7,8 @@ import { foundCity } from '@/systems/city-system';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makeMap(size: 'small' | 'medium' | 'large') {
   const dims = { small: { w: 30, h: 30 }, medium: { w: 50, h: 50 }, large: { w: 80, h: 80 } };
   const d = dims[size];
@@ -139,7 +141,7 @@ describe('Wonder yields in calculateCityYields', () => {
   it('includes wonder yields for owned wonder tiles', () => {
     const state = makeGameState();
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
-    const city = foundCity('player', settler.position, state.map);
+    const city = foundCity('player', settler.position, state.map, mkC());
     state.cities[city.id] = city;
 
     // Place a wonder on one of the city's owned tiles

@@ -6,8 +6,7 @@ import {
   createEspionageCivState,
   createSpyFromUnit,
   cleanupDeadSpyUnit,
-  _resetSpyIdCounter,
-} from '@/systems/espionage-system';
+  } from '@/systems/espionage-system';
 import { processCity, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { processTurn } from '@/core/turn-manager';
 
@@ -116,12 +115,12 @@ function makeBaseState(): GameState {
     espionage: {
       player: { ...createEspionageCivState(), maxSpies: 2 },
     },
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   } as unknown as GameState;
 }
 
 describe('spy lifecycle integration', () => {
   beforeEach(() => {
-    _resetSpyIdCounter();
   });
 
   it('trains spy_scout and creates matching Spy record with same id', () => {

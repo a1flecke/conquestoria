@@ -10,9 +10,11 @@ import {
 } from '@/systems/combat-reward-system';
 import type { CombatResult, GameState } from '@/core/types';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('combat-reward-system', () => {
   it('maps experience to named veterancy tiers and next thresholds', () => {
-    const recruit = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const recruit = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     const seasoned = { ...recruit, experience: 10 };
     const veteran = { ...recruit, experience: 25 };
     const elite = { ...recruit, experience: 50 };
@@ -28,7 +30,7 @@ describe('combat-reward-system', () => {
   });
 
   it('converts veterancy tiers into small combat modifiers', () => {
-    const unit = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const unit = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
 
     expect(getVeterancyCombatModifier({ ...unit, experience: 0 })).toBe(0);
     expect(getVeterancyCombatModifier({ ...unit, experience: 10 })).toBe(0.05);
@@ -37,8 +39,8 @@ describe('combat-reward-system', () => {
   });
 
   it('calculates deterministic combat spoils for the same seed', () => {
-    const victor = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'winner', health: 44 };
-    const defeated = { ...createUnit('warrior', 'barbarian', { q: 1, r: 0 }), id: 'fallen' };
+    const victor = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'winner', health: 44 };
+    const defeated = { ...createUnit('warrior', 'barbarian', { q: 1, r: 0 }, mkC()), id: 'fallen' };
 
     const first = calculateDefeatReward({ victor, defeated, seed: 64 });
     const second = calculateDefeatReward({ victor, defeated, seed: 64 });
@@ -50,8 +52,8 @@ describe('combat-reward-system', () => {
   });
 
   it('gives reduced rewards for defeating non-combat units', () => {
-    const victor = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'winner', health: 60 };
-    const defeated = { ...createUnit('settler', 'ai-1', { q: 1, r: 0 }), id: 'settler' };
+    const victor = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'winner', health: 60 };
+    const defeated = { ...createUnit('settler', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'settler' };
 
     const reward = calculateDefeatReward({ victor, defeated, seed: 64 });
 
@@ -61,8 +63,8 @@ describe('combat-reward-system', () => {
   });
 
   it('does not report gold rewards for victors without a gold ledger', () => {
-    const victor = { ...createUnit('warrior', 'barbarian', { q: 0, r: 0 }), id: 'winner', health: 60 };
-    const defeated = { ...createUnit('warrior', 'player', { q: 1, r: 0 }), id: 'fallen' };
+    const victor = { ...createUnit('warrior', 'barbarian', { q: 0, r: 0 }, mkC()), id: 'winner', health: 60 };
+    const defeated = { ...createUnit('warrior', 'player', { q: 1, r: 0 }, mkC()), id: 'fallen' };
 
     const reward = calculateDefeatReward({ victor, defeated, seed: 64 });
 
@@ -70,8 +72,8 @@ describe('combat-reward-system', () => {
   });
 
   it('collects a reward for the surviving attacker when the defender dies', () => {
-    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'attacker', health: 50 };
-    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }), id: 'defender' };
+    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker', health: 50 };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender' };
     const result: CombatResult = {
       attackerId: 'attacker',
       defenderId: 'defender',
@@ -94,8 +96,8 @@ describe('combat-reward-system', () => {
   });
 
   it('collects a reward for the surviving defender when the attacker dies', () => {
-    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'attacker' };
-    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }), id: 'defender', health: 50 };
+    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker' };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender', health: 50 };
     const result: CombatResult = {
       attackerId: 'attacker',
       defenderId: 'defender',
@@ -118,8 +120,8 @@ describe('combat-reward-system', () => {
   });
 
   it('collects no reward when both units die', () => {
-    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'attacker' };
-    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }), id: 'defender' };
+    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker' };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender' };
     const result: CombatResult = {
       attackerId: 'attacker',
       defenderId: 'defender',
@@ -136,8 +138,8 @@ describe('combat-reward-system', () => {
 });
 
 function makeRewardState(): GameState {
-  const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }), id: 'attacker', health: 40 };
-  const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }), id: 'defender', health: 1 };
+  const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker', health: 40 };
+  const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender', health: 1 };
   return {
     turn: 3,
     era: 1,
@@ -186,6 +188,7 @@ function makeRewardState(): GameState {
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   } as GameState;
 }
 

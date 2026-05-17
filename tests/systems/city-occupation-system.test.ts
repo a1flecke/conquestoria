@@ -4,10 +4,12 @@ import type { City, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makeOccupiedCityState(turnsRemaining: number): GameState {
   const state = createNewGame(undefined, 'occupied-city', 'small');
   const city: City = {
-    ...foundCity('player', { q: 1, r: 0 }, state.map),
+    ...foundCity('player', { q: 1, r: 0 }, state.map, mkC()),
     id: 'athens',
     name: 'Athens',
     owner: 'player',
