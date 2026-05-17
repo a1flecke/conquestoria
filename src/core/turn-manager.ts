@@ -633,6 +633,13 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     newState = { ...newState, espionage };
   }
 
+  // Re-snapshot all civs after espionage so spy-revealed tiles get lastSeen entries
+  // before they transition back to fog. This must run after all visibility.tiles mutations
+  // in the espionage block (processEspionageTurn, processDetection, spy city vision).
+  for (const civId of Object.keys(newState.civilizations)) {
+    refreshLastSeenPresentationsForCiv(newState, civId);
+  }
+
   // --- Vassalage protection & independence ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
     if (!civ.diplomacy?.vassalage.overlord) continue;
