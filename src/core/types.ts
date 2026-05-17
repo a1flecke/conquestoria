@@ -174,6 +174,7 @@ export interface HexTile {
   improvement: ImprovementType;
   owner: string | null;             // civilization ID that owns this tile
   improvementTurnsLeft: number;     // turns remaining to complete improvement
+  improvementOwner?: string;        // civ that started the in-progress improvement
   hasRiver: boolean;
   wonder: string | null;           // wonder definition ID
 }
