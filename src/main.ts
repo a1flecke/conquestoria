@@ -1,3 +1,4 @@
+import '@/assets/sprite-animations-v2.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
