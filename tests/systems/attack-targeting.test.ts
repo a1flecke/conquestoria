@@ -5,8 +5,10 @@ import { canUnitAttackTarget, getAttackTargets, getUnitAttackProfile } from '@/s
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function unit(id: string, type: UnitType, owner: string, position: HexCoord): Unit {
-  return { ...createUnit(type, owner, position), id, owner, position };
+  return { ...createUnit(type, owner, position, mkC()), id, owner, position };
 }
 
 function stateWithUnits(units: Record<string, Unit>, visibility: Record<string, 'visible' | 'fog' | 'unexplored'> = {}) {

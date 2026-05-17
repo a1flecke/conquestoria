@@ -108,7 +108,7 @@ function spawnRebelUnits(city: City, state: GameState, seed: string): GameState[
     const index = Math.floor(rng() * available.length);
     const [pos] = available.splice(index, 1);
     if (!pos) continue;
-    const rebel = createUnit(unitType, 'rebels', pos);
+    const rebel = createUnit(unitType, 'rebels', pos, state.idCounters);
     units = { ...units, [rebel.id]: rebel };
     occupied.add(`${pos.q},${pos.r}`);
   }

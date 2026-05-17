@@ -7,6 +7,8 @@ import { foundCity } from '@/systems/city-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import type { GameState } from '@/core/types';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makeMinimalCiv(id: string, cityIds: string[]) {
   return {
     id,
@@ -96,7 +98,7 @@ describe('processTurn victory wiring', () => {
       u => u.owner === 'player' && u.type === 'settler',
     );
     const pos = settler?.position ?? { q: 5, r: 5 };
-    const city = foundCity('player', pos, state.map, {
+    const city = foundCity('player', pos, state.map, mkC(), {
       civType: 'egypt',
       usedNames: collectUsedCityNames(state),
     });
@@ -118,7 +120,7 @@ describe('processTurn victory wiring', () => {
       u => u.owner === 'player' && u.type === 'settler',
     );
     const playerPos = playerSettler?.position ?? { q: 2, r: 2 };
-    const playerCity = foundCity('player', playerPos, state.map, {
+    const playerCity = foundCity('player', playerPos, state.map, mkC(), {
       civType: 'egypt',
       usedNames: collectUsedCityNames(state),
     });
@@ -130,7 +132,7 @@ describe('processTurn victory wiring', () => {
     );
     const aiPos = aiSettler?.position ?? { q: 10, r: 10 };
     const aiCiv = state.civilizations['ai-1'];
-    const aiCity = foundCity('ai-1', aiPos, state.map, {
+    const aiCity = foundCity('ai-1', aiPos, state.map, mkC(), {
       civType: aiCiv?.civType ?? 'generic',
       usedNames: collectUsedCityNames(state),
     });

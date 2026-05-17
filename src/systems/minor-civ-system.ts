@@ -80,7 +80,7 @@ export function placeMinorCivs(
     placedPositions.push(pos);
 
     // Create city with archetype buildings
-    const city = foundCity(`mc-${def.id}`, pos, state.map, {
+    const city = foundCity(`mc-${def.id}`, pos, state.map, state.idCounters, {
       civType: def.id,
       namingPool: [def.name],
       civName: def.name,
@@ -96,7 +96,7 @@ export function placeMinorCivs(
     result.cities[city.id] = city;
 
     // Create garrison unit
-    const garrison = createUnit('warrior', `mc-${def.id}`, pos);
+    const garrison = createUnit('warrior', `mc-${def.id}`, pos, state.idCounters);
     result.units[garrison.id] = garrison;
 
     // Create minor civ state
@@ -196,7 +196,7 @@ function processQuests(state: GameState, mc: MinorCivState, def: { archetype: an
       const cooldownUntil = (mc as any)[`_cooldown_${civId}`] ?? 0;
       if (state.turn >= cooldownUntil) {
         const rng = makeRng(state.turn * 16807 + civId.charCodeAt(0) + mc.id.charCodeAt(3));
-        const newQuest = generateQuest(def.archetype, mc.id, civId, state.turn, state, rng);
+        const newQuest = generateQuest(def.archetype, mc.id, civId, state.turn, state, rng, state.idCounters);
         if (newQuest) {
           mc.activeQuests[civId] = newQuest;
           bus.emit('minor-civ:quest-issued', { minorCivId: mc.id, majorCivId: civId, quest: newQuest });
@@ -238,7 +238,7 @@ function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus:
             .map(id => state.cities[id])
             .find(c => c && !Object.values(state.units).some(u => hexKey(u.position) === hexKey(c.position)));
           if (spawnCity) {
-            const freeUnit = createUnit(def.allyBonus.unitType, civId, spawnCity.position);
+            const freeUnit = createUnit(def.allyBonus.unitType, civId, spawnCity.position, state.idCounters);
             state = { ...state, units: { ...state.units, [freeUnit.id]: freeUnit } };
             civ.units.push(freeUnit.id);
           }
@@ -318,7 +318,7 @@ function processGarrison(state: GameState, mc: MinorCivState): GameState {
         const cityKey = hexKey(city.position);
         const occupied = Object.values(state.units).some(u => hexKey(u.position) === cityKey);
         if (!occupied) {
-          const garrison = createUnit('warrior', mc.id, city.position);
+          const garrison = createUnit('warrior', mc.id, city.position, state.idCounters);
           state = { ...state, units: { ...state.units, [garrison.id]: garrison } };
           mc.units.push(garrison.id);
           mc.garrisonCooldown = 3;
@@ -390,7 +390,7 @@ export function processGuerrilla(state: GameState, mc: MinorCivState, bus: Event
   const cityOccupied = Object.values(state.units).some(u => hexKey(u.position) === cityKey);
   if (cityOccupied) return state;
 
-  const guerrilla = createUnit('warrior', mc.id, city.position);
+  const guerrilla = createUnit('warrior', mc.id, city.position, state.idCounters);
   state = { ...state, units: { ...state.units, [guerrilla.id]: guerrilla } };
   mc.units.push(guerrilla.id);
 
@@ -472,7 +472,7 @@ export function checkCampEvolution(
     const def = unusedDefs[0];
     const majorCivIds = Object.keys(state.civilizations);
 
-    const city = foundCity(`mc-${def.id}`, camp.position, state.map, {
+    const city = foundCity(`mc-${def.id}`, camp.position, state.map, state.idCounters, {
       civType: def.id,
       namingPool: [def.name],
       civName: def.name,
@@ -480,7 +480,7 @@ export function checkCampEvolution(
     });
     city.population = 3;
 
-    const garrison = createUnit('warrior', `mc-${def.id}`, camp.position);
+    const garrison = createUnit('warrior', `mc-${def.id}`, camp.position, state.idCounters);
 
     const transferIds: string[] = [];
     for (const [uid, unit] of Object.entries(state.units)) {

@@ -7,7 +7,7 @@ import {
   processAITurn,
 } from '@/ai/basic-ai';
 import type { GameState } from '@/core/types';
-import { createEspionageCivState, createSpyFromUnit, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { EventBus } from '@/core/event-bus';
 
 function makeAiTestState(): GameState {
@@ -75,12 +75,12 @@ function makeAiTestState(): GameState {
       player: createEspionageCivState(),
       'ai-egypt': { ...createEspionageCivState(), maxSpies: 2 }, // espionage-scouting + espionage-informants
     },
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   } as unknown as GameState;
 }
 
 describe('AI espionage decisions', () => {
   beforeEach(() => {
-    _resetSpyIdCounter();
   });
 
   describe('shouldAiRecruitSpy', () => {

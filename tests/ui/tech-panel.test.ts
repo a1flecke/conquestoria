@@ -9,6 +9,8 @@ import { enqueueResearch } from '@/systems/planning-system';
 import { startResearch, TECH_TREE } from '@/systems/tech-system';
 import { createTechPanel } from '@/ui/tech-panel';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('tech-panel', () => {
   it('groups techs by readable tracks and emphasizes current / next relevant research', () => {
     const state = createNewGame(undefined, 'tech-panel-test');
@@ -594,7 +596,7 @@ describe('tech-panel', () => {
     const settlerId = player.units.find(unitId => state.units[unitId]?.type === 'settler');
     expect(settlerId).toBeDefined();
 
-    const city = foundCity('player', state.units[settlerId!].position, state.map);
+    const city = foundCity('player', state.units[settlerId!].position, state.map, state.idCounters);
     state.cities[city.id] = {
       ...city,
       productionQueue: [],

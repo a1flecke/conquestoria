@@ -2,6 +2,8 @@ import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import type { City, GameState } from '@/core/types';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 export interface CouncilFixtureOptions {
   metForeignCiv?: boolean;
   discoveredForeignCity?: boolean;
@@ -89,7 +91,7 @@ export function makeCouncilFixture(options: CouncilFixtureOptions = {}): { state
     if (!playerCity) {
       const settler = Object.values(state.units).find(unit => unit.owner === state.currentPlayer && unit.type === 'settler');
       if (settler) {
-        playerCity = foundCity(state.currentPlayer, settler.position, state.map);
+        playerCity = foundCity(state.currentPlayer, settler.position, state.map, mkC());
         state.cities[playerCity.id] = playerCity;
         state.civilizations[state.currentPlayer].cities.push(playerCity.id);
       }

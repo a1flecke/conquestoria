@@ -153,7 +153,7 @@ export function visitVillage(
     }
     case 'free_unit': {
       const unitType: 'scout' | 'warrior' = rng() < 0.5 ? 'scout' : 'warrior';
-      const newUnit = createUnit(unitType, unit.owner, village.position);
+      const newUnit = createUnit(unitType, unit.owner, village.position, state.idCounters);
       state.units = { ...state.units, [newUnit.id]: newUnit };
       if (civ) civ.units.push(newUnit.id);
       message = `A ${unitType} joins your cause!`;
@@ -194,7 +194,7 @@ export function visitVillage(
       });
       const spawnCount = Math.min(1 + Math.floor(rng() * 2), passable.length); // 1-2
       for (let i = 0; i < spawnCount; i++) {
-        const barbarian = createUnit('warrior', 'barbarian', passable[i]);
+        const barbarian = createUnit('warrior', 'barbarian', passable[i], state.idCounters);
         state.units = { ...state.units, [barbarian.id]: barbarian };
       }
       message = spawnCount > 0

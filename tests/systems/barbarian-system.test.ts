@@ -12,6 +12,8 @@ import { createNewGame } from '@/core/game-state';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit } from '@/systems/unit-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('spawnBarbarianCamp', () => {
   let map: GameMap;
 
@@ -20,7 +22,7 @@ describe('spawnBarbarianCamp', () => {
   });
 
   it('creates a camp on a valid land tile', () => {
-    const camp = spawnBarbarianCamp(map, [], [], 42);
+    const camp = spawnBarbarianCamp(map, [], [], 42, mkC());
     expect(camp).not.toBeNull();
     if (camp) {
       const tile = map.tiles[hexKey(camp.position)];
@@ -32,7 +34,7 @@ describe('spawnBarbarianCamp', () => {
 
   it('avoids spawning near cities', () => {
     const cityPositions = [{ q: 15, r: 15 }];
-    const camp = spawnBarbarianCamp(map, cityPositions, [], 99);
+    const camp = spawnBarbarianCamp(map, cityPositions, [], 99, mkC());
     if (camp) {
       const dist = hexDistance(camp.position, { q: 15, r: 15 });
       expect(dist).toBeGreaterThan(5);
@@ -87,11 +89,11 @@ describe('processBarbarians', () => {
 
   it('targets a combat defender before a stacked settler', () => {
     const map = generateMap(30, 30, 'barb-stack-target');
-    const barbarian = createUnit('warrior', 'barbarian', { q: 10, r: 10 });
+    const barbarian = createUnit('warrior', 'barbarian', { q: 10, r: 10 }, mkC());
     barbarian.id = 'barb';
-    const settler = createUnit('settler', 'player', { q: 11, r: 10 });
+    const settler = createUnit('settler', 'player', { q: 11, r: 10 }, mkC());
     settler.id = 'settler-first';
-    const warrior = createUnit('warrior', 'player', { q: 11, r: 10 });
+    const warrior = createUnit('warrior', 'player', { q: 11, r: 10 }, mkC());
     warrior.id = 'warrior-second';
 
     const result = processBarbarians([], map, [settler, warrior], 42, [barbarian]);
@@ -104,9 +106,9 @@ describe('processBarbarians', () => {
 
   it('does not let barbarian melee units attack non-adjacent targets', () => {
     const map = generateMap(30, 30, 'barb-melee-range');
-    const barbarian = createUnit('warrior', 'barbarian', { q: 10, r: 10 });
+    const barbarian = createUnit('warrior', 'barbarian', { q: 10, r: 10 }, mkC());
     barbarian.id = 'barb';
-    const warrior = createUnit('warrior', 'player', { q: 12, r: 10 });
+    const warrior = createUnit('warrior', 'player', { q: 12, r: 10 }, mkC());
     warrior.id = 'player-warrior';
 
     const result = processBarbarians([], map, [warrior], 42, [barbarian]);
@@ -117,9 +119,9 @@ describe('processBarbarians', () => {
   it('uses wrapped distance when barbarian melee units attack across the horizontal edge', () => {
     const map = generateMap(10, 6, 'barb-wrap-range');
     map.wrapsHorizontally = true;
-    const barbarian = createUnit('warrior', 'barbarian', { q: 0, r: 2 });
+    const barbarian = createUnit('warrior', 'barbarian', { q: 0, r: 2 }, mkC());
     barbarian.id = 'barb';
-    const warrior = createUnit('warrior', 'player', { q: 9, r: 2 });
+    const warrior = createUnit('warrior', 'player', { q: 9, r: 2 }, mkC());
     warrior.id = 'player-warrior';
 
     const result = processBarbarians([], map, [warrior], 42, [barbarian]);

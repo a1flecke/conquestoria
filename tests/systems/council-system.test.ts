@@ -4,6 +4,8 @@ import { formatCityReference } from '@/systems/player-facing-labels';
 import { foundCity } from '@/systems/city-system';
 import { makeCouncilFixture } from '../ui/helpers/council-fixture';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('council system', () => {
   it('returns actionable do-now, soon, and to-win cards without leaking hidden facts', () => {
     const { state } = makeCouncilFixture({ metForeignCiv: true, discoveredForeignCity: false });
@@ -33,7 +35,7 @@ describe('council system', () => {
     if (!cityId) {
       const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
       if (settler) {
-        const city = foundCity('player', settler.position, state.map);
+        const city = foundCity('player', settler.position, state.map, mkC());
         state.cities[city.id] = city;
         state.civilizations.player.cities.push(city.id);
         cityId = city.id;
@@ -62,7 +64,7 @@ describe('council system', () => {
     if (!cityId) {
       const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
       if (settler) {
-        const city = foundCity('player', settler.position, state.map);
+        const city = foundCity('player', settler.position, state.map, mkC());
         state.cities[city.id] = city;
         state.civilizations.player.cities.push(city.id);
         cityId = city.id;
@@ -91,7 +93,7 @@ describe('council system', () => {
     if (!baseCityId) {
       const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler');
       if (settler) {
-        const founded = foundCity('player', settler.position, state.map);
+        const founded = foundCity('player', settler.position, state.map, mkC());
         state.cities[founded.id] = founded;
         state.civilizations.player.cities.push(founded.id);
         baseCityId = founded.id;

@@ -6,6 +6,8 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('pacing simulation', () => {
   it('produces an early completion within a few turns on a deterministic seed', () => {
     const state = createNewGame(undefined, 'pacing-sim-seed', 'small');
@@ -13,7 +15,7 @@ describe('pacing simulation', () => {
     const settlerId = state.civilizations.player.units.find(unitId => state.units[unitId]?.type === 'settler');
     expect(settlerId).toBeDefined();
 
-    const city = foundCity('player', state.units[settlerId!].position, state.map);
+    const city = foundCity('player', state.units[settlerId!].position, state.map, state.idCounters);
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
     for (const coord of city.ownedTiles) {
@@ -42,7 +44,7 @@ describe('pacing simulation', () => {
     const settlerId = player.units.find(unitId => state.units[unitId]?.type === 'settler');
     expect(settlerId).toBeDefined();
 
-    const city = foundCity('player', state.units[settlerId!].position, state.map);
+    const city = foundCity('player', state.units[settlerId!].position, state.map, state.idCounters);
     state.cities[city.id] = {
       ...city,
       productionQueue: [],

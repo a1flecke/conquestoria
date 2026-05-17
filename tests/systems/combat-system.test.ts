@@ -3,6 +3,8 @@ import type { GameMap } from '@/core/types';
 import { createUnit } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('resolveCombat', () => {
   let map: GameMap;
 
@@ -11,8 +13,8 @@ describe('resolveCombat', () => {
   });
 
   it('produces a combat result with damage to both sides', () => {
-    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
-    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 });
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
     const result = resolveCombat(attacker, defender, map, 42);
 
     expect(result.attackerId).toBe(attacker.id);
@@ -22,8 +24,8 @@ describe('resolveCombat', () => {
   });
 
   it('stronger unit deals more damage', () => {
-    const warrior = createUnit('warrior', 'p1', { q: 10, r: 10 });
-    const scout = createUnit('scout', 'p2', { q: 11, r: 10 });
+    const warrior = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const scout = createUnit('scout', 'p2', { q: 11, r: 10 }, mkC());
 
     const result = resolveCombat(warrior, scout, map, 42);
     expect(result.attackerDamage).toBeGreaterThanOrEqual(0);
@@ -31,9 +33,9 @@ describe('resolveCombat', () => {
   });
 
   it('experienced attackers deal more damage with the same seed', () => {
-    const recruit = { ...createUnit('warrior', 'p1', { q: 10, r: 10 }), id: 'recruit', experience: 0 };
-    const veteran = { ...createUnit('warrior', 'p1', { q: 10, r: 10 }), id: 'veteran', experience: 25 };
-    const defender = { ...createUnit('warrior', 'p2', { q: 11, r: 10 }), id: 'defender', experience: 0 };
+    const recruit = { ...createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC()), id: 'recruit', experience: 0 };
+    const veteran = { ...createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC()), id: 'veteran', experience: 25 };
+    const defender = { ...createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC()), id: 'defender', experience: 0 };
 
     const recruitResult = resolveCombat(recruit, defender, map, 2);
     const veteranResult = resolveCombat(veteran, defender, map, 2);
@@ -46,9 +48,9 @@ describe('resolveCombat', () => {
     const plainsTile = Object.values(map.tiles).find(t => t.terrain === 'plains');
     if (!hillsTile || !plainsTile) return;
 
-    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
-    const hillsDefender = createUnit('warrior', 'p2', hillsTile.coord);
-    const plainsDefender = createUnit('warrior', 'p2', plainsTile.coord);
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const hillsDefender = createUnit('warrior', 'p2', hillsTile.coord, mkC());
+    const plainsDefender = createUnit('warrior', 'p2', plainsTile.coord, mkC());
 
     // Same seed → deterministic. Hills gives +25% defense so defender takes less damage.
     const seed = 42;
@@ -63,8 +65,8 @@ describe('resolveCombat', () => {
     if (!plainsTile) return;
 
     plainsTile.owner = 'p2';
-    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
-    const defender = createUnit('warrior', 'p2', plainsTile.coord);
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', plainsTile.coord, mkC());
 
     const normal = resolveCombat({ ...attacker, health: 100 }, { ...defender, health: 100 }, map, 42);
     const homeland = resolveCombat(
@@ -79,9 +81,9 @@ describe('resolveCombat', () => {
   });
 
   it('marks units as destroyed when health reaches 0', () => {
-    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
     attacker.health = 10;
-    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 });
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
 
     const result = resolveCombat(attacker, defender, map, 42);
     expect(typeof result.attackerSurvived).toBe('boolean');
@@ -89,17 +91,17 @@ describe('resolveCombat', () => {
   });
 
   it('non-combat units always lose', () => {
-    const warrior = createUnit('warrior', 'p1', { q: 10, r: 10 });
-    const settler = createUnit('settler', 'p2', { q: 11, r: 10 });
+    const warrior = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const settler = createUnit('settler', 'p2', { q: 11, r: 10 }, mkC());
 
     const result = resolveCombat(warrior, settler, map, 42);
     expect(result.defenderSurvived).toBe(false);
   });
 
   it('selects a combat defender before a stacked civilian regardless of insertion order', () => {
-    const settler = createUnit('settler', 'p2', { q: 11, r: 10 });
+    const settler = createUnit('settler', 'p2', { q: 11, r: 10 }, mkC());
     settler.id = 'settler-first';
-    const warrior = createUnit('warrior', 'p2', { q: 11, r: 10 });
+    const warrior = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
     warrior.id = 'warrior-second';
 
     const defender = selectDefenderForAttack([settler, warrior], map);
@@ -108,10 +110,10 @@ describe('resolveCombat', () => {
   });
 
   it('selects the strongest combat defender in a stack before civilians', () => {
-    const settler = createUnit('settler', 'p2', { q: 11, r: 10 });
-    const injuredSwordsman = createUnit('swordsman', 'p2', { q: 11, r: 10 });
+    const settler = createUnit('settler', 'p2', { q: 11, r: 10 }, mkC());
+    const injuredSwordsman = createUnit('swordsman', 'p2', { q: 11, r: 10 }, mkC());
     injuredSwordsman.health = 20;
-    const warrior = createUnit('warrior', 'p2', { q: 11, r: 10 });
+    const warrior = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
 
     const defender = selectDefenderForAttack([settler, injuredSwordsman, warrior], map);
 
@@ -137,8 +139,8 @@ describe('fortify defense bonus', () => {
   });
 
   it('fortified defender takes less damage than an identical non-fortified defender', () => {
-    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
-    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 });
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
     const defenderFortified = { ...defender, isFortified: true };
 
     // Same seed → deterministic; only variable is isFortified
@@ -149,8 +151,8 @@ describe('fortify defense bonus', () => {
   });
 
   it('non-fortified combat produces identical results with the same seed', () => {
-    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 });
-    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 });
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
 
     const r1 = resolveCombat(attacker, defender, fortifyMap, 99);
     const r2 = resolveCombat(attacker, defender, fortifyMap, 99);

@@ -8,6 +8,8 @@ import { hexKey } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 import { createUnit } from '@/systems/unit-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makeAiRebelState(): GameState {
   return {
     turn: 12,
@@ -126,15 +128,16 @@ function makeAiRebelState(): GameState {
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   } as GameState;
 }
 
 describe('AI attack targeting', () => {
   it('does not let AI melee units attack non-adjacent targets', () => {
     const state = createNewGame(undefined, 'ai-melee-range', 'small');
-    const attacker = createUnit('warrior', 'ai-1', { q: 0, r: 0 });
+    const attacker = createUnit('warrior', 'ai-1', { q: 0, r: 0 }, mkC());
     attacker.id = 'ai-warrior';
-    const defender = createUnit('warrior', 'player', { q: 2, r: 0 });
+    const defender = createUnit('warrior', 'player', { q: 2, r: 0 }, mkC());
     defender.id = 'player-warrior';
     state.units = { [attacker.id]: attacker, [defender.id]: defender };
     state.civilizations['ai-1'].units = [attacker.id];
@@ -154,9 +157,9 @@ describe('AI attack targeting', () => {
 
   it('lets AI archers attack visible-by-rule hostile units at explicit range', () => {
     const state = createNewGame(undefined, 'ai-archer-range', 'small');
-    const attacker = createUnit('archer', 'ai-1', { q: 0, r: 0 });
+    const attacker = createUnit('archer', 'ai-1', { q: 0, r: 0 }, mkC());
     attacker.id = 'ai-archer';
-    const defender = createUnit('warrior', 'player', { q: 2, r: 0 });
+    const defender = createUnit('warrior', 'player', { q: 2, r: 0 }, mkC());
     defender.id = 'player-warrior';
     state.units = { [attacker.id]: attacker, [defender.id]: defender };
     state.civilizations['ai-1'].units = [attacker.id];
@@ -175,9 +178,9 @@ describe('AI attack targeting', () => {
 
   it('does not make AI units opportunistically attack minor-civ units', () => {
     const state = createNewGame(undefined, 'ai-minor-neutral-range', 'small');
-    const attacker = createUnit('warrior', 'ai-1', { q: 0, r: 0 });
+    const attacker = createUnit('warrior', 'ai-1', { q: 0, r: 0 }, mkC());
     attacker.id = 'ai-warrior';
-    const defender = createUnit('warrior', 'mc-sparta', { q: 1, r: 0 });
+    const defender = createUnit('warrior', 'mc-sparta', { q: 1, r: 0 }, mkC());
     defender.id = 'minor-warrior';
     state.units = { [attacker.id]: attacker, [defender.id]: defender };
     state.civilizations['ai-1'].units = [attacker.id];
@@ -339,6 +342,7 @@ function makeAiDefenseSpyState(): GameState {
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     espionage: {
       'ai-1': { ...createEspionageCivState(), maxSpies: 2 },
       player: createEspionageCivState(),
@@ -488,6 +492,7 @@ function makeAiBreakawayState(): GameState {
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   } as GameState;
 }
 
@@ -515,7 +520,7 @@ function makeAdjacentExposedCityState({ population }: { population: number }): G
   state.civilizations['ai-1'].units = ['ai-attacker'];
 
   state.cities['city-player'] = {
-    ...foundCity('player', { q: 1, r: 0 }, state.map),
+    ...foundCity('player', { q: 1, r: 0 }, state.map, mkC()),
     id: 'city-player',
     name: 'Memphis',
     owner: 'player',
@@ -675,6 +680,7 @@ function makeLegendaryWonderAiFixture(options: { duplicateLostRace?: boolean } =
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     espionage: {
       'ai-1': {
         spies: {
@@ -928,6 +934,7 @@ function makeLegendaryWonderOpportunityFixture(): GameState {
     },
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     legendaryWonderProjects: {
       'ai-1:city-ai-1:oracle-of-delphi': {
         wonderId: 'oracle-of-delphi',
@@ -1100,6 +1107,7 @@ function makeAiBarbarianCampAttackState(): GameState {
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
     legendaryWonderProjects: {
       'sun-spire:ai-1:city-ai': {
@@ -1228,7 +1236,7 @@ describe('processAITurn', () => {
   it('does not found an AI city inside the shared city spacing boundary', () => {
     const state = createNewGame(undefined, 'ai-city-spacing');
     const bus = new EventBus();
-    const playerCity = foundCity('player', { q: 10, r: 10 }, state.map);
+    const playerCity = foundCity('player', { q: 10, r: 10 }, state.map, mkC());
     state.cities[playerCity.id] = playerCity;
     state.civilizations.player.cities = [playerCity.id];
     state.civilizations['ai-1'].cities = [];

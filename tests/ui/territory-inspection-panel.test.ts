@@ -5,6 +5,8 @@ import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 class MockElement {
   children: MockElement[] = [];
   style: Record<string, string> = { cssText: '' };
@@ -67,10 +69,10 @@ describe('createTerritoryInspectionPanel', () => {
     state.civilizations.player.cities = [];
     state.civilizations['ai-1'].cities = [];
 
-    const holder = foundCity('player', { q: 5, r: 5 }, state.map);
+    const holder = foundCity('player', { q: 5, r: 5 }, state.map, mkC());
     holder.id = 'holder-city';
     holder.name = 'Rome';
-    const challenger = foundCity('ai-1', { q: 8, r: 5 }, state.map);
+    const challenger = foundCity('ai-1', { q: 8, r: 5 }, state.map, mkC());
     challenger.id = 'challenger-city';
     challenger.name = 'Athens';
     state.cities[holder.id] = holder;

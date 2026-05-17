@@ -17,6 +17,8 @@ import type { CustomCivDefinition, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 // --- Minimal in-memory localStorage mock ---
 function makeLocalStorageMock() {
   const store: Record<string, string> = {};
@@ -152,7 +154,7 @@ describe('save persistence (#38)', () => {
   it('round-trips occupied city state through save and load', async () => {
     const state = createNewGame(undefined, 'occupied-save', 'small');
     state.cities.athens = {
-      ...foundCity('player', { q: 1, r: 0 }, state.map),
+      ...foundCity('player', { q: 1, r: 0 }, state.map, mkC()),
       id: 'athens',
       name: 'Athens',
       owner: 'player',
@@ -182,7 +184,7 @@ describe('save persistence (#38)', () => {
   it('preserves legacy tile owner as holder when normalizing ambiguous territory', async () => {
     const state = createNewGame(undefined, 'legacy-territory-holder');
     const city = {
-      ...foundCity('player', { q: 10, r: 10 }, state.map),
+      ...foundCity('player', { q: 10, r: 10 }, state.map, mkC()),
       id: 'legacy-city',
       position: { q: 10, r: 10 },
     };
@@ -242,7 +244,7 @@ describe('save persistence (#38)', () => {
     const state = createNewGame('rome', 'legacy-city-grid-turn-seed');
     const playerCiv = state.civilizations.player;
     const startPosition = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPosition, state.map);
+    const city = foundCity('player', startPosition, state.map, mkC());
     state.cities[city.id] = city;
     playerCiv.cities.push(city.id);
 

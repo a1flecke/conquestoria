@@ -191,6 +191,7 @@ export function makeBreakawayFixture({
     wonderDiscoverers: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
   } as GameState;
 
   state.civilizations[playerId].diplomacy.relationships[breakawayId] = relationship;

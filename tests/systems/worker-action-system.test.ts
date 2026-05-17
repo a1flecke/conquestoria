@@ -117,6 +117,7 @@ function state(overrides: Partial<GameState> = {}): GameState {
     legendaryWonderIntel: {},
     embargoes: [],
     defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     pendingDiplomacyRequests: [],
     ...overrides,
   };

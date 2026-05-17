@@ -6,6 +6,8 @@ import { foundCity } from '@/systems/city-system';
 import { recalculateTerritory } from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('calculateCityYields', () => {
   let map: GameMap;
 
@@ -32,21 +34,21 @@ describe('calculateCityYields', () => {
 
   it('calculates positive food yield', () => {
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
-    const city = foundCity('p1', landTile.coord, map);
+    const city = foundCity('p1', landTile.coord, map, mkC());
     const yields = calculateCityYields(city, map);
     expect(yields.food).toBeGreaterThan(0);
   });
 
   it('calculates yields from owned tiles', () => {
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
-    const city = foundCity('p1', landTile.coord, map);
+    const city = foundCity('p1', landTile.coord, map, mkC());
     const yields = calculateCityYields(city, map);
     expect(yields.food + yields.production + yields.gold + yields.science).toBeGreaterThan(0);
   });
 
   it('includes building yields', () => {
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
-    const city = foundCity('p1', landTile.coord, map);
+    const city = foundCity('p1', landTile.coord, map, mkC());
     const cityWithBuildings = { ...city, buildings: ['granary'] };
     const withoutBuilding = calculateCityYields(city, map);
     const withBuilding = calculateCityYields(cityWithBuildings, map);
@@ -55,7 +57,7 @@ describe('calculateCityYields', () => {
 
   it('uses explicit workedTiles instead of the first owned tiles', () => {
     const map = generateMap(30, 30, 'explicit-worked-yields');
-    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const grass = forceTerrain(map, { q: 16, r: 15 }, 'grassland');
     const hills = forceTerrain(map, { q: 17, r: 15 }, 'hills');
     const cityWithProductionFocus = { ...city, population: 1, workedTiles: [hills], ownedTiles: [grass, hills] };
@@ -68,7 +70,7 @@ describe('calculateCityYields', () => {
 
   it('treats an empty workedTiles array as no assigned citizens', () => {
     const map = generateMap(30, 30, 'empty-worked-yields');
-    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const grass = forceTerrain(map, { q: 16, r: 15 }, 'grassland');
     const hills = forceTerrain(map, { q: 17, r: 15 }, 'hills');
 
@@ -79,14 +81,14 @@ describe('calculateCityYields', () => {
 
   it('does not count city center as a worked citizen tile', () => {
     const map = generateMap(30, 30, 'city-center-not-worked');
-    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const yields = calculateCityYields({ ...city, population: 1, workedTiles: [city.position] }, map);
     expect(yields).toEqual({ food: 1, production: 1, gold: 1, science: 1 });
   });
 
   it('counts coast water yields when explicitly worked', () => {
     const map = generateMap(30, 30, 'worked-coast-yields');
-    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const coast = forceTerrain(map, { q: 16, r: 15 }, 'coast');
     const yields = calculateCityYields({ ...city, population: 1, ownedTiles: [coast], workedTiles: [coast] }, map);
     expect(yields.food).toBe(3);
@@ -105,7 +107,7 @@ describe('calculateCityYields', () => {
       coord: worked, terrain: 'forest', elevation: 'lowland', resource: null,
       improvement: 'lumber_camp', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
     };
-    const city = foundCity('player', center, map);
+    const city = foundCity('player', center, map, mkC());
     city.population = 1;
     city.workedTiles = [worked];
 
@@ -126,7 +128,7 @@ describe('calculateCityYields', () => {
       coord: worked, terrain: 'plains', elevation: 'lowland', resource: null,
       improvement: 'watermill', owner: 'player', improvementTurnsLeft: 0, hasRiver: true, wonder: null,
     };
-    const city = foundCity('player', center, map);
+    const city = foundCity('player', center, map, mkC());
     city.population = 1;
     city.workedTiles = [worked];
 
@@ -141,8 +143,8 @@ describe('calculateCityYields', () => {
     state.cities = {};
     state.civilizations.player.cities = [];
     state.civilizations['ai-1'].cities = [];
-    const holder = { ...foundCity('player', { q: 10, r: 10 }, state.map), id: 'holder' };
-    const challenger = { ...foundCity('ai-1', { q: 13, r: 10 }, state.map), id: 'challenger' };
+    const holder = { ...foundCity('player', { q: 10, r: 10 }, state.map, mkC()), id: 'holder' };
+    const challenger = { ...foundCity('ai-1', { q: 13, r: 10 }, state.map, mkC()), id: 'challenger' };
     const overlap = { q: 12, r: 10 };
     state.map.tiles[hexKey(overlap)] = {
       ...state.map.tiles[hexKey(overlap)],
@@ -176,7 +178,7 @@ describe('calculateCityYields', () => {
 describe('adjacency yields in city calculation', () => {
   it('includes adjacency bonuses in city yields', () => {
     const map = generateMap(30, 30, 'adj-yield');
-    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     city.grid[2][1] = 'library';
     city.buildings = ['library'];
 
@@ -198,7 +200,7 @@ describe('city center base yields', () => {
     const inlandTile = Object.values(map.tiles).find(
       t => t.terrain === 'grassland' && !t.hasRiver,
     )!;
-    const city = foundCity('p1', inlandTile.coord, map);
+    const city = foundCity('p1', inlandTile.coord, map, mkC());
     // Remove all owned tiles so only city center contributes
     const isolatedCity = { ...city, ownedTiles: [], population: 0 };
     const yields = calculateCityYields(isolatedCity, map);
@@ -209,7 +211,7 @@ describe('city center base yields', () => {
     const inlandTile = Object.values(map.tiles).find(
       t => t.terrain === 'grassland' && !t.hasRiver,
     )!;
-    const city = foundCity('p1', inlandTile.coord, map);
+    const city = foundCity('p1', inlandTile.coord, map, mkC());
     const isolatedCity = { ...city, ownedTiles: [], population: 0 };
     const yields = calculateCityYields(isolatedCity, map);
     expect(yields.science).toBeGreaterThanOrEqual(1);

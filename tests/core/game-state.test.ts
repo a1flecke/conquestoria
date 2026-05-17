@@ -62,6 +62,32 @@ describe('createNewGame', () => {
     expect(Object.keys(state.barbarianCamps).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('initializes idCounters and they reflect the number of entities created', () => {
+    const state = createNewGame(undefined, 'test-seed');
+    // counters must be present
+    expect(state.idCounters).toBeDefined();
+
+    // Each nextX counter must be strictly greater than the highest entity id of that type
+    const maxUnitId = Math.max(
+      0,
+      ...Object.keys(state.units)
+        .map(id => { const m = /^unit-(\d+)$/.exec(id); return m ? +m[1] : 0; }),
+    );
+    const maxCityId = Math.max(
+      0,
+      ...Object.keys(state.cities)
+        .map(id => { const m = /^city-(\d+)$/.exec(id); return m ? +m[1] : 0; }),
+    );
+    const maxCampId = Math.max(
+      0,
+      ...Object.keys(state.barbarianCamps)
+        .map(id => { const m = /^camp-(\d+)$/.exec(id); return m ? +m[1] : 0; }),
+    );
+    expect(state.idCounters.nextUnitId).toBeGreaterThan(maxUnitId);
+    expect(state.idCounters.nextCityId).toBeGreaterThan(maxCityId);
+    expect(state.idCounters.nextCampId).toBeGreaterThan(maxCampId);
+  });
+
   it('initializes tutorial state', () => {
     const state = createNewGame(undefined, 'test-seed');
     expect(state.tutorial.active).toBe(true);
@@ -232,6 +258,24 @@ describe('createHotSeatGame', () => {
   it('initializes pending events', () => {
     const state = createHotSeatGame(config, 'hs-test');
     expect(state.pendingEvents).toEqual({});
+  });
+
+  it('initializes idCounters reflecting entities created during hot seat setup', () => {
+    const state = createHotSeatGame(config, 'hs-idcounters');
+    expect(state.idCounters).toBeDefined();
+
+    const maxUnitId = Math.max(
+      0,
+      ...Object.keys(state.units)
+        .map(id => { const m = /^unit-(\d+)$/.exec(id); return m ? +m[1] : 0; }),
+    );
+    const maxCityId = Math.max(
+      0,
+      ...Object.keys(state.cities)
+        .map(id => { const m = /^city-(\d+)$/.exec(id); return m ? +m[1] : 0; }),
+    );
+    expect(state.idCounters.nextUnitId).toBeGreaterThan(maxUnitId);
+    expect(state.idCounters.nextCityId).toBeGreaterThan(maxCityId);
   });
 
   it('stores a caller-supplied campaign title and game id for hot seat games', () => {

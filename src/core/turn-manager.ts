@@ -134,7 +134,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
       if (result.completedUnit) {
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
-        const newUnit = createUnit(result.completedUnit, civId, city.position, civDef?.bonusEffect);
+        const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);
         newState.units[newUnit.id] = newUnit;
         newState.civilizations[civId].units.push(newUnit.id);
 
@@ -461,7 +461,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // Spawn barbarian raiders
   for (const spawn of barbResult.spawnedUnits) {
-    const raider = createUnit('warrior', 'barbarian', spawn.position);
+    const raider = createUnit('warrior', 'barbarian', spawn.position, newState.idCounters);
     newState.units[raider.id] = raider;
     bus.emit('barbarian:spawned', { campId: spawn.campId, unitId: raider.id });
   }

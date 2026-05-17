@@ -5,6 +5,8 @@ import type { GameState, HexCoord } from '@/core/types';
 import { createUnit } from '@/systems/unit-system';
 import { createUnitTurnFlow, type UnitTurnFlowDeps } from '@/ui/unit-turn-flow';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function clickButtonWithText(container: ParentNode, text: string): void {
   const button = Array.from(container.querySelectorAll('button')).find(candidate => candidate.textContent === text);
   expect(button).toBeDefined();
@@ -12,9 +14,9 @@ function clickButtonWithText(container: ParentNode, text: string): void {
 }
 
 function makeState(): GameState {
-  const scout = { ...createUnit('scout', 'player', { q: 2, r: 3 }), id: 'unit-scout', health: 50 };
-  const warrior = { ...createUnit('warrior', 'player', { q: 4, r: 3 }), id: 'unit-warrior' };
-  const enemy = { ...createUnit('warrior', 'ai-1', { q: 7, r: 7 }), id: 'unit-enemy' };
+  const scout = { ...createUnit('scout', 'player', { q: 2, r: 3 }, mkC()), id: 'unit-scout', health: 50 };
+  const warrior = { ...createUnit('warrior', 'player', { q: 4, r: 3 }, mkC()), id: 'unit-warrior' };
+  const enemy = { ...createUnit('warrior', 'ai-1', { q: 7, r: 7 }, mkC()), id: 'unit-enemy' };
   return {
     turn: 1,
     era: 1,

@@ -8,6 +8,8 @@ import {
   resolveCityMaturity,
 } from '@/systems/city-maturity-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('city maturity definitions', () => {
   it('matches the five tech eras and uses odd grid sizes only', () => {
     expect(CITY_MATURITY_DEFINITIONS.map(def => def.id)).toEqual([
@@ -39,7 +41,7 @@ describe('city maturity definitions', () => {
 
   it('applies maturity grid size from population plus qualifying techs', () => {
     const map = generateMap(30, 30, 'city-maturity-apply');
-    const city = foundCity('player', { q: 15, r: 15 }, map);
+    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const result = applyCityMaturity({ ...city, population: 5 }, ['early-empire', 'engineering']);
     expect(result.changed).toBe(true);
     expect(result.previous).toBe('outpost');

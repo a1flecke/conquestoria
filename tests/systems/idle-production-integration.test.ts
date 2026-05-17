@@ -5,10 +5,12 @@ import { foundCity } from '@/systems/city-system';
 import { generateMap } from '@/systems/map-generator';
 import type { GameState } from '@/core/types';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function makeIdleProductionState(idleProduction: 'gold' | 'science' | null): GameState {
   const map = generateMap(20, 20, `idle-integration-${idleProduction ?? 'none'}`);
   const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
-  const city = { ...foundCity('player', tile.coord, map), productionQueue: [], idleProduction };
+  const city = { ...foundCity('player', tile.coord, map, mkC()), productionQueue: [], idleProduction };
 
   return {
     turn: 1, era: 1, currentPlayer: 'player', hotSeat: false,

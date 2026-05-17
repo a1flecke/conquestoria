@@ -13,8 +13,10 @@ import {
 } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function addCity(state: GameState, owner: string, position: HexCoord) {
-  const city = foundCity(owner, position, state.map);
+  const city = foundCity(owner, position, state.map, state.idCounters);
   state.cities[city.id] = city;
   state.civilizations[owner]?.cities.push(city.id);
   for (const coord of city.ownedTiles) {

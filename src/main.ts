@@ -8,7 +8,8 @@ import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
-import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason, syncUnitIdCounter } from '@/systems/unit-system';
+import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
+import { scanIdCounters } from '@/core/id-counters';
 import { foundCity } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
@@ -941,7 +942,7 @@ function togglePanel(panel: string): void {
           spawnPos = adjacent[0];
         }
 
-        const newUnit = createUnit(spy.unitType, gameState.currentPlayer, spawnPos);
+        const newUnit = createUnit(spy.unitType, gameState.currentPlayer, spawnPos, gameState.idCounters);
         gameState.units[newUnit.id] = newUnit;
         gameState.civilizations[gameState.currentPlayer].units =
           [...(gameState.civilizations[gameState.currentPlayer].units ?? []), newUnit.id];
@@ -983,7 +984,7 @@ function togglePanel(panel: string): void {
         if (!spy || spy.status !== 'embedded' || !spy.targetCityId) return;
         const city = gameState.cities[spy.targetCityId];
         if (!city) return;
-        const newUnit = createUnit(spy.unitType, gameState.currentPlayer, city.position);
+        const newUnit = createUnit(spy.unitType, gameState.currentPlayer, city.position, gameState.idCounters);
         gameState.units[newUnit.id] = newUnit;
         gameState.civilizations[gameState.currentPlayer].units.push(newUnit.id);
         const unembedded = unembedSpy(ownerEsp!, spyId);
@@ -1392,7 +1393,7 @@ function foundCityAction(): void {
   }
 
   const civDef = currentCivDef();
-  const city = foundCity(cp, unit.position, gameState.map, {
+  const city = foundCity(cp, unit.position, gameState.map, gameState.idCounters, {
     civType: currentCiv().civType,
     namingPool: civDef?.cityNames,
     civName: civDef?.name ?? currentCiv().name,
@@ -2259,7 +2260,7 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
         const capitalCityId = ownerCities[0];
         const capital = capitalCityId ? gameState.cities[capitalCityId] : null;
         if (capital) {
-          const newUnit = createUnit(spy.unitType, spyOwner, capital.position);
+          const newUnit = createUnit(spy.unitType, spyOwner, capital.position, gameState.idCounters);
           gameState = {
             ...gameState,
             units: { ...gameState.units, [newUnit.id]: newUnit },
@@ -2666,6 +2667,11 @@ async function init(): Promise<void> {
 }
 
 function migrateLegacySave(): void {
+  if (!gameState.idCounters?.nextUnitId || !gameState.idCounters?.nextCityId ||
+      !gameState.idCounters?.nextCampId || !gameState.idCounters?.nextQuestId) {
+    gameState.idCounters = scanIdCounters(gameState);
+  }
+
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
     if (!civ.civType) (civ as any).civType = 'generic';
     if (!civ.knownCivilizations) (civ as any).knownCivilizations = [];
@@ -2824,8 +2830,6 @@ function showGameModeSelection(): void {
 }
 
 function startGame(): void {
-  syncUnitIdCounter(gameState.units);
-
   // Warm sprite cache non-blocking — renderers fall back to emoji while loading
   const civColors: Record<string, string> = {};
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {

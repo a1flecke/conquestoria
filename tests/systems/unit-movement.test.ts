@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createUnit, getMovementRange, resetUnitTurn, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import type { GameMap } from '@/core/types';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function plainsMap(radius = 5): GameMap {
   const tiles: GameMap['tiles'] = {};
   for (let q = -radius; q <= radius; q++) {
@@ -20,7 +22,7 @@ function plainsMap(radius = 5): GameMap {
 
 describe('plains movement (#85)', () => {
   it('warrior with 2 movement reaches exactly 2 plains rings (18 hexes)', () => {
-    const warrior = createUnit('warrior', 'p1', { q: 0, r: 0 });
+    const warrior = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
     expect(warrior.movementPointsLeft).toBe(2);
     const range = getMovementRange(warrior, plainsMap(), {}, {});
     // 2-ring hex disc minus origin = 6 + 12 = 18
@@ -28,20 +30,20 @@ describe('plains movement (#85)', () => {
   });
 
   it('non-Viking civ bonus (auto_roads) does NOT grant movement bonus', () => {
-    const warrior = createUnit('warrior', 'p1', { q: 0, r: 0 }, { type: 'auto_roads' });
+    const warrior = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC(), { type: 'auto_roads' });
     expect(warrior.movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints);
     expect(warrior.movementBonus).toBeUndefined();
   });
 
   it('resetUnitTurn does not accumulate movement bonus across resets', () => {
-    let warrior = createUnit('warrior', 'p1', { q: 0, r: 0 });
+    let warrior = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
     warrior = resetUnitTurn(warrior);
     warrior = resetUnitTurn(warrior);
     expect(warrior.movementPointsLeft).toBe(2);
   });
 
   it('Viking warrior with naval_raiding reaches 3 rings (36 hexes)', () => {
-    const warrior = createUnit('warrior', 'p1', { q: 0, r: 0 }, {
+    const warrior = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC(), {
       type: 'naval_raiding',
       movementBonus: 1,
       coastalVisionBonus: 1,
@@ -53,7 +55,7 @@ describe('plains movement (#85)', () => {
   });
 
   it('scout has 3 movement by default (not affected by non-Viking bonuses)', () => {
-    const scout = createUnit('scout', 'p1', { q: 0, r: 0 }, { type: 'auto_roads' });
+    const scout = createUnit('scout', 'p1', { q: 0, r: 0 }, mkC(), { type: 'auto_roads' });
     expect(scout.movementPointsLeft).toBe(UNIT_DEFINITIONS.scout.movementPoints);
   });
 });

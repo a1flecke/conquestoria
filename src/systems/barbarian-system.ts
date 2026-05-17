@@ -12,8 +12,6 @@ function lcg(seed: number): () => number {
   };
 }
 
-let nextCampId = 1;
-
 export function spawnBarbarianCamp(
   map: GameMap,
   cityPositions: HexCoord[],
@@ -52,10 +50,6 @@ export function spawnBarbarianCamp(
     strength: 5 + Math.floor(rng() * 5),
     spawnCooldown: 5,
   };
-}
-
-export function resetCampId(): void {
-  nextCampId = 1;
 }
 
 export function destroyCamp(camp: BarbarianCamp): number {

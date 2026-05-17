@@ -15,6 +15,8 @@ import {
   setIdleProduction,
 } from '@/systems/planning-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('planning-system city queues', () => {
   it('appends new city builds up to the active item plus three follow-ups', () => {
     const city = { productionQueue: ['warrior'] } as any;
@@ -106,7 +108,7 @@ describe('planning-system city queues', () => {
     const settlerId = state.civilizations[playerId].units.find(unitId => state.units[unitId]?.type === 'settler');
     expect(settlerId).toBeDefined();
 
-    const city = foundCity(playerId, state.units[settlerId!].position, state.map);
+    const city = foundCity(playerId, state.units[settlerId!].position, state.map, state.idCounters);
     state.cities[city.id] = city;
     state.civilizations[playerId].cities.push(city.id);
 
@@ -124,7 +126,7 @@ describe('planning-system city queues', () => {
     expect(settlerId).toBeDefined();
 
     const city = {
-      ...foundCity(playerId, state.units[settlerId!].position, state.map),
+      ...foundCity(playerId, state.units[settlerId!].position, state.map, state.idCounters),
       buildings: Object.keys(BUILDINGS),
     };
     state.cities[city.id] = city;
@@ -169,7 +171,7 @@ describe('getIdleCityIds idle-production exclusion', () => {
     const playerId = state.currentPlayer;
     const map = generateMap(20, 20, 'idle-exclude');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
-    const city = { ...foundCity(playerId, tile.coord, map), productionQueue: [], idleProduction: 'gold' as const };
+    const city = { ...foundCity(playerId, tile.coord, map, mkC()), productionQueue: [], idleProduction: 'gold' as const };
     state.cities = { [city.id]: city };
     state.civilizations[playerId].cities = [city.id];
 
@@ -182,7 +184,7 @@ describe('getIdleCityIds idle-production exclusion', () => {
     const playerId = state.currentPlayer;
     const map = generateMap(20, 20, 'idle-include');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
-    const city = { ...foundCity(playerId, tile.coord, map), productionQueue: [], idleProduction: null };
+    const city = { ...foundCity(playerId, tile.coord, map, mkC()), productionQueue: [], idleProduction: null };
     state.cities = { [city.id]: city };
     state.civilizations[playerId].cities = [city.id];
 

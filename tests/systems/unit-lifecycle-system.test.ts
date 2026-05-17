@@ -11,9 +11,11 @@ import {
 } from '@/systems/unit-lifecycle-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('unit-lifecycle-system', () => {
   it('marks a skipped unit as done for the current turn without moving it', () => {
-    const unit = createUnit('scout', 'player', { q: 2, r: 3 });
+    const unit = createUnit('scout', 'player', { q: 2, r: 3 }, mkC());
 
     const skipped = skipUnitForTurn(unit);
 
@@ -85,7 +87,7 @@ describe('unit-lifecycle-system', () => {
   it('cleans up matching spy records when deleting a spy unit', () => {
     const state = createNewGame(undefined, 'issue-154-delete-spy', 'small');
     const playerId = state.currentPlayer;
-    const spyUnit = createUnit('spy_scout', playerId, { q: 1, r: 1 });
+    const spyUnit = createUnit('spy_scout', playerId, { q: 1, r: 1 }, mkC());
     state.units[spyUnit.id] = spyUnit;
     state.civilizations[playerId].units.push(spyUnit.id);
 
@@ -112,14 +114,14 @@ describe('unit-lifecycle-system', () => {
   });
 
   it('clears isFortified when a unit moves', () => {
-    const unit = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const unit = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     const fortifiedUnit = { ...unit, isFortified: true };
     const moved = moveUnit(fortifiedUnit, { q: 1, r: 0 }, 1);
     expect(moved.isFortified).toBeUndefined();
   });
 
   it('preserves isFortified through resetUnitTurn (fortification persists across turns)', () => {
-    const unit = createUnit('warrior', 'player', { q: 0, r: 0 });
+    const unit = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     const fortifiedAndActed = { ...unit, isFortified: true, hasActed: true, movementPointsLeft: 0 };
     const reset = resetUnitTurn(fortifiedAndActed);
     expect(reset.isFortified).toBe(true);
@@ -137,7 +139,7 @@ describe('unit-lifecycle-system', () => {
     state.units[firstUnitId] = { ...state.units[firstUnitId], hasMoved: true, movementPointsLeft: 0 };
     state.units[secondUnitId] = { ...state.units[secondUnitId], skippedTurn: true, movementPointsLeft: 0 };
     state.units['fresh-player-unit'] = {
-      ...createUnit('warrior', playerId, { q: 4, r: 4 }),
+      ...createUnit('warrior', playerId, { q: 4, r: 4 }, mkC()),
       id: 'fresh-player-unit',
     };
     state.civilizations[playerId].units.push('fresh-player-unit');

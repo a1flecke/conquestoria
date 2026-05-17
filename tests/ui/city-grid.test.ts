@@ -5,6 +5,8 @@ import { foundCity } from '@/systems/city-system';
 import { generateMap } from '@/systems/map-generator';
 import { createCityGrid } from '@/ui/city-grid';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('city-grid view', () => {
   it('mentions improvements in the Grid View intro text', () => {
     const previousDocument = globalThis.document;
@@ -13,7 +15,7 @@ describe('city-grid view', () => {
 
     try {
       const map = generateMap(30, 30, 'city-grid-intro-test');
-      const city = foundCity('player', { q: 15, r: 15 }, map);
+      const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
       const container = document.createElement('div');
 
       const panel = createCityGrid(container, city, map, {
@@ -35,7 +37,7 @@ describe('city-grid view', () => {
 
     try {
       const map = generateMap(30, 30, 'city-grid-ui-test');
-      const city = foundCity('player', { q: 15, r: 15 }, map);
+      const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
       const container = document.createElement('div');
 
       const panel = createCityGrid(container, city, map, {

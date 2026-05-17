@@ -11,6 +11,8 @@ import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-r
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { foundCity } from '@/systems/city-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 const customCiv: CustomCivDefinition = {
   id: 'custom-sunfolk',
   name: 'Sunfolk',
@@ -154,7 +156,7 @@ describe('m4e acceptance', () => {
     const state = createNewGame(setupConfig);
     const resolved = resolveCivDefinition(state, 'custom-sunfolk');
     const playerSettler = state.units[state.civilizations.player.units[0]];
-    const foundedCity = foundCity('player', playerSettler.position, state.map, {
+    const foundedCity = foundCity('player', playerSettler.position, state.map, mkC(), {
       civType: state.civilizations.player.civType,
       namingPool: resolved?.cityNames,
       usedNames: collectUsedCityNames(state),

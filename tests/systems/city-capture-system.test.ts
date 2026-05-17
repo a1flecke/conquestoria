@@ -6,6 +6,8 @@ import { foundCity } from '@/systems/city-system';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
 import { resolveMajorCityCapture, transferCapturedCityOwnership } from '@/systems/city-capture-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 describe('city-capture-system', () => {
   function makeExposedCityCaptureState({
     population,
@@ -22,7 +24,7 @@ describe('city-capture-system', () => {
     state.cities = {};
 
     state.cities.athens = {
-      ...foundCity('ai-1', { q: 1, r: 0 }, state.map),
+      ...foundCity('ai-1', { q: 1, r: 0 }, state.map, mkC()),
       id: 'athens',
       name: 'Athens',
       owner: 'ai-1',
@@ -208,7 +210,7 @@ describe('city-capture-system', () => {
     const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
     const shared = { q: 1, r: 1 };
     state.cities.rome = {
-      ...foundCity('player', { q: 3, r: 1 }, state.map),
+      ...foundCity('player', { q: 3, r: 1 }, state.map, mkC()),
       id: 'rome',
       name: 'Rome',
       owner: 'player',

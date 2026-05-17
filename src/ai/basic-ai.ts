@@ -317,7 +317,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   for (const settler of settlers) {
     const tile = newState.map.tiles[hexKey(settler.position)];
     if (tile && canFoundCityAt(newState, settler.position)) {
-      const city = foundCity(civId, settler.position, newState.map, {
+      const city = foundCity(civId, settler.position, newState.map, newState.idCounters, {
         civType: civ.civType,
         namingPool: civDef?.cityNames,
         civName: civDef?.name ?? civ.name,
@@ -879,7 +879,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           const capitalCityId = victimCivCities[0];
           const capital = capitalCityId ? newState.cities[capitalCityId] : null;
           if (capital) {
-            const newUnit = createUnit(capturedSpy.unitType, victimCivId, capital.position);
+            const newUnit = createUnit(capturedSpy.unitType, victimCivId, capital.position, newState.idCounters);
             newState = {
               ...newState,
               units: { ...newState.units, [newUnit.id]: newUnit },

@@ -20,8 +20,10 @@ import {
   type TerritoryResolution,
 } from '@/systems/city-territory-system';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 function addCity(state: GameState, owner: string, q: number, r: number): City {
-  const city = foundCity(owner, { q, r }, state.map);
+  const city = foundCity(owner, { q, r }, state.map, state.idCounters);
   state.cities[city.id] = city;
   state.civilizations[owner]?.cities.push(city.id);
   return city;
@@ -113,7 +115,7 @@ describe('city founding territory rules', () => {
     const state = createNewGame(undefined, 'territory-radius-2');
     state.cities = {};
     state.civilizations.player.cities = [];
-    const city = foundCity('player', { q: 10, r: 10 }, state.map);
+    const city = foundCity('player', { q: 10, r: 10 }, state.map, mkC());
     city.id = 'city-player';
     state.cities[city.id] = { ...city, ownedTiles: [] };
     state.civilizations.player.cities = [city.id];
@@ -138,7 +140,7 @@ describe('city founding territory rules', () => {
     const state = createNewGame(undefined, 'territory-foreign-holder');
     state.cities = {};
     state.civilizations.player.cities = [];
-    const city = foundCity('player', { q: 10, r: 10 }, state.map);
+    const city = foundCity('player', { q: 10, r: 10 }, state.map, mkC());
     city.id = 'city-player';
     state.cities[city.id] = { ...city, ownedTiles: [] };
     state.civilizations.player.cities = [city.id];
@@ -154,7 +156,7 @@ describe('city founding territory rules', () => {
     const state = createNewGame(undefined, 'territory-resolution-metadata');
     state.cities = {};
     state.civilizations.player.cities = [];
-    const city = foundCity('player', { q: 10, r: 10 }, state.map);
+    const city = foundCity('player', { q: 10, r: 10 }, state.map, mkC());
     city.id = 'city-player';
     state.cities[city.id] = { ...city, ownedTiles: [] };
     state.civilizations.player.cities = [city.id];

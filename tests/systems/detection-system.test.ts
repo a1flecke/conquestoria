@@ -6,7 +6,7 @@ import {
   getPassiveDetectionChance,
   processDetection,
 } from '@/systems/detection-system';
-import { createEspionageCivState, createSpyFromUnit, _resetSpyIdCounter } from '@/systems/espionage-system';
+import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { getTrainableUnitsForCiv } from '@/systems/city-system';
 
 // Builds a state with a player spy unit adjacent to an enemy city.
@@ -119,7 +119,6 @@ describe('passive baseline detection', () => {
   });
 
   it('adds a detection record to detecting civ when spy is adjacent to enemy city', () => {
-    _resetSpyIdCounter();
     // Vary turn per trial so processDetection uses different RNG seeds
     let detections = 0;
     for (let i = 0; i < 100; i++) {
@@ -137,7 +136,6 @@ describe('passive baseline detection', () => {
   });
 
   it('does not add a detection when spy is far from any enemy city', () => {
-    _resetSpyIdCounter();
     const state = buildDetectionState('seed-far');
     // Move spy far away (q=5) — beyond adjacency range of enemy city at (0,0)
     state.units['unit-spy-1'].position = { q: 5, r: 0 };
@@ -147,7 +145,6 @@ describe('passive baseline detection', () => {
   });
 
   it('does not detect a spy that is stationed (not idle)', () => {
-    _resetSpyIdCounter();
     const state = buildDetectionState('seed-stationed');
     state.espionage!['player'].spies['unit-spy-1'].status = 'stationed';
     const bus = new EventBus();
@@ -156,7 +153,6 @@ describe('passive baseline detection', () => {
   });
 
   it('emits espionage:spy-detected-traveling event on detection', () => {
-    _resetSpyIdCounter();
     let eventFired = false;
     for (let i = 0; i < 200; i++) {
       const s = buildDetectionState(`seed-event-${i}`);
@@ -172,7 +168,6 @@ describe('passive baseline detection', () => {
 
 describe('scout_hound detection', () => {
   it('scout_hound within vision range detects spy at ~35% rate', () => {
-    _resetSpyIdCounter();
     let detections = 0;
     for (let i = 0; i < 200; i++) {
       const s = buildDetectionState(`seed-hound-${i}`, { scoutHound: true });
@@ -191,7 +186,6 @@ describe('scout_hound detection', () => {
   });
 
   it('scout_hound outside vision range does not detect', () => {
-    _resetSpyIdCounter();
     const state = buildDetectionState('seed-hound-far', { scoutHound: true });
     // Move spy out of hound's vision range (visionRange: 3 → place spy at distance 4)
     state.units['unit-spy-1'].position = { q: 4, r: 1 };
@@ -260,7 +254,6 @@ describe('civ-unique detection units', () => {
 
 describe('unique detection unit detection rates', () => {
   it('shadow_warden within vision range detects spy at ~50% rate', () => {
-    _resetSpyIdCounter();
     let detections = 0;
     for (let i = 0; i < 200; i++) {
       const s = buildDetectionState(`seed-warden-${i}`, { detectionUnit: 'shadow_warden' });
@@ -278,7 +271,6 @@ describe('unique detection unit detection rates', () => {
   });
 
   it('war_hound within vision range detects spy at ~30% rate', () => {
-    _resetSpyIdCounter();
     let detections = 0;
     for (let i = 0; i < 200; i++) {
       const s = buildDetectionState(`seed-warhound-${i}`, { detectionUnit: 'war_hound' });

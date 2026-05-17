@@ -5,12 +5,6 @@ import {
   getQuestIssuedMessageForPlayer as getQuestIssuedMessageForPlayerFromPresentation,
 } from './quest-presentation';
 
-let questIdCounter = 0;
-
-export function resetQuestId(): void {
-  questIdCounter = 0;
-}
-
 const QUEST_WEIGHTS: Record<MinorCivArchetype, Record<QuestType, number>> = {
   militaristic: { destroy_camp: 0.6, defeat_units: 0.4, gift_gold: 0.0, trade_route: 0.0 },
   mercantile: { gift_gold: 0.6, trade_route: 0.25, destroy_camp: 0.1, defeat_units: 0.05 },

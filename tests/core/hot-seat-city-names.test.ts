@@ -4,6 +4,8 @@ import { foundCity } from '@/systems/city-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getCivDefinition } from '@/systems/civ-definitions';
 
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
 const hotSeatConfig = (civType1: string, civType2: string) => ({
   playerCount: 2,
   mapSize: 'small' as const,
@@ -18,7 +20,7 @@ describe('hot-seat first player city names (#83)', () => {
     const state = createHotSeatGame(hotSeatConfig('france', 'zulu'), 'test-83');
     const settler = Object.values(state.units).find(u => u.owner === 'p1' && u.type === 'settler')!;
     const def = getCivDefinition('france');
-    const city = foundCity('p1', settler.position, state.map, {
+    const city = foundCity('p1', settler.position, state.map, mkC(), {
       civType: 'france',
       namingPool: def?.cityNames,
       civName: def?.name,
@@ -32,7 +34,7 @@ describe('hot-seat first player city names (#83)', () => {
     const state = createHotSeatGame(hotSeatConfig('zulu', 'egypt'), 'test-84');
     const settler = Object.values(state.units).find(u => u.owner === 'p1' && u.type === 'settler')!;
     const def = getCivDefinition('zulu');
-    const city = foundCity('p1', settler.position, state.map, {
+    const city = foundCity('p1', settler.position, state.map, mkC(), {
       civType: 'zulu',
       namingPool: def?.cityNames,
       civName: def?.name,
