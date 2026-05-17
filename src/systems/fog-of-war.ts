@@ -1,5 +1,5 @@
 import type { VisibilityMap, VisibilityState, HexCoord, Unit, GameMap, GameState } from '@/core/types';
-import { hexKey, hexesInRange, hexDistance, getWrappedHexesInRange, wrapHexCoord, wrappedHexDistance } from './hex-utils';
+import { hexKey, hexesInRange, hexDistance, getWrappedHexesInRange, wrapHexCoord, wrappedHexDistance, hexNeighbors, getWrappedHexNeighbors } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderVisionBonus } from './wonder-system';
 import { resolveCivDefinition } from './civ-registry';
@@ -104,21 +104,57 @@ export function getTerrainVisionBonus(terrain: string): number {
   return 0;
 }
 
+function landReachableFromCity(
+  cityCoord: HexCoord,
+  radius: number,
+  mapTiles: GameMap['tiles'],
+  map: GameMap,
+): Set<string> {
+  const startKey = hexKey(cityCoord);
+  const reachable = new Set<string>([startKey]);
+  const visited = new Set<string>([startKey]);
+  const queue: Array<{ coord: HexCoord; steps: number }> = [{ coord: cityCoord, steps: 0 }];
+  while (queue.length > 0) {
+    const { coord, steps } = queue.shift()!;
+    if (steps >= radius) continue;
+    const neighbors = map.wrapsHorizontally
+      ? getWrappedHexNeighbors(coord, map.width)
+      : hexNeighbors(coord);
+    for (const neighbor of neighbors) {
+      const k = hexKey(neighbor);
+      if (visited.has(k)) continue;
+      visited.add(k);
+      const tile = mapTiles[k];
+      if (!tile) continue;
+      if (tile.terrain === 'ocean' || tile.terrain === 'coast') continue;
+      reachable.add(k);
+      queue.push({ coord: neighbor, steps: steps + 1 });
+    }
+  }
+  return reachable;
+}
+
 export function revealMinorCivCities(
   vis: VisibilityMap,
   mcCityPositions: HexCoord[],
   map?: GameMap,
 ): void {
   for (const cityPos of mcCityPositions) {
-    const cityCoord = canonicalVisibilityCoord(cityPos, map);
+    const cityCoord = map ? canonicalVisibilityCoord(cityPos, map) : cityPos;
     const key = hexKey(cityCoord);
     if (vis.tiles[key] === 'visible') continue;
 
-    const nearby = getVisibilityRange(cityCoord, 2, map);
-    const anyExplored = nearby.some(h => {
-      const k = hexKey(h);
-      return vis.tiles[k] === 'fog' || vis.tiles[k] === 'visible';
-    });
+    let anyExplored: boolean;
+    if (map) {
+      const reachable = landReachableFromCity(cityCoord, 2, map.tiles, map);
+      anyExplored = [...reachable].some(k => vis.tiles[k] === 'fog' || vis.tiles[k] === 'visible');
+    } else {
+      const nearby = getVisibilityRange(cityCoord, 2, map);
+      anyExplored = nearby.some(h => {
+        const k = hexKey(h);
+        return vis.tiles[k] === 'fog' || vis.tiles[k] === 'visible';
+      });
+    }
 
     if (anyExplored) {
       vis.tiles[key] = 'visible';
