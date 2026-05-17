@@ -10,7 +10,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { getAttackTargets } from '@/systems/attack-targeting';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
-import { updateVisibility } from '@/systems/fog-of-war';
+import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { hexDistance } from '@/systems/hex-utils';
@@ -970,13 +970,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   }
 
   // Update AI visibility
-  const civUnits = civ.units
-    .map(id => newState.units[id])
-    .filter((u): u is Unit => u !== undefined);
-  const cityPositions = civ.cities
-    .map(id => newState.cities[id]?.position)
-    .filter((p): p is HexCoord => p !== undefined);
-  updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
+  updateAndRefreshVisibility(newState, civId);
   for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
     bus.emit('civilization:first-contact', contact);
   }
