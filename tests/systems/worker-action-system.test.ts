@@ -400,4 +400,37 @@ describe('worker action system', () => {
     if (result.ok) return;
     expect(result.reason).toBe('missing-unit');
   });
+
+  it('sets improvementOwner on the tile when a worker starts a buildable improvement', () => {
+    const s = state({
+      map: {
+        width: 5,
+        height: 5,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '0,0': tile({ coord: { q: 0, r: 0 }, terrain: 'hills', owner: 'player' }),
+        },
+      },
+    });
+    const result = applyWorkerAction(s, 'worker-1', 'mine');
+    expect(result.ok).toBe(true);
+    expect(result.state.map.tiles['0,0'].improvementOwner).toBe('player');
+  });
+
+  it('does not set improvementOwner when the worker drains a swamp (not a buildable improvement)', () => {
+    const s = state({
+      map: {
+        width: 5,
+        height: 5,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '0,0': tile({ coord: { q: 0, r: 0 }, terrain: 'swamp', owner: 'player' }),
+        },
+      },
+    });
+    const result = applyWorkerAction(s, 'worker-1', 'drain_swamp');
+    expect(result.state.map.tiles['0,0'].improvementOwner).toBeUndefined();
+  });
 });

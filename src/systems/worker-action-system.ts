@@ -172,6 +172,7 @@ export function applyWorkerAction(
     terrain: nextTerrain,
     improvement: nextImprovement,
     improvementTurnsLeft: nextImprovementTurnsLeft,
+    improvementOwner: isBuildableImprovement(action) ? unit.owner : undefined,
   };
 
   const nextCities = { ...state.cities };
