@@ -4,6 +4,8 @@ const PRECACHE_URLS = [
   '/conquestoria/',
   '/conquestoria/index.html',
   '/conquestoria/manifest.json',
+  // era-1 war layer pre-cached so war music is always available offline
+  '/conquestoria/audio/war/era1-war.ogg',
 ];
 
 self.addEventListener('install', (event) => {
