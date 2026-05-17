@@ -775,3 +775,88 @@ describe('processTurn', () => {
     expect(afterCi).toBe(startCi + 2); // perTurnBonus = 2 + floor(0 * 0.1) = 2
   });
 });
+
+describe('espionage post-loop snapshot', () => {
+  it('spy city-vision tiles get lastSeen snapshots so they show correct terrain in fog', () => {
+    const state = createNewGame(undefined, 'spy-snapshot', 'small');
+    const bus = new EventBus();
+
+    // Create an enemy city at a far tile — outside normal player vision range
+    const enemyPos = { q: 5, r: 3 };
+    const tileKey = `${enemyPos.q},${enemyPos.r}`;
+    const enemyCityId = 'spy-test-enemy-city';
+
+    // Ensure the tile exists on the map and set a distinctive terrain
+    if (!state.map.tiles[tileKey]) {
+      state.map.tiles[tileKey] = {
+        coord: enemyPos,
+        terrain: 'desert',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        improvementTurnsLeft: 0,
+        owner: null,
+        hasRiver: false,
+        wonder: null,
+      };
+    } else {
+      state.map.tiles[tileKey].terrain = 'desert';
+    }
+
+    state.cities[enemyCityId] = {
+      id: enemyCityId,
+      name: 'Enemy Outpost',
+      owner: 'ai-1',
+      position: enemyPos,
+      population: 1,
+      buildings: [],
+      productionQueue: [],
+      productionProgress: 0,
+      food: 0,
+      foodNeeded: 10,
+      workedTiles: [],
+      ownedTiles: [enemyPos],
+      focus: 'balanced',
+      maturity: 'outpost',
+      grid: [],
+      gridSize: 3,
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+    };
+
+    // Ensure the tile is outside normal visibility so only the spy makes it visible
+    state.civilizations.player.visibility.tiles[tileKey] = 'fog';
+    state.civilizations.player.visibility.lastSeen = {};
+
+    // Place a spy with active city-vision at that city
+    state.espionage!['player'] = {
+      ...state.espionage!['player']!,
+      spies: {
+        'test-spy-vision': {
+          id: 'test-spy-vision',
+          owner: 'player',
+          name: 'Shadow',
+          targetCivId: 'ai-1',
+          targetCityId: enemyCityId,
+          position: enemyPos,
+          status: 'infiltrating',
+          experience: 0,
+          currentMission: null,
+          cooldownTurns: 0,
+          promotionAvailable: false,
+          unitType: 'spy_scout' as UnitType,
+          stolenTechFrom: {},
+          infiltrationCityId: enemyCityId,
+          cityVisionTurnsLeft: 2,
+        },
+      },
+    };
+
+    const result = processTurn(state, bus);
+
+    // The spy city-vision section makes the tile 'visible'; the post-espionage snapshot
+    // must have captured its terrain before processTurn returns.
+    expect(result.civilizations.player.visibility.lastSeen?.[tileKey]?.terrain).toBe('desert');
+  });
+});
