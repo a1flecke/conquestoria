@@ -258,4 +258,61 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.units.attacker.experience).toBeGreaterThan(0);
     expect(applied.state.civilizations.player.gold).toBe(0);
   });
+
+  it('surviving attacker has hasActed set to true after combat', () => {
+    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker', health: 80 };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender', health: 80 };
+
+    const minimalState = {
+      units: { attacker, defender },
+      civilizations: {
+        player: { units: ['attacker'] },
+        'ai-1': { units: ['defender'] },
+      },
+    } as unknown as import('@/core/types').GameState;
+
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 10,
+      defenderDamage: 20,
+      attackerSurvived: true,
+      defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(minimalState, result, 42);
+    const updatedAttacker = applied.state.units['attacker'];
+    expect(updatedAttacker?.hasActed).toBe(true);
+    expect(updatedAttacker?.movementPointsLeft).toBe(0);
+  });
+
+  it('surviving attacker who is destroyed does not appear in the updated unit map', () => {
+    const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker', health: 10 };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender', health: 80 };
+
+    const minimalState = {
+      units: { attacker, defender },
+      civilizations: {
+        player: { units: ['attacker'] },
+        'ai-1': { units: ['defender'] },
+      },
+    } as unknown as import('@/core/types').GameState;
+
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 100,
+      defenderDamage: 5,
+      attackerSurvived: false,
+      defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(minimalState, result, 42);
+    expect(applied.state.units['attacker']).toBeUndefined();
+    expect(applied.attackerDefeated).toBe(true);
+  });
 });
