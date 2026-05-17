@@ -1516,7 +1516,7 @@ function finalizePendingCityCaptureChoice(
 
   renderLoop.setGameState(gameState);
   updateHUD();
-  selectNextUnit();
+  setTimeout(() => selectNextUnit(), 400);
 }
 
 function beginPlayerCityAssault(
