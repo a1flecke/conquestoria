@@ -1,0 +1,368 @@
+/* Conquestoria sprite animations — v2 LIFE-LIKE upgrades
+ *
+ * Layered on top of v1: opt-in by adding class `cq-v2` to the sprite wrapper.
+ * v1 selectors continue to apply except where v2 overrides them (same hook
+ * names with higher specificity from the .cq-v2 prefix).
+ *
+ * What's new vs v1:
+ *   1. SHADOW REACTIVITY  — .cq-shadow shrinks/fades as the body lifts
+ *   2. SQUASH & STRETCH   — walk compresses on landing, stretches at peak
+ *   3. ARTICULATION       — .cq-arm-l/r, .cq-leg-l/r swing in proper gait
+ *   4. SECONDARY MOTION   — .cq-plume lags the body; .cq-shield braces on hit
+ *   5. ANTICIPATION       — attack winds back before striking, holds, recovers
+ *   6. HIT SPARK          — .cq-hit-spark flashes only at the impact frame
+ *   7. STEP DUST          — .cq-step-dust puffs from the foot on landing
+ *   8. PHASE DESYNC       — inline --phase CSS var offsets each instance's
+ *                            loops so a group never moves in lockstep
+ *
+ * Every loop honors:
+ *   animation-delay: calc(var(--phase, 0) * -<duration>);
+ * A negative delay starts the animation mid-cycle. Set --phase ∈ [0,1) per
+ * sprite instance (random, or hash of unit id) and the wave effect dies.
+ */
+
+/* ─────────────────────────── IDLE ─────────────────────────── */
+
+/* Asymmetric breathing — chest rises slow, settles faster. Reads as alive,
+   not as a metronome. */
+@keyframes cq2-breathe {
+  0%   { transform: translateY(0) scaleY(1); }
+  45%  { transform: translateY(-1.4px) scaleY(1.018); }
+  70%  { transform: translateY(-0.5px) scaleY(1.006); }
+  100% { transform: translateY(0) scaleY(1); }
+}
+.cq-v2[data-state="idle"] .cq-sprite-figure {
+  animation: cq2-breathe 3.2s cubic-bezier(.4,0,.2,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -3.2s);
+}
+
+/* Shadow shrinks/fades when body lifts — anchors the figure to ground */
+@keyframes cq2-shadow-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.35; }
+  45%      { transform: scale(0.93); opacity: 0.28; }
+}
+.cq-v2 .cq-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-state="idle"] .cq-shadow {
+  animation: cq2-shadow-breathe 3.2s cubic-bezier(.4,0,.2,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -3.2s);
+}
+
+/* Plume drift on idle — slow, lazy */
+@keyframes cq2-plume-idle {
+  0%, 100% { transform: rotate(-3deg); }
+  50%      { transform: rotate(4deg); }
+}
+.cq-v2 .cq-plume {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.cq-v2[data-state="idle"] .cq-plume {
+  animation: cq2-plume-idle 3.8s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.8s - 0.2s);
+}
+
+/* ─────────────────────────── WALK ─────────────────────────── */
+
+/* Body: SQUASH on landing (scaleY 0.96 / scaleX 1.03), STRETCH at peak.
+   Slight body lean alternates side to side. */
+@keyframes cq2-walk-body {
+  0%   { transform: translateY(0) scaleY(0.96) scaleX(1.03) rotate(-2deg); }
+  15%  { transform: translateY(-0.5px) scaleY(1) scaleX(1) rotate(-1deg); }
+  50%  { transform: translateY(-3.2px) scaleY(1.04) scaleX(0.97) rotate(2deg); }
+  65%  { transform: translateY(-0.5px) scaleY(1) scaleX(1) rotate(1deg); }
+  100% { transform: translateY(0) scaleY(0.96) scaleX(1.03) rotate(-2deg); }
+}
+.cq-v2[data-state="walk"] .cq-sprite-figure {
+  animation: cq2-walk-body 0.6s cubic-bezier(.5,0,.5,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -0.6s);
+}
+
+/* Shadow pulses LARGE on landing, contracts at peak — opposite of body */
+@keyframes cq2-walk-shadow {
+  0%   { transform: scale(1.12); opacity: 0.42; }
+  50%  { transform: scale(0.82); opacity: 0.22; }
+  100% { transform: scale(1.12); opacity: 0.42; }
+}
+.cq-v2[data-state="walk"] .cq-shadow {
+  animation: cq2-walk-shadow 0.6s cubic-bezier(.5,0,.5,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -0.6s);
+}
+
+/* Articulated legs — alternate swing. Pivot at the hip (top of leg group). */
+.cq-v2 .cq-leg-l, .cq-v2 .cq-leg-r {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+@keyframes cq2-leg-fwd {
+  0%, 100% { transform: rotate(-14deg); }
+  50%      { transform: rotate(16deg); }
+}
+@keyframes cq2-leg-bwd {
+  0%, 100% { transform: rotate(16deg); }
+  50%      { transform: rotate(-14deg); }
+}
+.cq-v2[data-state="walk"] .cq-leg-l {
+  animation: cq2-leg-fwd 0.6s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -0.6s);
+}
+.cq-v2[data-state="walk"] .cq-leg-r {
+  animation: cq2-leg-bwd 0.6s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -0.6s);
+}
+
+/* Articulated arms — opposite to legs (natural gait). Pivot at shoulder. */
+.cq-v2 .cq-arm-l, .cq-v2 .cq-arm-r {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;  /* pivot at the top of the arm bbox = shoulder */
+}
+/* Idle rest pose — slight outward hang so the figure has shoulders, not a stick. */
+.cq-v2[data-state="idle"] .cq-arm-l { transform: rotate(-8deg); }
+.cq-v2[data-state="idle"] .cq-arm-r { transform: rotate(8deg); }
+@keyframes cq2-arm-bwd {
+  0%, 100% { transform: rotate(18deg); }
+  50%      { transform: rotate(-14deg); }
+}
+@keyframes cq2-arm-fwd {
+  0%, 100% { transform: rotate(-14deg); }
+  50%      { transform: rotate(18deg); }
+}
+.cq-v2[data-state="walk"] .cq-arm-l {
+  animation: cq2-arm-bwd 0.6s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -0.6s);
+}
+.cq-v2[data-state="walk"] .cq-arm-r {
+  animation: cq2-arm-fwd 0.6s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -0.6s);
+}
+
+/* Plume during walk — bigger swing, lagging the body by 80ms */
+@keyframes cq2-plume-walk {
+  0%, 100% { transform: rotate(10deg) translateY(0); }
+  50%      { transform: rotate(-12deg) translateY(-1px); }
+}
+.cq-v2[data-state="walk"] .cq-plume {
+  animation: cq2-plume-walk 0.6s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -0.6s - 0.08s);
+}
+
+/* Step dust — small puff from beneath the foot on landing */
+.cq-step-dust { opacity: 0; }
+.cq-v2 .cq-step-dust {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes cq2-step-dust {
+  0%   { opacity: 0; transform: translateY(0) scale(0.25); }
+  12%  { opacity: 0.55; }
+  100% { opacity: 0; transform: translateY(-3px) scale(1.5) translateX(-2px); }
+}
+.cq-v2[data-state="walk"] .cq-step-dust {
+  animation: cq2-step-dust 0.6s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -0.6s);
+}
+.cq-v2[data-state="walk"] .cq-step-dust--b {
+  animation-delay: calc(var(--phase, 0) * -0.6s - 0.3s);
+}
+
+/* ─────────────────────────── ATTACK ─────────────────────────── */
+
+/* Body: WIND BACK → STRIKE → HOLD → RECOVER.
+   The hold (frames 35-50) is what makes hits feel like they land. */
+@keyframes cq2-attack-body {
+  0%   { transform: translateY(0) translateX(0); }
+  18%  { transform: translateY(1.5px) translateX(-3px) rotate(-3deg); } /* anticipation */
+  32%  { transform: translateY(-2px) translateX(5px) rotate(3deg) scaleX(1.04); } /* strike */
+  48%  { transform: translateY(-2px) translateX(5px) rotate(3deg) scaleX(1.04); } /* HOLD */
+  72%  { transform: translateY(1px) translateX(1px) rotate(0); }
+  100% { transform: translateY(0) translateX(0); }
+}
+.cq-v2[data-state="attack"] .cq-sprite-figure {
+  animation: cq2-attack-body 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* Weapon swing — wide overhead slash. Pivots from the SHOULDER (set per-
+   sprite via --pivot-x / --pivot-y on the .cq-weapon element, in viewBox
+   coords). Wind back over shoulder → strike down across body → HOLD → recover. */
+@keyframes cq2-attack-swing {
+  0%   { transform: rotate(0deg); }
+  22%  { transform: rotate(-58deg); }   /* anticipation — sword raised back */
+  36%  { transform: rotate(98deg); }    /* strike — slash down across body */
+  54%  { transform: rotate(98deg); }    /* HOLD — the hit lands */
+  82%  { transform: rotate(6deg); }     /* overshoot recover */
+  100% { transform: rotate(0deg); }
+}
+/* Always-on pivot for v2 weapons — view-box coords keep it stable across
+   states. transform-box: view-box means transform-origin is interpreted in
+   the SVG's viewBox units; --pivot-x/--pivot-y are the SVG shoulder coords. */
+.cq-v2 .cq-weapon {
+  transform-box: view-box;
+  transform-origin: var(--pivot-x, 50%) var(--pivot-y, 50%);
+}
+.cq-v2[data-state="attack"] .cq-weapon {
+  animation: cq2-attack-swing 1.4s cubic-bezier(.45,-.2,.3,1.25) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+/* Neutralize v1 walk-trail on v2 — the whole sword arm moves with the body
+   bob in v2, no separate rotation needed. */
+.cq-v2[data-state="walk"] .cq-weapon { animation: none; }
+
+/* Off-hand arm + shield brace inward during the wind-back, then back to neutral */
+@keyframes cq2-attack-offhand {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  18%      { transform: rotate(20deg) translateX(3px); }
+  32%      { transform: rotate(-22deg) translateX(-4px); }
+  48%      { transform: rotate(-22deg) translateX(-4px); }
+}
+.cq-v2[data-state="attack"] .cq-shield {
+  transform-box: fill-box;
+  transform-origin: 50% 10%;
+  animation: cq2-attack-offhand 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* Plume whips on attack */
+@keyframes cq2-plume-attack {
+  0%, 100% { transform: rotate(0deg); }
+  18%      { transform: rotate(20deg); }
+  32%      { transform: rotate(-28deg); }
+  48%      { transform: rotate(-22deg); }
+}
+.cq-v2[data-state="attack"] .cq-plume {
+  animation: cq2-plume-attack 1.4s cubic-bezier(.4,0,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s - 0.04s);
+}
+
+/* HIT SPARK — appears only during the impact window (32-48%) */
+.cq-hit-spark { opacity: 0; }
+.cq-v2 .cq-hit-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes cq2-hit-spark {
+  0%, 28%, 52%, 100% { opacity: 0; transform: scale(0.4) rotate(0); }
+  32%, 44%           { opacity: 1; transform: scale(1.4) rotate(25deg); }
+  48%                { opacity: 0.6; transform: scale(1.2) rotate(35deg); }
+}
+.cq-v2[data-state="attack"] .cq-hit-spark {
+  animation: cq2-hit-spark 1.4s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* ─────────────────────────── HURT (one-shot) ─────────────────────────── */
+
+@keyframes cq2-hurt {
+  0%   { transform: translateX(0) scale(1); filter: brightness(1); }
+  8%   { transform: translateX(-4px) scale(1.08); filter: brightness(2.2) saturate(2) hue-rotate(-15deg); }
+  22%  { transform: translateX(3px) scale(1.04); filter: brightness(1.6); }
+  45%  { transform: translateX(-2px) scale(1); filter: brightness(1.2); }
+  100% { transform: translateX(0) scale(1); filter: brightness(1); }
+}
+.cq-v2[data-state="hurt"] .cq-sprite-figure {
+  animation: cq2-hurt 0.55s cubic-bezier(.2,.8,.3,1) 1;
+}
+
+/* ─────────────────────────── DEATH (one-shot) ─────────────────────────── */
+
+/* Flash bright at hit moment, beat, then fall. The flash sells impact. */
+@keyframes cq2-death {
+  0%   { transform: translateY(0) scale(1) rotate(0); opacity: 1; filter: brightness(1); }
+  8%   { transform: translateY(-2px) scale(1.15); filter: brightness(2.4) saturate(0.4); }
+  18%  { transform: translateY(0) scale(1) rotate(0); filter: brightness(1); }
+  100% { transform: translateY(8px) rotate(-92deg); opacity: 0; filter: brightness(1); }
+}
+.cq-v2[data-state="death"] .cq-sprite-figure {
+  animation: cq2-death 1.1s cubic-bezier(.6,0,.7,.4) forwards;
+  transform-origin: 50% 100%;
+  transform-box: fill-box;
+}
+
+/* Shadow during death — keeps shrinking, doesn't rotate */
+@keyframes cq2-death-shadow {
+  0%   { transform: scale(1); opacity: 0.35; }
+  100% { transform: scale(0.4); opacity: 0; }
+}
+.cq-v2[data-state="death"] .cq-shadow {
+  animation: cq2-death-shadow 1.1s ease-in forwards;
+}
+
+/* ─────────────────────────── CAPE / CLOAK ─────────────────────────── */
+
+/* The cape pivots at its TOP (shoulders) — that's where it hangs from. */
+.cq-v2 .cq-cape {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+
+@keyframes cq2-cape-idle {
+  0%, 100% { transform: skewX(-1deg) rotate(-0.8deg); }
+  50%      { transform: skewX(1.5deg) rotate(1deg); }
+}
+.cq-v2[data-state="idle"] .cq-cape {
+  animation: cq2-cape-idle 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.4s + 0.2s);
+}
+
+/* Walking cape — bigger sway, lag the body so it trails. */
+@keyframes cq2-cape-walk {
+  0%, 100% { transform: skewX(-4deg) rotate(-3deg) translateY(0); }
+  50%      { transform: skewX(4deg)  rotate(3deg)  translateY(-0.5px); }
+}
+.cq-v2[data-state="walk"] .cq-cape {
+  animation: cq2-cape-walk 0.6s ease-in-out infinite;
+  /* lag by 120ms so the cape trails the body bob */
+  animation-delay: calc(var(--phase, 0) * -0.6s + 0.12s);
+}
+
+/* Attack cape — whips on strike */
+@keyframes cq2-cape-attack {
+  0%, 100% { transform: skewX(0) rotate(0); }
+  22%      { transform: skewX(8deg) rotate(5deg); }
+  36%      { transform: skewX(-10deg) rotate(-7deg); }
+  54%      { transform: skewX(-6deg) rotate(-4deg); }
+}
+.cq-v2[data-state="attack"] .cq-cape {
+  animation: cq2-cape-attack 1.4s cubic-bezier(.4,0,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s + 0.06s);
+}
+
+/* ─────────────────────────── RANGED — bow draw ─────────────────────────── */
+
+/* Override v1's ranged draw. The bow group translates/tilts as a unit; the
+   bowstring (a separate .cq-bowstring element nested inside) pulls back
+   further during the draw, then snaps forward. */
+@keyframes cq2-bow-draw {
+  0%   { transform: translateX(0) rotate(0); }
+  28%  { transform: translateX(-5px) rotate(-4deg); }  /* full draw */
+  36%  { transform: translateX(2px) rotate(2deg); }    /* release snap */
+  52%  { transform: translateX(2px) rotate(2deg); }    /* HOLD post-release */
+  100% { transform: translateX(0) rotate(0); }
+}
+.cq-v2[data-state="attack"][data-kind="ranged"] .cq-weapon {
+  animation: cq2-bow-draw 1.4s cubic-bezier(.4,0,.3,1.2) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* Bowstring pulls back further than the bow itself */
+@keyframes cq2-bowstring-draw {
+  0%   { transform: translateX(0) scaleX(1); }
+  28%  { transform: translateX(-8px) scaleX(1.4); }   /* drawn taut */
+  34%  { transform: translateX(2px) scaleX(0.85); }   /* snap */
+  100% { transform: translateX(0) scaleX(1); }
+}
+.cq-v2 .cq-bowstring {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-state="attack"][data-kind="ranged"] .cq-bowstring {
+  animation: cq2-bowstring-draw 1.4s cubic-bezier(.4,0,.3,1.2) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .cq-v2 *, .cq-v2 .cq-sprite-figure { animation: none !important; }
+}
