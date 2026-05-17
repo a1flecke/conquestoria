@@ -132,7 +132,6 @@ import {
   routePeaceMade,
   routePeaceRequested,
   routeTerritoryTileFlipped,
-  getTerritoryTileFlippedMessage,
   routeWarDeclared,
   type NotificationSink,
 } from '@/ui/notification-routing';
@@ -2496,9 +2495,6 @@ bus.on('combat:reward-earned', ({ reward }) => {
 
 bus.on('territory:tile-flipped', event => {
   routeTerritoryTileFlipped(gameState, { type: 'territory:tile-flipped', ...event }, appendToCivLog);
-  if (event.previousOwner === gameState.currentPlayer || event.newOwner === gameState.currentPlayer) {
-    showNotification(getTerritoryTileFlippedMessage(event), event.constructionCancelled ? 'warning' : 'info');
-  }
 });
 
 bus.on('barbarian:spawned', ({ campId, unitId }) => {
@@ -2557,16 +2553,15 @@ bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisgu
 });
 
 bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, cityId }) => {
-  if (spyOwner === gameState.currentPlayer) {
-    const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
-    const city = gameState.cities[cityId];
-    const captor = gameState.civilizations[capturingCivId]?.name ?? capturingCivId;
-    showNotification(
-      `${spy?.name ?? 'Your spy'} was caught by ${captor} trying to infiltrate ${city?.name ?? 'an enemy city'}!`,
-      'warning',
-    );
-  }
-  // Captor side: show verdict choice when human player captured an infiltrating spy
+  const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
+  const city = gameState.cities[cityId];
+  const captor = gameState.civilizations[capturingCivId]?.name ?? capturingCivId;
+  appendToCivLog(
+    spyOwner,
+    `${spy?.name ?? 'Your spy'} was caught by ${captor} trying to infiltrate ${city?.name ?? 'an enemy city'}!`,
+    'warning',
+  );
+  // Captor side: show verdict choice only when the human captor is currently active
   if (capturingCivId === gameState.currentPlayer) {
     showEspionageCaptureChoice(spyId, spyOwner);
   }
@@ -2576,21 +2571,20 @@ bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, 
 bus.on('espionage:spy-captured', ({ capturingCivId, spyOwner, spyId }) => {
   if (capturingCivId === gameState.currentPlayer) {
     showEspionageCaptureChoice(spyId, spyOwner);
-  } else if (spyOwner === gameState.currentPlayer) {
-    const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
-    const captorName = gameState.civilizations[capturingCivId]?.name ?? capturingCivId;
-    showNotification(`${spy?.name ?? 'Your spy'} was captured by ${captorName}!`, 'warning');
   }
+  // Spy owner always gets a log entry, regardless of who is "current"
+  const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
+  const captorName = gameState.civilizations[capturingCivId]?.name ?? capturingCivId;
+  appendToCivLog(spyOwner, `${spy?.name ?? 'Your spy'} was captured by ${captorName}!`, 'warning');
 });
 
 // Notify the spy's owner when they are executed by an AI or human captor
 bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
-  if (spyOwner === gameState.currentPlayer) {
-    showNotification(
-      `${spyName} was executed by ${gameState.civilizations[executingCivId]?.name ?? 'an enemy'}.`,
-      'warning',
-    );
-  }
+  appendToCivLog(
+    spyOwner,
+    `${spyName} was executed by ${gameState.civilizations[executingCivId]?.name ?? 'an enemy'}.`,
+    'warning',
+  );
 });
 
 bus.on('unit:obsolete', ({ civId, unitType }) => {
