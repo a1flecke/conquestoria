@@ -214,6 +214,66 @@ describe('minor civ visibility', () => {
     expect(vis.tiles[hexKey(mcCityPos)]).toBeUndefined();
   });
 
+  // BFS water-block tests (issue #216)
+  function makeMapWithWaterColumn(
+    width: number,
+    height: number,
+    waterColumn: number,
+  ): GameMap {
+    const tiles: GameMap['tiles'] = {};
+    for (let q = 0; q < width; q++) {
+      for (let r = 0; r < height; r++) {
+        tiles[`${q},${r}`] = {
+          coord: { q, r },
+          terrain: q === waterColumn ? 'ocean' : 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          improvementTurnsLeft: 0,
+          owner: null,
+          hasRiver: false,
+          wonder: null,
+        };
+      }
+    }
+    return { tiles, width, height, wrapsHorizontally: false } as GameMap;
+  }
+
+  it('does not reveal city across a water column (BFS water block)', () => {
+    // City at q=4, explored tile at q=6, ocean column at q=5
+    // BFS cannot cross q=5, so q=6 fog tile must not trigger reveal
+    const map = makeMapWithWaterColumn(10, 5, 5);
+    const vis = createVisibilityMap();
+    vis.tiles['6,2'] = 'fog'; // explored tile 2 steps east of city, separated by ocean
+
+    revealMinorCivCities(vis, [{ q: 4, r: 2 }], map);
+
+    expect(vis.tiles['4,2']).toBeUndefined(); // must NOT be revealed
+  });
+
+  it('reveals city when explored tile is reachable by land path within radius', () => {
+    // City at q=4, explored at q=3 (1 step, no water) — must reveal
+    const map = makeMapWithWaterColumn(10, 5, 8); // water far away
+    const vis = createVisibilityMap();
+    vis.tiles['3,2'] = 'fog';
+
+    revealMinorCivCities(vis, [{ q: 4, r: 2 }], map);
+
+    expect(vis.tiles['4,2']).toBe('visible');
+  });
+
+  it('does not reveal city when only explored tiles are across water on a wrapping map', () => {
+    // Wrapping map: ocean at q=5, city at q=4, explored tile at q=6
+    const map = makeMapWithWaterColumn(10, 5, 5);
+    (map as any).wrapsHorizontally = true;
+    const vis = createVisibilityMap();
+    vis.tiles['6,2'] = 'fog';
+
+    revealMinorCivCities(vis, [{ q: 4, r: 2 }], map);
+
+    expect(vis.tiles['4,2']).toBeUndefined();
+  });
+
   it('adds shared vision for friendly minor civ', () => {
     const vis = createVisibilityMap();
     const friendlyUnitPositions = [{ q: 15, r: 15 }];
