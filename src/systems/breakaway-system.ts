@@ -85,7 +85,7 @@ export function createBreakawayFromCity(
       trackPriorities: { ...previousOwner.techState.trackPriorities },
     },
     gold: 0,
-    visibility: { tiles: { ...previousOwner.visibility.tiles } },
+    visibility: { tiles: { ...previousOwner.visibility.tiles }, lastSeen: { ...(previousOwner.visibility.lastSeen ?? {}) } },
     score: 0,
     diplomacy: createDiplomacyState(newCivIds, breakawayId),
     breakaway: metadata,

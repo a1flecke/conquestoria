@@ -93,4 +93,30 @@ describe('breakaway-system', () => {
     expect(result.cities['city-border'].owner).toBe('player');
     expect(result.cities['city-border'].unrestLevel).toBeGreaterThan(0);
   });
+
+  it('spawned breakaway civ inherits lastSeen snapshots from the previous owner', () => {
+    const { state } = makeBreakawayFixture({ unrestLevel: 2, unrestTurns: 10, turn: 40 });
+    const bus = new EventBus();
+
+    // Plant a lastSeen snapshot on the player at tile '3,0' (plains in the fixture map)
+    state.civilizations.player.visibility.lastSeen = {
+      '3,0': {
+        coord: { q: 3, r: 0 },
+        terrain: 'plains',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        improvementTurnsLeft: 0,
+        owner: 'player',
+        hasRiver: false,
+        wonder: null,
+      },
+    };
+
+    const result = createBreakawayFromCity(state, 'city-border', bus);
+    const spawned = Object.values(result.civilizations).find(c => c.breakaway?.originCityId === 'city-border');
+
+    expect(spawned).toBeDefined();
+    expect(spawned!.visibility.lastSeen?.['3,0']?.terrain).toBe('plains');
+  });
 });
