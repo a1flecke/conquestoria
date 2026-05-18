@@ -1,4 +1,4 @@
-import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer } from '@/core/types';
+import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer, MapScript } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from './civ-select';
 import { createCustomCivPanel } from './custom-civ-panel';
@@ -30,6 +30,7 @@ export function showHotSeatSetup(
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.98);z-index:50;overflow-y:auto;padding:16px;display:flex;flex-direction:column;align-items:center;';
 
   let selectedMapSize: 'small' | 'medium' | 'large' | null = null;
+  let selectedMapScript: MapScript = 'earth';
   let playerCount = 0;
   const players: HotSeatPlayer[] = [];
   const chosenCivs: string[] = [];
@@ -89,7 +90,7 @@ export function showHotSeatSetup(
     panel.querySelectorAll('.map-size-card').forEach(card => {
       card.addEventListener('click', () => {
         selectedMapSize = (card as HTMLElement).dataset.size as 'small' | 'medium' | 'large';
-        showPlayerCountStage();
+        showMapTypeStage();
       });
     });
 
@@ -97,6 +98,126 @@ export function showHotSeatSetup(
       panel.remove();
       callbacks.onCancel();
     });
+  }
+
+  function showMapTypeStage() {
+    type MapScriptKey = 'earth' | 'old-world' | 'new-world' | 'balanced' | 'single-continent';
+    const MAP_SCRIPT_ORDER: MapScriptKey[] = ['earth', 'old-world', 'new-world', 'balanced', 'single-continent'];
+    const MAP_SCRIPT_LABELS: Record<MapScriptKey, { emoji: string; label: string; description: string }> = {
+      earth: {
+        emoji: '🌍',
+        label: 'Earth',
+        description: 'Real-world geography. Civilizations start near their historical homelands; fantasy and out-of-region civs get good constrained starts. Resources follow real-world distribution.',
+      },
+      'old-world': {
+        emoji: '🗺️',
+        label: 'Old World',
+        description: 'Europe, Asia, and Africa. Historical civilizations start at their homelands. Best for Old World civs — Aztec gets a constrained random start.',
+      },
+      'new-world': {
+        emoji: '🌎',
+        label: 'New World',
+        description: 'North and South America. Aztec starts in Central Mexico. England and France land on the eastern seaboard; Spain lands on the Gulf of Mexico.',
+      },
+      balanced: {
+        emoji: '⚖️',
+        label: 'Balanced',
+        description: 'Procedurally generated. Each civilization receives an algorithmically fair share of terrain and resources. A cluster of luxury resources creates a natural conflict hotspot.',
+      },
+      'single-continent': {
+        emoji: '🏝️',
+        label: 'Continent',
+        description: 'One large connected landmass with small islands in the surrounding ocean. Fast early contact between civilizations; islands reward naval exploration with bonus resources.',
+      },
+    };
+
+    panel.innerHTML = '';
+
+    const h1 = document.createElement('h1');
+    h1.style.cssText = 'font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;';
+    h1.textContent = 'Choose Map Type';
+    panel.appendChild(h1);
+
+    const subtitle = document.createElement('p');
+    subtitle.style.cssText = 'font-size:13px;opacity:0.6;margin-bottom:20px;text-align:center;';
+    subtitle.textContent = 'Select the world your civilizations will inhabit';
+    panel.appendChild(subtitle);
+
+    const cardRow = document.createElement('div');
+    cardRow.id = 'hs-map-type-row';
+    cardRow.style.cssText = 'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:480px;width:100%;';
+    panel.appendChild(cardRow);
+
+    const descEl = document.createElement('p');
+    descEl.dataset.role = 'map-script-description';
+    descEl.style.cssText = 'font-size:12px;opacity:0.82;margin:12px 0;text-align:center;max-width:420px;line-height:1.45;';
+    panel.appendChild(descEl);
+
+    const buttons = new Map<MapScriptKey, HTMLButtonElement>();
+
+    const syncCards = (current: MapScriptKey): void => {
+      for (const [script, btn] of buttons.entries()) {
+        const sel = script === current;
+        btn.dataset.selected = sel ? 'true' : 'false';
+        btn.style.borderColor = sel ? '#e8c170' : 'rgba(255,255,255,0.18)';
+        btn.style.background = sel ? 'rgba(232,193,112,0.16)' : 'rgba(255,255,255,0.08)';
+        btn.style.color = sel ? '#f7f1d7' : '#f4f1e8';
+      }
+      descEl.textContent = MAP_SCRIPT_LABELS[current].description;
+    };
+
+    for (const script of MAP_SCRIPT_ORDER) {
+      const info = MAP_SCRIPT_LABELS[script];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.mapScript = script;
+      btn.style.cssText = 'min-height:44px;padding:10px 8px;border-radius:12px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.08);color:#f4f1e8;cursor:pointer;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:4px;';
+
+      const emojiSpan = document.createElement('span');
+      emojiSpan.style.fontSize = '18px';
+      emojiSpan.textContent = info.emoji;
+
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = info.label;
+
+      btn.appendChild(emojiSpan);
+      btn.appendChild(labelSpan);
+
+      btn.addEventListener('click', () => {
+        selectedMapScript = script;
+        syncCards(script);
+      });
+
+      buttons.set(script, btn);
+      cardRow.appendChild(btn);
+    }
+
+    // Pre-select current choice so description is always visible on first render
+    const preselect = MAP_SCRIPT_ORDER.includes(selectedMapScript as MapScriptKey)
+      ? (selectedMapScript as MapScriptKey)
+      : 'earth';
+    syncCards(preselect);
+
+    const nav = document.createElement('div');
+    nav.style.cssText = 'margin-top:20px;display:flex;gap:12px;';
+
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.id = 'hs-back-map-size';
+    backBtn.style.cssText = 'padding:10px 20px;min-height:44px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;cursor:pointer;font-size:13px;';
+    backBtn.textContent = 'Back';
+    backBtn.addEventListener('click', () => showMapSizeStage());
+
+    const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
+    nextBtn.id = 'hs-map-type-next';
+    nextBtn.style.cssText = 'padding:10px 24px;min-height:44px;background:rgba(232,193,112,0.3);border:2px solid #e8c170;border-radius:8px;color:#e8c170;cursor:pointer;font-size:14px;font-weight:bold;';
+    nextBtn.textContent = 'Next';
+    nextBtn.addEventListener('click', () => showPlayerCountStage());
+
+    nav.appendChild(backBtn);
+    nav.appendChild(nextBtn);
+    panel.appendChild(nav);
   }
 
   function showPlayerCountStage() {
@@ -134,7 +255,7 @@ export function showHotSeatSetup(
     });
 
     panel.querySelector('#hs-back-size')?.addEventListener('click', () => {
-      showMapSizeStage();
+      showMapTypeStage();
     });
   }
 
@@ -282,6 +403,7 @@ export function showHotSeatSetup(
     const config: HotSeatConfig = {
       playerCount: players.length,
       mapSize: selectedMapSize!,
+      mapScript: selectedMapScript,
       players,
       customCivilizations,
     };
