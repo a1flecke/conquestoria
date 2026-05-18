@@ -840,7 +840,7 @@ describe('espionage post-loop snapshot', () => {
           targetCivId: 'ai-1',
           targetCityId: enemyCityId,
           position: enemyPos,
-          status: 'infiltrating',
+          status: 'stationed',
           experience: 0,
           currentMission: null,
           cooldownTurns: 0,
