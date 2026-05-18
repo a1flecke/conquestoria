@@ -37,6 +37,10 @@ function setInputValue(selector: string, value: string): void {
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+function advanceThroughMapType(): void {
+  click('#hs-map-type-next');
+}
+
 function chooseCiv(civId: string): void {
   click(`.civ-card[data-civ-id="${civId}"]`);
   click('#civ-start');
@@ -106,6 +110,7 @@ describe('hotseat-setup', () => {
     );
 
     click('[data-size="small"]');
+    advanceThroughMapType();
     click('[data-count="2"]');
     click('#hs-names-next');
 
@@ -126,6 +131,7 @@ describe('hotseat-setup', () => {
     );
 
     click('[data-size="small"]');
+    advanceThroughMapType();
     click('[data-count="2"]');
     click('#hs-names-next');
 
@@ -170,6 +176,7 @@ describe('hotseat-setup', () => {
     );
 
     click('[data-size="small"]');
+    advanceThroughMapType();
     click('[data-count="2"]');
     click('#hs-names-next');
 
@@ -207,6 +214,7 @@ describe('hotseat-setup', () => {
     );
 
     click('[data-size="small"]');
+    advanceThroughMapType();
     click('[data-count="2"]');
     click('#hs-names-next');
     click('[data-action="create-custom-civ"]');
@@ -247,6 +255,7 @@ describe('hotseat-setup', () => {
     );
 
     click('[data-size="small"]');
+    advanceThroughMapType();
     click('[data-count="2"]');
     click('#hs-names-next');
     click('[data-action="create-custom-civ"]');
@@ -297,6 +306,7 @@ describe('hotseat-setup', () => {
     );
 
     click('[data-size="small"]');
+    advanceThroughMapType();
     click('[data-count="2"]');
     click('#hs-names-next');
     click('[data-action="create-custom-civ"]');
@@ -346,6 +356,7 @@ describe('hotseat-setup', () => {
     );
 
     click('[data-size="small"]');
+    advanceThroughMapType();
     click('[data-count="2"]');
     click('#hs-names-next');
     click('[data-action="create-custom-civ"]');
@@ -374,6 +385,7 @@ describe('hotseat-setup', () => {
     });
 
     click('.map-size-card[data-size="small"]');
+    advanceThroughMapType();
     click('.count-card[data-count="2"]');
     setInputValue('.player-name-input[data-idx="0"]', 'Alice');
     setInputValue('.player-name-input[data-idx="1"]', 'Bob');
@@ -395,6 +407,7 @@ describe('hotseat-setup', () => {
     });
 
     click('.map-size-card[data-size="small"]');
+    advanceThroughMapType();
     click('.count-card[data-count="2"]');
     setInputValue('.player-name-input[data-idx="0"]', 'Alice');
     setInputValue('.player-name-input[data-idx="1"]', 'Bob');
@@ -424,6 +437,7 @@ describe('hotseat-setup', () => {
     });
 
     click('.map-size-card[data-size="small"]');
+    advanceThroughMapType();
     click('.count-card[data-count="2"]');
     setInputValue('.player-name-input[data-idx="0"]', 'Alice');
     setInputValue('.player-name-input[data-idx="1"]', 'Bob');
@@ -440,6 +454,7 @@ describe('hotseat-setup', () => {
     });
 
     click('.map-size-card[data-size="small"]');
+    advanceThroughMapType();
     click('.count-card[data-count="2"]');
     setInputValue('.player-name-input[data-idx="0"]', 'Alice');
     setInputValue('.player-name-input[data-idx="1"]', 'Bob');
@@ -450,5 +465,116 @@ describe('hotseat-setup', () => {
 
     expect(document.body.textContent).toContain('Bob, choose your civilization');
     expect(primaryCivActionLabel()).toBe('Start Game');
+  });
+
+  describe('map type stage', () => {
+    it('shows the map type stage after selecting a map size', () => {
+      showHotSeatSetup(document.body, { onComplete: () => {}, onCancel: () => {} });
+
+      click('[data-size="small"]');
+
+      expect(document.querySelector('[data-map-script="earth"]')).toBeTruthy();
+      expect(document.querySelector('[data-map-script="old-world"]')).toBeTruthy();
+      expect(document.querySelector('[data-map-script="new-world"]')).toBeTruthy();
+      expect(document.querySelector('[data-map-script="balanced"]')).toBeTruthy();
+      expect(document.querySelector('[data-map-script="single-continent"]')).toBeTruthy();
+    });
+
+    it('pre-selects earth and shows a description', () => {
+      showHotSeatSetup(document.body, { onComplete: () => {}, onCancel: () => {} });
+
+      click('[data-size="small"]');
+
+      const earthCard = document.querySelector('[data-map-script="earth"]') as HTMLElement | null;
+      expect(earthCard?.dataset.selected).toBe('true');
+      expect(document.querySelector('[data-role="map-script-description"]')?.textContent?.length).toBeGreaterThan(0);
+    });
+
+    it('updates description when a different map type is clicked', () => {
+      showHotSeatSetup(document.body, { onComplete: () => {}, onCancel: () => {} });
+
+      click('[data-size="small"]');
+      const earthDesc = document.querySelector('[data-role="map-script-description"]')?.textContent ?? '';
+
+      click('[data-map-script="balanced"]');
+      const balancedDesc = document.querySelector('[data-role="map-script-description"]')?.textContent ?? '';
+
+      expect(balancedDesc).not.toBe(earthDesc);
+      expect(balancedDesc.length).toBeGreaterThan(0);
+    });
+
+    it('advances to player count after clicking Next', () => {
+      showHotSeatSetup(document.body, { onComplete: () => {}, onCancel: () => {} });
+
+      click('[data-size="small"]');
+      advanceThroughMapType();
+
+      expect(document.querySelector('.count-card[data-count="2"]')).toBeTruthy();
+    });
+
+    it('returns to map size stage when Back is clicked from the map type stage', () => {
+      showHotSeatSetup(document.body, { onComplete: () => {}, onCancel: () => {} });
+
+      click('[data-size="small"]');
+      expect(document.querySelector('[data-map-script="earth"]')).toBeTruthy();
+
+      click('#hs-back-map-size');
+
+      expect(document.querySelector('[data-size="small"]')).toBeTruthy();
+      expect(document.querySelector('[data-map-script="earth"]')).toBeFalsy();
+    });
+
+    it('returns to map type stage (not map size) when Back is clicked from player count', () => {
+      showHotSeatSetup(document.body, { onComplete: () => {}, onCancel: () => {} });
+
+      click('[data-size="small"]');
+      advanceThroughMapType();
+      expect(document.querySelector('.count-card[data-count="2"]')).toBeTruthy();
+
+      click('#hs-back-size');
+
+      expect(document.querySelector('[data-map-script="earth"]')).toBeTruthy();
+      expect(document.querySelector('[data-size="small"]')).toBeFalsy();
+    });
+
+    it('passes the selected map script to onComplete', () => {
+      const onComplete = vi.fn();
+      showHotSeatSetup(document.body, { onComplete, onCancel: () => {} });
+
+      click('[data-size="small"]');
+      click('[data-map-script="balanced"]');
+      advanceThroughMapType();
+      click('[data-count="2"]');
+      setInputValue('.player-name-input[data-idx="0"]', 'Alice');
+      setInputValue('.player-name-input[data-idx="1"]', 'Bob');
+      click('#hs-names-next');
+      chooseCiv('egypt');
+      click('#hs-civ-ready');
+      chooseCiv('rome');
+
+      expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+        mapScript: 'balanced',
+      }));
+    });
+
+    it('defaults to earth when no map type card is clicked before Next', () => {
+      const onComplete = vi.fn();
+      showHotSeatSetup(document.body, { onComplete, onCancel: () => {} });
+
+      click('[data-size="small"]');
+      // do not click any map type card — just advance
+      advanceThroughMapType();
+      click('[data-count="2"]');
+      setInputValue('.player-name-input[data-idx="0"]', 'Alice');
+      setInputValue('.player-name-input[data-idx="1"]', 'Bob');
+      click('#hs-names-next');
+      chooseCiv('egypt');
+      click('#hs-civ-ready');
+      chooseCiv('rome');
+
+      expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+        mapScript: 'earth',
+      }));
+    });
   });
 });
