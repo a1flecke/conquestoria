@@ -1,5 +1,5 @@
 import { createNewGame, createHotSeatGame, MAP_DIMENSIONS } from '@/core/game-state';
-import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig } from '@/core/types';
+import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig, MapScript } from '@/core/types';
 import { getMinimumStartDistance, getStartPositionDistance } from '@/systems/map-generator';
 
 const customCiv: CustomCivDefinition = {
@@ -302,5 +302,51 @@ describe('createHotSeatGame', () => {
     }, 'issue-172-hotseat-wrap');
 
     expectMajorStartsToRespectSpacing(state);
+  });
+});
+
+describe('createHotSeatGame — mapScript', () => {
+  const baseConfig: HotSeatConfig = {
+    playerCount: 2,
+    mapSize: 'small',
+    players: [
+      { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+      { name: 'Bob',   slotId: 'player-2', civType: 'rome',  isHuman: true },
+    ],
+  };
+
+  it('defaults to procedural when mapScript is omitted', () => {
+    const state = createHotSeatGame(baseConfig, 'seed-proc');
+    expect(state.mapScript).toBe('procedural');
+  });
+
+  it('stores the mapScript from config on the returned state — regression guard', () => {
+    // If HotSeatConfig ever loses mapScript this test will stop compiling or fail at runtime.
+    const scripts: MapScript[] = [
+      'procedural', 'earth', 'old-world', 'new-world', 'balanced', 'single-continent',
+    ];
+    for (const script of scripts) {
+      const state = createHotSeatGame({ ...baseConfig, mapScript: script }, 'seed-' + script);
+      expect(state.mapScript).toBe(script);
+    }
+  });
+
+  it('generates a small map for the balanced script', () => {
+    const state = createHotSeatGame({ ...baseConfig, mapScript: 'balanced' }, 'seed-bal');
+    expect(state.map.width).toBe(30);
+    expect(state.map.height).toBe(30);
+    expect(state.mapScript).toBe('balanced');
+  });
+
+  it('generates a small map for the single-continent script', () => {
+    const state = createHotSeatGame({ ...baseConfig, mapScript: 'single-continent' }, 'seed-sc');
+    expect(state.map.width).toBe(30);
+    expect(state.mapScript).toBe('single-continent');
+  });
+
+  it('generates a small map for the earth script', () => {
+    const state = createHotSeatGame({ ...baseConfig, mapScript: 'earth' }, 'seed-earth');
+    expect(state.map.width).toBe(30);
+    expect(state.mapScript).toBe('earth');
   });
 });

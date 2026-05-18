@@ -304,13 +304,42 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
   const gameSeed = seed ?? `hotseat-${Date.now()}`;
   const resolvedGameTitle = gameTitle?.trim() || 'Hot Seat Campaign';
   const dims = MAP_DIMENSIONS[config.mapSize];
-  const map = generateMap(dims.width, dims.height, gameSeed);
-  const startPositions = findStartPositions(
-    map,
-    config.players.map(p => p.civType),
-    'procedural',
-    config.mapSize,
-  );
+  const mapScript: MapScript = config.mapScript ?? 'procedural';
+  const civTypeIds = config.players.map(p => p.civType);
+
+  let map: GameMap;
+  let startPositions: HexCoord[];
+
+  switch (mapScript) {
+    case 'earth':
+      map = loadGeoMap(EARTH_TILES[config.mapSize], EARTH_RIVERS[config.mapSize], dims, true);
+      startPositions = findStartPositions(map, civTypeIds, 'earth', config.mapSize);
+      break;
+    case 'old-world':
+      map = loadGeoMap(OLD_WORLD_TILES[config.mapSize], OLD_WORLD_RIVERS[config.mapSize], dims, false);
+      startPositions = findStartPositions(map, civTypeIds, 'old-world', config.mapSize);
+      break;
+    case 'new-world':
+      map = loadGeoMap(NEW_WORLD_TILES[config.mapSize], NEW_WORLD_RIVERS[config.mapSize], dims, false);
+      startPositions = findStartPositions(map, civTypeIds, 'new-world', config.mapSize);
+      break;
+    case 'balanced': {
+      const result = generateBalancedMap(dims.width, dims.height, gameSeed, civTypeIds.length);
+      map = result.map;
+      startPositions = result.startPositions;
+      break;
+    }
+    case 'single-continent': {
+      const result = generateContinentMap(dims.width, dims.height, gameSeed);
+      map = result.map;
+      startPositions = findStartPositions(map, civTypeIds, 'single-continent', config.mapSize, result.continentHexes);
+      break;
+    }
+    default: // 'procedural' and old saves
+      map = generateMap(dims.width, dims.height, gameSeed);
+      startPositions = findStartPositions(map, civTypeIds, 'procedural', config.mapSize);
+      break;
+  }
 
   // Place wonders and villages
   placeWonders(map, startPositions, config.mapSize, gameSeed);
@@ -393,6 +422,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     defensiveLeagues: [],
     pendingDiplomacyRequests: [],
     settings,
+    mapScript,
   };
 
   // Place minor civilizations
