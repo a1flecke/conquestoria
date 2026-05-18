@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { createLastSeenTilePresentation, refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { createLastSeenTilePresentation, refreshLastSeenPresentationsForCiv, updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 
 describe('last-seen-presentation', () => {
   it('captures serializable tile presentation for visible tiles', () => {
@@ -88,5 +88,89 @@ describe('last-seen-presentation', () => {
       owner: 'ai-1',
       population: 2,
     });
+  });
+});
+
+describe('updateAndRefreshVisibility', () => {
+  it('populates lastSeen for all visible tiles', () => {
+    const state = createNewGame(undefined, 'atomic-helper-visible', 'small');
+    // Clear any snapshots from game init so we prove the helper re-populates them
+    state.civilizations.player.visibility.lastSeen = {};
+
+    updateAndRefreshVisibility(state, 'player');
+
+    const visibleKeys = Object.entries(state.civilizations.player.visibility.tiles)
+      .filter(([, v]) => v === 'visible')
+      .map(([k]) => k);
+    expect(visibleKeys.length).toBeGreaterThan(0);
+    for (const key of visibleKeys) {
+      expect(state.civilizations.player.visibility.lastSeen?.[key]).toBeDefined();
+    }
+  });
+
+  it('preserves existing fog snapshots and does not clear them', () => {
+    const state = createNewGame(undefined, 'atomic-helper-fog', 'small');
+    // Plant a fog snapshot at a fake key — the helper must not wipe it
+    state.civilizations.player.visibility.lastSeen = {
+      '99,99': {
+        coord: { q: 99, r: 99 },
+        terrain: 'plains',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        improvementTurnsLeft: 0,
+        owner: null,
+        hasRiver: false,
+        wonder: null,
+      },
+    };
+
+    updateAndRefreshVisibility(state, 'player');
+
+    expect(state.civilizations.player.visibility.lastSeen?.['99,99']?.terrain).toBe('plains');
+  });
+});
+
+describe('reconstructLastSeenFromMap', () => {
+  it('populates lastSeen for fogged tiles that have no snapshot (old-save migration)', () => {
+    const state = createNewGame(undefined, 'reconstruct-fog', 'small');
+
+    // Mark a known tile as fog with no snapshot
+    state.map.tiles['0,0'].terrain = 'desert';
+    state.civilizations.player.visibility.tiles['0,0'] = 'fog';
+    state.civilizations.player.visibility.lastSeen = {};
+
+    reconstructLastSeenFromMap(state, 'player');
+
+    expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.terrain).toBe('desert');
+  });
+
+  it('does not overwrite existing lastSeen entries or snapshot unexplored tiles', () => {
+    const state = createNewGame(undefined, 'reconstruct-preserve', 'small');
+
+    // Pre-existing snapshot at '0,0' (fog)
+    state.civilizations.player.visibility.tiles['0,0'] = 'fog';
+    state.civilizations.player.visibility.lastSeen = {
+      '0,0': {
+        coord: { q: 0, r: 0 },
+        terrain: 'forest',
+        elevation: 'highland',
+        resource: null,
+        improvement: 'none',
+        improvementTurnsLeft: 0,
+        owner: null,
+        hasRiver: false,
+        wonder: null,
+      },
+    };
+    // Unexplored tile — must not get a snapshot
+    state.civilizations.player.visibility.tiles['1,0'] = 'unexplored';
+
+    reconstructLastSeenFromMap(state, 'player');
+
+    // Existing snapshot must be unchanged
+    expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.terrain).toBe('forest');
+    // Unexplored tile must remain absent
+    expect(state.civilizations.player.visibility.lastSeen?.['1,0']).toBeUndefined();
   });
 });
