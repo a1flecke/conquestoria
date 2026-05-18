@@ -143,7 +143,7 @@ import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
 import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
-import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
+import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 
 // --- App State ---
 let gameState: GameState;
@@ -2721,6 +2721,10 @@ function migrateLegacySave(): void {
   }
   for (const civId of Object.keys(gameState.civilizations)) {
     refreshKnownCivilizations(gameState, civId);
+  }
+  // Reconstruct missing lastSeen entries for fog tiles on old saves (M5 migration)
+  for (const civId of Object.keys(gameState.civilizations)) {
+    reconstructLastSeenFromMap(gameState, civId);
   }
 }
 
