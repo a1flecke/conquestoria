@@ -810,6 +810,8 @@ export interface HotSeatPlayer {
 export interface HotSeatConfig {
   playerCount: number;
   mapSize: 'small' | 'medium' | 'large';
+  /** Keep map generation fields in sync with SoloSetupConfig. */
+  mapScript?: MapScript;
   players: HotSeatPlayer[];
   customCivilizations?: CustomCivDefinition[];
 }
