@@ -229,6 +229,41 @@ describe('discovery-system', () => {
     expect(hasMetCivilization(state, 'player', 'outsider')).toBe(true);
   });
 
+  it('does not treat a rival as met when their city tile is only in fog, not currently visible', () => {
+    const { state } = makeBreakawayFixture({ includeThirdCiv: true });
+
+    // Set up outsider city at q:6,r:0 owned by 'outsider'
+    state.cities['outsider-city'] = {
+      ...state.cities['city-border'],
+      id: 'outsider-city',
+      owner: 'outsider',
+      name: 'Outsider Camp',
+      position: { q: 6, r: 0 },
+      ownedTiles: [{ q: 6, r: 0 }, { q: 6, r: 1 }],
+    };
+    state.civilizations.outsider.cities = ['outsider-city'];
+    state.map.tiles['6,0'] = {
+      ...state.map.tiles['4,0'],
+      coord: { q: 6, r: 0 },
+      owner: 'outsider',
+    };
+    state.map.tiles['6,1'] = {
+      ...state.map.tiles['4,0'],
+      coord: { q: 6, r: 1 },
+      owner: 'outsider',
+    };
+    state.civilizations.player.knownCivilizations = [];
+    state.civilizations.outsider.knownCivilizations = [];
+
+    // Player explored the tile in the past — it is fogged, not currently visible
+    state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+
+    const contacts = syncCivilizationContactsFromVisibility(state, 'player');
+
+    expect(contacts).toEqual([]);
+    expect(hasMetCivilization(state, 'player', 'outsider')).toBe(false);
+  });
+
   it('does not treat city discovery as implied by civilization contact', () => {
     const { state, cityId } = makeBreakawayFixture({ includeThirdCiv: true });
     state.civilizations.player.knownCivilizations = ['outsider'];
