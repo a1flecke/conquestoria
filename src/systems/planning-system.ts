@@ -99,7 +99,7 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
     .filter(city => city.productionQueue.length === 0)
     .filter(city => !city.idleProduction)
     .filter(city => {
-      const buildableBuildings = getAvailableBuildings(city, completedTechs).length > 0;
+      const buildableBuildings = getAvailableBuildings(city, completedTechs, state.map?.tiles ?? {}).length > 0;
       const buildableUnits = getTrainableUnitsForCiv(completedTechs, civ.civType).length > 0;
       return buildableBuildings || buildableUnits;
     })
@@ -132,7 +132,7 @@ export function getRecommendedIdleCityChoice(
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
   const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
   const candidates = [
-    ...getAvailableBuildings(city, completedTechs).map(building => {
+    ...getAvailableBuildings(city, completedTechs, state.map?.tiles ?? {}).map(building => {
       const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: state.era });
       return {
         itemId: building.id,

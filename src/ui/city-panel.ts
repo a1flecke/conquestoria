@@ -53,7 +53,7 @@ export function createCityPanel(
     bonusEffect: civDef?.bonusEffect,
     era: state.era,
   });
-  const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed);
+  const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles);
   const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
 
   // Build placeholders for dynamic data; style attributes with pure numbers (progress%) are safe
