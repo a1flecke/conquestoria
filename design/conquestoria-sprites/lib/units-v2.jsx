@@ -805,20 +805,19 @@ function ShadowWardenV2Sprite({ faction = 'imperials', state = 'idle', phase }) 
 }
 
 /* ─────────────────────────── ScoutHound (quadruped, body bob) ─────────────────────────── */
-/* FLAG: articulated 4-leg gait needs .cq-leg-fl/fr/bl/br + new CSS. Not done here. */
 function ScoutHoundV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
   const f = _fa2(faction);
   return (
-    <SpriteFrameV2 state={state} kind="hound" phase={phase}>
+    <SpriteFrameV2 state={state} kind="hound" variant="scout" phase={phase}>
       <ellipse className="cq-shadow" cx="64" cy="95" rx="24" ry="6" fill="#000" opacity="0.35" />
       <g transform="translate(64 72)">
         <path d="M22,-4 Q32,-12 30,-22" stroke="#7a5a3a" strokeWidth="4" fill="none" strokeLinecap="round" />
         <ellipse cx="4" cy="0" rx="22" ry="12" fill="#a07a4a" stroke={_P2.ink.line} strokeWidth="1" />
         <ellipse cx="4" cy="-3" rx="20" ry="8" fill="#b88a5a" />
-        <g transform="translate(-9.5 6)"><g><rect x="-2.5" y="0" width="5" height="14" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
-        <g transform="translate(0.5 6)"><g><rect x="-2.5" y="0" width="5" height="14" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
-        <g transform="translate(16.5 6)"><g><rect x="-2.5" y="0" width="5" height="14" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
-        <g transform="translate(22.5 6)"><g><rect x="-2.5" y="0" width="5" height="14" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(-9.5 6)"><g className="cq-leg-fl"><rect x="-2.5" y="0" width="5" height="14" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(0.5 6)"><g className="cq-leg-fr"><rect x="-2.5" y="0" width="5" height="14" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(16.5 6)"><g className="cq-leg-bl"><rect x="-2.5" y="0" width="5" height="14" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(22.5 6)"><g className="cq-leg-br"><rect x="-2.5" y="0" width="5" height="14" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
         <ellipse cx="-18" cy="-4" rx="11" ry="9" fill="#a07a4a" stroke={_P2.ink.line} strokeWidth="1" />
         <path d="M-26,-3 L-32,2 L-26,4 Z" fill="#a07a4a" stroke={_P2.ink.line} strokeWidth="0.8" />
         <path d="M-14,-12 L-10,-18 L-8,-10 Z" fill="#7a5a3a" stroke={_P2.ink.line} strokeWidth="0.6" />
