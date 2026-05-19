@@ -586,12 +586,10 @@ function WarriorV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
 }
 
 /* ─────────────────────────── Pikeman (melee, locked arms, pike) ─────────────────────────── */
-/* FLAG: attack uses overhead-slash keyframe (wrong for a pike thrust).
- * Needs a forward-thrust keyframe override in sprite-animations-v2.css — DO NOT add it here. */
 function PikemanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
   const f = _fa2(faction);
   return (
-    <SpriteFrameV2 state={state} kind="melee" phase={phase}>
+    <SpriteFrameV2 state={state} kind="melee" variant="pike" phase={phase}>
       <g transform="translate(58 91)">
         <ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} />
       </g>
@@ -616,7 +614,7 @@ function PikemanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
 
       {/* PIKE — long shaft. Pivot at grip center (56, 56). */}
       <g className="cq-weapon" style={{ '--pivot-x': '56px', '--pivot-y': '56px' }}>
-        <g transform="translate(54 22) rotate(-8)">
+        <g className="cq-weapon-inner" transform="translate(54 22) rotate(-8)">
           <rect x="-1" y="0" width="2" height="100" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="0.5" />
           <path d="M-3,0 L3,0 L4,-12 L0,-18 L-4,-12 Z"
             fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.8" />
