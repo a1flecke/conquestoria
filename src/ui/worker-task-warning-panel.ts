@@ -1,5 +1,6 @@
 export interface WorkerTaskWarningPanelConfig {
   improvementName: string;
+  turnsLeft: number;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -16,8 +17,9 @@ export function createWorkerTaskWarningPanel(
   panel.id = 'worker-task-warning-panel';
   panel.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1000;background:rgba(18,18,18,0.96);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:16px;max-width:360px;color:white;';
 
+  const turnsLabel = config.turnsLeft === 1 ? '1 turn remaining' : `${config.turnsLeft} turns remaining`;
   const title = document.createElement('h3');
-  title.textContent = `${config.improvementName} in progress`;
+  title.textContent = `${config.improvementName} in progress — ${turnsLabel}`;
   const body = document.createElement('p');
   body.textContent = 'Moving this worker now means work in progress will be lost.';
 

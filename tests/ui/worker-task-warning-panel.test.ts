@@ -12,6 +12,7 @@ describe('worker-task-warning-panel', () => {
     const onConfirm = vi.fn();
     createWorkerTaskWarningPanel(document.body, {
       improvementName: 'Farm',
+      turnsLeft: 2,
       onConfirm,
       onCancel: vi.fn(),
     });
@@ -24,6 +25,7 @@ describe('worker-task-warning-panel', () => {
     const onConfirm = vi.fn();
     const panel = createWorkerTaskWarningPanel(document.body, {
       improvementName: 'Farm',
+      turnsLeft: 2,
       onConfirm,
       onCancel: vi.fn(),
     });
@@ -41,6 +43,7 @@ describe('worker-task-warning-panel', () => {
     const onCancel = vi.fn();
     const panel = createWorkerTaskWarningPanel(document.body, {
       improvementName: 'Farm',
+      turnsLeft: 2,
       onConfirm: vi.fn(),
       onCancel,
     });
@@ -55,16 +58,39 @@ describe('worker-task-warning-panel', () => {
   });
 
   it('replaces stale warning panels when reopened', () => {
-    createWorkerTaskWarningPanel(document.body, { improvementName: 'Farm', onConfirm: vi.fn(), onCancel: vi.fn() });
-    createWorkerTaskWarningPanel(document.body, { improvementName: 'Mine', onConfirm: vi.fn(), onCancel: vi.fn() });
+    createWorkerTaskWarningPanel(document.body, { improvementName: 'Farm', turnsLeft: 2, onConfirm: vi.fn(), onCancel: vi.fn() });
+    createWorkerTaskWarningPanel(document.body, { improvementName: 'Mine', turnsLeft: 2, onConfirm: vi.fn(), onCancel: vi.fn() });
 
     expect(document.querySelectorAll('#worker-task-warning-panel')).toHaveLength(1);
     expect(document.body.textContent).toContain('Mine');
   });
 
+  it('shows turns remaining in the title', () => {
+    createWorkerTaskWarningPanel(document.body, {
+      improvementName: 'Farm',
+      turnsLeft: 3,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(document.body.textContent).toContain('3 turns remaining');
+  });
+
+  it('uses singular "turn" when only 1 turn remains', () => {
+    createWorkerTaskWarningPanel(document.body, {
+      improvementName: 'Mine',
+      turnsLeft: 1,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(document.body.textContent).toContain('1 turn remaining');
+    expect(document.body.textContent).not.toContain('1 turns remaining');
+  });
+
   it('cancel and confirm buttons have styled background and color', () => {
     const panel = createWorkerTaskWarningPanel(document.body, {
-      improvementName: 'Farm', onConfirm: vi.fn(), onCancel: vi.fn(),
+      improvementName: 'Farm', turnsLeft: 2, onConfirm: vi.fn(), onCancel: vi.fn(),
     });
     const buttons = Array.from(panel.querySelectorAll('button')) as HTMLButtonElement[];
     for (const btn of buttons) {
