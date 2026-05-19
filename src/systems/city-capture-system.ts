@@ -6,6 +6,7 @@ import {
   recalculateTerritory,
   type TerritoryRecalculationResult,
 } from '@/systems/city-territory-system';
+import { normalizeCityWorkAfterTerritoryChange } from '@/systems/city-work-system';
 import { modifyRelationship } from '@/systems/diplomacy-system';
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
@@ -68,14 +69,18 @@ function buildCaptureResult(
   territoryResult: TerritoryRecalculationResult,
   outcome: MajorCityCaptureResult['outcome'],
   goldAwarded: number,
+  capturedCityId?: string,
 ): MajorCityCaptureResult {
+  const postWorkState = capturedCityId
+    ? normalizeCityWorkAfterTerritoryChange(territoryResult.state, capturedCityId).state
+    : territoryResult.state;
   return {
-    state: territoryResult.state,
+    state: postWorkState,
     outcome,
     goldAwarded,
     territoryEvents: buildTerritoryTileFlippedEvents(
       beforeTerritoryState,
-      territoryResult.state,
+      postWorkState,
       territoryResult.resolutions,
     ),
   };
@@ -124,7 +129,7 @@ export function resolveMajorCityCapture(
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
     });
-    return buildCaptureResult(nextState, territoryResult, 'occupied', 0);
+    return buildCaptureResult(nextState, territoryResult, 'occupied', 0, cityId);
   }
 
   if (forcedDisposition === 'occupy') {
@@ -172,7 +177,7 @@ export function resolveMajorCityCapture(
       preserveCurrentHolderOnTie: true,
     });
 
-    return buildCaptureResult(nextState, territoryResult, 'occupied', 0);
+    return buildCaptureResult(nextState, territoryResult, 'occupied', 0, cityId);
   }
 
   const goldAwarded = computeRazeGold(city);
@@ -205,7 +210,7 @@ export function resolveMajorCityCapture(
     preserveCurrentHolderOnTie: true,
   });
 
-  return buildCaptureResult(nextState, territoryResult, 'razed', goldAwarded);
+  return buildCaptureResult(nextState, territoryResult, 'razed', goldAwarded, cityId);
 }
 
 export function transferCapturedCityOwnership(
