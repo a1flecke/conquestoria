@@ -288,7 +288,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
 
 export function isCityCoastal(city: City, mapTiles: GameMap['tiles']): boolean {
   return (city.ownedTiles ?? []).some(coord => {
-    const tile = mapTiles[`${coord.q},${coord.r}`];
+    const tile = mapTiles[hexKey(coord)];
     return tile?.terrain === 'ocean' || tile?.terrain === 'coast';
   });
 }
