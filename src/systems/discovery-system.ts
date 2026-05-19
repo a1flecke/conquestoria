@@ -97,19 +97,20 @@ function hasMetCivilizationByCurrentEvidence(state: GameState, viewerCivId: stri
   if (viewer.diplomacy.atWarWith.includes(targetCivId)) return true;
   if (viewer.diplomacy.treaties.some(t => t.civA === targetCivId || t.civB === targetCivId)) return true;
 
+  const viewerVis = viewer.visibility;
+
   const targetCities = target.cities
     .map(cityId => state.cities[cityId])
     .filter((city): city is NonNullable<typeof city> => Boolean(city));
   for (const city of targetCities) {
-    if (hasExploredCoord(state, viewerCivId, city.position)) {
+    if (getVisibility(viewerVis, city.position) === 'visible') {
       return true;
     }
-    if (city.ownedTiles.some(coord => hasExploredCoord(state, viewerCivId, coord))) {
+    if (city.ownedTiles.some(coord => getVisibility(viewerVis, coord) === 'visible')) {
       return true;
     }
   }
 
-  const viewerVis = viewer.visibility;
   for (const unitId of target.units) {
     const unit = state.units[unitId];
     if (!unit) continue;
@@ -118,11 +119,8 @@ function hasMetCivilizationByCurrentEvidence(state: GameState, viewerCivId: stri
     }
   }
 
-  const targetTileKeys = Object.values(state.map.tiles)
-    .filter(tile => tile.owner === targetCivId)
-    .map(tile => hexKey(tile.coord));
-  return targetTileKeys.some(key => {
-    const coord = state.map.tiles[key]?.coord;
-    return coord ? hasExploredCoord(state, viewerCivId, coord) : false;
+  return Object.values(state.map.tiles).some(tile => {
+    if (tile.owner !== targetCivId || !tile.coord) return false;
+    return getVisibility(viewerVis, tile.coord) === 'visible';
   });
 }
