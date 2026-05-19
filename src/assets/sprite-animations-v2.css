@@ -21,6 +21,21 @@
  * sprite instance (random, or hash of unit id) and the wave effect dies.
  */
 
+/*
+ * SELECTOR TAXONOMY
+ *
+ * data-kind  — body-plan axis. Determines which fundamental walk/idle/attack
+ *              animations apply. Values: civilian | melee | ranged | naval |
+ *              hound | spy | building. "hound" is the quadruped body-plan slot.
+ *              Rule of thumb: if it changes how the BODY itself moves, new kind.
+ *
+ * data-kind-variant — specialization axis. Same body plan, different sub-element
+ *                     animation (weapon style, gait tempo, etc.).
+ *                     Values introduced here: pike (melee), scout (hound), war (hound).
+ *                     Rule of thumb: if it only changes ONE sub-element while the
+ *                     body stays the same, use variant instead.
+ */
+
 /* ─────────────────────────── IDLE ─────────────────────────── */
 
 /* Asymmetric breathing — chest rises slow, settles faster. Reads as alive,
