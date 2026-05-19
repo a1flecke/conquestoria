@@ -327,7 +327,7 @@ describe('completeCityProductionItem', () => {
   it('uses the same completion path for direct building completion as turn production', () => {
     const map = generateMap(30, 30, 'direct-building-completion');
     const city = {
-      ...foundCity('p1', { q: 10, r: 10 }, map),
+      ...foundCity('p1', { q: 10, r: 10 }, map, mkC()),
       productionQueue: ['workshop', 'warrior'],
       productionProgress: 4,
     };
@@ -345,7 +345,7 @@ describe('completeCityProductionItem', () => {
   it('uses the same completion path for direct unit completion as turn production', () => {
     const map = generateMap(30, 30, 'direct-unit-completion');
     const city = {
-      ...foundCity('p1', { q: 10, r: 10 }, map),
+      ...foundCity('p1', { q: 10, r: 10 }, map, mkC()),
       productionQueue: ['warrior', 'workshop'],
       productionProgress: 4,
     };
@@ -362,7 +362,7 @@ describe('completeCityProductionItem', () => {
   it('does not complete an item that is not the active production item', () => {
     const map = generateMap(30, 30, 'direct-completion-active-only');
     const city = {
-      ...foundCity('p1', { q: 10, r: 10 }, map),
+      ...foundCity('p1', { q: 10, r: 10 }, map, mkC()),
       productionQueue: ['warrior', 'workshop'],
       productionProgress: 4,
     };

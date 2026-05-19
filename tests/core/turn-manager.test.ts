@@ -107,7 +107,7 @@ describe('processTurn', () => {
   it('stores net economy status and applies maintenance during turn processing', () => {
     const state = createNewGame(undefined, 'turn-economy', 'small');
     const bus = new EventBus();
-    const city = foundCity('player', { q: 2, r: 2 }, state.map);
+    const city = foundCity('player', { q: 2, r: 2 }, state.map, state.idCounters);
     city.id = 'capital';
     city.population = 2;
     city.buildings = ['marketplace'];
@@ -133,7 +133,7 @@ describe('processTurn', () => {
     const bus = new EventBus();
     const listener = vi.fn();
     bus.on('economy:treasury-strain', listener);
-    const city = foundCity('player', { q: 2, r: 2 }, state.map);
+    const city = foundCity('player', { q: 2, r: 2 }, state.map, state.idCounters);
     city.id = 'capital';
     city.population = 1;
     city.workedTiles = [];
@@ -144,7 +144,7 @@ describe('processTurn', () => {
     state.units = {};
     state.civilizations.player.gold = 0;
     for (let index = 0; index < 40; index++) {
-      const unit = createUnit('warrior', 'player', city.position);
+      const unit = createUnit('warrior', 'player', city.position, state.idCounters);
       state.units[unit.id] = unit;
       state.civilizations.player.units.push(unit.id);
     }

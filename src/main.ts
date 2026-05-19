@@ -673,7 +673,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
 
       if (completion.completedUnit) {
         const civDef = resolveCivDefinition(gameState, civ.civType ?? '');
-        const newUnit = createUnit(completion.completedUnit, civId, targetCity.position, civDef?.bonusEffect);
+        const newUnit = createUnit(completion.completedUnit, civId, targetCity.position, gameState.idCounters, civDef?.bonusEffect);
         gameState.units[newUnit.id] = newUnit;
         gameState.civilizations[civId].units.push(newUnit.id);
         bus.emit('city:unit-trained', { cityId, unitType: completion.completedUnit });
