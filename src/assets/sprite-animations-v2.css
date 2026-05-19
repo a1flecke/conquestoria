@@ -377,6 +377,32 @@
   animation-delay: calc(var(--phase, 0) * -1.4s);
 }
 
+/* ─────────────────────────── PIKE THRUST ─────────────────────────── */
+
+/* Suppress the default overhead slash for pikes.
+   The inner group carries the rest-pose SVG transform; animating it keeps
+   the thrust shaft-local without baking the rest transform into keyframe stops. */
+.cq-v2[data-state="attack"][data-kind-variant="pike"] .cq-weapon {
+  animation: none;
+}
+
+@keyframes cq2-attack-pike-thrust {
+  0%   { transform: translate(0, 0); }
+  18%  { transform: translate(0, 2px); }    /* pull-back — builds anticipation */
+  32%  { transform: translate(0, -10px); }  /* thrust apex — tip extends forward */
+  48%  { transform: translate(0, -10px); }  /* hold — the strike lands */
+  72%  { transform: translate(0, -2px); }   /* recover — ease back */
+  100% { transform: translate(0, 0); }
+}
+
+/* Animate the inner group, not .cq-weapon, so the rest-pose rotation
+   (rotate(-8)) is already applied when CSS transform runs. */
+.cq-v2[data-state="attack"][data-kind-variant="pike"] .cq-weapon-inner {
+  animation: cq2-attack-pike-thrust 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+  transform-box: fill-box;
+}
+
 /* ─────────────────────────── NAVAL — ship rock + sail billow ─────────────────────────── */
 
 /* Naval body override: replace humanoid breathe with a slow side-to-side rock.
