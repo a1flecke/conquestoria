@@ -347,6 +347,56 @@ export function HarborSprite({ palette, svgOnly = false }: BuildingSpriteProps):
   );
 }
 
+export function DockSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Dock" sub="Food" category="food" svgOnly={svgOnly}>
+      {/* water background */}
+      <rect x="0" y="118" width="192" height="42" fill={P.ground.water} />
+
+      {/* animated wave line 1 */}
+      <path d="M0,124 Q24,120 48,124 T96,124 T144,124 T192,124" stroke="#fff" strokeWidth="0.6" fill="none" opacity="0.5">
+        <animate attributeName="d"
+          values="M0,124 Q24,120 48,124 T96,124 T144,124 T192,124;M0,126 Q24,122 48,126 T96,122 T144,126 T192,126;M0,124 Q24,120 48,124 T96,124 T144,124 T192,124"
+          dur="3s" repeatCount="indefinite" calcMode="spline"
+          keySplines="0.4 0 0.6 1;0.4 0 0.6 1" />
+      </path>
+
+      {/* animated wave line 2 */}
+      <path d="M0,132 Q24,128 48,132 T96,132 T144,132 T192,132" stroke="#fff" strokeWidth="0.4" fill="none" opacity="0.3">
+        <animate attributeName="d"
+          values="M0,132 Q24,128 48,132 T96,132 T144,132 T192,132;M0,130 Q24,134 48,130 T96,134 T144,130 T192,130;M0,132 Q24,128 48,132 T96,132 T144,132 T192,132"
+          dur="3s" begin="1.5s" repeatCount="indefinite" calcMode="spline"
+          keySplines="0.4 0 0.6 1;0.4 0 0.6 1" />
+      </path>
+
+      {/* pier planks */}
+      <rect x="60" y="90" width="72" height="34" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M60,90 H132 M60,100 H132 M60,110 H132 M60,120 H132" stroke={P.wood.dark} strokeWidth="0.6" />
+
+      {/* pier posts into water */}
+      <line x1="72"  y1="120" x2="72"  y2="160" stroke={P.wood.dark} strokeWidth="3" />
+      <line x1="96"  y1="120" x2="96"  y2="160" stroke={P.wood.dark} strokeWidth="3" />
+      <line x1="120" y1="120" x2="120" y2="160" stroke={P.wood.dark} strokeWidth="3" />
+
+      {/* small boat with rocking animation — pivot at waterline centre (146, 116) */}
+      <g transform="translate(146 116)">
+        <animateTransform attributeName="transform"
+          type="rotate"
+          values="0 0 0;1.5 0 0;0 0 0;-1.5 0 0;0 0 0"
+          dur="4s" begin="0.8s" repeatCount="indefinite" calcMode="spline"
+          keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
+          additive="sum" />
+        <path d="M-16,-4 Q6,-8 16,-4 Q12,6 0,8 Q-12,6 -16,-4 Z" fill={P.wood.light} stroke={P.ink.line} strokeWidth="1" />
+        <line x1="0" y1="-8" x2="0" y2="-28" stroke={P.wood.dark} strokeWidth="1.5" />
+        <path d="M0,-26 L14,-18 L14,-8 L0,-8 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />
+      </g>
+
+      {/* civ banner */}
+      <Banner x={96} y={62} palette={palette} scale={0.7} />
+    </BuildingFrame>
+  );
+}
+
 /* === MILITARY === */
 
 export function BarracksSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
