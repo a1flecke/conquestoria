@@ -5,11 +5,14 @@ import {
   checkGridExpansion,
   purchaseGridExpansion,
   getUnplacedBuildings,
+  placeBuilding,
+  createEmptyCityGrid,
   BUILDINGS,
   CITY_NAMES,
   TRAINABLE_UNITS,
   PRODUCTION_ICONS,
 } from '@/systems/city-system';
+import type { City } from '@/core/types';
 import type { GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 
@@ -393,6 +396,58 @@ describe('grid expansion', () => {
     const cost = purchaseGridExpansion(city, 30);
     expect(cost).toBe(0);
     expect(city.gridSize).toBe(3);
+  });
+});
+
+describe('placeBuilding', () => {
+  const mkCity = (): City => ({
+    id: 'test',
+    name: 'Test',
+    owner: 'player',
+    position: { q: 0, r: 0 },
+    population: 1,
+    food: 0,
+    foodNeeded: 10,
+    productionProgress: 0,
+    productionQueue: [],
+    buildings: ['granary'],
+    workedTiles: [],
+    ownedTiles: [],
+    grid: createEmptyCityGrid(),
+    gridSize: 3,
+    focus: 'balanced' as const,
+    culture: 0,
+    maturity: 'outpost' as const,
+    idleProduction: null,
+    unrestLevel: 0,
+    unrestTurns: 0,
+    spyUnrestBonus: 0,
+  });
+
+  it('places a building in the specified slot', () => {
+    const city = mkCity();
+    const result = placeBuilding(city, 'granary', 3, 4);
+    expect(result.grid[3][4]).toBe('granary');
+  });
+
+  it('returns city unchanged when slot is occupied', () => {
+    const city = mkCity();
+    city.grid[3][4] = 'workshop';
+    const result = placeBuilding(city, 'granary', 3, 4);
+    expect(result.grid[3][4]).toBe('workshop');
+  });
+
+  it('returns city unchanged when building is not in the unplaced list', () => {
+    const city = mkCity();
+    city.grid[3][4] = 'granary';
+    const result = placeBuilding(city, 'granary', 3, 5);
+    expect(result.grid[3][5]).toBeNull();
+  });
+
+  it('returns city unchanged when slot is out of unlocked range', () => {
+    const city = mkCity(); // gridSize: 3 — outer rows/cols are locked
+    const result = placeBuilding(city, 'granary', 0, 0); // top-left corner, locked
+    expect(result.grid[0][0]).toBeNull();
   });
 });
 

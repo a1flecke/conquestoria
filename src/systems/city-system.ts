@@ -3,7 +3,7 @@ import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
-import { findOptimalSlot } from './adjacency-system';
+import { findOptimalSlot, isSlotUnlocked } from './adjacency-system';
 
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
 
@@ -330,6 +330,17 @@ export function getUnplacedBuildings(city: City): string[] {
     seen.add(buildingId);
     return !placed.has(buildingId);
   });
+}
+
+export function placeBuilding(city: City, buildingId: string, row: number, col: number): City {
+  const renderSize = 7;
+  if (!isSlotUnlocked(row, col, city.gridSize, renderSize)) return city;
+  if (city.grid[row]?.[col] !== null) return city;
+  if (!getUnplacedBuildings(city).includes(buildingId)) return city;
+
+  const grid = city.grid.map(r => r.slice());
+  grid[row][col] = buildingId;
+  return { ...city, grid };
 }
 
 export interface CityProcessResult {
