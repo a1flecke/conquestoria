@@ -47,7 +47,7 @@ const _P2 = _S2.PALETTE;
  */
 function SpriteFrameV2({
   size = 128, children, hex = true, hexTint = '#000',
-  state = 'idle', kind = 'civilian', phase,
+  state = 'idle', kind = 'civilian', variant, phase,
 }) {
   const { HexBase } = window;
   const autoPhase = React.useMemo(() => Math.random(), []);
@@ -55,11 +55,12 @@ function SpriteFrameV2({
    * (e.g. the phase-desync demo's first column) and must not fall through
    * to autoPhase. Only an *omitted* prop triggers the auto value. */
   const p = phase === undefined ? autoPhase : phase;
+  const variantAttr = variant ? { 'data-kind-variant': variant } : {};
   return (
     <div className="cq-sprite-wrap cq-v2" data-state={state} data-kind={kind}
-         style={{ '--phase': p }}>
+         {...variantAttr} style={{ '--phase': p }}>
       <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="100%"
-           data-state={state} data-kind={kind}>
+           data-state={state} data-kind={kind} {...variantAttr}>
         {hex && (
           <g transform={`translate(${(size - 96) / 2} ${size - 96 * 0.866 - 6})`}>
             <HexBase size={96} tint={hexTint} />
