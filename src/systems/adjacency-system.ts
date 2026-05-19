@@ -53,7 +53,7 @@ function getGridNeighbors(row: number, col: number): Array<{ row: number; col: n
   ];
 }
 
-function isSlotUnlocked(row: number, col: number, gridSize: number, renderSize: number): boolean {
+export function isSlotUnlocked(row: number, col: number, gridSize: number, renderSize: number): boolean {
   const unlockedSize = Math.min(gridSize, renderSize);
   const offset = Math.floor((renderSize - unlockedSize) / 2);
   return row >= offset && row < renderSize - offset && col >= offset && col < renderSize - offset;
