@@ -53,6 +53,7 @@ export const BUILDINGS: Record<string, Building> = {
   // Economy
   marketplace: { id: 'marketplace', name: 'Marketplace', category: 'economy', yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 50, description: 'Center of trade', techRequired: 'currency', adjacencyBonuses: [] },
   harbor: { id: 'harbor', name: 'Harbor', category: 'economy', yields: { food: 1, production: 0, gold: 3, science: 0 }, productionCost: 80, description: 'Enables sea trade', techRequired: 'harbor-tech', adjacencyBonuses: [] },
+  dock: { id: 'dock', name: 'Dock', category: 'economy', yields: { food: 2, production: 0, gold: 1, science: 0 }, productionCost: 20, description: 'Harbor for fishing boats. Boosts coastal city food and trade.', techRequired: 'fishing', coastalRequired: true, adjacencyBonuses: [], pacing: { band: 'core', role: 'coastal-food', impact: 1, scope: 'city', snowball: 1.05, urgency: 1, situationality: 1.2, unlockBreadth: 1 } },
 
   // Military
   barracks: { id: 'barracks', name: 'Barracks', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 10, description: 'A training ground. Required by future military doctrines.', techRequired: null, adjacencyBonuses: [], pacing: { band: 'starter', role: 'military-enabler', impact: 1, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1.05 } },
@@ -178,6 +179,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   observatory: '🔭',
   marketplace: '🏪',
   harbor: '⚓',
+  dock: '🚢',
   barracks: '🪖',
   walls: '🧱',
   stable: '🐴',
@@ -284,10 +286,19 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
   };
 }
 
-export function getAvailableBuildings(city: City, completedTechs: string[]): Building[] {
+export function isCityCoastal(city: City, mapTiles: GameMap['tiles']): boolean {
+  return (city.ownedTiles ?? []).some(coord => {
+    const tile = mapTiles[`${coord.q},${coord.r}`];
+    return tile?.terrain === 'ocean' || tile?.terrain === 'coast';
+  });
+}
+
+export function getAvailableBuildings(city: City, completedTechs: string[], mapTiles: GameMap['tiles']): Building[] {
+  const coastal = isCityCoastal(city, mapTiles);
   return Object.values(BUILDINGS).filter(b => {
     if (city.buildings.includes(b.id)) return false;
     if (b.techRequired && !completedTechs.includes(b.techRequired)) return false;
+    if (b.coastalRequired && !coastal) return false;
     return true;
   });
 }

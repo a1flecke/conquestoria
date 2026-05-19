@@ -213,7 +213,7 @@ function chooseLegendaryWonderFallback(
 
   const civDef = resolveCivDefinition(state, civilization.civType ?? '');
   const yields = calculateProjectedCityYields(state, cityId, civDef?.bonusEffect);
-  const availableBuildings = getAvailableBuildings(city, civilization.techState.completed).map(building => building.id);
+  const availableBuildings = getAvailableBuildings(city, civilization.techState.completed, state.map.tiles).map(building => building.id);
   const atWar = civilization.diplomacy.atWarWith.length > 0;
 
   if (yields.food <= city.population) {

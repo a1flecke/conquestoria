@@ -299,6 +299,7 @@ export interface Building {
   productionCost: number;
   description: string;
   techRequired?: string | null;
+  coastalRequired?: boolean;
   adjacencyBonuses?: AdjacencyBonus[];
   pacing?: PacingMetadata;
 }

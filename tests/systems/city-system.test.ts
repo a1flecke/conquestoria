@@ -93,7 +93,7 @@ describe('getAvailableBuildings', () => {
     const map = generateMap(30, 30, 'city-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', landTile.coord, map, mkC());
-    const available = getAvailableBuildings(city, []);
+    const available = getAvailableBuildings(city, [], map.tiles);
     expect(available.length).toBeGreaterThan(0);
   });
 
@@ -102,8 +102,57 @@ describe('getAvailableBuildings', () => {
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', landTile.coord, map, mkC());
     city.buildings = ['granary'];
-    const available = getAvailableBuildings(city, []);
+    const available = getAvailableBuildings(city, [], map.tiles);
     expect(available.find(b => b.id === 'granary')).toBeUndefined();
+  });
+
+  it('excludes coastalRequired buildings from inland cities', () => {
+    const map = generateMap(30, 30, 'coastal-test');
+    const inlandTile = Object.values(map.tiles).find(t =>
+      t.terrain === 'grassland' &&
+      !Object.values(map.tiles).some(n =>
+        Math.abs(n.coord.q - t.coord.q) <= 1 &&
+        Math.abs(n.coord.r - t.coord.r) <= 1 &&
+        (n.terrain === 'ocean' || n.terrain === 'coast')
+      )
+    )!;
+    const city = foundCity('p1', inlandTile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['fishing'], map.tiles);
+    expect(available.find(b => b.id === 'dock')).toBeUndefined();
+  });
+
+  it('includes dock for coastal cities with fishing tech', () => {
+    const map = generateMap(30, 30, 'coastal-test');
+    const waterTile = Object.values(map.tiles).find(t => t.terrain === 'ocean' || t.terrain === 'coast')!;
+    const nearTile = Object.values(map.tiles).find(t =>
+      (t.terrain === 'grassland' || t.terrain === 'plains') &&
+      Math.abs(t.coord.q - waterTile.coord.q) <= 1 &&
+      Math.abs(t.coord.r - waterTile.coord.r) <= 1
+    );
+    if (!nearTile) return; // skip if map seed has no coastal grassland
+    const city = {
+      ...foundCity('p1', nearTile.coord, map, mkC()),
+      ownedTiles: [nearTile.coord, waterTile.coord],
+    };
+    const available = getAvailableBuildings(city, ['fishing'], map.tiles);
+    expect(available.find(b => b.id === 'dock')).toBeDefined();
+  });
+
+  it('excludes dock from coastal city without fishing tech', () => {
+    const map = generateMap(30, 30, 'coastal-test');
+    const waterTile = Object.values(map.tiles).find(t => t.terrain === 'ocean' || t.terrain === 'coast')!;
+    const nearTile = Object.values(map.tiles).find(t =>
+      (t.terrain === 'grassland' || t.terrain === 'plains') &&
+      Math.abs(t.coord.q - waterTile.coord.q) <= 1 &&
+      Math.abs(t.coord.r - waterTile.coord.r) <= 1
+    );
+    if (!nearTile) return; // skip if map seed has no coastal tile
+    const city = {
+      ...foundCity('p1', nearTile.coord, map, mkC()),
+      ownedTiles: [nearTile.coord, waterTile.coord],
+    };
+    const available = getAvailableBuildings(city, [], map.tiles); // no fishing tech
+    expect(available.find(b => b.id === 'dock')).toBeUndefined();
   });
 });
 
@@ -286,7 +335,7 @@ describe('expanded buildings', () => {
   it('getAvailableBuildings filters by tech requirements', () => {
     const map = generateMap(30, 30, 'building-test');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    const available = getAvailableBuildings(city, []);
+    const available = getAvailableBuildings(city, [], map.tiles);
     for (const b of available) {
       expect(b.techRequired).toBeNull();
     }
