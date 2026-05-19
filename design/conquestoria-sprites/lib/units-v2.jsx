@@ -38,6 +38,12 @@ const _P2 = _S2.PALETTE;
  * Phase: if a `phase` prop is provided it wins; otherwise each instance gets
  * a random stable phase via useMemo, so a row of identical sprites desyncs
  * automatically with no caller effort.
+ *
+ * Animation contract:
+ *   data-state        ∈ { idle, walk, attack, hurt, death, busy }
+ *   data-kind         ∈ { civilian, melee, ranged, naval, hound, spy, building }
+ *   data-kind-variant ∈ { pike (melee), scout (hound), war (hound) }
+ *                       Omit for sprites that have no variant differentiation.
  */
 function SpriteFrameV2({
   size = 128, children, hex = true, hexTint = '#000',
