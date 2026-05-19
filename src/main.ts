@@ -2384,6 +2384,9 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
 // --- Event listeners ---
 bus.on('tech:completed', ({ civId, techId }) => {
   appendToCivLog(civId, `Research complete: ${techId}!`, 'success');
+  if (techId === 'fishing') {
+    appendToCivLog(civId, 'Fishing unlocked — build a Dock in your coastal cities to boost food and trade.', 'info');
+  }
   if (civId === gameState.currentPlayer) SFX.research();
 });
 
