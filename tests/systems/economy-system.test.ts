@@ -9,12 +9,11 @@ import {
   getRushBuyQuote,
 } from '@/systems/economy-system';
 import { foundCity } from '@/systems/city-system';
-import { createUnit, resetUnitId } from '@/systems/unit-system';
+import { createUnit } from '@/systems/unit-system';
 
 function makeState(): GameState {
-  resetUnitId();
   const state = createNewGame(undefined, 'economy-test', 'small');
-  const city = foundCity('player', { q: 2, r: 2 }, state.map);
+  const city = foundCity('player', { q: 2, r: 2 }, state.map, state.idCounters);
   city.id = 'capital';
   city.name = 'Capital';
   city.population = 2;
@@ -37,7 +36,7 @@ function city(state: GameState): City {
 
 function addUnits(state: GameState, count: number): void {
   for (let index = 0; index < count; index++) {
-    const unit = createUnit('warrior', 'player', city(state).position);
+    const unit = createUnit('warrior', 'player', city(state).position, state.idCounters);
     state.units[unit.id] = unit;
     state.civilizations.player.units.push(unit.id);
   }

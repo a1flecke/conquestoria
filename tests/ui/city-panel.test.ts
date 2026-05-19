@@ -287,7 +287,7 @@ describe('city-panel navigation', () => {
     state.civilizations[state.currentPlayer].units = [];
     state.units = {};
     for (let index = 0; index < 40; index++) {
-      const unit = createUnit('warrior', state.currentPlayer, city.position);
+      const unit = createUnit('warrior', state.currentPlayer, city.position, state.idCounters);
       state.units[unit.id] = unit;
       state.civilizations[state.currentPlayer].units.push(unit.id);
     }
