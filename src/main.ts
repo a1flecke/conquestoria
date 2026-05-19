@@ -11,7 +11,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { scanIdCounters } from '@/core/id-counters';
-import { foundCity } from '@/systems/city-system';
+import { foundCity, BUILDINGS, getUnplacedBuildings, placeBuilding } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
@@ -636,6 +636,15 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       if (!targetCity) return;
       gameState.cities[cityId] = setIdleProduction(targetCity, mode);
       renderLoop.setGameState(gameState);
+    },
+    onPlaceBuilding: (cityId, buildingId, row, col) => {
+      const targetCity = gameState.cities[cityId];
+      if (!targetCity) return;
+      const updated = placeBuilding(targetCity, buildingId, row, col);
+      if (updated === targetCity) return;
+      gameState = { ...gameState, cities: { ...gameState.cities, [cityId]: updated } };
+      renderLoop.setGameState(gameState);
+      openCityPanelForCity(updated);
     },
   });
 }
@@ -2406,7 +2415,11 @@ bus.on('city:maturity-upgraded', ({ cityId, current }) => {
 bus.on('city:building-complete', ({ cityId, buildingId }) => {
   const city = gameState.cities[cityId];
   if (!city) return;
-  appendToCivLog(city.owner, `${city.name}: ${buildingId} completed!`, 'success');
+  const buildingName = BUILDINGS[buildingId]?.name ?? buildingId;
+  appendToCivLog(city.owner, `${city.name}: ${buildingName} completed!`, 'success');
+  if (getUnplacedBuildings(city).includes(buildingId)) {
+    appendToCivLog(city.owner, `${buildingName} needs a grid slot — open the Grid tab to place it.`, 'info');
+  }
 });
 
 bus.on('village:visited', ({ civId, outcome, message }) => {
