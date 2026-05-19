@@ -403,6 +403,108 @@
   transform-box: fill-box;
 }
 
+/* ─────────────────────────── HOUND (QUADRUPED) ─────────────────────────── */
+
+/* data-kind="hound" is the quadruped body-plan slot. Both ScoutHound and
+   WarHound use it. Variant (scout / war) tunes tempo and range via CSS vars. */
+
+/* Idle: flat translateY-only breath — no scaleY (wrong silhouette for a dog) */
+@keyframes cq2-hound-breathe {
+  0%, 100% { transform: translateY(0); }
+  45%      { transform: translateY(-0.8px); }
+  70%      { transform: translateY(-0.3px); }
+}
+.cq-v2[data-kind="hound"][data-state="idle"] .cq-sprite-figure {
+  animation: cq2-hound-breathe 3.2s cubic-bezier(.4,0,.2,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -3.2s);
+}
+
+/* Walk body: two-peak bob (quadrupeds lift on each diagonal pair transition) */
+@keyframes cq2-hound-walk-body {
+  0%, 100% { transform: translateY(0); }
+  25%      { transform: translateY(var(--quad-bob, -1.5px)); }
+  50%      { transform: translateY(0); }
+  75%      { transform: translateY(var(--quad-bob, -1.5px)); }
+}
+.cq-v2[data-kind="hound"][data-state="walk"] .cq-sprite-figure {
+  animation: cq2-hound-walk-body var(--quad-walk-cycle, 0.6s) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--quad-walk-cycle, 0.6s));
+}
+
+/* Leg pivot setup — apply to all four hooks; pivot at top of each leg group */
+.cq-v2[data-kind="hound"] .cq-leg-fl,
+.cq-v2[data-kind="hound"] .cq-leg-fr,
+.cq-v2[data-kind="hound"] .cq-leg-bl,
+.cq-v2[data-kind="hound"] .cq-leg-br {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+
+/* Two keyframes with opposite start positions = diagonal pair desync without
+   extra animation-delay math. --quad-leg-scale lets WarHound trim the arc. */
+@keyframes cq2-hound-leg-a {
+  0%, 100% { transform: rotate(calc(-10deg * var(--quad-leg-scale, 1))); }
+  50%      { transform: rotate(calc(14deg * var(--quad-leg-scale, 1))); }
+}
+@keyframes cq2-hound-leg-b {
+  0%, 100% { transform: rotate(calc(14deg * var(--quad-leg-scale, 1))); }
+  50%      { transform: rotate(calc(-10deg * var(--quad-leg-scale, 1))); }
+}
+
+/* Diagonal pairs: FL+BR phase A, FR+BL phase B */
+.cq-v2[data-kind="hound"][data-state="walk"] .cq-leg-fl,
+.cq-v2[data-kind="hound"][data-state="walk"] .cq-leg-br {
+  animation: cq2-hound-leg-a var(--quad-walk-cycle, 0.6s) cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--quad-walk-cycle, 0.6s));
+}
+.cq-v2[data-kind="hound"][data-state="walk"] .cq-leg-fr,
+.cq-v2[data-kind="hound"][data-state="walk"] .cq-leg-bl {
+  animation: cq2-hound-leg-b var(--quad-walk-cycle, 0.6s) cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--quad-walk-cycle, 0.6s));
+}
+
+/* Attack body: forward lunge, no torso rotation (dog bites head-first) */
+@keyframes cq2-hound-attack-body {
+  0%   { transform: translate(0, 0); }
+  18%  { transform: translate(-3px, 2px); }                   /* crouch back */
+  32%  { transform: translate(var(--quad-lunge, 8px), 0); }   /* lunge apex */
+  48%  { transform: translate(var(--quad-lunge, 8px), 0); }   /* hold */
+  72%  { transform: translate(1px, 1px); }                    /* recover */
+  100% { transform: translate(0, 0); }
+}
+.cq-v2[data-kind="hound"][data-state="attack"] .cq-sprite-figure {
+  animation: cq2-hound-attack-body var(--quad-attack-cycle, 1.4s) cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--quad-attack-cycle, 1.4s));
+}
+
+/* Suppress leg swing during attack — body lunge reads cleaner without competing leg motion */
+.cq-v2[data-kind="hound"][data-state="attack"] .cq-leg-fl,
+.cq-v2[data-kind="hound"][data-state="attack"] .cq-leg-fr,
+.cq-v2[data-kind="hound"][data-state="attack"] .cq-leg-bl,
+.cq-v2[data-kind="hound"][data-state="attack"] .cq-leg-br {
+  animation: none;
+}
+
+/* ── Variant tempo / range variables ─────────────────────────────────── */
+
+/* ScoutHound: light, fast, snappy */
+.cq-v2[data-kind="hound"][data-kind-variant="scout"] {
+  --quad-walk-cycle:    0.5s;
+  --quad-bob:          -1px;
+  --quad-attack-cycle:  1.2s;
+  --quad-lunge:         9px;
+  --quad-leg-scale:     1;
+}
+
+/* WarHound: heavy, slow, committed lunge */
+.cq-v2[data-kind="hound"][data-kind-variant="war"] {
+  --quad-walk-cycle:    0.75s;
+  --quad-bob:          -2px;
+  --quad-attack-cycle:  1.6s;
+  --quad-lunge:         6px;
+  --quad-leg-scale:     0.85;
+}
+
 /* ─────────────────────────── NAVAL — ship rock + sail billow ─────────────────────────── */
 
 /* Naval body override: replace humanoid breathe with a slow side-to-side rock.
