@@ -15,6 +15,7 @@ export interface CityPanelCallbacks {
   onOpenWonderPanel: (cityId: string) => void;
   onSetCityFocus?: (cityId: string, focus: Exclude<CityFocus, 'custom'>) => GameState | void;
   onToggleWorkedTile?: (cityId: string, coord: HexCoord, worked: boolean) => GameState | void;
+  onPlaceBuilding?: (cityId: string, buildingId: string, row: number, col: number) => void;
   onClose: () => void;
   onPrevCity?: () => void;
   onNextCity?: () => void;
@@ -378,6 +379,7 @@ export function createCityPanel(
         callbacks.onClose();
       },
       onClose: callbacks.onClose,
+      onPlaceBuilding: (buildingId, row, col) => callbacks.onPlaceBuilding?.(city.id, buildingId, row, col),
     }, undefined, {
       state,
       onSetCityFocus: (cityId, focus) => rerenderPanel(callbacks.onSetCityFocus?.(cityId, focus), 'grid'),

@@ -416,7 +416,6 @@ describe('placeBuilding', () => {
     grid: createEmptyCityGrid(),
     gridSize: 3,
     focus: 'balanced' as const,
-    culture: 0,
     maturity: 'outpost' as const,
     idleProduction: null,
     unrestLevel: 0,
