@@ -12,8 +12,7 @@ import {
   TRAINABLE_UNITS,
   PRODUCTION_ICONS,
 } from '@/systems/city-system';
-import type { City } from '@/core/types';
-import type { GameMap } from '@/core/types';
+import type { City, GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });

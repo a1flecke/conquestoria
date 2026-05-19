@@ -1,7 +1,7 @@
 import type { City, CityFocus, GameMap, GameState, HexCoord, HexTile, ResourceYield } from '@/core/types';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
 import { BUILDINGS, getUnplacedBuildings } from '@/systems/city-system';
-import { calculateAdjacencyBonuses, findOptimalSlot, isSlotUnlocked as checkSlotUnlocked } from '@/systems/adjacency-system';
+import { calculateAdjacencyBonuses, findOptimalSlot } from '@/systems/adjacency-system';
 import { TERRAIN_YIELDS } from '@/systems/resource-system';
 import { getImprovementYieldBonus } from '@/systems/improvement-system';
 import {
@@ -28,6 +28,7 @@ const BUILDING_ICONS: Record<string, string> = {
   observatory: '🔭',
   marketplace: '🏪',
   harbor: '⚓',
+  dock: '🚢',
   barracks: '⚔️',
   walls: '🧱',
   stable: '🐴',
@@ -339,7 +340,7 @@ function renderBuildingsCoreSection(
         for (const b of btns) {
           b.style.background = b.dataset.buildingId === activePlacingId
             ? 'rgba(232,193,112,0.25)'
-            : '';
+            : 'rgba(255,255,255,0.08)';
         }
         boardContainer.textContent = '';
         renderBuildingBoard(boardContainer, city, map, callbacks, suggestedBuilding, activePlacingId ?? undefined);
