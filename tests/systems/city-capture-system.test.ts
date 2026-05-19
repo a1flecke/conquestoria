@@ -235,4 +235,27 @@ describe('city-capture-system', () => {
     expect(result.state.map.tiles[hexKey(shared)].owner).toBe('player');
     expect(result.state.cities.rome.workedTiles).toEqual([shared]);
   });
+
+  it('assigns worked tiles to conquered city residents after occupation', () => {
+    // foundCity starts with workedTiles: [] — the bug was that nothing assigned
+    // workers after capture, so residents had no tiles to work.
+    const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+
+    // Confirm the city starts with no workers (foundCity default)
+    expect(state.cities.athens.workedTiles).toEqual([]);
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', 1);
+    const captured = result.state.cities.athens;
+
+    expect(captured).toBeDefined();
+    // Population halves (4 → 2), workers must be assigned to valid tiles
+    expect(captured!.workedTiles.length).toBeGreaterThan(0);
+    // Every worked tile must be in the city's ownedTiles
+    const ownedKeys = new Set((captured!.ownedTiles ?? []).map(c => `${c.q},${c.r}`));
+    for (const worked of captured!.workedTiles) {
+      expect(ownedKeys.has(`${worked.q},${worked.r}`)).toBe(true);
+    }
+    // Workers must not exceed halved population
+    expect(captured!.workedTiles.length).toBeLessThanOrEqual(captured!.population);
+  });
 });
