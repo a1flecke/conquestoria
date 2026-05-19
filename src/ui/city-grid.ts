@@ -1,7 +1,7 @@
 import type { City, CityFocus, GameMap, GameState, HexCoord, HexTile, ResourceYield } from '@/core/types';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
 import { BUILDINGS, getUnplacedBuildings } from '@/systems/city-system';
-import { calculateAdjacencyBonuses, findOptimalSlot } from '@/systems/adjacency-system';
+import { calculateAdjacencyBonuses, findOptimalSlot, isSlotUnlocked as checkSlotUnlocked } from '@/systems/adjacency-system';
 import { TERRAIN_YIELDS } from '@/systems/resource-system';
 import { getImprovementYieldBonus } from '@/systems/improvement-system';
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/systems/city-work-system';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
+import { createGameButton } from '@/ui/ui-kit';
 
 const BUILDING_ICONS: Record<string, string> = {
   'city-center': '🏛️',
@@ -54,6 +55,7 @@ interface CityGridCallbacks {
   onSlotTap: (row: number, col: number) => void;
   onBuyExpansion: () => void;
   onClose: () => void;
+  onPlaceBuilding?: (buildingId: string, row: number, col: number) => void;
 }
 
 interface CityManagementOptions {
@@ -187,6 +189,7 @@ function renderBuildingBoard(
   map: GameMap,
   callbacks: CityGridCallbacks,
   suggestedBuilding?: string,
+  placingBuildingId?: string,
 ): void {
   const adjBonuses = calculateAdjacencyBonuses(city.grid, city.gridSize);
   const suggestedSlot = suggestedBuilding
@@ -279,7 +282,14 @@ function renderBuildingBoard(
           appendTextSpan(cell, '+', 'font-size:14px;color:rgba(255,255,255,0.25);');
         }
         if (isSuggested) appendTextSpan(cell, 'suggested', 'font-size:7px;color:#e8c170;');
-        cell.addEventListener('click', () => callbacks.onSlotTap(row, col));
+        if (placingBuildingId) {
+          cell.style.border = '2px dashed #e8c170';
+          cell.style.background = 'rgba(232,193,112,0.12)';
+          cell.title = 'Tap to place here';
+          cell.addEventListener('click', () => callbacks.onPlaceBuilding?.(placingBuildingId, row, col));
+        } else {
+          cell.addEventListener('click', () => callbacks.onSlotTap(row, col));
+        }
       }
 
       grid.appendChild(cell);
@@ -303,7 +313,12 @@ function renderBuildingsCoreSection(
   heading.textContent = 'Buildings/Core';
   section.appendChild(heading);
 
-  renderBuildingBoard(section, city, map, callbacks, suggestedBuilding);
+  let activePlacingId: string | null = null;
+
+  const boardContainer = document.createElement('div');
+  boardContainer.dataset.buildingBoard = 'true';
+  renderBuildingBoard(boardContainer, city, map, callbacks, suggestedBuilding);
+  section.appendChild(boardContainer);
 
   const unplaced = getUnplacedBuildings(city);
   if (unplaced.length > 0) {
@@ -311,13 +326,28 @@ function renderBuildingsCoreSection(
     unplacedSection.dataset.unplacedBuildings = 'true';
     unplacedSection.style.cssText = 'display:flex;flex-direction:column;gap:4px;font-size:12px;';
     const unplacedHeading = document.createElement('h4');
-    unplacedHeading.textContent = 'Unplaced buildings';
+    unplacedHeading.textContent = 'Unplaced buildings — tap one to place it';
     unplacedSection.appendChild(unplacedHeading);
+
+    const btns: HTMLButtonElement[] = [];
     for (const buildingId of unplaced) {
-      const row = document.createElement('div');
-      row.textContent = BUILDINGS[buildingId]?.name ?? titleCase(buildingId);
-      unplacedSection.appendChild(row);
+      const btn = createGameButton(BUILDINGS[buildingId]?.name ?? titleCase(buildingId), 'secondary');
+      btn.dataset.buildingId = buildingId;
+      btn.style.textAlign = 'left';
+      btn.addEventListener('click', () => {
+        activePlacingId = activePlacingId === buildingId ? null : buildingId;
+        for (const b of btns) {
+          b.style.background = b.dataset.buildingId === activePlacingId
+            ? 'rgba(232,193,112,0.25)'
+            : '';
+        }
+        boardContainer.textContent = '';
+        renderBuildingBoard(boardContainer, city, map, callbacks, suggestedBuilding, activePlacingId ?? undefined);
+      });
+      btns.push(btn);
+      unplacedSection.appendChild(btn);
     }
+
     section.appendChild(unplacedSection);
   }
 
@@ -356,10 +386,8 @@ function renderWorkedLandSection(root: HTMLElement, city: City, options: CityMan
   focusWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
   const focusModes: Array<Exclude<CityFocus, 'custom'>> = ['balanced', 'food', 'production', 'gold', 'science'];
   for (const focus of focusModes) {
-    const button = document.createElement('button');
-    button.type = 'button';
+    const button = createGameButton(`${focus[0].toUpperCase()}${focus.slice(1)}`, 'secondary');
     button.dataset.cityFocus = focus;
-    button.textContent = `${focus[0].toUpperCase()}${focus.slice(1)}`;
     button.addEventListener('click', () => options.onSetCityFocus?.(city.id, focus));
     focusWrap.appendChild(button);
   }
@@ -407,11 +435,8 @@ function renderWorkedLandSection(root: HTMLElement, city: City, options: CityMan
     text.textContent = labels.join(' · ');
     row.appendChild(text);
 
-    const button = document.createElement('button');
-    button.type = 'button';
+    const button = createGameButton(worked ? 'Unwork' : 'Work', 'secondary', { disabled: (!entry.available && !worked) || blockedByCapacity });
     button.dataset.workedTileAction = worked ? 'unwork' : 'work';
-    button.textContent = worked ? 'Unwork' : 'Work';
-    button.disabled = (!entry.available && !worked) || blockedByCapacity;
     if (blockedByCapacity) {
       button.title = 'Unwork another tile first';
     }
