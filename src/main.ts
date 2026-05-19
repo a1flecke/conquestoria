@@ -1959,8 +1959,10 @@ function handleHexTap(rawCoord: HexCoord): void {
       if (isWorkerBusy(gameState, selectedUnitId)) {
         const selectedId = selectedUnitId;
         const task = gameState.units[selectedId]?.workerTask;
+        const taskTile = task ? gameState.map.tiles[hexKey(task.coord)] : undefined;
         createWorkerTaskWarningPanel(uiLayer, {
           improvementName: task ? getImprovementDisplayName(task.action) : 'Improvement',
+          turnsLeft: taskTile?.improvementTurnsLeft ?? 1,
           onCancel: () => selectUnit(selectedId),
           onConfirm: () => {
             const moveResult = confirmBusyWorkerMove(gameState, selectedId, coord, {
