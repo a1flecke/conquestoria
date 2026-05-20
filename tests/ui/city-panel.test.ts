@@ -36,6 +36,64 @@ describe('city-panel legendary wonders', () => {
     expect(rendered).toContain('Legendary Wonders');
     expect(rendered).toContain('Wonder carryover');
   });
+
+  it('shows compact legendary wonder cards in the normal Build list and opens the detail panel', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+    const onOpenWonderPanel = vi.fn();
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel,
+      onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('Wonder Ambitions');
+    expect(collectText(panel)).toContain('Oracle of Delphi');
+
+    clickElement(panel.querySelector('[data-wonder-card="oracle-of-delphi"]'));
+
+    expect(onOpenWonderPanel).toHaveBeenCalledWith('city-river');
+    expect(panel.isConnected).toBe(false);
+  });
+
+  it('does not crowd the compact Build list with far-future blocked wonders', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.era = 1;
+    state.civilizations.player.techState.completed = [];
+    state.legendaryWonderProjects = undefined;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const compactSection = panel.querySelector('[data-section="compact-wonder-build-list"]');
+
+    expect(compactSection?.textContent).not.toContain('Internet');
+    expect(compactSection?.textContent).not.toContain('Manhattan Project');
+  });
+
+  it('renders legendary active production and queued follow-ups with human-readable names and ETA', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.productionQueue = ['legendary:oracle-of-delphi', 'library'];
+    city.productionProgress = 60;
+    city.focus = 'production';
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onMoveQueueItem: () => {},
+      onRemoveQueueItem: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const rendered = collectText(panel);
+
+    expect(rendered).toContain('Producing: * Oracle of Delphi');
+    expect(rendered).toContain('Library');
+    expect(rendered).toContain('Starts in');
+    expect(rendered).not.toContain('legendary:oracle-of-delphi');
+  });
 });
 
 describe('city-panel navigation', () => {

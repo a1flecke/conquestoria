@@ -3,6 +3,21 @@ import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notificati
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 
 describe('legendary-wonder-notifications', () => {
+  it('points ready wonders back to the city Build list and journal action', () => {
+    const state = makeLegendaryWonderFixture();
+
+    const visible = getLegendaryWonderNotification(state, 'player', {
+      type: 'wonder:legendary-ready',
+      civId: 'player',
+      cityId: 'city-river',
+      wonderId: 'oracle-of-delphi',
+    });
+
+    expect(visible?.message).toContain('city-river');
+    expect(visible?.message).toContain('Build list');
+    expect(visible?.message).toContain('Start Construction');
+  });
+
   it('only shows race-revealed notifications to the observing current player', () => {
     const state = makeLegendaryWonderFixture();
 

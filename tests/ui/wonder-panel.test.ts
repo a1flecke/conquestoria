@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { makeWonderPanelFixture, collectText } from './helpers/wonder-panel-fixture';
@@ -57,7 +57,8 @@ describe('wonder-panel', () => {
 
     const rendered = collectText(panel);
     expect(rendered).toContain('World Archive');
-    expect(rendered).not.toContain('Oracle of Delphi');
+    expect(rendered).toContain('Second Player');
+    expect(rendered).not.toContain('Rival is pursuing this');
   });
 
   it('shows concrete eligibility failures and reward summary for the selected project', () => {
@@ -72,7 +73,7 @@ describe('wonder-panel', () => {
 
     const rendered = collectText(panel);
     expect(rendered).toContain('Missing');
-    expect(rendered).toContain('pilgrimages');
+    expect(rendered).toContain('Pilgrimages');
     expect(rendered).toContain('Reward');
   });
 
@@ -88,9 +89,9 @@ describe('wonder-panel', () => {
 
     const rendered = collectText(panel);
     expect(rendered).toContain('Manhattan Project');
-    expect(rendered).toContain('Missing: tech nuclear-theory');
+    expect(rendered).toContain('Missing: Nuclear Theory');
     expect(rendered).toContain('Internet');
-    expect(rendered).toContain('Missing: tech mass-media, tech global-logistics');
+    expect(rendered).toContain('Missing: Mass Media, Global Logistics');
   });
 
   it('does not overwhelm the player with an undifferentiated list of wonders', () => {
@@ -180,9 +181,44 @@ describe('wonder-panel', () => {
     });
 
     expect(panel.textContent).toContain('Oracle of Delphi');
-    expect(panel.textContent).toContain('Phase: ready to build');
+    expect(panel.textContent).toContain('Ready to build');
     expect(panel.textContent).toContain('Quest steps: 2/2 complete.');
-    expect(Array.from(panel.querySelectorAll('button')).some(button => button.textContent === 'Start Build')).toBe(true);
+    expect(Array.from(panel.querySelectorAll('button')).some(button => button.textContent === 'Start Construction')).toBe(true);
+    expect(panel.textContent).toContain('current queue continues after this wonder');
+  });
+
+  it('starts construction from the selected city and keeps the panel action explicit', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+    const onStartBuild = vi.fn();
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild,
+      onClose: () => {},
+    });
+
+    const start = Array.from(panel.querySelectorAll('button')).find(button => button.textContent === 'Start Construction');
+    expect(start).toBeTruthy();
+    expect(panel.textContent).toContain('current queue continues after this wonder');
+
+    start!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(onStartBuild).toHaveBeenCalledWith('city-river', 'oracle-of-delphi');
+  });
+
+  it('keeps a close control available at the top of the journal', () => {
+    const { container, state } = makeWonderPanelFixture();
+    const onClose = vi.fn();
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose,
+    });
+    const close = panel.querySelector('[data-wonder-panel-close="top"]');
+
+    expect(close).toBeTruthy();
+    close!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('shows grand canal as incomplete when only another city is developed', () => {
@@ -331,7 +367,7 @@ describe('wonder-panel', () => {
     expect(rivalSection?.textContent).not.toContain('Connect two cities');
   });
 
-  it('Start Build and Close buttons have styled background and color', () => {
+  it('Start Construction and Close buttons have styled background and color', () => {
     const { container, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['masonry', 'writing', 'calendar'];
     state.wonderDiscoverers = { 'natural-1': ['player'] };

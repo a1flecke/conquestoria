@@ -402,7 +402,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     id: 'artisan_legendary_ready',
     advisor: 'artisan',
     icon: '🎨',
-    message: 'A legendary wonder now lies within our grasp. Choose the city carefully. Greatness needs the right stage.',
+    message: 'A legendary wonder now lies within our grasp. Open that city\'s Build list, choose its Wonder Ambitions card, then Start Construction.',
     trigger: (state: GameState) => Object.values(state.legendaryWonderProjects ?? {}).some(
       project => project.ownerId === state.currentPlayer && project.phase === 'ready_to_build',
     ),
