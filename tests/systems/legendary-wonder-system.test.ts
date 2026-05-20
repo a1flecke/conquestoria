@@ -179,7 +179,7 @@ describe('legendary-wonder-system', () => {
   });
 
   it('moves a ready project into the building phase when construction starts', () => {
-    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
 
     const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi');
@@ -187,8 +187,22 @@ describe('legendary-wonder-system', () => {
     expect(result.legendaryWonderProjects!['oracle-of-delphi'].phase).toBe('building');
   });
 
+  it('does not start a stale ready project when current resources no longer satisfy eligibility', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'pilgrimages'],
+      resources: [],
+      oracleStepsCompleted: 2,
+    });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+
+    const result = startLegendaryWonderBuild(state, 'player', 'city-river', 'oracle-of-delphi');
+
+    expect(result.legendaryWonderProjects!['oracle-of-delphi'].phase).toBe('ready_to_build');
+    expect(result.cities['city-river'].productionQueue).toEqual([]);
+  });
+
   it('does not allow the same civilization to start the same wonder in two cities', () => {
-    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     state.cities['city-second'] = {
       ...state.cities['city-river'],
       id: 'city-second',
@@ -241,7 +255,7 @@ describe('legendary-wonder-system', () => {
   });
 
   it('surfaces a build-start event to observers with stationed spies in the target city', () => {
-    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     const bus = new EventBus();
     const revealedEvents: Array<{ observerId: string; civId: string; cityId: string; wonderId: string }> = [];
     bus.on('wonder:legendary-race-revealed', event => revealedEvents.push(event));
@@ -310,7 +324,7 @@ describe('legendary-wonder-system', () => {
   });
 
   it('preserves every queued city item when a legendary wonder starts, even from a full queue', () => {
-    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
     state.cities['city-river'].productionQueue = ['library', 'warrior', 'worker', 'shrine'];
 

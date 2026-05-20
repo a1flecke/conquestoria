@@ -11,7 +11,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { scanIdCounters } from '@/core/id-counters';
-import { foundCity, BUILDINGS, getUnplacedBuildings, placeBuilding } from '@/systems/city-system';
+import { foundCity, BUILDINGS, getProductionDisplayName, getUnplacedBuildings, placeBuilding } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
@@ -543,7 +543,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
         try {
           gameState.cities[cityId] = enqueueCityProduction(targetCity, itemId);
           renderLoop.setGameState(gameState);
-          showNotification(`${targetCity.name}: queued ${itemId}`, 'info');
+          showNotification(`${targetCity.name}: queued ${getProductionDisplayName(itemId)}`, 'info');
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Queue limit reached';
           showNotification(`${targetCity.name}: ${message}`, 'warning');
@@ -567,18 +567,31 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       renderLoop.setGameState(gameState);
     },
     onOpenWonderPanel: (selectedCityId) => {
+      const openWonderPanel = () => {
+        document.getElementById('wonder-panel')?.remove();
+        createWonderPanel(uiLayer, gameState, selectedCityId, {
+          onStartBuild: (buildCityId, wonderId) => {
+            gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
+            const targetCity = gameState.cities[buildCityId];
+            if (targetCity) {
+              renderLoop.setGameState(gameState);
+              updateHUD();
+              const productionItemId = `legendary:${wonderId}`;
+              if (targetCity.productionQueue[0] === productionItemId) {
+                showNotification(`${targetCity.name}: preparing ${getProductionDisplayName(productionItemId)}`, 'info');
+              } else {
+                showNotification(`${targetCity.name}: ${getProductionDisplayName(productionItemId)} is not ready to start.`, 'warning');
+              }
+              openWonderPanel();
+            }
+          },
+          onClose: () => {
+            document.getElementById('wonder-panel')?.remove();
+          },
+        });
+      };
       gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);
-      createWonderPanel(uiLayer, gameState, selectedCityId, {
-        onStartBuild: (buildCityId, wonderId) => {
-          gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
-          const targetCity = gameState.cities[buildCityId];
-          if (targetCity) {
-            renderLoop.setGameState(gameState);
-            showNotification(`${targetCity.name}: preparing ${wonderId}`, 'info');
-          }
-        },
-        onClose: () => {},
-      });
+      openWonderPanel();
     },
     onSetCityFocus: (cityId, focus) => {
       const result = assignCityFocus(gameState, cityId, focus);

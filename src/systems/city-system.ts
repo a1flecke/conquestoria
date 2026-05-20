@@ -4,6 +4,11 @@ import { hexKey, hexesInRange, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 import { findOptimalSlot, isSlotUnlocked } from './adjacency-system';
+import {
+  getLegendaryWonderDisplayName,
+  getLegendaryWonderProductionCost,
+  getLegendaryWonderQueueItemMetadata,
+} from './legendary-wonder-presentation';
 
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
 
@@ -134,6 +139,9 @@ export function getSettlerProductionCost(era: number = 1): number {
 }
 
 export function getCatalogProductionCost(itemId: string, era: number = 1): number {
+  const legendaryCost = getLegendaryWonderProductionCost(itemId);
+  if (legendaryCost !== null) return legendaryCost;
+
   const building = BUILDINGS[itemId];
   if (building) return building.productionCost;
 
@@ -213,6 +221,23 @@ export const PRODUCTION_ICONS: Record<string, string> = {
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';
+
+export function getProductionDisplayName(itemId: string): string {
+  const legendaryName = getLegendaryWonderDisplayName(itemId);
+  if (legendaryName) return legendaryName;
+
+  const building = BUILDINGS[itemId];
+  if (building) return building.name;
+
+  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  return unit?.name ?? itemId;
+}
+
+export function getProductionIconForItem(itemId: string): string {
+  return getLegendaryWonderQueueItemMetadata(itemId)?.icon
+    ?? PRODUCTION_ICONS[itemId]
+    ?? PRODUCTION_ICON_FALLBACK;
+}
 
 export function getTrainableUnitsForCiv(completedTechs: string[], civType?: string): TrainableUnitEntry[] {
   const replacedForCiv = new Set(

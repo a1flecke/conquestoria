@@ -589,6 +589,7 @@ export function startLegendaryWonderBuild(
     || !project
     || project.phase !== 'ready_to_build'
     || !isLegendaryWonderStillAvailable(seededState, wonderId)
+    || !getEligibleLegendaryWonders(seededState, civId, cityId).includes(wonderId)
     || hasActiveLegendaryWonderBuildForCiv(seededState, civId, wonderId, cityId)
   ) {
     return seededState;

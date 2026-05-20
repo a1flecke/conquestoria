@@ -1,5 +1,14 @@
 import type { City, CityFocus, GameState, HexCoord } from '@/core/types';
-import { getAvailableBuildings, BUILDINGS, TRAINABLE_UNITS, getTrainableUnitsForCiv, getProductionCostForItem, PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
+import {
+  getAvailableBuildings,
+  BUILDINGS,
+  TRAINABLE_UNITS,
+  getTrainableUnitsForCiv,
+  getProductionCostForItem,
+  getProductionDisplayName,
+  getProductionIconForItem,
+} from '@/systems/city-system';
+import { getCompactLegendaryWonderEntriesForCity } from '@/systems/legendary-wonder-presentation';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
@@ -32,6 +41,23 @@ export interface CityPanelCallbacks {
 }
 
 type CityPanelTab = 'list' | 'grid';
+
+function getWonderBuildListStatus(state: string): string {
+  switch (state) {
+    case 'ready':
+      return 'Ready to build';
+    case 'building':
+      return 'Under construction';
+    case 'recovered':
+      return 'Carryover recovered';
+    case 'questing':
+      return 'Quest in progress';
+    case 'near':
+      return 'Available soon';
+    default:
+      return 'Open journal';
+  }
+}
 
 function getRushBuyReasonText(reason: RushBuyDisabledReason | null): string | null {
   switch (reason) {
@@ -82,6 +108,7 @@ export function createCityPanel(
     era: state.era,
   });
   const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles);
+  const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);
   const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
   const economyStatus = calculateCivEconomy(state, city.owner);
   const cityMaintenance = calculateCityBuildingMaintenance(state, city);
@@ -125,7 +152,7 @@ export function createCityPanel(
     const futureUpkeep = getFutureBuildingUpkeep(b.id);
     const upkeepStr = futureUpkeep > 0 ? ` · Upkeep: -${futureUpkeep}/turn` : ' · Free support';
     buildItemPlaceholders += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-weight:bold;font-size:13px;">${PRODUCTION_ICONS[b.id] ?? PRODUCTION_ICON_FALLBACK} <span data-text="build-name-${idx}"></span></div>
+      <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(b.id)} <span data-text="build-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}</div>
       <div style="font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></div>
     </div>`;
@@ -140,10 +167,34 @@ export function createCityPanel(
     const cost = getDisplayedCost(u.type);
     const turns = yields.production > 0 ? Math.ceil(cost / yields.production) : '∞';
     unitPlaceholders += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-weight:bold;font-size:13px;">${PRODUCTION_ICONS[u.type] ?? PRODUCTION_ICON_FALLBACK} <span data-text="unit-name-${idx}"></span></div>
+      <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(u.type)} <span data-text="unit-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">Cost: ${cost} · ${turns} turns</div>
     </div>`;
   }
+
+  let compactWonderHtml = '';
+  for (let idx = 0; idx < compactWonderEntries.length; idx++) {
+    const entry = compactWonderEntries[idx];
+    const turns = yields.production > 0 ? Math.ceil(entry.productionCost / yields.production) : '∞';
+    compactWonderHtml += `
+      <div data-wonder-card="${entry.wonderId}" style="background:rgba(232,193,112,0.12);border:1px solid rgba(232,193,112,0.34);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+        <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(entry.queueItemId)} <span data-text="wonder-name-${idx}"></span></div>
+        <div style="font-size:11px;color:#e8c170;"><span data-text="wonder-state-${idx}"></span> · ${entry.productionCost} production · ${turns} turns</div>
+        <div style="font-size:10px;opacity:0.65;" data-text="wonder-summary-${idx}"></div>
+      </div>
+    `;
+  }
+  const compactWonderSectionHtml = `
+    <div data-section="compact-wonder-build-list" style="margin-top:12px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <h3 style="font-size:14px;margin:0;">Wonder Ambitions</h3>
+        <button type="button" data-open-wonder-panel="true" style="min-height:44px;padding:7px 10px;background:rgba(232,193,112,0.16);border:1px solid rgba(232,193,112,0.45);border-radius:6px;color:#f0d897;cursor:pointer;font-size:12px;">Show all ambitions</button>
+      </div>
+      ${compactWonderEntries.length > 0
+        ? compactWonderHtml
+        : '<div style="font-size:12px;opacity:0.65;">No near-term legendary wonders fit this city yet.</div>'}
+    </div>
+  `;
 
   // Idle production selector — always visible; conversion only fires when queue is empty.
   const activeMode = city.idleProduction ?? 'none';
@@ -177,7 +228,7 @@ export function createCityPanel(
 
     currentProductionHtml = `
       <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:12px;margin-bottom:16px;">
-        <div style="font-weight:bold;color:#e8c170;">Producing: ${PRODUCTION_ICONS[currentItem] ?? PRODUCTION_ICON_FALLBACK} <span data-text="prod-name"></span></div>
+        <div style="font-weight:bold;color:#e8c170;">Producing: ${getProductionIconForItem(currentItem)} <span data-text="prod-name"></span></div>
         <div style="font-size:12px;opacity:0.7;"><span data-text="prod-turns"></span> turns remaining</div>
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
@@ -223,7 +274,7 @@ export function createCityPanel(
     queueRowsHtml += `
       <div data-queue-index="${idx}" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px;">
         <div>
-          <div style="font-weight:bold;">${PRODUCTION_ICONS[city.productionQueue[idx]] ?? PRODUCTION_ICON_FALLBACK} <span data-text="queue-name-${idx}"></span></div>
+          <div style="font-weight:bold;">${getProductionIconForItem(city.productionQueue[idx])} <span data-text="queue-name-${idx}"></span></div>
           <div style="font-size:11px;opacity:0.7;">${slotLabel}</div>
         </div>
         <div style="display:flex;gap:6px;">
@@ -281,6 +332,7 @@ export function createCityPanel(
       ${city.buildings.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>${buildingPlaceholders}</div>` : ''}
       <div><h3 style="font-size:14px;margin:0 0 8px;">Build</h3>
         ${buildItemPlaceholders}
+        ${compactWonderSectionHtml}
         <div style="margin-top:12px;font-size:12px;opacity:0.5;margin-bottom:8px;">Units</div>
         ${unitPlaceholders}
       </div>
@@ -312,11 +364,9 @@ export function createCityPanel(
 
   if (city.productionQueue.length > 0) {
     const currentItem = city.productionQueue[0];
-    const building = BUILDINGS[currentItem];
-    const unit = TRAINABLE_UNITS.find(u => u.type === currentItem);
     const totalCost = getDisplayedCost(currentItem);
     const turnsLeft = yields.production > 0 ? Math.ceil((totalCost - city.productionProgress) / yields.production) : '∞';
-    setText('prod-name', building?.name ?? unit?.name ?? currentItem);
+    setText('prod-name', getProductionDisplayName(currentItem));
     setText('prod-turns', String(turnsLeft));
     if (rushBuyReason) {
       setText('rush-reason', rushBuyReason);
@@ -356,7 +406,18 @@ export function createCityPanel(
   });
 
   city.productionQueue.forEach((itemId, index) => {
-    setText(`queue-name-${index}`, BUILDINGS[itemId]?.name ?? TRAINABLE_UNITS.find(unit => unit.type === itemId)?.name ?? itemId);
+    setText(`queue-name-${index}`, getProductionDisplayName(itemId));
+  });
+
+  compactWonderEntries.forEach((entry, index) => {
+    setText(`wonder-name-${index}`, entry.name);
+    setText(`wonder-state-${index}`, getWonderBuildListStatus(entry.visibleState));
+    const missing = entry.missingRequirements.slice(0, 2).join(', ');
+    setText(`wonder-summary-${index}`, entry.canStartBuild
+      ? 'Open the journal to start construction.'
+      : missing
+        ? `Needs ${missing}.`
+        : entry.rewardSummary);
   });
 
   container.appendChild(panel);
@@ -398,6 +459,18 @@ export function createCityPanel(
       callbacks.onBuild(city.id, itemId);
       rerenderPanel();
     });
+  });
+
+  panel.querySelectorAll<HTMLElement>('[data-wonder-card]').forEach(el => {
+    el.addEventListener('click', () => {
+      callbacks.onOpenWonderPanel(city.id);
+      panel.remove();
+    });
+  });
+
+  panel.querySelector<HTMLElement>('[data-open-wonder-panel]')?.addEventListener('click', () => {
+    callbacks.onOpenWonderPanel(city.id);
+    panel.remove();
   });
 
   panel.querySelectorAll('[data-queue-action]').forEach(el => {

@@ -318,7 +318,8 @@ describe('AdvisorSystem', () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].advisor).toBe('artisan');
-    expect(messages[0].message).toMatch(/wonder/i);
+    expect(messages[0].message).toMatch(/Build list/i);
+    expect(messages[0].message).toMatch(/Start Construction/i);
   });
 
   it('warns when a current-player wonder race is underway', () => {

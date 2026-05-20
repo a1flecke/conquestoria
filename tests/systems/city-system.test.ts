@@ -12,6 +12,9 @@ import {
   CITY_NAMES,
   TRAINABLE_UNITS,
   PRODUCTION_ICONS,
+  getCatalogProductionCost,
+  getProductionDisplayName,
+  getProductionIconForItem,
 } from '@/systems/city-system';
 import type { City, GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
@@ -521,5 +524,19 @@ describe('PRODUCTION_ICONS coverage', () => {
       expect(typeof icon, `icon for "${id}" must be string`).toBe('string');
       expect(icon.length, `icon for "${id}" must be non-empty`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('legendary wonder production metadata', () => {
+  it('uses legendary wonder definitions for queued production cost and display', () => {
+    expect(getCatalogProductionCost('legendary:oracle-of-delphi')).toBe(120);
+    expect(getProductionDisplayName('legendary:oracle-of-delphi')).toBe('Oracle of Delphi');
+    expect(getProductionIconForItem('legendary:oracle-of-delphi')).toBe('*');
+  });
+
+  it('uses a safe fallback for unknown legendary queue ids', () => {
+    expect(getCatalogProductionCost('legendary:missing-wonder')).toBe(0);
+    expect(getProductionDisplayName('legendary:missing-wonder')).toBe('Unknown Legendary Wonder');
+    expect(getProductionIconForItem('legendary:missing-wonder')).toBe('*');
   });
 });
