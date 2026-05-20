@@ -747,7 +747,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   for (const civId of Object.keys(newState.civilizations)) {
     newState = applyEconomyTurn(newState, civId, grossGoldByCiv[civId] ?? 0);
-    emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus);
+    emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus, civId);
   }
 
   // --- Advance turn ---

@@ -82,7 +82,7 @@ describe('notification routing', () => {
   });
 
   it('routes treasury strain to the affected civilization with the rush-buy consequence', () => {
-    const state = makeState();
+    const state = makeState({ era: 3 } as Partial<GameState>);
     const { sink, calls } = makeSink();
 
     routeEconomyTreasuryStrain(
@@ -94,10 +94,51 @@ describe('notification routing', () => {
     expect(calls).toEqual([
       expect.objectContaining({
         civId: 'p1',
-        message: expect.stringMatching(/Rush buy is disabled/i),
+        message: expect.stringMatching(/Rush buy is unavailable/i),
         type: 'warning',
       }),
     ]);
+    expect(calls[0]!.message).toMatch(/Unhappiness pressure is rising/i);
+  });
+
+  it('keeps low treasury strain actionable and avoids early-era unhappiness messaging', () => {
+    const state = makeState({ era: 2 } as Partial<GameState>);
+    const { sink, calls } = makeSink();
+
+    routeEconomyTreasuryStrain(
+      state,
+      { civId: 'p1', level: 'low', netGoldPerTurn: -2, unpaidMaintenance: 2 },
+      sink,
+    );
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'p1',
+        message: expect.stringMatching(/Rush buy is still available/i),
+        type: 'warning',
+      }),
+    ]);
+    expect(calls[0]!.message).not.toMatch(/Unhappiness/i);
+  });
+
+  it('blocks rush buy at high strain before era-three unhappiness messaging starts', () => {
+    const state = makeState({ era: 2 } as Partial<GameState>);
+    const { sink, calls } = makeSink();
+
+    routeEconomyTreasuryStrain(
+      state,
+      { civId: 'p1', level: 'high', netGoldPerTurn: -8, unpaidMaintenance: 5 },
+      sink,
+    );
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        civId: 'p1',
+        message: expect.stringMatching(/Rush buy is unavailable/i),
+        type: 'warning',
+      }),
+    ]);
+    expect(calls[0]!.message).not.toMatch(/Unhappiness/i);
   });
 
   it('first-contact writes encounter messages to both civ logs', () => {

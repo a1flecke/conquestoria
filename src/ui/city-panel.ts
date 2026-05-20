@@ -7,7 +7,13 @@ import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/c
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createCityGrid } from './city-grid';
-import { calculateCivEconomy, formatMaintenanceTooltip, getRushBuyQuote } from '@/systems/economy-system';
+import {
+  calculateCityBuildingMaintenance,
+  calculateCivEconomy,
+  formatMaintenanceTooltip,
+  getRushBuyQuote,
+  type RushBuyDisabledReason,
+} from '@/systems/economy-system';
 
 export interface CityPanelCallbacks {
   onBuild: (cityId: string, itemId: string) => void;
@@ -26,6 +32,25 @@ export interface CityPanelCallbacks {
 }
 
 type CityPanelTab = 'list' | 'grid';
+
+function getRushBuyReasonText(reason: RushBuyDisabledReason | null): string | null {
+  switch (reason) {
+    case 'no-active-production':
+      return 'Choose production before buying it with gold.';
+    case 'wonders-cannot-be-bought':
+      return 'Legendary wonders cannot be rush bought.';
+    case 'treasury-strain-too-high':
+      return 'Rush buy disabled: treasury strain is too high. Improve net gold before buying instantly.';
+    case 'not-enough-gold':
+      return 'Not enough gold.';
+    case 'not-owner':
+      return 'Only the owner can buy production.';
+    case 'invalid-active-item':
+      return 'This production item cannot be bought.';
+    default:
+      return null;
+  }
+}
 
 export function createCityPanel(
   container: HTMLElement,
@@ -59,8 +84,18 @@ export function createCityPanel(
   const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles);
   const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
   const economyStatus = calculateCivEconomy(state, city.owner);
+  const cityMaintenance = calculateCityBuildingMaintenance(state, city);
+  const cityFreeBuildings = cityMaintenance.exemptBuildings.length + cityMaintenance.supportedBuildings.length;
   const maintenanceTooltip = formatMaintenanceTooltip(economyStatus);
-  const rushBuyQuote = getRushBuyQuote(state, city.id);
+  const rushBuyQuote = getRushBuyQuote(state, city.owner, city.id);
+  const rushBuyReason = getRushBuyReasonText(rushBuyQuote.reason);
+  const getFutureBuildingUpkeep = (buildingId: string): number => {
+    const projected = calculateCityBuildingMaintenance(state, {
+      ...city,
+      buildings: [...city.buildings, buildingId],
+    });
+    return Math.max(0, projected.upkeep - cityMaintenance.upkeep);
+  };
 
   // Build placeholders for dynamic data; style attributes with pure numbers (progress%) are safe
   let buildingPlaceholders = '';
@@ -68,8 +103,10 @@ export function createCityPanel(
     const bid = city.buildings[idx];
     const b = BUILDINGS[bid];
     if (b) {
+      const upkeep = cityMaintenance.rows.find(row => row.id === bid)?.upkeep ?? 0;
       buildingPlaceholders += `<div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:4px;font-size:12px;">
         <strong data-text="bldg-name-${idx}"></strong> — <span data-text="bldg-desc-${idx}"></span>
+        <div style="font-size:11px;opacity:0.72;margin-top:3px;" data-text="bldg-upkeep-${idx}">${upkeep > 0 ? `Upkeep: -${upkeep} gold/turn` : 'Free support'}</div>
       </div>`;
     }
   }
@@ -85,9 +122,11 @@ export function createCityPanel(
     if (b.yields.gold) yieldParts.push(`+${b.yields.gold} 💰`);
     if (b.yields.science) yieldParts.push(`+${b.yields.science} 🔬`);
     const yieldStr = yieldParts.length > 0 ? yieldParts.join(' ') + ' · ' : '';
+    const futureUpkeep = getFutureBuildingUpkeep(b.id);
+    const upkeepStr = futureUpkeep > 0 ? ` · Upkeep: -${futureUpkeep}/turn` : ' · Free support';
     buildItemPlaceholders += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
       <div style="font-weight:bold;font-size:13px;">${PRODUCTION_ICONS[b.id] ?? PRODUCTION_ICON_FALLBACK} <span data-text="build-name-${idx}"></span></div>
-      <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns</div>
+      <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}</div>
       <div style="font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></div>
     </div>`;
   }
@@ -129,7 +168,7 @@ export function createCityPanel(
     const currentItem = city.productionQueue[0];
     const totalCost = getDisplayedCost(currentItem);
     const progress = totalCost > 0 ? Math.round((city.productionProgress / totalCost) * 100) : 0;
-    const rushBuyLabel = rushBuyQuote.cost > 0 ? `Rush buy (${rushBuyQuote.cost} gold)` : 'Rush buy';
+    const rushBuyLabel = rushBuyQuote.cost > 0 ? `Buy now: ${rushBuyQuote.cost} gold` : 'Buy now';
     const rushDisabled = !rushBuyQuote.available || !callbacks.onRushBuyActiveProduction;
     const rushDisabledAttr = rushDisabled ? 'disabled' : '';
     const rushButtonStyle = rushDisabled
@@ -144,8 +183,8 @@ export function createCityPanel(
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;">
-          <button type="button" data-rush-buy="active" ${rushDisabledAttr} title="" style="min-height:34px;padding:7px 10px;border-radius:6px;font-size:12px;font-weight:bold;${rushButtonStyle}">${rushBuyLabel}</button>
-          ${rushBuyQuote.reason ? '<span style="font-size:11px;color:#d9a25c;" data-text="rush-reason"></span>' : ''}
+          <button type="button" data-rush-buy="active" ${rushDisabledAttr} title="" style="min-height:44px;padding:7px 10px;border-radius:6px;font-size:12px;font-weight:bold;${rushButtonStyle}">${rushBuyLabel}</button>
+          ${rushBuyReason ? '<span style="font-size:11px;color:#d9a25c;" data-text="rush-reason"></span>' : ''}
         </div>
       </div>
     `;
@@ -224,9 +263,10 @@ export function createCityPanel(
       <span>🔬 +<span data-text="yield-science"></span></span>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:#d9d3c0;">
-      <span title="" data-maintenance-summary>Maintenance: -${economyStatus.maintenanceGoldPerTurn}/turn</span>
+      <span title="" data-maintenance-summary>Free support: ${cityFreeBuildings} buildings, ${economyStatus.breakdown.freeUnits} units</span>
+      <span title="" data-maintenance-summary>Paid upkeep: -${cityMaintenance.upkeep} city / -${economyStatus.unitMaintenance} empire</span>
       <span>Net treasury: ${economyStatus.netGoldPerTurn >= 0 ? '+' : ''}${economyStatus.netGoldPerTurn}/turn</span>
-      ${economyStatus.strainLevel !== 'stable' ? '<span style="color:#d9a25c;" data-text="economy-strain"></span>' : ''}
+      ${economyStatus.strainLevel !== 'none' ? '<span style="color:#d9a25c;" data-text="economy-strain"></span>' : ''}
     </div>
 
     <div style="display:flex;gap:8px;margin-bottom:12px;">
@@ -278,16 +318,22 @@ export function createCityPanel(
     const turnsLeft = yields.production > 0 ? Math.ceil((totalCost - city.productionProgress) / yields.production) : '∞';
     setText('prod-name', building?.name ?? unit?.name ?? currentItem);
     setText('prod-turns', String(turnsLeft));
-    if (rushBuyQuote.reason) {
-      setText('rush-reason', rushBuyQuote.reason);
+    if (rushBuyReason) {
+      setText('rush-reason', rushBuyReason);
     }
     const rushButton = panel.querySelector<HTMLElement>('[data-rush-buy]');
-    if (rushButton && rushBuyQuote.reason) rushButton.title = rushBuyQuote.reason;
+    if (rushButton && rushBuyReason) rushButton.title = rushBuyReason;
   }
-  const maintenanceSummary = panel.querySelector<HTMLElement>('[data-maintenance-summary]');
-  if (maintenanceSummary) maintenanceSummary.title = maintenanceTooltip;
-  if (economyStatus.strainLevel !== 'stable') {
-    setText('economy-strain', economyStatus.strainLevel === 'critical' ? 'Critical strain' : 'Treasury strained');
+  panel.querySelectorAll<HTMLElement>('[data-maintenance-summary]').forEach(el => {
+    el.title = maintenanceTooltip;
+  });
+  if (economyStatus.strainLevel !== 'none') {
+    const strainLabel = economyStatus.strainLevel === 'critical'
+      ? 'Critical strain'
+      : economyStatus.strainLevel === 'high'
+        ? 'High strain'
+        : 'Low strain';
+    setText('economy-strain', strainLabel);
   }
 
   let bldgIdx = 0;

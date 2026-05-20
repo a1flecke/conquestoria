@@ -272,9 +272,10 @@ describe('city-panel navigation', () => {
     });
 
     const rendered = collectText(panel);
-    expect(rendered).toContain('Maintenance: -0/turn');
+    expect(rendered).toContain('Free support:');
+    expect(rendered).toContain('Paid upkeep:');
     expect(rendered).toContain('Net treasury:');
-    expect(rendered).toContain('Rush buy (25 gold)');
+    expect(rendered).toContain('Buy now: 25 gold');
     clickElement(panel.querySelector('[data-rush-buy]'));
     expect(onRushBuyActiveProduction).toHaveBeenCalledWith(city.id);
   });
@@ -300,9 +301,38 @@ describe('city-panel navigation', () => {
     });
     const rushButton = panel.querySelector<HTMLButtonElement>('[data-rush-buy]');
 
-    expect(collectText(panel)).toContain('Rush buy disabled: treasury strain is critical.');
+    expect(collectText(panel)).toContain('Rush buy disabled: treasury strain is too high.');
     expect(collectText(panel)).toContain('Critical strain');
     expect(rushButton?.disabled).toBe(true);
+  });
+
+  it('shows paid building upkeep directly in the city panel', () => {
+    const { container, city, state } = makeMultiCityFixture();
+    city.buildings = [
+      'herbalist',
+      'workshop',
+      'shrine',
+      'barracks',
+      'library',
+      'granary',
+      'marketplace',
+      'forum',
+      'temple',
+      'monument',
+      'forge',
+      'observatory',
+      'harbor',
+    ];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Paid upkeep: -2 city');
+    expect(rendered).toContain('Upkeep: -2 gold/turn');
   });
 
   it('renders Overview, Buildings/Core, and Worked Land And Water sections in the Grid tab', () => {

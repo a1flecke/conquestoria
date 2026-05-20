@@ -61,8 +61,6 @@ export function computeUnrestPressure(cityId: string, state: GameState): number 
     const economy = getEconomyStatusForCiv(state, owner);
     if (economy.strainLevel === 'critical') {
       pressure += Math.min(MAX_PRESSURE_ECONOMY, 12 + economy.unpaidMaintenance * 2);
-    } else if (economy.strainLevel === 'strained') {
-      pressure += 8;
     }
   }
 

@@ -266,22 +266,13 @@ describe('faction-system', () => {
     const state = makeState({ era: 2 });
     state.economyStatusByCiv = {
       player: {
-        civId: 'player',
-        grossGoldPerTurn: 0,
-        maintenanceGoldPerTurn: 30,
+        turn: state.turn,
+        grossGoldIncome: 0,
+        buildingMaintenance: 0,
+        unitMaintenance: 30,
         netGoldPerTurn: -30,
-        projectedGold: 0,
         unpaidMaintenance: 30,
         strainLevel: 'critical',
-        rushBuyDisabled: true,
-        breakdown: {
-          buildingUpkeep: 0,
-          unitUpkeep: 30,
-          freeBuildings: 0,
-          freeUnits: 0,
-          paidBuildings: 0,
-          paidUnits: 30,
-        },
       },
     };
 
@@ -292,22 +283,13 @@ describe('faction-system', () => {
     const state = makeState({ era: 3 });
     state.economyStatusByCiv = {
       player: {
-        civId: 'player',
-        grossGoldPerTurn: 0,
-        maintenanceGoldPerTurn: 30,
+        turn: state.turn,
+        grossGoldIncome: 0,
+        buildingMaintenance: 0,
+        unitMaintenance: 30,
         netGoldPerTurn: -30,
-        projectedGold: 0,
         unpaidMaintenance: 30,
         strainLevel: 'critical',
-        rushBuyDisabled: true,
-        breakdown: {
-          buildingUpkeep: 0,
-          unitUpkeep: 30,
-          freeBuildings: 0,
-          freeUnits: 0,
-          paidBuildings: 0,
-          paidUnits: 30,
-        },
       },
     };
 

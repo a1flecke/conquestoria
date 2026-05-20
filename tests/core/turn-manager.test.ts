@@ -123,8 +123,8 @@ describe('processTurn', () => {
     const status = result.economyStatusByCiv?.player;
 
     expect(status).toBeDefined();
-    expect(status!.netGoldPerTurn).toBe(status!.grossGoldPerTurn - status!.maintenanceGoldPerTurn);
-    expect(result.civilizations.player.gold).toBe(status!.projectedGold);
+    expect(status!.netGoldPerTurn).toBe(status!.grossGoldIncome - status!.buildingMaintenance - status!.unitMaintenance);
+    expect(result.civilizations.player.gold).toBe(Math.max(0, 20 + status!.netGoldPerTurn));
     expect(state.civilizations.player.gold).toBe(20);
   });
 
@@ -153,7 +153,7 @@ describe('processTurn', () => {
 
     expect(result.civilizations.player.gold).toBe(0);
     expect(result.economyStatusByCiv?.player.strainLevel).toBe('critical');
-    expect(result.economyStatusByCiv?.player.rushBuyDisabled).toBe(true);
+    expect(result.economyStatusByCiv?.player.unpaidMaintenance).toBeGreaterThan(0);
     expect(listener).toHaveBeenCalledWith(expect.objectContaining({ civId: 'player', level: 'critical' }));
   });
 

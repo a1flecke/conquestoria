@@ -338,7 +338,8 @@ export interface City {
 
 // --- Economy ---
 
-export type EconomyStrainLevel = 'stable' | 'strained' | 'critical';
+export type TreasuryStrainLevel = 'none' | 'low' | 'high' | 'critical';
+export type EconomyStrainLevel = TreasuryStrainLevel;
 
 export interface EconomyMaintenanceBreakdown {
   buildingUpkeep: number;
@@ -350,15 +351,13 @@ export interface EconomyMaintenanceBreakdown {
 }
 
 export interface EconomyStatus {
-  civId: string;
-  grossGoldPerTurn: number;
-  maintenanceGoldPerTurn: number;
+  turn: number;
+  grossGoldIncome: number;
+  buildingMaintenance: number;
+  unitMaintenance: number;
   netGoldPerTurn: number;
-  projectedGold: number;
   unpaidMaintenance: number;
-  strainLevel: EconomyStrainLevel;
-  rushBuyDisabled: boolean;
-  breakdown: EconomyMaintenanceBreakdown;
+  strainLevel: TreasuryStrainLevel;
 }
 
 // --- Tech ---
@@ -1094,7 +1093,7 @@ export interface GameEvents {
   'city:unit-trained': { cityId: string; unitType: UnitType };
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
-  'economy:treasury-strain': { civId: string; level: Exclude<EconomyStrainLevel, 'stable'>; netGoldPerTurn: number; unpaidMaintenance: number };
+  'economy:treasury-strain': { civId: string; level: Exclude<TreasuryStrainLevel, 'none'>; netGoldPerTurn: number; unpaidMaintenance: number };
   'combat:resolved': { result: CombatResult };
   'combat:reward-earned': { reward: CombatRewardNotification };
   'tech:completed': { civId: string; techId: string };

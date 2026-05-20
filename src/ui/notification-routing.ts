@@ -144,12 +144,22 @@ export function routeEconomyTreasuryStrain(
   const maintenanceNote = event.unpaidMaintenance > 0
     ? ` ${event.unpaidMaintenance} maintenance went unpaid.`
     : '';
-  const action = event.level === 'critical'
-    ? ' Rush buy is disabled until the treasury recovers.'
-    : ' Consider more gold income before expanding further.';
+  if (event.level === 'low') {
+    sink(
+      event.civId,
+      `Treasury strain (${event.netGoldPerTurn}/turn).${maintenanceNote} Rush buy is still available if you can afford it.`,
+      'warning',
+    );
+    return;
+  }
+
+  const unrestNote = state.era >= 3
+    ? ' Unhappiness pressure is rising.'
+    : '';
+  const label = event.level === 'critical' ? 'Critical treasury strain' : 'Treasury strain is high';
   sink(
     event.civId,
-    `Treasury ${event.level === 'critical' ? 'is in critical strain' : 'is strained'} (${event.netGoldPerTurn}/turn).${maintenanceNote}${action}`,
+    `${label} (${event.netGoldPerTurn}/turn).${maintenanceNote} Rush buy is unavailable until the budget recovers.${unrestNote}`,
     'warning',
   );
 }
