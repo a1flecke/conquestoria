@@ -123,6 +123,7 @@ import {
   type NotificationEntry,
 } from '@/ui/notification-log';
 import {
+  formatEconomyTreasuryStrainMessage,
   routeBarbarianSpawned,
   routeCombatRewardEarned,
   routeCombatResolved,
@@ -2570,12 +2571,7 @@ bus.on('faction:critical-status', event => {
 bus.on('economy:treasury-strain', event => {
   routeEconomyTreasuryStrain(gameState, event, appendToCivLog);
   if (event.civId === gameState.currentPlayer) {
-    showNotification(
-      event.level === 'critical'
-        ? 'Treasury strain is critical. Rush buy is disabled.'
-        : 'Treasury is strained by maintenance.',
-      'warning',
-    );
+    showNotification(formatEconomyTreasuryStrainMessage(gameState, event), 'warning');
   }
 });
 
