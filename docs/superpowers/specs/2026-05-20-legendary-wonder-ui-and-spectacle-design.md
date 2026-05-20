@@ -45,14 +45,19 @@ The subsection appears when the selected city has one or more relevant legendary
 
 | Wonder state | Build-list treatment |
 |---|---|
-| `ready_to_build` | High-priority card with a clear "Ready" state and a prompt to open details/start. |
+| `ready_to_build` | High-priority card with a clear "Ready" state and a prompt to open details/start construction. |
 | `questing` | Card showing quest progress and the next incomplete step. |
 | `building` | Card showing current construction progress, cost, ETA, and race status. |
 | `lost_race` | Recovery card showing carryover production and refund context. |
 | Near-eligible | De-emphasized card if only a small number of requirements are missing. |
 | Fully blocked | Hidden from the compact build-list subsection, but still reachable from the full wonder panel. |
 
-"Near-eligible" means the city/civ is close enough that surfacing the wonder helps planning rather than creating noise. The first implementation should define this conservatively as no more than two missing conditions after evaluating techs, resources, and city requirement.
+"Near-eligible" means the city/civ is close enough that surfacing the wonder helps planning rather than creating noise. The first implementation should define this conservatively as both:
+
+- the wonder's era is no later than the current game era or the next era
+- no more than two conditions are missing after evaluating techs, resources, and city requirement
+
+Far-future wonders outside that era window must stay out of the compact build-list subsection even if they happen to have only one or two formal requirements.
 
 Each build-list wonder card must show:
 
@@ -64,7 +69,7 @@ Each build-list wonder card must show:
 - production cost and ETA when the city can currently build or is building the wonder
 - short reward teaser
 
-Clicking a wonder card opens the selected city's wonder detail panel. The compact card should not attempt to show every quest/race/intel detail.
+Clicking a wonder card opens the selected city's wonder detail panel. The compact card should not attempt to show every quest/race/intel detail. Stage 1 should not start a legendary wonder directly from the compact build-list card; the detail panel is the confirmation surface where the player sees what the action will do.
 
 ### Production Queue Display
 
@@ -78,12 +83,16 @@ Legendary wonder queue items continue to use `legendary:<wonderId>` ids. Stage 1
 
 The display label must be the legendary wonder's human-readable name, not the raw `legendary:` id. The icon should use a temporary wonder production icon or medallion placeholder until Stage 2 supplies final SVG identities.
 
-Starting or queueing a wonder must preserve the existing production queue contract:
+Stage 1 implements one construction action: **Start Construction** from the wonder detail panel. Starting construction makes the wonder the active production item by inserting `legendary:<wonderId>` at the front of the selected city's production queue, while preserving the previous active item and follow-up queue behind it. The button copy or nearby helper text must make that reprioritization explicit before the click, for example: `Start Construction - current queue continues after this wonder.`
+
+Starting construction must preserve the existing production queue contract:
 
 - no silent destructive replacement of queued work
 - visible active item and queued follow-ups
 - visible ETA/order feedback
 - immediate panel refresh after the action
+
+A separate "Queue after current" action is out of scope for Stage 1. If a later implementation adds that action, it must get its own visible queue-position text and replay tests.
 
 ### Wonder Detail Panel
 
@@ -145,7 +154,7 @@ interface LegendaryWonderPresentationEntry {
   investedProduction: number;
   transferableProduction: number;
   canStartBuild: boolean;
-  canQueueBuild: boolean;
+  startActionLabel: string | null;
   sortBucket: 'ready' | 'active' | 'questing' | 'near' | 'blocked' | 'resolved';
 }
 ```
@@ -157,12 +166,14 @@ System helpers remain authoritative for:
 - project seeding and normalization
 - tech/resource/city requirement truth
 - quest completion truth
-- starting a build
+- starting construction
 - race completion and loss
 - rival intel masking
 - global uniqueness and no self-competition
 
 UI code should render the presentation entries and call existing mutation helpers such as `startLegendaryWonderBuild`.
+
+The construction mutation must re-check current tech, resource, city, global-uniqueness, and same-owner active-build eligibility. UI eligibility is guidance, not authority; stale DOM or a direct system call must not start a wonder that is no longer valid.
 
 ---
 
@@ -248,7 +259,7 @@ Stage 1 data flow:
 4. `city-panel.ts` renders a compact Legendary Wonders subsection from those entries.
 5. Clicking a card opens `wonder-panel.ts` for the same city.
 6. `wonder-panel.ts` renders full project detail from the same presentation helper plus viewer-safe rival intel.
-7. Starting or queueing a wonder calls shared system mutation helpers.
+7. Starting construction calls shared system mutation helpers.
 8. The visible panel refreshes immediately from the updated state.
 9. Turn processing continues to resolve quest readiness, construction progress, completion, race loss, and notifications through existing event paths.
 
@@ -263,6 +274,7 @@ This flow keeps the gameplay source of truth in systems and the player-visible e
 - Completed global wonders are removed from competing actionable lists except for the winner's completed/resolved record.
 - A civ cannot race against itself in two cities unless a later spec explicitly changes that rule.
 - Seeded placeholder projects must not be treated as buildable merely because they exist.
+- A stale `ready_to_build` project must not start construction if the city/civ no longer satisfies required techs, resources, or city terrain.
 - Rival race intel must remain masked unless stored under the current viewer's earned intel.
 - Near-eligible cards must be de-emphasized and must not expose a start/queue action.
 - A `legendary:<wonderId>` queue item for an unknown wonder should display a fallback label and fallback cost behavior rather than breaking queue rendering.
@@ -280,7 +292,7 @@ Add or update tests in `tests/ui/city-panel.test.ts`:
 - the build list shows human-readable name, state label, quest progress, missing requirement chips, cost/ETA when relevant, and reward teaser
 - clicking a wonder card opens the wonder detail panel callback for the selected city
 - `legendary:<wonderId>` displays as the wonder name in current production and queue rows
-- starting or queueing a wonder preserves existing queue entries
+- starting construction preserves existing queue entries behind the active wonder
 - the visible city panel refreshes immediately after a wonder action
 
 ### Wonder Panel Tests
@@ -305,6 +317,7 @@ Add or update tests in `tests/systems/legendary-wonder-system.test.ts` or a new 
 - seeded placeholder projects are not treated as actionable
 - global uniqueness prevents completed wonders from appearing as buildable for rivals
 - the same owner cannot actively race the same wonder from two cities
+- `startLegendaryWonderBuild` refuses stale ready projects when a tech, resource, or city requirement is no longer satisfied
 - `legendary:<wonderId>` metadata returns name, cost, icon/placeholder, and fallback values
 
 ### Required Checks
@@ -328,7 +341,7 @@ Stage 1 is complete when:
 - a player can discover relevant legendary wonders from the normal city Build list
 - the build list remains compact and understandable
 - clicking a wonder opens a clear, closable, city-scoped detail panel
-- ready wonders can be started or queued without silently destroying existing queue work
+- ready wonders can be started without silently destroying existing queue work
 - current production and queue rows show human-readable legendary wonder names
 - all selected-city wonder ambitions remain reachable
 - rival wonder details obey earned-intel rules
