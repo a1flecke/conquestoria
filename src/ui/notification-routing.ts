@@ -141,27 +141,25 @@ export function routeEconomyTreasuryStrain(
 ): void {
   const civ = state.civilizations[event.civId];
   if (!civ) return;
+  sink(event.civId, formatEconomyTreasuryStrainMessage(state, event), 'warning');
+}
+
+export function formatEconomyTreasuryStrainMessage(
+  state: GameState,
+  event: GameEvents['economy:treasury-strain'],
+): string {
   const maintenanceNote = event.unpaidMaintenance > 0
     ? ` ${event.unpaidMaintenance} maintenance went unpaid.`
     : '';
   if (event.level === 'low') {
-    sink(
-      event.civId,
-      `Treasury strain (${event.netGoldPerTurn}/turn).${maintenanceNote} Rush buy is still available if you can afford it.`,
-      'warning',
-    );
-    return;
+    return `Treasury strain (${event.netGoldPerTurn}/turn).${maintenanceNote} Rush buy is still available if you can afford it.`;
   }
 
   const unrestNote = state.era >= 3
     ? ' Unhappiness pressure is rising.'
     : '';
   const label = event.level === 'critical' ? 'Critical treasury strain' : 'Treasury strain is high';
-  sink(
-    event.civId,
-    `${label} (${event.netGoldPerTurn}/turn).${maintenanceNote} Rush buy is unavailable until the budget recovers.${unrestNote}`,
-    'warning',
-  );
+  return `${label} (${event.netGoldPerTurn}/turn).${maintenanceNote} Rush buy is unavailable until the budget recovers.${unrestNote}`;
 }
 
 // Writes to both parties' logs from their own perspective.

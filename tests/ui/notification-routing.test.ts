@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CombatResult, GameState } from '@/core/types';
 import {
+  formatEconomyTreasuryStrainMessage,
   getNotificationTargetsForEvent,
   routeBarbarianSpawned,
   routeCombatRewardEarned,
@@ -139,6 +140,19 @@ describe('notification routing', () => {
       }),
     ]);
     expect(calls[0]!.message).not.toMatch(/Unhappiness/i);
+  });
+
+  it('formats treasury strain copy once for logs and immediate toasts', () => {
+    const state = makeState({ era: 3 } as Partial<GameState>);
+    const event = { civId: 'p1', level: 'high' as const, netGoldPerTurn: -8, unpaidMaintenance: 5 };
+    const { sink, calls } = makeSink();
+
+    routeEconomyTreasuryStrain(state, event, sink);
+
+    expect(formatEconomyTreasuryStrainMessage(state, event)).toBe(calls[0]!.message);
+    expect(calls[0]!.message).toContain('Treasury strain is high');
+    expect(calls[0]!.message).toContain('Rush buy is unavailable until the budget recovers.');
+    expect(calls[0]!.message).toContain('Unhappiness pressure is rising.');
   });
 
   it('first-contact writes encounter messages to both civ logs', () => {
