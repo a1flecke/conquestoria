@@ -151,6 +151,26 @@ describe('save persistence (#38)', () => {
     expect(roundTrip.completedLegendaryWonders['oracle-of-delphi'].turnCompleted).toBe(40);
   });
 
+  it('round-trips compact economy status through JSON serialization', () => {
+    const state = {
+      economyStatusByCiv: {
+        player: {
+          turn: 9,
+          grossGoldIncome: 4,
+          buildingMaintenance: 1,
+          unitMaintenance: 3,
+          netGoldPerTurn: 0,
+          unpaidMaintenance: 0,
+          strainLevel: 'none',
+        },
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.economyStatusByCiv.player).toEqual(state.economyStatusByCiv.player);
+  });
+
   it('round-trips occupied city state through save and load', async () => {
     const state = createNewGame(undefined, 'occupied-save', 'small');
     state.cities.athens = {

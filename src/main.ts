@@ -11,7 +11,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { scanIdCounters } from '@/core/id-counters';
-import { completeCityProductionItem, foundCity, BUILDINGS, TRAINABLE_UNITS, getUnplacedBuildings, placeBuilding } from '@/systems/city-system';
+import { foundCity, BUILDINGS, getUnplacedBuildings, placeBuilding } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
@@ -104,7 +104,6 @@ import {
   executeSpy,
   startInterrogation,
   isSpyUnitType,
-  createSpyFromUnit,
   missionRequiresPlacedSpy,
   recallSpy,
   resolveMissionResult,
@@ -146,7 +145,7 @@ import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel'
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
-import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, getRushBuyQuote } from '@/systems/economy-system';
+import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
 
 // --- App State ---
 let gameState: GameState;
@@ -653,54 +652,15 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
     onRushBuyActiveProduction: (cityId) => {
       const targetCity = gameState.cities[cityId];
       if (!targetCity) return gameState;
-      const quote = getRushBuyQuote(gameState, cityId);
-      if (!quote.available || !quote.itemId) {
-        showNotification(quote.reason ?? 'Rush buy is not available.', 'warning');
+      const result = rushBuyActiveProduction(gameState, gameState.currentPlayer, cityId, bus);
+      if (!result.success) {
+        showNotification(result.message, 'warning');
         return gameState;
       }
-
-      const civId = targetCity.owner;
-      const civ = gameState.civilizations[civId];
-      if (!civ) return gameState;
-      const completion = completeCityProductionItem(targetCity, quote.itemId);
-      const nextCiv = { ...civ, gold: civ.gold - quote.cost, units: [...civ.units] };
-      gameState.cities[cityId] = completion.city;
-      gameState.civilizations[civId] = nextCiv;
-
-      if (completion.completedBuilding) {
-        bus.emit('city:building-complete', { cityId, buildingId: completion.completedBuilding });
-      }
-
-      if (completion.completedUnit) {
-        const civDef = resolveCivDefinition(gameState, civ.civType ?? '');
-        const newUnit = createUnit(completion.completedUnit, civId, targetCity.position, gameState.idCounters, civDef?.bonusEffect);
-        gameState.units[newUnit.id] = newUnit;
-        gameState.civilizations[civId].units.push(newUnit.id);
-        bus.emit('city:unit-trained', { cityId, unitType: completion.completedUnit });
-
-        if (isSpyUnitType(completion.completedUnit) && gameState.espionage?.[civId]) {
-          const { state: updatedEsp, spy } = createSpyFromUnit(
-            gameState.espionage[civId],
-            newUnit.id,
-            civId,
-            completion.completedUnit,
-            `spy-unit-${newUnit.id}-${gameState.turn}`,
-          );
-          gameState.espionage[civId] = updatedEsp;
-          bus.emit('espionage:spy-recruited', { civId, spy });
-        }
-      }
-
-      gameState.economyStatusByCiv = {
-        ...(gameState.economyStatusByCiv ?? {}),
-        [civId]: calculateCivEconomy(gameState, civId),
-      };
+      gameState = result.state;
       renderLoop.setGameState(gameState);
       updateHUD();
-      const itemName = BUILDINGS[quote.itemId]?.name
-        ?? TRAINABLE_UNITS.find(unit => unit.type === quote.itemId)?.name
-        ?? quote.itemId;
-      showNotification(`${targetCity.name}: rush bought ${itemName} for ${quote.cost} gold.`, 'success');
+      showNotification(`${targetCity.name}: rush bought ${result.label} for ${result.cost} gold.`, 'success');
       return gameState;
     },
   });
