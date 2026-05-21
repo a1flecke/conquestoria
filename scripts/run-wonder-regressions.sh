@@ -3,7 +3,7 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-./scripts/run-with-mise.sh yarn test --run \
+./scripts/run-with-mise.sh yarn vitest run \
   tests/systems/legendary-wonder-system.test.ts \
   tests/systems/legendary-wonder-definitions.test.ts \
   tests/systems/wonder-system.test.ts \
