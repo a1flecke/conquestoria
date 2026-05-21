@@ -61,7 +61,11 @@ function appendShape(svg: SVGSVGElement, visual: WonderVisualDefinition, reduced
   svg.appendChild(glow);
 }
 
-export function createWonderVignette(entry: WonderAtlasEntry, options: WonderVignetteOptions = {}): HTMLElement {
+export function createWonderVisualVignette(
+  name: string,
+  visual: WonderVisualDefinition,
+  options: WonderVignetteOptions & { kind?: 'natural' | 'legendary' } = {},
+): HTMLElement {
   const reducedMotion = options.reducedMotion ?? prefersReducedMotion();
   const wrapper = document.createElement('div');
   wrapper.dataset.vignetteMotion = reducedMotion ? 'static' : 'ambient';
@@ -70,15 +74,19 @@ export function createWonderVignette(entry: WonderAtlasEntry, options: WonderVig
   const svg = createSvgElement('svg') as SVGSVGElement;
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('role', 'img');
-  svg.style.cssText = `width:112px;height:112px;filter:drop-shadow(0 0 12px ${entry.visual.palette.glow});`;
-  svg.setAttribute('aria-label', `${entry.name} vignette`);
-  appendShape(svg, entry.visual, reducedMotion || entry.kind === 'legendary');
+  svg.style.cssText = `width:112px;height:112px;filter:drop-shadow(0 0 12px ${visual.palette.glow});`;
+  svg.setAttribute('aria-label', `${name} vignette`);
+  appendShape(svg, visual, reducedMotion || options.kind === 'legendary');
   wrapper.appendChild(svg);
 
   const glyph = document.createElement('div');
-  glyph.textContent = entry.visual.medallionGlyph;
+  glyph.textContent = visual.medallionGlyph;
   glyph.style.cssText = 'position:absolute;inset:0;display:grid;place-items:center;font-size:30px;font-weight:700;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.65);';
   wrapper.appendChild(glyph);
 
   return wrapper;
+}
+
+export function createWonderVignette(entry: WonderAtlasEntry, options: WonderVignetteOptions = {}): HTMLElement {
+  return createWonderVisualVignette(entry.name, entry.visual, { ...options, kind: entry.kind });
 }
