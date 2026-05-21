@@ -31,11 +31,16 @@ export const ERA_BASE: Record<EraId, TrackEntry> = {
 };
 
 export const WAR_LAYER: Record<EraId, TrackEntry> = {
-  1: ph('era1-war', 'audio/war/era1-war.ogg'),
-  2: ph('era2-war', 'audio/war/era2-war.ogg'),
-  3: ph('era3-war', 'audio/war/era3-war.ogg'),
-  4: ph('era4-war', 'audio/war/era4-war.ogg'),
-  5: ph('era5-war', 'audio/war/era5-war.ogg'),
+  // Era 1: "Pirates!" by Eric Matyas — soundimage.org — key/BPM unverified
+  1: { id: 'era1-war', file: 'audio/war/era1-war.ogg', bpm: 0,   key: 'unknown',  loop: { loopStart: 0, loopEnd: 72.426  } },
+  // Era 2: "Clenched Teeth" by Kevin MacLeod — 164 BPM confirmed — key unverified (target: C-minor)
+  2: { id: 'era2-war', file: 'audio/war/era2-war.ogg', bpm: 164, key: 'unknown',  loop: { loopStart: 0, loopEnd: 91.152  } },
+  // Era 3: "Crusade — Heavy Industry" by Kevin MacLeod — rearrangement of era3 base, expected G-minor
+  3: { id: 'era3-war', file: 'audio/war/era3-war.ogg', bpm: 0,   key: 'G-minor',  loop: { loopStart: 0, loopEnd: 180.000 } },
+  // Era 4: "Tectonic" by Kevin MacLeod — key/BPM unverified (target: C-Phrygian)
+  4: { id: 'era4-war', file: 'audio/war/era4-war.ogg', bpm: 0,   key: 'unknown',  loop: { loopStart: 0, loopEnd: 82.678  } },
+  // Era 5: "Final Battle of the Dark Wizards" by Kevin MacLeod — D-minor (⚠ target Bb-minor; verify by ear)
+  5: { id: 'era5-war', file: 'audio/war/era5-war.ogg', bpm: 0,   key: 'D-minor',  loop: { loopStart: 0, loopEnd: 180.000 } },
 };
 
 export const ACCENT: Record<AudioFamily, TrackEntry> = {
