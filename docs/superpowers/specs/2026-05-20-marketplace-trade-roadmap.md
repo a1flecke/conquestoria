@@ -44,14 +44,14 @@ This file is the **index** and is intentionally deliverable #1 so the high-level
 
 ## Shared foundation (used by S1–S4)
 
-A small data addition consumed by several early slices: give each entry in `RESOURCE_DEFINITIONS` a **`tech`** (enabling tech id), a **`requiredImprovement`** (the improvement that harvests it), and an **`effect`** descriptor (D-Q1). S1 needs `tech` (reveal), S2 needs `requiredImprovement` (acquisition), S3 needs `tech` (display filter), S4 needs `effect`. Land this data with S1 and extend it as later slices need it.
+A small data addition consumed by several early slices: give each entry in `RESOURCE_DEFINITIONS` a **`tech`** (enabling tech id), a **`requiredImprovement`** (the improvement that harvests it), and an **`effect`** descriptor (D-Q1). S1 needs `tech` (reveal), S2a needs `requiredImprovement` (improvement wiring), S2b needs it for the acquisition helper, S3 needs `tech` (display filter), S4a needs `effect` (yields/happiness), S4b needs a `prerequisiteFor` field (unit/building gates). Land `tech` with S1 and extend the shape as later slices need it.
 
 ## Locked-in decisions
 
 | Decision | Choice | Source |
 |---|---|---|
 | Delivery style | **Fine-grained vertical slices**, each shipping self-contained value | user |
-| Decomposition | **12 slices in 5 phases** (below) | this roadmap |
+| Decomposition | **15 slices in 5 phases** (below) | this roadmap |
 | Roadmap-first | **This index is deliverable #1** | user |
 | No dead-end UX | every slice ships working value (no inert buttons/units) | `.claude/rules/incremental-mr-completion.md` |
 | Resource effects | **mixed per-resource**: some happiness, some gold, some production; strategic resources are **prerequisites for certain buildings/units** (iron → swordsman) | D-Q1 |
@@ -77,7 +77,7 @@ Per-slice sections below only note *additions*.
 - **Save compatibility:** multiple save slots are in active family use. New `MarketplaceState`/`TradeRoute` fields, new `ImprovementType`s, new `UnitType`s, and `RESOURCE_DEFINITIONS` shape changes must tolerate old saves (optional fields / defaults / migration). Add a load-old-save regression when state shape changes.
 - **AI parity:** any player-affecting trade consequence must also be exercised/usable by AI civs.
 
-## Decomposition — 12 slices
+## Decomposition — 15 slices
 
 Ship in order. Each slice's spec lives at `docs/superpowers/specs/2026-..-marketplace-sN-<topic>-design.md`, its plan under `docs/superpowers/plans/`.
 
@@ -90,55 +90,74 @@ Ship in order. Each slice's spec lives at `docs/superpowers/specs/2026-..-market
 *Tests:* every resource has icon+tech (catalog test); reveal appears only with tech (negative without tech); fog-leak negative; spy-reveal still works.
 *Extra rules:* ui-panels privacy; `sprites.md` if using sprites.
 
-**S2 — Acquisition model + resource-specific improvements + inventory.**
-*Scope:* add the new improvements from D-Q2 (e.g. plantation, pasture, camp, quarry) wired end-to-end (terrain rules, worker action, icon, yields); add `requiredImprovement` to resource data; a pure helper `getCivAvailableResources(state, civId)` applying **(tech known AND the required improvement built, `improvementTurnsLeft===0)`**, EXCEPT a resource on a **city-center** tile needs **tech only** (req. 4 + 5). Surface read-only ("Your resources") + tile inspection ("To use: needs Mining + a Mine here — ✓/✗").
-*Files:* new `src/systems/resource-acquisition-system.ts`; `types.ts` `ImprovementType`; `improvement-system.ts`, `worker-action-system.ts`, `hex-renderer.ts` icons, `resource-system.ts` yields; `trade-system.ts` resource data; inventory UI.
-*Done when:* every resource has a buildable harvesting improvement; helper returns correct sets across **all** cities (not `cities[0]`); UI shows owned vs. needs-improvement.
-*Tests (spec-fidelity conjunction):* tech-without-improvement → unavailable; improvement-without-tech → unavailable; both → available; city-tile + tech-only → available; resource off-city + tech-only → unavailable; new improvements buildable only on correct terrain.
+**S2a — Resource-specific improvements (end-to-end).**
+*Scope:* add D-Q2 improvements (plantation, pasture, camp, quarry, …) wired end-to-end. Each new `ImprovementType` needs: terrain-validity rules, a worker-action entry in `worker-action-system.ts`, a `hex-renderer.ts` icon, yield contributions in `resource-system.ts`, and save-migration (old saves lack the new enum members — default to no improvement). Also add `requiredImprovement` to each `RESOURCE_DEFINITION` entry.
+*Files:* `types.ts` `ImprovementType` union; `worker-action-system.ts`; `hex-renderer.ts`; `resource-system.ts` (yields); `trade-system.ts` (resource data `requiredImprovement`); save-load migration.
+*Done when:* every tradeable resource has a buildable harvesting improvement; improvements only build on valid terrain; icons render correctly; old saves load without error.
+*Tests:* every resource has a `requiredImprovement` entry (catalog test); each improvement only buildable on its terrain (positive + negatives); icons render (visual catalog); old-save load regression.
+
+**S2b — Acquisition model + inventory UI.**
+*Scope:* (depends on S2a) a pure helper `getCivAvailableResources(state, civId)` applying **(tech known AND the required improvement built, `improvementTurnsLeft===0`)**, EXCEPT a resource on a **city-center** tile needs **tech only** (req. 4 + 5). Surface read-only ("Your resources") panel + tile inspection ("To use: needs Mining + a Mine here — ✓/✗"). Covers **all** cities, not `cities[0]`.
+*Files:* new `src/systems/resource-acquisition-system.ts`; inventory UI (new panel section or sidebar); tile/territory inspection panel update.
+*Done when:* helper returns correct sets; UI shows owned vs. needs-improvement; city-tile exception works.
+*Tests (spec-fidelity conjunction):* tech-without-improvement → unavailable; improvement-without-tech → unavailable; both → available; city-tile + tech-only → available; resource off-city + tech-only → unavailable; multi-city coverage (not cities[0] only).
 
 **S3 — Marketplace tells the truth.**
-*Scope:* filter the panel to resources whose enabling tech the current player has (req. 2); replace `countPlayerResources` with S2's helper.
+*Scope:* filter the panel to resources whose enabling tech the current player has (req. 2); replace `countPlayerResources` with S2b's `getCivAvailableResources` helper.
 *Files:* `src/ui/marketplace-panel.ts`.
-*Done when:* only tech-available resources listed; counts from S2; uses `state.currentPlayer`.
+*Done when:* only tech-available resources listed; counts from S2b helper; uses `state.currentPlayer`.
 *Tests:* no-tech resource absent (negative); tech-available present with matching count; all tech-available remain reachable (catalog completeness).
 
 ### Phase 2 — Resources matter
 
-**S4 — Resource effects (D-Q1).**
-*Scope:* owning/acquiring a resource confers a **per-resource effect** — some grant happiness, some gold, some production; **strategic resources gate certain buildings/units** (e.g. iron required to train swordsman). Add an `effect` descriptor to resource data; apply happiness/yield effects in city processing; enforce resource prerequisites in `city-system.ts` training/building gating (alongside existing `techRequired`).
-*Files:* `trade-system.ts` (effect data); `resource-system.ts`/city yield + happiness processing; `city-system.ts` (`TRAINABLE_UNITS`/`BUILDINGS` gating reads available resources from S2); city panel surfaces the effect + "requires iron" gating reason.
-*Done when:* having a resource changes happiness/yields; a unit/building that requires a resource is **blocked without it** and trainable with it; the requirement is shown in the city panel.
-*Tests:* effect applied per resource type; prerequisite gating positive+negative (no iron → swordsman untrainable; iron → trainable); spec-fidelity negative coverage.
+**S4a — Per-resource yield & happiness effects (D-Q1, part 1).**
+*Scope:* (depends on S2b) owning a resource (per `getCivAvailableResources`) confers a **per-resource passive effect** — some luxuries grant happiness, some resources add gold or production. Add an `effect` descriptor to each `RESOURCE_DEFINITION` entry; apply effects in city yield + happiness processing each turn.
+*Files:* `trade-system.ts` (effect data); `resource-acquisition-system.ts` (effect applicator); city yield / happiness processing (`resource-system.ts`, `city-system.ts`); city panel shows the active bonus ("Silk → +1 happiness").
+*Done when:* having a resource changes happiness or yield; the bonus is visible in the city panel; losing the resource (improvement destroyed / tech lost) removes the bonus.
+*Tests:* each resource type grants the correct effect (positive); no resource → no effect (negative); effect removed when resource lost; effect applies across all cities (not cities[0]); seeded RNG only.
+
+**S4b — Strategic resource prerequisites for units & buildings (D-Q1, part 2).**
+*Scope:* (depends on S4a — resource tracking in place) strategic resources **gate** certain units and buildings: e.g. iron required to train swordsman, horses required to train cavalry. Enforce in `city-system.ts` TRAINABLE_UNITS/BUILDINGS gating alongside existing `techRequired`. City panel shows a locked state + reason ("requires Iron — build a Mine on an Iron tile").
+*Files:* `trade-system.ts` (prerequisite data field on resource definitions); `city-system.ts` (gating logic + TRAINABLE_UNITS/BUILDINGS); city panel locked-state UI; save-compat (no new state — reads from `getCivAvailableResources`).
+*Done when:* a unit/building that requires a resource is **blocked without it** and trainable with it; the requirement reason is shown in the city panel.
+*Tests (spec-fidelity conjunctions):* no resource + tech → blocked; resource + no tech → blocked; both → trainable (positive); city panel displays lock reason; AI respects gating (does not attempt to train blocked unit).
 
 ### Phase 3 — Caravans & routes
 
 **S5 — First trade unit + establish a route.**
-*Scope:* add the first-tier trade `UnitType` wired end-to-end (6 points + `PRODUCTION_ICONS`), gated on `trade-routes` tech (makes the dead unlock real). Move it to a target city to establish a `TradeRoute`. **Domestic** (own cities, no relationship gate) **and foreign** (D-Q3) — foreign requires **not at war AND relationship ≥ 0** (D-Q8). Per-city route **capacity** scaling with tech + buildings (D-Q6); the unit is **committed to the route** (D-Q7 — stationed for this slice; physical travel lands in S6). Route persists, renders on map + panel, pays existing gold/turn income. AI trains + uses it.
+*Scope:* (depends on S4b — resource tracking stable) add the first-tier trade `UnitType` wired end-to-end (6 points + `PRODUCTION_ICONS`), gated on `trade-routes` tech (makes the dead unlock real). Move it to a target city to establish a `TradeRoute`. **Domestic** (own cities, no relationship gate) **and foreign** (D-Q3) — foreign requires **not at war AND relationship ≥ 0** (D-Q8). Per-city route **capacity** scaling with tech + buildings (D-Q6); the unit is **committed to the route** (D-Q7 — stationed for this slice; physical travel lands in S6a). Route persists, renders on map + panel, pays existing gold/turn income. AI trains + uses it.
 *Files:* `types.ts`; `unit-system.ts`; `unit-renderer.ts`; `city-system.ts` (TRAINABLE_UNITS+PRODUCTION_ICONS+tech gate, capacity helper); `turn-manager.ts` (dequeue/side-effects); `main.ts` (establish interaction + death cleanup); `basic-ai.ts`; route-creation + capacity helpers in `trade-system.ts`; establish-route UI.
 *Done when:* unit trainable/visible/AI-used; domestic route works ungated; foreign route succeeds at ≥0 + not-at-war and **fails** otherwise; capacity cap enforced; route renders + pays income.
 *Tests:* unit-wiring coverage; domestic success; foreign success (positive) + at-war/below-0 (negatives); capacity-cap negative; AI-parity; route renders/persists.
 
-**S6 — Route lifecycle + caravan route-running.**
-*Scope:* the committed trade unit **travels back and forth** between the two cities along the route (D-Q7) and is **raidable**; a route terminates when its unit is destroyed/disbanded, when foreign relations drop **< −25 or war** (D-Q8), or via embargo; create/terminate emit persistent notification-log entries (turn #). Integrate with `enforceEmbargoes`. Income stops the same turn.
-*Files:* `unit-movement-system.ts` / route-runner (back-and-forth pathing), `turn-manager.ts` (lifecycle pass), `diplomacy-system.ts` (scrub on war/relationship — actor-complete), combat/raid hooks (unit loss → route end), notification routing.
-*Done when:* unit visibly runs the route; killing it ends the route + income; foreign relations <−25/war terminates same turn; domestic routes unaffected by relations.
-*Tests:* travel movement; unit-loss ends route; war/<−25 terminates + stops income (positive) and ≥0 keeps it (negative); termination fires once; actor-complete (human + AI war both terminate).
+**S6a — Route lifecycle (termination conditions + notifications).**
+*Scope:* (depends on S5) a route terminates when: its caravan unit is destroyed or disbanded; foreign relations drop **< −25** (D-Q8); war is declared (D-Q8); or an embargo is enforced. Integrate with `enforceEmbargoes`. Income stops the **same turn**. Create and terminate events emit persistent notification-log entries (turn #). Domestic routes are unaffected by relation thresholds. Actor-complete: human AND AI war declarations both terminate affected routes.
+*Files:* `turn-manager.ts` (lifecycle pass — scrub routes each turn); `diplomacy-system.ts` (hook into `declareWar` + relation-drop path, actor-complete); `diplomacy-system.ts`/`enforceEmbargoes` integration; unit-death cleanup (route scrub when caravan dies); notification routing.
+*Done when:* war terminates foreign routes that turn; relations <−25 terminates that turn; unit-loss terminates; domestic routes unaffected; notifications fire once per event.
+*Tests:* war → route terminated + income stops (positive); ≥0 + no war → keeps route (negative); relations drop to −26 → terminated; unit-loss → terminated; domestic route unaffected by any relation change; termination notification fires exactly once; actor-complete (AI-declared war also terminates human's route).
+
+**S6b — Physical caravan route-running + raidable (D-Q7).**
+*Scope:* (depends on S6a — termination hooks already in place) the committed trade unit **visibly travels back and forth** between its two cities each turn along a shortest path; it is **raidable** (enemy units may attack it in transit using the existing combat system); losing the unit in combat ends the route via S6a's unit-loss hook (no new termination logic needed here).
+*Files:* `unit-movement-system.ts` (route-runner: back-and-forth path calculation, per-turn step); `hex-renderer.ts` (unit position updates, route path visualisation); `turn-manager.ts` (advance route-runner on each turn).
+*Done when:* caravan unit visibly moves along the route each turn; reaches the destination city and turns back; enemy unit can attack and kill it; route + income end on death (via S6a hook).
+*Tests:* caravan advances one step per turn toward destination; reverses on arrival; combat kill removes unit and ends route (regression on S6a unit-loss path); route path does not cross impassable terrain.
 
 **S7 — Trade-unit tiers + naval trader (D-Q4).**
-*Scope:* per-age progression of trade units (caravan → merchant → …) with upgrades, plus a **naval trader** enabling overseas/coastal routes. Tech-gated per era; upgrade path via existing unit-upgrade system.
+*Scope:* (depends on S6b — caravan movement in place) per-age progression of trade units (caravan → merchant → …) with upgrades, plus a **naval trader** enabling overseas/coastal routes. Tech-gated per era; upgrade path via existing unit-upgrade system.
 *Files:* `unit-system.ts`, `unit-upgrade-system.ts`, `unit-renderer.ts`, `city-system.ts`, `basic-ai.ts`, `trade-route-classification.ts` (overseas routes already partly modeled).
 *Done when:* later eras unlock stronger/faster traders; overseas routes possible via the naval trader; upgrade path works.
 *Tests:* tier tech-gating; overseas route requires naval trader; upgrade path; AI uses tiers.
+*Note:* If S7 grows during brainstorming, split into **S7a** (land tiers + upgrades) and **S7b** (naval trader + overseas route classification). Decide at S7's brainstorm.
 
 ### Phase 4 — Transactions
 
 **S8 — Sell a resource for gold.**
-*Scope:* with an available resource (S2) + active route (S5) + (foreign) neutral+ relations, sell at the live price; gold credited; supply/price adjust; panel refreshes.
+*Scope:* with an available resource (S2b) + active route (S5) + (foreign) neutral+ relations, sell at the live price; gold credited; supply/price adjust; panel refreshes.
 *Files:* `marketplace-panel.ts`, transaction helper in `trade-system.ts`, `main.ts`.
 *Done when:* sell works and is gated on ownership+route+relationship; panel re-renders.
 *Tests:* sell gated (negatives for missing route / non-neutral / not owned); rerender; price/supply update.
 
-**S9 — Buy a resource for gold.** *Now meaningful via S4 effects.* Spend gold to acquire a resource you lack; its effect applies (happiness/yield, or unlocks a gated unit/building). Tests: buy gated; effect applied.
+**S9 — Buy a resource for gold.** *Now meaningful via S4a effects.* Spend gold to acquire a resource you lack; its effect applies (happiness/yield, or unlocks a gated unit/building per S4b). Tests: buy gated; effect applied; S4a effect activates; S4b gate lifts if strategic resource acquired.
 
 **S10 — Barter resource-for-resource (req. 9).** Propose/accept swap with another civ (analogous to diplomacy treaties); both inventories update bilaterally; AI evaluates offers. Tests: bilateral update; AI accept/reject; relationship+route gating.
 
@@ -152,9 +171,9 @@ Ship in order. Each slice's spec lives at `docs/superpowers/specs/2026-..-market
 
 Linear; each phase gates the next.
 1. Roadmap (done).
-2. **S1 → S2 → S3** — visibility & honest marketplace.
-3. **S4** — resources gain effects + unit/building prerequisites (value even before trade).
-4. **S5 → S6 → S7** — trade units, routes, lifecycle, tiers/naval.
+2. **S1 → S2a → S2b → S3** — visibility & honest marketplace.
+3. **S4a → S4b** — resources gain effects + unit/building prerequisites (value even before trade).
+4. **S5 → S6a → S6b → S7** — trade units, routes, lifecycle, tiers/naval.
 5. **S8 → S9 → S10** — transactions.
 6. **S11, S12** — parity & price depth (may fold into earlier AI/price work if cleaner during planning).
 
