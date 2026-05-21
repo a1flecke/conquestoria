@@ -88,6 +88,7 @@ import {
   shouldPromptForPlayerCityCapture,
 } from '@/input/city-assault-flow';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
+import { resolveWonderAtlasIntent } from '@/input/wonder-atlas-intent';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import {
   initializeLegendaryWonderProjectsForCity,
@@ -2058,6 +2059,14 @@ function handleHexTap(rawCoord: HexCoord): void {
     document.getElementById('council-panel')?.remove();
     deselectUnit();
     openCityPanelForCity(cityAtHex);
+    return;
+  }
+
+  const wonderAtlasIntent = resolveWonderAtlasIntent(gameState, gameState.currentPlayer, coord);
+  if (wonderAtlasIntent.type === 'open-atlas') {
+    deselectUnit();
+    openWonderAtlas(wonderAtlasIntent.wonderId);
+    SFX.tap();
     return;
   }
 
