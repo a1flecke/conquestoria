@@ -5,6 +5,7 @@ import type { GameMap, VisibilityMap } from '@/core/types';
 
 class MockCanvasContext {
   strokeCalls: string[] = [];
+  textCalls: string[] = [];
   fillStyle = '';
   strokeStyle = '';
   lineWidth = 0;
@@ -15,12 +16,18 @@ class MockCanvasContext {
   shadowColor = '';
   shadowBlur = 0;
 
+  save(): void {}
+  restore(): void {}
   beginPath(): void {}
   moveTo(): void {}
   lineTo(): void {}
+  bezierCurveTo(): void {}
+  arc(): void {}
   closePath(): void {}
   fill(): void {}
-  fillText(): void {}
+  fillText(text: string): void {
+    this.textCalls.push(text);
+  }
   stroke(): void {
     this.strokeCalls.push(this.strokeStyle);
   }
@@ -105,6 +112,17 @@ describe('hex renderer privacy', () => {
     drawHexMap(ctx, makeMap(), makeCamera(), undefined, 'player', visibility);
 
     expect((ctx as unknown as MockCanvasContext).strokeCalls).toContain('rgba(74,144,217,0.5)');
+  });
+
+  it('does not draw the old generic star glyph for natural wonders', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeMap();
+    map.tiles['0,0'].wonder = 'great_volcano';
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible', '1,0': 'visible' } };
+
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibility);
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('✦');
   });
 
   it('draws only visible minor-civ territory hexes', () => {

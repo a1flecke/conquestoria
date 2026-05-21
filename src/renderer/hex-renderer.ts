@@ -4,6 +4,7 @@ import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
 import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
+import { drawNaturalWonderLandmark } from './wonders/natural-wonder-renderer';
 
 // --- Terrain labels ---
 
@@ -59,8 +60,10 @@ function drawTileAtScreen(
   viewerVisibility: VisibilityMap | undefined,
   zoom: number,
   presentationKind: TilePresentationKind,
+  nowMs: number,
+  reducedMotion: boolean,
 ): void {
-  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind);
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion);
   if (shouldShowTerrainLabel(zoom)) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -80,6 +83,10 @@ export function drawHexMap(
   viewerVisibility?: VisibilityMap,
 ): void {
   const size = camera.hexSize;
+  const nowMs = typeof performance !== 'undefined' ? performance.now() : 0;
+  const reducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   for (const tile of Object.values(map.tiles)) {
     const renderCoords = map.wrapsHorizontally
@@ -104,6 +111,8 @@ export function drawHexMap(
         viewerVisibility,
         camera.zoom,
         presentation.kind,
+        nowMs,
+        reducedMotion,
       );
     }
   }
@@ -216,6 +225,8 @@ function drawHex(
   currentPlayer?: string,
   viewerVisibility?: VisibilityMap,
   presentationKind: TilePresentationKind = 'live',
+  nowMs: number = 0,
+  reducedMotion: boolean = false,
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -266,14 +277,16 @@ function drawHex(
 
   // Draw wonder indicator
   if (tile.wonder) {
-    ctx.font = `bold ${size * 0.55}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = '#e8c170';
-    ctx.shadowBlur = size * 0.3;
-    ctx.fillStyle = '#e8c170';
-    ctx.fillText('✦', cx, cy);
-    ctx.shadowBlur = 0;
+    drawNaturalWonderLandmark({
+      ctx,
+      cx,
+      cy,
+      size,
+      wonderId: tile.wonder,
+      presentationKind,
+      nowMs,
+      reducedMotion,
+    });
   }
 
   // Draw village indicator
