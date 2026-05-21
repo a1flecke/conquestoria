@@ -49,6 +49,7 @@ export interface WonderDefinition {
   id: string;
   name: string;
   description: string;
+  revealLine?: string;
   yields: ResourceYield;
   discoveryBonus: { type: 'gold' | 'science' | 'production'; amount: number };
   effect: WonderEffect;
