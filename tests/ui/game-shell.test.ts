@@ -20,6 +20,7 @@ describe('game-shell', () => {
       onNextUnit: () => {},
       onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {},
+      onOpenWonderAtlas: () => {},
       onOpenMenu: () => {},
     });
 
@@ -34,6 +35,7 @@ describe('game-shell', () => {
       onNextUnit: () => {},
       onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {},
+      onOpenWonderAtlas: () => {},
       onOpenMenu: () => {},
     });
 
@@ -42,5 +44,31 @@ describe('game-shell', () => {
     expect(shell.textContent).toContain('Council');
     expect(shell.textContent).toContain('End Turn');
     expect(shell.querySelector('#btn-next-unit')).toBeTruthy();
+  });
+
+  it('exposes the Wonder Atlas from the live shell', () => {
+    let opened = false;
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {},
+      onOpenTech: () => {},
+      onOpenCity: () => {},
+      onOpenEspionage: () => {},
+      onOpenDiplomacy: () => {},
+      onOpenMarketplace: () => {},
+      onEndTurn: () => {},
+      onNextUnit: () => {},
+      onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {},
+      onOpenWonderAtlas: () => { opened = true; },
+      onOpenMenu: () => {},
+    });
+
+    const button = shell.querySelector<HTMLButtonElement>('#btn-wonder-atlas');
+    expect(button).toBeTruthy();
+    expect(button?.title).toBe('Open Wonder Atlas');
+
+    button!.click();
+
+    expect(opened).toBe(true);
   });
 });

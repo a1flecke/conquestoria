@@ -23,6 +23,7 @@ import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
 import { createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
+import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
@@ -217,6 +218,7 @@ function createUI(): void {
     onNextUnit: () => selectNextUnit(),
     onOpenNotificationLog: () => toggleNotificationLog(),
     onToggleIconLegend: () => toggleIconLegend(),
+    onOpenWonderAtlas: () => openWonderAtlas(),
     onOpenMenu: () => {
       showPauseMenu(uiLayer, {
         turn: gameState.turn,
@@ -231,6 +233,16 @@ function createUI(): void {
       });
     },
     iconLegendOverlay: createIconLegendOverlay(),
+  });
+}
+
+function openWonderAtlas(initialWonderId?: string): void {
+  createWonderAtlasPanel(uiLayer, gameState, {
+    initialWonderId,
+    onViewOnMap: coord => {
+      renderLoop.camera.centerOn(coord);
+    },
+    onClose: () => {},
   });
 }
 

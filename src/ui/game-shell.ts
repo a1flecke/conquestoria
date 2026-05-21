@@ -4,12 +4,13 @@ export interface GameShellCallbacks extends PrimaryActionBarCallbacks {
   onNextUnit: () => void;
   onOpenNotificationLog: () => void;
   onToggleIconLegend: () => void;
+  onOpenWonderAtlas: () => void;
   onOpenMenu: () => void;
   iconLegendOverlay?: HTMLElement;
 }
 
 function removeExistingShell(container: HTMLElement): void {
-  for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'notifications', 'info-panel', 'icon-legend']) {
+  for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas', 'notifications', 'info-panel', 'icon-legend']) {
     container.querySelector(`#${id}`)?.remove();
   }
 }
@@ -27,7 +28,7 @@ function createFloatingButton(id: string, text: string, title: string, right: nu
   button.type = 'button';
   button.textContent = text;
   button.title = title;
-  button.style.cssText = `position:absolute;top:44px;right:${right}px;z-index:21;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;`;
+  button.style.cssText = `position:absolute;top:44px;right:${right}px;z-index:21;min-height:44px;min-width:40px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;`;
   button.addEventListener('click', () => onClick());
   return button;
 }
@@ -48,7 +49,8 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
 
   shell.appendChild(createFloatingButton('btn-notif-log', '📜', 'View message log', 52, callbacks.onOpenNotificationLog));
   shell.appendChild(createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', 92, callbacks.onToggleIconLegend));
-  shell.appendChild(createFloatingButton('btn-pause-menu', '☰', 'Pause menu', 132, callbacks.onOpenMenu));
+  shell.appendChild(createFloatingButton('btn-wonder-atlas', '✦', 'Open Wonder Atlas', 132, callbacks.onOpenWonderAtlas));
+  shell.appendChild(createFloatingButton('btn-pause-menu', '☰', 'Pause menu', 172, callbacks.onOpenMenu));
 
   if (callbacks.iconLegendOverlay) {
     shell.appendChild(callbacks.iconLegendOverlay);
