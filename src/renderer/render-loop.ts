@@ -15,6 +15,7 @@ import { resolveUnitVisual } from './unit-visual-resolver';
 import { drawUnitGlyph } from './unit-renderer';
 import { spriteCache } from './sprites/sprite-loader';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
+import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 
 export interface HexHighlight {
   coord: HexCoord;
@@ -46,6 +47,28 @@ export class RenderLoop {
 
   clearHighlights(): void {
     this.highlights = [];
+  }
+
+  requestWonderDiscoveryHighlight(
+    coord: HexCoord,
+    visual: WonderVisualDefinition,
+    options: { reducedMotion: boolean },
+  ): void {
+    this.camera.centerOn(coord);
+    const pixel = hexToPixel(coord, this.camera.hexSize);
+    const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+    const size = this.camera.hexSize * this.camera.zoom;
+    this.animations.add(
+      options.reducedMotion ? 'wonder-discovery-static-highlight' : 'wonder-discovery-pulse',
+      900,
+      {
+        x: screen.x,
+        y: screen.y,
+        size,
+        accent: visual.palette.accent,
+        glow: visual.palette.glow,
+      },
+    );
   }
 
   animateUnitMove(unit: Unit, from: HexCoord, to: HexCoord, onComplete?: () => void): void {

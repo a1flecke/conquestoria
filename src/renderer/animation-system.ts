@@ -69,6 +69,36 @@ export class AnimationSystem {
         ctx.fill();
         break;
       }
+      case 'wonder-discovery-pulse': {
+        const { x, y, size, accent, glow } = anim.data;
+        const alpha = 1 - progress;
+        ctx.save();
+        ctx.strokeStyle = glow;
+        ctx.globalAlpha = Math.max(0.15, alpha);
+        ctx.lineWidth = Math.max(2, size * 0.06);
+        ctx.beginPath();
+        ctx.arc(x, y, size * (0.48 + progress * 0.72), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = Math.max(0.10, alpha * 0.35);
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(x, y, size * (0.32 + progress * 0.18), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        break;
+      }
+      case 'wonder-discovery-static-highlight': {
+        const { x, y, size, accent } = anim.data;
+        ctx.save();
+        ctx.strokeStyle = accent;
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = Math.max(2, size * 0.05);
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.62, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        break;
+      }
     }
   }
 }
