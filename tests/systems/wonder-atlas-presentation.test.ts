@@ -46,7 +46,9 @@ describe('wonder-atlas-presentation', () => {
       canViewOnMap: true,
       coord: { q: 0, r: 0 },
     });
-    expect(volcano?.effectSummary).toContain('Yields');
+    expect(volcano?.kind).toBe('natural');
+    if (volcano?.kind !== 'natural') throw new Error('expected natural wonder entry');
+    expect(volcano.effectSummary).toContain('Yields');
   });
 
   it('scopes natural wonder visibility to the requested viewer', () => {
