@@ -66,8 +66,8 @@ import {
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { visitVillage } from '@/systems/village-system';
-import { processWonderDiscovery } from '@/systems/wonder-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
+import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
 import { showTurnHandoff } from '@/ui/turn-handoff';
@@ -149,6 +149,7 @@ import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecyc
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
+import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 
 // --- App State ---
 let gameState: GameState;
@@ -192,6 +193,30 @@ const uiInteractions = createUiInteractionState();
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiLayer = document.getElementById('ui-layer') as HTMLDivElement;
 const renderLoop = new RenderLoop(canvas);
+let wonderDiscoveryQueue: ReturnType<typeof createWonderDiscoveryRevealQueue> | null = null;
+
+function setBlockingOverlay(id: string | null): void {
+  uiInteractions.setBlockingOverlay(id);
+  if (id === null) {
+    wonderDiscoveryQueue?.pump();
+  }
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+wonderDiscoveryQueue = createWonderDiscoveryRevealQueue({
+  container: uiLayer,
+  isInteractionBlocked: () => uiInteractions.isInteractionBlocked(),
+  requestMapHighlight: (item, reducedMotion) => {
+    renderLoop.requestWonderDiscoveryHighlight(item.coord, item.visual, { reducedMotion });
+  },
+  openAtlas: wonderId => openWonderAtlas(wonderId),
+  reducedMotion: prefersReducedMotion,
+  setBlockingOverlay,
+});
 
 // --- Resize ---
 window.addEventListener('resize', () => renderLoop.resizeCanvas());
@@ -695,7 +720,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
 
 function closeRequiredChoicePanel(): void {
   document.getElementById('required-choice-panel')?.remove();
-  uiInteractions.setBlockingOverlay(null);
+  setBlockingOverlay(null);
 }
 
 function refreshRequiredChoicesAfterAction(): void {
@@ -754,7 +779,7 @@ function showRequiredChoicesIfNeeded(): boolean {
     })
     .filter((choice): choice is NonNullable<typeof choice> => choice !== null);
 
-  uiInteractions.setBlockingOverlay('required-choice');
+  setBlockingOverlay('required-choice');
   createRequiredChoicePanel(uiLayer, {
     researchChoices,
     cityChoices,
@@ -1335,6 +1360,7 @@ function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
   renderLoop.animateUnitMove({ ...movedUnit, position: from }, from, to, () => {
     renderLoop.setGameState(gameState);
     updateHUD();
+    wonderDiscoveryQueue?.notifyActionSettled();
     const unit = gameState.units[unitId];
     if (!unit || unit.owner !== gameState.currentPlayer) return;
     if ((unit.movementPointsLeft ?? 0) <= 0) {
@@ -1424,7 +1450,7 @@ function getUnitTurnFlow() {
     setRenderState: state => renderLoop.setGameState(state),
     updateHUD,
     showNotification,
-    setBlockingOverlay: id => uiInteractions.setBlockingOverlay(id),
+    setBlockingOverlay,
     endTurn: options => { void endTurn(options); },
   });
 }
@@ -2129,14 +2155,14 @@ function handleVictoryIfNeeded(): boolean {
   if (!gameState.gameOver || !gameState.winner) return false;
   const winnerCiv = gameState.civilizations[gameState.winner];
   const winnerName = winnerCiv?.name ?? gameState.winner;
-  uiInteractions.setBlockingOverlay('victory');
+  setBlockingOverlay('victory');
   showVictoryPanel(uiLayer, {
     winnerName,
     victoryType: 'Domination Victory',
     turn: gameState.turn,
     onNewGame: () => {
       document.getElementById('victory-panel')?.remove();
-      uiInteractions.setBlockingOverlay(null);
+      setBlockingOverlay(null);
       showGameModeSelection();
     },
   });
@@ -2184,10 +2210,10 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       await autoSave(gameState);
 
       // Show handoff screen
-      uiInteractions.setBlockingOverlay('turn-handoff');
+      setBlockingOverlay('turn-handoff');
       showTurnHandoff(uiLayer, gameState, nextSlotId, nextPlayer?.name ?? 'Player', {
         onReady: () => {
-          uiInteractions.setBlockingOverlay(null);
+          setBlockingOverlay(null);
           centerOnCurrentPlayer();
           renderLoop.setGameState(gameState);
           updateHUD();
@@ -2482,13 +2508,18 @@ bus.on('village:visited', ({ civId, outcome, message }) => {
   appendToCivLog(civId, message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
 });
 
-bus.on('wonder:discovered', ({ civId, wonderId, isFirstDiscoverer }) => {
-  const wonderDef = getWonderDefinition(wonderId);
+bus.on('wonder:discovered', event => {
+  const wonderDef = getWonderDefinition(event.wonderId);
   if (!wonderDef) return;
-  const message = isFirstDiscoverer
+  const message = event.isFirstDiscoverer
     ? `Discovered ${wonderDef.name}! +${wonderDef.discoveryBonus.amount} ${wonderDef.discoveryBonus.type}`
     : `Found ${wonderDef.name}!`;
-  appendToCivLog(civId, message, isFirstDiscoverer ? 'success' : 'info');
+  appendToCivLog(event.civId, message, event.isFirstDiscoverer ? 'success' : 'info');
+
+  const revealItem = buildWonderDiscoveryRevealItem(gameState, gameState.currentPlayer, event);
+  if (revealItem) {
+    wonderDiscoveryQueue?.enqueue(revealItem);
+  }
 });
 
 bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {

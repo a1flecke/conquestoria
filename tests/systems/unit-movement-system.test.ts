@@ -1,4 +1,5 @@
 import { EventBus } from '@/core/event-bus';
+import type { GameEvents } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import { abandonWorkerTask, executeUnitMove } from '@/systems/unit-movement-system';
@@ -61,6 +62,26 @@ describe('unit-movement-system', () => {
     expect(result.discoveredWonders).toEqual([
       expect.objectContaining({ wonderId: 'grand_canyon' }),
     ]);
+  });
+
+  it('emits wonder discovery with the revealed event coordinate for presentation wiring', () => {
+    const { state, unitId } = makeAutoExploreFixture({ wonderNorth: 'grand_canyon', safeFogNorth: true });
+    const target = { q: 1, r: 0 };
+    const bus = new EventBus();
+    const events: Array<GameEvents['wonder:discovered']> = [];
+    bus.on('wonder:discovered', event => events.push(event));
+
+    executeUnitMove(state, unitId, target, {
+      actor: 'player',
+      civId: 'player',
+      bus,
+    });
+
+    expect(events).toContainEqual(expect.objectContaining({
+      civId: 'player',
+      wonderId: 'grand_canyon',
+      position: target,
+    }));
   });
 
   it('returns canonical wrapped revealed tiles after moving through the seam', () => {
