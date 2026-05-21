@@ -80,7 +80,6 @@ export function createWonderAtlasPanel(
     : 'natural';
   let selectedWonderId = callbacks.initialWonderId
     ?? naturalEntries(entries)[0]?.wonderId
-    ?? entries.find(entry => entry.kind === 'legendary')?.wonderId
     ?? null;
 
   const panel = document.createElement('section');
@@ -124,7 +123,8 @@ export function createWonderAtlasPanel(
   }
 
   function selectedEntry(): WonderAtlasEntry | null {
-    return entries.find(entry => entry.wonderId === selectedWonderId) ?? visibleEntries()[0] ?? null;
+    const visible = visibleEntries();
+    return visible.find(entry => entry.wonderId === selectedWonderId) ?? visible[0] ?? null;
   }
 
   function renderTabs(): void {

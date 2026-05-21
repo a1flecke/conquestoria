@@ -42,6 +42,7 @@ describe('wonder-atlas-panel', () => {
     expect(panel.id).toBe('wonder-atlas-panel');
     expect(panel.textContent).toContain('No natural wonders discovered yet.');
     expect(panel.textContent).not.toContain('Great Volcano');
+    expect(panel.querySelector('[data-wonder-detail]')?.textContent).not.toContain('Legendary wonder');
     expect(panel.querySelectorAll('[data-wonder-kind="natural"]')).toHaveLength(0);
   });
 
