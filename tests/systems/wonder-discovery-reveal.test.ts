@@ -83,6 +83,13 @@ describe('wonder-discovery-reveal', () => {
     expect('owner' in (item as object)).toBe(false);
   });
 
+  it('returns null when the viewer has not earned Atlas visibility for the wonder', () => {
+    const state = makeState();
+    state.wonderDiscoverers.great_volcano = ['ai-1'];
+
+    expect(buildWonderDiscoveryRevealItem(state, 'player', event())).toBeNull();
+  });
+
   it('uses description fallback when revealLine metadata is absent', () => {
     const item = buildWonderDiscoveryRevealItem(makeState(), 'player', event());
 

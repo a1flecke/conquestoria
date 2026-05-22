@@ -116,7 +116,7 @@ import {
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { canUpgradeUnit, applyUpgrade } from '@/systems/unit-upgrade-system';
-import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
+import { executeUnitMove, isWorkerBusy, type ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import type { GameEvents, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
@@ -162,6 +162,7 @@ let councilPanelOpen = false;
 let persistedSettings: GameState['settings'] | undefined;
 let pacingDebugOpen = false;
 let pendingCityCaptureChoice: PendingCityCaptureChoice | null = null;
+let deferWonderDiscoveryRevealUntilMoveSettles = false;
 
 function mergePersistedSettings(loadedSettings?: GameState['settings']): GameState['settings'] {
   const baseSettings = loadedSettings ?? persistedSettings ?? createDefaultSettings('small');
@@ -1360,6 +1361,7 @@ function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
   renderLoop.animateUnitMove({ ...movedUnit, position: from }, from, to, () => {
     renderLoop.setGameState(gameState);
     updateHUD();
+    deferWonderDiscoveryRevealUntilMoveSettles = false;
     wonderDiscoveryQueue?.notifyActionSettled();
     const unit = gameState.units[unitId];
     if (!unit || unit.owner !== gameState.currentPlayer) return;
@@ -1369,6 +1371,18 @@ function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
       selectUnit(unitId);
     }
   });
+}
+
+function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResult): ExecuteUnitMoveResult {
+  deferWonderDiscoveryRevealUntilMoveSettles = true;
+  try {
+    const moveResult = move();
+    animateMovedUnit(unitId, moveResult.from, moveResult.to);
+    return moveResult;
+  } catch (error) {
+    deferWonderDiscoveryRevealUntilMoveSettles = false;
+    throw error;
+  }
 }
 
 function startAutoExplore(unitId: string): void {
@@ -2008,12 +2022,11 @@ function handleHexTap(rawCoord: HexCoord): void {
         if (mc && !mc.isDestroyed) {
           const cityName = gameState.cities[tapIntent.cityId]?.name ?? 'City-State';
           // Move the unit onto the city hex (updates fog, position, movement cost).
-          const moveResult = executeUnitMove(gameState, selectedUnitId, coord, {
+          executeAnimatedUnitMove(selectedUnitId, () => executeUnitMove(gameState, selectedUnitId!, coord, {
             actor: 'player',
             civId: gameState.currentPlayer,
             bus,
-          });
-          animateMovedUnit(selectedUnitId, moveResult.from, moveResult.to);
+          }));
           // Conquering a city ends the unit's turn regardless of remaining movement.
           const movedUnit = gameState.units[selectedUnitId];
           if (movedUnit) {
@@ -2044,12 +2057,11 @@ function handleHexTap(rawCoord: HexCoord): void {
           turnsLeft: taskTile?.improvementTurnsLeft ?? 1,
           onCancel: () => selectUnit(selectedId),
           onConfirm: () => {
-            const moveResult = confirmBusyWorkerMove(gameState, selectedId, coord, {
+            executeAnimatedUnitMove(selectedId, () => confirmBusyWorkerMove(gameState, selectedId, coord, {
               actor: 'player',
               civId: gameState.currentPlayer,
               bus,
-            });
-            animateMovedUnit(selectedId, moveResult.from, moveResult.to);
+            }));
             SFX.tap();
             renderLoop.setGameState(gameState);
             updateHUD();
@@ -2058,12 +2070,11 @@ function handleHexTap(rawCoord: HexCoord): void {
         return;
       }
 
-      const moveResult = executeUnitMove(gameState, selectedUnitId, coord, {
+      executeAnimatedUnitMove(selectedUnitId, () => executeUnitMove(gameState, selectedUnitId!, coord, {
         actor: 'player',
         civId: gameState.currentPlayer,
         bus,
-      });
-      animateMovedUnit(selectedUnitId, moveResult.from, moveResult.to);
+      }));
       SFX.tap();
     }
 
@@ -2519,6 +2530,9 @@ bus.on('wonder:discovered', event => {
   const revealItem = buildWonderDiscoveryRevealItem(gameState, gameState.currentPlayer, event);
   if (revealItem) {
     wonderDiscoveryQueue?.enqueue(revealItem);
+    if (!deferWonderDiscoveryRevealUntilMoveSettles) {
+      wonderDiscoveryQueue?.notifyActionSettled();
+    }
   }
 });
 
