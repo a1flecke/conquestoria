@@ -120,6 +120,8 @@ export class AudioSystem {
         this.currentCivType = this.civTypeById[p.civId] ?? p.civId;
         this.warCount = 0;
         this.director.handlePlayerChanged({ civType: this.currentCivType });
+        // Swap in the new civ's accent track; era + adaptive buses keep their current sources
+        void this.reloadAccent(this.currentCivType);
       }),
 
       bus.on('game:over', p => {
@@ -150,14 +152,31 @@ export class AudioSystem {
     this.iosResumeListeners = [];
   }
 
+  private async reloadAccent(civType: string): Promise<void> {
+    const family = getFamilyForCiv(civType);
+    const accentEntry = ACCENT[family];
+    const buffer = await this.loader.get(accentEntry.file);
+    this.mixer.setBusSource('accent', buffer, true, accentEntry.loop, 500);
+  }
+
   private async preloadForEra(era: number, civType: string): Promise<void> {
     const eraId = resolveEra(era);
     const family = getFamilyForCiv(civType);
-    const paths = [
-      ERA_BASE[eraId].file,
-      WAR_LAYER[eraId].file,
-      ACCENT[family].file,
-    ];
-    await this.loader.preload(paths);
+
+    const baseEntry   = ERA_BASE[eraId];
+    const warEntry    = WAR_LAYER[eraId];
+    const accentEntry = ACCENT[family];
+
+    const [baseBuffer, warBuffer, accentBuffer] = await Promise.all([
+      this.loader.get(baseEntry.file),
+      this.loader.get(warEntry.file),
+      this.loader.get(accentEntry.file),
+    ]);
+
+    // Wire all three loop buses — the snapshot (peace/at-war/silent) controls which
+    // are audible; the adaptive (war) bus runs silently in peace and fades up on war.
+    this.mixer.setBusSource('era',      baseBuffer,   true, baseEntry.loop,   500);
+    this.mixer.setBusSource('adaptive', warBuffer,    true, warEntry.loop,     500);
+    this.mixer.setBusSource('accent',   accentBuffer, true, accentEntry.loop,  500);
   }
 }

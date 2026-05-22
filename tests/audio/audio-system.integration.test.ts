@@ -170,6 +170,37 @@ describe('AudioSystem integration', () => {
     expect(ctx.transcript.length).toBe(callsBefore);
   });
 
+  // Loop bus wiring — setBusSource regression
+  it('start() wires era, adaptive, and accent bus sources after preload resolves', async () => {
+    system.start(makeState({ era: 1 }), busHelper.bus);
+    await flushPromises();
+    // setBusSource calls start() on each AudioBufferSourceNode — one per bus
+    const starts = ctx.transcript.filter(e => e.op === 'start');
+    expect(starts.length).toBe(3); // era + adaptive (war) + accent
+  });
+
+  it('era:advanced rewires all three loop buses for the new era', async () => {
+    system.start(makeState({ era: 1 }), busHelper.bus);
+    await flushPromises();
+    const startsBefore = ctx.transcript.filter(e => e.op === 'start').length;
+    busHelper.emit('era:advanced', { era: 2 });
+    await flushPromises();
+    const startsAfter = ctx.transcript.filter(e => e.op === 'start').length;
+    // 3 new bus sources + 1 era-advance stinger = at least 4 new starts
+    expect(startsAfter - startsBefore).toBeGreaterThanOrEqual(4);
+  });
+
+  it('currentPlayer:changed-after-handoff rewires accent bus for new civ', async () => {
+    system.start(makeState({ currentPlayer: 'rome' }), busHelper.bus);
+    await flushPromises();
+    const startsBefore = ctx.transcript.filter(e => e.op === 'start').length;
+    busHelper.emit('currentPlayer:changed-after-handoff', { civId: 'egypt' });
+    await flushPromises();
+    const startsAfter = ctx.transcript.filter(e => e.op === 'start').length;
+    // accent bus source restarted for egypt
+    expect(startsAfter - startsBefore).toBe(1);
+  });
+
   // warCount clamping
   it('warCount never goes below 0 (extra peace-made guard)', () => {
     system.start(makeState(), busHelper.bus);
