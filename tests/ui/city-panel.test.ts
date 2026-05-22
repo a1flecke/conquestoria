@@ -94,6 +94,44 @@ describe('city-panel legendary wonders', () => {
     expect(rendered).toContain('Starts in');
     expect(rendered).not.toContain('legendary:oracle-of-delphi');
   });
+
+  it('shows active legendary construction as a compact living production row', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    city.productionQueue = ['legendary:oracle-of-delphi', 'library'];
+    city.productionProgress = 72;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const text = collectText(panel);
+
+    expect(text).toContain('Producing: * Oracle of Delphi');
+    expect(text).toContain('Final works');
+    expect(text).toContain('Queue resumes after this wonder.');
+    expect(text).toContain('Construction underway');
+    expect(text).toContain('Open Journal');
+    expect(text).not.toContain('legendary:oracle-of-delphi');
+  });
+
+  it('shows recovered legendary effort and production resume copy in the city flow', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects!['grand-canal'].phase = 'lost_race';
+    state.legendaryWonderProjects!['grand-canal'].transferableProduction = 24;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const text = collectText(panel);
+
+    expect(text).toContain('Effort recovered');
+    expect(text).toContain('24 production carryover preserved');
+    expect(text).toContain('Normal production has resumed.');
+  });
 });
 
 describe('city-panel navigation', () => {

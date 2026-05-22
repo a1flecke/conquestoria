@@ -66,6 +66,12 @@ function appendProjectCard(
   }
 
   appendText(article, 'p', `Reward: ${entry.rewardSummary}`);
+  if (entry.milestoneLabel) appendText(article, 'p', `Construction: ${entry.milestoneLabel}.`);
+  if (entry.turnsRemaining !== null) appendText(article, 'p', `${entry.turnsRemaining} turns remaining.`);
+  if (entry.raceTensionLabel) appendText(article, 'p', entry.raceTensionLabel);
+  if (entry.productionResumedLabel) appendText(article, 'p', entry.productionResumedLabel);
+  if (entry.visibleState === 'completed') appendText(article, 'p', 'Reward active.');
+  if (entry.recoveryLabel) appendText(article, 'p', entry.recoveryLabel);
 
   if (entry.visibleState === 'building') {
     appendText(article, 'p', `Race status: ${entry.investedProduction}/${entry.productionCost} production invested.`);
