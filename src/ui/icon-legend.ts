@@ -14,7 +14,7 @@ export function createIconLegendOverlay(viewerTechs: ReadonlySet<string> = new S
   const overlay = document.createElement('div');
   overlay.id = 'icon-legend';
   // display:block — this function is now only called when about to show the overlay
-  overlay.style.cssText = 'position:absolute;top:84px;right:12px;z-index:24;width:180px;padding:12px;border-radius:12px;background:rgba(8,12,20,0.92);border:1px solid rgba(255,255,255,0.14);box-shadow:0 10px 30px rgba(0,0,0,0.35);display:block;';
+  overlay.style.cssText = 'position:absolute;top:84px;right:12px;z-index:24;width:180px;max-height:calc(100vh - 100px);overflow-y:auto;padding:12px;border-radius:12px;background:rgba(8,12,20,0.92);border:1px solid rgba(255,255,255,0.14);box-shadow:0 10px 30px rgba(0,0,0,0.35);display:block;';
 
   const title = document.createElement('div');
   title.textContent = 'Map Legend';

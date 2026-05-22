@@ -272,6 +272,32 @@ describe('resource icon rendering', () => {
     expect((ctx as unknown as MockCanvasContext).textCalls).toContain('🪨');
   });
 
+  it('does not draw resource icon when tile has a wonder (wonder visual takes priority)', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeResourceMap({ resource: 'stone' });
+    map.tiles['0,0'].wonder = 'great_volcano';
+
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set(['gathering']));
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
+  });
+
+  it('draws resource icon at top-left corner when tile has a village', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeResourceMap({ resource: 'stone' });
+    // Pass coord as a village position — the village glyph would occupy the center
+    const villagePositions = new Set(['0,0']);
+
+    drawHexMap(ctx, map, makeCamera(), villagePositions, 'player', visibleAll, new Set(['gathering']));
+
+    // Village causes corner layout: cx - size*0.3 = 0 - 14.4 = -14.4
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    const call = mockCtx.fillTextCalls.find(c => c.text === '🪨');
+    expect(call).toBeDefined();
+    expect(call!.x).toBeCloseTo(-14.4);
+    expect(call!.y).toBeCloseTo(-14.4);
+  });
+
   it('does not draw resource icon on last-seen tile when viewer lacks the enabling tech', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const map = makeResourceMap({ resource: 'stone' });

@@ -14,15 +14,15 @@ export const RESOURCE_DEFINITIONS: ResourceDefinition[] = [
   // Luxury
   { id: 'silk',    name: 'Silk',    type: 'luxury',    terrain: 'grassland', basePrice: 8,  tech: 'irrigation',       icon: '🧵' },
   { id: 'wine',    name: 'Wine',    type: 'luxury',    terrain: 'plains',    basePrice: 7,  tech: 'pottery',          icon: '🍇' },
-  { id: 'spices',  name: 'Spices',  type: 'luxury',    terrain: 'jungle',    basePrice: 10, tech: 'cartography',      icon: '🌶️' },
+  { id: 'spices',  name: 'Spices',  type: 'luxury',    terrain: 'jungle',    basePrice: 10, tech: 'cartography',      icon: '🌶' },
   { id: 'gems',    name: 'Gems',    type: 'luxury',    terrain: 'hills',     basePrice: 12, tech: 'mining-tech',      icon: '💎' },
   { id: 'ivory',   name: 'Ivory',   type: 'luxury',    terrain: 'forest',    basePrice: 9,  tech: 'foraging',         icon: '🐘' },
-  { id: 'incense', name: 'Incense', type: 'luxury',    terrain: 'desert',    basePrice: 6,  tech: 'currency',         icon: '🕯️' },
+  { id: 'incense', name: 'Incense', type: 'luxury',    terrain: 'desert',    basePrice: 6,  tech: 'currency',         icon: '🕯' },
   // Strategic
   { id: 'copper',  name: 'Copper',  type: 'strategic', terrain: 'hills',     basePrice: 5,  tech: 'stone-weapons',    icon: '🪙' },
-  { id: 'iron',    name: 'Iron',    type: 'strategic', terrain: 'hills',     basePrice: 8,  tech: 'bronze-working',   icon: '⚙️' },
+  { id: 'iron',    name: 'Iron',    type: 'strategic', terrain: 'hills',     basePrice: 8,  tech: 'bronze-working',   icon: '⚙' },
   { id: 'horses',  name: 'Horses',  type: 'strategic', terrain: 'plains',    basePrice: 7,  tech: 'animal-husbandry', icon: '🐎' },
-  { id: 'stone',   name: 'Stone',   type: 'strategic', terrain: 'mountain',  basePrice: 4,  tech: 'gathering',        icon: '🪨' },
+  { id: 'stone',   name: 'Stone',   type: 'strategic', terrain: 'hills',     basePrice: 4,  tech: 'gathering',        icon: '🪨' },
 ];
 
 export const BASE_PRICES: Record<string, number> = {};
