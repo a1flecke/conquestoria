@@ -13,7 +13,7 @@
 | Hidden state (no tech) | **Nothing** — pure terrain, resource absent from map and inspection panel |
 | Icon overlap (resource + improvement on same tile) | **B** — resource icon small (~30% size) at top-left corner; improvement icon centered at full size |
 | Spy mission `identify_resources` | **Out of scope** — that mission reveals what a foreign civ *owns* (an S2b/acquisition concern), not tile-level icons. No map-render interaction in S1. |
-| New state needed | **None** — renderer checks `viewerTechs: ReadonlySet<string>` passed in from `main.ts` |
+| New state needed | **None** — renderer receives `viewerTechs: ReadonlySet<string>` built in `render-loop.ts`; inspection panel derives it internally from `state` |
 | Tech `unlocks` text | All 9 remaining techs get a "Reveal X resource" line added to their `unlocks` array (matching the existing `animal-husbandry` pattern) |
 
 ---
@@ -56,7 +56,7 @@
 
 ### `src/systems/trade-system.ts`
 
-Add `tech: string` to `ResourceDefinition` (the shared foundation field consumed by S1; `requiredImprovement` added by S2a, `effect` added by S4a):
+Add `tech` and `icon` to `ResourceDefinition`. Both fields land in S1; `requiredImprovement` is added by S2a, `effect` by S4a:
 
 ```ts
 export interface ResourceDefinition {
@@ -66,18 +66,32 @@ export interface ResourceDefinition {
   terrain: string;
   basePrice: number;
   tech: string;   // enabling tech id — added by S1
+  icon: string;   // emoji for map rendering and legend — added by S1
 }
 ```
 
-Populate all 10 entries with their tech from the locked mapping above.
+Populate all 10 entries with `tech` and `icon` from the locked catalog:
 
-Derive two lookup records from `RESOURCE_DEFINITIONS` (single source of truth — no duplication):
+```ts
+{ id: 'silk',    name: 'Silk',    type: 'luxury',   terrain: 'grassland', basePrice: 8,  tech: 'irrigation',      icon: '🧵' },
+{ id: 'wine',    name: 'Wine',    type: 'luxury',   terrain: 'plains',    basePrice: 7,  tech: 'pottery',         icon: '🍇' },
+{ id: 'spices',  name: 'Spices',  type: 'luxury',   terrain: 'jungle',    basePrice: 10, tech: 'cartography',     icon: '🌶️' },
+{ id: 'gems',    name: 'Gems',    type: 'luxury',   terrain: 'hills',     basePrice: 12, tech: 'mining-tech',     icon: '💎' },
+{ id: 'ivory',   name: 'Ivory',   type: 'luxury',   terrain: 'forest',    basePrice: 9,  tech: 'foraging',        icon: '🐘' },
+{ id: 'incense', name: 'Incense', type: 'luxury',   terrain: 'desert',    basePrice: 6,  tech: 'currency',        icon: '🕯️' },
+{ id: 'copper',  name: 'Copper',  type: 'strategic', terrain: 'hills',    basePrice: 5,  tech: 'stone-weapons',   icon: '🪙' },
+{ id: 'iron',    name: 'Iron',    type: 'strategic', terrain: 'hills',    basePrice: 8,  tech: 'bronze-working',  icon: '⚙️' },
+{ id: 'horses',  name: 'Horses',  type: 'strategic', terrain: 'plains',   basePrice: 7,  tech: 'animal-husbandry',icon: '🐎' },
+{ id: 'stone',   name: 'Stone',   type: 'strategic', terrain: 'mountain', basePrice: 4,  tech: 'gathering',       icon: '🪨' },
+```
+
+Derive lookup records from `RESOURCE_DEFINITIONS` (single source of truth — no duplication):
 
 ```ts
 export const RESOURCE_ICONS: Record<string, string> = {};
 export const RESOURCE_TECH: Record<string, string> = {};
 for (const r of RESOURCE_DEFINITIONS) {
-  RESOURCE_ICONS[r.id] = /* icon per catalog above */;
+  RESOURCE_ICONS[r.id] = r.icon;
   RESOURCE_TECH[r.id] = r.tech;
 }
 ```
@@ -98,23 +112,51 @@ Add a "Reveal X resource" string to the `unlocks` array of each of the 9 techs t
 
 ### `src/renderer/hex-renderer.ts`
 
+**Call chain:** `drawHexMap` → `drawTileAtScreen` → `drawHex`. All three are in `hex-renderer.ts`; `viewerTechs` must be threaded through all three.
+
 **`drawHexMap` signature** — one new optional parameter at the end:
 
 ```ts
 export function drawHexMap(
   ctx: CanvasRenderingContext2D,
-  // … existing params …
+  map: GameMap,
+  camera: Camera,
+  villagePositions?: Set<string>,
+  currentPlayer?: string,
+  viewerVisibility?: VisibilityMap,
   viewerTechs: ReadonlySet<string> = new Set(),  // ← new
 ): void
 ```
 
-Thread `viewerTechs` into each `drawHex` call.
+Thread `viewerTechs` into the `drawTileAtScreen` call inside the loop.
 
-**`drawHex` signature** — matching new parameter:
+**`drawTileAtScreen` signature** — matching new parameter:
+
+```ts
+function drawTileAtScreen(
+  ctx: CanvasRenderingContext2D,
+  screen: { x: number; y: number },
+  scaledSize: number,
+  tile: HexTile,
+  isVillage: boolean,
+  currentPlayer: string | undefined,
+  viewerVisibility: VisibilityMap | undefined,
+  zoom: number,
+  presentationKind: TilePresentationKind,
+  nowMs: number,
+  reducedMotion: boolean,
+  viewerTechs: ReadonlySet<string> = new Set(),  // ← new
+): void
+```
+
+Thread `viewerTechs` into the `drawHex` call inside `drawTileAtScreen`.
+
+**`drawHex` signature** — matching new parameter at the end (after `reducedMotion`):
 
 ```ts
 function drawHex(
   // … existing params …
+  reducedMotion: boolean = false,
   viewerTechs: ReadonlySet<string> = new Set(),  // ← new
 ): void
 ```
@@ -122,14 +164,12 @@ function drawHex(
 **Resource icon drawing block** — inserted after the improvement block (lines ~264), before the wonder block:
 
 ```ts
-// Draw resource icon (tech-gated + visibility-gated)
-// viewerVisibility guard mirrors the ownership-border guard below (~L302).
-// drawHex is called for every tile; fog is a separate overlay — we must
-// not draw through it, so skip if the tile is outside the viewer's vision.
-const tileIsVisible = !viewerVisibility ||
-  viewerVisibility[`${tile.coord.q},${tile.coord.r}`] === 'visible';
-
-if (tileIsVisible && tile.resource && viewerTechs.has(RESOURCE_TECH[tile.resource] ?? '')) {
+// Draw resource icon (tech-gated).
+// No explicit visibility guard needed: drawHex receives presentation.tile, which
+// already has resource: null for unexplored / unknown-fog tiles (via unknownTile()).
+// Last-seen tiles carry the resource from the snapshot — showing it is correct
+// (the player remembers what they saw). Tech gate still applies.
+if (tile.resource && viewerTechs.has(RESOURCE_TECH[tile.resource] ?? '')) {
   const icon = RESOURCE_ICONS[tile.resource] ?? '◆';
   const hasVisibleImprovement =
     tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
@@ -150,15 +190,25 @@ if (tileIsVisible && tile.resource && viewerTechs.has(RESOURCE_TECH[tile.resourc
 }
 ```
 
-> **Implementation note:** verify the exact `VisibilityMap` key format and `'visible'` value against `src/renderer/render-visibility.ts` before coding — use the same pattern as the ownership-border guard at lines ~302-309 of `hex-renderer.ts`.
+**Import** — add to the top of `hex-renderer.ts`:
+```ts
+import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/trade-system';
+```
 
-**`main.ts` call site** — build viewer techs once per render and pass in:
+**`render-loop.ts` call site** — `drawHexMap` is called from `render-loop.ts` `render()` method (line ~123), not from `main.ts`. Build `viewerTechs` alongside the existing `viewerVisibility` derivation:
 
 ```ts
-const viewerTechs = new Set(
-  state.civilizations[state.currentPlayer]?.techState.completed ?? []
+// In RenderLoop.render() — existing lines:
+const viewerId = this.state.currentPlayer;
+const viewerVisibility = this.state.civilizations[viewerId]?.visibility;
+
+// New line — add immediately after:
+const viewerTechs = new Set<string>(
+  this.state.civilizations[viewerId]?.techState.completed ?? []
 );
-// pass viewerTechs to drawHexMap(...)
+
+// Updated drawHexMap call (was 6 args, now 7):
+drawHexMap(this.ctx, this.state.map, this.camera, villagePositions, viewerId, viewerVisibility, viewerTechs);
 ```
 
 ---
@@ -167,15 +217,24 @@ const viewerTechs = new Set(
 
 ### `src/ui/territory-inspection-panel.ts`
 
-`createTerritoryInspectionPanel` receives one new parameter `viewerTechs: ReadonlySet<string>`.
+No new parameter needed — `createTerritoryInspectionPanel` already receives `state` and `viewerId`, so it can derive the viewer's tech set internally.
 
-Replace line 95:
-
+**New import** (add alongside the existing imports):
 ```ts
-// Before (leaks un-tech'd resources):
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+```
+
+**Derive tech set** — add near the top of the function body (after the `viewer` line):
+```ts
+const viewerTechs = new Set(viewer?.techState.completed ?? []);
+```
+
+**Replace line 95** (the unconditional resource display):
+```ts
+// Before (leaks un-tech'd resources, no type label):
 if (tile.resource) addLine(panel, 'Resource', titleCase(tile.resource));
 
-// After (gated + shows type):
+// After (gated on tech; shows name + type; works for both live and last-seen tiles):
 const resDef = tile.resource
   ? RESOURCE_DEFINITIONS.find(r => r.id === tile.resource)
   : null;
@@ -184,7 +243,7 @@ if (resDef && viewerTechs.has(resDef.tech)) {
 }
 ```
 
-`openTerritoryInspectionPanel` in `main.ts` passes the same `viewerTechs` set.
+No call-site change in `main.ts` — the function signature is unchanged.
 
 ---
 
@@ -192,11 +251,40 @@ if (resDef && viewerTechs.has(resDef.tech)) {
 
 ### `src/ui/icon-legend.ts`
 
-`createIconLegendOverlay` accepts `viewerTechs: ReadonlySet<string>`. It builds the existing static items then appends a "Resources" section listing only the resources the viewer has tech for, split into luxury and strategic sub-groups.
+`createIconLegendOverlay(viewerTechs: ReadonlySet<string>): HTMLDivElement` — add the parameter. Append a "Resources" section after the existing static items, listing only resources the viewer has tech for, split into luxury and strategic sub-groups. If the viewer has no resource techs, the Resources section is omitted entirely.
 
-If the viewer has no resource techs, the Resources section is omitted.
+The export `toggleIconLegend` becomes dead (main.ts will no longer use it) — remove it.
 
-The legend is rebuilt (not toggled from cache) each time the legend button is tapped, so it always reflects current tech state. The `toggleIconLegend` call in `main.ts` becomes a re-create-and-show pattern instead of a visibility toggle — or, if the panel is open, close it; if closed, rebuild and show.
+### `src/main.ts` — legend wiring changes
+
+The overlay is currently pre-built once and handed to `createGameShell` as `iconLegendOverlay: createIconLegendOverlay()` (line 236). This can no longer work because it needs current techs at show-time, not at startup. Two changes:
+
+**1. Remove the pre-built overlay** from the `createGameShell` call:
+```ts
+// Remove this line:
+iconLegendOverlay: createIconLegendOverlay(),
+```
+
+**2. Replace the `onToggleIconLegend` callback** (line 221) with one that rebuilds on each show:
+```ts
+onToggleIconLegend: () => {
+  const existing = document.getElementById('icon-legend');
+  if (existing && existing.style.display !== 'none') {
+    // Already visible — hide it
+    existing.style.display = 'none';
+    return;
+  }
+  // Stale or absent — remove old, create fresh with current techs
+  existing?.remove();
+  const viewerTechs = new Set<string>(
+    gameState.civilizations[gameState.currentPlayer]?.techState.completed ?? []
+  );
+  const overlay = createIconLegendOverlay(viewerTechs);
+  uiLayer.appendChild(overlay);
+},
+```
+
+`uiLayer` is already in scope at the `createGameShell` call site. `toggleIconLegend` is no longer imported.
 
 ---
 
@@ -204,12 +292,13 @@ The legend is rebuilt (not toggled from cache) each time the legend button is ta
 
 | File | Change |
 |---|---|
-| `src/systems/trade-system.ts` | Add `tech` to `ResourceDefinition`; populate all 10 entries; derive `RESOURCE_ICONS` and `RESOURCE_TECH` |
+| `src/systems/trade-system.ts` | Add `tech` + `icon` to `ResourceDefinition`; populate all 10 entries; derive `RESOURCE_ICONS` and `RESOURCE_TECH` |
 | `src/systems/tech-definitions.ts` | Add "Reveal X resource" to `unlocks` for 9 techs |
-| `src/renderer/hex-renderer.ts` | Add `viewerTechs` param to `drawHexMap` + `drawHex`; add resource icon drawing block |
-| `src/ui/territory-inspection-panel.ts` | Add `viewerTechs` param; gate + enrich resource display |
-| `src/ui/icon-legend.ts` | Add `viewerTechs` param; add dynamic resource section |
-| `src/main.ts` | Build `viewerTechs` set; pass to all three above |
+| `src/renderer/hex-renderer.ts` | Add `viewerTechs` param to `drawHexMap`, `drawTileAtScreen`, and `drawHex`; add resource icon drawing block; add import from `trade-system` |
+| `src/renderer/render-loop.ts` | Derive `viewerTechs` from `this.state`; pass as 7th arg to `drawHexMap` |
+| `src/ui/territory-inspection-panel.ts` | Derive `viewerTechs` internally; gate resource display on tech; enrich with name + type; add import from `trade-system` |
+| `src/ui/icon-legend.ts` | Add `viewerTechs` param to `createIconLegendOverlay`; add dynamic resource section; remove `toggleIconLegend` export |
+| `src/main.ts` | Remove pre-built `iconLegendOverlay` from `createGameShell` call; replace `onToggleIconLegend` with inline rebuild handler; remove `toggleIconLegend` import |
 
 **No new files required.** No new `GameState` fields. No save migration needed.
 
@@ -230,11 +319,13 @@ Use a minimal mock canvas context. All tile states hand-built (no RNG).
 
 | Test | Assertion |
 |---|---|
-| Resource tile, viewer has tech | Resource icon text drawn |
+| Resource tile (`presentationKind: 'live'`), viewer has tech | Resource icon text drawn |
 | Resource tile, viewer lacks tech | Resource icon text absent (negative — spec-fidelity) |
 | Resource + completed improvement, viewer has tech | Resource drawn at corner position (`cx - size * 0.3`); improvement drawn at center |
 | Resource + in-progress improvement (`improvementTurnsLeft > 0`), viewer has tech | Resource drawn centered (improvement not shown, no corner split) |
-| Fog tile (outside visibility) | No resource icon regardless of tech (privacy negative) |
+| Unexplored tile (`resource: null` via `unknownTile`) | No resource icon — `tile.resource` is null, so the guard `if (tile.resource && ...)` naturally skips it; no explicit visibility check required |
+| Last-seen tile (`presentationKind: 'last-seen'`) with resource, viewer has tech | Resource icon IS drawn — player remembers what they last saw; tech gate still applies |
+| Last-seen tile with resource, viewer lacks tech | Resource icon absent (negative) |
 
 ### `tests/ui/territory-inspection-panel.test.ts`
 
@@ -254,7 +345,7 @@ Use a minimal mock canvas context. All tile states hand-built (no RNG).
 
 ## Done when
 
-- Resources render on tiles **only** for tech-holders; un-tech'd and fogged tiles show nothing
+- Resources render on tiles **only** for tech-holders; un-tech'd tiles show nothing; unexplored/unknown-fog tiles show nothing (their `tile.resource` is `null` from the presentation system); last-seen tiles show the resource if the viewer has the tech
 - Tile inspection shows resource name + type (luxury/strategic) for tech-holders only
 - Map legend lists only the resources the current player has tech for
 - Tech panel `unlocks` text for all 10 enabling techs mentions the resource they reveal
