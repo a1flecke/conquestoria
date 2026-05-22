@@ -161,7 +161,7 @@ function drawHex(
 ): void
 ```
 
-**Resource icon drawing block** — inserted after the improvement block (lines ~264), before the wonder block:
+**Resource icon drawing block** — inserted after *both* improvement-related blocks (completed-improvement block AND construction-in-progress block), before the wonder block. There are two improvement blocks in `drawHex`: the first renders the completed improvement icon (~lines 251–264); the second renders the 🔨 in-progress indicator (~lines 267–276). The resource block must go after both so it draws on top of any in-progress construction indicator, not between the two improvement blocks:
 
 ```ts
 // Draw resource icon (tech-gated).
@@ -171,6 +171,9 @@ function drawHex(
 // (the player remembers what they saw). Tech gate still applies.
 if (tile.resource && viewerTechs.has(RESOURCE_TECH[tile.resource] ?? '')) {
   const icon = RESOURCE_ICONS[tile.resource] ?? '◆';
+  // hasVisibleImprovement: only the *completed* improvement icon occupies center.
+  // An in-progress improvement (improvementTurnsLeft > 0) shows 🔨 above/below center;
+  // in that case hasVisibleImprovement is false and the resource draws centered.
   const hasVisibleImprovement =
     tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
 
@@ -179,11 +182,11 @@ if (tile.resource && viewerTechs.has(RESOURCE_TECH[tile.resource] ?? '')) {
   ctx.textBaseline = 'middle';
 
   if (hasVisibleImprovement) {
-    // Option B: small icon at top-left corner
+    // Option B: small icon at top-left corner; improvement stays centered
     ctx.font = `${size * 0.3}px system-ui`;
     ctx.fillText(icon, cx - size * 0.3, cy - size * 0.3);
   } else {
-    // No improvement competing — centered at full icon size
+    // No completed improvement icon at center — draw resource centered
     ctx.font = `${size * 0.5}px system-ui`;
     ctx.fillText(icon, cx, cy);
   }
@@ -252,6 +255,8 @@ No call-site change in `main.ts` — the function signature is unchanged.
 ### `src/ui/icon-legend.ts`
 
 `createIconLegendOverlay(viewerTechs: ReadonlySet<string>): HTMLDivElement` — add the parameter. Append a "Resources" section after the existing static items, listing only resources the viewer has tech for, split into luxury and strategic sub-groups. If the viewer has no resource techs, the Resources section is omitted entirely.
+
+**Also change `display:none` → `display:block`** in the overlay's initial `style.cssText`. The old code pre-built the overlay at startup and hid it; the new toggle pattern only ever calls `createIconLegendOverlay` when it is about to be shown. Starting hidden would make the first toggle a no-op (the check `existing.style.display !== 'none'` would see an empty-display element as "visible" and immediately hide it without showing anything). Starting as `display:block` means the freshly-created overlay is immediately visible when appended by the toggle handler.
 
 The export `toggleIconLegend` becomes dead (main.ts will no longer use it) — remove it.
 
@@ -331,7 +336,7 @@ Use a minimal mock canvas context. All tile states hand-built (no RNG).
 
 | Test | Assertion |
 |---|---|
-| Panel with viewer-has-tech | Resource row present, shows "Gems (strategic)" format |
+| Panel with viewer-has-tech | Resource row present, shows "Gems (luxury)" format |
 | Panel with viewer-lacks-tech | Resource row absent (negative) |
 
 ### `tests/ui/icon-legend.test.ts`
