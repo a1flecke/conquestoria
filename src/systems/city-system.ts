@@ -8,7 +8,7 @@ import {
   getLegendaryWonderDisplayName,
   getLegendaryWonderProductionCost,
   getLegendaryWonderQueueItemMetadata,
-} from './legendary-wonder-presentation';
+} from './legendary-wonder-production';
 
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
 

@@ -246,7 +246,7 @@ describe('notification routing', () => {
     const { sink, calls } = makeSink();
     routeLegendaryWonder(
       state,
-      { type: 'wonder:legendary-completed', civId: 'p1', cityId: 'c1', wonderId: 'great-wall' },
+      { type: 'wonder:legendary-completed', civId: 'p1', cityId: 'c1', wonderId: 'great-wall', turnCompleted: 40 },
       sink,
     );
     const byCiv = Object.fromEntries(calls.map(c => [c.civId, c]));
