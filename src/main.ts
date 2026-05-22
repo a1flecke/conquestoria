@@ -78,7 +78,7 @@ import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentati
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
-import { createIconLegendOverlay, toggleIconLegend } from '@/ui/icon-legend';
+import { createIconLegendOverlay } from '@/ui/icon-legend';
 import { showVictoryPanel } from '@/ui/victory-panel';
 import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupancy';
 import {
@@ -244,7 +244,21 @@ function createUI(): void {
     onEndTurn: () => endTurn(),
     onNextUnit: () => selectNextUnit(),
     onOpenNotificationLog: () => toggleNotificationLog(),
-    onToggleIconLegend: () => toggleIconLegend(),
+    onToggleIconLegend: () => {
+      const existing = document.getElementById('icon-legend');
+      if (existing && existing.style.display !== 'none') {
+        // Already visible — hide it
+        existing.style.display = 'none';
+        return;
+      }
+      // Stale or absent — remove old, rebuild fresh with current techs
+      existing?.remove();
+      const viewerTechs = new Set<string>(
+        gameState.civilizations[gameState.currentPlayer]?.techState.completed ?? []
+      );
+      const overlay = createIconLegendOverlay(viewerTechs);
+      uiLayer.appendChild(overlay);
+    },
     onOpenWonderAtlas: () => openWonderAtlas(),
     onOpenMenu: () => {
       showPauseMenu(uiLayer, {
@@ -259,7 +273,6 @@ function createUI(): void {
         autoSave: () => autoSave(gameState),
       });
     },
-    iconLegendOverlay: createIconLegendOverlay(),
   });
 }
 
