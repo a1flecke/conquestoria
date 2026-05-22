@@ -211,4 +211,31 @@ describe('opening research pacing data', () => {
     expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 2 })).toBeGreaterThanOrEqual(5);
     expect(estimateTurnsToComplete({ cost: bronze!.cost, outputPerTurn: 2 })).toBeLessThanOrEqual(7);
   });
+
+  describe('resource reveal unlock text', () => {
+    const EXPECTED_REVEALS = [
+      { techId: 'gathering',        resourceName: 'Stone'   },
+      { techId: 'stone-weapons',    resourceName: 'Copper'  },
+      { techId: 'foraging',         resourceName: 'Ivory'   },
+      { techId: 'pottery',          resourceName: 'Wine'    },
+      { techId: 'cartography',      resourceName: 'Spices'  },
+      { techId: 'irrigation',       resourceName: 'Silk'    },
+      { techId: 'bronze-working',   resourceName: 'Iron'    },
+      { techId: 'animal-husbandry', resourceName: 'Horses'  },
+      { techId: 'mining-tech',      resourceName: 'Gems'    },
+      { techId: 'currency',         resourceName: 'Incense' },
+    ];
+
+    for (const { techId, resourceName } of EXPECTED_REVEALS) {
+      it(`${techId} includes "Reveal ${resourceName} resource" in unlocks`, () => {
+        const tech = TECH_TREE.find(t => t.id === techId);
+        expect(tech, `tech "${techId}" not found`).toBeDefined();
+        const hasReveal = tech?.unlocks.some(u => u === `Reveal ${resourceName} resource`);
+        expect(
+          hasReveal,
+          `${techId} missing "Reveal ${resourceName} resource" in unlocks: [${tech?.unlocks.join(', ')}]`,
+        ).toBe(true);
+      });
+    }
+  });
 });

@@ -2,9 +2,9 @@ import type { Tech } from '@/core/types';
 
 export const TECH_TREE: Tech[] = [
   // === MILITARY TRACK (8 techs, existing) ===
-  { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 4, prerequisites: [], unlocks: ['Warriors deal +2 damage'], era: 1, pacing: { band: 'starter', role: 'foundational-military', impact: 1.05, scope: 'military', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1 } },
+  { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 4, prerequisites: [], unlocks: ['Warriors deal +2 damage', 'Reveal Copper resource'], era: 1, pacing: { band: 'starter', role: 'foundational-military', impact: 1.05, scope: 'military', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1 } },
   { id: 'archery', name: 'Archery', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: ['Unlock Archer unit'], era: 1 },
-  { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: ['Unlock Swordsman unit'], era: 2 },
+  { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: ['Unlock Swordsman unit', 'Reveal Iron resource'], era: 2 },
   { id: 'horseback-riding', name: 'Horseback Riding', track: 'military', cost: 55, prerequisites: ['animal-husbandry'], unlocks: ['Unlock Stable, mounted units'], era: 2 },
   { id: 'fortification', name: 'Fortification', track: 'military', cost: 60, prerequisites: ['bronze-working'], unlocks: ['Unlock Walls building', 'pikeman'], era: 3 },
   { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 80, prerequisites: ['bronze-working', 'mining-tech'], unlocks: ['Stronger melee units'], era: 3 },
@@ -12,12 +12,12 @@ export const TECH_TREE: Tech[] = [
   { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus', 'musketeer'], era: 4 },
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
-  { id: 'gathering', name: 'Gathering', track: 'economy', cost: 4, prerequisites: [], unlocks: ['Foundational economy knowledge'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
-  { id: 'pottery', name: 'Pottery', track: 'economy', cost: 10, prerequisites: ['gathering'], unlocks: ['Foundational ceramics knowledge'], era: 1 },
+  { id: 'gathering', name: 'Gathering', track: 'economy', cost: 4, prerequisites: [], unlocks: ['Foundational economy knowledge', 'Reveal Stone resource'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
+  { id: 'pottery', name: 'Pottery', track: 'economy', cost: 10, prerequisites: ['gathering'], unlocks: ['Foundational ceramics knowledge', 'Reveal Wine resource'], era: 1 },
   { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 12, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource'], era: 2 },
-  { id: 'irrigation', name: 'Irrigation', track: 'economy', cost: 45, prerequisites: ['pottery'], unlocks: ['Farms yield +1 food'], era: 2 },
-  { id: 'currency', name: 'Currency', track: 'economy', cost: 60, prerequisites: ['pottery'], unlocks: ['Unlock Marketplace building'], era: 3 },
-  { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production'], era: 3 },
+  { id: 'irrigation', name: 'Irrigation', track: 'economy', cost: 45, prerequisites: ['pottery'], unlocks: ['Farms yield +1 food', 'Reveal Silk resource'], era: 2 },
+  { id: 'currency', name: 'Currency', track: 'economy', cost: 60, prerequisites: ['pottery'], unlocks: ['Unlock Marketplace building', 'Reveal Incense resource'], era: 3 },
+  { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production', 'Reveal Gems resource'], era: 3 },
   { id: 'trade-routes', name: 'Trade Routes', track: 'economy', cost: 85, prerequisites: ['currency'], unlocks: ['Enable trade routes between cities'], era: 4 },
   { id: 'banking', name: 'Banking', track: 'economy', cost: 95, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+20% gold in all cities'], era: 4 },
   { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
@@ -45,7 +45,7 @@ export const TECH_TREE: Tech[] = [
 
   // === EXPLORATION TRACK (8 techs, existing) ===
   { id: 'pathfinding', name: 'Pathfinding', track: 'exploration', cost: 4, prerequisites: [], unlocks: ['Scouts get +1 vision'], era: 1, pacing: { band: 'starter', role: 'foundational-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
-  { id: 'cartography', name: 'Cartography', track: 'exploration', cost: 10, prerequisites: ['pathfinding'], unlocks: ['Reveal map edges'], era: 1 },
+  { id: 'cartography', name: 'Cartography', track: 'exploration', cost: 10, prerequisites: ['pathfinding'], unlocks: ['Reveal map edges', 'Reveal Spices resource'], era: 1 },
   { id: 'sailing', name: 'Sailing', track: 'exploration', cost: 10, prerequisites: ['pathfinding'], unlocks: ['Units can embark on coast'], era: 2 },
   { id: 'celestial-navigation', name: 'Celestial Navigation', track: 'exploration', cost: 55, prerequisites: ['sailing', 'fire'], unlocks: ['Units can cross ocean'], era: 2 },
   { id: 'road-building', name: 'Road Building', track: 'exploration', cost: 50, prerequisites: ['wheel', 'pathfinding'], unlocks: ['Workers can build roads'], era: 3 },
@@ -54,7 +54,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'military-logistics', name: 'Military Logistics', track: 'exploration', cost: 100, prerequisites: ['road-building', 'tactics'], unlocks: ['Units move +1 on roads'], era: 4 },
 
   // === AGRICULTURE TRACK (8 techs, new) ===
-  { id: 'foraging', name: 'Foraging', track: 'agriculture', cost: 5, prerequisites: [], unlocks: ['Food storage'], era: 1 },
+  { id: 'foraging', name: 'Foraging', track: 'agriculture', cost: 5, prerequisites: [], unlocks: ['Food storage', 'Reveal Ivory resource'], era: 1 },
   { id: 'domestication', name: 'Domestication', track: 'agriculture', cost: 10, prerequisites: ['foraging'], unlocks: ['Animal pens'], era: 1 },
   { id: 'crop-rotation', name: 'Crop Rotation', track: 'agriculture', cost: 45, prerequisites: ['domestication', 'irrigation'], unlocks: ['Improved farms'], era: 2 },
   { id: 'granary-design', name: 'Granary Design', track: 'agriculture', cost: 10, prerequisites: ['foraging'], unlocks: ['Granary upgrade'], era: 2 },
