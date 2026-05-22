@@ -134,6 +134,29 @@ describe('createTerritoryInspectionPanel', () => {
     expect(panel.textContent).not.toContain('Progress: 8/10');
   });
 
+  it('shows resource name and type when viewer has the enabling tech', () => {
+    const state = makeInspectionState();
+    // Replace resource with a valid ResourceType
+    state.map.tiles['6,5'] = { ...state.map.tiles['6,5'], resource: 'gems' };
+    // Grant the enabling tech (gems → mining-tech)
+    state.civilizations.player.techState.completed = ['mining-tech'];
+
+    const panel = createTerritoryInspectionPanel(state, { q: 6, r: 5 }, 'player');
+
+    expect(panel.textContent).toContain('Gems (luxury)');
+  });
+
+  it('hides resource row when viewer lacks the enabling tech', () => {
+    const state = makeInspectionState();
+    state.map.tiles['6,5'] = { ...state.map.tiles['6,5'], resource: 'gems' };
+    // techState.completed defaults to [] from createNewGame — no tech granted
+
+    const panel = createTerritoryInspectionPanel(state, { q: 6, r: 5 }, 'player');
+
+    expect(panel.textContent).not.toContain('Gems');
+    expect(panel.textContent).not.toContain('luxury');
+  });
+
   it('wires the close action when provided', () => {
     const state = makeInspectionState();
     const onClose = vi.fn();
