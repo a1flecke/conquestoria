@@ -6,6 +6,7 @@ import { TERRITORY_PRESSURE_BALANCE } from '@/systems/city-territory-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { renderTerritoryFrontierInfo } from '@/ui/territory-frontier-info';
 import { createGameButton } from '@/ui/ui-kit';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 
 function titleCase(value: string): string {
   return value
@@ -40,6 +41,7 @@ export function createTerritoryInspectionPanel(
   const key = hexKey(coord);
   const tile = state.map.tiles[key];
   const viewer = state.civilizations[viewerId];
+  const viewerTechs = new Set(viewer?.techState.completed ?? []);
   const visibility = viewer?.visibility
     ? getVisibility(viewer.visibility, coord)
     : 'unexplored';
@@ -92,7 +94,12 @@ export function createTerritoryInspectionPanel(
 
   addLine(panel, 'Terrain', titleCase(tile.terrain));
   addLine(panel, 'Elevation', titleCase(tile.elevation));
-  if (tile.resource) addLine(panel, 'Resource', titleCase(tile.resource));
+  const resDef = tile.resource
+    ? RESOURCE_DEFINITIONS.find(r => r.id === tile.resource)
+    : null;
+  if (resDef && viewerTechs.has(resDef.tech)) {
+    addLine(panel, 'Resource', `${resDef.name} (${resDef.type})`);
+  }
   if (tile.improvement !== 'none') addLine(panel, 'Improvement', getImprovementDisplayName(tile.improvement));
   if (tile.wonder) addLine(panel, 'Wonder', getWonderDefinition(tile.wonder)?.name ?? tile.wonder);
 
