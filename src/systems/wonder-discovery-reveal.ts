@@ -29,6 +29,7 @@ export function buildWonderDiscoveryRevealItem(
   const civ = state.civilizations[event.civId];
   if (!civ?.isHuman) return null;
   if (!validCoord(event.position)) return null;
+  if (!state.wonderDiscoverers[event.wonderId]?.includes(event.civId)) return null;
 
   const definition = getWonderDefinition(event.wonderId);
   if (!definition) return null;

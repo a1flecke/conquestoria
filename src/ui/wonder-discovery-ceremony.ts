@@ -73,10 +73,6 @@ export function createWonderDiscoveryCeremony(
   vignette.style.height = '148px';
   vignette.style.flexBasis = '148px';
 
-  appendText(panel, 'p', item.title, 'margin:0;color:#e8c170;font-size:12px;letter-spacing:0;text-transform:uppercase;font-weight:700;');
-  appendText(panel, 'h2', item.name, 'margin:0;font-size:clamp(24px,4vw,38px);line-height:1.05;letter-spacing:0;');
-  appendText(panel, 'p', item.revealLine, 'margin:0;font-size:15px;line-height:1.45;max-width:46ch;');
-
   const facts = document.createElement('div');
   facts.style.cssText = 'display:grid;grid-template-columns:1fr;gap:8px;width:100%;text-align:left;';
   appendText(facts, 'p', item.effectSummary, 'margin:0;padding:10px;border-radius:8px;background:rgba(255,255,255,0.07);font-size:13px;line-height:1.35;');
@@ -104,7 +100,11 @@ export function createWonderDiscoveryCeremony(
     if (event.key === 'Escape') resolve('skip');
   });
 
-  panel.append(skipRow, vignette, facts, actions);
+  panel.append(skipRow, vignette);
+  appendText(panel, 'p', item.title, 'margin:0;color:#e8c170;font-size:12px;letter-spacing:0;text-transform:uppercase;font-weight:700;');
+  appendText(panel, 'h2', item.name, 'margin:0;font-size:32px;line-height:1.05;letter-spacing:0;');
+  appendText(panel, 'p', item.revealLine, 'margin:0;font-size:15px;line-height:1.45;max-width:46ch;');
+  panel.append(facts, actions);
   overlay.appendChild(panel);
   container.appendChild(overlay);
   overlay.focus();
