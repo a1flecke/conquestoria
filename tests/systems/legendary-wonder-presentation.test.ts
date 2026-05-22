@@ -102,4 +102,65 @@ describe('legendary-wonder-presentation', () => {
       wonderId: 'unknown',
     });
   });
+
+  it('derives legendary construction milestones, ETA, and queue continuity without mutating state', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'pilgrimages'],
+      resources: ['stone'],
+    });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi', 'library'];
+    state.cities['city-river'].productionProgress = 72;
+    state.cities['city-river'].focus = 'production';
+    const before = structuredClone(state.legendaryWonderProjects);
+
+    const oracle = getLegendaryWonderPresentationForCity(state, 'player', 'city-river')
+      .find(entry => entry.wonderId === 'oracle-of-delphi');
+
+    expect(oracle).toMatchObject({
+      visibleState: 'building',
+      progressPercent: 60,
+      milestoneLabel: 'Final works',
+      queueContinuityLabel: 'Queue resumes after this wonder.',
+      raceTensionLabel: 'Construction underway',
+    });
+    expect(oracle?.turnsRemaining).toBeGreaterThan(0);
+    expect(state.legendaryWonderProjects).toEqual(before);
+  });
+
+  it('derives recovery and completed production-resumed copy', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.legendaryWonderProjects!['grand-canal'].phase = 'lost_race';
+    state.legendaryWonderProjects!['grand-canal'].transferableProduction = 24;
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: 'city-river', turnCompleted: 50 },
+    };
+
+    const entries = getLegendaryWonderPresentationForCity(state, 'player', 'city-river');
+    expect(entries.find(entry => entry.wonderId === 'grand-canal')).toMatchObject({
+      visibleState: 'recovered',
+      recoveryLabel: 'Effort recovered: 24 production carryover preserved.',
+      productionResumedLabel: 'Normal production has resumed.',
+    });
+    expect(entries.find(entry => entry.wonderId === 'oracle-of-delphi')).toMatchObject({
+      visibleState: 'completed',
+      productionResumedLabel: 'Normal production has resumed.',
+    });
+  });
+
+  it('does not label no-intel builds as safe or uncontested', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['architecture-arts', 'theology-tech'],
+      resources: ['stone'],
+    });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = 10;
+
+    const oracle = getLegendaryWonderPresentationForCity(state, 'player', 'city-river')
+      .find(entry => entry.wonderId === 'oracle-of-delphi');
+
+    expect(oracle?.raceTensionLabel).toBe('Construction underway');
+    expect(oracle?.raceTensionLabel).not.toMatch(/uncontested/i);
+  });
 });

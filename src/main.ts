@@ -2553,8 +2553,8 @@ bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
   routeLegendaryWonder(gameState, { type: 'wonder:legendary-ready', civId, cityId, wonderId }, appendToCivLog);
 });
 
-bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId }) => {
-  routeLegendaryWonder(gameState, { type: 'wonder:legendary-completed', civId, cityId, wonderId }, appendToCivLog);
+bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId, turnCompleted }) => {
+  routeLegendaryWonder(gameState, { type: 'wonder:legendary-completed', civId, cityId, wonderId, turnCompleted }, appendToCivLog);
 });
 
 bus.on('wonder:legendary-lost', ({ civId, cityId, wonderId, goldRefund, transferableProduction }) => {

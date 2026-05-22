@@ -178,6 +178,27 @@ describe('legendary-wonder-system', () => {
     ]);
   });
 
+  it('emits the completion turn in legendary completion events', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'pilgrimages', 'city-planning', 'printing'],
+      resources: ['stone'],
+      oracleStepsCompleted: 2,
+    });
+    state.turn = 41;
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = 120;
+    const events: Array<{ civId: string; cityId: string; wonderId: string; turnCompleted: number }> = [];
+    const bus = new EventBus();
+    bus.on('wonder:legendary-completed', event => events.push(event));
+
+    tickLegendaryWonderProjects(state, bus);
+
+    expect(events).toEqual([
+      { civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi', turnCompleted: 41 },
+    ]);
+  });
+
   it('moves a ready project into the building phase when construction starts', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';

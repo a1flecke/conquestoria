@@ -259,7 +259,7 @@ export function routeCombatRewardEarned(
 
 type LegendaryWonderRoutingEvent =
   | { type: 'wonder:legendary-ready'; civId: string; cityId: string; wonderId: string }
-  | { type: 'wonder:legendary-completed'; civId: string; cityId: string; wonderId: string }
+  | { type: 'wonder:legendary-completed'; civId: string; cityId: string; wonderId: string; turnCompleted: number }
   | { type: 'wonder:legendary-lost'; civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number }
   | { type: 'wonder:legendary-race-revealed'; observerId: string; civId: string; cityId: string; wonderId: string };
 

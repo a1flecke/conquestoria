@@ -64,12 +64,14 @@ describe('legendary-wonder-notifications', () => {
       civId: 'player',
       cityId: 'city-river',
       wonderId: 'oracle-of-delphi',
+      turnCompleted: 40,
     });
     const observerView = getLegendaryWonderNotification(state, 'rival', {
       type: 'wonder:legendary-completed',
       civId: 'player',
       cityId: 'city-river',
       wonderId: 'oracle-of-delphi',
+      turnCompleted: 40,
     });
 
     expect(builderView?.message).toMatch(/completed/i);

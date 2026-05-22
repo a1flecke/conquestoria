@@ -470,6 +470,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
           civId: project.ownerId,
           cityId: project.cityId,
           wonderId: project.wonderId,
+          turnCompleted: state.turn,
         });
         updatedProjects[projectId] = {
           ...project,

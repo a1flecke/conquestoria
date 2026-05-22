@@ -648,7 +648,7 @@ describe('processTurn', () => {
   it('emits a legendary-completed event when a wonder finishes during turn processing', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
     const bus = new EventBus();
-    const completedEvents: Array<{ civId: string; cityId: string; wonderId: string }> = [];
+    const completedEvents: Array<{ civId: string; cityId: string; wonderId: string; turnCompleted: number }> = [];
     const oracle = getLegendaryWonderDefinition('oracle-of-delphi');
 
     bus.on('wonder:legendary-completed', event => completedEvents.push(event));
@@ -659,7 +659,7 @@ describe('processTurn', () => {
     processTurn(state, bus);
 
     expect(completedEvents).toEqual([
-      { civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi' },
+      { civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi', turnCompleted: 40 },
     ]);
   });
 
