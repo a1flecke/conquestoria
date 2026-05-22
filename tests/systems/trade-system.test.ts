@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   RESOURCE_DEFINITIONS,
+  RESOURCE_ICONS,
+  RESOURCE_TECH,
   BASE_PRICES,
   createMarketplaceState,
   calculatePrice,
@@ -10,6 +12,7 @@ import {
   processFashionCycle,
   processTradeRouteIncome,
 } from '@/systems/trade-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 describe('trade-system', () => {
   describe('RESOURCE_DEFINITIONS', () => {
@@ -22,6 +25,51 @@ describe('trade-system', () => {
     it('each resource has a positive base price', () => {
       for (const r of RESOURCE_DEFINITIONS) {
         expect(r.basePrice).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe('catalog integrity — tech and icon fields', () => {
+    it('every ResourceDefinition entry has a non-empty tech field', () => {
+      for (const r of RESOURCE_DEFINITIONS) {
+        expect(r.tech, `${r.id} missing tech`).toBeTruthy();
+      }
+    });
+
+    it('every tech field references a real tech id in TECH_TREE', () => {
+      const techIds = new Set(TECH_TREE.map(t => t.id));
+      for (const r of RESOURCE_DEFINITIONS) {
+        expect(techIds.has(r.tech), `${r.id}.tech "${r.tech}" not found in TECH_TREE`).toBe(true);
+      }
+    });
+
+    it('every ResourceDefinition entry has a non-empty icon field', () => {
+      for (const r of RESOURCE_DEFINITIONS) {
+        expect(r.icon, `${r.id} missing icon`).toBeTruthy();
+      }
+    });
+
+    it('RESOURCE_ICONS has a non-empty entry for every resource id', () => {
+      for (const r of RESOURCE_DEFINITIONS) {
+        expect(RESOURCE_ICONS[r.id], `RESOURCE_ICONS missing "${r.id}"`).toBeTruthy();
+      }
+    });
+
+    it('RESOURCE_TECH has a non-empty entry for every resource id', () => {
+      for (const r of RESOURCE_DEFINITIONS) {
+        expect(RESOURCE_TECH[r.id], `RESOURCE_TECH missing "${r.id}"`).toBeTruthy();
+      }
+    });
+
+    it('RESOURCE_ICONS values match icon fields on RESOURCE_DEFINITIONS', () => {
+      for (const r of RESOURCE_DEFINITIONS) {
+        expect(RESOURCE_ICONS[r.id]).toBe(r.icon);
+      }
+    });
+
+    it('RESOURCE_TECH values match tech fields on RESOURCE_DEFINITIONS', () => {
+      for (const r of RESOURCE_DEFINITIONS) {
+        expect(RESOURCE_TECH[r.id]).toBe(r.tech);
       }
     });
   });
