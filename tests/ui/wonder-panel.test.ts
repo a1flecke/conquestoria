@@ -23,6 +23,26 @@ describe('wonder-panel', () => {
     expect(rendered).toContain('Discover a natural wonder');
   });
 
+  it('shows construction milestone and reward-active completion copy from presentation entries', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    city.productionQueue = ['legendary:oracle-of-delphi'];
+    city.productionProgress = 72;
+    state.completedLegendaryWonders = {
+      'grand-canal': { ownerId: 'player', cityId: city.id, turnCompleted: 44 },
+    };
+
+    const panel = createWonderPanel(container, state, city.id, {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const text = collectText(panel);
+
+    expect(text).toContain('Final works');
+    expect(text).toContain('Reward active');
+    expect(text).toContain('Normal production has resumed.');
+  });
+
   it('shows only the current players selected-city projects in hot seat', () => {
     const { container, state } = makeWonderPanelFixture();
 

@@ -8,7 +8,10 @@ import {
   getProductionDisplayName,
   getProductionIconForItem,
 } from '@/systems/city-system';
-import { getCompactLegendaryWonderEntriesForCity } from '@/systems/legendary-wonder-presentation';
+import {
+  getCompactLegendaryWonderEntriesForCity,
+  getLegendaryWonderPresentationForCity,
+} from '@/systems/legendary-wonder-presentation';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
@@ -108,7 +111,11 @@ export function createCityPanel(
     era: state.era,
   });
   const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles);
+  const cityWonderEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, city.id);
   const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);
+  const activeLegendaryEntry = city.productionQueue[0]?.startsWith('legendary:')
+    ? cityWonderEntries.find(entry => entry.queueItemId === city.productionQueue[0]) ?? null
+    : null;
   const cityWonderProject = Object.values(state.legendaryWonderProjects ?? {}).find(project => project.cityId === city.id);
   const economyStatus = calculateCivEconomy(state, city.owner);
   const cityMaintenance = calculateCityBuildingMaintenance(state, city);
@@ -181,6 +188,8 @@ export function createCityPanel(
         <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(entry.queueItemId)} <span data-text="wonder-name-${idx}"></span></div>
         <div style="font-size:11px;color:#e8c170;"><span data-text="wonder-state-${idx}"></span> · ${entry.productionCost} production · ${turns} turns</div>
         <div style="font-size:10px;opacity:0.65;" data-text="wonder-summary-${idx}"></div>
+        <div style="font-size:10px;opacity:0.72;" data-text="wonder-recovery-${idx}"></div>
+        <div style="font-size:10px;opacity:0.72;" data-text="wonder-resumed-${idx}"></div>
       </div>
     `;
   }
@@ -233,6 +242,15 @@ export function createCityPanel(
         <div style="background:rgba(0,0,0,0.3);border-radius:4px;height:8px;margin-top:8px;">
           <div style="background:#6b9b4b;border-radius:4px;height:8px;width:${progress}%;"></div>
         </div>
+        ${activeLegendaryEntry ? `
+          <div data-active-legendary="true" style="margin-top:10px;border-top:1px solid rgba(232,193,112,0.22);padding-top:10px;">
+            <div style="font-size:12px;color:#e8c170;" data-text="legendary-milestone"></div>
+            <div style="font-size:12px;opacity:0.82;" data-text="legendary-reward-teaser"></div>
+            <div style="font-size:12px;opacity:0.82;" data-text="legendary-race-tension"></div>
+            <div style="font-size:12px;opacity:0.82;" data-text="legendary-queue-continuity"></div>
+            <button type="button" data-open-active-wonder-journal="true" style="min-height:44px;margin-top:8px;padding:7px 10px;background:rgba(232,193,112,0.16);border:1px solid rgba(232,193,112,0.45);border-radius:6px;color:#f0d897;cursor:pointer;font-size:12px;">Open Journal</button>
+          </div>
+        ` : ''}
         <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;">
           <button type="button" data-rush-buy="active" ${rushDisabledAttr} title="" style="min-height:44px;padding:7px 10px;border-radius:6px;font-size:12px;font-weight:bold;${rushButtonStyle}">${rushBuyLabel}</button>
           ${rushBuyReason ? '<span style="font-size:11px;color:#d9a25c;" data-text="rush-reason"></span>' : ''}
@@ -371,6 +389,12 @@ export function createCityPanel(
     if (rushBuyReason) {
       setText('rush-reason', rushBuyReason);
     }
+    if (activeLegendaryEntry) {
+      setText('legendary-milestone', activeLegendaryEntry.milestoneLabel ?? '');
+      setText('legendary-reward-teaser', `Reward: ${activeLegendaryEntry.rewardSummary}`);
+      setText('legendary-race-tension', activeLegendaryEntry.raceTensionLabel ?? 'Construction underway');
+      setText('legendary-queue-continuity', activeLegendaryEntry.queueContinuityLabel ?? '');
+    }
     const rushButton = panel.querySelector<HTMLElement>('[data-rush-buy]');
     if (rushButton && rushBuyReason) rushButton.title = rushBuyReason;
   }
@@ -418,6 +442,8 @@ export function createCityPanel(
       : missing
         ? `Needs ${missing}.`
         : entry.rewardSummary);
+    setText(`wonder-recovery-${index}`, entry.recoveryLabel ?? '');
+    setText(`wonder-resumed-${index}`, entry.productionResumedLabel ?? '');
   });
 
   container.appendChild(panel);
@@ -469,6 +495,11 @@ export function createCityPanel(
   });
 
   panel.querySelector<HTMLElement>('[data-open-wonder-panel]')?.addEventListener('click', () => {
+    callbacks.onOpenWonderPanel(city.id);
+    panel.remove();
+  });
+
+  panel.querySelector<HTMLElement>('[data-open-active-wonder-journal]')?.addEventListener('click', () => {
     callbacks.onOpenWonderPanel(city.id);
     panel.remove();
   });
