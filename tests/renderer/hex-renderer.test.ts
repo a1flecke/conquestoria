@@ -6,6 +6,7 @@ import type { GameMap, VisibilityMap } from '@/core/types';
 class MockCanvasContext {
   strokeCalls: string[] = [];
   textCalls: string[] = [];
+  fillTextCalls: Array<{ text: string; x: number; y: number }> = [];
   fillStyle = '';
   strokeStyle = '';
   lineWidth = 0;
@@ -25,8 +26,9 @@ class MockCanvasContext {
   arc(): void {}
   closePath(): void {}
   fill(): void {}
-  fillText(text: string): void {
+  fillText(text: string, x: number = 0, y: number = 0): void {
     this.textCalls.push(text);
+    this.fillTextCalls.push({ text, x, y });
   }
   stroke(): void {
     this.strokeCalls.push(this.strokeStyle);
@@ -151,5 +153,147 @@ describe('hex renderer privacy', () => {
 
     expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBeGreaterThan(0);
     expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBeLessThan(19);
+  });
+});
+
+function makeResourceMap(opts: {
+  resource?: string | null;
+  improvement?: string;
+  improvementTurnsLeft?: number;
+} = {}): GameMap {
+  return {
+    width: 1,
+    height: 1,
+    wrapsHorizontally: false,
+    rivers: [],
+    tiles: {
+      '0,0': {
+        coord: { q: 0, r: 0 },
+        terrain: 'mountain',
+        elevation: 'highland',
+        movementCost: 2,
+        owner: null,
+        improvement: opts.improvement ?? 'none',
+        improvementTurnsLeft: opts.improvementTurnsLeft ?? 0,
+        resource: opts.resource ?? null,
+        hasRiver: false,
+        wonder: null,
+      },
+    },
+  } as unknown as GameMap;
+}
+
+describe('resource icon rendering', () => {
+  const visibleAll: VisibilityMap = { tiles: { '0,0': 'visible' } };
+
+  it('draws resource icon when viewer has the enabling tech', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeResourceMap({ resource: 'stone' });
+
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set(['gathering']));
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).toContain('🪨');
+  });
+
+  it('does not draw resource icon when viewer lacks the enabling tech', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeResourceMap({ resource: 'stone' });
+
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set());
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
+  });
+
+  it('draws resource icon at top-left corner when a completed improvement is present', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeResourceMap({ resource: 'stone', improvement: 'mine', improvementTurnsLeft: 0 });
+
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set(['gathering']));
+
+    // For tile at q=0,r=0: hexToPixel gives {x:0,y:0}; worldToScreen is identity.
+    // scaledSize = hexSize(48) * zoom(1) = 48.
+    // Corner position: cx - size*0.3 = 0 - 14.4 = -14.4
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    const call = mockCtx.fillTextCalls.find(c => c.text === '🪨');
+    expect(call).toBeDefined();
+    expect(call!.x).toBeCloseTo(-14.4);
+    expect(call!.y).toBeCloseTo(-14.4);
+  });
+
+  it('draws resource icon at center when improvement is still under construction', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    // improvementTurnsLeft > 0 means construction in progress — improvement icon is NOT shown
+    const map = makeResourceMap({ resource: 'stone', improvement: 'mine', improvementTurnsLeft: 2 });
+
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set(['gathering']));
+
+    // No completed improvement visible → resource draws centered at cx=0, cy=0
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    const call = mockCtx.fillTextCalls.find(c => c.text === '🪨');
+    expect(call).toBeDefined();
+    expect(call!.x).toBeCloseTo(0);
+    expect(call!.y).toBeCloseTo(0);
+  });
+
+  it('does not draw resource icon for unexplored tiles (presentation layer nullifies resource)', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeResourceMap({ resource: 'stone' });
+    const unexplored: VisibilityMap = { tiles: { '0,0': 'unexplored' } };
+
+    // viewerTechs has 'gathering' — but the presentation tile has resource:null from unknownTile()
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', unexplored, new Set(['gathering']));
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
+  });
+
+  it('draws resource icon on last-seen tile when viewer has the enabling tech', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeResourceMap({ resource: 'stone' });
+    const fog: VisibilityMap = {
+      tiles: { '0,0': 'fog' },
+      lastSeen: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'mountain',
+          elevation: 'highland',
+          resource: 'stone',
+          improvement: 'none',
+          improvementTurnsLeft: 0,
+          owner: null,
+          hasRiver: false,
+          wonder: null,
+        },
+      },
+    };
+
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', fog, new Set(['gathering']));
+
+    // Player remembers what they last saw — resource shows if they have the tech
+    expect((ctx as unknown as MockCanvasContext).textCalls).toContain('🪨');
+  });
+
+  it('does not draw resource icon on last-seen tile when viewer lacks the enabling tech', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const map = makeResourceMap({ resource: 'stone' });
+    const fog: VisibilityMap = {
+      tiles: { '0,0': 'fog' },
+      lastSeen: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'mountain',
+          elevation: 'highland',
+          resource: 'stone',
+          improvement: 'none',
+          improvementTurnsLeft: 0,
+          owner: null,
+          hasRiver: false,
+          wonder: null,
+        },
+      },
+    };
+
+    drawHexMap(ctx, map, makeCamera(), undefined, 'player', fog, new Set());
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
   });
 });

@@ -131,6 +131,9 @@ export class RenderLoop {
     if (!this.state) return;
     const viewerId = this.state.currentPlayer;
     const viewerVisibility = this.state.civilizations[viewerId]?.visibility;
+    const viewerTechs = new Set<string>(
+      this.state.civilizations[viewerId]?.techState?.completed ?? []
+    );
 
     const { width, height } = this.canvas.getBoundingClientRect();
     this.ctx.clearRect(0, 0, width, height);
@@ -143,7 +146,7 @@ export class RenderLoop {
     const villagePositions = new Set(
       Object.values(this.state.tribalVillages ?? {}).map(v => `${v.position.q},${v.position.r}`),
     );
-    drawHexMap(this.ctx, this.state.map, this.camera, villagePositions, viewerId, viewerVisibility);
+    drawHexMap(this.ctx, this.state.map, this.camera, villagePositions, viewerId, viewerVisibility, viewerTechs);
 
     // Draw rivers
     drawRivers(this.ctx, this.state.map, this.camera, viewerVisibility);
