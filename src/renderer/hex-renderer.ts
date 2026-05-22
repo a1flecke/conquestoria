@@ -5,6 +5,7 @@ import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
 import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
 import { drawNaturalWonderLandmark } from './wonders/natural-wonder-renderer';
+import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/trade-system';
 
 // --- Terrain labels ---
 
@@ -62,8 +63,9 @@ function drawTileAtScreen(
   presentationKind: TilePresentationKind,
   nowMs: number,
   reducedMotion: boolean,
+  viewerTechs: ReadonlySet<string> = new Set(),
 ): void {
-  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion);
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, viewerTechs);
   if (shouldShowTerrainLabel(zoom)) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -81,6 +83,7 @@ export function drawHexMap(
   villagePositions?: Set<string>,
   currentPlayer?: string,
   viewerVisibility?: VisibilityMap,
+  viewerTechs: ReadonlySet<string> = new Set(),
 ): void {
   const size = camera.hexSize;
   const nowMs = typeof performance !== 'undefined' ? performance.now() : 0;
@@ -113,6 +116,7 @@ export function drawHexMap(
         presentation.kind,
         nowMs,
         reducedMotion,
+        viewerTechs,
       );
     }
   }
@@ -227,6 +231,7 @@ function drawHex(
   presentationKind: TilePresentationKind = 'live',
   nowMs: number = 0,
   reducedMotion: boolean = false,
+  viewerTechs: ReadonlySet<string> = new Set(),
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -273,6 +278,31 @@ function drawHex(
     ctx.font = `bold ${size * 0.22}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.fillText(`${tile.improvementTurnsLeft}t`, cx, cy + size * 0.25);
+  }
+
+  // Draw resource icon (tech-gated).
+  // No explicit visibility guard needed: drawHex receives presentation.tile, which
+  // already has resource: null for unexplored/unknown-fog tiles (via unknownTile()).
+  // Last-seen tiles carry the resource from the snapshot — showing it is correct
+  // (the player remembers what they saw). Tech gate still applies.
+  if (tile.resource && viewerTechs.has(RESOURCE_TECH[tile.resource] ?? '')) {
+    const icon = RESOURCE_ICONS[tile.resource] ?? '◆';
+    const hasVisibleImprovement =
+      tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (hasVisibleImprovement) {
+      // Option B: small icon at top-left corner; improvement stays centered
+      ctx.font = `${size * 0.3}px system-ui`;
+      ctx.fillText(icon, cx - size * 0.3, cy - size * 0.3);
+    } else {
+      // No improvement competing — centered at full icon size
+      ctx.font = `${size * 0.5}px system-ui`;
+      ctx.fillText(icon, cx, cy);
+    }
   }
 
   // Draw wonder indicator
