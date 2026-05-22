@@ -313,13 +313,17 @@ Stage 2A is complete when:
 
 Add short first-discovery reveal treatments for natural wonders. These should reuse Stage 2A medallions and vignette identity, while remaining separate from ordinary map scanning.
 
-### Stage 2C: Legendary Construction And Completion Presence
+### Stage 2C: City-First Legendary Presence
 
-Add richer legendary wonder identity in construction UI, construction-stage presentation, completion ceremony/presence, and clearer distinction between available, underway, completed, and rival-known legendary wonders.
+Make city production the primary living surface for legendary wonders. This slice owns active construction identity, progress, ETA, milestone copy, lost-race recovery presentation, owner-only completion ceremonies, completed mini landmarks around host cities, deterministic multiple-wonder city slots, and minimal safe Atlas state labels.
 
 ### Stage 2D: Full 2D Atlas Expansion
 
-Expand the Atlas with lore/history/detail pages, better browsing/filtering, known rival records where intel allows, and a legacy-style archive for completed/discovered wonders. This stage remains 2D.
+Expand the Atlas with lore/history/detail pages, better browsing/filtering, owned legendary detail pages, completed/lost/underway archive records, known rival records where intel allows, city-to-Atlas and Atlas-to-city review flows, and broader 2D visual browsing. This stage remains 2D.
+
+### Stage 2E: Landmark Art Expansion
+
+Later art slice for richer bespoke landmark silhouettes, variants, and per-wonder visual depth after Stage 2C's generic-but-distinct around-city landmark slot model ships.
 
 ### Stage 3: Real Video Spike
 
