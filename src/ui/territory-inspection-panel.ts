@@ -41,7 +41,7 @@ export function createTerritoryInspectionPanel(
   const key = hexKey(coord);
   const tile = state.map.tiles[key];
   const viewer = state.civilizations[viewerId];
-  const viewerTechs = new Set(viewer?.techState.completed ?? []);
+  const viewerTechs = new Set(viewer?.techState?.completed ?? []);
   const visibility = viewer?.visibility
     ? getVisibility(viewer.visibility, coord)
     : 'unexplored';

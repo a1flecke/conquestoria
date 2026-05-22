@@ -285,21 +285,24 @@ function drawHex(
   // already has resource: null for unexplored/unknown-fog tiles (via unknownTile()).
   // Last-seen tiles carry the resource from the snapshot — showing it is correct
   // (the player remembers what they saw). Tech gate still applies.
-  if (tile.resource && viewerTechs.has(RESOURCE_TECH[tile.resource] ?? '')) {
+  // Suppressed on wonder tiles — the wonder landmark visual takes priority and
+  // the resource is accessible via the inspection panel tap.
+  if (tile.resource && !tile.wonder && viewerTechs.has(RESOURCE_TECH[tile.resource] ?? '')) {
     const icon = RESOURCE_ICONS[tile.resource] ?? '◆';
-    const hasVisibleImprovement =
-      tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
+    // Corner layout when a completed improvement OR a village glyph will occupy the center
+    const needsCornerLayout =
+      (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) || isVillage;
 
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    if (hasVisibleImprovement) {
-      // Option B: small icon at top-left corner; improvement stays centered
+    if (needsCornerLayout) {
+      // Option B: small icon at top-left corner; other glyph stays centered
       ctx.font = `${size * 0.3}px system-ui`;
       ctx.fillText(icon, cx - size * 0.3, cy - size * 0.3);
     } else {
-      // No improvement competing — centered at full icon size
+      // No competing glyph — centered at full icon size
       ctx.font = `${size * 0.5}px system-ui`;
       ctx.fillText(icon, cx, cy);
     }
