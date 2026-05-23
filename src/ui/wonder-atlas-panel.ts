@@ -45,7 +45,7 @@ function createEntryButton(entry: WonderAtlasEntry, selected: boolean): HTMLButt
 
   const copy = document.createElement('span');
   const title = document.createElement('strong');
-  title.textContent = entry.kind === 'legendary' ? entry.maskedLabel : entry.name;
+  title.textContent = entry.kind === 'legendary' ? entry.stateLabel : entry.name;
   title.style.cssText = 'display:block;font-size:13px;';
   copy.appendChild(title);
 
@@ -182,7 +182,7 @@ export function createWonderAtlasPanel(
         copy.appendChild(view);
       }
     } else {
-      appendText(copy, 'p', entry.maskedLabel, 'margin:0;font-size:12px;color:#e8c170;');
+      appendText(copy, 'p', entry.stateLabel, 'margin:0;font-size:12px;color:#e8c170;');
       appendText(copy, 'p', 'A legendary ambition recorded for future construction and completion presence.', 'margin:0;font-size:13px;line-height:1.45;opacity:0.78;');
     }
 

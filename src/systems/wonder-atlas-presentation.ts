@@ -26,6 +26,7 @@ export interface LegendaryWonderAtlasEntry {
   visibility: 'masked';
   name: string;
   maskedLabel: string;
+  stateLabel: 'Available' | 'Under construction' | 'Completed' | 'Recovered' | 'Legendary wonder';
   canViewOnMap: false;
   visual: WonderVisualDefinition;
 }
@@ -57,7 +58,32 @@ function naturalWonderEntry(state: GameState, wonderId: string): NaturalWonderAt
   };
 }
 
-function legendaryWonderEntry(wonderId: string, name: string): LegendaryWonderAtlasEntry {
+function getLegendaryStateLabel(
+  state: GameState,
+  viewerId: string,
+  wonderId: string,
+): LegendaryWonderAtlasEntry['stateLabel'] {
+  const completion = state.completedLegendaryWonders?.[wonderId];
+  if (completion?.ownerId === viewerId) {
+    return 'Completed';
+  }
+
+  const ownedProject = Object.values(state.legendaryWonderProjects ?? {}).find(project =>
+    project.ownerId === viewerId && project.wonderId === wonderId,
+  );
+  if (!ownedProject) {
+    // Stage 2C has no viewer-scoped completion intel; rival completions stay masked.
+    return 'Legendary wonder';
+  }
+
+  if (ownedProject.phase === 'ready_to_build') return 'Available';
+  if (ownedProject.phase === 'building') return 'Under construction';
+  if (ownedProject.phase === 'completed') return 'Completed';
+  if (ownedProject.phase === 'lost_race') return 'Recovered';
+  return 'Legendary wonder';
+}
+
+function legendaryWonderEntry(state: GameState, viewerId: string, wonderId: string, name: string): LegendaryWonderAtlasEntry {
   const visual = getWonderVisualDefinition(wonderId);
   return {
     kind: 'legendary',
@@ -65,6 +91,7 @@ function legendaryWonderEntry(wonderId: string, name: string): LegendaryWonderAt
     visibility: 'masked',
     name,
     maskedLabel: visual.maskedLabel ?? 'Legendary wonder',
+    stateLabel: getLegendaryStateLabel(state, viewerId, wonderId),
     canViewOnMap: false,
     visual,
   };
@@ -77,7 +104,7 @@ export function getWonderAtlasEntries(state: GameState, viewerId: string): Wonde
     .filter((entry): entry is NaturalWonderAtlasEntry => entry !== null);
 
   const legendaryEntries = getLegendaryWonderDefinitions().map(definition =>
-    legendaryWonderEntry(definition.id, definition.name),
+    legendaryWonderEntry(state, viewerId, definition.id, definition.name),
   );
 
   return [...naturalEntries, ...legendaryEntries];
