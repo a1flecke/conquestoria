@@ -1196,9 +1196,9 @@ function selectUnit(unitId: string): void {
     showNotification('Unit is moving.', 'info');
     return;
   }
-  selectedUnitId = unitId;
   const unit = gameState.units[unitId];
   if (!unit || unit.owner !== gameState.currentPlayer) return;
+  selectedUnitId = unitId;
 
   const highlightResult = buildSelectedUnitHighlights(gameState, unitId);
   movementRange = highlightResult.movementRange;
