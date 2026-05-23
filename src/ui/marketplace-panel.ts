@@ -1,5 +1,6 @@
 import type { GameState, MarketplaceState, ResourceType } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 
 interface MarketplaceCallbacks {
   onClose: () => void;
@@ -20,7 +21,22 @@ export function createMarketplacePanel(
   panel.id = 'marketplace-panel';
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,10,30,0.95);z-index:50;overflow-y:auto;padding:16px;';
 
-  const playerResources = countPlayerResources(state);
+  const ownedResources = getCivAvailableResources(state, state.currentPlayer);
+
+  // Build "Your Resources" summary
+  const luxuryOwned = RESOURCE_DEFINITIONS
+    .filter(d => d.type === 'luxury' && ownedResources.has(d.id as ResourceType))
+    .map(d => d.name);
+  const strategicOwned = RESOURCE_DEFINITIONS
+    .filter(d => d.type === 'strategic' && ownedResources.has(d.id as ResourceType))
+    .map(d => d.name);
+
+  const yourResourcesHtml = `
+    <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;" data-text="your-resources-heading"></div>
+      <div data-text="your-resources-body"></div>
+    </div>
+  `;
 
   // Build structural HTML with only safe hardcoded strings; dynamic data goes in data-text placeholders
   const fashionBannerHtml = marketplace.fashionable
@@ -41,7 +57,7 @@ export function createMarketplacePanel(
       <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;${isFashionable ? 'border:1px solid #e8c170;' : ''}">
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:bold;"><span data-text="res-name-${idx}"></span> <span style="font-size:10px;color:${typeColor};" data-text="res-type-${idx}"></span></div>
-          <div style="font-size:11px;opacity:0.6;">You own: <span data-text="res-owned-${idx}"></span></div>
+          <div style="font-size:11px;opacity:0.6;" data-text="res-owned-${idx}"></div>
         </div>
         <div style="text-align:right;">
           <div style="font-size:14px;color:#e8c170;">💰 <span data-text="res-price-${idx}"></span> ${trendIcon}</div>
@@ -61,6 +77,7 @@ export function createMarketplacePanel(
         <span id="mp-close" style="cursor:pointer;font-size:22px;opacity:0.6;">✕</span>
       </div>
       ${fashionBannerHtml}
+      ${yourResourcesHtml}
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${resourceRowsHtml}
       </div>
@@ -81,12 +98,31 @@ export function createMarketplacePanel(
 
   RESOURCE_DEFINITIONS.forEach((def, idx) => {
     const price = marketplace.prices[def.id] ?? def.basePrice;
-    const owned = playerResources[def.id] ?? 0;
+    const isOwned = ownedResources.has(def.id as ResourceType);
     setText(`res-name-${idx}`, def.name);
     setText(`res-type-${idx}`, def.type);
-    setText(`res-owned-${idx}`, String(owned));
+    setText(`res-owned-${idx}`, isOwned ? '✓ Owned' : '✗ Not available');
     setText(`res-price-${idx}`, String(price));
   });
+
+  // Populate Your Resources section
+  setText('your-resources-heading', 'Your Resources');
+  if (luxuryOwned.length === 0 && strategicOwned.length === 0) {
+    const emptyEl = panel.querySelector('[data-text="your-resources-body"]');
+    if (emptyEl) emptyEl.textContent = 'None yet — research techs and build improvements to harvest resources.';
+  } else {
+    const bodyEl = panel.querySelector('[data-text="your-resources-body"]');
+    if (bodyEl) {
+      const luxLine = document.createElement('div');
+      luxLine.style.cssText = 'font-size:12px;opacity:0.8;';
+      luxLine.textContent = `Luxury (${luxuryOwned.length}): ${luxuryOwned.length > 0 ? luxuryOwned.join(', ') : '—'}`;
+      const strLine = document.createElement('div');
+      strLine.style.cssText = 'font-size:12px;opacity:0.8;';
+      strLine.textContent = `Strategic (${strategicOwned.length}): ${strategicOwned.length > 0 ? strategicOwned.join(', ') : '—'}`;
+      bodyEl.appendChild(luxLine);
+      bodyEl.appendChild(strLine);
+    }
+  }
 
   // Inject trade route city names
   const playerRoutes = marketplace.tradeRoutes.filter(r => {
@@ -111,22 +147,6 @@ export function createMarketplacePanel(
     panel.remove();
     callbacks.onClose();
   });
-}
-
-function countPlayerResources(state: GameState): Record<string, number> {
-  const counts: Record<string, number> = {};
-  const playerCities = state.civilizations[state.currentPlayer]?.cities ?? [];
-  for (const cityId of playerCities) {
-    const city = state.cities[cityId];
-    if (!city) continue;
-    for (const coord of city.ownedTiles) {
-      const tile = state.map.tiles[`${coord.q},${coord.r}`];
-      if (tile?.resource) {
-        counts[tile.resource] = (counts[tile.resource] ?? 0) + 1;
-      }
-    }
-  }
-  return counts;
 }
 
 function renderSparkline(history: number[]): string {
