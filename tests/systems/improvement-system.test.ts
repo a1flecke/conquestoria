@@ -82,6 +82,117 @@ describe('new terrain improvements', () => {
   });
 });
 
+describe('new improvement terrain validity (S2a)', () => {
+  function makeTile(terrain: string, improvement = 'none'): HexTile {
+    return {
+      coord: { q: 0, r: 0 },
+      terrain: terrain as import('@/core/types').TerrainType,
+      elevation: 'lowland',
+      resource: null,
+      improvement: improvement as import('@/core/types').ImprovementType,
+      improvementTurnsLeft: 0,
+      owner: 'p1',
+      hasRiver: false,
+      wonder: null,
+    };
+  }
+
+  it('plantation is allowed on grassland', () => {
+    expect(canBuildImprovement(makeTile('grassland'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('plantation is allowed on plains', () => {
+    expect(canBuildImprovement(makeTile('plains'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('plantation is allowed on jungle', () => {
+    expect(canBuildImprovement(makeTile('jungle'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('plantation is allowed on desert', () => {
+    expect(canBuildImprovement(makeTile('desert'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('plantation is rejected on hills', () => {
+    expect(canBuildImprovement(makeTile('hills'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('pasture is allowed on plains', () => {
+    expect(canBuildImprovement(makeTile('plains'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('pasture is allowed on grassland', () => {
+    expect(canBuildImprovement(makeTile('grassland'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('pasture is allowed on hills', () => {
+    expect(canBuildImprovement(makeTile('hills'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('pasture is rejected on jungle', () => {
+    expect(canBuildImprovement(makeTile('jungle'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('camp is allowed on forest', () => {
+    expect(canBuildImprovement(makeTile('forest'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('camp is allowed on tundra', () => {
+    expect(canBuildImprovement(makeTile('tundra'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('camp is rejected on plains', () => {
+    expect(canBuildImprovement(makeTile('plains'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('camp is rejected on hills', () => {
+    expect(canBuildImprovement(makeTile('hills'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('quarry is allowed on mountain', () => {
+    expect(canBuildImprovement(makeTile('mountain'), 'quarry' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('quarry is rejected on grassland', () => {
+    expect(canBuildImprovement(makeTile('grassland'), 'quarry' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('plantation yields +1 food and +1 gold', () => {
+    const bonus = getImprovementYieldBonus('plantation' as import('@/core/types').ImprovementType);
+    expect(bonus.food).toBe(1);
+    expect(bonus.gold).toBe(1);
+    expect(bonus.production).toBe(0);
+  });
+
+  it('pasture yields +1 food', () => {
+    const bonus = getImprovementYieldBonus('pasture' as import('@/core/types').ImprovementType);
+    expect(bonus.food).toBe(1);
+    expect(bonus.gold).toBe(0);
+    expect(bonus.production).toBe(0);
+  });
+
+  it('camp yields +1 food', () => {
+    const bonus = getImprovementYieldBonus('camp' as import('@/core/types').ImprovementType);
+    expect(bonus.food).toBe(1);
+    expect(bonus.gold).toBe(0);
+    expect(bonus.production).toBe(0);
+  });
+
+  it('quarry yields +1 production', () => {
+    const bonus = getImprovementYieldBonus('quarry' as import('@/core/types').ImprovementType);
+    expect(bonus.production).toBe(1);
+    expect(bonus.food).toBe(0);
+    expect(bonus.gold).toBe(0);
+  });
+
+  it('getImprovementDisplayName returns correct names', () => {
+    expect(getImprovementDisplayName('plantation' as import('@/core/types').ImprovementType)).toBe('Plantation');
+    expect(getImprovementDisplayName('pasture' as import('@/core/types').ImprovementType)).toBe('Pasture');
+    expect(getImprovementDisplayName('camp' as import('@/core/types').ImprovementType)).toBe('Camp');
+    expect(getImprovementDisplayName('quarry' as import('@/core/types').ImprovementType)).toBe('Quarry');
+  });
+});
+
 describe('lumber camp and watermill eligibility', () => {
   function tile(overrides: Partial<HexTile>): HexTile {
     return {

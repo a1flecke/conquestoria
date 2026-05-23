@@ -72,6 +72,46 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     yieldBonus: { food: 1, production: 1, gold: 0, science: 0 },
     preservesTerrain: true,
   },
+  plantation: {
+    type: 'plantation',
+    name: 'Plantation',
+    buildTurns: 4,
+    validTerrains: ['grassland', 'plains', 'jungle', 'desert'],
+    requiresRiver: false,
+    requiredTech: null,
+    yieldBonus: { food: 1, production: 0, gold: 1, science: 0 },
+    preservesTerrain: true,
+  },
+  pasture: {
+    type: 'pasture',
+    name: 'Pasture',
+    buildTurns: 3,
+    validTerrains: ['grassland', 'plains', 'hills'],
+    requiresRiver: false,
+    requiredTech: null,
+    yieldBonus: { food: 1, production: 0, gold: 0, science: 0 },
+    preservesTerrain: true,
+  },
+  camp: {
+    type: 'camp',
+    name: 'Camp',
+    buildTurns: 3,
+    validTerrains: ['forest', 'tundra'],
+    requiresRiver: false,
+    requiredTech: null,
+    yieldBonus: { food: 1, production: 0, gold: 0, science: 0 },
+    preservesTerrain: true,
+  },
+  quarry: {
+    type: 'quarry',
+    name: 'Quarry',
+    buildTurns: 5,
+    validTerrains: ['mountain'],
+    requiresRiver: false,
+    requiredTech: null,
+    yieldBonus: { food: 0, production: 1, gold: 0, science: 0 },
+    preservesTerrain: true,
+  },
 };
 
 export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
@@ -79,6 +119,10 @@ export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
   mine: IMPROVEMENT_DEFINITIONS.mine.buildTurns,
   lumber_camp: IMPROVEMENT_DEFINITIONS.lumber_camp.buildTurns,
   watermill: IMPROVEMENT_DEFINITIONS.watermill.buildTurns,
+  plantation: IMPROVEMENT_DEFINITIONS.plantation.buildTurns,
+  pasture: IMPROVEMENT_DEFINITIONS.pasture.buildTurns,
+  camp: IMPROVEMENT_DEFINITIONS.camp.buildTurns,
+  quarry: IMPROVEMENT_DEFINITIONS.quarry.buildTurns,
   none: 0,
 };
 

@@ -163,7 +163,8 @@ export interface TribalVillage {
 
 export type VisibilityState = 'unexplored' | 'fog' | 'visible';
 
-export type ImprovementType = 'farm' | 'mine' | 'lumber_camp' | 'watermill' | 'none';
+export type ImprovementType = 'farm' | 'mine' | 'lumber_camp' | 'watermill'
+  | 'plantation' | 'pasture' | 'camp' | 'quarry' | 'none';
 export type BuildableImprovementType = Exclude<ImprovementType, 'none'>;
 export type WorkerActionType = BuildableImprovementType | 'drain_swamp';
 
@@ -861,8 +862,9 @@ export interface GameEvent {
 
 // --- Trade & Resources ---
 
-export type LuxuryResource = 'silk' | 'wine' | 'spices' | 'gems' | 'ivory' | 'incense';
-export type StrategicResource = 'copper' | 'iron' | 'horses' | 'stone';
+export type LuxuryResource = 'silk' | 'wine' | 'spices' | 'gems' | 'ivory' | 'incense'
+  | 'gold' | 'silver' | 'furs' | 'sheep';
+export type StrategicResource = 'copper' | 'iron' | 'horses' | 'stone' | 'cattle' | 'salt';
 export type ResourceType = LuxuryResource | StrategicResource;
 
 export interface TradeRoute {
