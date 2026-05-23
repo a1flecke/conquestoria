@@ -54,11 +54,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     type: 'galley', name: 'Galley', movementPoints: 3,
     visionRange: 3, strength: 12, canFoundCity: false,
     canBuildImprovements: false, productionCost: 40,
+    domain: 'naval',
   },
   trireme: {
     type: 'trireme', name: 'Trireme', movementPoints: 4,
     visionRange: 3, strength: 25, canFoundCity: false,
     canBuildImprovements: false, productionCost: 70,
+    domain: 'naval',
   },
   spy_scout: {
     type: 'spy_scout', name: 'Scout Agent', movementPoints: 2,
@@ -237,6 +239,17 @@ export function getMovementCost(terrain: string): number {
   return costs[terrain] ?? Infinity;
 }
 
+export function getMovementCostForUnit(terrain: string, domain: 'land' | 'naval'): number {
+  if (domain === 'naval') {
+    return (terrain === 'ocean' || terrain === 'coast') ? 1 : Infinity;
+  }
+  return getMovementCost(terrain);
+}
+
+function isPassableForUnit(terrain: string, domain: 'land' | 'naval'): boolean {
+  return getMovementCostForUnit(terrain, domain) < Infinity;
+}
+
 export interface MovementBlockerReason {
   code:
     | 'unexplored'
@@ -265,8 +278,11 @@ export function getMovementBlockerReason(
     return { code: 'unknown-tile', message: 'Too far away to spot.' };
   }
 
-  const cost = getMovementCost(tile.terrain);
-  if (cost === Infinity) {
+  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+  if (!isPassableForUnit(tile.terrain, domain)) {
+    if (domain === 'naval') {
+      return { code: 'impassable-terrain', message: 'Naval units cannot move on land.' };
+    }
     if (tile.terrain === 'mountain') {
       return { code: 'impassable-mountain', message: 'Mountain too steep to climb.' };
     }
@@ -276,24 +292,20 @@ export function getMovementBlockerReason(
     return { code: 'impassable-terrain', message: 'This terrain cannot be entered.' };
   }
 
-  const path = findPath(unit.position, target, map);
+  const path = findPath(unit.position, target, map, domain);
   if (!path) {
     return { code: 'unreachable', message: 'No passable route to that tile.' };
   }
 
   const pathCost = path.slice(1).reduce((total, coord) => {
     const stepTile = map.tiles[hexKey(coord)];
-    return total + (stepTile ? getMovementCost(stepTile.terrain) : Infinity);
+    return total + (stepTile ? getMovementCostForUnit(stepTile.terrain, domain) : Infinity);
   }, 0);
   if (pathCost > unit.movementPointsLeft) {
     return { code: 'insufficient-movement', message: 'Not enough movement left this turn.' };
   }
 
   return null;
-}
-
-function isPassable(terrain: string): boolean {
-  return getMovementCost(terrain) < Infinity;
 }
 
 function normalizeOccupants(value: string | string[] | undefined): string[] {
@@ -304,11 +316,13 @@ function normalizeOccupants(value: string | string[] | undefined): string[] {
 export function getMovementRange(
   unit: Unit,
   map: GameMap,
-  unitPositions: Record<string, string | string[]>, // hexKey -> unitId(s) for occupancy
-  unitOwners?: Record<string, string>, // unitId -> owner (to distinguish friend/foe)
+  unitPositions: Record<string, string | string[]>,
+  unitOwners?: Record<string, string>,
+  hostileOwners?: Set<string>,
 ): HexCoord[] {
+  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
   const reachable: HexCoord[] = [];
-  const visited = new Map<string, number>(); // hexKey -> remaining movement
+  const visited = new Map<string, number>();
   const queue: Array<{ coord: HexCoord; remaining: number }> = [];
 
   const startKey = hexKey(unit.position);
@@ -324,16 +338,28 @@ export function getMovementRange(
     for (const neighbor of neighbors) {
       const key = hexKey(neighbor);
       const tile = map.tiles[key];
-      if (!tile || !isPassable(tile.terrain)) continue;
+      if (!tile || !isPassableForUnit(tile.terrain, domain)) continue;
 
-      const cost = getMovementCost(tile.terrain);
+      const cost = getMovementCostForUnit(tile.terrain, domain);
       const remaining = current.remaining - cost;
       if (remaining < 0) continue;
 
       const occupants = normalizeOccupants(unitPositions[key]).filter(id => id !== unit.id);
       if (occupants.length > 0) {
-        const hostileOccupants = occupants.filter(id => unitOwners?.[id] !== unit.owner);
-        if (hostileOccupants.length > 0) {
+        const isNeutralOccupant = (id: string) => {
+          const owner = unitOwners?.[id];
+          return Boolean(owner) && owner !== unit.owner
+            && hostileOwners !== undefined && !hostileOwners.has(owner!);
+        };
+        const isHostileOccupant = (id: string) => {
+          const owner = unitOwners?.[id];
+          if (!owner || owner === unit.owner) return false;
+          return hostileOwners !== undefined ? hostileOwners.has(owner) : true;
+        };
+
+        if (occupants.some(isNeutralOccupant)) continue;
+
+        if (occupants.some(isHostileOccupant)) {
           const prevRemaining = visited.get(key) ?? -1;
           if (remaining > prevRemaining) {
             visited.set(key, remaining);
@@ -359,10 +385,11 @@ export function findPath(
   from: HexCoord,
   to: HexCoord,
   map: GameMap,
+  domain: 'land' | 'naval' = 'land',
 ): HexCoord[] | null {
   const toKey = hexKey(to);
   const toTile = map.tiles[toKey];
-  if (!toTile || !isPassable(toTile.terrain)) return null;
+  if (!toTile || !isPassableForUnit(toTile.terrain, domain)) return null;
 
   const parents = new Map<string, string>();
   const gScore = new Map<string, number>();
@@ -414,9 +441,9 @@ export function findPath(
       if (closedSet.has(nKey)) continue;
 
       const tile = map.tiles[nKey];
-      if (!tile || !isPassable(tile.terrain)) continue;
+      if (!tile || !isPassableForUnit(tile.terrain, domain)) continue;
 
-      const tentativeG = (gScore.get(currentKey) ?? Infinity) + getMovementCost(tile.terrain);
+      const tentativeG = (gScore.get(currentKey) ?? Infinity) + getMovementCostForUnit(tile.terrain, domain);
       if (tentativeG < (gScore.get(nKey) ?? Infinity)) {
         parents.set(nKey, currentKey);
         gScore.set(nKey, tentativeG);
