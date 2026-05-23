@@ -110,6 +110,39 @@ describe('selected-unit-highlights', () => {
     expect(result.highlights).toContainEqual({ coord: { q: 1, r: -1 }, type: 'worker-foreign-blocked' });
   });
 
+  it('neutral (non-war) AI unit hex does not appear as a move highlight (#250)', () => {
+    const state = createNewGame(undefined, 'neutral-stack-highlight', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      warrior: { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'warrior', movementPointsLeft: 2 },
+      neutral: { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'neutral' },
+    };
+    state.civilizations.player.units = ['warrior'];
+    state.civilizations.player.visibility.tiles = { '1,0': 'visible' };
+    state.civilizations.player.diplomacy.atWarWith = [];  // ai-1 is NOT at war — neutral
+
+    const result = buildSelectedUnitHighlights(state, 'warrior');
+
+    expect(result.movementRange.some(c => hexKey(c) === '1,0')).toBe(false);
+    expect(result.highlights.some(h => hexKey(h.coord) === '1,0')).toBe(false);
+  });
+
+  it('at-war AI unit hex still appears as a move highlight (#250)', () => {
+    const state = createNewGame(undefined, 'atwar-stack-highlight', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      warrior: { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'warrior', movementPointsLeft: 2 },
+      enemy: { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'enemy' },
+    };
+    state.civilizations.player.units = ['warrior'];
+    state.civilizations.player.visibility.tiles = { '1,0': 'visible' };
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+
+    const result = buildSelectedUnitHighlights(state, 'warrior');
+
+    expect(result.movementRange.some(c => hexKey(c) === '1,0')).toBe(true);
+  });
+
   it('does not add foreign-blocked worker guidance on unexplored plausible terrain', () => {
     const state = createNewGame(undefined, 'worker-guidance-unexplored-no-leak', 'small');
     state.currentPlayer = 'player';

@@ -422,7 +422,13 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
     // Explore: move toward unexplored territory
     const occupancy = buildUnitOccupancy(newState.units);
-    const range = getMovementRange(unit, newState.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId);
+    const aiHostileOwners = new Set<string>(['barbarian', ...(civ.diplomacy?.atWarWith ?? [])]);
+    for (const [mcId, mc] of Object.entries(newState.minorCivs)) {
+      if (mc.diplomacy?.atWarWith?.includes(civId)) {
+        aiHostileOwners.add(mcId);
+      }
+    }
+    const range = getMovementRange(unit, newState.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, aiHostileOwners);
     if (range.length > 0) {
       const unexplored = range.filter(
         coord => civ.visibility.tiles[hexKey(coord)] !== 'visible',
