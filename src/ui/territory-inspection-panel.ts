@@ -100,6 +100,35 @@ export function createTerritoryInspectionPanel(
     : null;
   if (resDef && viewerTechs.has(resDef.tech)) {
     addLine(panel, 'Resource', `${resDef.name} (${resDef.type})`);
+
+    // Acquisition status — only shown for tiles the viewer owns.
+    // tile.owner !== viewerId covers foreign-owned (other civ) and unclaimed (null) tiles.
+    const isForeignTile = tile.owner !== viewerId;
+    if (!isForeignTile) {
+      const tileKey = hexKey(coord);
+      const viewerCiv = state.civilizations[viewerId];
+      const isCityCenter = (viewerCiv?.cities ?? []).some(cityId => {
+        const city = state.cities[cityId];
+        return city && hexKey(city.position) === tileKey;
+      });
+
+      let statusText: string;
+      if (isCityCenter) {
+        statusText = '✓ Available — city tile, tech researched';
+      } else {
+        const reqImprov = resDef.requiredImprovement;
+        const improvName = getImprovementDisplayName(reqImprov);
+
+        if (tile.improvement === reqImprov && tile.improvementTurnsLeft === 0) {
+          statusText = `✓ Available — ${improvName} built`;
+        } else if (tile.improvement === reqImprov && tile.improvementTurnsLeft > 0) {
+          statusText = `⏳ ${improvName} in progress (${tile.improvementTurnsLeft} turns)`;
+        } else {
+          statusText = `✗ Needs ${improvName} to harvest`;
+        }
+      }
+      addLine(panel, 'Harvest', statusText);
+    }
   }
   if (tile.improvement !== 'none') addLine(panel, 'Improvement', getImprovementDisplayName(tile.improvement));
   if (tile.wonder) addLine(panel, 'Wonder', getWonderDefinition(tile.wonder)?.name ?? tile.wonder);
