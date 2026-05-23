@@ -7,6 +7,7 @@ import {
   wrappedHexDistance,
 } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
+import { RESOURCE_DEFINITIONS } from './trade-system';
 // Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
 import { EARTH_START_POSITIONS } from './earth-map-data';
 import { OLD_WORLD_START_POSITIONS } from './old-world-map-data';
@@ -200,28 +201,36 @@ export function generateMap(width: number, height: number, seed: string): GameMa
   return mapResult;
 }
 
-const TERRAIN_RESOURCES: Record<string, string[]> = {
-  grassland: ['silk'],
-  plains: ['wine', 'horses'],
-  jungle: ['spices'],
-  hills: ['gems', 'copper', 'iron'],
-  forest: ['ivory'],
-  desert: ['incense'],
+// Probability overrides per terrain type.
+// Hills reduced to 10% because it hosts many resources after S2a; keeps individual
+// resource frequency at a reasonable level (≈1.4% per resource vs 15%/7 ≈ 2.1% if left at 15%).
+const TERRAIN_PROBABILITIES: Record<string, number> = {
+  hills: 0.10,
 };
+const DEFAULT_RESOURCE_PROBABILITY = 0.15;
 
-export function placeResources(tiles: Record<string, HexTile>, rng: () => number): void {
-  for (const tile of Object.values(tiles)) {
-    if (tile.resource) continue;  // never overwrite existing resource
-    const candidates = TERRAIN_RESOURCES[tile.terrain];
-    if (!candidates || candidates.length === 0) continue;
-    if (rng() < 0.15) {
-      tile.resource = candidates[Math.floor(rng() * candidates.length)];
+// Derived at module load from RESOURCE_DEFINITIONS — eliminates dual-maintenance.
+// terrain field is string | string[]; we expand multi-terrain entries here.
+function buildTerrainResourceMap(): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  for (const def of RESOURCE_DEFINITIONS) {
+    const terrains = Array.isArray(def.terrain) ? def.terrain : [def.terrain];
+    for (const t of terrains) {
+      (map[t] ??= []).push(def.id);
     }
   }
-  // Stone: place near mountains
+  return map;
+}
+
+export function placeResources(tiles: Record<string, HexTile>, rng: () => number): void {
+  const terrainResources = buildTerrainResourceMap();
   for (const tile of Object.values(tiles)) {
-    if (tile.terrain === 'hills' && !tile.resource && rng() < 0.08) {
-      tile.resource = 'stone';
+    if (tile.resource) continue;  // never overwrite existing resource
+    const candidates = terrainResources[tile.terrain];
+    if (!candidates || candidates.length === 0) continue;
+    const prob = TERRAIN_PROBABILITIES[tile.terrain] ?? DEFAULT_RESOURCE_PROBABILITY;
+    if (rng() < prob) {
+      tile.resource = candidates[Math.floor(rng() * candidates.length)] as typeof tile.resource;
     }
   }
 }

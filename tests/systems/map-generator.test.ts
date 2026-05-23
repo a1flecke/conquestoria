@@ -9,7 +9,8 @@ import {
   getMinimumStartDistance,
   getStartPositionDistance,
 } from '@/systems/map-generator';
-import type { GameMap } from '@/core/types';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import type { GameMap, HexTile, TerrainType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 
 const SUPPORTED_START_CASES = [
@@ -242,6 +243,74 @@ describe('findStartPositions', () => {
           }
         }
       }
+    }
+  });
+});
+
+describe('S2a resource catalog coverage in placeResources', () => {
+  function makeBlankTile(q: number, terrain: TerrainType): HexTile {
+    return {
+      coord: { q, r: 0 },
+      terrain,
+      elevation: 'lowland',
+      resource: null,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      owner: null,
+      hasRiver: false,
+      wonder: null,
+    };
+  }
+
+  it('stone is placed on mountain tiles, never on hills', () => {
+    const tiles: Record<string, HexTile> = {};
+    for (let q = 0; q < 50; q++) {
+      const terrain: TerrainType = q < 25 ? 'hills' : 'mountain';
+      tiles[`${q},0`] = makeBlankTile(q, terrain);
+    }
+
+    let stoneOnHills = 0;
+    let stoneOnMountain = 0;
+    for (let i = 0; i < 30; i++) {
+      const freshTiles = Object.fromEntries(Object.entries(tiles).map(([k, t]) => [k, { ...t, resource: null }]));
+      placeResources(freshTiles, createRng(`stone-terrain-${i}`));
+      for (const tile of Object.values(freshTiles)) {
+        if (tile.resource === 'stone') {
+          if (tile.terrain === 'hills') stoneOnHills++;
+          if (tile.terrain === 'mountain') stoneOnMountain++;
+        }
+      }
+    }
+
+    expect(stoneOnHills, 'stone must not be placed on hills').toBe(0);
+    expect(stoneOnMountain, 'stone must be placed on mountain tiles').toBeGreaterThan(0);
+  });
+
+  it('every resource in RESOURCE_DEFINITIONS appears on its declared terrain after placeResources', () => {
+    // Build a tile set with 30 tiles of each relevant terrain
+    const terrainSet: TerrainType[] = ['grassland', 'plains', 'jungle', 'hills', 'forest', 'desert', 'mountain', 'tundra'];
+    const tiles: Record<string, HexTile> = {};
+    let q = 0;
+    for (const terrain of terrainSet) {
+      for (let i = 0; i < 30; i++) {
+        tiles[`${q},0`] = makeBlankTile(q, terrain);
+        q++;
+      }
+    }
+
+    for (const def of RESOURCE_DEFINITIONS) {
+      const declaredTerrains = Array.isArray(def.terrain) ? def.terrain : [def.terrain];
+      const validTerrains = declaredTerrains.filter(t => terrainSet.includes(t as TerrainType));
+      if (validTerrains.length === 0) continue;
+
+      // Run up to 30 separate placements to find this resource
+      let found = false;
+      for (let attempt = 0; attempt < 30 && !found; attempt++) {
+        const freshTiles = Object.fromEntries(Object.entries(tiles).map(([k, t]) => [k, { ...t, resource: null }]));
+        placeResources(freshTiles, createRng(`catalog-${def.id}-${attempt}`));
+        found = Object.values(freshTiles).some(t => t.resource === def.id);
+      }
+      expect(found, `resource "${def.id}" never placed — check TERRAIN_RESOURCES derivation`).toBe(true);
     }
   });
 });

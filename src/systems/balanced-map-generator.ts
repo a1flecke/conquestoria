@@ -8,7 +8,9 @@ import {
 import { hexKey, hexDistance } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
 
-const LUXURY_RESOURCES = ['silk', 'wine', 'spices', 'gems', 'ivory', 'incense'] as const;
+// S2a: extended with all 10 luxury resources so the hotspot/equalization passes
+// treat new luxuries the same as the original 6.
+const LUXURY_RESOURCES = ['silk', 'wine', 'spices', 'gems', 'ivory', 'incense', 'gold', 'silver', 'furs', 'sheep'] as const;
 
 function terrainQualityScore(terrain: string): number {
   if (terrain === 'grassland' || terrain === 'plains') return 3;
