@@ -319,7 +319,48 @@ Make city production the primary living surface for legendary wonders. This slic
 
 ### Stage 2D: Full 2D Atlas Expansion
 
-Expand the Atlas with lore/history/detail pages, better browsing/filtering, owned legendary detail pages, completed/lost/underway archive records, known rival records where intel allows, city-to-Atlas and Atlas-to-city review flows, and broader 2D visual browsing. This stage remains 2D.
+Expand the Atlas into a full 2D Wonder Codex focused on fun, learning, story, and spectacle rather than gameplay efficiency. The existing Atlas entry point should open the Codex shell; do not maintain parallel old/new Atlas implementations.
+
+Stage 2D owns:
+
+- authored codex pages for every current natural and legendary wonder
+- strict content coverage tests so new wonders fail until codex content exists
+- viewer-safe presentation models for discovered natural wonders and owned legendary wonder states
+- no undiscovered natural wonder silhouettes, disabled cards, count leaks, or placeholder pages
+- no rival city, progress, reward, completion, host-city, or map-landmark details unless a later viewer-scoped intel model explicitly stores that knowledge
+- desktop rich-reader layout and mobile catalog-first layout using the same browser/PWA and macOS/Tauri implementation path
+- convention-driven related links with tests, not hand-maintained one-off links
+- `View on Map` and `Open City` actions emitted through callbacks without mutating gameplay state inside codex UI
+- no gameplay changes to wonder placement, yields, construction, questing, race rules, rewards, AI strategy, save semantics, or platform behavior
+
+Architecture guardrails:
+
+- Place codex content, source manifests, related-link derivation, and viewer-safe presentation helpers under `src/systems/wonder-codex/`.
+- Keep DOM modules render-only under `src/ui/`; UI consumes view models and must not inspect raw rival project/completion state.
+- Keep all browser/PWA and macOS/Tauri behavior shared. If a platform capability is needed later, route it through `src/platform/` rather than importing Tauri APIs from shared modules.
+- Keep gameplay definitions authoritative for yields, effects, requirements, rewards, and placement.
+
+Content and citation guardrails:
+
+- Real-world facts must be accurate, middle-school appropriate, and traceable to reliable educational or institutional sources.
+- Codex illustration slots must use real sourced images with documented reuse rights. Generated images are out of scope for Stage 2D.
+- Maintain the human-readable source ledger at `docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md`.
+- Add a typed source manifest in implementation, including factual sources and image sources with URL, creator/author when available, license, attribution, and local asset path.
+- Store local codex images under `public/images/wonders/codex/`.
+
+Testing guardrails:
+
+- Add content contract tests for full natural and legendary wonder coverage, duplicate IDs, unknown IDs, empty strings, forbidden placeholder text, required tags, required status hooks, fact source IDs, and image source IDs.
+- Add source tests proving every source ID resolves, every image asset exists locally, every source record has license/attribution metadata, and all source IDs appear in the source ledger.
+- Add presentation privacy tests proving undiscovered natural wonders and rival legendary project/completion details stay hidden.
+- Add rendered UI tests for catalog selection, desktop/mobile layout mode, sourced image rendering, attribution rendering, related links, safe actions, and current-player refresh.
+- Run wonder regressions, build, and full tests before merge.
+
+Deferred from Stage 2D:
+
+- Stage 2E owns richer bespoke landmark silhouettes, animation variants, and per-wonder visual depth.
+- Stage 2F owns explicit viewer-scoped rival legendary records from earned intel.
+- Stage 3 owns real 3-5 second videos or loops, including asset-size, offline/PWA, macOS/Tauri, and maintenance review.
 
 ### Stage 2E: Landmark Art Expansion
 
