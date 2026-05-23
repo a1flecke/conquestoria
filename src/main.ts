@@ -150,6 +150,8 @@ import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
+import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
+import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
 
 // --- App State ---
 let gameState: GameState;
@@ -195,11 +197,13 @@ const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiLayer = document.getElementById('ui-layer') as HTMLDivElement;
 const renderLoop = new RenderLoop(canvas);
 let wonderDiscoveryQueue: ReturnType<typeof createWonderDiscoveryRevealQueue> | null = null;
+let legendaryCompletionQueue: ReturnType<typeof createLegendaryWonderCompletionQueue> | null = null;
 
 function setBlockingOverlay(id: string | null): void {
   uiInteractions.setBlockingOverlay(id);
   if (id === null) {
     wonderDiscoveryQueue?.pump();
+    legendaryCompletionQueue?.pump();
   }
 }
 
@@ -216,6 +220,20 @@ wonderDiscoveryQueue = createWonderDiscoveryRevealQueue({
   },
   openAtlas: wonderId => openWonderAtlas(wonderId),
   reducedMotion: prefersReducedMotion,
+  setBlockingOverlay,
+});
+
+legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
+  container: uiLayer,
+  isInteractionBlocked: () => uiInteractions.isInteractionBlocked(),
+  reducedMotion: prefersReducedMotion,
+  openCity: cityId => {
+    const city = gameState.cities[cityId];
+    if (city) openCityPanelForCity(city);
+  },
+  openJournal: cityId => {
+    if (gameState.cities[cityId]) openWonderPanelForCityId(cityId);
+  },
   setBlockingOverlay,
 });
 
@@ -582,6 +600,36 @@ function executeUpgrade(unitId: string, targetType: import('@/core/types').UnitT
   updateHUD();
 }
 
+function openWonderPanelForCityId(selectedCityId: string): void {
+  if (!gameState.cities[selectedCityId]) return;
+
+  const openWonderPanel = () => {
+    document.getElementById('wonder-panel')?.remove();
+    createWonderPanel(uiLayer, gameState, selectedCityId, {
+      onStartBuild: (buildCityId, wonderId) => {
+        gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
+        const targetCity = gameState.cities[buildCityId];
+        if (targetCity) {
+          renderLoop.setGameState(gameState);
+          updateHUD();
+          const productionItemId = `legendary:${wonderId}`;
+          if (targetCity.productionQueue[0] === productionItemId) {
+            showNotification(`${targetCity.name}: preparing ${getProductionDisplayName(productionItemId)}`, 'info');
+          } else {
+            showNotification(`${targetCity.name}: ${getProductionDisplayName(productionItemId)} is not ready to start.`, 'warning');
+          }
+          openWonderPanel();
+        }
+      },
+      onClose: () => {
+        document.getElementById('wonder-panel')?.remove();
+      },
+    });
+  };
+  gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);
+  openWonderPanel();
+}
+
 function openCityPanelForCity(city: import('@/core/types').City): void {
   if (city.owner !== gameState.currentPlayer) return;
   const playerCities = currentCiv().cities;
@@ -619,31 +667,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       renderLoop.setGameState(gameState);
     },
     onOpenWonderPanel: (selectedCityId) => {
-      const openWonderPanel = () => {
-        document.getElementById('wonder-panel')?.remove();
-        createWonderPanel(uiLayer, gameState, selectedCityId, {
-          onStartBuild: (buildCityId, wonderId) => {
-            gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
-            const targetCity = gameState.cities[buildCityId];
-            if (targetCity) {
-              renderLoop.setGameState(gameState);
-              updateHUD();
-              const productionItemId = `legendary:${wonderId}`;
-              if (targetCity.productionQueue[0] === productionItemId) {
-                showNotification(`${targetCity.name}: preparing ${getProductionDisplayName(productionItemId)}`, 'info');
-              } else {
-                showNotification(`${targetCity.name}: ${getProductionDisplayName(productionItemId)} is not ready to start.`, 'warning');
-              }
-              openWonderPanel();
-            }
-          },
-          onClose: () => {
-            document.getElementById('wonder-panel')?.remove();
-          },
-        });
-      };
-      gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);
-      openWonderPanel();
+      openWonderPanelForCityId(selectedCityId);
     },
     onSetCityFocus: (cityId, focus) => {
       const result = assignCityFocus(gameState, cityId, focus);
@@ -2554,7 +2578,13 @@ bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
 });
 
 bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId, turnCompleted }) => {
-  routeLegendaryWonder(gameState, { type: 'wonder:legendary-completed', civId, cityId, wonderId, turnCompleted }, appendToCivLog);
+  const event = { civId, cityId, wonderId, turnCompleted };
+  routeLegendaryWonder(gameState, { type: 'wonder:legendary-completed', ...event }, appendToCivLog);
+  const ceremonyItem = buildLegendaryWonderCompletionCeremonyItem(gameState, event);
+  if (ceremonyItem) {
+    legendaryCompletionQueue?.enqueue(ceremonyItem);
+    legendaryCompletionQueue?.notifyActionSettled();
+  }
 });
 
 bus.on('wonder:legendary-lost', ({ civId, cityId, wonderId, goldRefund, transferableProduction }) => {
