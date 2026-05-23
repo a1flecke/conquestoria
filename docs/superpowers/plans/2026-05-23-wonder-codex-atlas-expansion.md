@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build Stage 2D: an immersive, viewer-safe, full 2D illustrated Wonder Codex launched from the existing Wonder Atlas entry point.
+**Goal:** Build Stage 2D: an immersive, viewer-safe, full 2D illustrated Wonder Codex launched from the existing Wonder Atlas entry point, with accurate middle-school appropriate factual copy, real sourced images, and source citations.
 
-**Architecture:** Add a focused `src/systems/wonder-codex/` package for strict authored content, related-link generation, and viewer-safe presentation view models. Add render-only codex UI modules that consume those view models, then delegate the existing `createWonderAtlasPanel` entry point to the new codex shell so browser/PWA and macOS/Tauri share one implementation path.
+**Architecture:** Add a focused `src/systems/wonder-codex/` package for strict authored content, source/image manifests, related-link generation, and viewer-safe presentation view models. Add render-only codex UI modules that consume those view models, then delegate the existing `createWonderAtlasPanel` entry point to the new codex shell so browser/PWA and macOS/Tauri share one implementation path.
 
 **Tech Stack:** TypeScript, DOM/CSS UI modules, Canvas-safe existing visual catalog, Vitest, jsdom UI tests, existing `GameState`, existing Wonder Atlas, existing legendary/natural wonder definitions.
 
@@ -14,7 +14,7 @@
 
 This is one coherent slice. It touches content, presentation, UI, existing Atlas wiring, and docs because those pieces are required for one player-visible codex experience. Do not split out content coverage or Atlas delegation; a shell without complete content or a complete content table without the live Atlas entry point violates the spec.
 
-This plan deliberately does not implement rival-known legendary records, richer bespoke landmark art, or real videos. It records those deferred items in roadmap/spec/plan docs as part of Task 7.
+This plan deliberately does not implement rival-known legendary records, richer bespoke landmark art, generated images, or real videos. It records those deferred items in roadmap/spec/plan docs as part of Task 7.
 
 ## Required Context
 
@@ -85,12 +85,14 @@ Create:
 - `src/systems/wonder-codex/types.ts` - strict content/view-model/tag types.
 - `src/systems/wonder-codex/natural-content.ts` - authored content for every natural wonder.
 - `src/systems/wonder-codex/legendary-content.ts` - authored content for every legendary wonder.
+- `src/systems/wonder-codex/sources.ts` - typed factual and image source manifest.
 - `src/systems/wonder-codex/content.ts` - content aggregation and lookup helpers.
 - `src/systems/wonder-codex/related.ts` - deterministic convention-driven related links.
 - `src/systems/wonder-codex/presentation.ts` - viewer-safe codex view models and first-selection behavior.
 - `src/ui/wonder-codex-page.ts` - render-only reader page.
 - `src/ui/wonder-codex-panel.ts` - immersive overlay shell, catalog drawer, responsive flow.
 - `tests/systems/wonder-codex/content.test.ts`
+- `tests/systems/wonder-codex/sources.test.ts`
 - `tests/systems/wonder-codex/related.test.ts`
 - `tests/systems/wonder-codex/presentation.test.ts`
 - `tests/ui/wonder-codex-page.test.ts`
@@ -104,6 +106,7 @@ Modify:
 - `docs/superpowers/specs/2026-05-21-wonder-atlas-and-map-identity-design.md` - update roadmap notes.
 - `docs/superpowers/specs/2026-05-22-legendary-wonder-city-presence-design.md` - update roadmap notes.
 - `docs/superpowers/specs/2026-05-23-wonder-codex-atlas-expansion-design.md` - add any implementation-discovered clarifications.
+- `docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md` - maintain human-readable citation ledger.
 - `docs/superpowers/plans/2026-05-22-legendary-wonder-city-presence.md` - update deferred work references if still pointing to old stage labels.
 - `docs/superpowers/plans/2026-05-23-wonder-codex-atlas-expansion.md` - update checkboxes while executing.
 
@@ -124,6 +127,8 @@ Modify:
 
 - `Visible` means viewer-safe, not present in authored content.
 - `All wonders covered` means content coverage, not every page shown.
+- `Real image` means a sourced real photograph or historical/educational image with documented reuse rights, not AI-generated art or an uncited web image.
+- `Learning text` means sourced, middle-school appropriate factual copy when discussing real places, events, technologies, or natural phenomena.
 - `Available` means city/legendary presentation says buildable; raw project phase alone is insufficient.
 - `Completed` cannot describe rival legendary completions in Stage 2D.
 - `Related` means conventionally linked through valid tags, never raw hidden state.
@@ -149,7 +154,9 @@ Cover these replay paths in UI tests:
 
 - Create: `src/systems/wonder-codex/types.ts`
 - Create: `tests/systems/wonder-codex/content.test.ts`
+- Create: `tests/systems/wonder-codex/sources.test.ts`
 - Later tasks create: `src/systems/wonder-codex/natural-content.ts`, `src/systems/wonder-codex/legendary-content.ts`, `src/systems/wonder-codex/content.ts`
+- Later tasks create: `src/systems/wonder-codex/sources.ts` and real image assets under `public/images/wonders/codex/`
 
 - [ ] **Step 1: Create the failing content contract test**
 
@@ -164,6 +171,7 @@ import {
   getLegendaryWonderCodexContent,
   getNaturalWonderCodexContent,
 } from '@/systems/wonder-codex/content';
+import { getFactSource, getImageSource } from '@/systems/wonder-codex/sources';
 import {
   CODEX_SECTION_KINDS,
   CODEX_STATUS_HOOKS,
@@ -232,6 +240,9 @@ describe('wonder-codex content contracts', () => {
       }
       expect(entry.statusHooks.length).toBeGreaterThanOrEqual(2);
       for (const hook of entry.statusHooks) expect(CODEX_STATUS_HOOKS).toContain(hook);
+      expect(entry.factSourceIds.length).toBeGreaterThanOrEqual(1);
+      for (const sourceId of entry.factSourceIds) expect(getFactSource(sourceId)).toBeTruthy();
+      expect(getImageSource(entry.imageSourceId)).toBeTruthy();
       assertNoForbiddenText(entry);
     }
   });
@@ -249,6 +260,70 @@ describe('wonder-codex content contracts', () => {
 });
 ```
 
+Create `tests/systems/wonder-codex/sources.test.ts`:
+
+```ts
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { getAllWonderCodexContent } from '@/systems/wonder-codex/content';
+import {
+  getFactSource,
+  getImageSource,
+  getWonderCodexFactSources,
+  getWonderCodexImageSources,
+} from '@/systems/wonder-codex/sources';
+
+const FORBIDDEN_TEXT = ['TODO', 'TBD', 'lorem', 'placeholder', 'pending implementation'];
+
+function assertCleanText(value: string): void {
+  expect(value.trim().length).toBeGreaterThan(0);
+  for (const token of FORBIDDEN_TEXT) {
+    expect(value.toLowerCase()).not.toContain(token.toLowerCase());
+  }
+}
+
+describe('wonder-codex sources', () => {
+  it('resolves every content fact and image source', () => {
+    for (const entry of getAllWonderCodexContent()) {
+      for (const sourceId of entry.factSourceIds) expect(getFactSource(sourceId)).toBeTruthy();
+      expect(getImageSource(entry.imageSourceId)).toBeTruthy();
+    }
+  });
+
+  it('has complete source metadata and existing local image files', () => {
+    for (const source of getWonderCodexFactSources()) {
+      assertCleanText(source.id);
+      assertCleanText(source.title);
+      assertCleanText(source.sourceUrl);
+      expect(source.sourceUrl).toMatch(/^https:\/\//);
+    }
+
+    for (const source of getWonderCodexImageSources()) {
+      assertCleanText(source.id);
+      assertCleanText(source.title);
+      assertCleanText(source.sourceUrl);
+      assertCleanText(source.license);
+      assertCleanText(source.attribution);
+      assertCleanText(source.localPath);
+      expect(source.localPath).toMatch(/^\/images\/wonders\/codex\/.+\.(webp|jpg|jpeg|png)$/);
+      expect(existsSync(path.join(process.cwd(), 'public', source.localPath))).toBe(true);
+    }
+  });
+
+  it('keeps the human-readable source ledger in sync with source ids', () => {
+    const ledger = readFileSync(
+      path.join(process.cwd(), 'docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md'),
+      'utf8',
+    );
+    for (const source of [...getWonderCodexFactSources(), ...getWonderCodexImageSources()]) {
+      expect(ledger).toContain(source.id);
+      expect(ledger).toContain(source.sourceUrl);
+    }
+  });
+});
+```
+
 - [ ] **Step 2: Run the test and verify it fails because modules do not exist**
 
 Run:
@@ -257,7 +332,7 @@ Run:
 ./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts
 ```
 
-Expected: FAIL with import errors for `@/systems/wonder-codex/content` and `@/systems/wonder-codex/types`.
+Expected: FAIL with import errors for `@/systems/wonder-codex/content`, `@/systems/wonder-codex/sources`, and `@/systems/wonder-codex/types`.
 
 - [ ] **Step 3: Add codex type definitions**
 
@@ -353,6 +428,26 @@ export interface WonderCodexContent {
   sections: WonderCodexSection[];
   statusHooks: WonderCodexStatusHook[];
   relatedSeedTags: WonderCodexTag[];
+  factSourceIds: string[];
+  imageSourceId: string;
+}
+
+export interface WonderCodexFactSource {
+  id: string;
+  title: string;
+  sourceUrl: string;
+  publisher: string;
+  notes: string;
+}
+
+export interface WonderCodexImageSource {
+  id: string;
+  title: string;
+  sourceUrl: string;
+  creator: string;
+  license: string;
+  attribution: string;
+  localPath: string;
 }
 ```
 
@@ -374,12 +469,69 @@ Task 2 adds content and should be committed with the type contract.
 
 **Files:**
 
+- Create: `src/systems/wonder-codex/sources.ts`
 - Create: `src/systems/wonder-codex/natural-content.ts`
 - Create: `src/systems/wonder-codex/legendary-content.ts`
 - Create: `src/systems/wonder-codex/content.ts`
+- Add: real image assets under `public/images/wonders/codex/`
 - Modify: `tests/systems/wonder-codex/content.test.ts`
+- Modify: `docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md`
 
-- [ ] **Step 1: Create natural content**
+- [ ] **Step 1: Add source manifest and local image assets**
+
+Create `src/systems/wonder-codex/sources.ts`:
+
+```ts
+import type { WonderCodexFactSource, WonderCodexImageSource } from '@/systems/wonder-codex/types';
+
+export const WONDER_CODEX_FACT_SOURCES = [
+  {
+    id: 'usgs-volcanoes',
+    title: 'Volcano Hazards Program',
+    publisher: 'U.S. Geological Survey',
+    sourceUrl: 'https://www.usgs.gov/volcanoes/',
+    notes: 'Used for middle-school appropriate volcano safety and eruption context.',
+  },
+  {
+    id: 'unesco-delphi',
+    title: 'Archaeological Site of Delphi',
+    publisher: 'UNESCO World Heritage Centre',
+    sourceUrl: 'https://whc.unesco.org/en/list/393/',
+    notes: 'Used for Oracle of Delphi historical context.',
+  },
+] satisfies WonderCodexFactSource[];
+
+export const WONDER_CODEX_IMAGE_SOURCES = [
+] satisfies WonderCodexImageSource[];
+
+export function getWonderCodexFactSources(): WonderCodexFactSource[] {
+  return WONDER_CODEX_FACT_SOURCES.map(source => ({ ...source }));
+}
+
+export function getWonderCodexImageSources(): WonderCodexImageSource[] {
+  return WONDER_CODEX_IMAGE_SOURCES.map(source => ({ ...source }));
+}
+
+export function getFactSource(sourceId: string): WonderCodexFactSource | undefined {
+  return WONDER_CODEX_FACT_SOURCES.find(source => source.id === sourceId);
+}
+
+export function getImageSource(sourceId: string): WonderCodexImageSource | undefined {
+  return WONDER_CODEX_IMAGE_SOURCES.find(source => source.id === sourceId);
+}
+```
+
+Then add complete image source records for every codex image before running the source tests. The source tests must fail until every image record has a real source URL, creator/author where available, exact license, attribution text, and local asset path.
+
+Add one local real image asset per codex image under:
+
+```text
+public/images/wonders/codex/
+```
+
+Use real photographs or historical/educational media, not AI-generated art. Prefer public domain, U.S. government media, or Wikimedia Commons files with verified licenses. Record source URLs and attribution in both `sources.ts` and `docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md`.
+
+- [ ] **Step 2: Create natural content**
 
 Create `src/systems/wonder-codex/natural-content.ts` exporting `NATURAL_WONDER_CODEX_CONTENT`.
 
@@ -412,6 +564,8 @@ export const NATURAL_WONDER_CODEX_CONTENT = [
         body: 'Cities near volcanic ground inherit both abundance and anxiety. The codex should frame this as a source of story, not only a yield modifier.',
       },
     ],
+    factSourceIds: ['usgs-volcanoes'],
+    imageSourceId: 'great-volcano-image',
   },
 ] satisfies WonderCodexContent[];
 ```
@@ -439,7 +593,7 @@ The final `NATURAL_WONDER_CODEX_CONTENT` array must contain the `great_volcano` 
 
 Each entry must have unique museum-label prose. Do not copy the same body text across entries.
 
-- [ ] **Step 2: Create legendary content**
+- [ ] **Step 3: Create legendary content**
 
 Create `src/systems/wonder-codex/legendary-content.ts` exporting `LEGENDARY_WONDER_CODEX_CONTENT`.
 
@@ -472,6 +626,8 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
         body: 'Its reward is framed as research and science because the wonder represents organized attention to signs, records, and interpretation.',
       },
     ],
+    factSourceIds: ['unesco-delphi'],
+    imageSourceId: 'oracle-of-delphi-image',
   },
 ] satisfies WonderCodexContent[];
 ```
@@ -499,7 +655,7 @@ The final `LEGENDARY_WONDER_CODEX_CONTENT` array must contain the `oracle-of-del
 
 Each legendary entry must include `legendary-status` and `legendary-reward`. Include `legendary-host-city` and `legendary-progress` unless the implementation proves a specific entry cannot use those hooks; if omitted, add a content-test assertion documenting the allowed exception.
 
-- [ ] **Step 3: Add content aggregator**
+- [ ] **Step 4: Add content aggregator**
 
 Create `src/systems/wonder-codex/content.ts`:
 
@@ -537,22 +693,22 @@ export function getWonderCodexContent(wonderId: string): WonderCodexContent | un
 }
 ```
 
-- [ ] **Step 4: Run content contract tests**
+- [ ] **Step 5: Run content and source contract tests**
 
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts tests/systems/wonder-codex/sources.test.ts
 ```
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit content contract**
+- [ ] **Step 6: Commit content contract**
 
 Run:
 
 ```bash
-git add src/systems/wonder-codex/types.ts src/systems/wonder-codex/natural-content.ts src/systems/wonder-codex/legendary-content.ts src/systems/wonder-codex/content.ts tests/systems/wonder-codex/content.test.ts
+git add src/systems/wonder-codex/types.ts src/systems/wonder-codex/sources.ts src/systems/wonder-codex/natural-content.ts src/systems/wonder-codex/legendary-content.ts src/systems/wonder-codex/content.ts tests/systems/wonder-codex/content.test.ts tests/systems/wonder-codex/sources.test.ts public/images/wonders/codex docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md
 git commit -m "feat(wonders): add strict codex content"
 ```
 
@@ -661,7 +817,7 @@ export function getRelatedWonderCodexEntries(
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts tests/systems/wonder-codex/related.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts tests/systems/wonder-codex/sources.test.ts tests/systems/wonder-codex/related.test.ts
 ```
 
 Expected: PASS.
@@ -683,6 +839,7 @@ git commit -m "feat(wonders): derive codex related links"
 - Create: `tests/systems/wonder-codex/presentation.test.ts`
 - Read: `src/systems/wonder-atlas-presentation.ts`
 - Read: `src/systems/legendary-wonder-presentation.ts`
+- Read: `src/systems/wonder-codex/sources.ts`
 - Read: `tests/systems/helpers/legendary-wonder-fixture.ts`
 
 - [ ] **Step 1: Write presentation tests**
@@ -799,6 +956,18 @@ describe('wonder-codex presentation', () => {
       model.catalogEntries.some(catalog => catalog.id === entry.id),
     )).toBe(true);
   });
+
+  it('includes source image and attribution data in page view models', () => {
+    const state = makeNaturalState();
+    state.discoveredWonders.great_volcano = 'player';
+    state.wonderDiscoverers.great_volcano = ['player'];
+
+    const model = view(state, 'desktop', 'great_volcano');
+
+    expect(model.selectedPage?.image.src).toMatch(/^\/images\/wonders\/codex\/.+\.(webp|jpg|jpeg|png)$/);
+    expect(model.selectedPage?.image.attribution).toBeTruthy();
+    expect(model.selectedPage?.image.sourceUrl).toMatch(/^https:\/\//);
+  });
 });
 ```
 
@@ -825,6 +994,7 @@ import { formatNaturalWonderEffectSummary } from '@/systems/wonder-presentation-
 import { getWonderVisualDefinition, type WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { getAllWonderCodexContent, getWonderCodexContent } from '@/systems/wonder-codex/content';
 import { getRelatedWonderCodexEntries } from '@/systems/wonder-codex/related';
+import { getImageSource } from '@/systems/wonder-codex/sources';
 import type { WonderCodexContent, WonderCodexSection } from '@/systems/wonder-codex/types';
 
 export type WonderCodexResponsiveMode = 'desktop' | 'mobile';
@@ -849,6 +1019,13 @@ export interface WonderCodexAction {
 export interface WonderCodexPageViewModel extends WonderCodexCatalogEntry {
   authoredLead: string;
   learningText: string;
+  image: {
+    src: string;
+    alt: string;
+    attribution: string;
+    sourceUrl: string;
+    license: string;
+  };
   statusLabel: string;
   statusLines: string[];
   sections: WonderCodexSection[];
@@ -942,6 +1119,8 @@ function buildPage(
 ): WonderCodexPageViewModel | null {
   const content = getWonderCodexContent(entry.id);
   if (!content) return null;
+  const imageSource = getImageSource(content.imageSourceId);
+  if (!imageSource) return null;
   const actions: WonderCodexAction[] = [];
   const statusLines: string[] = [];
 
@@ -986,6 +1165,13 @@ function buildPage(
     ...entry,
     authoredLead: content.authoredLead,
     learningText: content.learningText,
+    image: {
+      src: imageSource.localPath,
+      alt: `${entry.title} source image`,
+      attribution: imageSource.attribution,
+      sourceUrl: imageSource.sourceUrl,
+      license: imageSource.license,
+    },
     statusLabel: entry.stateLabel,
     statusLines,
     sections: content.sections.map(section => ({ ...section })),
@@ -1082,6 +1268,13 @@ function page(overrides: Partial<WonderCodexPageViewModel> = {}): WonderCodexPag
     authoredLead: 'The Great Volcano dominates its horizon.',
     learningText: 'Volcanic landscapes are fertile and dangerous.',
     visual: getWonderVisualDefinition('great_volcano'),
+    image: {
+      src: '/images/wonders/codex/great-volcano.webp',
+      alt: 'Sourced image for Great Volcano',
+      attribution: 'USGS / public domain',
+      sourceUrl: 'https://www.usgs.gov/volcanoes/',
+      license: 'Public domain',
+    },
     statusLines: ['Yields: +3 production, +1 science', 'Known location: Q0, R0'],
     sections: [
       { kind: 'landscape', heading: 'Living Stone', body: 'Smoke and exposed rock make the tile feel powerful.' },
@@ -1118,6 +1311,8 @@ describe('wonder-codex-page', () => {
     expect(root.textContent).toContain('The Great Volcano dominates its horizon.');
     expect(root.textContent).toContain('Volcanic landscapes are fertile and dangerous.');
     expect(root.textContent).toContain('Yields: +3 production, +1 science');
+    expect(root.querySelector('img')?.getAttribute('src')).toBe('/images/wonders/codex/great-volcano.webp');
+    expect(root.textContent).toContain('USGS / public domain');
   });
 
   it('renders related links from valid visible entries', () => {
@@ -1225,6 +1420,19 @@ export function createWonderCodexPage(
   const root = document.createElement('article');
   root.dataset.codexPage = page.id;
   root.style.cssText = 'min-width:0;display:flex;flex-direction:column;gap:14px;color:#f8f1df;';
+
+  const imageWrap = document.createElement('figure');
+  imageWrap.style.cssText = 'margin:0;display:grid;gap:6px;';
+  const image = document.createElement('img');
+  image.src = page.image.src;
+  image.alt = page.image.alt;
+  image.style.cssText = 'width:100%;max-height:260px;object-fit:cover;border-radius:8px;border:1px solid rgba(232,193,112,0.26);';
+  imageWrap.appendChild(image);
+  const credit = document.createElement('figcaption');
+  credit.textContent = `${page.image.attribution} · ${page.image.license}`;
+  credit.style.cssText = 'font-size:11px;opacity:0.68;line-height:1.35;';
+  imageWrap.appendChild(credit);
+  root.appendChild(imageWrap);
 
   const hero = document.createElement('div');
   hero.style.cssText = 'display:flex;gap:16px;align-items:center;flex-wrap:wrap;';
@@ -1770,7 +1978,7 @@ git commit -m "feat(wonders): route atlas to illustrated codex"
 Run:
 
 ```bash
-scripts/check-src-rule-violations.sh src/systems/wonder-codex/types.ts src/systems/wonder-codex/natural-content.ts src/systems/wonder-codex/legendary-content.ts src/systems/wonder-codex/content.ts src/systems/wonder-codex/related.ts src/systems/wonder-codex/presentation.ts src/ui/wonder-codex-page.ts src/ui/wonder-codex-panel.ts src/ui/wonder-atlas-panel.ts
+scripts/check-src-rule-violations.sh src/systems/wonder-codex/types.ts src/systems/wonder-codex/sources.ts src/systems/wonder-codex/natural-content.ts src/systems/wonder-codex/legendary-content.ts src/systems/wonder-codex/content.ts src/systems/wonder-codex/related.ts src/systems/wonder-codex/presentation.ts src/ui/wonder-codex-page.ts src/ui/wonder-codex-panel.ts src/ui/wonder-atlas-panel.ts
 ```
 
 Expected: exits 0.
@@ -1780,7 +1988,7 @@ Expected: exits 0.
 Run:
 
 ```bash
-./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts tests/systems/wonder-codex/related.test.ts tests/systems/wonder-codex/presentation.test.ts tests/ui/wonder-codex-page.test.ts tests/ui/wonder-codex-panel.test.ts tests/ui/wonder-atlas-panel.test.ts tests/systems/wonder-atlas-presentation.test.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts tests/systems/wonder-codex/sources.test.ts tests/systems/wonder-codex/related.test.ts tests/systems/wonder-codex/presentation.test.ts tests/ui/wonder-codex-page.test.ts tests/ui/wonder-codex-panel.test.ts tests/ui/wonder-atlas-panel.test.ts tests/systems/wonder-atlas-presentation.test.ts
 ```
 
 Expected: PASS.
@@ -1840,6 +2048,7 @@ Review the branch for:
 - UI rendering on desktop and mobile modes
 - no direct Tauri imports
 - no raw rival project/completion leakage into view models
+- factual sources, image sources, local image assets, and ledger rows exist for every codex entry
 - no old/new Atlas implementation drift
 - tests enforcing future wonder/tag conventions
 - roadmap updates for Stage 2E, Stage 2F, and Stage 3
@@ -1862,8 +2071,8 @@ If Step 7 produced no edits, do not create an empty commit.
 Before push or PR creation, the branch must have successful output for:
 
 ```bash
-scripts/check-src-rule-violations.sh src/systems/wonder-codex/types.ts src/systems/wonder-codex/natural-content.ts src/systems/wonder-codex/legendary-content.ts src/systems/wonder-codex/content.ts src/systems/wonder-codex/related.ts src/systems/wonder-codex/presentation.ts src/ui/wonder-codex-page.ts src/ui/wonder-codex-panel.ts src/ui/wonder-atlas-panel.ts
-./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts tests/systems/wonder-codex/related.test.ts tests/systems/wonder-codex/presentation.test.ts tests/ui/wonder-codex-page.test.ts tests/ui/wonder-codex-panel.test.ts tests/ui/wonder-atlas-panel.test.ts tests/systems/wonder-atlas-presentation.test.ts
+scripts/check-src-rule-violations.sh src/systems/wonder-codex/types.ts src/systems/wonder-codex/sources.ts src/systems/wonder-codex/natural-content.ts src/systems/wonder-codex/legendary-content.ts src/systems/wonder-codex/content.ts src/systems/wonder-codex/related.ts src/systems/wonder-codex/presentation.ts src/ui/wonder-codex-page.ts src/ui/wonder-codex-panel.ts src/ui/wonder-atlas-panel.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/content.test.ts tests/systems/wonder-codex/sources.test.ts tests/systems/wonder-codex/related.test.ts tests/systems/wonder-codex/presentation.test.ts tests/ui/wonder-codex-page.test.ts tests/ui/wonder-codex-panel.test.ts tests/ui/wonder-atlas-panel.test.ts tests/systems/wonder-atlas-presentation.test.ts
 ./scripts/run-wonder-regressions.sh
 ./scripts/run-with-mise.sh yarn build
 ./scripts/run-with-mise.sh yarn test
@@ -1871,6 +2080,6 @@ scripts/check-src-rule-violations.sh src/systems/wonder-codex/types.ts src/syste
 
 ## Self-Review Notes
 
-- Spec coverage: Tasks 1-2 cover strict content; Task 3 covers related conventions; Task 4 covers presentation/privacy/selection; Tasks 5-7 cover UI, Atlas delegation, and responsive behavior; Task 7 covers roadmap updates; Task 8 covers verification and review.
-- Type consistency: content entries use `WonderCodexContent`; presentation returns `WonderCodexViewModel`; UI consumes `WonderCodexPageViewModel` and `WonderCodexAction`.
+- Spec coverage: Tasks 1-2 cover strict content, source citations, and real images; Task 3 covers related conventions; Task 4 covers presentation/privacy/selection/source-image view models; Tasks 5-7 cover UI, Atlas delegation, and responsive behavior; Task 7 covers roadmap updates; Task 8 covers verification and review.
+- Type consistency: content entries use `WonderCodexContent`; sources use `WonderCodexFactSource` and `WonderCodexImageSource`; presentation returns `WonderCodexViewModel`; UI consumes `WonderCodexPageViewModel` and `WonderCodexAction`.
 - Known deferred work remains outside implementation: Stage 2E art, Stage 2F rival intel records, Stage 3 videos.
