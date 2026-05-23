@@ -112,7 +112,7 @@ export function createMarketplacePanel(
     const price = marketplace.prices[def.id] ?? def.basePrice;
     const isOwned = ownedResources.has(def.id as ResourceType);
     setText(`res-name-${idx}`, def.name);
-    setText(`res-type-${idx}`, def.type);
+    setText(`res-type-${idx}`, def.type.charAt(0).toUpperCase() + def.type.slice(1));
     setText(`res-owned-${idx}`, isOwned ? '✓ Owned' : '✗ Not in inventory');
     setText(`res-price-${idx}`, String(price));
   });
