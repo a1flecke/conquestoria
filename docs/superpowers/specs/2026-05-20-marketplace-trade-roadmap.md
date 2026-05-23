@@ -22,7 +22,7 @@ This file is the **index** and is intentionally deliverable #1 so the high-level
 
 | Area | Status | Location / detail |
 |---|---|---|
-| Resource types (6 luxury, 4 strategic) + base prices | ✅ exists | `trade-system.ts` `RESOURCE_DEFINITIONS`. Luxury: silk(grassland), wine(plains), spices(jungle), gems(hills), ivory(forest), incense(desert). Strategic: copper(hills), iron(hills), horses(plains), stone(mountain). |
+| Resource types (10 luxury, 6 strategic) + base prices | ✅ exists | `trade-system.ts` `RESOURCE_DEFINITIONS`. Luxury: silk(grassland), wine(plains), spices(jungle), gems(hills), ivory(forest), incense(desert), gold(hills), silver(hills), furs(forest/tundra), sheep(hills/plains). Strategic: copper(hills), iron(hills), horses(plains), stone(**hills** — S2a moved from mountain), cattle(grassland/plains), salt(hills). |
 | Resources placed on map tiles (`tile.resource`) | ✅ exists | `map-generator.ts`, `balanced-map-generator.ts`, `continent-map-generator.ts`; geo maps via `geo-map-loader.ts`. |
 | Per-turn price engine (supply/demand) + history + fashion cycle | ✅ exists | `trade-system.ts` (`calculatePrice`, `updatePrices`, `processFashionCycle`); driven in `turn-manager.ts` ~L388. Note: `updatePrices` hardcodes `isMonopoly=false` (S12). |
 | Marketplace **building** | ✅ exists | `city-system.ts` L59 `marketplace` (gold +3, cost 50, `techRequired: 'currency'`, icon 🏪). |
@@ -39,6 +39,11 @@ This file is the **index** and is intentionally deliverable #1 so the high-level
 | Relationship gating on trade | ❌ MISSING | must be implemented as score thresholds (D-Q8). |
 | Actual buy / sell / barter | ❌ MISSING | panel has no transaction actions. |
 | Gameplay effect of owning a resource | ❌ NONE today | `tile.resource` only read by marketplace supply, map-gen balancing, wonder diversity counts, espionage intel. Owning a resource confers no benefit → S4 adds effects (D-Q1). |
+| S1 resources on map | ✅ merged | tech-gated icon render, legend, inspection panel |
+| S2a resource-specific improvements | ✅ merged | plantation, pasture, camp, quarry end-to-end; expanded catalog to 16 resources |
+| S2b acquisition model + inventory UI | ✅ merged | `getCivAvailableResources`; "Your Resources" panel; territory inspection |
+| S3 marketplace tells the truth | ✅ merged | tech-filtered display, fashion banner gate, `getCivAvailableResources` counts |
+| S4a per-resource yield & happiness effects | 🔄 in progress | spec: `docs/superpowers/specs/2026-05-23-marketplace-s4a-resource-effects-design.md` |
 
 **Gotcha:** `src/systems/resource-system.ts` is misnamed — it computes **city tile yields**, not resources. Trade/resource logic lives in `trade-system.ts`. Put the new acquisition system in a clearly named new file (e.g. `resource-acquisition-system.ts`).
 
@@ -189,7 +194,7 @@ Linear; each phase gates the next.
 - **D-Q8 — Thresholds.** Foreign trade establishes at relationship ≥ 0; terminates when < −25 or at war. → S5/S6.
 
 ### Open at slice level (resolve in each slice's brainstorm)
-Exact happiness/yield magnitudes per resource; the resource→improvement and resource→effect tables; which units/buildings require which strategic resource; naval-trader tech gate and overseas-route rules; route-capacity formula constants; barter UI (propose/accept vs. instant).
+~~Exact happiness/yield magnitudes per resource; the resource→improvement and resource→effect tables~~ — **resolved in S4a brainstorm (2026-05-23):** flat +1 per resource, empire-wide non-stacking for happiness, per-city for yield bonuses; full 16-resource effect table in S4a spec. Which units/buildings require which strategic resource (S4b); naval-trader tech gate and overseas-route rules (S7); route-capacity formula constants (S5); barter UI (propose/accept vs. instant) (S10).
 
 ## Rejected items
 
