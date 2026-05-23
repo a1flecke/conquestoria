@@ -7,10 +7,16 @@ set -u
 payload="$(cat)"
 cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')"
 
-case "$cmd" in
-  *"git push"*|*"gh pr merge"*|*"gh pr create"*) : ;;
-  *) exit 0 ;;
-esac
+# Only inspect the first line of the command. Heredoc bodies can contain
+# "git push" or "gh pr create" as literal text (e.g., commit messages or PR
+# bodies describing these commands), and we must not treat that as a trigger.
+cmd_first_line="$(printf '%s' "$cmd" | head -1)"
+
+# Word-boundary check on the first line prevents false matches such as
+# `echo "gh pr create"` or commit messages mentioning git push.
+if ! printf '%s' "$cmd_first_line" | grep -qE '(^|[[:space:]&;|]+)(git[[:space:]]+push|gh[[:space:]]+pr[[:space:]]+(create|merge))([[:space:]]|$)'; then
+  exit 0
+fi
 
 # Detect the git working directory from the command.
 # Handle "cd /some/path && git push ..." — the hook always runs from
@@ -38,6 +44,20 @@ git_run() {
 # Skip the check when pushing directly to main (the block-commit-on-main hook
 # already handles that case).
 current_branch="$(git_run symbolic-ref --short HEAD 2>/dev/null || echo '')"
+
+# For 'gh pr create --head <branch>', the ref under review is the named branch,
+# not the ambient HEAD of the cd-extracted directory. Detect --head so that
+# "cd main-repo && gh pr create --head worktree-branch" checks the right ref
+# even when the cd-extracted repo is on a stale branch.
+check_ref="HEAD"
+if printf '%s' "$cmd_first_line" | grep -qE 'gh[[:space:]]+pr[[:space:]]+create'; then
+  head_val="$(printf '%s' "$cmd" | grep -oE '\-\-head[= ][^ ]+' | head -1 | sed -E 's/--head[= ]//')"
+  if [ -n "$head_val" ]; then
+    current_branch="$head_val"
+    check_ref="$head_val"
+  fi
+fi
+
 if [ "$current_branch" = "main" ]; then
   exit 0
 fi
@@ -46,9 +66,9 @@ if ! git_run rev-parse --verify origin/main >/dev/null 2>&1; then
   exit 0
 fi
 
-# origin/main must be an ancestor of HEAD for a FF merge to be possible.
-if ! git_run merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
-  behind="$(git_run rev-list --count HEAD..origin/main 2>/dev/null || echo '?')"
+# origin/main must be an ancestor of the pushed branch for a FF merge to be possible.
+if ! git_run merge-base --is-ancestor origin/main "$check_ref" 2>/dev/null; then
+  behind="$(git_run rev-list --count "$check_ref"..origin/main 2>/dev/null || echo '?')"
   echo "ERROR: Branch is $behind commit(s) behind origin/main. Rebase before pushing: git fetch origin main && git rebase origin/main" >&2
   exit 2
 fi
