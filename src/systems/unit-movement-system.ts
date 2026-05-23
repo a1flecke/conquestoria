@@ -3,7 +3,7 @@ import type { GameState, HexCoord, VillageOutcomeType } from '@/core/types';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
-import { moveUnit, getMovementCost, findPath } from '@/systems/unit-system';
+import { moveUnit, getMovementCostForUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
@@ -86,19 +86,20 @@ export function executeUnitMove(
   }
 
   const from = { ...unit.position };
+  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
 
   // Calculate total path cost
   let cost = 0;
-  const path = findPath(from, to, state.map);
+  const path = findPath(from, to, state.map, domain);
   if (path) {
-    for (let i = 1; i < path.length; i++) { // Start from 1 to exclude the starting tile's cost
+    for (let i = 1; i < path.length; i++) {
       const tile = state.map.tiles[hexKey(path[i])];
-      cost += tile ? getMovementCost(tile.terrain) : 1;
+      cost += tile ? getMovementCostForUnit(tile.terrain, domain) : 1;
     }
   } else {
     // Fallback for single-step moves or if pathfinding fails unexpectedly
     const tile = state.map.tiles[hexKey(to)];
-    cost = tile ? getMovementCost(tile.terrain) : 1;
+    cost = tile ? getMovementCostForUnit(tile.terrain, domain) : 1;
   }
   state.units = {
     ...state.units,

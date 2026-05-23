@@ -250,6 +250,7 @@ export interface UnitDefinition {
   canFoundCity: boolean;
   canBuildImprovements: boolean;
   productionCost: number;
+  domain?: 'land' | 'naval';
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
   attackProfile?: UnitAttackProfile;
 }
