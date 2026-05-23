@@ -4,6 +4,7 @@ import type { GameState } from '@/core/types';
 import { getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 import { hexKey } from '@/systems/hex-utils';
 import { getWonderAtlasEntries } from '@/systems/wonder-atlas-presentation';
+import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 
 function makeAtlasState(): GameState {
   const state = createNewGame(undefined, 'wonder-atlas-presentation-test');
@@ -125,6 +126,16 @@ describe('wonder-atlas-presentation', () => {
       .find(entry => entry.kind === 'legendary' && entry.wonderId === 'oracle-of-delphi');
 
     expect(oracle).toMatchObject({ kind: 'legendary', stateLabel: 'Under construction' });
+  });
+
+  it('does not label blocked ready-to-build legendary projects as available', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+
+    const oracle = getWonderAtlasEntries(state, 'player')
+      .find(entry => entry.kind === 'legendary' && entry.wonderId === 'oracle-of-delphi');
+
+    expect(oracle).toMatchObject({ kind: 'legendary', stateLabel: 'Legendary wonder' });
   });
 
   it('does not leak rival legendary progress through Atlas labels', () => {
