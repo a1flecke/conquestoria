@@ -8,6 +8,8 @@
 
 Stage 2D turns the Wonder Atlas into an immersive illustrated codex focused on fun, learning, story, and spectacle. The Atlas should feel like a beautiful in-game reference and memory book, not an optimization dashboard.
 
+Real-world content must be accurate and middle-school appropriate. If a wonder name, image, or section references a real place, event, technology, or natural phenomenon, the facts must be traceable to reliable educational or institutional sources. Codex imagery must use real sourced images with documented reuse rights; generated images are out of scope for this stage.
+
 This stage covers authored codex content for every current natural and legendary wonder, but player-visible pages remain viewer-safe. Content coverage and page visibility are separate contracts:
 
 - content files must cover every defined natural and legendary wonder
@@ -20,6 +22,8 @@ Stage 2D does not change wonder placement, yields, legendary construction, quest
 - Replace the practical Atlas detail area with an immersive illustrated codex overlay launched from the existing Atlas entry point.
 - Cover all current natural and legendary wonders with strict authored codex content.
 - Use a hybrid content model: authored museum-label text plus structured campaign/status sections derived from viewer-safe state.
+- Use accurate, age-appropriate factual copy for real-world references.
+- Use real sourced images for codex illustration areas, with local assets and citation metadata.
 - Make desktop/wide screens feel rich by default.
 - Make mobile/narrow screens catalog-first, then expandable reader pages.
 - Generate related-content links through conventions and tests, not hand-maintained one-off references.
@@ -31,6 +35,7 @@ Stage 2D does not change wonder placement, yields, legendary construction, quest
 - Stage 2D does not add rival-known legendary records or a new viewer-scoped rival wonder intel model.
 - Stage 2D does not add richer bespoke landmark art beyond existing visual catalog use. That remains Stage 2E.
 - Stage 2D does not add real 3-5 second videos. That remains Stage 3.
+- Stage 2D does not use generated images for codex illustration slots.
 - Stage 2D does not reveal undiscovered natural wonders.
 - Stage 2D does not reveal rival city, progress, reward, completion, or legendary project details.
 - Stage 2D does not create browser-only or macOS-only UX paths.
@@ -45,6 +50,7 @@ Stage 2D is the **Full 2D Illustrated Wonder Codex** slice:
 - viewer-safe status sections
 - responsive desktop/mobile presentation
 - convention-driven related links
+- real-image source manifest and citation ledger
 - roadmap updates for deferred work
 
 Deferred work must be recorded in the relevant roadmap/spec/plan files during implementation:
@@ -128,6 +134,10 @@ Stage 2D adds a separated codex package under `src/systems/wonder-codex/`.
 
 `src/systems/wonder-codex/content.ts` aggregates content, exports lookup helpers, and provides complete lists for tests and presentation.
 
+`src/systems/wonder-codex/sources.ts` defines the source manifest used by tests and presentation. It must include factual sources and image sources. Image records must include source URL, creator/author when available, license, attribution text, local asset path, and source type.
+
+`docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md` is the human-readable citation ledger. Implementation must update this file so source choices remain reviewable outside TypeScript.
+
 Codex content is presentation-only. Gameplay definitions remain authoritative for yields, effects, rewards, requirements, construction, questing, and placement.
 
 ### Required Content Fields
@@ -145,8 +155,12 @@ Every codex entry must include:
 - `sections`
 - `statusHooks`
 - `relatedSeedTags`
+- `factSourceIds`
+- `imageSourceId`
 
 No generated fallback is allowed for missing authored content. Tests must fail if a new wonder definition lacks a complete codex entry.
+
+Every `factSourceIds` entry must resolve to `src/systems/wonder-codex/sources.ts`. Every `imageSourceId` must resolve to an image source whose local asset exists under `public/images/wonders/codex/`.
 
 ### Related Content
 
@@ -196,6 +210,8 @@ UI modules consume only view models. UI must not inspect raw `completedLegendary
 - related links
 - safe actions
 
+The illustration area renders the real image referenced by the selected page view model. It may layer medallion/SVG identity over the image, but the underlying codex image must be sourced and cited.
+
 The existing `createWonderAtlasPanel` remains the public entry point and delegates to the codex shell. Stage 2D must not maintain an old Atlas implementation and a separate new Codex implementation that can drift apart.
 
 ### Platform Parity
@@ -212,6 +228,7 @@ Browser/PWA and macOS/Tauri use the same system and UI modules. Stage 2D must no
 6. Mobile renders catalog-first unless a safe deep link selects a page.
 7. Selecting a catalog entry rebuilds or updates the selected page model.
 8. `View on Map` and `Open City` actions are emitted through callbacks without mutating gameplay state inside codex UI.
+9. Image source and attribution data are carried in the view model so UI can expose credits without reading source manifests directly.
 
 ## Player Truth Table
 
@@ -231,12 +248,15 @@ Browser/PWA and macOS/Tauri use the same system and UI modules. Stage 2D must no
 - `Related` must mean conventionally related through valid tags, not arbitrary neighboring data.
 - `Completed` must not be shown for rival wonders until Stage 2F adds explicit viewer-scoped intel.
 - `All wonders covered` must mean content coverage, not visible page count.
+- `Real image` must mean a sourced real photograph or historical/educational media asset with documented reuse rights, not AI-generated art or an uncited web image.
+- `Learning text` must avoid unsupported factual claims; real-world claims must be backed by the source manifest and ledger.
 
 Negative tests must prove near misses stay out of each semantic group.
 
 ## Error Handling And Edge Cases
 
 - Missing codex content is a test failure, not a runtime fallback.
+- Missing source records, missing local image assets, missing licenses, or placeholder attribution are test failures.
 - Missing visual catalog metadata may use existing safe visual fallback, but content coverage tests should still require codex content.
 - Unknown wonder IDs in codex content are test failures.
 - Duplicate codex IDs are test failures.
@@ -259,6 +279,9 @@ Add `tests/systems/wonder-codex/content.test.ts`:
 - no unknown IDs
 - no empty strings
 - no placeholder text such as `TODO`, `TBD`, `lorem`, or `placeholder`
+- every entry has at least one valid `factSourceId`
+- every entry has one valid `imageSourceId`
+- every image source has a URL, license, attribution, and existing local asset path
 - every entry has required tags from typed allowed unions
 - every entry declares required section metadata
 - every entry has status hooks required by its wonder kind
@@ -271,6 +294,15 @@ Add `tests/systems/wonder-codex/related.test.ts`:
 - related output does not depend on object insertion order
 - tag conventions produce valid related entries where compatible entries exist
 - adding a new tag requires updating allowed unions and related-link tests
+
+Add `tests/systems/wonder-codex/sources.test.ts`:
+
+- all `factSourceIds` resolve to source records
+- all `imageSourceId` values resolve to image source records
+- every image source has non-empty `title`, `sourceUrl`, `license`, `attribution`, and `localPath`
+- every `localPath` exists under `public/images/wonders/codex/`
+- no source record contains placeholder text
+- all source IDs used in code appear in the human-readable source ledger
 
 ### Presentation And Privacy Tests
 
@@ -301,6 +333,8 @@ Add `tests/ui/wonder-codex-panel.test.ts`:
 Add `tests/ui/wonder-codex-page.test.ts`:
 
 - renders authored lead and learning text
+- renders sourced image from the view model
+- renders or exposes image attribution text
 - renders status/effect/reward from view model
 - renders related links only from valid visible related entries
 - does not render rival-hidden city, progress, reward, completion, or host detail
@@ -310,6 +344,7 @@ Add `tests/ui/wonder-codex-page.test.ts`:
 
 - Rendered UI contracts require rendered UI tests.
 - New wonder definitions must fail tests until codex content is complete.
+- New wonder definitions must fail tests until fact sources, image source records, local image assets, and ledger rows are complete.
 - New codex tags must fail tests until allowed unions and related conventions are updated.
 - Responsive behavior must be tested through explicit mode or width options.
 - Existing Atlas tests must be updated to protect the old public entry point.
@@ -322,6 +357,9 @@ Stage 2D is complete when:
 - the existing Atlas entry point opens the immersive codex overlay
 - all current natural wonders have strict codex content
 - all current legendary wonders have strict codex content
+- every codex page has valid factual source IDs and a valid real-image source
+- codex images are local assets with documented licenses and attribution
+- the source ledger cites the sources used by implementation
 - discovered natural wonders render visible codex pages
 - undiscovered natural wonders remain hidden
 - owned legendary wonder states render safe codex pages where appropriate
