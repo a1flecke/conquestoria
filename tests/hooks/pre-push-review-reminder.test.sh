@@ -7,6 +7,8 @@
 #   - Branch ahead of origin/main via "cd /worktree && git push": exit 0
 #   - Branch behind origin/main via "cd /worktree && git push": exit 2
 #   - Multi-line command (heredoc body) with cd prefix: path extraction uses line 1 only
+#   - gh pr create --head <ahead-branch>: passes even when cd-repo HEAD is behind
+#   - gh pr create --head <behind-branch>: blocked even when cd-repo HEAD would pass
 
 set -u
 HOOK="$(cd "$(dirname "$0")/../.." && pwd)/.claude/hooks/pre-push-review-reminder.sh"
@@ -72,6 +74,14 @@ git -C "$setup_b" commit -q -m "extra commit on main"
 git -C "$setup_b" push -q origin main
 git -C "$behind_repo" fetch -q origin
 
+# Add an ahead branch to behind_repo so we can test --head override:
+# behind_repo's HEAD is old-branch (behind origin/main) but ahead-feature is current.
+git -C "$behind_repo" checkout -q -b ahead-feature origin/main
+printf 'new\n' > "$behind_repo/new.txt"
+git -C "$behind_repo" add .
+git -C "$behind_repo" commit -q -m "new feature"
+git -C "$behind_repo" checkout -q old-branch
+
 run() {
   local payload="$1" repo="${2:-}"
   if [ -n "$repo" ]; then
@@ -116,6 +126,16 @@ out=$(run "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $behind_repo
 
 out=$(run "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $ahead_repo && gh pr create --fill\"}}")
 [ "$out" = "rc=0" ] || { echo "FAIL: expected allow gh pr create (ahead, cd prefix), got: $out"; fail=1; }
+
+# ---------- gh pr create --head: hook must check --head branch, not ambient HEAD ----------
+# behind_repo HEAD = old-branch (behind), but ahead-feature branch is current.
+# Without the fix the hook would check old-branch and wrongly block this PR.
+
+out=$(run "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $behind_repo && gh pr create --head ahead-feature --base main\"}}")
+[ "$out" = "rc=0" ] || { echo "FAIL: expected allow (--head is ahead even though cd-repo HEAD is behind), got: $out"; fail=1; }
+
+out=$(run "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $behind_repo && gh pr create --head old-branch --base main\"}}")
+[ "$out" = "rc=2" ] || { echo "FAIL: expected block (--head is behind), got: $out"; fail=1; }
 
 # ---------- multi-line command (heredoc body): path extraction must use line 1 only ----------
 
