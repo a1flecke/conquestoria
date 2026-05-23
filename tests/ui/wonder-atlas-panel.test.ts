@@ -109,6 +109,41 @@ describe('wonder-atlas-panel', () => {
     expect(panel.textContent).not.toContain('Start Construction');
   });
 
+  it('renders safe legendary Atlas state labels without exposing rival progress', () => {
+    const state = makeState();
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi:player:city-river': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'building',
+        investedProduction: 40,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+      'grand-canal:rival:rival-city': {
+        wonderId: 'grand-canal',
+        ownerId: 'ai-1',
+        cityId: 'rival-city',
+        phase: 'building',
+        investedProduction: 90,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const panel = createWonderAtlasPanel(document.body, state, {
+      onViewOnMap: () => {},
+      onClose: () => {},
+    });
+    click(panel.querySelector('[data-atlas-tab="legendary"]'));
+
+    expect(panel.textContent).toContain('Under construction');
+    expect(panel.textContent).toContain('Legendary wonder');
+    expect(panel.textContent).not.toContain('rival-city');
+    expect(panel.textContent).not.toContain('90');
+  });
+
   it('uses a static vignette when reduced motion is requested', () => {
     const state = makeState();
     state.discoveredWonders.great_volcano = 'player';

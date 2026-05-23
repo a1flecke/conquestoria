@@ -106,4 +106,46 @@ describe('wonder-atlas-presentation', () => {
     });
     expect('canStartBuild' in legendaryEntries[0]).toBe(false);
   });
+
+  it('derives minimal safe legendary state labels for owned entries', () => {
+    const state = makeAtlasState();
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi:player:city-river': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'building',
+        investedProduction: 40,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const oracle = getWonderAtlasEntries(state, 'player')
+      .find(entry => entry.kind === 'legendary' && entry.wonderId === 'oracle-of-delphi');
+
+    expect(oracle).toMatchObject({ kind: 'legendary', stateLabel: 'Under construction' });
+  });
+
+  it('does not leak rival legendary progress through Atlas labels', () => {
+    const state = makeAtlasState();
+    state.legendaryWonderProjects = {
+      'oracle-rival': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'ai-1',
+        cityId: 'rival-city',
+        phase: 'building',
+        investedProduction: 90,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const oracle = getWonderAtlasEntries(state, 'player')
+      .find(entry => entry.kind === 'legendary' && entry.wonderId === 'oracle-of-delphi');
+
+    expect(oracle).toMatchObject({ kind: 'legendary', stateLabel: 'Legendary wonder' });
+    expect(JSON.stringify(oracle)).not.toContain('rival-city');
+    expect(JSON.stringify(oracle)).not.toContain('90');
+  });
 });
