@@ -1,4 +1,4 @@
-import type { GameEventMap, GameState } from '@/core/types';
+import type { GameEvents, GameState } from '@/core/types';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getWonderVisualDefinition, type WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 
@@ -18,7 +18,7 @@ export interface LegendaryWonderCompletionCeremonyItem {
 
 export function buildLegendaryWonderCompletionCeremonyItem(
   state: GameState,
-  event: GameEventMap['wonder:legendary-completed'],
+  event: GameEvents['wonder:legendary-completed'],
 ): LegendaryWonderCompletionCeremonyItem | null {
   if (state.currentPlayer !== event.civId) return null;
   const definition = getLegendaryWonderDefinition(event.wonderId);
