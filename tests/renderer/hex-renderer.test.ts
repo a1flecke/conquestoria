@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Camera } from '@/renderer/camera';
-import { drawHexMap, drawMinorCivTerritory } from '@/renderer/hex-renderer';
+import { drawHexMap, drawMinorCivTerritory, IMPROVEMENT_ICONS } from '@/renderer/hex-renderer';
 import type { GameMap, VisibilityMap } from '@/core/types';
 
 class MockCanvasContext {
@@ -321,5 +321,25 @@ describe('resource icon rendering', () => {
     drawHexMap(ctx, map, makeCamera(), undefined, 'player', fog, new Set());
 
     expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
+  });
+});
+
+describe('IMPROVEMENT_ICONS', () => {
+  it('has entries for all 4 original improvement types', () => {
+    expect(IMPROVEMENT_ICONS['farm']).toBe('🌾');
+    expect(IMPROVEMENT_ICONS['mine']).toBe('⛏️');
+    expect(IMPROVEMENT_ICONS['lumber_camp']).toBe('🪵');
+    expect(IMPROVEMENT_ICONS['watermill']).toBe('💧');
+  });
+
+  it('has entries for all 4 new improvement types', () => {
+    expect(IMPROVEMENT_ICONS['plantation']).toBe('🌿');
+    expect(IMPROVEMENT_ICONS['pasture']).toBe('🐂');
+    expect(IMPROVEMENT_ICONS['camp']).toBe('⛺');
+    expect(IMPROVEMENT_ICONS['quarry']).toBe('⚒️');
+  });
+
+  it('does not have an entry for none', () => {
+    expect(IMPROVEMENT_ICONS['none']).toBeUndefined();
   });
 });

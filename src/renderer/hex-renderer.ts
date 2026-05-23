@@ -7,6 +7,19 @@ import { resolveTilePresentationForViewer, type TilePresentationKind } from './t
 import { drawNaturalWonderLandmark } from './wonders/natural-wonder-renderer';
 import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/trade-system';
 
+// --- Improvement icons ---
+
+export const IMPROVEMENT_ICONS: Record<string, string> = {
+  farm: '🌾',
+  mine: '⛏️',
+  lumber_camp: '🪵',
+  watermill: '💧',
+  plantation: '🌿',
+  pasture: '🐂',
+  camp: '⛺',
+  quarry: '⚒️',
+};
+
 // --- Terrain labels ---
 
 const TERRAIN_LABELS: Record<TerrainType, string> = {
@@ -258,13 +271,7 @@ function drawHex(
     ctx.font = `${size * 0.5}px system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const icons: Record<string, string> = {
-      farm: '🌾',
-      mine: '⛏️',
-      lumber_camp: '🪵',
-      watermill: '💧',
-    };
-    const icon = icons[tile.improvement] ?? '◆';
+    const icon = IMPROVEMENT_ICONS[tile.improvement] ?? '◆';
     ctx.fillText(icon, cx, cy);
   }
 
