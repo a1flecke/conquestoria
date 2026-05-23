@@ -184,3 +184,140 @@ describe('createTerritoryInspectionPanel', () => {
     expect(panel.textContent).toContain('Oracle of Delphi');
   });
 });
+
+describe('createTerritoryInspectionPanel — S2b acquisition status', () => {
+  // Shares MockDocument / MockElement defined at module scope above.
+  const originalDocument2 = globalThis.document;
+
+  beforeEach(() => {
+    Object.defineProperty(globalThis, 'document', {
+      value: new MockDocument() as unknown as Document,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'document', {
+      value: originalDocument2,
+      configurable: true,
+    });
+  });
+
+  function makeCoord(q: number, r: number) { return { q, r }; }
+
+  function makeTile(overrides: Partial<import('@/core/types').HexTile>): import('@/core/types').HexTile {
+    return {
+      coord: { q: 1, r: 0 },
+      terrain: 'hills',
+      elevation: 'highland',
+      resource: null,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      owner: 'p1',
+      hasRiver: false,
+      wonder: null,
+      ...overrides,
+    };
+  }
+
+  function buildState(params: {
+    viewerId: string;
+    techs: string[];
+    tile: import('@/core/types').HexTile;
+    cityPosition?: import('@/core/types').HexCoord;
+  }): import('@/core/types').GameState {
+    const cityId = 'city1';
+    const cityPos = params.cityPosition ?? makeCoord(99, 99); // default: tile is NOT the city center
+    const tileKey = `${params.tile.coord.q},${params.tile.coord.r}`;
+    return {
+      civilizations: {
+        [params.viewerId]: {
+          id: params.viewerId,
+          cities: [cityId],
+          techState: {
+            completed: params.techs,
+            currentResearch: null,
+            researchQueue: [],
+            researchProgress: 0,
+            trackPriorities: {},
+          },
+          visibility: { tiles: { [tileKey]: 'visible' } },
+        },
+      },
+      cities: {
+        [cityId]: {
+          id: cityId,
+          owner: params.viewerId,
+          position: cityPos,
+          ownedTiles: [params.tile.coord, cityPos],
+          workedTiles: [],
+        },
+      },
+      map: {
+        tiles: { [tileKey]: params.tile },
+        width: 20,
+        height: 20,
+        wrapsHorizontally: false,
+        rivers: [],
+      },
+      territoryFrontiers: {},
+    } as unknown as import('@/core/types').GameState;
+  }
+
+  it('shows ✓ Available — city tile when tile is viewer city center with tech', () => {
+    const cityPos = makeCoord(1, 0);
+    const tile = makeTile({ coord: cityPos, resource: 'gems', improvement: 'none', owner: 'p1' });
+    const state = buildState({ viewerId: 'p1', techs: ['mining-tech'], tile, cityPosition: cityPos });
+    const panel = createTerritoryInspectionPanel(state, cityPos, 'p1');
+    expect(panel.textContent).toContain('✓ Available');
+    expect(panel.textContent).toContain('city tile');
+  });
+
+  it('shows ✓ Available — [ImprovementName] built when improvement is complete', () => {
+    const tile = makeTile({ resource: 'gems', improvement: 'mine', improvementTurnsLeft: 0 });
+    const state = buildState({ viewerId: 'p1', techs: ['mining-tech'], tile });
+    const panel = createTerritoryInspectionPanel(state, tile.coord, 'p1');
+    expect(panel.textContent).toContain('✓ Available');
+    expect(panel.textContent).toContain('Mine');
+  });
+
+  it('shows ⏳ in progress when improvement is under construction', () => {
+    const tile = makeTile({ resource: 'gems', improvement: 'mine', improvementTurnsLeft: 3 });
+    const state = buildState({ viewerId: 'p1', techs: ['mining-tech'], tile });
+    const panel = createTerritoryInspectionPanel(state, tile.coord, 'p1');
+    expect(panel.textContent).toContain('⏳');
+    expect(panel.textContent).toContain('Mine');
+    expect(panel.textContent).toContain('3');
+  });
+
+  it('shows ✗ Needs [ImprovementName] to harvest when no improvement exists', () => {
+    const tile = makeTile({ resource: 'gems', improvement: 'none', improvementTurnsLeft: 0 });
+    const state = buildState({ viewerId: 'p1', techs: ['mining-tech'], tile });
+    const panel = createTerritoryInspectionPanel(state, tile.coord, 'p1');
+    expect(panel.textContent).toContain('✗ Needs');
+    expect(panel.textContent).toContain('Mine');
+    expect(panel.textContent).toContain('harvest');
+  });
+
+  it('shows ✗ Needs [ImprovementName] when wrong improvement is built', () => {
+    // plantation instead of mine on a gems tile
+    const tile = makeTile({ resource: 'gems', improvement: 'plantation', improvementTurnsLeft: 0 });
+    const state = buildState({ viewerId: 'p1', techs: ['mining-tech'], tile });
+    const panel = createTerritoryInspectionPanel(state, tile.coord, 'p1');
+    expect(panel.textContent).toContain('✗ Needs');
+    expect(panel.textContent).toContain('Mine');
+  });
+
+  it('omits acquisition status for tiles owned by another civ (foreign territory)', () => {
+    const tile = makeTile({ resource: 'gems', improvement: 'none', owner: 'enemy' });
+    const state = buildState({ viewerId: 'p1', techs: ['mining-tech'], tile });
+    const panel = createTerritoryInspectionPanel(state, tile.coord, 'p1');
+    const text = panel.textContent ?? '';
+    // Resource name is visible (p1 has the tech)
+    expect(text).toContain('Gems');
+    // Acquisition status must be absent — would be misleading since p1 can't build there
+    expect(text).not.toContain('✓ Available');
+    expect(text).not.toContain('✗ Needs');
+    expect(text).not.toContain('⏳');
+  });
+});
