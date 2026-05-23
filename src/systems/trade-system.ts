@@ -1,28 +1,35 @@
-import type { MarketplaceState, ResourceType, TradeRoute } from '@/core/types';
+import type { BuildableImprovementType, MarketplaceState, ResourceType, TradeRoute } from '@/core/types';
 
 export interface ResourceDefinition {
   id: ResourceType;
   name: string;
   type: 'luxury' | 'strategic';
-  terrain: string;       // terrain it spawns on
+  terrain: string | string[];   // spawn terrain(s) — multi-terrain for furs, cattle, sheep
   basePrice: number;
-  tech: string;          // enabling tech id — added by S1
-  icon: string;          // emoji for map rendering and legend — added by S1
+  tech: string;
+  icon: string;
+  requiredImprovement: BuildableImprovementType;
 }
 
 export const RESOURCE_DEFINITIONS: ResourceDefinition[] = [
   // Luxury
-  { id: 'silk',    name: 'Silk',    type: 'luxury',    terrain: 'grassland', basePrice: 8,  tech: 'irrigation',       icon: '🧵' },
-  { id: 'wine',    name: 'Wine',    type: 'luxury',    terrain: 'plains',    basePrice: 7,  tech: 'pottery',          icon: '🍇' },
-  { id: 'spices',  name: 'Spices',  type: 'luxury',    terrain: 'jungle',    basePrice: 10, tech: 'cartography',      icon: '🌶' },
-  { id: 'gems',    name: 'Gems',    type: 'luxury',    terrain: 'hills',     basePrice: 12, tech: 'mining-tech',      icon: '💎' },
-  { id: 'ivory',   name: 'Ivory',   type: 'luxury',    terrain: 'forest',    basePrice: 9,  tech: 'foraging',         icon: '🐘' },
-  { id: 'incense', name: 'Incense', type: 'luxury',    terrain: 'desert',    basePrice: 6,  tech: 'currency',         icon: '🕯' },
+  { id: 'silk',    name: 'Silk',    type: 'luxury',    terrain: 'grassland',            basePrice: 8,  tech: 'irrigation',       icon: '🧵', requiredImprovement: 'plantation' },
+  { id: 'wine',    name: 'Wine',    type: 'luxury',    terrain: 'plains',               basePrice: 7,  tech: 'pottery',           icon: '🍇', requiredImprovement: 'plantation' },
+  { id: 'spices',  name: 'Spices',  type: 'luxury',    terrain: 'jungle',               basePrice: 10, tech: 'cartography',       icon: '🌶️', requiredImprovement: 'plantation' },
+  { id: 'gems',    name: 'Gems',    type: 'luxury',    terrain: 'hills',                basePrice: 12, tech: 'mining-tech',       icon: '💎', requiredImprovement: 'mine' },
+  { id: 'ivory',   name: 'Ivory',   type: 'luxury',    terrain: 'forest',               basePrice: 9,  tech: 'foraging',          icon: '🐘', requiredImprovement: 'camp' },
+  { id: 'incense', name: 'Incense', type: 'luxury',    terrain: 'desert',               basePrice: 6,  tech: 'currency',          icon: '🕯️', requiredImprovement: 'plantation' },
+  { id: 'gold',    name: 'Gold',    type: 'luxury',    terrain: 'hills',                basePrice: 15, tech: 'currency',          icon: '⭐', requiredImprovement: 'mine' },
+  { id: 'silver',  name: 'Silver',  type: 'luxury',    terrain: 'hills',                basePrice: 11, tech: 'mining-tech',       icon: '🥈', requiredImprovement: 'mine' },
+  { id: 'furs',    name: 'Furs',    type: 'luxury',    terrain: ['forest', 'tundra'],   basePrice: 9,  tech: 'foraging',          icon: '🦊', requiredImprovement: 'camp' },
+  { id: 'sheep',   name: 'Sheep',   type: 'luxury',    terrain: ['hills', 'plains'],    basePrice: 7,  tech: 'animal-husbandry',  icon: '🐑', requiredImprovement: 'pasture' },
   // Strategic
-  { id: 'copper',  name: 'Copper',  type: 'strategic', terrain: 'hills',     basePrice: 5,  tech: 'stone-weapons',    icon: '🪙' },
-  { id: 'iron',    name: 'Iron',    type: 'strategic', terrain: 'hills',     basePrice: 8,  tech: 'bronze-working',   icon: '⚙' },
-  { id: 'horses',  name: 'Horses',  type: 'strategic', terrain: 'plains',    basePrice: 7,  tech: 'animal-husbandry', icon: '🐎' },
-  { id: 'stone',   name: 'Stone',   type: 'strategic', terrain: 'hills',     basePrice: 4,  tech: 'gathering',        icon: '🪨' },
+  { id: 'copper',  name: 'Copper',  type: 'strategic', terrain: 'hills',                basePrice: 5,  tech: 'stone-weapons',     icon: '🪙', requiredImprovement: 'mine' },
+  { id: 'iron',    name: 'Iron',    type: 'strategic', terrain: 'hills',                basePrice: 8,  tech: 'bronze-working',    icon: '⚙️', requiredImprovement: 'mine' },
+  { id: 'horses',  name: 'Horses',  type: 'strategic', terrain: 'plains',               basePrice: 7,  tech: 'animal-husbandry',  icon: '🐎', requiredImprovement: 'pasture' },
+  { id: 'stone',   name: 'Stone',   type: 'strategic', terrain: 'mountain',             basePrice: 4,  tech: 'gathering',         icon: '🪨', requiredImprovement: 'quarry' },
+  { id: 'cattle',  name: 'Cattle',  type: 'strategic', terrain: ['grassland', 'plains'],basePrice: 5,  tech: 'domestication',     icon: '🐄', requiredImprovement: 'pasture' },
+  { id: 'salt',    name: 'Salt',    type: 'strategic', terrain: 'hills',                basePrice: 5,  tech: 'pottery',           icon: '🧂', requiredImprovement: 'mine' },
 ];
 
 export const BASE_PRICES: Record<string, number> = {};

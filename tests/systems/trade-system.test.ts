@@ -16,10 +16,10 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 
 describe('trade-system', () => {
   describe('RESOURCE_DEFINITIONS', () => {
-    it('defines 10 resources (6 luxury + 4 strategic)', () => {
-      expect(RESOURCE_DEFINITIONS).toHaveLength(10);
-      expect(RESOURCE_DEFINITIONS.filter(r => r.type === 'luxury')).toHaveLength(6);
-      expect(RESOURCE_DEFINITIONS.filter(r => r.type === 'strategic')).toHaveLength(4);
+    it('defines 16 resources (10 luxury + 6 strategic)', () => {
+      expect(RESOURCE_DEFINITIONS).toHaveLength(16);
+      expect(RESOURCE_DEFINITIONS.filter(r => r.type === 'luxury')).toHaveLength(10);
+      expect(RESOURCE_DEFINITIONS.filter(r => r.type === 'strategic')).toHaveLength(6);
     });
 
     it('each resource has a positive base price', () => {
@@ -71,6 +71,71 @@ describe('trade-system', () => {
       for (const r of RESOURCE_DEFINITIONS) {
         expect(RESOURCE_TECH[r.id]).toBe(r.tech);
       }
+    });
+  });
+
+  describe('S2a catalog — requiredImprovement and new resources', () => {
+    it('all 6 new resources appear in RESOURCE_DEFINITIONS', () => {
+      const ids = RESOURCE_DEFINITIONS.map(r => r.id);
+      for (const id of ['gold', 'silver', 'furs', 'cattle', 'sheep', 'salt']) {
+        expect(ids, `missing resource "${id}"`).toContain(id);
+      }
+    });
+
+    it('every resource has a non-empty requiredImprovement field', () => {
+      for (const r of RESOURCE_DEFINITIONS) {
+        expect(
+          (r as unknown as Record<string, unknown>).requiredImprovement,
+          `${r.id} missing requiredImprovement`,
+        ).toBeTruthy();
+      }
+    });
+
+    it('requiredImprovement values are valid BuildableImprovementTypes', () => {
+      const valid = new Set(['farm', 'mine', 'lumber_camp', 'watermill', 'plantation', 'pasture', 'camp', 'quarry']);
+      for (const r of RESOURCE_DEFINITIONS) {
+        const imp = (r as unknown as Record<string, unknown>).requiredImprovement as string | undefined;
+        expect(valid.has(imp ?? ''), `${r.id}.requiredImprovement "${imp}" is not a valid BuildableImprovementType`).toBe(true);
+      }
+    });
+
+    it('stone has requiredImprovement of quarry', () => {
+      const stone = RESOURCE_DEFINITIONS.find(r => r.id === 'stone');
+      expect((stone as unknown as Record<string, unknown>).requiredImprovement).toBe('quarry');
+    });
+
+    it('horses has requiredImprovement of pasture', () => {
+      const horses = RESOURCE_DEFINITIONS.find(r => r.id === 'horses');
+      expect((horses as unknown as Record<string, unknown>).requiredImprovement).toBe('pasture');
+    });
+
+    it('silk has requiredImprovement of plantation', () => {
+      const silk = RESOURCE_DEFINITIONS.find(r => r.id === 'silk');
+      expect((silk as unknown as Record<string, unknown>).requiredImprovement).toBe('plantation');
+    });
+
+    it('ivory has requiredImprovement of camp', () => {
+      const ivory = RESOURCE_DEFINITIONS.find(r => r.id === 'ivory');
+      expect((ivory as unknown as Record<string, unknown>).requiredImprovement).toBe('camp');
+    });
+
+    it('stone has terrain of mountain (corrected from hills)', () => {
+      const stone = RESOURCE_DEFINITIONS.find(r => r.id === 'stone');
+      expect(stone?.terrain).toBe('mountain');
+    });
+
+    it('furs has multi-terrain entry covering forest and tundra', () => {
+      const furs = RESOURCE_DEFINITIONS.find(r => r.id === 'furs');
+      expect(Array.isArray(furs?.terrain)).toBe(true);
+      expect(furs?.terrain).toContain('forest');
+      expect(furs?.terrain).toContain('tundra');
+    });
+
+    it('cattle has multi-terrain entry covering grassland and plains', () => {
+      const cattle = RESOURCE_DEFINITIONS.find(r => r.id === 'cattle');
+      expect(Array.isArray(cattle?.terrain)).toBe(true);
+      expect(cattle?.terrain).toContain('grassland');
+      expect(cattle?.terrain).toContain('plains');
     });
   });
 
