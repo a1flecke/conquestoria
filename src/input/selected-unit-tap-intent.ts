@@ -44,7 +44,14 @@ export function resolveSelectedUnitTapIntent(
 
   const movementRange = movementRangeOverride ?? (() => {
     const occupancy = buildUnitOccupancy(state.units);
-    return getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId);
+    const civ = state.civilizations[unit.owner];
+    const hostileOwners = new Set<string>(['barbarian', ...(civ?.diplomacy?.atWarWith ?? [])]);
+    for (const [mcId, mc] of Object.entries(state.minorCivs)) {
+      if (mc.diplomacy?.atWarWith?.includes(unit.owner)) {
+        hostileOwners.add(mcId);
+      }
+    }
+    return getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, hostileOwners);
   })();
 
   const targetKey = hexKey(targetCoord);

@@ -67,6 +67,17 @@ function buildWorkerGuidanceHighlights(
   return highlights;
 }
 
+function buildHostileOwners(state: GameState, civId: string): Set<string> {
+  const civ = state.civilizations[civId];
+  const hostile = new Set<string>(['barbarian', ...(civ?.diplomacy?.atWarWith ?? [])]);
+  for (const [mcId, mc] of Object.entries(state.minorCivs)) {
+    if (mc.diplomacy?.atWarWith?.includes(civId)) {
+      hostile.add(mcId);
+    }
+  }
+  return hostile;
+}
+
 export function buildSelectedUnitHighlights(state: GameState, unitId: string): SelectedUnitHighlightResult {
   const unit = state.units[unitId];
   if (!unit || unit.owner !== state.currentPlayer) {
@@ -74,7 +85,10 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
   }
 
   const occupancy = buildUnitOccupancy(state.units);
-  const movementRange = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId);
+  const hostileOwners = buildHostileOwners(state, state.currentPlayer);
+  const movementRange = getMovementRange(
+    unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, hostileOwners,
+  );
   const attackTargets = getAttackTargets(state, unit, { viewerId: state.currentPlayer })
     .filter(target => target.result.targetType === 'unit');
   const attackKeys = new Set(attackTargets.map(target => hexKey(target.coord)));
