@@ -22,7 +22,7 @@ This file is the **index** and is intentionally deliverable #1 so the high-level
 
 | Area | Status | Location / detail |
 |---|---|---|
-| Resource types (10 luxury, 6 strategic) + base prices | ✅ exists | `trade-system.ts` `RESOURCE_DEFINITIONS`. Luxury: silk(grassland), wine(plains), spices(jungle), gems(hills), ivory(forest), incense(desert), gold(hills), silver(hills), furs(forest/tundra), sheep(hills/plains). Strategic: copper(hills), iron(hills), horses(plains), stone(**hills** — S2a moved from mountain), cattle(grassland/plains), salt(hills). |
+| Resource types (10 luxury, 6 strategic) + base prices | ✅ exists | `trade-system.ts` `RESOURCE_DEFINITIONS`. Luxury: silk(grassland), wine(plains), spices(jungle), gems(hills), ivory(forest), incense(desert), gold(hills), silver(hills), furs(forest/tundra), sheep(hills/plains). Strategic: copper(hills), iron(hills), horses(plains), stone(**mountain** — S2a moved from hills; earth-map generator stone fallback still uses hills incorrectly — fixed in S4a), cattle(grassland/plains), salt(hills). |
 | Resources placed on map tiles (`tile.resource`) | ✅ exists | `map-generator.ts`, `balanced-map-generator.ts`, `continent-map-generator.ts`; geo maps via `geo-map-loader.ts`. |
 | Per-turn price engine (supply/demand) + history + fashion cycle | ✅ exists | `trade-system.ts` (`calculatePrice`, `updatePrices`, `processFashionCycle`); driven in `turn-manager.ts` ~L388. Note: `updatePrices` hardcodes `isMonopoly=false` (S12). |
 | Marketplace **building** | ✅ exists | `city-system.ts` L59 `marketplace` (gold +3, cost 50, `techRequired: 'currency'`, icon 🏪). |

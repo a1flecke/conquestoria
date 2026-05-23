@@ -6,12 +6,12 @@
 
 ## Goal
 
-Owning a resource (as determined by `getCivAvailableResources`) now confers a passive empire-wide effect: luxury resources grant happiness or per-city yield bonuses; two strategic resources (cattle, salt) get small passive bonuses. The bonus is visible in the city panel and HUD. Losing a resource removes the bonus immediately (same turn).
+Owning a resource (as determined by `getCivAvailableResources`) now confers a passive empire-wide effect: luxury resources grant happiness or per-city yield bonuses; two strategic resources (cattle, salt) get small passive bonuses. The bonus is visible in the city panel and HUD. Effects are recomputed fresh each turn from current ownership — no stale copy is stored.
 
 This slice also patches two companion issues introduced by prior work:
 - Six new resources added in S2a (gold, silver, furs, sheep, cattle, salt) have no placement zones in `generate-earth-maps.ts` and therefore never appear on earth maps.
 - Several existing resources have missing geographic zones (iron, horses, spices, gems, ivory, wine, copper — see §Earth map).
-- The roadmap "Current state" table incorrectly lists stone's terrain as `mountain`; S2a moved it to `hills`.
+- The earth map generator's stone fallback incorrectly uses `hills` terrain, but S2a moved stone to `mountain` terrain. The fallback must be updated to `mountain`.
 
 ## Effect table (all 16 resources)
 
@@ -44,9 +44,9 @@ This slice also patches two companion issues introduced by prior work:
 
 **Magnitude:** flat +1 in S4a. Era/tech scaling deferred to a future slice.
 
-**Scope:** empire-wide, non-stacking. Owning three silk tiles still gives +1 happiness, not +3. Duplicates are for selling (S8+).
+**Scope:** empire-wide, non-stacking **per resource**. Owning three silk tiles gives +1 happiness, not +3 — duplicates are for selling (S8+). However, owning silk **and** wine gives +2 happiness (two distinct resources, each contributes once). Same rule applies to yield resources: gems + silver both contribute +1 gold/turn each, so a civ owning both gets +2 gold/turn per city.
 
-**Loss timing:** immediate (same turn). The effect is derived fresh from `getCivAvailableResources` each turn; no persistent copy to go stale.
+**Loss timing:** computed fresh each turn from the current resource ownership state at the point each subsystem runs. Yield bonuses (gold, production, food) are applied in the per-civ city loop; happiness reduction is applied during `processFactionTurn` at the top of the turn. In practice: an improvement destroyed by combat mid-turn drops the yield bonus on the following turn's city processing and drops the happiness pressure reduction on the following turn's faction pass. No persistent copy of effects is stored, so nothing can go stale.
 
 ## Data model
 
@@ -79,9 +79,11 @@ export interface ResourceDefinition {
 
 ```typescript
 /**
- * Returns the aggregate per-city yield bonus from all owned non-happiness
- * resources. Empire-wide, non-stacking: owning any amount of a resource
- * counts once.
+ * Returns the aggregate per-city yield bonus from all owned resources whose
+ * effect type is NOT 'happiness' (i.e. gold, production, food effects only).
+ * Non-stacking per resource: owning any number of the same resource counts once.
+ * Different resources with the same effect type DO accumulate
+ * (gems + silver → +2 gold/turn).
  */
 export function getCivResourceYieldBonus(
   state: GameState,
@@ -118,16 +120,41 @@ const yields = {
 
 ### `faction-system.ts` — happiness reduces unrest pressure
 
-`computeUnrestPressure` gains a happiness offset (capped so pressure cannot go below 0):
+**Performance constraint:** `computeUnrestPressure` is called once per city, not once per civ. Calling `getCivHappinessFromResources` (which itself calls `getCivAvailableResources`) inside it would scan all owned tiles once per city per turn — O(cities²) per civ. Instead, `processFactionTurn` computes happiness once per civ and passes it down.
 
 ```typescript
+// In processFactionTurn, build a happiness map before the city loop:
 import { getCivHappinessFromResources } from './resource-acquisition-system';
 
-// At the end of computeUnrestPressure, before the final cap:
-const happiness = getCivHappinessFromResources(state, owner);
-pressure -= happiness * 2; // up to −10 from 5 happiness luxuries
-return Math.min(100, Math.max(0, pressure));
+// Before the per-city loop in processFactionTurn:
+const civHappiness: Record<string, number> = {};
+for (const civId of Object.keys(nextState.civilizations)) {
+  civHappiness[civId] = getCivHappinessFromResources(nextState, civId);
+}
+
+// computeUnrestPressure gains a happiness parameter:
+export function computeUnrestPressure(
+  cityId: string,
+  state: GameState,
+  ownerHappiness: number,  // pre-computed, passed from processFactionTurn
+): number {
+  // ...existing pressure logic...
+  pressure -= ownerHappiness * 2; // up to −10 from 5 happiness luxuries
+  return Math.min(100, Math.max(0, pressure));
+}
 ```
+
+There is **1 internal call site** of `computeUnrestPressure` in `faction-system.ts` (line ~179 in `processFactionTurn`). Because the function is `export`ed, add `ownerHappiness` as an **optional parameter with default 0** to avoid breaking any future external callers:
+
+```typescript
+export function computeUnrestPressure(
+  cityId: string,
+  state: GameState,
+  ownerHappiness = 0,
+): number
+```
+
+The internal call site passes `civHappiness[city.owner] ?? 0`; any external call site that omits the argument defaults to 0 (no happiness benefit), which is safe.
 
 Effect in context: each luxury happiness resource offsets 2 pressure. Five luxuries (−10) meaningfully counteracts two wars' worth of war-weariness (2 × 8 = +16) or two-and-a-half cities of overextension.
 
@@ -137,22 +164,45 @@ No new `GameState` fields are added. Happiness is fully computed each turn from 
 
 ### City panel — resource bonus subsection
 
-A new "Resources" row group is inserted below the yield summary in the city panel. One line per owned resource that has an effect, using `createTextNode` / `textContent` only:
+A new "Resources" row group is inserted below the yield summary. It is split into two labelled sub-rows to avoid confusing empire-wide bonuses with per-city yields:
 
 ```
-Silk      → +1 happiness
-Ivory     → +1 happiness
-Gems      → +1 gold/turn
-Sheep     → +1 production/turn
+Empire bonuses
+  Silk    → +1 happiness
+  Ivory   → +1 happiness
+
+City bonuses
+  Gems    → +1 gold/turn
+  Sheep   → +1 production/turn
 ```
 
-- Happiness lines are identical across all city panels (empire-wide effect, not city-specific).
-- Only resources with a non-null effect are shown; the section is omitted entirely if the civ owns no effect-bearing resources.
+Rules:
+- "Empire bonuses" shows only happiness-type resources; each line represents a unique owned resource (non-stacking). The label makes clear the bonus is not specific to this city.
+- "City bonuses" shows yield-type resources (gold, production, food). These apply equally to every city, but showing them here gives per-city context.
+- A sub-row header that has no resources beneath it is omitted entirely (e.g., if the civ owns only yield resources, only "City bonuses" appears; the "Empire bonuses" header is omitted).
+- The entire "Resources" section is omitted if no effect-bearing resources are owned.
 - Uses `state.currentPlayer` (never hardcoded `'player'`).
+- `createTextNode` / `textContent` only — no `innerHTML` with game strings.
+- **Naming**: the gold (resource) displays as "Gold deposits → +1 gold/turn" to avoid the confusing "Gold → +1 gold" collision between resource name and currency name.
 
 ### HUD — happiness chip
 
 A `☺ N` chip is added alongside the existing per-turn yield chips (food, production, gold, science). Computes `getCivHappinessFromResources(state, state.currentPlayer)`. The chip is omitted when the value is 0 (no clutter when no luxuries are owned).
+
+The chip must be **self-explanatory**: players have never seen a happiness number in this game before. Use a tooltip or inline label that makes the effect clear. Recommended display: `☺ 3 — reduces unrest risk`. If the HUD layout cannot support a tooltip, add a parenthetical: `☺ 3 (stability)`. The raw number alone is not enough.
+
+### Marketplace panel — effect annotation
+
+Each resource row in the marketplace panel (already filtered by tech in S3) gains a small effect badge:
+
+```
+🧵 Silk    luxury   ★ +1 happiness
+💎 Gems    luxury   $ +1 gold/turn
+🐑 Sheep   luxury   ⚙ +1 production/turn
+⚙️ Iron    strategic  (unit prerequisite — S4b)
+```
+
+Resources with `effect: null` (copper, iron, horses, stone) show `(unlocks advanced units & buildings)` as a player-readable hint that their value comes later. Do not use internal slice names like "S4b". Uses `textContent` only.
 
 ## Earth map — geographic zones
 
@@ -189,23 +239,23 @@ The full intended `RESOURCE_ZONES` table after this slice (new entries marked **
 { resource: 'incense', terrain: 'desert', lonMin: 40, lonMax: 60, latMin: 15, latMax: 30 }, // Arabian Peninsula
 { resource: 'incense', terrain: 'desert', lonMin: 10, lonMax: 40, latMin: 15, latMax: 30 }, // N. Africa / Horn
 
-// Gems
-{ resource: 'gems', terrain: 'hills',  lonMin: 20,   lonMax: 40,   latMin: -30, latMax: 5  }, // S. Africa (diamonds)
-{ resource: 'gems', terrain: 'hills',  lonMin: 75,   lonMax: 85,   latMin: 10,  latMax: 25 }, // India (diamonds)
-{ resource: 'gems', terrain: 'jungle', lonMin: -80,  lonMax: -65,  latMin: -20, latMax: 5  }, // S. America
-{ resource: 'gems', terrain: 'hills',  lonMin: 95,   lonMax: 103,  latMin: 17,  latMax: 27 }, // PATCH: Myanmar (rubies/jade)
-{ resource: 'gems', terrain: 'hills',  lonMin: 135,  lonMax: 145,  latMin: -32, latMax: -25 }, // PATCH: Australia (opals)
+// Gems — terrain MUST be 'hills' (gems requires a mine; mines can't be built on jungle)
+{ resource: 'gems', terrain: 'hills', lonMin: 20,   lonMax: 40,   latMin: -30, latMax: 5  }, // S. Africa (diamonds, Kimberlite pipes)
+{ resource: 'gems', terrain: 'hills', lonMin: 75,   lonMax: 85,   latMin: 10,  latMax: 25 }, // India (diamonds, Golconda)
+{ resource: 'gems', terrain: 'hills', lonMin: -80,  lonMax: -65,  latMin: -20, latMax: 5  }, // S. America (emeralds, Andes/Colombia — hills, not jungle)
+{ resource: 'gems', terrain: 'hills', lonMin: 95,   lonMax: 103,  latMin: 17,  latMax: 27 }, // PATCH: Myanmar (rubies/jade)
+{ resource: 'gems', terrain: 'hills', lonMin: 135,  lonMax: 145,  latMin: -32, latMax: -25 }, // PATCH: Australia (opals)
 
 // Ivory
 { resource: 'ivory', terrain: 'forest', lonMin: 10,  lonMax: 40,   latMin: -15, latMax: 10 }, // Central/West Africa
 { resource: 'ivory', terrain: 'forest', lonMin: 33,  lonMax: 42,   latMin: -10, latMax: 5  }, // PATCH: East Africa
 { resource: 'ivory', terrain: 'forest', lonMin: 75,  lonMax: 105,  latMin: 8,   latMax: 22 }, // PATCH: South Asia (Indian elephant)
 
-// Wine
-{ resource: 'wine', terrain: 'grassland', lonMin: -5,   lonMax: 30,   latMin: 35, latMax: 47 }, // Mediterranean/France
-{ resource: 'wine', terrain: 'grassland', lonMin: -123, lonMax: -119, latMin: 37, latMax: 39 }, // PATCH: California (Napa)
-{ resource: 'wine', terrain: 'grassland', lonMin: 18,   lonMax: 22,   latMin: -34, latMax: -32 }, // PATCH: S. Africa (Cape)
-{ resource: 'wine', terrain: 'grassland', lonMin: -72,  lonMax: -68,  latMin: -37, latMax: -30 }, // PATCH: Chile/Mendoza
+// Wine — terrain MUST be 'plains' (wine's RESOURCE_DEFINITION terrain; plantation is buildable on plains)
+{ resource: 'wine', terrain: 'plains', lonMin: -5,   lonMax: 30,   latMin: 35, latMax: 47 }, // Mediterranean/France/Iberia
+{ resource: 'wine', terrain: 'plains', lonMin: -123, lonMax: -119, latMin: 37, latMax: 39 }, // PATCH: California (Napa)
+{ resource: 'wine', terrain: 'plains', lonMin: 18,   lonMax: 22,   latMin: -34, latMax: -32 }, // PATCH: S. Africa (Cape)
+{ resource: 'wine', terrain: 'plains', lonMin: -72,  lonMax: -68,  latMin: -37, latMax: -30 }, // PATCH: Chile/Mendoza
 
 // Copper
 { resource: 'copper', terrain: 'hills', lonMin: -80,  lonMax: -65,  latMin: -35, latMax: 10 }, // S. America (Andes)
@@ -249,7 +299,11 @@ The full intended `RESOURCE_ZONES` table after this slice (new entries marked **
 { resource: 'salt', terrain: 'hills', lonMin: -5,  lonMax: 10,  latMin: 30, latMax: 37 }, // N. Africa/Atlas
 ```
 
-Stone keeps its existing global fallback (8% of hills tiles — stone is geographically ubiquitous).
+**Stone fallback fix:** The existing generator fallback `if (terrain === 'hills' && r < 0.08) return 'stone'` is wrong — S2a moved stone to `mountain` terrain (requiring a quarry, which is buildable only on mountains). Update the fallback to:
+```typescript
+if (terrain === 'mountain' && r < 0.15) return 'stone';
+```
+Threshold raised from 8% to 15% because mountains are rarer than hills on the map, preserving roughly the same total stone tile count. Stone is geographically ubiquitous so a global mountain fallback is appropriate.
 
 ### Regeneration
 
@@ -261,6 +315,8 @@ This overwrites `src/systems/earth-map-data.ts`, `old-world-map-data.ts`, and `n
 
 ## Tests
 
+**Helpers (unit)**
+
 | # | Test | Type |
 |---|---|---|
 | 1 | Every entry in `RESOURCE_DEFINITIONS` has `effect` defined (non-undefined — may be `null`) | catalog |
@@ -269,23 +325,68 @@ This overwrites `src/systems/earth-map-data.ts`, `old-world-map-data.ts`, and `n
 | 4 | `getCivResourceYieldBonus` returns `{ production: 1, ... }` for a civ owning sheep | positive |
 | 5 | `getCivResourceYieldBonus` returns `{ food: 1, ... }` for a civ owning cattle | positive |
 | 6 | `getCivResourceYieldBonus` returns `{ gold: 1, ... }` for a civ owning salt | positive |
-| 7 | Civ owning 3 silk tiles (3 different cities) → happiness still 1 (non-stacking) | non-stacking |
-| 8 | Civ with no owned resources → happiness 0, all yield bonuses 0 | negative |
-| 9 | Copper/iron/horses/stone produce no S4a effect (`getCivResourceYieldBonus` returns zeros, `getCivHappinessFromResources` returns 0 for a civ owning only those) | negative |
-| 10 | Silk improvement destroyed (`improvementTurnsLeft > 0`) → `getCivHappinessFromResources` returns 0 same turn | loss |
-| 11 | Civ with 3 cities owning gems → all 3 cities receive +1 gold in turn processing | all-cities |
-| 12 | AI civ owning spices accrues gold/turn via the same turn-manager code path | AI parity |
-| 13 | City with pressure 45, civ owns 3 happiness luxuries → pressure reduced by 6 → 39 → no unrest | unrest |
-| 14 | `computeUnrestPressure` with happiness = 5 → pressure reduced by 10 | unrest magnitude |
-| 15 | Old-save load: `GameState` with no `effect` on RESOURCE_DEFINITIONS initialises without crash (static data, no migration) | save-compat |
-| 16 | Earth map (small): each resource in RESOURCE_ZONES appears within at least one of its declared lon/lat bounding boxes | geo-coverage |
+| 7 | Civ owning 3 silk tiles (3 different cities) → `getCivHappinessFromResources` returns 1, not 3 (same-resource non-stacking) | non-stacking |
+| 8 | Civ owning silk AND wine → `getCivHappinessFromResources` returns 2 (different resources accumulate) | accumulation |
+| 9 | Civ owning gems AND silver → `getCivResourceYieldBonus` returns `{ gold: 2, ... }` (different resources accumulate) | accumulation |
+| 10 | Civ with no owned resources → happiness 0, all yield bonuses 0 | negative |
+| 11 | Copper/iron/horses/stone → `getCivResourceYieldBonus` returns all zeros; `getCivHappinessFromResources` returns 0 | negative |
+| 12 | `getCivResourceYieldBonus` returns 0 happiness contribution (happiness resources excluded from yield bonus) | negative |
+| 13 | Silk improvement destroyed (`improvementTurnsLeft > 0`) → `getCivHappinessFromResources` returns 0 | loss |
+
+**Turn processing (integration)**
+
+| # | Test | Type |
+|---|---|---|
+| 14 | Civ with 3 cities owning gems → all 3 cities receive +1 gold in turn processing (not cities[0] only) | all-cities |
+| 15 | AI civ owning spices accrues +1 gold/turn per city via same turn-manager code path as human civ | AI parity |
+| 16 | `getCivResourceYieldBonus` called exactly once per civ per turn-manager pass, not once per city | arch regression |
+
+**Faction / unrest**
+
+| # | Test | Type |
+|---|---|---|
+| 17 | `computeUnrestPressure` with `ownerHappiness=3` → pressure reduced by 6 | unrest magnitude |
+| 18 | City at base pressure 45 with 3 happiness luxuries → pressure 39 → no unrest fires | unrest positive |
+| 19 | City at base pressure 45 with 0 happiness luxuries → pressure 45 → unrest fires (without happiness, same pressure triggers) | unrest negative |
+| 20 | `computeUnrestPressure` called with no `ownerHappiness` arg (omitted) → defaults to 0, no crash | API safety |
+
+**UI — city panel**
+
+| # | Test | Type |
+|---|---|---|
+| 21 | Civ owning silk: city panel DOM contains "Empire bonuses" header and "Silk" text in happiness sub-section | DOM |
+| 22 | Civ owning gems: city panel DOM contains "City bonuses" header and "Gems" text with "+1 gold/turn" | DOM |
+| 23 | "Gold deposits" (not "Gold") appears for the gold resource to avoid currency name collision | naming |
+| 24 | Civ owning only yield resources (gems, no silk): "Empire bonuses" header absent from DOM | DOM negative |
+| 25 | Civ owning no resources: entire "Resources" section absent from city panel DOM | DOM negative |
+
+**UI — HUD**
+
+| # | Test | Type |
+|---|---|---|
+| 26 | Civ with 2 happiness luxuries: HUD contains "☺" chip with value 2 | HUD |
+| 27 | Civ with 0 happiness luxuries: HUD does not contain "☺" chip | HUD negative |
+
+**UI — marketplace panel**
+
+| # | Test | Type |
+|---|---|---|
+| 28 | Silk row in marketplace panel contains "+1 happiness" badge text | DOM |
+| 29 | Iron row in marketplace panel contains "unlocks advanced units" hint text (not raw "null") | DOM |
+
+**Save compatibility & map**
+
+| # | Test | Type |
+|---|---|---|
+| 30 | Old `GameState` save (pre-S4a) loads without crash — `effect` is static data, no migration needed | save-compat |
+| 31 | Earth map (small): each of the 16 resources appears at least once; gold/furs/sheep/cattle/salt/silver each appear in at least one tile within their declared lon/lat bounding boxes | geo-coverage |
 
 ## Roadmap updates required
 
 Update `2026-05-20-marketplace-trade-roadmap.md`:
-- Current-state table: stone terrain `mountain` → `hills`
-- Record S4a locked decisions (this spec path, effect magnitudes, happiness→pressure wiring)
-- Mark S4a as "In progress"
+- Current-state table: stone terrain entry should read `stone(mountain)` — S2a moved stone FROM hills TO mountain; earth-map generator stone fallback also needs updating from `hills` to `mountain` (captured in §Earth map above).
+- Record S4a locked decisions (this spec path, effect magnitudes, non-stacking rule, happiness→pressure wiring, happiness magnitude = 2 pressure per point).
+- Mark S4a as "In progress".
 
 ## Out of scope
 
