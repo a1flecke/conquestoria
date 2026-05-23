@@ -99,7 +99,8 @@ describe('selected-unit-highlights', () => {
       '1,-1': 'visible',
     };
     state.map.tiles['1,0'] = { coord: { q: 1, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, owner: 'player', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
-    state.map.tiles['29,0'] = { coord: { q: 29, r: 0 }, terrain: 'tundra', elevation: 'lowland', resource: null, owner: 'player', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    // S2a: tundra is now buildable (camp improvement is valid there) — use snow for "owned-blocked" since no improvements work on snow
+    state.map.tiles['29,0'] = { coord: { q: 29, r: 0 }, terrain: 'snow', elevation: 'lowland', resource: null, owner: 'player', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
     state.map.tiles['1,-1'] = { coord: { q: 1, r: -1 }, terrain: 'plains', elevation: 'lowland', resource: null, owner: 'ai-1', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
 
     const result = buildSelectedUnitHighlights(state, 'worker');
