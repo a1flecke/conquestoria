@@ -9,6 +9,7 @@ import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 class MockCanvasContext {
+  operations: string[] = [];
   fillTextCalls: Array<{ text: string; x: number; y: number }> = [];
   fillStyle = '';
   strokeStyle = '';
@@ -17,12 +18,19 @@ class MockCanvasContext {
   textAlign: CanvasTextAlign = 'start';
   textBaseline: CanvasTextBaseline = 'alphabetic';
 
-  beginPath(): void {}
-  arc(): void {}
-  fill(): void {}
-  stroke(): void {}
+  save(): void { this.operations.push('save'); }
+  restore(): void { this.operations.push('restore'); }
+  beginPath(): void { this.operations.push('beginPath'); }
+  arc(): void { this.operations.push('arc'); }
+  rect(): void { this.operations.push('rect'); }
+  moveTo(): void { this.operations.push('moveTo'); }
+  lineTo(): void { this.operations.push('lineTo'); }
+  closePath(): void { this.operations.push('closePath'); }
+  fill(): void { this.operations.push(`fill:${this.fillStyle}`); }
+  stroke(): void { this.operations.push(`stroke:${this.strokeStyle}`); }
   fillText(text: string, x: number, y: number): void {
     this.fillTextCalls.push({ text, x, y });
+    this.operations.push(`text:${text}`);
   }
 }
 
@@ -417,5 +425,22 @@ describe('drawCities — top-left idle badge', () => {
     const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
     expect(texts).not.toContain('💰');
     expect(texts).not.toContain('🔬');
+  });
+
+  it('draws completed legendary landmarks for visible owned host cities', () => {
+    const state = createNewGame(undefined, 'legendary-city-render-test');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: city.id, turnCompleted: 20 },
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    expect((ctx as unknown as MockCanvasContext).operations).toContain('save');
   });
 });

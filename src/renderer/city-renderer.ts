@@ -8,6 +8,11 @@ import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { spriteCache } from './sprites/sprite-loader';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
+import {
+  getLegendaryWonderMapEntries,
+  type LegendaryWonderMapEntry,
+} from '@/systems/legendary-wonder-map-presentation';
+import { drawLegendaryWonderLandmarks } from '@/renderer/wonders/legendary-wonder-renderer';
 
 export function getProductionBadgeIcon(city: { productionQueue: string[] }): string | null {
   if (city.productionQueue.length === 0) return null;
@@ -72,9 +77,14 @@ export function drawCities(
   state: GameState,
   camera: Camera,
   playerCivId: string,
+  reducedMotion: boolean = false,
 ): void {
   const vis = state.civilizations[playerCivId]?.visibility;
   if (!vis) return;
+  const landmarksByCity = new Map<string, LegendaryWonderMapEntry[]>();
+  for (const entry of getLegendaryWonderMapEntries(state, playerCivId)) {
+    landmarksByCity.set(entry.cityId, [...(landmarksByCity.get(entry.cityId) ?? []), entry]);
+  }
 
   for (const projection of getCityRenderProjection(state, playerCivId)) {
     const city = projection.liveCityId ? state.cities[projection.liveCityId] : undefined;
@@ -125,6 +135,19 @@ export function drawCities(
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(`${projection.name} (${projection.population})`, screen.x, screen.y + size * 0.5);
+
+      const legendaryEntries = projection.liveCityId ? landmarksByCity.get(projection.liveCityId) ?? [] : [];
+      if (legendaryEntries.length > 0) {
+        drawLegendaryWonderLandmarks({
+          ctx,
+          cx: screen.x,
+          cy: screen.y,
+          size,
+          entries: legendaryEntries,
+          reducedMotion,
+          lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
+        });
+      }
 
       if (projection.isLive && city && breakaway) {
         ctx.font = `${size * 0.28}px system-ui`;
