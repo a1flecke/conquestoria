@@ -238,4 +238,27 @@ describe('opening research pacing data', () => {
       });
     }
   });
+
+  describe('S2a resource reveal strings', () => {
+    const S2A_REVEALS = [
+      { techId: 'domestication',   resourceName: 'Cattle' },
+      { techId: 'pottery',         resourceName: 'Salt'   },
+      { techId: 'animal-husbandry',resourceName: 'Sheep'  },
+      { techId: 'foraging',        resourceName: 'Furs'   },
+      { techId: 'currency',        resourceName: 'Gold'   },
+      { techId: 'mining-tech',     resourceName: 'Silver' },
+    ];
+
+    for (const { techId, resourceName } of S2A_REVEALS) {
+      it(`${techId} includes "Reveal ${resourceName} resource" in unlocks`, () => {
+        const tech = TECH_TREE.find(t => t.id === techId);
+        expect(tech, `tech "${techId}" not found`).toBeDefined();
+        const hasReveal = tech?.unlocks.some(u => u === `Reveal ${resourceName} resource`);
+        expect(
+          hasReveal,
+          `${techId} missing "Reveal ${resourceName} resource" in unlocks: [${tech?.unlocks.join(', ')}]`,
+        ).toBe(true);
+      });
+    }
+  });
 });

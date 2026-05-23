@@ -13,11 +13,11 @@ export const TECH_TREE: Tech[] = [
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'gathering', name: 'Gathering', track: 'economy', cost: 4, prerequisites: [], unlocks: ['Foundational economy knowledge', 'Reveal Stone resource'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
-  { id: 'pottery', name: 'Pottery', track: 'economy', cost: 10, prerequisites: ['gathering'], unlocks: ['Foundational ceramics knowledge', 'Reveal Wine resource'], era: 1 },
-  { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 12, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource'], era: 2 },
+  { id: 'pottery', name: 'Pottery', track: 'economy', cost: 10, prerequisites: ['gathering'], unlocks: ['Foundational ceramics knowledge', 'Reveal Wine resource', 'Reveal Salt resource'], era: 1 },
+  { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 12, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource', 'Reveal Sheep resource'], era: 2 },
   { id: 'irrigation', name: 'Irrigation', track: 'economy', cost: 45, prerequisites: ['pottery'], unlocks: ['Farms yield +1 food', 'Reveal Silk resource'], era: 2 },
-  { id: 'currency', name: 'Currency', track: 'economy', cost: 60, prerequisites: ['pottery'], unlocks: ['Unlock Marketplace building', 'Reveal Incense resource'], era: 3 },
-  { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production', 'Reveal Gems resource'], era: 3 },
+  { id: 'currency', name: 'Currency', track: 'economy', cost: 60, prerequisites: ['pottery'], unlocks: ['Unlock Marketplace building', 'Reveal Incense resource', 'Reveal Gold resource'], era: 3 },
+  { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production', 'Reveal Gems resource', 'Reveal Silver resource'], era: 3 },
   { id: 'trade-routes', name: 'Trade Routes', track: 'economy', cost: 85, prerequisites: ['currency'], unlocks: ['Enable trade routes between cities'], era: 4 },
   { id: 'banking', name: 'Banking', track: 'economy', cost: 95, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+20% gold in all cities'], era: 4 },
   { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
@@ -54,8 +54,8 @@ export const TECH_TREE: Tech[] = [
   { id: 'military-logistics', name: 'Military Logistics', track: 'exploration', cost: 100, prerequisites: ['road-building', 'tactics'], unlocks: ['Units move +1 on roads'], era: 4 },
 
   // === AGRICULTURE TRACK (8 techs, new) ===
-  { id: 'foraging', name: 'Foraging', track: 'agriculture', cost: 5, prerequisites: [], unlocks: ['Food storage', 'Reveal Ivory resource'], era: 1 },
-  { id: 'domestication', name: 'Domestication', track: 'agriculture', cost: 10, prerequisites: ['foraging'], unlocks: ['Animal pens'], era: 1 },
+  { id: 'foraging', name: 'Foraging', track: 'agriculture', cost: 5, prerequisites: [], unlocks: ['Food storage', 'Reveal Ivory resource', 'Reveal Furs resource'], era: 1 },
+  { id: 'domestication', name: 'Domestication', track: 'agriculture', cost: 10, prerequisites: ['foraging'], unlocks: ['Animal pens', 'Reveal Cattle resource'], era: 1 },
   { id: 'crop-rotation', name: 'Crop Rotation', track: 'agriculture', cost: 45, prerequisites: ['domestication', 'irrigation'], unlocks: ['Improved farms'], era: 2 },
   { id: 'granary-design', name: 'Granary Design', track: 'agriculture', cost: 10, prerequisites: ['foraging'], unlocks: ['Granary upgrade'], era: 2 },
   { id: 'fertilization', name: 'Fertilization', track: 'agriculture', cost: 80, prerequisites: ['crop-rotation'], unlocks: ['Fertile fields'], era: 3 },
