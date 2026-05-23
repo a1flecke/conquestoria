@@ -1,5 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderPresentationForCity } from '@/systems/legendary-wonder-presentation';
 import { formatNaturalWonderEffectSummary } from '@/systems/wonder-presentation-formatting';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { getWonderVisualDefinition, type WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
@@ -76,7 +77,11 @@ function getLegendaryStateLabel(
     return 'Legendary wonder';
   }
 
-  if (ownedProject.phase === 'ready_to_build') return 'Available';
+  if (ownedProject.phase === 'ready_to_build') {
+    const cityEntry = getLegendaryWonderPresentationForCity(state, viewerId, ownedProject.cityId)
+      .find(entry => entry.wonderId === wonderId);
+    return cityEntry?.canStartBuild ? 'Available' : 'Legendary wonder';
+  }
   if (ownedProject.phase === 'building') return 'Under construction';
   if (ownedProject.phase === 'completed') return 'Completed';
   if (ownedProject.phase === 'lost_race') return 'Recovered';
