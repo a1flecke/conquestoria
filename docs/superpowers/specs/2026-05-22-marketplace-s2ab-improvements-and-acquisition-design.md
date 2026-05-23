@@ -10,20 +10,28 @@
 
 | Decision | Choice |
 |---|---|
-| Acquisition gate | tech known **AND** required improvement built (improvementTurnsLeft === 0), except city-center tiles which need tech only |
+| Acquisition gate | tech known **AND** required improvement built (`improvementTurnsLeft === 0`), except city-center tiles which need tech only |
 | Building required for acquisition | **None** — building interactions are deferred to S4a |
 | New resources | gold, silver, furs, cattle, sheep, salt — 6 additions, total 16 |
 | Cattle reveal tech | domestication (era 1) — cattle domestication predates horses by millennia |
 | S2a + S2b delivery | Single PR — S2b's acquisition helper is useless without S2a's improvements; combining avoids dead-end UX |
 | Improvement tech gate | New improvements have `requiredTech: null` (consistent with existing farm/mine) — the resource tech gates acquisition, not the improvement build |
-| Quarry (improvement) vs quarry-building | Distinct — quarry is a tile improvement for harvesting stone; quarry-building is an existing city building for production |
+| Quarry (improvement) vs quarry-building | Distinct — quarry is a tile improvement for harvesting stone (mountain terrain); quarry-building is an existing city building for production (state-workforce tech) |
 | Ranch dead-promise | `livestock-breeding` tech currently unlocks "Ranch" but no Ranch building exists — flag in spec, implement in S4a |
+| Stone terrain correction | Existing `trade-system.ts` has stone with `terrain: 'hills'` and map-generator places it on hills — **both must be corrected to `mountain`** in this slice so the quarry improvement can harvest it. Old saves retain stone on hills; those tiles show "✗ Needs Quarry to harvest" which is acceptable for old saves only. |
+| `ResourceDefinition.terrain` field | Extended to `string \| string[]` to support multi-terrain resources (furs, cattle, sheep). The field is documentation; acquisition logic reads tile terrain via improvement `validTerrains`, not this field. |
+| Fashion probability after expansion | Luxury count grows 6 → 10 (adding gold, silver, furs, sheep). The per-turn fashion trigger chance stays at 5% but any specific luxury's selection probability drops from 1/6 to 1/10. This is **intentional** — more luxury variety means no single resource dominates fashion. Accept without compensation. |
+| Tech-filter (req. 2) | **S3 only** — marketplace panel in S2b does NOT filter rows by tech. That is S3's scope. S2b only replaces the ownership count with the acquisition helper. |
+| Resource loss semantics | `getCivAvailableResources` is a pure function; losing a tile (via combat or cultural spread) automatically removes the resource from the returned set on the next call. No persistent inventory state is introduced in S2a/S2b, keeping loss implicit and correct. |
+| Enemy-city-center tile | When a player captures a city whose center tile has a resource and the player has the enabling tech, `getCivAvailableResources` returns that resource — the city is now owned by the civ. This is intentional and rewards conquest. |
 
 ---
 
 ## Expanded resource catalog — all 16
 
-| Resource | Type | Terrain | Improvement | Reveal tech (era) | Icon | Base price |
+`ResourceDefinition.terrain` is now `string | string[]`. Multi-terrain resources list all valid spawn terrains.
+
+| Resource | Type | Terrain(s) | Improvement | Reveal tech (era) | Icon | Base price |
 |---|---|---|---|---|---|---|
 | silk | luxury | grassland | plantation | irrigation (2) | 🧵 | 8 |
 | wine | luxury | plains | plantation | pottery (1) | 🍇 | 7 |
@@ -34,7 +42,7 @@
 | copper | strategic | hills | mine | stone-weapons (1) | 🪙 | 5 |
 | iron | strategic | hills | mine | bronze-working (2) | ⚙️ | 8 |
 | horses | strategic | plains | pasture | animal-husbandry (2) | 🐎 | 7 |
-| stone | strategic | mountain | quarry | gathering (1) | 🪨 | 4 |
+| stone | strategic | **mountain** *(corrected from hills)* | quarry | gathering (1) | 🪨 | 4 |
 | **gold** | **luxury** | **hills** | **mine** | **currency (3)** | **⭐** | **15** |
 | **silver** | **luxury** | **hills** | **mine** | **mining-tech (3)** | **🥈** | **11** |
 | **furs** | **luxury** | **forest, tundra** | **camp** | **foraging (1)** | **🦊** | **9** |
@@ -47,6 +55,7 @@ Historical notes:
 - **Salt → hills with mine**: major traded salt deposits (Wieliczka, Hallstatt, Khewra) are in hill/mountain terrain.
 - **Furs → forest + tundra**: the Siberian and North American fur trades ran through boreal and tundra regions; tundra terrain exists in the game.
 - **Cattle → domestication (era 1)**: cattle taming (~8000 BCE) predates horse domestication by millennia; domestication already says "Animal pens" in its unlocks.
+- **Stone → mountain**: quarrying is mountain work (Giza, Roman marble quarries). The existing code has stone on hills — correct it.
 
 ---
 
@@ -63,7 +72,9 @@ Historical notes:
 | requiredTech | null |
 | Covers | silk, wine, spices, incense |
 
-Plantation overlaps with farm on some terrains. That is intentional — a player can choose farm (pure food) or plantation (food + trade value) on the same tile. Plantation is only meaningful where a resource tile exists.
+Plantation overlaps with farm on some terrains (grassland, plains, desert, jungle). That is intentional — a player can choose farm (pure food +2) or plantation (food +1, gold +1) on the same tile. Plantation is only meaningful where a resource tile exists, but the worker action UI cannot enforce this — it will offer plantation as an option on any valid terrain tile. This is acceptable friction; the tech-reveal system prevents plantation from being useful without the resource.
+
+**Three-way collision on jungle tiles with ivory:** farm, plantation, and lumber_camp are all valid on jungle. The worker action menu will show all three. Only camp (not plantation) harvests ivory. The inspection panel's "✗ Needs Camp to harvest" message is the player's signal to build the right improvement. Do not suppress the other options from the menu — that is S3+ scope.
 
 ### pasture
 
@@ -72,9 +83,11 @@ Plantation overlaps with farm on some terrains. That is intentional — a player
 | Valid terrains | grassland, plains, hills |
 | Build turns | 3 |
 | Yield bonus | +1 food |
-| Hex icon | 🌾 |
+| Hex icon | 🐂 |
 | requiredTech | null |
 | Covers | horses, cattle, sheep |
+
+Icon is 🐂 (ox) — distinct from 🐄 (cattle resource icon), 🐎 (horses resource icon), and 🌾 (farm tile improvement icon which already uses that glyph in `hex-renderer.ts`).
 
 ### camp
 
@@ -87,24 +100,32 @@ Plantation overlaps with farm on some terrains. That is intentional — a player
 | requiredTech | null |
 | Covers | ivory, furs |
 
-### quarry *(improvement — distinct from quarry-building city building)*
+**Forest-terrain mutation trap:** `worker-action-system.ts` line 154 mutates a forest or jungle tile to plains when a farm is built there. If a player builds a farm on a forest tile containing ivory or furs, the tile becomes plains — and camp is not valid on plains. The ivory/furs resource becomes permanently un-harvestable on that tile. This is an existing design tension made visible for the first time by S2a. **Do not attempt to fix in this slice.** The inspection panel's acquisition status will correctly show "✗ Needs Camp to harvest" on the mutated plains tile, giving the player feedback (though no remedy). Flag as a known limitation in the PR description.
+
+### quarry *(tile improvement — distinct from quarry-building city building)*
 
 | Field | Value |
 |---|---|
 | Valid terrains | mountain |
 | Build turns | 5 |
 | Yield bonus | +1 production |
-| Hex icon | ⛏️ |
+| Hex icon | ⚒️ |
 | requiredTech | null |
 | Covers | stone |
+
+Icon is ⚒️ (hammer-and-pick) — distinct from ⛏️ which is already used by `quarry-building` in `city-system.ts`. The quarry-building icon appears in the city panel; the quarry improvement icon appears on the hex map. They appear in different contexts but using the same glyph would still be confusing.
 
 ---
 
 ## Map generation — placing the 6 new resources
 
-The map generators (`map-generator.ts`, `balanced-map-generator.ts`, `continent-map-generator.ts`) must place the new resources on matching terrain tiles. Without this, new resources never appear on any map and the entire system is dead.
+The map generators (`map-generator.ts`, `balanced-map-generator.ts`, `continent-map-generator.ts`) must place the new resources on matching terrain tiles. Without this, new resources never appear on any map.
 
-**Placement rules** (terrain from resource catalog table above):
+### Stone terrain correction (affects all map generators)
+
+The current `TERRAIN_RESOURCES` in `map-generator.ts` places stone on hills. This must be moved to mountain in this slice. Update every generator's stone placement to use mountain terrain, matching the corrected `ResourceDefinition.terrain` field.
+
+### Placement rules for new resources
 
 | Resource | Valid spawn terrain(s) | Category |
 |---|---|---|
@@ -115,9 +136,25 @@ The map generators (`map-generator.ts`, `balanced-map-generator.ts`, `continent-
 | sheep | hills, plains | luxury |
 | salt | hills | strategic |
 
-Follow the existing resource-placement pattern in each map generator (scan tiles of matching terrain, place with a seeded-RNG probability or balanced quota). Seeded RNG only — never `Math.random()`.
+Seeded RNG only — never `Math.random()`.
 
-**Placement density**: use the same probability/quota as existing resources on the same terrain type (e.g., hills already has gems/copper/iron — add gold/silver/salt at the same per-tile rate so they appear with similar frequency). The balanced map generator may need its resource quota adjusted to accommodate the larger catalog.
+### TERRAIN_RESOURCES dual-maintenance risk
+
+`map-generator.ts` uses a private `TERRAIN_RESOURCES: Record<string, string[]>` constant that maps terrain → resource list. This is a **second place** where terrain-resource mapping lives alongside `ResourceDefinition.terrain`. They must agree. Add a **catalog test** asserting that every resource in `RESOURCE_DEFINITIONS` appears in at least one `TERRAIN_RESOURCES` array in the base map generator. This catches divergence early.
+
+Preferred long-term fix (if feasible within this slice): derive `TERRAIN_RESOURCES` from `RESOURCE_DEFINITIONS` rather than hardcoding it, eliminating the dual-maintenance surface entirely.
+
+### LUXURY_RESOURCES hardcoded list in `balanced-map-generator.ts`
+
+`balanced-map-generator.ts` contains a hardcoded constant:
+```ts
+const LUXURY_RESOURCES = ['silk', 'wine', 'spices', 'gems', 'ivory', 'incense'] as const;
+```
+This list drives hotspot placement and zone equalization. It **must be updated** to include gold, silver, furs, sheep — otherwise the new luxury resources are systematically under-placed (they only get the base random pass, not the hotspot/equalization passes). If this constant exists in other generators, update those too.
+
+### Hills resource density
+
+Hills currently hosts gems, copper, iron (3 resources at 15% per tile). After S2a, hills gains gold, silver, salt, sheep (7 resources total). At uniform 15% per tile, the probability that any hills tile has *some* resource rises to ≈ 1 − (0.85)^7 ≈ 69%. **Reduce the per-tile probability for hills resources to 8–10%** so density stays in the same range as before. Apply the reduction to all hill resources (existing and new) for consistency. The balanced map generator's quota system may handle this automatically — verify and adjust.
 
 ---
 
@@ -126,7 +163,7 @@ Follow the existing resource-placement pattern in each map generator (scan tiles
 ### `types.ts`
 
 Extend `ImprovementType`:
-```
+```ts
 'farm' | 'mine' | 'lumber_camp' | 'watermill' | 'plantation' | 'pasture' | 'camp' | 'quarry' | 'none'
 ```
 
@@ -139,23 +176,25 @@ export type StrategicResource = 'copper' | 'iron' | 'horses' | 'stone' | 'cattle
 
 ### `trade-system.ts`
 
-Add `requiredImprovement: ImprovementType` field to `ResourceDefinition`. Populate for all 16 resources per the table above. Also add 6 new `RESOURCE_DEFINITIONS` entries with all fields (id, name, type, terrain, basePrice, tech, icon, requiredImprovement).
-
-Export `RESOURCE_ICONS` and `RESOURCE_TECH` maps updated for the 6 new entries.
+Add `requiredImprovement: BuildableImprovementType` field to `ResourceDefinition`. Change `terrain` to `string | string[]`. Populate all 16 resources per the catalog table above. Add 6 new `RESOURCE_DEFINITIONS` entries. Update `RESOURCE_ICONS` and `RESOURCE_TECH` maps for the 6 new entries.
 
 ### `improvement-system.ts`
 
-Add four new entries to `IMPROVEMENT_DEFINITIONS` (plantation, pasture, camp, quarry) per the spec tables above. Add to `IMPROVEMENT_BUILD_TURNS` record.
+Add four new entries to `IMPROVEMENT_DEFINITIONS` (plantation, pasture, camp, quarry) per the spec tables above.
+
+**Exhaustiveness requirement:** `IMPROVEMENT_BUILD_TURNS` is typed `Record<ImprovementType, number>`. TypeScript enforces exhaustiveness — the build will fail if the new union members are added to `ImprovementType` without simultaneously adding them to the `IMPROVEMENT_BUILD_TURNS` literal object. Extend the union and the record object **in the same edit**, not in separate commits.
 
 ### `worker-action-system.ts`
 
-New improvements are `BuildableImprovementType` entries — they inherit the existing `applyWorkerAction` path automatically. No logic changes needed; the `IMPROVEMENT_DEFINITIONS.validTerrains` check handles terrain gating.
+New improvements are `BuildableImprovementType` entries and inherit the existing `applyWorkerAction` path automatically. No logic changes needed; `IMPROVEMENT_DEFINITIONS.validTerrains` handles terrain gating.
 
 ### `hex-renderer.ts`
 
-Add improvement icons for the four new types alongside the existing improvement-icon rendering. Use the same draw pattern as existing improvements (centered on tile, full size).
+Add improvement icons for the four new types (🌿 plantation, 🐂 pasture, ⛺ camp, ⚒️ quarry) using the same draw pattern as existing improvements (centered on tile, full size).
 
-Add 6 new resource icons to the resource-rendering path (same pattern as S1's 10 icons): ⭐ gold, 🥈 silver, 🦊 furs, 🐄 cattle, 🐑 sheep, 🧂 salt.
+In-progress improvements (non-zero `improvementTurnsLeft`) show the turn countdown only, same as existing improvements. No construction-state icon is introduced — this is a known limitation, not a regression.
+
+Add 6 new resource icons to the resource-rendering path (same S1 pattern): ⭐ gold, 🥈 silver, 🦊 furs, 🐄 cattle, 🐑 sheep, 🧂 salt.
 
 ### `resource-system.ts` (yield contributions)
 
@@ -173,9 +212,15 @@ Add "Reveal X resource" lines to the relevant techs:
 
 ### Save migration
 
-`ImprovementType` is stored in `tile.improvement`. Old saves will have values from the old union only — no existing tile will have a new improvement value, so old saves load safely with no migration needed for improvement types.
+**Improvement types on tiles:** Old saves have `tile.improvement` values from the old union only. New improvement type strings will not appear on any tile in an old save. Old saves load safely — no migration needed.
 
-`ResourceType` is stored in `tile.resource`. Old saves will not have new resource values on tiles — map generation adds resources at game creation, not migration. New resource types will only appear on maps generated after S2a ships. No migration needed.
+**Resource types on tiles:** Old saves have `tile.resource` values from the old union only. New resources only appear on maps generated after S2a ships. Old saves load safely — no migration needed.
+
+**`LastSeenTilePresentation.improvement`** (types.ts line 221) also stores `ImprovementType`. Same argument applies — old values remain valid union members. No migration needed.
+
+**`MarketplaceState.prices` and `priceHistory`:** Old saves have these records with 10 keys (original resources). After S2a ships, `updatePrices` iterates all 16 `RESOURCE_DEFINITIONS` entries. Missing keys fall back to `?? def.basePrice` inside `updatePrices`, so new resources get priced correctly after the first turn without a migration step. This is safe but should be noted: **old saves will show sparklines starting from turn N (when S2a shipped), not from game start**. That is acceptable.
+
+**`MarketplaceState.fashionable`** is typed `ResourceType | null`. An old save cannot contain a new resource ID in this field since it was written before those IDs existed. Loads safely.
 
 ---
 
@@ -190,31 +235,37 @@ export function getCivAvailableResources(
 ): Set<ResourceType>
 ```
 
-Logic (per roadmap requirements 4 + 5):
-1. Gather all cities owned by `civId`.
-2. For each city, iterate its `ownedTiles`.
-3. For each tile: if `tile.resource` is set, look up its `RESOURCE_DEFINITIONS` entry.
-4. **City-center tile**: if `hexKey(tile.coord) === hexKey(city.position)` → resource available if `completedTechs` includes the resource's `tech` field.
+**Logic** (per roadmap requirements 4 + 5):
+1. Gather all cities owned by `civId` — iterate `state.civilizations[civId].cities`, look each up in `state.cities`. Never use `cities[0]` or any single-city shortcut.
+2. For each city, iterate `city.ownedTiles` (territory tiles, not `workedTiles` — an unworked tile with a completed improvement still counts for acquisition).
+3. For each coord in `ownedTiles`: look up `state.map.tiles[hexKey(coord)]`. If the tile has a `resource`, find its `RESOURCE_DEFINITIONS` entry.
+4. **City-center tile**: if `hexKey(coord) === hexKey(city.position)` → resource available if `completedTechs` includes the resource's `tech` field. No improvement required.
 5. **Non-city-center tile**: resource available if `completedTechs` includes `tech` AND `tile.improvement === def.requiredImprovement` AND `tile.improvementTurnsLeft === 0`.
-6. Never use `cities[0]` — iterate all cities in the civ.
+6. **Return semantics**: the function returns the set of resource *types* where at least one qualifying tile exists. Finding one qualifying tile is sufficient — a second qualifying tile for the same resource type adds nothing. The model is boolean per resource type, not counted.
+
+**Resource loss** is implicit: losing a tile (via combat, cultural spread, or city capture) means `getCivAvailableResources` no longer considers that tile on the next call. No persistent inventory field is needed. S4a effects should read from this function, not from cached state.
 
 ### `marketplace-panel.ts`
 
-- Replace `countPlayerResources` call with `getCivAvailableResources(state, state.currentPlayer)`.
-- Filter displayed resources to those whose `tech` the current player has completed (req. 2 — deferred to S3 per roadmap, but acquisition count uses the new helper now).
-- "You own" display: change from a numeric count to a binary badge — **"✓ Owned"** or **"✗ Not available"**. The old `countPlayerResources` returned raw tile counts (e.g. "3") which were misleading; having three iron tiles confers no extra benefit over one. The new acquisition model is boolean: you have the resource type or you don't.
+- Replace `countPlayerResources` with `getCivAvailableResources(state, state.currentPlayer)`.
+- **Do not filter displayed resources by tech** — that is S3's scope. All 16 resources remain visible in the panel after S2b, same as before.
+- "You own" display: change from a numeric count to a binary badge — **"✓ Owned"** or **"✗ Not available"**. The old numeric count (e.g. "3") was misleading; having three iron tiles confers no extra benefit over one. The new model is boolean per resource type.
 
 ### Territory / tile inspection panel
 
-When a tile is inspected and it has a `resource`, show:
-- Resource name + type (already in S1).
-- Acquisition status line:
-  - If player lacks the reveal tech: *(hidden — no resource shown, per S1 spec)*
-  - If player has tech and tile is a city-center: "✓ Available — city tile, tech researched"
-  - If player has tech and improvement is complete: "✓ Available — [ImprovementName] built"
-  - If player has tech and improvement is in progress: "⏳ [ImprovementName] in progress ([N] turns)"
-  - If player has tech and no improvement: "✗ Needs [ImprovementName] to harvest"
-  - If player has tech and wrong improvement: "✗ Needs [ImprovementName] to harvest"
+When a tile is inspected and the viewer has the resource's reveal tech, show the resource name + type (S1) plus an acquisition status line. The status line is determined as follows:
+
+| Condition | Status line shown |
+|---|---|
+| No reveal tech | *(entire resource section hidden — per S1 spec)* |
+| Has tech + tile is a city-center of the viewing civ | ✓ Available — city tile, tech researched |
+| Has tech + improvement complete (`turnsLeft === 0`) | ✓ Available — [ImprovementName] built |
+| Has tech + matching improvement in progress | ⏳ [ImprovementName] in progress ([N] turns) |
+| Has tech + no improvement on tile | ✗ Needs [ImprovementName] to harvest |
+| Has tech + wrong improvement on tile | ✗ Needs [ImprovementName] to harvest (note: existing improvements cannot be removed in this release — this is a known limitation, not a bug introduced by S2a) |
+| Has tech + tile owned by another civ | [Resource name + type only] — Foreign territory |
+
+The "Foreign territory" row shows the resource name and type but no ownership status line, since the viewer cannot build improvements there. This prevents misleading "✗ Needs Plantation" messages on tiles the player can never improve.
 
 All dynamic text via `textContent` / `createTextNode()` — never `innerHTML` with game strings.
 
@@ -222,7 +273,7 @@ All dynamic text via `textContent` / `createTextNode()` — never `innerHTML` wi
 
 ## Marketplace panel "Your Resources" section
 
-Add a compact summary section above the price list:
+Add a compact summary section **above the price list** using this exact structure:
 
 ```
 Your Resources
@@ -230,9 +281,22 @@ Luxury (3): Silk, Wine, Furs
 Strategic (2): Iron, Salt
 ```
 
-Empty state: "No resources yet — build improvements on resource tiles."
+If only one type has resources:
 
-Rendered with `textContent` only. Refreshes on panel open (panel is recreated each toggle).
+```
+Your Resources
+Luxury (1): Gold
+Strategic (0): —
+```
+
+Empty state (no resources of either type):
+
+```
+Your Resources
+None yet — research techs and build improvements to harvest resources.
+```
+
+The empty state names the two required steps (tech + improvement) rather than just "build improvements." Rendered with `textContent` only. Panel is recreated on each open (existing toggle behavior), so no explicit refresh needed.
 
 ---
 
@@ -242,7 +306,7 @@ No new colors or animations needed for S2a/S2b:
 - Marketplace luxury/strategic type colors (`#d4a` / `#8af`) auto-apply to new resources by type.
 - Hex resource icons are static emoji, same as S1.
 - Improvement hex icons are static emoji.
-- Sparklines already exist for all resources.
+- Sparklines exist for all resources; new resources will begin accumulating history from the turn S2a ships.
 
 ---
 
@@ -255,7 +319,7 @@ No new colors or animations needed for S2a/S2b:
 | **Tannery** | foraging | furs OR ivory in territory | +2 gold | New — does not exist |
 
 Existing building interactions (S4a scope, not S2a/S2b):
-- Granary + salt → +1 food (preservation)
+- Granary + salt → +1 food (preservation bonus)
 - Forge + iron/copper → +1 production bonus
 - Stable + horses → unit XP or capacity bonus
 - Quarry-building + stone → +1 production bonus
@@ -267,12 +331,11 @@ Existing building interactions (S4a scope, not S2a/S2b):
 ### Catalog tests (`tests/systems/trade-system.test.ts`)
 
 - All 16 resources have `icon`, `tech`, `requiredImprovement` set (non-empty strings).
+- All 16 resources appear in at least one terrain entry in `TERRAIN_RESOURCES` in the base map generator (catches dual-maintenance divergence).
 - All 6 new resources appear in `RESOURCE_DEFINITIONS`.
-- Each new `ImprovementType` has an entry in `IMPROVEMENT_DEFINITIONS`.
+- Each new `ImprovementType` has an entry in `IMPROVEMENT_DEFINITIONS` and `IMPROVEMENT_BUILD_TURNS`.
 
 ### Improvement terrain validity (`tests/systems/improvement-system.test.ts`)
-
-For each new improvement, positive test (valid terrain accepts) and at least one negative test (invalid terrain blocks).
 
 | Improvement | Valid terrain (positive) | Invalid terrain (negative) |
 |---|---|---|
@@ -284,28 +347,38 @@ For each new improvement, positive test (valid terrain accepts) and at least one
 
 ### Acquisition model — spec-fidelity conjunctions (`tests/systems/resource-acquisition-system.test.ts`)
 
-Per roadmap requirements 4 + 5 — all six:
 1. tech without improvement → unavailable
 2. improvement without tech → unavailable
-3. tech + improvement (turnsLeft === 0) → available
-4. tech + improvement in progress (turnsLeft > 0) → unavailable
+3. tech + improvement (`turnsLeft === 0`) → available
+4. tech + improvement in progress (`turnsLeft > 0`) → unavailable
 5. city-center tile + tech only → available (no improvement needed)
 6. city-center tile + no tech → unavailable
-7. Multi-city coverage: resource on city-2's tile is counted (not cities[0] only)
-8. furs on tundra tile + camp + foraging → available
+7. Multi-city: resource on city-2's tile is counted (not cities[0] only)
+8. furs on tundra + camp + foraging → available
 9. cattle on grassland + pasture + domestication → available
+10. Resource on enemy-owned tile → not returned even if viewer has tech (the helper is called with the viewing civ's id; it only iterates that civ's cities)
+11. Second qualifying tile for same resource type → still returns resource once (Set semantics, not count)
 
 ### Marketplace panel (`tests/ui/marketplace-panel.test.ts`)
 
-- "You own" count uses acquisition helper, not raw tile scan.
-- Player with tech + completed improvement: owned count = 1.
-- Player with tech but no improvement: owned count = 0.
-- "Your Resources" section lists correctly owned resources.
-- Empty state shown when no resources owned.
+- Player with tech + completed improvement: badge shows "✓ Owned" (not a numeric count).
+- Player with tech but no improvement: badge shows "✗ Not available".
+- "Your Resources" summary section lists correctly owned resources by type.
+- "Your Resources" empty state shows when no resources owned, text mentions tech and improvements.
+- Panel uses `state.currentPlayer` — never hardcoded civ id.
 
 ### Tech unlocks coverage
 
 Verify domestication, pottery, animal-husbandry, foraging, currency, mining-tech all contain their new "Reveal X resource" lines.
+
+---
+
+## Known limitations (acceptable for this slice)
+
+- **Wrong-improvement dead end**: a player who builds the wrong improvement on a resource tile cannot remove it. The inspection panel shows "✗ Needs [X] to harvest" which is accurate but offers no remedy. Improvement removal is out of scope for this and subsequent slices.
+- **Forest-mutation trap**: building a farm on a forest/jungle tile with ivory or furs mutates the terrain to plains, making camp un-buildable. The resource becomes permanently un-harvestable on that tile. Document in PR description; do not attempt to gate farms on resource tiles in this slice.
+- **In-progress improvement display**: the hex renderer shows only a turn countdown for in-progress improvements, not which improvement is building. New improvements follow this same pattern.
+- **Old-save stone tiles on hills**: stone placed on hills in pre-S2a saves cannot be harvested (quarry requires mountain). Inspection panel will correctly show "✗ Needs Quarry to harvest." No migration offered.
 
 ---
 
