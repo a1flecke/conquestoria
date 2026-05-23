@@ -7,10 +7,10 @@ import type { GameState } from '@/core/types';
 function buildMarketState(overrides: Partial<NonNullable<GameState['marketplace']>> = {}): NonNullable<GameState['marketplace']> {
   const prices: Record<string, number> = {};
   const priceHistory: Record<string, number[]> = {};
-  const resources = ['silk','wine','spices','gems','ivory','incense','gold','silver','furs','sheep','copper','iron','horses','stone','cattle','salt'];
-  for (const r of resources) {
-    prices[r] = 5;
-    priceHistory[r] = [5];
+  // Derived from RESOURCE_DEFINITIONS so new resources are automatically included
+  for (const r of RESOURCE_DEFINITIONS) {
+    prices[r.id] = 5;
+    priceHistory[r.id] = [5];
   }
   return { prices, priceHistory, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [], ...overrides };
 }
@@ -412,6 +412,66 @@ describe('createMarketplacePanel', () => {
     createMarketplacePanel(container, state, { onClose: vi.fn() });
     const text = document.getElementById('marketplace-panel')?.textContent ?? '';
     expect(text).toContain('14 more resources');
+  });
+
+  it('resource type badge shows capitalized label (Luxury / Strategic, not luxury / strategic)', () => {
+    const state = buildState({ currentPlayer: 'p1', civTechs: ['mining-tech', 'animal-husbandry'] });
+    createMarketplacePanel(container, state, { onClose: vi.fn() });
+    const text = document.getElementById('marketplace-panel')?.textContent ?? '';
+    // gems/silver are luxury; horses is strategic — all from different techs
+    expect(text).toContain('Luxury');
+    expect(text).toContain('Strategic');
+    expect(text).not.toContain('luxury');
+    expect(text).not.toContain('strategic');
+  });
+
+  it('Your Resources lists strategic resources alongside luxury resources', () => {
+    const state = buildState({
+      currentPlayer: 'p1',
+      civTechs: ['mining-tech', 'bronze-working'],
+      cities: {
+        city1: {
+          id: 'city1',
+          owner: 'p1',
+          position: { q: 0, r: 0 },
+          ownedTiles: [{ q: 1, r: 0 }, { q: 2, r: 0 }],
+          workedTiles: [],
+        },
+      },
+      tiles: {
+        '1,0': {
+          coord: { q: 1, r: 0 },
+          terrain: 'hills',
+          elevation: 'highland',
+          resource: 'gems',
+          improvement: 'mine',
+          improvementTurnsLeft: 0,
+          owner: 'p1',
+          hasRiver: false,
+          wonder: null,
+        },
+        '2,0': {
+          coord: { q: 2, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: 'iron',
+          improvement: 'mine',
+          improvementTurnsLeft: 0,
+          owner: 'p1',
+          hasRiver: false,
+          wonder: null,
+        },
+      },
+    });
+
+    createMarketplacePanel(container, state, { onClose: vi.fn() });
+    const text = document.getElementById('marketplace-panel')?.textContent ?? '';
+    expect(text).toContain('Your Resources');
+    expect(text).toContain('Gems');
+    expect(text).toContain('Iron');
+    // Strategic section should show the iron entry
+    expect(text).toContain('Strategic (1)');
+    expect(text).toContain('Luxury (1)');
   });
 
   it('omits discoverable footer when viewer has all 16 enabling techs', () => {
