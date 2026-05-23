@@ -4,6 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel';
+import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -169,5 +170,17 @@ describe('createTerritoryInspectionPanel', () => {
     close?.click();
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('mentions completed legendary wonders for safely visible owned host cities', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: 'city-river', turnCompleted: 20 },
+    };
+    state.civilizations.player.visibility.tiles[hexKey(state.cities['city-river'].position)] = 'visible';
+    const panel = createTerritoryInspectionPanel(state, state.cities['city-river'].position, 'player', () => {});
+
+    expect(panel.textContent).toContain('Completed legendary wonders');
+    expect(panel.textContent).toContain('Oracle of Delphi');
   });
 });
