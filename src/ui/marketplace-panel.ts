@@ -23,11 +23,17 @@ export function createMarketplacePanel(
 
   const ownedResources = getCivAvailableResources(state, state.currentPlayer);
 
-  // Build "Your Resources" summary
-  const luxuryOwned = RESOURCE_DEFINITIONS
+  const civ = state.civilizations[state.currentPlayer];
+  const viewerTechs  = new Set(civ?.techState.completed ?? []);
+  const knownDefs    = RESOURCE_DEFINITIONS.filter(d => viewerTechs.has(d.tech));
+  const unknownCount = RESOURCE_DEFINITIONS.length - knownDefs.length;
+
+  // Build "Your Resources" summary — filter against knownDefs for self-documentation
+  // (ownedResources already requires tech; knownDefs filter makes intent explicit)
+  const luxuryOwned = knownDefs
     .filter(d => d.type === 'luxury' && ownedResources.has(d.id as ResourceType))
     .map(d => d.name);
-  const strategicOwned = RESOURCE_DEFINITIONS
+  const strategicOwned = knownDefs
     .filter(d => d.type === 'strategic' && ownedResources.has(d.id as ResourceType))
     .map(d => d.name);
 
@@ -38,13 +44,17 @@ export function createMarketplacePanel(
     </div>
   `;
 
-  // Build structural HTML with only safe hardcoded strings; dynamic data goes in data-text placeholders
-  const fashionBannerHtml = marketplace.fashionable
+  // Fashion banner — only show if the fashionable resource's tech is known to the viewer
+  const fashionableDef = RESOURCE_DEFINITIONS.find(d => d.id === marketplace.fashionable);
+  const fashionVisible = !!fashionableDef && viewerTechs.has(fashionableDef.tech);
+  const fashionBannerHtml = fashionVisible
     ? `<div style="background:#4a3520;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#e8c170;">✨ <span data-text="fashion-resource"></span> is fashionable! (<span data-text="fashion-turns"></span> turns left) — prices doubled</div>`
     : '';
 
-  // Build resource row placeholders
-  const resourceRowsHtml = RESOURCE_DEFINITIONS.map((def, idx) => {
+  // Build resource row placeholders — knownDefs only (tech-gated).
+  // NOTE: Both this builder and the setText loop below are index-coupled on knownDefs;
+  // they must iterate the same array in the same order. Tests catch any desync.
+  const resourceRowsHtml = knownDefs.map((def, idx) => {
     const price = marketplace.prices[def.id] ?? def.basePrice;
     const history = marketplace.priceHistory[def.id] ?? [def.basePrice];
     const trend = history.length >= 2 ? history[history.length - 1] - history[history.length - 2] : 0;
@@ -81,6 +91,7 @@ export function createMarketplacePanel(
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${resourceRowsHtml}
       </div>
+      ${unknownCount > 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;margin-top:8px;" data-text="discoverable-footer"></div>' : ''}
       ${tradeRoutesHtml}
     </div>
   `;
@@ -91,17 +102,18 @@ export function createMarketplacePanel(
     if (el) el.textContent = text;
   };
 
-  if (marketplace.fashionable) {
-    setText('fashion-resource', marketplace.fashionable);
+  if (fashionVisible && fashionableDef) {
+    setText('fashion-resource', fashionableDef.name);  // display name, not raw id
     setText('fashion-turns', String(marketplace.fashionTurnsLeft));
   }
 
-  RESOURCE_DEFINITIONS.forEach((def, idx) => {
+  // Both this loop and the row builder above iterate knownDefs — must stay in sync
+  knownDefs.forEach((def, idx) => {
     const price = marketplace.prices[def.id] ?? def.basePrice;
     const isOwned = ownedResources.has(def.id as ResourceType);
     setText(`res-name-${idx}`, def.name);
     setText(`res-type-${idx}`, def.type);
-    setText(`res-owned-${idx}`, isOwned ? '✓ Owned' : '✗ Not available');
+    setText(`res-owned-${idx}`, isOwned ? '✓ Owned' : '✗ Not in inventory');
     setText(`res-price-${idx}`, String(price));
   });
 
@@ -109,7 +121,7 @@ export function createMarketplacePanel(
   setText('your-resources-heading', 'Your Resources');
   if (luxuryOwned.length === 0 && strategicOwned.length === 0) {
     const emptyEl = panel.querySelector('[data-text="your-resources-body"]');
-    if (emptyEl) emptyEl.textContent = 'None yet — research techs and build improvements to harvest resources.';
+    if (emptyEl) emptyEl.textContent = 'None';
   } else {
     const bodyEl = panel.querySelector('[data-text="your-resources-body"]');
     if (bodyEl) {
@@ -122,6 +134,11 @@ export function createMarketplacePanel(
       bodyEl.appendChild(luxLine);
       bodyEl.appendChild(strLine);
     }
+  }
+
+  // Discoverable-count footer
+  if (unknownCount > 0) {
+    setText('discoverable-footer', `🔬 ${unknownCount} more resources will become visible as you research new technologies`);
   }
 
   // Inject trade route city names
