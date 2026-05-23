@@ -21,6 +21,7 @@ export type WonderMapLandmark =
   | 'masked';
 
 export type WonderVignette = WonderMapLandmark;
+export type LegendaryWonderLandmark = 'spire' | 'arch' | 'dome' | 'obelisk' | 'citadel' | 'archive' | 'masked';
 
 export interface WonderVisualDefinition {
   id: string;
@@ -36,6 +37,14 @@ export interface WonderVisualDefinition {
   supportsAmbientAnimation: boolean;
   reducedMotionFallback: 'static-landmark' | 'static-medallion';
   maskedLabel?: string;
+  legendaryLandmark?: LegendaryWonderLandmark;
+}
+
+const LEGENDARY_LANDMARK_TYPES = ['spire', 'arch', 'dome', 'obelisk', 'citadel', 'archive'] as const;
+
+function landmarkTypeForLegendaryWonder(wonderId: string): LegendaryWonderLandmark {
+  const hash = [...wonderId].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return LEGENDARY_LANDMARK_TYPES[hash % LEGENDARY_LANDMARK_TYPES.length];
 }
 
 const NATURAL_WONDER_VISUALS: Record<string, WonderVisualDefinition> = {
@@ -73,6 +82,7 @@ const LEGENDARY_WONDER_VISUALS: Record<string, WonderVisualDefinition> = Object.
       supportsAmbientAnimation: false,
       reducedMotionFallback: 'static-medallion',
       maskedLabel: 'Legendary wonder',
+      legendaryLandmark: landmarkTypeForLegendaryWonder(definition.id),
     } satisfies WonderVisualDefinition,
   ]),
 );
@@ -90,6 +100,7 @@ const FALLBACK_WONDER_VISUAL: Omit<WonderVisualDefinition, 'id'> = {
   supportsAmbientAnimation: false,
   reducedMotionFallback: 'static-medallion',
   maskedLabel: 'Unknown wonder',
+  legendaryLandmark: 'masked',
 };
 
 const WONDER_VISUAL_CATALOG: Record<string, WonderVisualDefinition> = {

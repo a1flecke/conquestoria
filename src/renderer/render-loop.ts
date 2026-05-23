@@ -30,6 +30,12 @@ const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
   'worker-foreign-blocked': 'rgba(217, 74, 74, 0.35)',
 };
 
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export class RenderLoop {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
@@ -190,7 +196,7 @@ export class RenderLoop {
     }
 
     // Draw cities
-    drawCities(this.ctx, this.state, this.camera, viewerId);
+    drawCities(this.ctx, this.state, this.camera, viewerId, prefersReducedMotion());
     this.drawInfiltratedSpyIndicators();
     this.drawEmbeddedSpyIndicators();
 
