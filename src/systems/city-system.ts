@@ -245,6 +245,31 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
   return unit.cost;
 }
 
+const MELEE_RANGED_UNIT_TYPES: string[] = [
+  'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer', 'archer', 'crossbowman',
+];
+const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'cavalry', 'knight'];
+const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista'];
+
+function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]): number {
+  let best = 1;
+  if (MELEE_RANGED_UNIT_TYPES.includes(itemId)) {
+    if (cityBuildings.includes('armory'))      best = Math.min(best, 0.85);
+    if (cityBuildings.includes('war-academy')) best = Math.min(best, 0.85);
+  }
+  if (CAVALRY_UNIT_TYPES.includes(itemId)) {
+    if (cityBuildings.includes('cavalry-academy')) best = Math.min(best, 0.85);
+  }
+  if (SIEGE_UNIT_TYPES.includes(itemId)) {
+    if (cityBuildings.includes('siege-workshop')) best = Math.min(best, 0.80);
+  }
+  // Masonry Works: Walls building 20% cheaper
+  if (itemId === 'walls') {
+    if (cityBuildings.includes('masonry-works')) best = Math.min(best, 0.80);
+  }
+  return best;
+}
+
 export function getProductionCostForItem(
   itemId: string,
   options: {
@@ -257,14 +282,19 @@ export function getProductionCostForItem(
   if (baseCost <= 0) return 0;
 
   const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
-  const multiplier = applyProductionBonus(itemId, options.bonusEffect);
-  const safehouseMultiplier = unit && options.city?.buildings.includes('safehouse') && isSpyUnitType(unit.type)
-    ? 0.75
-    : 1;
+  const civMultiplier = applyProductionBonus(itemId, options.bonusEffect);
 
-  return safehouseMultiplier < 1
-    ? Math.ceil(baseCost * multiplier * safehouseMultiplier)
-    : Math.round(baseCost * multiplier);
+  const discounts: number[] = [];
+  if (unit && options.city?.buildings.includes('safehouse') && isSpyUnitType(unit.type)) {
+    discounts.push(0.75);
+  }
+  if (options.city) {
+    const d = getBuildingDiscountMultiplier(itemId, options.city.buildings);
+    if (d < 1) discounts.push(d);
+  }
+  const discountMultiplier = discounts.length > 0 ? Math.min(...discounts) : 1;
+  const effective = baseCost * civMultiplier * discountMultiplier;
+  return discountMultiplier < 1 ? Math.ceil(effective) : Math.round(effective);
 }
 
 export const PRODUCTION_ICONS: Record<string, string> = {

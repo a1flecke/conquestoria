@@ -843,3 +843,64 @@ describe('S4b — new buildings', () => {
     expect(available.some(b => b.id === 'iron-foundry')).toBe(true);
   });
 });
+
+describe('S4b — building production discounts', () => {
+  const noBuildings = { buildings: [] };
+
+  it('armory: reduces axeman cost by 15%', () => {
+    const base = getProductionCostForItem('axeman', { city: noBuildings });
+    const discounted = getProductionCostForItem('axeman', { city: { buildings: ['armory'] } });
+    expect(discounted).toBe(Math.ceil(base * 0.85));
+  });
+
+  it('war-academy: reduces swordsman cost by 15%', () => {
+    const base = getProductionCostForItem('swordsman', { city: noBuildings });
+    const discounted = getProductionCostForItem('swordsman', { city: { buildings: ['war-academy'] } });
+    expect(discounted).toBe(Math.ceil(base * 0.85));
+  });
+
+  it('cavalry-academy: reduces horseman cost by 15%', () => {
+    const base = getProductionCostForItem('horseman', { city: noBuildings });
+    const discounted = getProductionCostForItem('horseman', { city: { buildings: ['cavalry-academy'] } });
+    expect(discounted).toBe(Math.ceil(base * 0.85));
+  });
+
+  it('siege-workshop: reduces catapult cost by 20%', () => {
+    const base = getProductionCostForItem('catapult', { city: noBuildings });
+    const discounted = getProductionCostForItem('catapult', { city: { buildings: ['siege-workshop'] } });
+    expect(discounted).toBe(Math.ceil(base * 0.80));
+  });
+
+  it('armory + war-academy: non-stacking — applies 15% not 30% to warrior', () => {
+    const base = getProductionCostForItem('warrior', { city: noBuildings });
+    const bothBuildings = getProductionCostForItem('warrior', { city: { buildings: ['armory', 'war-academy'] } });
+    const singleDiscount = Math.ceil(base * 0.85);
+    expect(bothBuildings).toBe(singleDiscount);
+    expect(bothBuildings).toBeGreaterThan(Math.ceil(base * 0.70));
+  });
+
+  it('cavalry-academy: does not discount siege units (catapult)', () => {
+    const base = getProductionCostForItem('catapult', { city: noBuildings });
+    const withCavalry = getProductionCostForItem('catapult', { city: { buildings: ['cavalry-academy'] } });
+    expect(withCavalry).toBe(base);
+  });
+
+  it('masonry-works: walls building costs 20% less', () => {
+    const base = getProductionCostForItem('walls', { city: noBuildings });
+    const withMasonry = getProductionCostForItem('walls', { city: { buildings: ['masonry-works'] } });
+    expect(withMasonry).toBe(Math.ceil(base * 0.80));
+    expect(withMasonry).toBeLessThan(base);
+  });
+
+  it('masonry-works: does not discount non-walls items (warrior unchanged)', () => {
+    const base = getProductionCostForItem('warrior', { city: noBuildings });
+    const withMasonry = getProductionCostForItem('warrior', { city: { buildings: ['masonry-works'] } });
+    expect(withMasonry).toBe(base);
+  });
+
+  it('no discount when city has no military buildings', () => {
+    const base = getProductionCostForItem('warrior', { city: noBuildings });
+    const withGranary = getProductionCostForItem('warrior', { city: { buildings: ['granary'] } });
+    expect(withGranary).toBe(base);
+  });
+});
