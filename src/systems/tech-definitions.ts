@@ -2,19 +2,19 @@ import type { Tech } from '@/core/types';
 
 export const TECH_TREE: Tech[] = [
   // === MILITARY TRACK (8 techs, existing) ===
-  { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 4, prerequisites: [], unlocks: ['Warriors deal +2 damage', 'Reveal Copper resource'], era: 1, pacing: { band: 'starter', role: 'foundational-military', impact: 1.05, scope: 'military', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1 } },
+  { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 4, prerequisites: [], unlocks: ['Warriors deal +2 damage', 'Reveal Copper resource', 'Axeman (requires Copper)', 'Bronze Workshop (requires Copper)', 'Armory (requires Copper)'], era: 1, pacing: { band: 'starter', role: 'foundational-military', impact: 1.05, scope: 'military', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1 } },
   { id: 'archery', name: 'Archery', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: ['Unlock Archer unit'], era: 1 },
-  { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: ['Unlock Swordsman unit', 'Reveal Iron resource'], era: 2 },
-  { id: 'horseback-riding', name: 'Horseback Riding', track: 'military', cost: 55, prerequisites: ['animal-husbandry'], unlocks: ['Unlock Stable, mounted units'], era: 2 },
+  { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: ['Spearman (no resource needed)', 'Swordsman (requires Iron)', 'Reveal Iron resource'], era: 2 },
+  { id: 'horseback-riding', name: 'Horseback Riding', track: 'military', cost: 55, prerequisites: ['animal-husbandry'], unlocks: ['Unlock Stable', 'Horseman (requires Horses)', 'Cavalry Academy (requires Horses)'], era: 2 },
   { id: 'fortification', name: 'Fortification', track: 'military', cost: 60, prerequisites: ['bronze-working'], unlocks: ['Unlock Walls building', 'pikeman'], era: 3 },
-  { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 80, prerequisites: ['bronze-working', 'mining-tech'], unlocks: ['Stronger melee units'], era: 3 },
-  { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 90, prerequisites: ['iron-forging', 'engineering'], unlocks: ['Siege weapon doctrine'], era: 4 },
-  { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus', 'musketeer'], era: 4 },
+  { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 80, prerequisites: ['bronze-working', 'mining-tech'], unlocks: ['Knight (requires Horses + Iron)', 'Iron Foundry (requires Iron)', 'War Academy (requires Iron)'], era: 3 },
+  { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 90, prerequisites: ['iron-forging', 'engineering'], unlocks: ['Catapult (requires Stone)', 'Ballista (requires Iron)', 'Siege Workshop (requires Stone)'], era: 4 },
+  { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus', 'Musketeer', 'Crossbowman (requires Copper)'], era: 4 },
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'gathering', name: 'Gathering', track: 'economy', cost: 4, prerequisites: [], unlocks: ['Foundational economy knowledge', 'Reveal Stone resource'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
   { id: 'pottery', name: 'Pottery', track: 'economy', cost: 10, prerequisites: ['gathering'], unlocks: ['Foundational ceramics knowledge', 'Reveal Wine resource', 'Reveal Salt resource'], era: 1 },
-  { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 12, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource', 'Reveal Sheep resource'], era: 2 },
+  { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 12, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource', 'Reveal Sheep resource', 'Ranch (requires Horses)'], era: 2 },
   { id: 'irrigation', name: 'Irrigation', track: 'economy', cost: 45, prerequisites: ['pottery'], unlocks: ['Farms yield +1 food', 'Reveal Silk resource'], era: 2 },
   { id: 'currency', name: 'Currency', track: 'economy', cost: 60, prerequisites: ['pottery'], unlocks: ['Unlock Marketplace building', 'Reveal Incense resource', 'Reveal Gold resource'], era: 3 },
   { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production', 'Reveal Gems resource', 'Reveal Silver resource'], era: 3 },
@@ -37,7 +37,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'tribal-council', name: 'Tribal Council', track: 'civics', cost: 4, prerequisites: [], unlocks: ['Basic governance'], era: 1, pacing: { band: 'starter', role: 'foundational-civics', impact: 1, scope: 'empire', snowball: 1, urgency: 1, situationality: 1, unlockBreadth: 1.05 } },
   { id: 'code-of-laws', name: 'Code of Laws', track: 'civics', cost: 10, prerequisites: ['tribal-council'], unlocks: ['Unlock Monument building'], era: 1 },
   { id: 'early-empire', name: 'Early Empire', track: 'civics', cost: 45, prerequisites: ['code-of-laws'], unlocks: ['Cities claim +1 tile radius'], era: 2 },
-  { id: 'state-workforce', name: 'State Workforce', track: 'civics', cost: 55, prerequisites: ['early-empire'], unlocks: ['Unlock Lumbermill, Quarry'], era: 2 },
+  { id: 'state-workforce', name: 'State Workforce', track: 'civics', cost: 55, prerequisites: ['early-empire'], unlocks: ['Unlock Lumbermill, Quarry', 'Masonry Works (requires Stone)'], era: 2 },
   { id: 'diplomacy-tech', name: 'Diplomacy', track: 'civics', cost: 65, prerequisites: ['early-empire', 'writing'], unlocks: ['Unlock Non-Aggression Pacts'], era: 3 },
   { id: 'civil-service', name: 'Civil Service', track: 'civics', cost: 75, prerequisites: ['state-workforce'], unlocks: ['Unlock Forum building'], era: 3 },
   { id: 'drama-poetry', name: 'Drama & Poetry', track: 'civics', cost: 80, prerequisites: ['philosophy', 'code-of-laws'], unlocks: ['Unlock Amphitheater building'], era: 4 },
