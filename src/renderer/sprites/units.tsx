@@ -396,3 +396,197 @@ export function SpyHackerSprite({ palette, svgOnly = false }: UnitSpriteProps): 
     ),
   });
 }
+
+/* === S4b UNITS (placeholder sprites) === */
+
+export function AxemanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      <Humanoid cx={64} cy={70} scale={1} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} hair="#3a2a1a"
+        hat={<ellipse cx="0" cy="-38" rx="10" ry="4" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.8" />}
+      />
+      <g transform="translate(84 36) rotate(20)">
+        <rect x="-1" y="0" width="2" height="36" fill={P.wood.dark} />
+        <path d="M-8,-2 L2,-2 L2,16 L-8,12 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M-6,0 L0,0 L0,12 L-6,10 Z" fill={P.metal.shine} opacity="0.4" />
+      </g>
+      <g transform="translate(44 62)">
+        <circle r="12" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <circle r="12" fill={palette.mid} opacity="0.7" />
+        <circle r="2.5" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+export function SpearmanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      <g transform="translate(46 6) rotate(-5)">
+        <rect x="-1" y="0" width="2" height="108" fill={P.wood.mid} />
+        <path d="M-4,0 L4,0 L5,-14 L0,-20 L-5,-14 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="-4" y="-2" width="8" height="2" fill={P.metal.gold} />
+      </g>
+      <Humanoid cx={64} cy={70} scale={1} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} hair="#3a2a1a"
+        hat={<path d="M-10,-34 Q0,-42 10,-34 L10,-28 L-10,-28 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />}
+      />
+    </SpriteFrame>
+  );
+}
+
+export function HorsemanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={96} rx={40} ry={8} />
+      <g transform="translate(64 72)">
+        <ellipse cx="0" cy="0" rx="32" ry="18" fill="#a07848" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="0" cy="-4" rx="28" ry="12" fill="#b8925a" />
+        <rect x="-24" y="10" width="8" height="20" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-10" y="12" width="8" height="22" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="10"  y="12" width="8" height="22" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="22"  y="10" width="8" height="20" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="-26" cy="-8" rx="14" ry="12" fill="#a07848" stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-36,-8 L-42,-2 L-36,0 Z" fill="#a07848" stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M-22,-20 L-18,-28 L-15,-18 Z" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-14" y="-8" width="28" height="4" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <Humanoid cx={64} cy={48} scale={0.85} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} hair="#3a2a1a" />
+    </SpriteFrame>
+  );
+}
+
+export function CavalrySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={96} rx={42} ry={8} />
+      <g transform="translate(64 72)">
+        <ellipse cx="0" cy="0" rx="34" ry="18" fill="#3a2a1a" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="0" cy="-4" rx="30" ry="12" fill="#5a3a20" />
+        <rect x="-26" y="10" width="8" height="20" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-12" y="12" width="8" height="22" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="10"  y="12" width="8" height="22" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="24"  y="10" width="8" height="20" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="-28" cy="-8" rx="15" ry="13" fill="#3a2a1a" stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-38,-6 L-46,0 L-38,2 Z" fill="#3a2a1a" stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M-24,-22 L-20,-30 L-16,-20 Z" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-14" y="-8" width="28" height="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <Humanoid cx={64} cy={44} scale={0.85} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} hair="#2a1a10"
+        hat={<path d="M-10,-34 Q0,-42 10,-34 L10,-28 L-10,-28 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />}
+      />
+      <g transform="translate(80 28) rotate(15)">
+        <rect x="-1" y="0" width="2" height="52" fill={P.wood.dark} />
+        <path d="M-4,-4 L4,-4 L5,-14 L0,-20 L-5,-14 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+export function KnightSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={96} rx={44} ry={9} />
+      <g transform="translate(64 72)">
+        <ellipse cx="0" cy="0" rx="36" ry="20" fill="#2a1a10" stroke={P.ink.line} strokeWidth="1.2" />
+        <rect x="-18" y="-6" width="36" height="8" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <ellipse cx="0" cy="-6" rx="34" ry="10" fill="#4a3020" />
+        <rect x="-28" y="10" width="9" height="22" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-12" y="12" width="9" height="24" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="10"  y="12" width="9" height="24" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="26"  y="10" width="9" height="22" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="-30" cy="-8" rx="16" ry="14" fill="#2a1a10" stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M-42,-6 L-50,2 L-40,3 Z" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M-26,-24 L-22,-34 L-18,-22 Z" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
+      </g>
+      <g transform="translate(64 44)">
+        <path d="M-12,-2 Q-14,-16 0,-20 Q14,-16 12,-2 L12,12 L-12,12 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-8,-2 Q-8,-12 0,-16 Q8,-12 8,-2 L8,10 L-8,10 Z" fill={P.metal.shine} opacity="0.3" />
+        <rect x="-3" y="-18" width="6" height="4" fill={palette.bright} />
+        <circle cx="0" cy="-26" r="7" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="1" />
+      </g>
+      <g transform="translate(82 22) rotate(12)">
+        <rect x="-1" y="0" width="2.5" height="54" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="-4" y="54" width="8" height="2" fill={P.metal.gold} />
+        <path d="M-3,54 L3,54 L2,62 L-2,62 Z" fill={P.wood.dark} />
+        <Banner x={0} y={22} palette={palette} scale={0.8} />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+export function CrossbowmanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      <Humanoid cx={64} cy={70} scale={1} cloth="#4a5a2a" pants={P.cloth.wool} accent={palette.mid} hair="#3a2a1a"
+        hat={<path d="M-10,-36 Q0,-46 10,-36 L8,-30 L-8,-30 Z" fill="#2a3a18" stroke={P.ink.line} strokeWidth="0.8" />}
+      />
+      <g transform="translate(80 46)">
+        <rect x="-2" y="0" width="26" height="5" rx="1" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-6" y="1" width="6" height="4" rx="1" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+        <path d="M0,-8 Q12,-4 24,0" fill="none" stroke={P.wood.mid} strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M0,8 Q12,6 24,5" fill="none" stroke={P.wood.mid} strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="0" y1="-8" x2="0" y2="8" stroke={P.cloth.linen} strokeWidth="0.8" />
+        <line x1="14" y1="2" x2="0" y2="2" stroke={P.cloth.linen} strokeWidth="0.6" />
+        <polygon points="-2,1 0,2 -2,3 -6,2" fill={P.metal.bronze} />
+      </g>
+      <g transform="translate(44 52)">
+        <rect x="-2" y="-8" width="5" height="16" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+export function CatapultSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={98} rx={50} ry={7} />
+      <g transform="translate(64 80)">
+        <rect x="-48" y="-8" width="96" height="16" rx="2" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+        <circle cx="-36" cy="8" r="10" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.2" />
+        <circle cx="-36" cy="8" r="4" fill={P.wood.dark} />
+        <circle cx="36" cy="8" r="10" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.2" />
+        <circle cx="36" cy="8" r="4" fill={P.wood.dark} />
+        <rect x="-6" y="-8" width="12" height="8" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      </g>
+      <g transform="translate(64 30) rotate(-55)">
+        <rect x="-3" y="0" width="6" height="50" rx="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-12,-6 Q0,-14 12,-6 L8,2 L-8,2 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      </g>
+      <g transform="translate(44 28)">
+        <circle r="8" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+        <circle r="4" fill={P.stone.mid} />
+      </g>
+      <Banner x={88} y={48} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}
+
+export function BallistaSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={98} rx={44} ry={6} />
+      <g transform="translate(64 82)">
+        <rect x="-40" y="-6" width="80" height="12" rx="2" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+        <circle cx="-28" cy="6" r="8" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <circle cx="-28" cy="6" r="3" fill={P.wood.dark} />
+        <circle cx="28" cy="6" r="8" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <circle cx="28" cy="6" r="3" fill={P.wood.dark} />
+      </g>
+      <g transform="translate(64 64)">
+        <rect x="-4" y="-14" width="8" height="14" rx="1" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="-24" y="-10" width="48" height="6" rx="1" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M-20,-8 Q-10,-24 10,-28" fill="none" stroke={P.wood.mid} strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M20,-8 Q10,-24 -10,-28" fill="none" stroke={P.wood.mid} strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="-10" y1="-28" x2="10" y2="-28" stroke={P.cloth.linen} strokeWidth="0.8" />
+      </g>
+      <g transform="translate(64 48)">
+        <rect x="-1" y="-18" width="2" height="18" fill={P.metal.iron} />
+        <path d="M-3,-18 L3,-18 L2,-26 L0,-30 L-2,-26 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+      </g>
+      <Banner x={88} y={54} palette={palette} scale={0.65} />
+    </SpriteFrame>
+  );
+}
