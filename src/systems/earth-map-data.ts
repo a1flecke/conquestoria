@@ -58816,226 +58816,97 @@ export const EARTH_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = {
 
 export const EARTH_START_POSITIONS: Record<'small' | 'medium' | 'large', Record<string, HexCoord>> = {
   "small": {
-    "egypt": {
-      "q": 18,
-      "r": 11
-    },
-    "rome": {
-      "q": 19,
-      "r": 7
-    },
-    "greece": {
-      "q": 19,
-      "r": 9
-    },
-    "babylon": {
-      "q": 23,
-      "r": 10
-    },
-    "persia": {
-      "q": 22,
-      "r": 7
-    },
-    "india": {
-      "q": 23,
-      "r": 7
-    },
-    "china": {
-      "q": 24,
-      "r": 7
-    },
-    "mongolia": {
-      "q": 24,
-      "r": 6
-    },
-    "japan": {
-      "q": 23,
-      "r": 6
-    },
-    "zulu": {
-      "q": 17,
-      "r": 14
-    },
-    "england": {
-      "q": 19,
-      "r": 5
-    },
-    "france": {
-      "q": 18,
-      "r": 5
-    },
-    "spain": {
-      "q": 15,
-      "r": 10
-    },
-    "viking": {
-      "q": 18,
-      "r": 4
-    },
-    "germany": {
-      "q": 19,
-      "r": 6
-    },
-    "russia": {
-      "q": 20,
-      "r": 5
-    },
-    "ottoman": {
-      "q": 19,
-      "r": 8
-    },
-    "aztec": {
-      "q": 6,
-      "r": 9
-    }
+    "egypt": { "q": 18, "r": 11 },
+    "rome": { "q": 19, "r": 7 },
+    "greece": { "q": 19, "r": 9 },
+    "babylon": { "q": 23, "r": 10 },
+    "persia": { "q": 22, "r": 7 },
+    "india": { "q": 23, "r": 7 },
+    "china": { "q": 24, "r": 7 },
+    "mongolia": { "q": 24, "r": 6 },
+    "japan": { "q": 23, "r": 6 },
+    "zulu": { "q": 17, "r": 14 },
+    "england": { "q": 19, "r": 5 },
+    "france": { "q": 18, "r": 5 },
+    "spain": { "q": 15, "r": 10 },
+    "viking": { "q": 18, "r": 4 },
+    "germany": { "q": 20, "r": 6 },
+    "russia": { "q": 22, "r": 5 },
+    "ottoman": { "q": 21, "r": 7 },
+    "aztec": { "q": 6, "r": 9 },
+    "gondor": { "q": 17, "r": 10 },
+    "rohan": { "q": 15, "r": 12 },
+    "shire": { "q": 22, "r": 2 },
+    "isengard": { "q": 21, "r": 4 },
+    "prydain": { "q": 8, "r": 6 },
+    "annuvin": { "q": 25, "r": 3 },
+    "wakanda": { "q": 16, "r": 13 },
+    "avalon": { "q": 6, "r": 8 },
+    "lothlorien": { "q": 17, "r": 13 },
+    "narnia": { "q": 24, "r": 2 },
+    "atlantis": { "q": 10, "r": 17 }
   },
   "medium": {
-    "egypt": {
-      "q": 31,
-      "r": 17
-    },
-    "rome": {
-      "q": 28,
-      "r": 10
-    },
-    "greece": {
-      "q": 30,
-      "r": 13
-    },
-    "babylon": {
-      "q": 33,
-      "r": 14
-    },
-    "persia": {
-      "q": 35,
-      "r": 13
-    },
-    "india": {
-      "q": 36,
-      "r": 17
-    },
-    "china": {
-      "q": 40,
-      "r": 13
-    },
-    "mongolia": {
-      "q": 40,
-      "r": 10
-    },
-    "japan": {
-      "q": 41,
-      "r": 12
-    },
-    "zulu": {
-      "q": 28,
-      "r": 33
-    },
-    "england": {
-      "q": 27,
-      "r": 9
-    },
-    "france": {
-      "q": 27,
-      "r": 10
-    },
-    "spain": {
-      "q": 26,
-      "r": 16
-    },
-    "viking": {
-      "q": 29,
-      "r": 6
-    },
-    "germany": {
-      "q": 29,
-      "r": 9
-    },
-    "russia": {
-      "q": 34,
-      "r": 8
-    },
-    "ottoman": {
-      "q": 33,
-      "r": 13
-    },
-    "aztec": {
-      "q": 10,
-      "r": 15
-    }
+    "egypt": { "q": 31, "r": 17 },
+    "rome": { "q": 32, "r": 13 },
+    "greece": { "q": 30, "r": 13 },
+    "babylon": { "q": 33, "r": 14 },
+    "persia": { "q": 35, "r": 13 },
+    "india": { "q": 36, "r": 17 },
+    "china": { "q": 40, "r": 13 },
+    "mongolia": { "q": 40, "r": 8 },
+    "japan": { "q": 42, "r": 11 },
+    "zulu": { "q": 28, "r": 33 },
+    "england": { "q": 27, "r": 9 },
+    "france": { "q": 27, "r": 10 },
+    "spain": { "q": 26, "r": 16 },
+    "viking": { "q": 29, "r": 6 },
+    "germany": { "q": 29, "r": 9 },
+    "russia": { "q": 35, "r": 8 },
+    "ottoman": { "q": 34, "r": 16 },
+    "aztec": { "q": 10, "r": 15 },
+    "gondor": { "q": 39, "r": 17 },
+    "rohan": { "q": 31, "r": 10 },
+    "shire": { "q": 32, "r": 7 },
+    "isengard": { "q": 32, "r": 11 },
+    "prydain": { "q": 11, "r": 10 },
+    "annuvin": { "q": 35, "r": 5 },
+    "wakanda": { "q": 29, "r": 25 },
+    "avalon": { "q": 11, "r": 13 },
+    "lothlorien": { "q": 34, "r": 10 },
+    "narnia": { "q": 30, "r": 7 },
+    "atlantis": { "q": 12, "r": 14 }
   },
   "large": {
-    "egypt": {
-      "q": 49,
-      "r": 25
-    },
-    "rome": {
-      "q": 44,
-      "r": 17
-    },
-    "greece": {
-      "q": 49,
-      "r": 21
-    },
-    "babylon": {
-      "q": 52,
-      "r": 23
-    },
-    "persia": {
-      "q": 55,
-      "r": 22
-    },
-    "india": {
-      "q": 58,
-      "r": 27
-    },
-    "china": {
-      "q": 64,
-      "r": 21
-    },
-    "mongolia": {
-      "q": 64,
-      "r": 16
-    },
-    "japan": {
-      "q": 68,
-      "r": 18
-    },
-    "zulu": {
-      "q": 46,
-      "r": 52
-    },
-    "england": {
-      "q": 41,
-      "r": 15
-    },
-    "france": {
-      "q": 42,
-      "r": 15
-    },
-    "spain": {
-      "q": 43,
-      "r": 16
-    },
-    "viking": {
-      "q": 43,
-      "r": 14
-    },
-    "germany": {
-      "q": 44,
-      "r": 15
-    },
-    "russia": {
-      "q": 52,
-      "r": 12
-    },
-    "ottoman": {
-      "q": 48,
-      "r": 21
-    },
-    "aztec": {
-      "q": 17,
-      "r": 25
-    }
+    "egypt": { "q": 49, "r": 25 },
+    "rome": { "q": 44, "r": 17 },
+    "greece": { "q": 49, "r": 21 },
+    "babylon": { "q": 52, "r": 23 },
+    "persia": { "q": 55, "r": 22 },
+    "india": { "q": 58, "r": 27 },
+    "china": { "q": 64, "r": 21 },
+    "mongolia": { "q": 64, "r": 14 },
+    "japan": { "q": 68, "r": 17 },
+    "zulu": { "q": 46, "r": 52 },
+    "england": { "q": 41, "r": 15 },
+    "france": { "q": 42, "r": 15 },
+    "spain": { "q": 43, "r": 16 },
+    "viking": { "q": 46, "r": 11 },
+    "germany": { "q": 46, "r": 14 },
+    "russia": { "q": 55, "r": 11 },
+    "ottoman": { "q": 53, "r": 20 },
+    "aztec": { "q": 17, "r": 25 },
+    "gondor": { "q": 55, "r": 26 },
+    "rohan": { "q": 58, "r": 14 },
+    "shire": { "q": 50, "r": 15 },
+    "isengard": { "q": 49, "r": 13 },
+    "prydain": { "q": 18, "r": 14 },
+    "annuvin": { "q": 63, "r": 6 },
+    "wakanda": { "q": 48, "r": 39 },
+    "avalon": { "q": 18, "r": 20 },
+    "lothlorien": { "q": 52, "r": 17 },
+    "narnia": { "q": 67, "r": 8 },
+    "atlantis": { "q": 21, "r": 22 }
   }
 } as const;
 
