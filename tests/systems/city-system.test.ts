@@ -904,3 +904,48 @@ describe('S4b — building production discounts', () => {
     expect(withGranary).toBe(base);
   });
 });
+
+describe('processCity — resource dequeue', () => {
+  const mkMap2 = () => generateMap(10, 10, 'dequeue-test');
+  const mkBaseCity2 = (map: ReturnType<typeof mkMap2>): City => {
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    return foundCity('p1', tile.coord, map, mkC());
+  };
+
+  it('dequeues resource-blocked unit when resource is removed', () => {
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['axeman'], productionProgress: 5 };
+    const result = processCity(city, map, 2, 3, undefined, ['stone-weapons'], undefined, 1, new Set<ResourceType>());
+    expect(result.city.productionQueue).not.toContain('axeman');
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('keeps unit in queue when resource is present', () => {
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['axeman'], productionProgress: 5 };
+    const result = processCity(city, map, 2, 3, undefined, ['stone-weapons'], undefined, 1, new Set<ResourceType>(['copper']));
+    expect(result.city.productionQueue).toContain('axeman');
+  });
+
+  it('dequeues resource-blocked building when resource is removed', () => {
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['bronze-workshop'], productionProgress: 5 };
+    const result = processCity(city, map, 2, 3, undefined, ['stone-weapons'], undefined, 1, new Set<ResourceType>());
+    expect(result.city.productionQueue).not.toContain('bronze-workshop');
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('keeps ungated building (granary) in queue even with empty resources', () => {
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['granary'], productionProgress: 5 };
+    const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>());
+    expect(result.city.productionQueue).toContain('granary');
+  });
+
+  it('tech-drop dequeue regression: still drops unit when tech is lost', () => {
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['swordsman'], productionProgress: 5 };
+    const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>(['iron']));
+    expect(result.city.productionQueue).not.toContain('swordsman');
+  });
+});
