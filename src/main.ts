@@ -2557,6 +2557,17 @@ bus.on('city:building-complete', ({ cityId, buildingId }) => {
   }
 });
 
+bus.on('city:building-dropped', ({ cityId, buildingId }) => {
+  const city = gameState.cities[cityId];
+  if (!city) return;
+  const buildingName = BUILDINGS[buildingId]?.name ?? buildingId;
+  appendToCivLog(
+    city.owner,
+    `${city.name}: ${buildingName} removed — city is no longer coastal.`,
+    'warning',
+  );
+});
+
 bus.on('village:visited', ({ civId, outcome, message }) => {
   if (outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
   if (outcome === 'science') advisorSystem.resetMessage('scholar_village_science');

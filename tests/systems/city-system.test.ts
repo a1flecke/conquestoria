@@ -160,6 +160,38 @@ describe('getAvailableBuildings', () => {
     const available = getAvailableBuildings(city, [], map.tiles); // no fishing tech
     expect(available.find(b => b.id === 'dock')).toBeUndefined();
   });
+
+  it('excludes harbor from non-coastal cities even with harbor-tech', () => {
+    const map = generateMap(30, 30, 'coastal-test');
+    const inlandTile = Object.values(map.tiles).find(t =>
+      t.terrain === 'grassland' &&
+      !Object.values(map.tiles).some(n =>
+        Math.abs(n.coord.q - t.coord.q) <= 1 &&
+        Math.abs(n.coord.r - t.coord.r) <= 1 &&
+        (n.terrain === 'ocean' || n.terrain === 'coast')
+      )
+    )!;
+    const city = foundCity('p1', inlandTile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['harbor-tech'], map.tiles);
+    expect(available.find(b => b.id === 'harbor')).toBeUndefined();
+  });
+
+  it('includes harbor for coastal cities with harbor-tech', () => {
+    const map = generateMap(30, 30, 'coastal-test');
+    const waterTile = Object.values(map.tiles).find(t => t.terrain === 'ocean' || t.terrain === 'coast')!;
+    const nearTile = Object.values(map.tiles).find(t =>
+      (t.terrain === 'grassland' || t.terrain === 'plains') &&
+      Math.abs(t.coord.q - waterTile.coord.q) <= 1 &&
+      Math.abs(t.coord.r - waterTile.coord.r) <= 1
+    );
+    if (!nearTile) return; // skip if seed has no coastal grassland
+    const city = {
+      ...foundCity('p1', nearTile.coord, map, mkC()),
+      ownedTiles: [nearTile.coord, waterTile.coord],
+    };
+    const available = getAvailableBuildings(city, ['harbor-tech'], map.tiles);
+    expect(available.find(b => b.id === 'harbor')).toBeDefined();
+  });
 });
 
 describe('processCity', () => {
@@ -182,6 +214,54 @@ describe('processCity', () => {
 
     const result = processCity(city, map, 3, 5);
     expect(result.city.productionProgress).toBe(5);
+  });
+
+  it('processCity dequeues harbor when city is not coastal and returns droppedBuilding', () => {
+    const map = generateMap(30, 30, 'coastal-test');
+    const inlandTile = Object.values(map.tiles).find(t =>
+      t.terrain === 'grassland' &&
+      !Object.values(map.tiles).some(n =>
+        Math.abs(n.coord.q - t.coord.q) <= 1 &&
+        Math.abs(n.coord.r - t.coord.r) <= 1 &&
+        (n.terrain === 'ocean' || n.terrain === 'coast')
+      )
+    )!;
+    let city = foundCity('p1', inlandTile.coord, map, mkC());
+    city = { ...city, productionQueue: ['harbor'], productionProgress: 0 };
+    const result = processCity(city, map, 2, 5, undefined, ['harbor-tech']);
+    expect(result.droppedBuilding).toBe('harbor');
+    expect(result.city.productionQueue).not.toContain('harbor');
+    expect(result.city.productionProgress).toBe(0); // production not wasted
+    expect(result.city.buildings).not.toContain('harbor');
+  });
+
+  it('processCity completes harbor normally for coastal city', () => {
+    const map = generateMap(30, 30, 'coastal-test');
+    const waterTile = Object.values(map.tiles).find(t => t.terrain === 'ocean' || t.terrain === 'coast')!;
+    const nearTile = Object.values(map.tiles).find(t =>
+      (t.terrain === 'grassland' || t.terrain === 'plains') &&
+      Math.abs(t.coord.q - waterTile.coord.q) <= 1 &&
+      Math.abs(t.coord.r - waterTile.coord.r) <= 1
+    );
+    if (!nearTile) return; // skip if seed has no coastal grassland
+    let city = {
+      ...foundCity('p1', nearTile.coord, map, mkC()),
+      ownedTiles: [nearTile.coord, waterTile.coord],
+      productionQueue: ['harbor'],
+      productionProgress: 999, // high enough to complete
+    };
+    const result = processCity(city, map, 2, 0, undefined, ['harbor-tech']);
+    expect(result.completedBuilding).toBe('harbor');
+    expect(result.droppedBuilding).toBeNull();
+    expect(result.city.buildings).toContain('harbor');
+  });
+
+  it('processCity returns droppedBuilding: null when no coastal guard triggers', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC());
+    const result = processCity(city, map, 2);
+    expect(result.droppedBuilding).toBeNull();
   });
 
   it('preserves focus fields after city growth processing', () => {
