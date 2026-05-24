@@ -8,6 +8,8 @@ import {
   getProductionDisplayName,
   getProductionIconForItem,
 } from '@/systems/city-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import {
   getCompactLegendaryWonderEntriesForCity,
   getLegendaryWonderPresentationForCity,
@@ -103,6 +105,59 @@ export function createCityPanel(
   const occupiedMood = getOccupiedCityMood(city);
   const occupiedStatus = city.occupation ? `Occupied: ${city.occupation.turnsRemaining} turns to integrate` : '';
   const occupiedMoodText = occupiedMood === 2 ? 'Very Unhappy' : occupiedMood === 1 ? 'Unhappy' : '';
+
+  // Resource bonus sections: happiness (empire-wide) and yield (per-city)
+  const playerResources = getCivAvailableResources(state, state.currentPlayer);
+  const happinessResources = RESOURCE_DEFINITIONS.filter(
+    d => d.effect?.type === 'happiness' && playerResources.has(d.id as never),
+  );
+  const yieldResources = RESOURCE_DEFINITIONS.filter(
+    d => d.effect && d.effect.type !== 'happiness' && playerResources.has(d.id as never),
+  );
+
+  function resourceDisplayName(defId: string, defName: string): string {
+    // The "gold" resource name collides with the currency name in context like "+1 gold/turn"
+    return defId === 'gold' ? 'Gold deposits' : defName;
+  }
+
+  function yieldLabel(effectType: string): string {
+    switch (effectType) {
+      case 'gold': return '+1 gold/turn';
+      case 'production': return '+1 production/turn';
+      case 'food': return '+1 food/turn';
+      default: return '';
+    }
+  }
+
+  let resourceBonusSectionHtml = '';
+  if (happinessResources.length > 0 || yieldResources.length > 0) {
+    let empireBonusHtml = '';
+    if (happinessResources.length > 0) {
+      let rows = '';
+      for (const def of happinessResources) {
+        rows += `<div style="font-size:12px;opacity:0.85;" data-res-happiness="${def.id}"></div>`;
+      }
+      empireBonusHtml = `<div style="font-weight:bold;font-size:12px;color:#d4af70;margin-bottom:4px;">Empire bonuses</div>${rows}`;
+    }
+
+    let cityBonusHtml = '';
+    if (yieldResources.length > 0) {
+      let rows = '';
+      for (const def of yieldResources) {
+        rows += `<div style="font-size:12px;opacity:0.85;" data-res-yield="${def.id}"></div>`;
+      }
+      const topMargin = happinessResources.length > 0 ? 'margin-top:8px;' : '';
+      cityBonusHtml = `<div style="font-weight:bold;font-size:12px;color:#d4af70;margin-bottom:4px;${topMargin}">City bonuses</div>${rows}`;
+    }
+
+    resourceBonusSectionHtml = `
+      <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;">Resources</div>
+        ${empireBonusHtml}${cityBonusHtml}
+      </div>
+    `;
+  }
+
   const currentCiv = state.civilizations[state.currentPlayer];
   const civDef = resolveCivDefinition(state, currentCiv.civType);
   const getDisplayedCost = (itemId: string): number => getProductionCostForItem(itemId, {
@@ -331,6 +386,7 @@ export function createCityPanel(
       <span>💰 +<span data-text="yield-gold"></span></span>
       <span>🔬 +<span data-text="yield-science"></span></span>
     </div>
+    ${resourceBonusSectionHtml}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:#d9d3c0;">
       <span title="" data-maintenance-summary>Free support: ${cityFreeBuildings} buildings, ${economyStatus.breakdown.freeUnits} units</span>
       <span title="" data-maintenance-summary>Paid upkeep: -${cityMaintenance.upkeep} city / -${economyStatus.unitMaintenance} empire</span>
@@ -379,6 +435,16 @@ export function createCityPanel(
   setText('yield-prod', String(yields.production));
   setText('yield-gold', String(yields.gold));
   setText('yield-science', String(yields.science));
+
+  // Populate resource bonus rows via textContent (XSS-safe)
+  for (const def of happinessResources) {
+    const el = panel.querySelector(`[data-res-happiness="${def.id}"]`);
+    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → +1 happiness`;
+  }
+  for (const def of yieldResources) {
+    const el = panel.querySelector(`[data-res-yield="${def.id}"]`);
+    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${yieldLabel(def.effect!.type)}`;
+  }
 
   if (city.productionQueue.length > 0) {
     const currentItem = city.productionQueue[0];
