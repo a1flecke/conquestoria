@@ -413,7 +413,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 7,
       "r": 2,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 8,
@@ -803,7 +803,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 12,
       "r": 4,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 13,
@@ -1163,7 +1163,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 12,
       "r": 6,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 13,
@@ -1523,7 +1523,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 12,
       "r": 8,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 13,
@@ -3191,7 +3191,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 20,
       "r": 17,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 21,
@@ -3203,7 +3203,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 22,
       "r": 17,
       "terrain": "hills",
-      "resource": null
+      "resource": "gems"
     },
     {
       "q": 23,
@@ -3563,7 +3563,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 22,
       "r": 19,
       "terrain": "hills",
-      "resource": null
+      "resource": "gems"
     },
     {
       "q": 23,
@@ -6409,7 +6409,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 16,
       "r": 3,
       "terrain": "tundra",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 17,
@@ -6697,7 +6697,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 14,
       "r": 4,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 15,
@@ -7015,940 +7015,940 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 17,
       "r": 5,
       "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 5,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 5,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 5,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 5,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 5,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 5,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 5,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 5,
+      "terrain": "forest",
+      "resource": "furs"
+    },
+    {
+      "q": 26,
+      "r": 5,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 5,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 5,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 5,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 5,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 6,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 6,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 20,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 6,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 25,
+      "r": 6,
+      "terrain": "forest",
+      "resource": "furs"
+    },
+    {
+      "q": 26,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 6,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 6,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 6,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 7,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 21,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 7,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 7,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 7,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 7,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 7,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 7,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 7,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 7,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 7,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 8,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 8,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 8,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 8,
+      "terrain": "mountain",
       "resource": "stone"
     },
     {
       "q": 18,
-      "r": 5,
-      "terrain": "hills",
+      "r": 8,
+      "terrain": "mountain",
       "resource": null
     },
     {
       "q": 19,
-      "r": 5,
-      "terrain": "hills",
+      "r": 8,
+      "terrain": "mountain",
       "resource": null
     },
     {
       "q": 20,
-      "r": 5,
-      "terrain": "hills",
+      "r": 8,
+      "terrain": "mountain",
       "resource": null
     },
     {
       "q": 21,
-      "r": 5,
-      "terrain": "hills",
+      "r": 8,
+      "terrain": "mountain",
       "resource": null
     },
     {
       "q": 22,
-      "r": 5,
-      "terrain": "hills",
+      "r": 8,
+      "terrain": "mountain",
       "resource": "stone"
     },
     {
       "q": 23,
-      "r": 5,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 5,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 5,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 5,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 5,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 5,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 5,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 5,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 6,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 6,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 6,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 6,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 6,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 6,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 6,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 7,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 7,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 7,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 7,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 7,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 7,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 7,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 7,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 7,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 7,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 8,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 8,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 8,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 8,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 8,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 8,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 8,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 8,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 8,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 23,
       "r": 8,
       "terrain": "mountain",
       "resource": null
@@ -8221,7 +8221,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 18,
       "r": 9,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 19,
@@ -8251,7 +8251,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 23,
       "r": 9,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 24,
@@ -8533,7 +8533,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 20,
       "r": 10,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 21,
@@ -8815,7 +8815,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 17,
       "r": 11,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 18,
@@ -9121,7 +9121,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 18,
       "r": 12,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 19,
@@ -9151,7 +9151,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 23,
       "r": 12,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 24,
@@ -9433,7 +9433,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 20,
       "r": 13,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 21,
@@ -9469,7 +9469,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 26,
       "r": 13,
       "terrain": "plains",
-      "resource": null
+      "resource": "cattle"
     },
     {
       "q": 27,
@@ -9739,7 +9739,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 21,
       "r": 14,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 22,
@@ -13729,1215 +13729,1215 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 36,
       "r": 27,
       "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 27,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 27,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 27,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 28,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 28,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 28,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 28,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 28,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 28,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 28,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 28,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 28,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 29,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 29,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 29,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 29,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 29,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 29,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 29,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 29,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 29,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 30,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 30,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 30,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 30,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 30,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 30,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 30,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 30,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 31,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 31,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 31,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 31,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 31,
-      "terrain": "hills",
       "resource": "stone"
     },
     {
+      "q": 37,
+      "r": 27,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 27,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 27,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 28,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 28,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 34,
+      "r": 28,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 28,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 28,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 28,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 28,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 28,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 28,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 29,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 29,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 29,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 35,
+      "r": 29,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 29,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 29,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 29,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 29,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 29,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 30,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 30,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 30,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 30,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 30,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 37,
+      "r": 30,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 30,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 30,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 31,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 31,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 31,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 31,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 31,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
       "q": 38,
       "r": 31,
       "terrain": "desert",
@@ -15217,7 +15217,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 34,
       "r": 32,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 35,
@@ -15235,7 +15235,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 37,
       "r": 32,
       "terrain": "hills",
-      "resource": null
+      "resource": "gems"
     },
     {
       "q": 38,
@@ -15535,7 +15535,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 37,
       "r": 33,
       "terrain": "hills",
-      "resource": null
+      "resource": "gems"
     },
     {
       "q": 38,
@@ -15835,7 +15835,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 37,
       "r": 34,
       "terrain": "hills",
-      "resource": null
+      "resource": "silver"
     },
     {
       "q": 38,
@@ -16135,7 +16135,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 37,
       "r": 35,
       "terrain": "hills",
-      "resource": null
+      "resource": "silver"
     },
     {
       "q": 38,
@@ -17629,7 +17629,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 36,
       "r": 40,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 37,
@@ -18529,7 +18529,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 36,
       "r": 43,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 37,
@@ -22473,7 +22473,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 23,
       "r": 4,
       "terrain": "tundra",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 24,
@@ -22491,13 +22491,13 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 26,
       "r": 4,
       "terrain": "tundra",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 27,
       "r": 4,
       "terrain": "tundra",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 28,
@@ -22959,7 +22959,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 24,
       "r": 5,
       "terrain": "tundra",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 25,
@@ -23025,7 +23025,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 35,
       "r": 5,
       "terrain": "tundra",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 36,
@@ -23079,7 +23079,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 44,
       "r": 5,
       "terrain": "tundra",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 45,
@@ -23517,7 +23517,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 37,
       "r": 6,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 38,
@@ -23907,13 +23907,13 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 22,
       "r": 7,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 23,
       "r": 7,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 24,
@@ -23961,7 +23961,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 31,
       "r": 7,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 32,
@@ -23979,13 +23979,13 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 34,
       "r": 7,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 35,
       "r": 7,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 36,
@@ -24003,7 +24003,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 38,
       "r": 7,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 39,
@@ -24393,7 +24393,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 23,
       "r": 8,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 24,
@@ -24495,7 +24495,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 40,
       "r": 8,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 41,
@@ -24861,7 +24861,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 21,
       "r": 9,
       "terrain": "forest",
-      "resource": null
+      "resource": "furs"
     },
     {
       "q": 22,
@@ -24897,20367 +24897,20367 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 27,
       "r": 9,
       "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 9,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 9,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 9,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 9,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 9,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 9,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 9,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 9,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 9,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 9,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 9,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 9,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 9,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 10,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 10,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 10,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 10,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 10,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 10,
-      "terrain": "hills",
       "resource": "stone"
     },
     {
-      "q": 41,
-      "r": 10,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 10,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 10,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 10,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 10,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 10,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 11,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
       "q": 28,
-      "r": 11,
+      "r": 9,
       "terrain": "mountain",
       "resource": null
     },
     {
       "q": 29,
-      "r": 11,
+      "r": 9,
       "terrain": "mountain",
       "resource": null
     },
     {
       "q": 30,
-      "r": 11,
+      "r": 9,
       "terrain": "mountain",
       "resource": null
     },
     {
       "q": 31,
-      "r": 11,
+      "r": 9,
       "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 11,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 11,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 11,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 11,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 11,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 12,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 12,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 12,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 12,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 12,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 12,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 13,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 13,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 13,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 13,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 13,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 13,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 13,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 13,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 13,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 13,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 13,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 14,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 14,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 14,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 14,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 14,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 15,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 15,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 15,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 15,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 15,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 15,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 15,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 15,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 15,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 15,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 16,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 16,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 16,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 16,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 16,
-      "terrain": "forest",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 16,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 16,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 16,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 16,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 16,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 16,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 17,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 17,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 17,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 17,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 17,
-      "terrain": "plains",
-      "resource": "horses"
-    },
-    {
-      "q": 43,
-      "r": 17,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 17,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 17,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 17,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 17,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 17,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 17,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 17,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 17,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 17,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 17,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 17,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 17,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 17,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 17,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 17,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 17,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 17,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 17,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 17,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 18,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 18,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 18,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 18,
-      "terrain": "plains",
-      "resource": "horses"
-    },
-    {
-      "q": 42,
-      "r": 18,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 18,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 18,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 18,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 18,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 18,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 18,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 18,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 18,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 18,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 18,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 18,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 18,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 18,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 18,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 18,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 18,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 19,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 19,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 19,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 19,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 19,
-      "terrain": "plains",
-      "resource": "horses"
-    },
-    {
-      "q": 43,
-      "r": 19,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 19,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 19,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 19,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 19,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 19,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 19,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 19,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 19,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 19,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 19,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 19,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 19,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 19,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 19,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 20,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 20,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 20,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 20,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 20,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 20,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 20,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 20,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 20,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 20,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 20,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 20,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 20,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 20,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 20,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 20,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 20,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 20,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 21,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 21,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 21,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 21,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 21,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 21,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 21,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 21,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 21,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 21,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 21,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 21,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 21,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 21,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 21,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 21,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 22,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 22,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 22,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 22,
-      "terrain": "plains",
-      "resource": "horses"
-    },
-    {
-      "q": 42,
-      "r": 22,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 22,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 22,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 22,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 22,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 22,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 22,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 22,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 22,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 22,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 22,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 22,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 22,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 23,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 23,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 23,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 23,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 23,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 23,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 23,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 23,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 23,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 23,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 23,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 23,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 23,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 23,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 23,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 23,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 23,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 23,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 24,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 24,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 24,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 24,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 24,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 24,
-      "terrain": "plains",
-      "resource": "horses"
-    },
-    {
-      "q": 40,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 24,
-      "terrain": "plains",
-      "resource": "horses"
-    },
-    {
-      "q": 42,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 24,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 24,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 24,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 24,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 24,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 24,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 24,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 25,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 25,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 25,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 25,
-      "terrain": "plains",
-      "resource": "horses"
-    },
-    {
-      "q": 37,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 25,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 25,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 25,
-      "terrain": "plains",
-      "resource": "horses"
-    },
-    {
-      "q": 43,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 25,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 25,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 25,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 25,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 25,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 25,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 25,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 26,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 26,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 26,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 26,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 26,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 26,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 26,
-      "terrain": "grassland",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 26,
-      "terrain": "plains",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 26,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 26,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 27,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 27,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 27,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 27,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 27,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 28,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 28,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 28,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 28,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 28,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 28,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 29,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 29,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 29,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 29,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 29,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 30,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 30,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 30,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 30,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 30,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 31,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 31,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 31,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 31,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 31,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 31,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 31,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 32,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 32,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 32,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 32,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 32,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 32,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 32,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 32,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 32,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 32,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 33,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 33,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 33,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 34,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 34,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 34,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 34,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 34,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 34,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 34,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 34,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 35,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 35,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 35,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 35,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 35,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 35,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 35,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 36,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 36,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 36,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 36,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 37,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 37,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 38,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 38,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 39,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 39,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 39,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 39,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 39,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 39,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 39,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 39,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 39,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 39,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 39,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 39,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 39,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 40,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 40,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 40,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 40,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 40,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 40,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 40,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 40,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 40,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 40,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 40,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 40,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 41,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 41,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 41,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 41,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 41,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 41,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 41,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 41,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 41,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 41,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 41,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 41,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 41,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 41,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 41,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 42,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 42,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 42,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 42,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 42,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 42,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 42,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 42,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 42,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 42,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 42,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 42,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 42,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 42,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 42,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 42,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 43,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 43,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 43,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 43,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 43,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 43,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 43,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 43,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 43,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 43,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 43,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 43,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 43,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 43,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 43,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 43,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 43,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 43,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 44,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 44,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 44,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 44,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 44,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 44,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 44,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 44,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 44,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 44,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 44,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 44,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 44,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 44,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 44,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 44,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 44,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 44,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 45,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 45,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 45,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 45,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 45,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 45,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 45,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 45,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 45,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 45,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 45,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 45,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 45,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 45,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 45,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 45,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 45,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 45,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 45,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 45,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 45,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 45,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 46,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 46,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 46,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 46,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 46,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 46,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 46,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 46,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 46,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 46,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 46,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 46,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 46,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 46,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 46,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 46,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 47,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 47,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 47,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 47,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 47,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 47,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 47,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 47,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 47,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 47,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 47,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 47,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 47,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 47,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 47,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 48,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 48,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 48,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 48,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 48,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 48,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 48,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 48,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 48,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 48,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 48,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 48,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 48,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 49,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 49,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 49,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 49,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 49,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 49,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 49,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 49,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 49,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 49,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 49,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 49,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 50,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 50,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 50,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 50,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 50,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 50,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 50,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 50,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 50,
-      "terrain": "hills",
-      "resource": null
-    },
-    {
-      "q": 61,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 62,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 63,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 64,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 65,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 66,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 67,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 68,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 69,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 70,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 71,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 72,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 73,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 74,
-      "r": 50,
-      "terrain": "desert",
-      "resource": null
-    },
-    {
-      "q": 75,
-      "r": 50,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 76,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 77,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 78,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 79,
-      "r": 50,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 0,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 1,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 2,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 3,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 4,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 5,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 6,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 7,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 8,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 9,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 10,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 11,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 12,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 13,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 14,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 15,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 16,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 17,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 18,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 19,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 20,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 21,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 22,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 23,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 24,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 25,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 26,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 27,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 28,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 29,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 30,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 31,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 32,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 33,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 34,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 35,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 36,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 37,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 38,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 39,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 40,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 41,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 42,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 43,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 44,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 45,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 46,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 47,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 48,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 49,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 50,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 51,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 52,
-      "r": 51,
-      "terrain": "ocean",
-      "resource": null
-    },
-    {
-      "q": 53,
-      "r": 51,
-      "terrain": "coast",
-      "resource": null
-    },
-    {
-      "q": 54,
-      "r": 51,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 55,
-      "r": 51,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 56,
-      "r": 51,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 57,
-      "r": 51,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 58,
-      "r": 51,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 59,
-      "r": 51,
-      "terrain": "mountain",
-      "resource": null
-    },
-    {
-      "q": 60,
-      "r": 51,
-      "terrain": "hills",
       "resource": "stone"
     },
     {
+      "q": 32,
+      "r": 9,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 9,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 9,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 9,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 36,
+      "r": 9,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 9,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 9,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 9,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 40,
+      "r": 9,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 9,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 9,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 9,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 9,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 9,
+      "terrain": "forest",
+      "resource": "furs"
+    },
+    {
+      "q": 55,
+      "r": 9,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 9,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 9,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 9,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 9,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 9,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 10,
+      "terrain": "forest",
+      "resource": "furs"
+    },
+    {
+      "q": 23,
+      "r": 10,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 10,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 10,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 33,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 10,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 10,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 10,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 10,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 10,
+      "terrain": "forest",
+      "resource": "furs"
+    },
+    {
+      "q": 56,
+      "r": 10,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 10,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 10,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 11,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 11,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 11,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 11,
+      "terrain": "forest",
+      "resource": "furs"
+    },
+    {
+      "q": 56,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 11,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 11,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 11,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 12,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 28,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 36,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 12,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 12,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 12,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 12,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 12,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 13,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 13,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 29,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 33,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 37,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 13,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 13,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 13,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 13,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 13,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 13,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 13,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 13,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 13,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 30,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 34,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 14,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 14,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 14,
+      "terrain": "forest",
+      "resource": "furs"
+    },
+    {
+      "q": 49,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 14,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 14,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 14,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 15,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 15,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 36,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 15,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 15,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 15,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 15,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 15,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 15,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 15,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 15,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 16,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 16,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 33,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 37,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 16,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 16,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 16,
+      "terrain": "forest",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 16,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 16,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 16,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 16,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 16,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 16,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 17,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 30,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 34,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 38,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 17,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 17,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 17,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 17,
+      "terrain": "plains",
+      "resource": "horses"
+    },
+    {
+      "q": 43,
+      "r": 17,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 17,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 17,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 17,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 17,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 17,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 17,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 17,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 17,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 17,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 17,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 17,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 17,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 17,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 17,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 17,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 17,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 17,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 17,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 17,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 18,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 18,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 18,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 18,
+      "terrain": "plains",
+      "resource": "horses"
+    },
+    {
+      "q": 42,
+      "r": 18,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 18,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 18,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 18,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 18,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 18,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 18,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 18,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 18,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 18,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 18,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 18,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 18,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 18,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 18,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 18,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 18,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 19,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 33,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 19,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 19,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 19,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 19,
+      "terrain": "plains",
+      "resource": "horses"
+    },
+    {
+      "q": 43,
+      "r": 19,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 19,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 19,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 19,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 19,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 19,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 19,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 19,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 19,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 19,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 19,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 19,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 19,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 19,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 19,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 20,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 30,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 34,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 38,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 20,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 20,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 20,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 20,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 20,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 20,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 20,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 20,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 20,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 20,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 20,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 20,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 20,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 20,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 20,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 20,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 20,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 21,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 31,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 39,
+      "r": 21,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 21,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 21,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 21,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 21,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 21,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 21,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 21,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 21,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 21,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 21,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 21,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 21,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 21,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 21,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 22,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 22,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 22,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 22,
+      "terrain": "plains",
+      "resource": "horses"
+    },
+    {
+      "q": 42,
+      "r": 22,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 22,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 22,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 22,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 22,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 22,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 22,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 22,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 22,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 22,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 22,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 22,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 22,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 23,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 23,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 34,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 23,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 23,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 23,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 23,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 23,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 23,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 23,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 23,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 23,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 23,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 23,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 23,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 23,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 23,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 23,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 23,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 24,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 24,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 24,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 24,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 24,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 24,
+      "terrain": "plains",
+      "resource": "horses"
+    },
+    {
+      "q": 40,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 24,
+      "terrain": "plains",
+      "resource": "horses"
+    },
+    {
+      "q": 42,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 24,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 24,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 24,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 24,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 24,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 24,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 24,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 25,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 25,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 25,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 25,
+      "terrain": "plains",
+      "resource": "horses"
+    },
+    {
+      "q": 37,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 25,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 25,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 25,
+      "terrain": "plains",
+      "resource": "horses"
+    },
+    {
+      "q": 43,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 25,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 25,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 25,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 25,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 25,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 25,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 25,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 26,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 26,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 26,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 26,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 26,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 26,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 26,
+      "terrain": "grassland",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 26,
+      "terrain": "plains",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 26,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 26,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 27,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 27,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 27,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 27,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 27,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 28,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 28,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 28,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 28,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 28,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 28,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 29,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 29,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 29,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 29,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 29,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 30,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 30,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 30,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 30,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 30,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 31,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 31,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 31,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 31,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 31,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 31,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 31,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 32,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 32,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 32,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 32,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 32,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 32,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 32,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 32,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 32,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 32,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 33,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 33,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 33,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 34,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 34,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 34,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 34,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 34,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 34,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 34,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 34,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 35,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 35,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 35,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 35,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 35,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 35,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 35,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 36,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 36,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 36,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 36,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 37,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 37,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 38,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 38,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 39,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 39,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 39,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 39,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 39,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 39,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 39,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 58,
+      "r": 39,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 39,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 39,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 39,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 39,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 39,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 40,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 40,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 55,
+      "r": 40,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 40,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 40,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 40,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 40,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 40,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 40,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 40,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 40,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 40,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 41,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 41,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 41,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 41,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 57,
+      "r": 41,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 41,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 41,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 41,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 41,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 41,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 41,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 41,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 41,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 41,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 41,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 42,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 42,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 42,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 42,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 42,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 58,
+      "r": 42,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 42,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 42,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 42,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 42,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 42,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 42,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 42,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 42,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 42,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 42,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 43,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 43,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 43,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 55,
+      "r": 43,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 43,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 43,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 43,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 59,
+      "r": 43,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 43,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 43,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 43,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 43,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 43,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 43,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 43,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 43,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 43,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 43,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 44,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 44,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 44,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 44,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 44,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 56,
+      "r": 44,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 44,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 44,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 44,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 44,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 44,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 44,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 44,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 44,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 44,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 44,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 44,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 44,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 45,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 45,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 45,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 45,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 45,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 45,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 45,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 58,
+      "r": 45,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 45,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 45,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 45,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 45,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 45,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 45,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 45,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 45,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 45,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 45,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 45,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 45,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 45,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 45,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 46,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 46,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 46,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 46,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 55,
+      "r": 46,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 46,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 46,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 46,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 59,
+      "r": 46,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 46,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 46,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 46,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 46,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 46,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 46,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 46,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 47,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 47,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 47,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 47,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 47,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 47,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 47,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 47,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 47,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 47,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 47,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 47,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 47,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 47,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 47,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 48,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 48,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 48,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 48,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 48,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 48,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 48,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 48,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 48,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 48,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 48,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 48,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 48,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 49,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 49,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 49,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 55,
+      "r": 49,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 49,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 49,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 49,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 59,
+      "r": 49,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 49,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 49,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 49,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 49,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 50,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 50,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 50,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 50,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 56,
+      "r": 50,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 50,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 50,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 50,
+      "terrain": "mountain",
+      "resource": "stone"
+    },
+    {
+      "q": 60,
+      "r": 50,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
+      "q": 61,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 62,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 63,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 64,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 65,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 66,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 67,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 68,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 69,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 70,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 71,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 72,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 73,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 74,
+      "r": 50,
+      "terrain": "desert",
+      "resource": null
+    },
+    {
+      "q": 75,
+      "r": 50,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 76,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 77,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 78,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 79,
+      "r": 50,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 0,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 1,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 2,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 3,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 4,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 5,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 6,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 7,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 8,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 9,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 10,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 11,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 12,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 13,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 14,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 15,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 16,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 17,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 18,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 19,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 20,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 21,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 22,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 23,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 24,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 25,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 26,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 27,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 28,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 29,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 30,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 31,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 32,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 33,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 34,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 35,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 36,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 37,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 38,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 39,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 40,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 41,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 42,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 43,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 44,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 45,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 46,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 47,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 48,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 49,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 50,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 51,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 52,
+      "r": 51,
+      "terrain": "ocean",
+      "resource": null
+    },
+    {
+      "q": 53,
+      "r": 51,
+      "terrain": "coast",
+      "resource": null
+    },
+    {
+      "q": 54,
+      "r": 51,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 55,
+      "r": 51,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 56,
+      "r": 51,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 57,
+      "r": 51,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 58,
+      "r": 51,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 59,
+      "r": 51,
+      "terrain": "mountain",
+      "resource": null
+    },
+    {
+      "q": 60,
+      "r": 51,
+      "terrain": "hills",
+      "resource": null
+    },
+    {
       "q": 61,
       "r": 51,
       "terrain": "desert",
@@ -46215,7 +46215,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 60,
       "r": 53,
       "terrain": "hills",
-      "resource": null
+      "resource": "silver"
     },
     {
       "q": 61,
@@ -50523,7 +50523,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 58,
       "r": 62,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 59,
@@ -50559,7 +50559,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 64,
       "r": 62,
       "terrain": "grassland",
-      "resource": null
+      "resource": "cattle"
     },
     {
       "q": 65,
@@ -51477,7 +51477,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 57,
       "r": 64,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 58,
@@ -51507,7 +51507,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 62,
       "r": 64,
       "terrain": "grassland",
-      "resource": null
+      "resource": "cattle"
     },
     {
       "q": 63,
@@ -51963,7 +51963,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 58,
       "r": 65,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 59,
@@ -52449,7 +52449,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 59,
       "r": 66,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 60,
@@ -53403,7 +53403,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 58,
       "r": 68,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 59,
@@ -54351,7 +54351,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 56,
       "r": 70,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 57,
@@ -55305,7 +55305,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 55,
       "r": 72,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 56,
@@ -55791,7 +55791,7 @@ export const NEW_WORLD_TILES: Record<'small' | 'medium' | 'large', GeoTile[]> = 
       "q": 56,
       "r": 73,
       "terrain": "mountain",
-      "resource": null
+      "resource": "stone"
     },
     {
       "q": 57,
@@ -58843,8 +58843,8 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
       "r": 10
     },
     "spain": {
-      "q": 26,
-      "r": 21
+      "q": 25,
+      "r": 20
     },
     "aztec": {
       "q": 25,
@@ -58862,7 +58862,7 @@ export const NEW_WORLD_START_POSITIONS: Record<'small' | 'medium' | 'large', Rec
     },
     "spain": {
       "q": 41,
-      "r": 33
+      "r": 32
     },
     "viking": {
       "q": 66,
