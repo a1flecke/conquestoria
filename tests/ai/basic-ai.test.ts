@@ -1571,7 +1571,7 @@ describe('S4b — AI resource-aware production', () => {
   it('AI never queues resource-blocked unit', () => {
     // AI has stone-weapons but no copper — should not queue axeman
     const state = makeSingleCivState({ completedTechs: ['stone-weapons'] });
-    const bus = new EventBus<GameEvents>();
+    const bus = new EventBus();
     const newState = processAITurn(state, 'ai-1', bus);
     const city = Object.values(newState.cities).find(c => c.owner === 'ai-1')!;
     expect(city.productionQueue).not.toContain('axeman');
@@ -1584,7 +1584,7 @@ describe('S4b — AI resource-aware production', () => {
       completedTechs: ['stone-weapons'],
       resources: ['copper'],
     });
-    const bus = new EventBus<GameEvents>();
+    const bus = new EventBus();
     const newState = processAITurn(state, 'ai-1', bus);
     // We just verify it doesn't crash and doesn't queue a blocked item
     const city = Object.values(newState.cities).find(c => c.owner === 'ai-1')!;
@@ -1598,7 +1598,7 @@ describe('S4b — AI resource-aware production', () => {
   it('AI does not queue resource-blocked building', () => {
     // AI has stone-weapons but no copper — should not queue bronze-workshop
     const state = makeSingleCivState({ completedTechs: ['stone-weapons'] });
-    const bus = new EventBus<GameEvents>();
+    const bus = new EventBus();
     const newState = processAITurn(state, 'ai-1', bus);
     const city = Object.values(newState.cities).find(c => c.owner === 'ai-1')!;
     expect(city.productionQueue).not.toContain('bronze-workshop');
