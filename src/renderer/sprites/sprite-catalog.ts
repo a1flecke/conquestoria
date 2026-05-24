@@ -7,6 +7,8 @@ import {
   PikemanSprite, ArcherSprite, MusketeerSprite, GalleySprite,
   TriremeSprite, SpyScoutSprite, SpyInformantSprite, SpyAgentSprite,
   SpyOperativeSprite, SpyHackerSprite,
+  AxemanSprite, SpearmanSprite, HorsemanSprite, CavalrySprite, KnightSprite,
+  CrossbowmanSprite, CatapultSprite, BallistaSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -16,6 +18,8 @@ import {
   BarracksSprite, WallsSprite, StableSprite,
   TempleSprite, MonumentSprite, AmphitheaterSprite, ShrineSprite, ForumSprite,
   SafehouseSprite, IntelAgencySprite, SecurityBureauSprite,
+  BronzeWorkshopSprite, ArmorySprite, RanchSprite, CavalryAcademySprite,
+  IronFoundrySprite, WarAcademySprite, MasonryWorksSprite, SiegeWorkshopSprite,
 } from './buildings';
 
 export type UnitSpriteComponent = (props: UnitSpriteProps) => string;
@@ -42,6 +46,14 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   spy_agent: 'humanoid',
   spy_operative: 'humanoid',
   spy_hacker: 'humanoid',
+  axeman: 'humanoid',
+  spearman: 'humanoid',
+  horseman: 'animal',
+  cavalry: 'animal',
+  knight: 'animal',
+  crossbowman: 'humanoid',
+  catapult: 'naval',
+  ballista: 'naval',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
@@ -93,6 +105,14 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   spy_agent:      withMotion('spy_agent', SpyAgentSprite),
   spy_operative:  withMotion('spy_operative', SpyOperativeSprite),
   spy_hacker:     withMotion('spy_hacker', SpyHackerSprite),
+  axeman:         withMotion('axeman', AxemanSprite),
+  spearman:       withMotion('spearman', SpearmanSprite),
+  horseman:       withMotion('horseman', HorsemanSprite),
+  cavalry:        withMotion('cavalry', CavalrySprite),
+  knight:         withMotion('knight', KnightSprite),
+  crossbowman:    withMotion('crossbowman', CrossbowmanSprite),
+  catapult:       withMotion('catapult', CatapultSprite),
+  ballista:       withMotion('ballista', BallistaSprite),
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {
@@ -120,6 +140,14 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   safehouse:              SafehouseSprite,
   'intelligence-agency':  IntelAgencySprite,
   'security-bureau':      SecurityBureauSprite,
+  'bronze-workshop':      BronzeWorkshopSprite,
+  armory:                 ArmorySprite,
+  ranch:                  RanchSprite,
+  'cavalry-academy':      CavalryAcademySprite,
+  'iron-foundry':         IronFoundrySprite,
+  'war-academy':          WarAcademySprite,
+  'masonry-works':        MasonryWorksSprite,
+  'siege-workshop':       SiegeWorkshopSprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;
