@@ -105,6 +105,50 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 32,
     spyDetectionChance: 0.30,
   },
+  // S4b — new unit definitions
+  axeman: {
+    type: 'axeman', name: 'Axeman', movementPoints: 2,
+    visionRange: 2, strength: 18, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 22,
+  },
+  spearman: {
+    type: 'spearman', name: 'Spearman', movementPoints: 2,
+    visionRange: 2, strength: 20, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 32,
+  },
+  horseman: {
+    type: 'horseman', name: 'Horseman', movementPoints: 3,
+    visionRange: 2, strength: 25, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 55,
+  },
+  cavalry: {
+    type: 'cavalry', name: 'Cavalry', movementPoints: 3,
+    visionRange: 2, strength: 35, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 60,
+  },
+  knight: {
+    type: 'knight', name: 'Knight', movementPoints: 3,
+    visionRange: 2, strength: 45, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 80,
+  },
+  crossbowman: {
+    type: 'crossbowman', name: 'Crossbowman', movementPoints: 2,
+    visionRange: 3, strength: 30, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 75,
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit'] },
+  },
+  catapult: {
+    type: 'catapult', name: 'Catapult', movementPoints: 1,
+    visionRange: 2, strength: 20, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 110,
+    attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
+  },
+  ballista: {
+    type: 'ballista', name: 'Ballista', movementPoints: 2,
+    visionRange: 3, strength: 25, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 100,
+    attackProfile: { kind: 'ranged', range: 3, targets: ['unit'] },
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -218,6 +262,15 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   scout_hound: 'Detection unit. Patrols territory and has a 35% chance per turn to reveal disguised or stealthed spy units within vision range.',
   shadow_warden: 'Elite detection unit. 50% chance per turn to reveal disguised spies within vision range. Favored by intelligence-focused civilizations.',
   war_hound: 'Combat-focused detection unit. Weaker spy detection (30%) but formidable in battle. Tears apart lightly-armored spy units.',
+  // S4b — new unit descriptions
+  axeman:      'Early copper-armed warrior. Strong for the era but outpaced once iron is mastered.',
+  spearman:    'Versatile polearm soldier effective against mounted units. No resources required.',
+  horseman:    'Swift light cavalry for raids and flanking. Requires Horses.',
+  cavalry:     'Heavy cavalry unit combining speed and striking power. Requires Horses and Iron.',
+  knight:      'The apex of mounted warfare — armored and devastating. Requires Horses and Iron.',
+  crossbowman: 'Precision-ranged unit with a longer reach than Archers. Requires Copper.',
+  catapult:    'Slow but devastating siege engine that bombards units and cities. Requires Stone.',
+  ballista:    'Long-range bolt-thrower effective against massed units. Requires Iron.',
 };
 
 export function getUnmovedUnits(
