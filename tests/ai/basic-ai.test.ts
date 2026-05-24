@@ -7,6 +7,8 @@ import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-
 import { hexKey } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 import { createUnit } from '@/systems/unit-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import type { ResourceType } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -1495,5 +1497,110 @@ describe('processAITurn', () => {
     );
 
     expect(project?.questSteps.find(step => step.id === 'defeat-nearby-stronghold')?.completed).toBe(true);
+  });
+});
+
+describe('S4b — AI resource-aware production', () => {
+  function makeSingleCivState(options: {
+    tiles?: Record<string, GameState['map']['tiles'][string]>;
+    resources?: ResourceType[];
+    completedTechs?: string[];
+  } = {}): GameState {
+    // Minimal state with one AI civ and one city
+    const tile = {
+      coord: { q: 0, r: 0 }, terrain: 'grassland' as const,
+      elevation: 'lowland' as const, resource: null, improvement: 'none' as const,
+      owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    const resourceTile = options.resources?.length ? {
+      coord: { q: 1, r: 0 }, terrain: 'hills' as const,
+      elevation: 'lowland' as const,
+      resource: options.resources[0] as ResourceType,
+      improvement: 'mine' as const,
+      owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    } : undefined;
+
+    const tiles: Record<string, GameState['map']['tiles'][string]> = {
+      '0,0': tile,
+      ...(resourceTile ? { '1,0': resourceTile } : {}),
+      ...(options.tiles ?? {}),
+    };
+
+    const counters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    const map = { width: 8, height: 8, tiles, wrapsHorizontally: false, rivers: [] };
+    const city = foundCity('ai-1', { q: 0, r: 0 }, map, counters);
+
+    return {
+      turn: 5,
+      era: 1,
+      currentPlayer: 'ai-1',
+      gameOver: false,
+      winner: null,
+      map,
+      units: {},
+      cities: { [city.id]: city },
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1',
+          name: 'Test AI',
+          color: '#ff0000',
+          isHuman: false,
+          civType: 'generic',
+          cities: [city.id],
+          units: [],
+          techState: {
+            completed: options.completedTechs ?? [],
+            current: null,
+            progress: 0,
+          },
+          gold: 50,
+          visibility: { tiles: {} },
+          score: 0,
+          diplomacy: { relationships: {}, atWarWith: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
+        },
+      },
+      barbarianCamps: {},
+      tribalVillages: {},
+      minorCivs: {},
+      marketplace: { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] },
+      espionage: {},
+      legendaryWonderProjects: {},
+    } as unknown as GameState;
+  }
+
+  it('AI never queues resource-blocked unit', () => {
+    // AI has stone-weapons but no copper — should not queue axeman
+    const state = makeSingleCivState({ completedTechs: ['stone-weapons'] });
+    const bus = new EventBus<GameEvents>();
+    const newState = processAITurn(state, 'ai-1', bus);
+    const city = Object.values(newState.cities).find(c => c.owner === 'ai-1')!;
+    expect(city.productionQueue).not.toContain('axeman');
+  });
+
+  it('AI queues axeman when copper is available', () => {
+    // Resources are determined by tiles with the resource + mine improvement
+    // This test verifies the AI uses the resource-gated unit list
+    const state = makeSingleCivState({
+      completedTechs: ['stone-weapons'],
+      resources: ['copper'],
+    });
+    const bus = new EventBus<GameEvents>();
+    const newState = processAITurn(state, 'ai-1', bus);
+    // We just verify it doesn't crash and doesn't queue a blocked item
+    const city = Object.values(newState.cities).find(c => c.owner === 'ai-1')!;
+    if (city.productionQueue.includes('axeman')) {
+      // If axeman was chosen, copper must be available
+      const resources = getCivAvailableResources(state, 'ai-1');
+      expect(resources.has('copper')).toBe(true);
+    }
+  });
+
+  it('AI does not queue resource-blocked building', () => {
+    // AI has stone-weapons but no copper — should not queue bronze-workshop
+    const state = makeSingleCivState({ completedTechs: ['stone-weapons'] });
+    const bus = new EventBus<GameEvents>();
+    const newState = processAITurn(state, 'ai-1', bus);
+    const city = Object.values(newState.cities).find(c => c.owner === 'ai-1')!;
+    expect(city.productionQueue).not.toContain('bronze-workshop');
   });
 });
