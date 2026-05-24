@@ -32,6 +32,8 @@ if (state.era > 1) {
 
 `setSnapshot` is synchronous and sets gain targets on the mixer's GainNodes. When `preloadForEra` resolves and `setBusSource` starts the audio sources, they play at the correct 'peace' gain level immediately.
 
+> **Known limitation:** War state is not persisted in the audio system. A saved game at era=1 that had an active war will play peace music on load until the next war/peace event fires. This is pre-existing behaviour (era > 1 saves have the same gap) and out of scope for this fix.
+
 **Gesture resume fix** — add a `gestureResumeHandler` field and extend `armIosResume` / `disarmIosResume`:
 
 ```ts
@@ -130,7 +132,9 @@ New file: `src/systems/map-validation.ts`
 ```ts
 export function isValidStartTile(tile: MapTile | undefined): boolean {
   if (!tile) return false;
-  const blocked = ['ocean', 'coast', 'mountain', 'volcano'];
+  // Matches the isLandTerrain() exclusion list in map-generator.ts:
+  // ocean and coast are water, mountain and snow are impassable/unlivable, volcanic is a lava field.
+  const blocked: TerrainType[] = ['ocean', 'coast', 'mountain', 'snow', 'volcanic'];
   return !blocked.includes(tile.terrain);
 }
 
@@ -140,7 +144,7 @@ export function hasWorkableSurroundings(
   minWorkable = 2,
 ): boolean {
   const neighbors = hexNeighbors(coord);    // existing helper in hex-utils.ts
-  const unworkable = ['ocean', 'mountain', 'volcano', 'desert'];
+  const unworkable: TerrainType[] = ['ocean', 'mountain', 'volcanic', 'desert', 'snow'];
   const workableCount = neighbors.filter(n => {
     const t = mapTiles[hexKey(n)];
     return t && !unworkable.includes(t.terrain);
@@ -190,19 +194,21 @@ Run the audit test to identify all failing positions. Fix each one to the geogra
 - England (medium/large): verify and correct if needed.
 - All other civs: correct any that fail the validity checks.
 
-**Step 4 — Runtime guard in geo-map-loader or map generator**
+**Step 4 — Runtime guard in `map-generator.ts` (`findStartPositions` Pass 1)**
 
-At civ placement time (when units and cities are spawned at game start), wrap each starting coord:
+`geo-map-loader.ts` only builds `GameMap` tiles — civ placement flows through `findStartPositions` in `map-generator.ts`. In Pass 1, precomputed geo positions are already discarded if the tile doesn't exist (`!map.tiles[hexKey(precomputed)]`), but they are NOT discarded if the tile exists but is water. Extend that guard to also reject invalid start tiles:
 
 ```ts
-const safeStart = findNearestValidStart(rawStart, state.map.tiles);
-if (safeStart.q !== rawStart.q || safeStart.r !== rawStart.r) {
-  console.warn(`[map] Starting position for ${civId} adjusted from`, rawStart, 'to', safeStart);
-}
-// use safeStart for unit placement
+// In findStartPositions Pass 1, replace the existing tile-existence check with:
+const precomputed = table[civTypeIds[i]];
+const precomputedTile = precomputed ? map.tiles[hexKey(precomputed)] : undefined;
+if (!precomputed || !precomputedTile || !isValidStartTile(precomputedTile)) continue;
+// (falls through to Pass 2 greedy, which already requires isLandTerrain)
 ```
 
-This is a silent fallback — the player never sees it. It prevents a future data mistake from stranding a civ on water.
+A `console.warn` logs the adjustment so bad data is visible in development. Invalid precomputed positions fall silently through to the existing greedy Pass 2, which already enforces land terrain and workable neighbourhood count ≥ 10 — so the fallback is already good. No separate BFS call is needed here; `findNearestValidStart` is for the audit test only.
+
+> **Note:** The spec's `isValidStartTile` must be importable from `map-validation.ts` and used by both `findStartPositions` and the audit test.
 
 ### Tests
 
@@ -235,30 +241,31 @@ harbor: {
 },
 ```
 
-**File:** `src/systems/city-system.ts` — guard inside `processCity`, after the tech-filter block and before calling `completeCityProductionItem`. `processCity` already receives the `map` argument, so `isCityCoastal` can be called directly:
+**File:** `src/systems/city-system.ts` — guard inside `processCity`, placed **after the tech-filter block and before the `newProgress += productionYield` line**. Placing it before production accumulation means the city doesn't waste a turn's production on a building it is about to lose. `processCity` already receives the `map` argument, so `isCityCoastal` can be called directly:
 
 ```ts
-// Drop queued coastal building if city is no longer coastal
+// After tech-filter, BEFORE newProgress += productionYield:
+let droppedBuilding: string | null = null;
 if (newQueue.length > 0) {
   const headItem = newQueue[0];
   const headBuilding = BUILDINGS[headItem];
   if (headBuilding?.coastalRequired && !isCityCoastal(city, map.tiles)) {
     newQueue.shift();
     newProgress = 0;
-    // Caller (turn-manager) emits a notification via result.droppedBuilding
+    droppedBuilding = headItem;
   }
 }
 ```
 
-Add `droppedBuilding: string | null` to `CityProcessResult` so `turn-manager.ts` can emit a player notification: `"<City>: <Building> removed — city is no longer coastal."` This surfaces the change to the player rather than silently eating their production progress.
+Add `droppedBuilding: string | null` to `CityProcessResult` (always populated; `null` when nothing was dropped) so `turn-manager.ts` can emit a player notification: `"<City>: <Building> removed — city is no longer coastal."` This surfaces the change to the player rather than silently eating their production progress.
 
 ### Tests (`tests/systems/city-system.test.ts`)
 
 - `getAvailableBuildings` does not include `harbor` for a non-coastal city.
 - `getAvailableBuildings` does not include `dock` for a non-coastal city.
 - `getAvailableBuildings` includes both `harbor` and `dock` for a coastal city.
-- `processCity` dequeues a `harbor` (coastalRequired) when the city is not coastal, and does not produce the building.
-- `processCity` completes a `harbor` normally when the city is coastal.
+- `processCity` dequeues a `harbor` when the city is not coastal: building is not added, `result.droppedBuilding === 'harbor'`, and no production is wasted (progress stays 0).
+- `processCity` completes a `harbor` normally when the city is coastal: `result.completedBuilding === 'harbor'`, `result.droppedBuilding === null`.
 
 ---
 
@@ -271,7 +278,7 @@ Add `droppedBuilding: string | null` to `CityProcessResult` so `turn-manager.ts`
 | `src/main.ts` | Call `setMinZoomForMap` after game state loads |
 | `src/systems/map-validation.ts` | New — `isValidStartTile`, `hasWorkableSurroundings`, `findNearestValidStart` |
 | `src/systems/earth-map-data.ts` | Corrected starting coordinates for all civs/map sizes |
-| `src/systems/geo-map-loader.ts` | Runtime `findNearestValidStart` guard at civ placement |
+| `src/systems/map-generator.ts` | Extend Pass 1 `isValidStartTile` guard in `findStartPositions` |
 | `src/systems/city-system.ts` | `coastalRequired: true` on `harbor`; coastal guard + `droppedBuilding` in `processCity` |
 | `src/core/turn-manager.ts` | Emit notification when `result.droppedBuilding` is set |
 | `tests/audio/audio-system.test.ts` | 3 new tests for #246 |
