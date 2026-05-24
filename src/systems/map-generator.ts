@@ -10,6 +10,7 @@ import { generateRivers, applyRiversToMap } from './river-system';
 import { RESOURCE_DEFINITIONS } from './trade-system';
 // Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
 import { EARTH_START_POSITIONS } from './earth-map-data';
+import { isValidStartTile } from './map-validation';
 import { OLD_WORLD_START_POSITIONS } from './old-world-map-data';
 import { NEW_WORLD_START_POSITIONS } from './new-world-map-data';
 
@@ -302,7 +303,16 @@ export function findStartPositions(
     const claimedKeys = new Set<string>();
     for (let i = 0; i < civTypeIds.length; i++) {
       const precomputed = table[civTypeIds[i]];
-      if (!precomputed || !map.tiles[hexKey(precomputed)]) continue;
+      const precomputedTile = precomputed ? map.tiles[hexKey(precomputed)] : undefined;
+      if (!precomputed || !precomputedTile || !isValidStartTile(precomputedTile)) {
+        if (precomputed) {
+          console.warn(
+            `[findStartPositions] ${civTypeIds[i]} precomputed start ${hexKey(precomputed)}` +
+            ` (${precomputedTile?.terrain ?? 'missing'}) is invalid — falling through to greedy Pass 2`,
+          );
+        }
+        continue;
+      }
       const key = hexKey(precomputed);
       if (!claimedKeys.has(key)) {
         positions[i] = precomputed;
