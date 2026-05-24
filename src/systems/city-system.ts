@@ -325,12 +325,20 @@ export function isCityCoastal(city: City, mapTiles: GameMap['tiles']): boolean {
   });
 }
 
-export function getAvailableBuildings(city: City, completedTechs: string[], mapTiles: GameMap['tiles']): Building[] {
+export function getAvailableBuildings(
+  city: City,
+  completedTechs: string[],
+  mapTiles: GameMap['tiles'],
+  availableResources?: Set<ResourceType>,
+): Building[] {
   const coastal = isCityCoastal(city, mapTiles);
   return Object.values(BUILDINGS).filter(b => {
     if (city.buildings.includes(b.id)) return false;
     if (b.techRequired && !completedTechs.includes(b.techRequired)) return false;
     if (b.coastalRequired && !coastal) return false;
+    if (availableResources !== undefined && b.resourceRequired?.length) {
+      if (!b.resourceRequired.every(r => availableResources.has(r))) return false;
+    }
     return true;
   });
 }

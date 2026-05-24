@@ -677,3 +677,38 @@ describe('getTrainableUnitsForCiv — resource gate', () => {
     expect(units.some(u => u.type === 'warrior')).toBe(true);
   });
 });
+
+describe('getAvailableBuildings — resource gate', () => {
+  it('returns all tech-met buildings when availableResources is undefined (backward-compat)', () => {
+    const map = generateMap(30, 30, 'res-test');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', tile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['stone-weapons'], map.tiles, undefined);
+    // bronze-workshop requires stone-weapons + copper; no filter → should appear
+    expect(available.some(b => b.id === 'bronze-workshop')).toBe(true);
+  });
+
+  it('excludes resource-gated building when resource is missing', () => {
+    const map = generateMap(30, 30, 'res-test');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', tile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['stone-weapons'], map.tiles, new Set<ResourceType>());
+    expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
+  });
+
+  it('includes resource-gated building when tech and resource are both present', () => {
+    const map = generateMap(30, 30, 'res-test');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', tile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['stone-weapons'], map.tiles, new Set<ResourceType>(['copper']));
+    expect(available.some(b => b.id === 'bronze-workshop')).toBe(true);
+  });
+
+  it('excludes resource-gated building when tech is missing regardless of resource', () => {
+    const map = generateMap(30, 30, 'res-test');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', tile.coord, map, mkC());
+    const available = getAvailableBuildings(city, [], map.tiles, new Set<ResourceType>(['copper']));
+    expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
+  });
+});
