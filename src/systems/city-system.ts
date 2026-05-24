@@ -57,7 +57,7 @@ export const BUILDINGS: Record<string, Building> = {
 
   // Economy
   marketplace: { id: 'marketplace', name: 'Marketplace', category: 'economy', yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 50, description: 'Center of trade', techRequired: 'currency', adjacencyBonuses: [] },
-  harbor: { id: 'harbor', name: 'Harbor', category: 'economy', yields: { food: 1, production: 0, gold: 3, science: 0 }, productionCost: 80, description: 'Enables sea trade', techRequired: 'harbor-tech', adjacencyBonuses: [] },
+  harbor: { id: 'harbor', name: 'Harbor', category: 'economy', yields: { food: 1, production: 0, gold: 3, science: 0 }, productionCost: 80, description: 'Enables sea trade', techRequired: 'harbor-tech', coastalRequired: true, adjacencyBonuses: [] },
   dock: { id: 'dock', name: 'Dock', category: 'economy', yields: { food: 2, production: 0, gold: 1, science: 0 }, productionCost: 20, description: 'Harbor for fishing boats. Boosts coastal city food and trade.', techRequired: 'fishing', coastalRequired: true, adjacencyBonuses: [], pacing: { band: 'core', role: 'coastal-food', impact: 1, scope: 'city', snowball: 1.05, urgency: 1, situationality: 1.2, unlockBreadth: 1 } },
 
   // Military
@@ -375,6 +375,8 @@ export interface CityProcessResult {
   completedUnit: UnitType | null;
   idleGoldBonus: number;
   idleScienceBonus: number;
+  /** The building id that was silently dequeued because the city is no longer coastal, or null. */
+  droppedBuilding: string | null;
 }
 
 export interface CityProductionCompletionResult {
@@ -475,6 +477,18 @@ export function processCity(
     }
   }
 
+  // Coastal guard: drop the queue head BEFORE accumulating production so no yield is wasted.
+  // A building with coastalRequired cannot be built in an inland city; if this city
+  // lost coastal access (e.g. map-script edge case), remove the item silently.
+  let droppedBuilding: string | null = null;
+  if (newQueue.length > 0) {
+    const headBuilding = BUILDINGS[newQueue[0]];
+    if (headBuilding?.coastalRequired && !isCityCoastal(city, map.tiles)) {
+      droppedBuilding = newQueue.shift()!;
+      newProgress = 0;
+    }
+  }
+
   if (newQueue.length > 0) {
     newProgress += productionYield;
     const currentItem = newQueue[0];
@@ -524,6 +538,7 @@ export function processCity(
     completedUnit,
     idleGoldBonus,
     idleScienceBonus,
+    droppedBuilding,
   };
 }
 

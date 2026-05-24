@@ -138,6 +138,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       if (result.completedBuilding) {
         bus.emit('city:building-complete', { cityId, buildingId: result.completedBuilding });
       }
+      if (result.droppedBuilding) {
+        bus.emit('city:building-dropped', { cityId, buildingId: result.droppedBuilding });
+      }
       if (result.completedUnit) {
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
         const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);

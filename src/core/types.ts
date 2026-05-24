@@ -1094,6 +1094,7 @@ export interface GameEvents {
   'diplomacy:league-dissolved': { leagueId: string; reason: string };
   'diplomacy:league-triggered': { leagueId: string; attackerId: string; defenderId: string };
   'city:building-complete': { cityId: string; buildingId: string };
+  'city:building-dropped': { cityId: string; buildingId: string };
   'city:unit-trained': { cityId: string; unitType: UnitType };
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
