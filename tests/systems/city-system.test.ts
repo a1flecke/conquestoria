@@ -712,3 +712,72 @@ describe('getAvailableBuildings — resource gate', () => {
     expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
   });
 });
+
+describe('S4b — new unit entries', () => {
+  it('guard: warrior always available with no tech and no resources', () => {
+    const units = getTrainableUnitsForCiv([], undefined, new Set<ResourceType>());
+    expect(units.some(u => u.type === 'warrior')).toBe(true);
+  });
+
+  it('guard: spearman available with bronze-working and no resources (ungated era-2 melee)', () => {
+    const units = getTrainableUnitsForCiv(['bronze-working'], undefined, new Set<ResourceType>());
+    expect(units.some(u => u.type === 'spearman')).toBe(true);
+  });
+
+  it('axeman: trainable with stone-weapons + copper', () => {
+    const units = getTrainableUnitsForCiv(['stone-weapons'], undefined, new Set<ResourceType>(['copper']));
+    expect(units.some(u => u.type === 'axeman')).toBe(true);
+  });
+
+  it('axeman: blocked without copper', () => {
+    const units = getTrainableUnitsForCiv(['stone-weapons'], undefined, new Set<ResourceType>());
+    expect(units.some(u => u.type === 'axeman')).toBe(false);
+  });
+
+  it('horseman: trainable with horseback-riding + horses', () => {
+    const units = getTrainableUnitsForCiv(['horseback-riding'], undefined, new Set<ResourceType>(['horses']));
+    expect(units.some(u => u.type === 'horseman')).toBe(true);
+  });
+
+  it('knight: trainable with iron-forging + horses + iron', () => {
+    const units = getTrainableUnitsForCiv(['iron-forging'], undefined, new Set<ResourceType>(['horses', 'iron']));
+    expect(units.some(u => u.type === 'knight')).toBe(true);
+  });
+
+  it('knight: blocked when iron is missing', () => {
+    const units = getTrainableUnitsForCiv(['iron-forging'], undefined, new Set<ResourceType>(['horses']));
+    expect(units.some(u => u.type === 'knight')).toBe(false);
+  });
+
+  it('crossbowman: trainable with tactics + copper', () => {
+    const units = getTrainableUnitsForCiv(['tactics'], undefined, new Set<ResourceType>(['copper']));
+    expect(units.some(u => u.type === 'crossbowman')).toBe(true);
+  });
+
+  it('catapult: trainable with siege-warfare + stone', () => {
+    const units = getTrainableUnitsForCiv(['siege-warfare'], undefined, new Set<ResourceType>(['stone']));
+    expect(units.some(u => u.type === 'catapult')).toBe(true);
+  });
+
+  it('ballista: trainable with siege-warfare + iron', () => {
+    const units = getTrainableUnitsForCiv(['siege-warfare'], undefined, new Set<ResourceType>(['iron']));
+    expect(units.some(u => u.type === 'ballista')).toBe(true);
+  });
+
+  it('swordsman: requires iron in addition to bronze-working', () => {
+    const withIron = getTrainableUnitsForCiv(['bronze-working'], undefined, new Set<ResourceType>(['iron']));
+    const withoutIron = getTrainableUnitsForCiv(['bronze-working'], undefined, new Set<ResourceType>());
+    expect(withIron.some(u => u.type === 'swordsman')).toBe(true);
+    expect(withoutIron.some(u => u.type === 'swordsman')).toBe(false);
+  });
+
+  it('horseman has no obsoletedByTech (cavalry dead-end guard)', () => {
+    const entry = TRAINABLE_UNITS.find(u => u.type === 'horseman');
+    expect(entry?.obsoletedByTech).toBeUndefined();
+  });
+
+  it('cavalry has no obsoletedByTech (cavalry dead-end guard)', () => {
+    const entry = TRAINABLE_UNITS.find(u => u.type === 'cavalry');
+    expect(entry?.obsoletedByTech).toBeUndefined();
+  });
+});
