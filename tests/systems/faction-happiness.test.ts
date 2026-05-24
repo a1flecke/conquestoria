@@ -62,7 +62,7 @@ function makeMinimalState({
     cities['capital'] = { ...capital, ownedTiles: capitalOwnedTiles };
   }
 
-  const dipState = createDiplomacyState(civId);
+  const dipState = createDiplomacyState([civId], civId);
 
   return {
     turn: 10, era,
