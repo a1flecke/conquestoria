@@ -1,4 +1,4 @@
-import type { GameState, ResourceType } from '@/core/types';
+import type { GameState, ResourceType, ResourceYield } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { RESOURCE_DEFINITIONS } from './trade-system';
 
@@ -58,4 +58,52 @@ export function getCivAvailableResources(state: GameState, civId: string): Set<R
   }
 
   return result;
+}
+
+/**
+ * Returns the aggregate per-city yield bonus from all owned resources whose
+ * effect type is NOT 'happiness' (i.e. gold, production, food effects only).
+ * Non-stacking per resource: owning any number of the same resource counts once.
+ * Different resources with the same effect type DO accumulate
+ * (gems + silver → +2 gold/turn).
+ */
+export function getCivResourceYieldBonus(
+  state: GameState,
+  civId: string,
+): ResourceYield {
+  const bonus: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
+  const owned = getCivAvailableResources(state, civId);
+
+  for (const def of RESOURCE_DEFINITIONS) {
+    if (!def.effect || def.effect.type === 'happiness') continue;
+    if (!owned.has(def.id as ResourceType)) continue;
+
+    switch (def.effect.type) {
+      case 'gold':       bonus.gold       += def.effect.amount; break;
+      case 'production': bonus.production += def.effect.amount; break;
+      case 'food':       bonus.food       += def.effect.amount; break;
+    }
+  }
+
+  return bonus;
+}
+
+/**
+ * Returns the count of distinct happiness-type luxuries owned by the civ.
+ * Empire-wide, non-stacking: owning three silk tiles counts as 1, not 3.
+ * Different resources accumulate: silk + wine = 2.
+ */
+export function getCivHappinessFromResources(
+  state: GameState,
+  civId: string,
+): number {
+  const owned = getCivAvailableResources(state, civId);
+  let count = 0;
+
+  for (const def of RESOURCE_DEFINITIONS) {
+    if (!def.effect || def.effect.type !== 'happiness') continue;
+    if (owned.has(def.id as ResourceType)) count++;
+  }
+
+  return count;
 }
