@@ -397,25 +397,71 @@ export function SpyHackerSprite({ palette, svgOnly = false }: UnitSpriteProps): 
   });
 }
 
-/* === S4b UNITS (placeholder sprites) === */
+/* === Helpers (file-local) === */
+
+function mountedRider({
+  cx, cy, scale = 0.85, cloth, accent,
+  skin = P.skin.warm, hair = '#3a2a1a', hat = '',
+}: {
+  cx: number; cy: number; scale?: number;
+  cloth: string; accent: string;
+  skin?: string; hair?: string; hat?: string;
+}): string {
+  const t = `translate(${cx} ${cy}) scale(${scale})`;
+  return (
+    <g transform={t}>
+      <path d="M-7,6 Q-8,13 -4,14 L-1,14 Q-2,10 -1,6 Z" fill={cloth} stroke={P.ink.line} strokeWidth="0.5" />
+      <path d="M7,6 Q8,13 4,14 L1,14 Q2,10 1,6 Z" fill={cloth} stroke={P.ink.line} strokeWidth="0.5" />
+      <path d="M0,-18 C12,-16 14,-2 10,7 L-10,7 C-14,-2 -12,-16 0,-18 Z" fill={cloth} stroke={P.ink.line} strokeWidth="0.9" />
+      <rect x="-10" y="5" width="20" height="2.6" fill={accent} stroke={P.ink.line} strokeWidth="0.5" />
+      <ellipse cx="-12" cy="-2" rx="3.6" ry="8" fill={cloth} stroke={P.ink.line} strokeWidth="0.7" transform="rotate(-14 -12 -2)" />
+      <ellipse cx="12"  cy="-2" rx="3.6" ry="8" fill={cloth} stroke={P.ink.line} strokeWidth="0.7" transform="rotate(14 12 -2)" />
+      <circle cx="-14" cy="5" r="2.2" fill={skin} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="14"  cy="5" r="2.2" fill={skin} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="-2.6" y="-22" width="5.2" height="5" fill={skin} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="0" cy="-26" r="8" fill={skin} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M-8,-28 Q-6,-36 0,-36 Q6,-36 8,-28 Q8,-26 6,-25 L-6,-25 Q-8,-26 -8,-28 Z" fill={hair} />
+      <circle cx="-2.3" cy="-26" r="0.7" fill={P.ink.line} />
+      <circle cx="2.3"  cy="-26" r="0.7" fill={P.ink.line} />
+      {hat}
+    </g>
+  );
+}
+
+function dangleBoot({ x, y, cloth }: { x: number; y: number; cloth: string }): string {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <rect x="-1.4" y="-10" width="2.8" height="9" fill={cloth} stroke={P.ink.line} strokeWidth="0.4" />
+      <ellipse cx="0" cy="0" rx="3.6" ry="2" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.4" />
+      <path d="M-3,-2 Q0,-4 3,-2" stroke={P.metal.iron} strokeWidth="0.6" fill="none" />
+    </g>
+  );
+}
+
+/* === S4b UNITS (v3 design) === */
 
 export function AxemanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
       <Shadow />
-      <Humanoid cx={64} cy={70} scale={1} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} hair="#3a2a1a"
-        hat={<ellipse cx="0" cy="-38" rx="10" ry="4" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.8" />}
-      />
-      <g transform="translate(84 36) rotate(20)">
-        <rect x="-1" y="0" width="2" height="36" fill={P.wood.dark} />
-        <path d="M-8,-2 L2,-2 L2,16 L-8,12 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.8" />
-        <path d="M-6,0 L0,0 L0,12 L-6,10 Z" fill={P.metal.shine} opacity="0.4" />
+      <Humanoid cx={64} cy={70} scale={1} cloth={P.cloth.tunic} pants={P.cloth.wool} accent={palette.dark} hair="#3a2a1a" />
+      {/* round hide shield — left hand */}
+      <g transform="translate(46 70)">
+        <circle r="11" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <circle r="11" fill={palette.mid} opacity="0.45" />
+        <circle r="11" fill="none" stroke={P.wood.dark} strokeWidth="0.8" strokeDasharray="2 2" opacity="0.7" />
+        <circle r="2.4" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />
       </g>
-      <g transform="translate(44 62)">
-        <circle r="12" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
-        <circle r="12" fill={palette.mid} opacity="0.7" />
-        <circle r="2.5" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* axe — outer translates to right hand; inner pivots at grip */}
+      <g transform="translate(79 76) rotate(-20)">
+        <g className="cq-weapon" style="transform-origin: 79px 76px; transform-box: view-box;">
+          <rect x="-1.2" y="-32" width="2.4" height="32" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+          <rect x="-1.6" y="-2" width="3.2" height="6" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.4" />
+          <path d="M-2,-32 L10,-38 L12,-32 L10,-26 L-2,-28 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.8" />
+          <path d="M-2,-32 L8,-36 L10,-32 L8,-28 L-2,-29 Z" fill={P.metal.shine} opacity="0.4" />
+        </g>
       </g>
+      <Banner x={52} y={48} palette={palette} scale={0.7} />
     </SpriteFrame>
   );
 }
@@ -424,14 +470,28 @@ export function SpearmanSprite({ palette, svgOnly = false }: UnitSpriteProps): s
   return (
     <SpriteFrame svgOnly={svgOnly}>
       <Shadow />
-      <g transform="translate(46 6) rotate(-5)">
-        <rect x="-1" y="0" width="2" height="108" fill={P.wood.mid} />
-        <path d="M-4,0 L4,0 L5,-14 L0,-20 L-5,-14 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
-        <rect x="-4" y="-2" width="8" height="2" fill={P.metal.gold} />
+      {/* spear — left hand at (49, 76); haft extends up and down from grip */}
+      <g transform="translate(49 76) rotate(-8)">
+        <g className="cq-weapon" style="transform-origin: 49px 76px; transform-box: view-box;">
+          <rect x="-1" y="-68" width="2" height="100" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+          <rect x="-1.6" y="-4" width="3.2" height="8" fill={P.ink.soft} />
+          <path d="M-4,-68 L4,-68 L5,-78 L0,-86 L-5,-78 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+          <rect x="-3" y="-70" width="6" height="2" fill={P.metal.gold} />
+        </g>
       </g>
-      <Humanoid cx={64} cy={70} scale={1} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} hair="#3a2a1a"
-        hat={<path d="M-10,-34 Q0,-42 10,-34 L10,-28 L-10,-28 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />}
+      <Humanoid
+        cx={64} cy={70} scale={1}
+        cloth={P.cloth.linen} pants={P.cloth.wool} accent={palette.mid} hair="#3a2a1a"
+        hat={<path d="M-9,-36 Q0,-44 9,-36 L9,-32 L-9,-32 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.6" />}
       />
+      {/* large round shield — right hand */}
+      <g transform="translate(80 66)">
+        <circle r="15" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+        <circle r="15" fill="none" stroke={palette.dark} strokeWidth="2.2" />
+        <circle r="3.4" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />
+        <path d="M-12,0 L12,0" stroke={palette.dark} strokeWidth="0.6" opacity="0.7" />
+      </g>
+      <Banner x={36} y={36} palette={palette} scale={0.7} />
     </SpriteFrame>
   );
 }
@@ -439,20 +499,38 @@ export function SpearmanSprite({ palette, svgOnly = false }: UnitSpriteProps): s
 export function HorsemanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={64} cy={96} rx={40} ry={8} />
-      <g transform="translate(64 72)">
-        <ellipse cx="0" cy="0" rx="32" ry="18" fill="#a07848" stroke={P.ink.line} strokeWidth="1" />
-        <ellipse cx="0" cy="-4" rx="28" ry="12" fill="#b8925a" />
-        <rect x="-24" y="10" width="8" height="20" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="-10" y="12" width="8" height="22" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="10"  y="12" width="8" height="22" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="22"  y="10" width="8" height="20" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
-        <ellipse cx="-26" cy="-8" rx="14" ry="12" fill="#a07848" stroke={P.ink.line} strokeWidth="1" />
-        <path d="M-36,-8 L-42,-2 L-36,0 Z" fill="#a07848" stroke={P.ink.line} strokeWidth="0.8" />
-        <path d="M-22,-20 L-18,-28 L-15,-18 Z" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="-14" y="-8" width="28" height="4" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <Shadow cx={64} cy={96} rx={26} />
+      <g transform="translate(64 80)">
+        <path d="M28,-2 Q36,2 32,12" stroke="#7a5a3a" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <rect x="-6" y="2" width="5" height="16" fill="#7a5a3a" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="22" y="2" width="5" height="16" fill="#7a5a3a" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="0" cy="0" rx="28" ry="14" fill="#a07a4a" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="0" cy="-3" rx="26" ry="9" fill="#b88a5a" />
+        <rect x="-10" y="-8" width="18" height="6" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="-10" y="-8" width="18" height="2" fill={palette.dark} />
+        <rect x="-18" y="2" width="5" height="16" fill="#7a5a3a" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="14" y="2" width="5" height="16" fill="#7a5a3a" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="-22" cy="-5" rx="12" ry="10" fill="#a07a4a" stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-32,-2 L-36,4 L-28,4 Z" fill="#a07a4a" stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M-14,-12 L-12,-18 L-8,-14 L-4,-18 L-2,-12 Z" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M-18,-13 L-16,-19 L-14,-12 Z" fill="#7a5a3a" stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="-26" cy="-5" r="0.8" fill={P.ink.line} />
       </g>
-      <Humanoid cx={64} cy={48} scale={0.85} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} hair="#3a2a1a" />
+      {mountedRider({
+        cx: 64, cy: 60, scale: 0.85,
+        cloth: P.cloth.tunic, accent: palette.bright, hair: '#3a2a1a',
+        hat: <path d="M-8,-32 Q0,-38 8,-32 L8,-28 L-8,-28 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />,
+      })}
+      {dangleBoot({ x: 56, y: 86, cloth: palette.dark })}
+      {/* short sword — rider's right hand at world (76, 64); pivots at hand */}
+      <g transform="translate(76 64) rotate(25)">
+        <g className="cq-weapon" style="transform-origin: 76px 64px; transform-box: view-box;">
+          <rect x="-0.8" y="-22" width="1.6" height="22" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+          <rect x="-3" y="-2" width="6" height="2" fill={P.metal.gold} />
+          <rect x="-1" y="0" width="2" height="5" fill={P.wood.dark} />
+        </g>
+      </g>
+      <Banner x={42} y={34} palette={palette} scale={0.7} />
     </SpriteFrame>
   );
 }
@@ -460,26 +538,43 @@ export function HorsemanSprite({ palette, svgOnly = false }: UnitSpriteProps): s
 export function CavalrySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={64} cy={96} rx={42} ry={8} />
-      <g transform="translate(64 72)">
-        <ellipse cx="0" cy="0" rx="34" ry="18" fill="#3a2a1a" stroke={P.ink.line} strokeWidth="1" />
-        <ellipse cx="0" cy="-4" rx="30" ry="12" fill="#5a3a20" />
-        <rect x="-26" y="10" width="8" height="20" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="-12" y="12" width="8" height="22" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="10"  y="12" width="8" height="22" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="24"  y="10" width="8" height="20" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
-        <ellipse cx="-28" cy="-8" rx="15" ry="13" fill="#3a2a1a" stroke={P.ink.line} strokeWidth="1" />
-        <path d="M-38,-6 L-46,0 L-38,2 Z" fill="#3a2a1a" stroke={P.ink.line} strokeWidth="0.8" />
-        <path d="M-24,-22 L-20,-30 L-16,-20 Z" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="-14" y="-8" width="28" height="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      <Shadow cx={64} cy={96} rx={28} />
+      <g transform="translate(64 80)">
+        <path d="M30,-3 Q38,2 34,14" stroke="#4a2810" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <rect x="-8" y="2" width="6" height="18" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="22" y="2" width="6" height="18" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="0" cy="0" rx="30" ry="16" fill="#7a5830" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="0" cy="-4" rx="28" ry="10" fill="#8a6a3a" />
+        <path d="M-20,-9 Q0,-15 22,-9 L22,-5 L-20,-5 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="-20" y="2" width="6" height="18" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="14" y="2" width="6" height="18" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="-24" cy="-6" rx="12" ry="10" fill="#7a5830" stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-34,-3 L-38,4 L-30,5 Z" fill="#7a5830" stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M-16,-13 L-14,-20 L-10,-15 L-6,-20 L-4,-13 Z" fill={P.ink.line} stroke={P.ink.line} strokeWidth="0.3" />
+        <path d="M-20,-14 L-18,-19 L-16,-13 Z" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="-28" cy="-6" r="0.8" fill={P.ink.line} />
       </g>
-      <Humanoid cx={64} cy={44} scale={0.85} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} hair="#2a1a10"
-        hat={<path d="M-10,-34 Q0,-42 10,-34 L10,-28 L-10,-28 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />}
-      />
-      <g transform="translate(80 28) rotate(15)">
-        <rect x="-1" y="0" width="2" height="52" fill={P.wood.dark} />
-        <path d="M-4,-4 L4,-4 L5,-14 L0,-20 L-5,-14 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      {mountedRider({
+        cx: 64, cy: 58, scale: 0.9,
+        cloth: P.metal.steel, accent: palette.dark, hair: '#2a1a10',
+        hat: (
+          <g>
+            <path d="M-8,-28 Q0,-40 8,-28 L8,-26 L-8,-26 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />
+            <path d="M-8,-28 Q0,-40 8,-28" fill="none" stroke={P.metal.shine} strokeWidth="0.5" opacity="0.4" />
+            <rect x="-2" y="-40" width="4" height="2.4" fill={palette.bright} />
+          </g>
+        ),
+      })}
+      {dangleBoot({ x: 54, y: 86, cloth: P.metal.iron })}
+      {/* iron sword — rider's right hand at world (77, 63); ready-forward pose */}
+      <g transform="translate(77 63) rotate(45)">
+        <g className="cq-weapon" style="transform-origin: 77px 63px; transform-box: view-box;">
+          <rect x="-0.8" y="-24" width="1.6" height="24" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+          <rect x="-3" y="-2" width="6" height="2" fill={P.metal.gold} />
+          <rect x="-1" y="0" width="2" height="5" fill={P.wood.dark} />
+        </g>
       </g>
+      <Banner x={42} y={28} palette={palette} scale={0.75} />
     </SpriteFrame>
   );
 }
@@ -487,30 +582,54 @@ export function CavalrySprite({ palette, svgOnly = false }: UnitSpriteProps): st
 export function KnightSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={64} cy={96} rx={44} ry={9} />
-      <g transform="translate(64 72)">
-        <ellipse cx="0" cy="0" rx="36" ry="20" fill="#2a1a10" stroke={P.ink.line} strokeWidth="1.2" />
-        <rect x="-18" y="-6" width="36" height="8" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
-        <ellipse cx="0" cy="-6" rx="34" ry="10" fill="#4a3020" />
-        <rect x="-28" y="10" width="9" height="22" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="-12" y="12" width="9" height="24" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="10"  y="12" width="9" height="24" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="26"  y="10" width="9" height="22" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
-        <ellipse cx="-30" cy="-8" rx="16" ry="14" fill="#2a1a10" stroke={P.ink.line} strokeWidth="1.2" />
-        <path d="M-42,-6 L-50,2 L-40,3 Z" fill="#2a1a10" stroke={P.ink.line} strokeWidth="0.8" />
-        <path d="M-26,-24 L-22,-34 L-18,-22 Z" fill="#1a1008" stroke={P.ink.line} strokeWidth="0.6" />
+      <Shadow cx={64} cy={98} rx={30} />
+      <g transform="translate(64 80)">
+        <path d="M32,-4 Q40,2 36,14" stroke="#2a1606" strokeWidth="4.5" fill="none" strokeLinecap="round" />
+        <rect x="-10" y="4" width="6" height="18" fill="#3a2010" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="22" y="4" width="6" height="18" fill="#3a2010" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="0" cy="0" rx="32" ry="18" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="0" cy="-4" rx="30" ry="12" fill="#6a4a26" />
+        <ellipse cx="0" cy="0" rx="32" ry="18" fill={palette.dark} opacity="0.5" />
+        <path d="M-22,-2 Q0,-12 22,-2 L24,4 L-24,4 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        <path d="M-12,0 L-8,8 M0,-2 L0,8 M12,0 L8,8" stroke={palette.dark} strokeWidth="0.6" />
+        <rect x="-22" y="4" width="6" height="18" fill="#3a2010" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="14" y="4" width="6" height="18" fill="#3a2010" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="-24" cy="-7" rx="13" ry="10" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="1" />
+        <rect x="-32" y="-9" width="14" height="6" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+        <path d="M-36,-3 L-40,4 L-32,5 Z" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M-20,-14 L-18,-19 L-16,-13 Z" fill="#3a2010" stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="-30" cy="-7" r="0.8" fill={P.ink.line} />
       </g>
-      <g transform="translate(64 44)">
-        <path d="M-12,-2 Q-14,-16 0,-20 Q14,-16 12,-2 L12,12 L-12,12 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
-        <path d="M-8,-2 Q-8,-12 0,-16 Q8,-12 8,-2 L8,10 L-8,10 Z" fill={P.metal.shine} opacity="0.3" />
-        <rect x="-3" y="-18" width="6" height="4" fill={palette.bright} />
-        <circle cx="0" cy="-26" r="7" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="1" />
+      {mountedRider({
+        cx: 64, cy: 54, scale: 0.95,
+        cloth: P.metal.steel, accent: palette.bright, hair: '#2a1a10',
+        hat: (
+          <g>
+            <path d="M-9,-36 L9,-36 L10,-26 L-10,-26 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+            <rect x="-9" y="-30" width="18" height="2.2" fill={P.ink.line} />
+            <rect x="-1" y="-30" width="2" height="2.2" fill={P.metal.shine} opacity="0.7" />
+            <path d="M-10,-36 Q0,-42 10,-36" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+            <path d="M-2,-42 L0,-50 L2,-42 Z" fill={palette.trim} />
+          </g>
+        ),
+      })}
+      {dangleBoot({ x: 52, y: 88, cloth: P.metal.iron })}
+      {/* couched lance — right hand at world (77, 59); pivots at grip */}
+      <g transform="translate(77 59) rotate(15)">
+        <g className="cq-weapon" style="transform-origin: 77px 59px; transform-box: view-box;">
+          <rect x="-6" y="-1.2" width="92" height="2.4" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+          <path d="M86,-2 L96,0 L86,2 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="0" y="-4" width="2" height="8" fill={palette.mid} />
+          <rect x="8" y="-4" width="2" height="8" fill={palette.bright} />
+          <rect x="-2" y="-3.5" width="3" height="7" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.3" />
+        </g>
       </g>
-      <g transform="translate(82 22) rotate(12)">
-        <rect x="-1" y="0" width="2.5" height="54" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.5" />
-        <rect x="-4" y="54" width="8" height="2" fill={P.metal.gold} />
-        <path d="M-3,54 L3,54 L2,62 L-2,62 Z" fill={P.wood.dark} />
-        <Banner x={0} y={22} palette={palette} scale={0.8} />
+      {/* heraldic shield — left hand */}
+      <g transform="translate(42 60)">
+        <path d="M-10,-10 L10,-10 L11,4 Q0,16 -11,4 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-10,-10 L10,-10 L11,4 Q0,16 -11,4 Z" fill="none" stroke={palette.dark} strokeWidth="1.2" />
+        <rect x="-1.4" y="-9" width="2.8" height="20" fill={palette.dark} />
+        <rect x="-8" y="-3" width="16" height="2.8" fill={palette.dark} />
       </g>
     </SpriteFrame>
   );
@@ -520,21 +639,40 @@ export function CrossbowmanSprite({ palette, svgOnly = false }: UnitSpriteProps)
   return (
     <SpriteFrame svgOnly={svgOnly}>
       <Shadow />
-      <Humanoid cx={64} cy={70} scale={1} cloth="#4a5a2a" pants={P.cloth.wool} accent={palette.mid} hair="#3a2a1a"
-        hat={<path d="M-10,-36 Q0,-46 10,-36 L8,-30 L-8,-30 Z" fill="#2a3a18" stroke={P.ink.line} strokeWidth="0.8" />}
+      <Humanoid
+        cx={64} cy={70} scale={1}
+        cloth={palette.dark} pants="#3a3022" accent={palette.bright} skin={P.skin.warm} hair="#2a1a10"
+        hat={<path d="M-12,-36 Q0,-46 12,-36 L10,-32 L-10,-32 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />}
       />
-      <g transform="translate(80 46)">
-        <rect x="-2" y="0" width="26" height="5" rx="1" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="-6" y="1" width="6" height="4" rx="1" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
-        <path d="M0,-8 Q12,-4 24,0" fill="none" stroke={P.wood.mid} strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M0,8 Q12,6 24,5" fill="none" stroke={P.wood.mid} strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="0" y1="-8" x2="0" y2="8" stroke={P.cloth.linen} strokeWidth="0.8" />
-        <line x1="14" y1="2" x2="0" y2="2" stroke={P.cloth.linen} strokeWidth="0.6" />
-        <polygon points="-2,1 0,2 -2,3 -6,2" fill={P.metal.bronze} />
+      {/* quiver on back */}
+      <g transform="translate(50 56)">
+        <rect x="-3" y="-12" width="6" height="18" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="-2" y="-16" width="1.4" height="6" fill={P.metal.iron} />
+        <rect x="0" y="-16" width="1.4" height="6" fill={P.metal.iron} />
+        <rect x="2" y="-16" width="1.4" height="6" fill={P.metal.iron} />
       </g>
-      <g transform="translate(44 52)">
-        <rect x="-2" y="-8" width="5" height="16" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* crossbow — right hand at world (79, 76); cq-draw translates during attack */}
+      <g transform="translate(79 76)">
+        <g className="cq-weapon" style="transform-origin: 79px 76px; transform-box: view-box;">
+          <path d="M22,0 Q22,-12 32,-22" fill="none" stroke={P.metal.iron} strokeWidth="2.6" strokeLinecap="round" />
+          <path d="M22,0 Q22,12 32,22" fill="none" stroke={P.metal.iron} strokeWidth="2.6" strokeLinecap="round" />
+          <line x1="32" y1="-22" x2="-4" y2="0" stroke={P.cloth.linen} strokeWidth="0.6" />
+          <line x1="32" y1="22" x2="-4" y2="0" stroke={P.cloth.linen} strokeWidth="0.6" />
+          <rect x="-6" y="-2" width="28" height="5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
+          <line x1="-6" y1="0" x2="22" y2="0" stroke={P.ink.line} strokeWidth="0.4" opacity="0.6" />
+          <line x1="-4" y1="0" x2="14" y2="0" stroke={P.metal.iron} strokeWidth="1.1" />
+          <path d="M-6,-1 L-4,0 L-6,1 Z" fill={P.metal.iron} />
+          <rect x="0" y="3" width="3" height="3" fill={P.metal.iron} />
+          <path d="M22,3 L28,7 L22,7 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+          <rect x="-2" y="-3" width="2.4" height="7" fill={P.ink.soft} />
+        </g>
       </g>
+      {/* muzzle flash at prod tip */}
+      <g transform="translate(111 54)"><g className="cq-muzzle-flash">
+        <circle r="4" fill="#ffd966" />
+        <circle r="2" fill="#fff" />
+      </g></g>
+      <Banner x={92} y={36} palette={palette} scale={0.7} />
     </SpriteFrame>
   );
 }
@@ -542,24 +680,47 @@ export function CrossbowmanSprite({ palette, svgOnly = false }: UnitSpriteProps)
 export function CatapultSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={64} cy={98} rx={50} ry={7} />
-      <g transform="translate(64 80)">
-        <rect x="-48" y="-8" width="96" height="16" rx="2" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
-        <circle cx="-36" cy="8" r="10" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.2" />
-        <circle cx="-36" cy="8" r="4" fill={P.wood.dark} />
-        <circle cx="36" cy="8" r="10" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.2" />
-        <circle cx="36" cy="8" r="4" fill={P.wood.dark} />
-        <rect x="-6" y="-8" width="12" height="8" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <Shadow cx={64} cy={96} rx={38} ry={6} />
+      {/* base frame */}
+      <rect x="24" y="78" width="80" height="14" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="24" y="78" width="80" height="3" fill={P.wood.mid} />
+      <circle cx="34" cy="94" r="6" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="34" cy="94" r="2" fill={P.ink.line} />
+      <line x1="28" y1="94" x2="40" y2="94" stroke={P.wood.dark} strokeWidth="0.8" />
+      <line x1="34" y1="88" x2="34" y2="100" stroke={P.wood.dark} strokeWidth="0.8" />
+      <circle cx="94" cy="94" r="6" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="94" cy="94" r="2" fill={P.ink.line} />
+      <line x1="88" y1="94" x2="100" y2="94" stroke={P.wood.dark} strokeWidth="0.8" />
+      <line x1="94" y1="88" x2="94" y2="100" stroke={P.wood.dark} strokeWidth="0.8" />
+      <rect x="38" y="46" width="5" height="34" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="78" y="46" width="5" height="34" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="34" y="44" width="52" height="4" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* throwing arm — wrapped in cq-weapon, pivot at torsion axle */}
+      <g transform="translate(60 78) rotate(-55)">
+        <g className="cq-weapon" style="transform-origin: 60px 78px; transform-box: view-box;">
+          <rect x="-2" y="-50" width="4" height="50" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+          <ellipse cx="0" cy="-52" rx="6" ry="4" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+          <circle cx="0" cy="-54" r="3.5" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        </g>
       </g>
-      <g transform="translate(64 30) rotate(-55)">
-        <rect x="-3" y="0" width="6" height="50" rx="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
-        <path d="M-12,-6 Q0,-14 12,-6 L8,2 L-8,2 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* torsion rope coil */}
+      <ellipse cx="60" cy="78" rx="7" ry="4" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.5" />
+      <line x1="55" y1="78" x2="65" y2="78" stroke={P.ink.line} strokeWidth="0.4" />
+      <line x1="55" y1="76" x2="65" y2="76" stroke={P.ink.line} strokeWidth="0.4" />
+      {/* crew */}
+      <g transform="translate(18 80)">
+        <circle cx="0" cy="-8" r="3.5" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.5" />
+        <path d="M-3,-10 Q0,-13 3,-10 L3,-7 L-3,-7 Z" fill="#3a2a1a" />
+        <rect x="-3.5" y="-5" width="7" height="9" fill={P.cloth.tunic} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="-3.5" y="-5" width="7" height="2" fill={palette.mid} />
       </g>
-      <g transform="translate(44 28)">
-        <circle r="8" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
-        <circle r="4" fill={P.stone.mid} />
+      <g transform="translate(110 80)">
+        <circle cx="0" cy="-8" r="3.5" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.5" />
+        <path d="M-3,-10 Q0,-13 3,-10 L3,-7 L-3,-7 Z" fill="#3a2a1a" />
+        <rect x="-3.5" y="-5" width="7" height="9" fill={P.cloth.tunic} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="-3.5" y="-5" width="7" height="2" fill={palette.mid} />
       </g>
-      <Banner x={88} y={48} palette={palette} scale={0.7} />
+      <Banner x={82} y={32} palette={palette} scale={0.8} />
     </SpriteFrame>
   );
 }
@@ -567,26 +728,38 @@ export function CatapultSprite({ palette, svgOnly = false }: UnitSpriteProps): s
 export function BallistaSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={64} cy={98} rx={44} ry={6} />
-      <g transform="translate(64 82)">
-        <rect x="-40" y="-6" width="80" height="12" rx="2" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
-        <circle cx="-28" cy="6" r="8" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
-        <circle cx="-28" cy="6" r="3" fill={P.wood.dark} />
-        <circle cx="28" cy="6" r="8" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
-        <circle cx="28" cy="6" r="3" fill={P.wood.dark} />
-      </g>
+      <Shadow cx={64} cy={96} rx={30} ry={5} />
+      <line x1="52" y1="92" x2="46" y2="76" stroke={P.wood.dark} strokeWidth="3" strokeLinecap="round" />
+      <line x1="76" y1="92" x2="82" y2="76" stroke={P.wood.dark} strokeWidth="3" strokeLinecap="round" />
+      <line x1="64" y1="90" x2="64" y2="76" stroke={P.wood.dark} strokeWidth="2.5" />
+      <ellipse cx="64" cy="74" rx="12" ry="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+      <ellipse cx="64" cy="73" rx="10" ry="2" fill={P.metal.steel} />
       <g transform="translate(64 64)">
-        <rect x="-4" y="-14" width="8" height="14" rx="1" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
-        <rect x="-24" y="-10" width="48" height="6" rx="1" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
-        <path d="M-20,-8 Q-10,-24 10,-28" fill="none" stroke={P.wood.mid} strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M20,-8 Q10,-24 -10,-28" fill="none" stroke={P.wood.mid} strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="-10" y1="-28" x2="10" y2="-28" stroke={P.cloth.linen} strokeWidth="0.8" />
+        <rect x="-30" y="-7" width="60" height="14" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+        <rect x="-22" y="-7" width="3" height="14" fill={P.metal.iron} />
+        <rect x="6" y="-7" width="3" height="14" fill={P.metal.iron} />
+        <rect x="20" y="-7" width="3" height="14" fill={P.metal.iron} />
+        <path d="M30,-2 Q44,-14 42,-22" fill="none" stroke={P.metal.iron} strokeWidth="3" strokeLinecap="round" />
+        <path d="M30,2 Q44,14 42,22" fill="none" stroke={P.metal.iron} strokeWidth="3" strokeLinecap="round" />
+        <line x1="42" y1="-22" x2="-4" y2="0" stroke={P.cloth.linen} strokeWidth="0.8" />
+        <line x1="42" y1="22" x2="-4" y2="0" stroke={P.cloth.linen} strokeWidth="0.8" />
+        <line x1="-4" y1="0" x2="30" y2="0" stroke={P.metal.iron} strokeWidth="1.8" />
+        <path d="M30,-2.4 L38,0 L30,2.4 Z" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M-4,-1.6 L-8,-3 L-8,3 L-4,1.6 Z" fill={P.metal.iron} />
+        <rect x="-32" y="-3" width="4" height="6" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="-30" cy="0" r="2.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
       </g>
-      <g transform="translate(64 48)">
-        <rect x="-1" y="-18" width="2" height="18" fill={P.metal.iron} />
-        <path d="M-3,-18 L3,-18 L2,-26 L0,-30 L-2,-26 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
-      </g>
-      <Banner x={88} y={54} palette={palette} scale={0.65} />
+      <Humanoid
+        cx={30} cy={80} scale={0.65}
+        cloth={P.cloth.tunic} pants={P.cloth.wool} accent={palette.mid} skin={P.skin.warm} hair="#3a2a1a"
+      />
+      <path d="M33,76 Q36,68 42,64" stroke={P.skin.warm} strokeWidth="2.8" fill="none" strokeLinecap="round" />
+      <circle cx="42" cy="64" r="1.8" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.4" />
+      <g transform="translate(102 64)"><g className="cq-muzzle-flash">
+        <circle r="4" fill="#ffd966" />
+        <circle r="2" fill="#fff" />
+      </g></g>
+      <Banner x={96} y={32} palette={palette} scale={0.7} />
     </SpriteFrame>
   );
 }

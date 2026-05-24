@@ -686,21 +686,42 @@ export function SecurityBureauSprite({ palette, svgOnly = false }: BuildingSprit
   );
 }
 
-/* === S4b BUILDINGS (placeholder sprites) === */
+/* === S4b BUILDINGS (v3 design) === */
 
 export function BronzeWorkshopSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
-    <BuildingFrame label="Bronze Workshop" sub="Military" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth />
-      <rect x="44" y="70" width="104" height="70" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
-      <rect x="44" y="70" width="104" height="70" fill="url(#stoneTexture)" opacity="0.4" />
-      <TileRoof color={P.metal.bronze} d="M36,72 L156,72 L136,40 L56,40 Z" />
-      <rect x="76" y="80" width="16" height="16" rx="8" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="1.2" />
-      <line x1="84" y1="72" x2="84" y2="40" stroke={P.wood.dark} strokeWidth="1.2" />
-      <rect x="56" y="112" width="32" height="28" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.8" />
-      <ellipse cx="72" cy="112" rx="14" ry="5" fill={P.metal.bronze} />
-      <rect x="104" y="100" width="30" height="18" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
-      <Banner x={96} y={40} palette={palette} scale={0.8} />
+    <BuildingFrame label="Bronze Workshop" sub="Production" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={140} />
+      <rect x="42" y="80" width="108" height="60" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="42" y="80" width="108" height="60" fill="url(#stoneTexture)" opacity="0.6" />
+      <TileRoof d="M34,84 L158,84 L130,46 L62,46 Z" color="#d4903a" />
+      {/* open arch entrance */}
+      <path d="M70,140 L70,108 Q96,98 122,108 L122,140 Z" fill={P.ink.line} />
+      {/* furnace glow — flickers via .cq-fire */}
+      <g className="cq-fire">
+        <ellipse cx="96" cy="124" rx="14" ry="9" fill="#e87a30" opacity="0.7" />
+        <ellipse cx="96" cy="124" rx="9" ry="5" fill="#ffb84d" />
+      </g>
+      {/* workbench inside arch */}
+      <rect x="80" y="118" width="32" height="3" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.4" />
+      <circle cx="86" cy="116" r="2" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.4" />
+      <circle cx="92" cy="116" r="1.6" fill={P.metal.bronze} />
+      <rect x="98" y="114" width="6" height="3" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.4" />
+      {/* hammering sparks (visible in busy state) */}
+      <circle className="cq-spark" cx="90" cy="113" r="1.4" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--b" cx="100" cy="111" r="1.2" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--c" cx="106" cy="115" r="1.1" fill="#ffb84d" />
+      {/* copper ingots stacked outside */}
+      <rect x="46" y="132" width="14" height="3" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.4" />
+      <rect x="48" y="129" width="10" height="3" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.4" />
+      <rect x="50" y="126" width="6" height="3" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.4" />
+      {/* hammer on wall */}
+      <rect x="56" y="92" width="1.4" height="14" fill={P.wood.mid} />
+      <rect x="52" y="88" width="9" height="5" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* tongs on wall */}
+      <line x1="136" y1="92" x2="132" y2="104" stroke={P.metal.iron} strokeWidth="1" />
+      <line x1="140" y1="92" x2="136" y2="104" stroke={P.metal.iron} strokeWidth="1" />
+      <Banner x={96} y={46} palette={palette} scale={1} />
     </BuildingFrame>
   );
 }
@@ -708,39 +729,96 @@ export function BronzeWorkshopSprite({ palette, svgOnly = false }: BuildingSprit
 export function ArmorySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Armory" sub="Military" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth color={P.stone.dark} />
-      <rect x="42" y="68" width="108" height="72" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
-      <rect x="42" y="68" width="108" height="72" fill="url(#stoneTexture)" opacity="0.6" />
-      <TileRoof color={P.stone.dark} d="M34,70 L158,70 L134,38 L58,38 Z" />
-      <g transform="translate(74 100)">
-        <rect x="-6" y="-22" width="12" height="44" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
-        <path d="M-4,-22 L4,-22 L5,-34 L0,-40 L-5,-34 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
-        <rect x="-12" y="-6" width="24" height="4" fill={P.metal.gold} />
+      <BuildingPlinth w={150} />
+      <rect x="38" y="68" width="116" height="72" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="38" y="68" width="116" height="72" fill="url(#stoneTexture)" opacity="0.7" />
+      {/* battlements */}
+      <rect x="38" y="60" width="116" height="10" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="42" y="54" width="10" height="10" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="62" y="54" width="10" height="10" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="82" y="54" width="10" height="10" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="102" y="54" width="10" height="10" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="122" y="54" width="10" height="10" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="142" y="54" width="10" height="10" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* crossed swords + shield on wall */}
+      <g transform="translate(96 96)">
+        <g transform="rotate(35)">
+          <rect x="-0.8" y="-18" width="1.6" height="32" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+          <rect x="-3" y="14" width="6" height="2" fill={P.metal.gold} />
+          <rect x="-1" y="16" width="2" height="4" fill={P.wood.dark} />
+        </g>
+        <g transform="rotate(-35)">
+          <rect x="-0.8" y="-18" width="1.6" height="32" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+          <rect x="-3" y="14" width="6" height="2" fill={P.metal.gold} />
+          <rect x="-1" y="16" width="2" height="4" fill={P.wood.dark} />
+        </g>
+        <path d="M-8,-8 L8,-8 L9,4 Q0,14 -9,4 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="-1" y="-8" width="2" height="18" fill={palette.dark} />
+        <rect x="-8" y="-3" width="16" height="2" fill={palette.dark} />
       </g>
-      <g transform="translate(118 96)">
-        <path d="M-14,-10 L14,-10 L16,4 Q0,18 -16,4 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
-        <circle r="3" fill={P.metal.iron} />
+      {/* iron-banded door */}
+      <rect x="84" y="112" width="24" height="28" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="84" y="118" width="24" height="2" fill={P.metal.iron} />
+      <rect x="84" y="128" width="24" height="2" fill={P.metal.iron} />
+      <rect x="84" y="136" width="24" height="2" fill={P.metal.iron} />
+      <circle cx="103" cy="126" r="1.4" fill={P.metal.iron} />
+      {/* wall torches flanking the door — always-on flicker via .cq-fire */}
+      <rect x="68" y="108" width="1.4" height="6" fill={P.wood.dark} />
+      <g className="cq-fire">
+        <ellipse cx="68.7" cy="106" rx="3" ry="4" fill="#ff8a3a" />
+        <ellipse cx="68.7" cy="106" rx="1.6" ry="2.4" fill="#ffd966" />
       </g>
-      <rect x="76" y="118" width="40" height="22" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
-      <line x1="96" y1="118" x2="96" y2="140" stroke={P.ink.line} strokeWidth="0.5" />
-      <Banner x={140} y={48} palette={palette} scale={0.75} />
+      <rect x="122.6" y="108" width="1.4" height="6" fill={P.wood.dark} />
+      <g className="cq-fire">
+        <ellipse cx="123.3" cy="106" rx="3" ry="4" fill="#ff8a3a" />
+        <ellipse cx="123.3" cy="106" rx="1.6" ry="2.4" fill="#ffd966" />
+      </g>
+      {/* hammering sparks behind the door — visible in busy state */}
+      <circle className="cq-spark" cx="90" cy="128" r="1.4" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--b" cx="103" cy="124" r="1.2" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--c" cx="96" cy="132" r="1.1" fill="#ffb84d" />
+      <Banner x={50} y={50} palette={palette} scale={0.9} />
     </BuildingFrame>
   );
 }
 
 export function RanchSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
-    <BuildingFrame label="Ranch" sub="Economy" category="economy" svgOnly={svgOnly}>
-      <BuildingPlinth w={150} color={P.ground.grass} />
-      <rect x="40" y="80" width="112" height="60" fill={P.wood.light} stroke={P.ink.line} strokeWidth="1" />
-      <ThatchRoof d="M32,82 L160,82 L130,46 L62,46 Z" />
-      <line x1="40" y1="90" x2="152" y2="90" stroke={P.wood.dark} strokeWidth="0.8" />
-      <line x1="40" y1="110" x2="152" y2="110" stroke={P.wood.dark} strokeWidth="0.8" />
-      <line x1="78" y1="82" x2="78" y2="140" stroke={P.wood.dark} strokeWidth="1" />
-      <line x1="114" y1="82" x2="114" y2="140" stroke={P.wood.dark} strokeWidth="1" />
-      <rect x="80" y="124" width="32" height="16" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
-      <rect x="52" y="86" width="20" height="12" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
-      <Banner x={96} y={46} palette={palette} scale={0.8} />
+    <BuildingFrame label="Ranch" sub="Food" category="food" svgOnly={svgOnly}>
+      <BuildingPlinth w={160} />
+      {/* grass patch inside fence */}
+      <ellipse cx="86" cy="124" rx="56" ry="20" fill={P.ground.grass} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* barn in background */}
+      <rect x="30" y="68" width="48" height="40" fill={P.wood.light} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M30,72 H78 M30,86 H78 M30,100 H78" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.6" />
+      <ThatchRoof d="M24,72 L84,72 L70,42 L38,42 Z" />
+      <rect x="48" y="86" width="12" height="22" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* fence */}
+      <line x1="40" y1="118" x2="142" y2="118" stroke={P.wood.mid} strokeWidth="1.4" />
+      <line x1="40" y1="128" x2="142" y2="128" stroke={P.wood.mid} strokeWidth="1.4" />
+      <rect x="40" y="112" width="2.4" height="22" fill={P.wood.dark} />
+      <rect x="62" y="112" width="2.4" height="22" fill={P.wood.dark} />
+      <rect x="118" y="112" width="2.4" height="22" fill={P.wood.dark} />
+      <rect x="140" y="112" width="2.4" height="22" fill={P.wood.dark} />
+      {/* gate posts + ajar gate */}
+      <rect x="92" y="108" width="2.4" height="26" fill={P.wood.dark} />
+      <rect x="106" y="108" width="2.4" height="26" fill={P.wood.dark} />
+      <line x1="108" y1="118" x2="120" y2="114" stroke={P.wood.mid} strokeWidth="1.2" />
+      <line x1="108" y1="128" x2="120" y2="124" stroke={P.wood.mid} strokeWidth="1.2" />
+      {/* horse grazing — head bobs via .cq-peek */}
+      <g transform="translate(112 124)"><g className="cq-peek">
+        <ellipse cx="0" cy="0" rx="14" ry="6" fill="#8a5a30" stroke={P.ink.line} strokeWidth="0.8" />
+        <ellipse cx="-12" cy="-3" rx="6" ry="5" fill="#8a5a30" stroke={P.ink.line} strokeWidth="0.6" />
+        <path d="M-17,-1 L-20,2 L-15,3 Z" fill="#8a5a30" stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="-10" y="4" width="2.4" height="8" fill="#5a3a1a" />
+        <rect x="-2" y="4" width="2.4" height="8" fill="#5a3a1a" />
+        <rect x="6" y="4" width="2.4" height="8" fill="#5a3a1a" />
+        <rect x="11" y="4" width="2.4" height="8" fill="#5a3a1a" />
+        <path d="M14,0 Q18,2 16,6" stroke="#5a3a1a" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <path d="M-9,-6 L-7,-10 L-5,-6 Z" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="0.3" />
+        <circle cx="-14" cy="-3" r="0.6" fill={P.ink.line} />
+      </g></g>
+      <Banner x={54} y={44} palette={palette} scale={0.8} />
     </BuildingFrame>
   );
 }
@@ -748,41 +826,68 @@ export function RanchSprite({ palette, svgOnly = false }: BuildingSpriteProps): 
 export function CavalryAcademySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Cavalry Academy" sub="Military" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth color={P.stone.mid} />
-      <rect x="38" y="72" width="116" height="68" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
-      <rect x="38" y="72" width="116" height="68" fill="url(#stoneTexture)" opacity="0.5" />
-      <TileRoof color={palette.dark} d="M30,74 L162,74 L140,40 L52,40 Z" />
-      <rect x="38" y="74" width="8" height="66" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
-      <rect x="146" y="74" width="8" height="66" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
-      <rect x="72" y="82" width="48" height="6" fill={palette.mid} />
-      <rect x="72" y="96" width="48" height="6" fill={palette.mid} />
-      <rect x="80" y="114" width="32" height="26" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
-      <line x1="96" y1="114" x2="96" y2="140" stroke={P.ink.line} strokeWidth="0.5" />
-      <Banner x={96} y={40} palette={palette} scale={0.9} />
-      <circle cx="56" cy="148" r="8" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
-      <circle cx="56" cy="148" r="3" fill={P.wood.dark} />
-      <circle cx="136" cy="148" r="8" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
-      <circle cx="136" cy="148" r="3" fill={P.wood.dark} />
+      <BuildingPlinth w={170} />
+      {/* training ring */}
+      <ellipse cx="96" cy="118" rx="64" ry="22" fill={P.ground.grass} stroke={P.stone.mid} strokeWidth="2.4" />
+      <ellipse cx="96" cy="118" rx="64" ry="22" fill="none" stroke={P.ink.line} strokeWidth="0.6" />
+      <ellipse cx="96" cy="118" rx="58" ry="18" fill="none" stroke={P.stone.dark} strokeWidth="0.5" strokeDasharray="2 3" opacity="0.6" />
+      {/* grandstand */}
+      <rect x="156" y="100" width="22" height="6" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="156" y="106" width="22" height="6" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="156" y="112" width="22" height="8" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* pennant pole */}
+      <rect x="22" y="60" width="2.4" height="60" fill={P.wood.dark} />
+      {/* horse + rider mid-drill — bobs via .cq-peek */}
+      <g transform="translate(96 116)"><g className="cq-peek">
+        <ellipse cx="0" cy="0" rx="16" ry="6" fill="#9a7050" stroke={P.ink.line} strokeWidth="0.8" />
+        <ellipse cx="-14" cy="-4" rx="7" ry="5" fill="#9a7050" stroke={P.ink.line} strokeWidth="0.6" />
+        <path d="M-20,-2 L-23,2 L-17,3 Z" fill="#9a7050" stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="-10" y="4" width="2.4" height="9" fill="#5a3820" />
+        <rect x="-2" y="4" width="2.4" height="9" fill="#5a3820" />
+        <rect x="6" y="4" width="2.4" height="9" fill="#5a3820" />
+        <rect x="12" y="4" width="2.4" height="9" fill="#5a3820" />
+        <path d="M-11,-9 L-9,-13 L-7,-7 L-5,-13 L-3,-9 Z" fill={P.ink.soft} />
+        {/* rider — torso only, hips at saddle */}
+        <rect x="-4" y="-10" width="8" height="6" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="0" cy="-14" r="3" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M-3,-16 Q0,-19 3,-16 L3,-13 L-3,-13 Z" fill={P.metal.iron} />
+      </g></g>
+      <Banner x={23} y={60} palette={palette} scale={1.1} />
     </BuildingFrame>
   );
 }
 
 export function IronFoundrySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
-    <BuildingFrame label="Iron Foundry" sub="Military" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth color={P.stone.dark} />
-      <rect x="36" y="76" width="120" height="64" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
-      <rect x="36" y="76" width="120" height="64" fill="url(#stoneTexture)" opacity="0.8" />
-      <TileRoof color="#3a3030" d="M28,78 L164,78 L144,44 L48,44 Z" />
-      <rect x="60" y="40" width="24" height="40" rx="4" fill="#2a2020" stroke={P.ink.line} strokeWidth="1" />
-      <ellipse cx="72" cy="40" rx="12" ry="5" fill="#1a1010" stroke={P.ink.line} strokeWidth="0.8" />
-      <ellipse cx="72" cy="40" rx="8" ry="3" fill="#ff8a00" opacity="0.6" />
-      <rect x="100" y="50" width="20" height="30" rx="4" fill="#2a2020" stroke={P.ink.line} strokeWidth="1" />
-      <ellipse cx="110" cy="50" rx="10" ry="4" fill="#1a1010" />
-      <ellipse cx="110" cy="50" rx="6" ry="2.5" fill="#ff6000" opacity="0.5" />
-      <rect x="56" y="108" width="32" height="24" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
-      <ellipse cx="72" cy="108" rx="14" ry="5" fill={P.metal.steel} />
-      <Banner x={136} y={52} palette={palette} scale={0.75} />
+    <BuildingFrame label="Iron Foundry" sub="Production" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} />
+      {/* main building */}
+      <rect x="32" y="68" width="110" height="72" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="32" y="68" width="110" height="72" fill="url(#stoneTexture)" opacity="0.6" />
+      <TileRoof d="M26,72 L150,72 L130,48 L46,48 Z" color="#3a2418" />
+      {/* chimney */}
+      <rect x="120" y="20" width="20" height="50" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="120" y="20" width="20" height="50" fill="url(#stoneTexture)" opacity="0.6" />
+      <rect x="116" y="18" width="28" height="6" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* smoke plumes — rise via .cq-smoke */}
+      <ellipse className="cq-smoke" cx="130" cy="14" rx="10" ry="6" fill="#888888" opacity="0.7" />
+      <ellipse className="cq-smoke cq-smoke--b" cx="132" cy="14" rx="8" ry="5" fill="#888888" opacity="0.5" />
+      <ellipse className="cq-smoke cq-smoke--c" cx="130" cy="14" rx="6" ry="4" fill="#a0a0a0" opacity="0.4" />
+      {/* overhead beam with hanging chains */}
+      <rect x="40" y="80" width="86" height="3" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+      <path d="M52,83 L54,87 L52,91 L54,95 L52,99 L54,103" stroke={P.metal.iron} strokeWidth="1.2" fill="none" />
+      <path d="M70,83 L72,87 L70,91 L72,95 L70,99" stroke={P.metal.iron} strokeWidth="1.2" fill="none" />
+      <path d="M108,83 L110,87 L108,91 L110,95 L108,99 L110,103" stroke={P.metal.iron} strokeWidth="1.2" fill="none" />
+      {/* furnace door — molten glow flickers via .cq-fire */}
+      <path d="M74,140 L74,114 Q88,104 102,114 L102,140 Z" fill={P.ink.line} />
+      <g className="cq-fire">
+        <ellipse cx="88" cy="124" rx="12" ry="9" fill="#f06020" opacity="0.85" />
+        <ellipse cx="88" cy="124" rx="7" ry="5" fill="#ffd966" />
+      </g>
+      {/* iron ingots outside */}
+      <rect x="118" y="132" width="18" height="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+      <rect x="120" y="129" width="14" height="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+      <Banner x={50} y={48} palette={palette} scale={0.9} />
     </BuildingFrame>
   );
 }
@@ -790,41 +895,106 @@ export function IronFoundrySprite({ palette, svgOnly = false }: BuildingSpritePr
 export function WarAcademySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="War Academy" sub="Military" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth color={P.stone.dark} />
-      <rect x="32" y="70" width="128" height="70" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
-      <rect x="32" y="70" width="128" height="70" fill="url(#stoneTexture)" opacity="0.6" />
-      <TileRoof color={palette.dark} d="M24,72 L168,72 L144,36 L48,36 Z" />
-      <rect x="32" y="70" width="10" height="70" fill={P.stone.dark} />
-      <rect x="150" y="70" width="10" height="70" fill={P.stone.dark} />
-      <path d="M56,70 L56,48 L76,48 L76,70" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
-      <path d="M116,70 L116,48 L136,48 L136,70" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
-      <rect x="80" y="88" width="32" height="24" fill={palette.mid} stroke={palette.dark} strokeWidth="0.8" />
-      <rect x="80" y="82" width="32" height="8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
-      <rect x="84" y="120" width="24" height="20" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
-      <Banner x={96} y={36} palette={palette} scale={1} />
+      <BuildingPlinth w={160} />
+      {/* main facade */}
+      <rect x="34" y="62" width="124" height="78" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="34" y="62" width="124" height="78" fill="url(#stoneTexture)" opacity="0.6" />
+      {/* entablature + pediment */}
+      <rect x="30" y="56" width="132" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M26,56 L166,56 L156,44 L36,44 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M26,56 L166,56 L156,44 L36,44 Z" fill="url(#stoneTexture)" opacity="0.5" />
+      {/* two columns flanking arch */}
+      <g>
+        <rect x="58" y="80" width="10" height="60" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="63" cy="80" rx="7" ry="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="63" cy="140" rx="7" ry="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+        <line x1="60" y1="86" x2="60" y2="136" stroke={P.stone.dark} strokeWidth="0.3" />
+        <line x1="63" y1="86" x2="63" y2="136" stroke={P.stone.dark} strokeWidth="0.3" />
+        <line x1="66" y1="86" x2="66" y2="136" stroke={P.stone.dark} strokeWidth="0.3" />
+      </g>
+      <g>
+        <rect x="124" y="80" width="10" height="60" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="129" cy="80" rx="7" ry="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="129" cy="140" rx="7" ry="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+        <line x1="126" y1="86" x2="126" y2="136" stroke={P.stone.dark} strokeWidth="0.3" />
+        <line x1="129" y1="86" x2="129" y2="136" stroke={P.stone.dark} strokeWidth="0.3" />
+        <line x1="132" y1="86" x2="132" y2="136" stroke={P.stone.dark} strokeWidth="0.3" />
+      </g>
+      {/* central arch */}
+      <path d="M80,140 L80,100 Q96,86 112,100 L112,140 Z" fill={P.ink.line} />
+      {/* lit interior — pulses via .cq-glow */}
+      <rect className="cq-glow" x="84" y="106" width="24" height="32" fill="#ffd966" opacity="0.25" />
+      {/* crossed swords above arch */}
+      <g transform="translate(96 76)">
+        <g transform="rotate(35)">
+          <rect x="-0.8" y="-12" width="1.6" height="22" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+          <rect x="-3" y="10" width="6" height="2" fill={P.metal.gold} />
+        </g>
+        <g transform="rotate(-35)">
+          <rect x="-0.8" y="-12" width="1.6" height="22" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+          <rect x="-3" y="10" width="6" height="2" fill={P.metal.gold} />
+        </g>
+      </g>
+      {/* training dummies in foreground */}
+      <g transform="translate(28 132)">
+        <rect x="-1.2" y="-10" width="2.4" height="18" fill={P.wood.mid} />
+        <rect x="-7" y="-8" width="14" height="2.4" fill={P.wood.mid} />
+        <ellipse cx="0" cy="-3" rx="5" ry="4" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.5" />
+        <line x1="-4" y1="-3" x2="4" y2="-3" stroke={P.cloth.tunic} strokeWidth="0.4" />
+      </g>
+      <g transform="translate(164 132)">
+        <rect x="-1.2" y="-10" width="2.4" height="18" fill={P.wood.mid} />
+        <rect x="-7" y="-8" width="14" height="2.4" fill={P.wood.mid} />
+        <ellipse cx="0" cy="-3" rx="5" ry="4" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.5" />
+        <line x1="-4" y1="-3" x2="4" y2="-3" stroke={P.cloth.tunic} strokeWidth="0.4" />
+      </g>
+      <Banner x={96} y={42} palette={palette} scale={1} />
     </BuildingFrame>
   );
 }
 
 export function MasonryWorksSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
-    <BuildingFrame label="Masonry Works" sub="Infrastructure" category="infrastructure" svgOnly={svgOnly}>
-      <BuildingPlinth color={P.stone.mid} />
-      <rect x="34" y="74" width="124" height="66" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
-      <rect x="34" y="74" width="124" height="66" fill="url(#stoneTexture)" opacity="0.8" />
-      <TileRoof color={P.stone.dark} d="M26,76 L166,76 L146,42 L46,42 Z" />
-      <g transform="translate(72 110)">
-        <rect x="-16" y="-16" width="32" height="32" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.2" />
-        <rect x="-12" y="-12" width="10" height="10" fill={P.stone.dark} />
-        <rect x="2" y="-12" width="10" height="10" fill={P.stone.dark} />
-        <rect x="-12" y="2" width="10" height="10" fill={P.stone.dark} />
-        <rect x="2" y="2" width="10" height="10" fill={P.stone.dark} />
+    <BuildingFrame label="Masonry Works" sub="Production" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={160} color={P.stone.dark} />
+      {/* stacked stone blocks — pyramid */}
+      <g>
+        <rect x="32" y="116" width="18" height="14" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="32" y="116" width="18" height="14" fill="url(#stoneTexture)" opacity="0.5" />
+        <rect x="50" y="116" width="18" height="14" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="50" y="116" width="18" height="14" fill="url(#stoneTexture)" opacity="0.5" />
+        <rect x="68" y="116" width="18" height="14" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="68" y="116" width="18" height="14" fill="url(#stoneTexture)" opacity="0.5" />
+        <rect x="41" y="102" width="18" height="14" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="41" y="102" width="18" height="14" fill="url(#stoneTexture)" opacity="0.5" />
+        <rect x="59" y="102" width="18" height="14" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="59" y="102" width="18" height="14" fill="url(#stoneTexture)" opacity="0.5" />
+        <rect x="50" y="88" width="18" height="14" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="50" y="88" width="18" height="14" fill="url(#stoneTexture)" opacity="0.5" />
       </g>
-      <g transform="translate(128 100)">
-        <rect x="-10" y="-24" width="4" height="48" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
-        <rect x="-14" y="-24" width="12" height="6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* scaffolding to right of stack */}
+      <g>
+        <rect x="100" y="60" width="2" height="78" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.3" />
+        <rect x="148" y="60" width="2" height="78" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.3" />
+        <rect x="100" y="78" width="50" height="2" fill={P.wood.mid} />
+        <rect x="100" y="100" width="50" height="2" fill={P.wood.mid} />
+        <rect x="100" y="122" width="50" height="2" fill={P.wood.mid} />
+        <line x1="100" y1="60" x2="150" y2="80" stroke={P.wood.dark} strokeWidth="1" />
+        <line x1="100" y1="100" x2="150" y2="80" stroke={P.wood.dark} strokeWidth="1" />
+        <line x1="100" y1="100" x2="150" y2="122" stroke={P.wood.dark} strokeWidth="1" />
       </g>
-      <Banner x={108} y={42} palette={palette} scale={0.8} />
+      {/* unfinished block on scaffold */}
+      <rect x="118" y="68" width="14" height="10" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="118" y="68" width="14" height="10" fill="url(#stoneTexture)" opacity="0.5" />
+      {/* dust puff over the workface — rises via .cq-dust */}
+      <ellipse className="cq-dust" cx="125" cy="68" rx="10" ry="5" fill="#d8c896" opacity="0" />
+      {/* workbench + chisel */}
+      <rect x="22" y="134" width="24" height="6" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="24" y="138" width="2" height="6" fill={P.wood.dark} />
+      <rect x="42" y="138" width="2" height="6" fill={P.wood.dark} />
+      <rect x="28" y="131" width="10" height="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.3" />
+      <rect x="36" y="130" width="3" height="4" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.3" />
+      <Banner x={132} y={56} palette={palette} scale={0.8} />
     </BuildingFrame>
   );
 }
@@ -832,24 +1002,44 @@ export function MasonryWorksSprite({ palette, svgOnly = false }: BuildingSpriteP
 export function SiegeWorkshopSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Siege Workshop" sub="Military" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth color={P.stone.dark} />
-      <rect x="30" y="72" width="132" height="68" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
-      <rect x="30" y="72" width="132" height="68" fill="url(#stoneTexture)" opacity="0.4" />
-      <TileRoof color="#3a2a18" d="M22,74 L170,74 L148,40 L44,40 Z" />
-      <g transform="translate(72 118)">
-        <rect x="-30" y="-6" width="60" height="10" rx="2" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
-        <circle cx="-20" cy="4" r="6" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
-        <circle cx="-20" cy="4" r="2.5" fill={P.wood.dark} />
-        <circle cx="20" cy="4" r="6" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
-        <circle cx="20" cy="4" r="2.5" fill={P.wood.dark} />
+      <BuildingPlinth w={160} />
+      {/* main barn */}
+      <rect x="34" y="78" width="124" height="62" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M34,84 H158 M34,100 H158 M34,116 H158 M34,132 H158" stroke="#3a2010" strokeWidth="0.5" opacity="0.7" />
+      <ThatchRoof d="M26,82 L166,82 L138,42 L54,42 Z" />
+      {/* dark interior */}
+      <rect x="76" y="110" width="40" height="30" fill={P.ink.line} />
+      {/* sparks inside (visible in busy state) */}
+      <circle className="cq-spark" cx="86" cy="124" r="1.4" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--b" cx="96" cy="120" r="1.2" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--c" cx="108" cy="128" r="1.1" fill="#ffb84d" />
+      {/* double barn doors — swung open */}
+      <g transform="translate(76 110)">
+        <path d="M0,0 L-14,-4 L-14,30 L0,30 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+        <line x1="-12" y1="-2" x2="-12" y2="28" stroke="#3a2010" strokeWidth="0.5" />
       </g>
-      <g transform="translate(72 68) rotate(-50)">
-        <rect x="-2.5" y="0" width="5" height="36" rx="1.5" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
-        <path d="M-8,0 Q0,-10 8,0 L4,6 L-4,6 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+      <g transform="translate(116 110)">
+        <path d="M0,0 L14,-4 L14,30 L0,30 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+        <line x1="12" y1="-2" x2="12" y2="28" stroke="#3a2010" strokeWidth="0.5" />
       </g>
-      <rect x="116" y="84" width="36" height="30" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.8" />
-      <rect x="116" y="84" width="36" height="8" fill={P.stone.mid} />
-      <Banner x={96} y={40} palette={palette} scale={0.85} />
+      {/* catapult arm through opening */}
+      <g transform="translate(94 130) rotate(-32)">
+        <rect x="-2" y="-26" width="4" height="26" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="0" cy="-28" rx="5" ry="3" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="0" cy="-29" r="3" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+      {/* partial wheel inside doorway */}
+      <circle cx="106" cy="134" r="7" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="99" y1="134" x2="113" y2="134" stroke={P.wood.dark} strokeWidth="0.6" />
+      <line x1="106" y1="127" x2="106" y2="141" stroke={P.wood.dark} strokeWidth="0.6" />
+      <circle cx="106" cy="134" r="1.4" fill={P.ink.line} />
+      {/* stone piles outside */}
+      <circle cx="32" cy="138" r="5" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="42" cy="140" r="4" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="37" cy="132" r="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="156" cy="138" r="5" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="148" cy="140" r="4" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <Banner x={96} y={42} palette={palette} scale={1} />
     </BuildingFrame>
   );
 }
