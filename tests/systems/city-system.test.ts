@@ -1,6 +1,8 @@
 import {
   foundCity,
   getAvailableBuildings,
+  getTrainableUnitsForCiv,
+  getProductionCostForItem,
   processCity,
   completeCityProductionItem,
   checkGridExpansion,
@@ -16,7 +18,7 @@ import {
   getProductionDisplayName,
   getProductionIconForItem,
 } from '@/systems/city-system';
-import type { City, GameMap } from '@/core/types';
+import type { City, GameMap, ResourceType } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -618,5 +620,60 @@ describe('legendary wonder production metadata', () => {
     expect(getCatalogProductionCost('legendary:missing-wonder')).toBe(0);
     expect(getProductionDisplayName('legendary:missing-wonder')).toBe('Unknown Legendary Wonder');
     expect(getProductionIconForItem('legendary:missing-wonder')).toBe('*');
+  });
+});
+
+describe('getTrainableUnitsForCiv — resource gate', () => {
+  it('returns all tech-met units when availableResources is undefined (backward-compat)', () => {
+    const units = getTrainableUnitsForCiv(['stone-weapons'], undefined, undefined);
+    // axeman requires stone-weapons + copper; with no resource filter it should appear
+    expect(units.some(u => u.type === 'axeman')).toBe(true);
+  });
+
+  it('excludes resource-gated unit when resource is missing', () => {
+    const units = getTrainableUnitsForCiv(['stone-weapons'], undefined, new Set<ResourceType>());
+    expect(units.some(u => u.type === 'axeman')).toBe(false);
+  });
+
+  it('includes resource-gated unit when resource is present', () => {
+    const units = getTrainableUnitsForCiv(['stone-weapons'], undefined, new Set<ResourceType>(['copper']));
+    expect(units.some(u => u.type === 'axeman')).toBe(true);
+  });
+
+  it('excludes cavalry when horses present but iron missing (conjunctive check)', () => {
+    const units = getTrainableUnitsForCiv(
+      ['horseback-riding'],
+      undefined,
+      new Set<ResourceType>(['horses']),
+    );
+    expect(units.some(u => u.type === 'cavalry')).toBe(false);
+  });
+
+  it('excludes cavalry when iron present but horses missing', () => {
+    const units = getTrainableUnitsForCiv(
+      ['horseback-riding'],
+      undefined,
+      new Set<ResourceType>(['iron']),
+    );
+    expect(units.some(u => u.type === 'cavalry')).toBe(false);
+  });
+
+  it('includes cavalry when both horses and iron are present', () => {
+    const units = getTrainableUnitsForCiv(
+      ['horseback-riding'],
+      undefined,
+      new Set<ResourceType>(['horses', 'iron']),
+    );
+    expect(units.some(u => u.type === 'cavalry')).toBe(true);
+  });
+
+  it('includes ungated unit (spearman) even with empty resource set', () => {
+    const units = getTrainableUnitsForCiv(['bronze-working'], undefined, new Set<ResourceType>());
+    expect(units.some(u => u.type === 'spearman')).toBe(true);
+  });
+
+  it('includes warrior (always ungated) with empty resource set', () => {
+    const units = getTrainableUnitsForCiv([], undefined, new Set<ResourceType>());
+    expect(units.some(u => u.type === 'warrior')).toBe(true);
   });
 });
