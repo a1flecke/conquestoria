@@ -232,6 +232,8 @@ export interface LastSeenTilePresentation {
 export type UnitType =
   | 'settler' | 'worker' | 'scout' | 'warrior' | 'archer'
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
+  | 'axeman' | 'spearman' | 'horseman' | 'cavalry' | 'knight'
+  | 'crossbowman' | 'catapult' | 'ballista'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound';
 
@@ -305,6 +307,7 @@ export interface Building {
   coastalRequired?: boolean;
   adjacencyBonuses?: AdjacencyBonus[];
   pacing?: PacingMetadata;
+  resourceRequired?: ResourceType[];
 }
 
 export interface OccupiedCityState {
@@ -682,6 +685,7 @@ export interface TrainableUnitEntry {
   obsoletedByTech?: string;
   civTypeRequired?: string;  // only available/shown for this civ
   replacesUnit?: UnitType;   // hides this standard unit for the civ above
+  resourceRequired?: ResourceType[];
 }
 
 // --- Civilizations ---
