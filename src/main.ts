@@ -149,6 +149,7 @@ import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecyc
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
+import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
@@ -348,6 +349,14 @@ function updateHUD(): void {
   const sciSpan = document.createElement('span');
   sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
   yieldsRow.appendChild(sciSpan);
+
+  const happiness = getCivHappinessFromResources(gameState, civ.id);
+  if (happiness > 0) {
+    const happySpan = document.createElement('span');
+    happySpan.title = 'Happiness from luxury resources — each point reduces city unrest pressure by 2';
+    happySpan.textContent = `☺ ${happiness} (stability)`;
+    yieldsRow.appendChild(happySpan);
+  }
 
   const infoRow = document.createElement('div');
   if (gameState.hotSeat && civ.name) {
