@@ -6,7 +6,7 @@ import { createUnit } from '@/systems/unit-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
-import type { City } from '@/core/types';
+import type { City, ResourceType } from '@/core/types';
 
 function activeCityGrid(container: HTMLElement): HTMLElement {
   const panel = container.querySelector<HTMLElement>('[id="city-panel"]');
@@ -1253,5 +1253,135 @@ describe('city-panel build list icons', () => {
     const html = (panel as unknown as { innerHTML?: string }).innerHTML ?? '';
     // 🔨 = workshop icon
     expect(html).toContain('🔨');
+  });
+});
+
+describe('city-panel locked section — S4b', () => {
+  function makeLockedFixture(options: {
+    completedTechs?: string[];
+    resources?: ResourceType[];
+  } = {}) {
+    const { container, state } = makeWonderPanelFixture();
+    // Inject tech + resources onto the current player
+    const civId = state.currentPlayer;
+    state.civilizations[civId].techState.completed = options.completedTechs ?? ['stone-weapons'];
+
+    // Add a mine tile with copper if requested (makes getCivAvailableResources return copper)
+    if (options.resources?.length) {
+      const tileCoord = { q: 99, r: 0 };
+      const tileKey = '99,0'; // unique key unlikely to conflict
+      state.map.tiles[tileKey] = {
+        coord: tileCoord,
+        terrain: 'hills',
+        elevation: 'lowland',
+        resource: options.resources[0] as ResourceType,
+        improvement: 'mine',
+        owner: civId,
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+      };
+      // getCivAvailableResources uses city.ownedTiles, so we must add the coord there
+      const cityId = state.civilizations[civId].cities[0];
+      if (cityId && state.cities[cityId]) {
+        state.cities[cityId] = {
+          ...state.cities[cityId],
+          ownedTiles: [...state.cities[cityId].ownedTiles, tileCoord],
+        };
+      }
+    }
+
+    const city = Object.values(state.cities).find(c => c.owner === civId)!;
+    return { container, city, state };
+  }
+
+  it('shows locked section when tech is met but resource is missing', () => {
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['stone-weapons'],
+      resources: [],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const html = (panel as unknown as HTMLElement).innerHTML ?? '';
+    expect(html).toContain('Locked');
+    expect(html).toContain('missing resources');
+  });
+
+  it('locked section shows axeman with copper acquisition hint', () => {
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['stone-weapons'],
+      resources: [],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const html = (panel as unknown as HTMLElement).innerHTML ?? '';
+    expect(html).toContain('Axeman');
+    expect(html).toContain('Copper');
+  });
+
+  it('locked item does NOT appear in trainable list', () => {
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['stone-weapons'],
+      resources: [],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    // Axeman should not be in the build-item (trainable) list
+    const trainableSection = (panel as unknown as HTMLElement).querySelector?.('[data-section="trainable-units"]');
+    const trainableHtml = trainableSection?.innerHTML ?? '';
+    expect(trainableHtml).not.toContain('data-item-id="axeman"');
+  });
+
+  it('axeman NOT in locked section when copper is available', () => {
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['stone-weapons'],
+      resources: ['copper'],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const lockedSection = (panel as unknown as HTMLElement).querySelector?.('[data-section="locked-items"]');
+    const lockedHtml = lockedSection?.innerHTML ?? '';
+    expect(lockedHtml).not.toContain('Axeman');
+  });
+
+  it('tech-missing items are NOT shown in locked section (hidden entirely)', () => {
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: [],  // no techs — horseman tech not met
+      resources: [],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const html = (panel as unknown as HTMLElement).innerHTML ?? '';
+    // Horseman requires horseback-riding which is not met — should not appear anywhere
+    expect(html).not.toContain('Horseman');
+  });
+
+  it('multi-resource locked item (cavalry) shows both missing resources', () => {
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['horseback-riding'],
+      resources: [],  // missing both horses and iron
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const html = (panel as unknown as HTMLElement).innerHTML ?? '';
+    expect(html).toContain('Cavalry');
+    expect(html).toContain('Horses');
+    expect(html).toContain('Iron');
+  });
+
+  it('shows Show X more button when more than 3 items are locked', () => {
+    // Give many techs that unlock resource-gated units, but no resources
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['stone-weapons', 'bronze-working', 'horseback-riding', 'iron-forging', 'tactics', 'siege-warfare'],
+      resources: [],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const html = (panel as unknown as HTMLElement).innerHTML ?? '';
+    expect(html).toContain('more locked');
+  });
+
+  it('does NOT show Show X more button when 3 or fewer items are locked', () => {
+    // Only stone-weapons unlocks resource-gated units (axeman + armory = 2 items)
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['stone-weapons'],
+      resources: [],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const html = (panel as unknown as HTMLElement).innerHTML ?? '';
+    expect(html).not.toContain('more locked');
   });
 });

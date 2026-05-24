@@ -1,4 +1,4 @@
-import type { City, CityFocus, GameState, HexCoord } from '@/core/types';
+import type { City, CityFocus, GameState, HexCoord, ResourceType } from '@/core/types';
 import {
   getAvailableBuildings,
   BUILDINGS,
@@ -165,7 +165,7 @@ export function createCityPanel(
     bonusEffect: civDef?.bonusEffect,
     era: state.era,
   });
-  const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles);
+  const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles, playerResources);
   const cityWonderEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, city.id);
   const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);
   const activeLegendaryEntry = city.productionQueue[0]?.startsWith('legendary:')
@@ -221,7 +221,60 @@ export function createCityPanel(
   }
 
   const completedTechs = currentCiv.techState.completed;
-  const availableUnits = getTrainableUnitsForCiv(completedTechs, currentCiv.civType);
+  const availableUnits = getTrainableUnitsForCiv(completedTechs, currentCiv.civType, playerResources);
+
+  // Locked items: tech met + resource NOT met (tech-missing items stay hidden entirely)
+  const allTechUnlockedUnits = getTrainableUnitsForCiv(completedTechs, currentCiv.civType, undefined);
+  const lockedUnits = allTechUnlockedUnits.filter(u => !availableUnits.some(a => a.type === u.type));
+
+  const allTechUnlockedBuildings = getAvailableBuildings(city, completedTechs, state.map.tiles, undefined);
+  const lockedBuildings = allTechUnlockedBuildings.filter(b => !availableBuildings.some(a => a.id === b.id));
+
+  const lockedItems: Array<{ id: string; name: string; missingResources: ResourceType[] }> = [
+    ...lockedUnits.map(u => ({
+      id: u.type,
+      name: u.name,
+      missingResources: (u.resourceRequired ?? []).filter(r => !playerResources.has(r)),
+    })),
+    ...lockedBuildings.map(b => ({
+      id: b.id,
+      name: b.name,
+      missingResources: (b.resourceRequired ?? []).filter(r => !playerResources.has(r)),
+    })),
+  ];
+
+  function resourceAcquisitionHint(resourceId: ResourceType): string {
+    const def = RESOURCE_DEFINITIONS.find(d => d.id === resourceId);
+    if (!def) return String(resourceId);
+    const impMap: Record<string, string> = { mine: 'Mine', pasture: 'Pasture', quarry: 'Quarry', plantation: 'Plantation', camp: 'Camp' };
+    const impName = impMap[def.requiredImprovement] ?? def.requiredImprovement;
+    return `${def.name} (${impName} on a ${def.name} tile)`;
+  }
+
+  const LOCKED_SHOW_LIMIT = 3;
+  const visibleLockedItems = lockedItems.slice(0, LOCKED_SHOW_LIMIT);
+  const hiddenLockedCount = lockedItems.length - visibleLockedItems.length;
+
+  let lockedItemsHtml = '';
+  for (const item of visibleLockedItems) {
+    lockedItemsHtml += `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;margin-bottom:6px;opacity:0.5;">`;
+    lockedItemsHtml += `<div style="font-weight:bold;font-size:13px;">🔒 ${getProductionIconForItem(item.id)} `;
+    lockedItemsHtml += `<span data-locked-name="${item.id}"></span></div>`;
+    lockedItemsHtml += `<div style="font-size:11px;" data-locked-reason="${item.id}"></div>`;
+    lockedItemsHtml += `</div>`;
+  }
+
+  const showMoreButton = hiddenLockedCount > 0
+    ? `<button type="button" data-locked-show-more="true" style="width:100%;min-height:44px;padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);border-radius:6px;color:rgba(255,255,255,0.75);cursor:pointer;font-size:12px;">Show ${hiddenLockedCount} more locked</button>`
+    : '';
+
+  const lockedSectionHtml = lockedItems.length > 0
+    ? `<div data-section="locked-items" style="margin-top:12px;">
+        <div style="font-weight:bold;font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:8px;">🔒 Locked — missing resources</div>
+        ${lockedItemsHtml}
+        ${showMoreButton}
+      </div>`
+    : '';
 
   let unitPlaceholders = '';
   for (let idx = 0; idx < availableUnits.length; idx++) {
@@ -408,7 +461,8 @@ export function createCityPanel(
         ${buildItemPlaceholders}
         ${compactWonderSectionHtml}
         <div style="margin-top:12px;font-size:12px;opacity:0.5;margin-bottom:8px;">Units</div>
-        ${unitPlaceholders}
+        <div data-section="trainable-units">${unitPlaceholders}</div>
+        ${lockedSectionHtml}
       </div>
     </div>
     <div id="city-grid-view" style="display:none;"></div>
@@ -494,6 +548,14 @@ export function createCityPanel(
   availableUnits.forEach((u, i) => {
     setText(`unit-name-${i}`, u.name);
   });
+
+  // Fill locked item names and reasons via textContent (XSS-safe)
+  for (const item of visibleLockedItems) {
+    const nameEl = panel.querySelector(`[data-locked-name="${item.id}"]`);
+    if (nameEl) nameEl.textContent = item.name;
+    const reasonEl = panel.querySelector(`[data-locked-reason="${item.id}"]`);
+    if (reasonEl) reasonEl.textContent = `Requires ${item.missingResources.map(r => resourceAcquisitionHint(r)).join(' and ')}`;
+  }
 
   city.productionQueue.forEach((itemId, index) => {
     setText(`queue-name-${index}`, getProductionDisplayName(itemId));
