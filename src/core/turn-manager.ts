@@ -12,6 +12,7 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { calculateCityYields } from '@/systems/resource-system';
+import { getCivResourceYieldBonus } from '@/systems/resource-acquisition-system';
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
@@ -79,6 +80,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     let totalScience = 0;
     let totalGold = 0;
 
+    const resourceYieldBonus = getCivResourceYieldBonus(newState, civId);
+
     for (const cityId of civ.cities) {
       let city = newState.cities[cityId];
       if (!city) continue;
@@ -94,10 +97,10 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
       const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
       const yields = {
-        food: Math.floor((baseYields.food + (wonderCityBonuses.food ?? 0)) * unrestMultiplier),
-        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0)) * unrestMultiplier),
-        gold: Math.floor((baseYields.gold + (wonderCityBonuses.gold ?? 0)) * unrestMultiplier),
-        science: Math.floor((baseYields.science + (wonderCityBonuses.science ?? 0)) * unrestMultiplier),
+        food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food)       * unrestMultiplier),
+        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production) * unrestMultiplier),
+        gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier),
+        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0))                                 * unrestMultiplier),
       };
       totalScience += yields.science;
       totalGold += yields.gold;
