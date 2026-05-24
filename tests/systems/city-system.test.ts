@@ -799,3 +799,47 @@ describe('S4b — unit definitions completeness', () => {
     });
   }
 });
+
+describe('S4b — new buildings', () => {
+  const NEW_BUILDING_IDS = [
+    'bronze-workshop', 'armory', 'ranch', 'cavalry-academy',
+    'iron-foundry', 'war-academy', 'masonry-works', 'siege-workshop',
+  ];
+
+  for (const id of NEW_BUILDING_IDS) {
+    it(`BUILDINGS['${id}'] exists and has required fields`, () => {
+      expect(BUILDINGS[id]).toBeDefined();
+      expect(BUILDINGS[id].id).toBe(id);
+      expect(BUILDINGS[id].name.length).toBeGreaterThan(0);
+      expect(BUILDINGS[id].productionCost).toBeGreaterThan(0);
+      expect(BUILDINGS[id].resourceRequired?.length).toBeGreaterThan(0);
+    });
+
+    it(`PRODUCTION_ICONS has entry for building '${id}'`, () => {
+      expect(PRODUCTION_ICONS[id]).toBeDefined();
+    });
+  }
+
+  const NEW_UNIT_TYPES = ['axeman', 'spearman', 'horseman', 'cavalry', 'knight', 'crossbowman', 'catapult', 'ballista'];
+  for (const type of NEW_UNIT_TYPES) {
+    it(`PRODUCTION_ICONS has entry for unit '${type}'`, () => {
+      expect(PRODUCTION_ICONS[type]).toBeDefined();
+    });
+  }
+
+  it('bronze-workshop: blocked without copper even with stone-weapons tech', () => {
+    const map = generateMap(30, 30, 'bldg-test');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', tile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['stone-weapons'], map.tiles, new Set<ResourceType>());
+    expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
+  });
+
+  it('iron-foundry: available with iron-forging tech + iron resource', () => {
+    const map = generateMap(30, 30, 'bldg-test');
+    const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', tile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['iron-forging'], map.tiles, new Set<ResourceType>(['iron']));
+    expect(available.some(b => b.id === 'iron-foundry')).toBe(true);
+  });
+});

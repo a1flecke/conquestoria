@@ -36,7 +36,7 @@ export const RESOURCE_DEFINITIONS: ResourceDefinition[] = [
   // Strategic — gold/turn
   { id: 'salt',    name: 'Salt',    type: 'strategic', terrain: 'hills',                 basePrice: 5,  tech: 'pottery',           icon: '🧂', requiredImprovement: 'mine',       effect: { type: 'gold', amount: 1 } },
   // Strategic — null (S4b gating)
-  { id: 'copper',  name: 'Copper',  type: 'strategic', terrain: 'hills',                 basePrice: 5,  tech: 'stone-weapons',     icon: '🪙', requiredImprovement: 'mine',       effect: null },
+  { id: 'copper',  name: 'Copper',  type: 'strategic', terrain: 'hills',                 basePrice: 5,  tech: 'stone-weapons',     icon: '¢', requiredImprovement: 'mine',       effect: null },
   { id: 'iron',    name: 'Iron',    type: 'strategic', terrain: 'hills',                 basePrice: 8,  tech: 'bronze-working',    icon: '⚙️', requiredImprovement: 'mine',       effect: null },
   { id: 'horses',  name: 'Horses',  type: 'strategic', terrain: 'plains',                basePrice: 7,  tech: 'animal-husbandry',  icon: '🐎', requiredImprovement: 'pasture',    effect: null },
   { id: 'stone',   name: 'Stone',   type: 'strategic', terrain: 'mountain',              basePrice: 4,  tech: 'gathering',         icon: '🪨', requiredImprovement: 'quarry',     effect: null },
