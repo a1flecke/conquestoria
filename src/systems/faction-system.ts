@@ -6,6 +6,7 @@ import { createUnit } from './unit-system';
 import { hexDistance } from './hex-utils';
 import { createBreakawayFromCity } from './breakaway-system';
 import { getEconomyStatusForCiv } from './economy-system';
+import { getCivHappinessFromResources } from './resource-acquisition-system';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
@@ -21,7 +22,7 @@ const MAX_PRESSURE_ECONOMY = 20;
 
 // --- Pressure computation ---
 
-export function computeUnrestPressure(cityId: string, state: GameState): number {
+export function computeUnrestPressure(cityId: string, state: GameState, ownerHappiness = 0): number {
   const city = state.cities[cityId];
   if (!city) return 0;
   const owner = city.owner;
@@ -64,7 +65,10 @@ export function computeUnrestPressure(cityId: string, state: GameState): number 
     }
   }
 
-  return Math.min(100, pressure);
+  // Happiness from luxury resources reduces unrest pressure (2 pressure per happiness point)
+  pressure -= ownerHappiness * 2;
+
+  return Math.min(100, Math.max(0, pressure));
 }
 
 // --- Resolution helpers ---
@@ -153,6 +157,12 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
 
   let nextState = state;
 
+  // Pre-compute happiness per civ to avoid O(cities²) tile scans inside the city loop
+  const civHappiness: Record<string, number> = {};
+  for (const civId of Object.keys(nextState.civilizations)) {
+    civHappiness[civId] = getCivHappinessFromResources(nextState, civId);
+  }
+
   for (const cityId of Object.keys(nextState.cities)) {
     const city = nextState.cities[cityId];
     if (!city) continue;
@@ -176,7 +186,7 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
       : currentCity.unrestLevel === 2
         ? 'revolt'
         : null;
-    const pressure = computeUnrestPressure(cityId, nextState);
+    const pressure = computeUnrestPressure(cityId, nextState, civHappiness[city.owner] ?? 0);
     let updated = { ...currentCity };
 
     if (updated.unrestLevel === 0) {
