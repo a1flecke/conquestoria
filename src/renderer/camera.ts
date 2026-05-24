@@ -80,6 +80,23 @@ export class Camera {
     return pixelToHex(world.x, world.y, this.hexSize);
   }
 
+  /**
+   * Compute minZoom so that the visible world width never exceeds the map's
+   * pixel span. This prevents getHorizontalWrapRenderCoords from rendering the
+   * map more than once side-by-side when the player zooms all the way out.
+   *
+   * `mapWidthPx` should equal hexToPixel({q: map.width, r:0}, hexSize).x,
+   * which is the same value used as `wrapSpan` in wrap-rendering.ts.
+   */
+  setMinZoomForMap(mapWidthPx: number): void {
+    if (mapWidthPx <= 0 || this.width <= 0) return;
+    this.minZoom = this.width / mapWidthPx;
+    if (this.zoom < this.minZoom) {
+      this.zoom = this.minZoom;
+      this.targetZoom = this.minZoom;
+    }
+  }
+
   isHexVisible(coord: HexCoord): boolean {
     const pixel = hexToPixel(coord, this.hexSize);
     const screen = this.worldToScreen(pixel.x, pixel.y);

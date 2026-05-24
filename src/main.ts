@@ -3025,6 +3025,13 @@ function startGame(): void {
   audio.start(gameState, bus);
   routeSfxThrough(audio.getSfxRoutingNode());
 
+  // Prevent zoom-out duplication: ensure the camera cannot zoom past one full
+  // map-width. hexToPixel({q: width, r:0}).x equals the wrapSpan used in
+  // wrap-rendering.ts, so minZoom = camera.width / wrapSpan guarantees the
+  // visible world is never wider than one map copy.
+  const mapWidthPx = hexToPixel({ q: gameState.map.width, r: 0 }, renderLoop.camera.hexSize).x;
+  renderLoop.camera.setMinZoomForMap(mapWidthPx);
+
   // Initial advisor check
   advisorSystem.check(gameState);
 
