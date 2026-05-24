@@ -53,6 +53,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 
 function getPersonality(state: GameState, civType: string): PersonalityTraits {
   const def = resolveCivDefinition(state, civType);
@@ -213,7 +214,8 @@ function chooseLegendaryWonderFallback(
 
   const civDef = resolveCivDefinition(state, civilization.civType ?? '');
   const yields = calculateProjectedCityYields(state, cityId, civDef?.bonusEffect);
-  const availableBuildings = getAvailableBuildings(city, civilization.techState.completed, state.map.tiles).map(building => building.id);
+  const civResources = getCivAvailableResources(state, civId);
+  const availableBuildings = getAvailableBuildings(city, civilization.techState.completed, state.map.tiles, civResources).map(building => building.id);
   const atWar = civilization.diplomacy.atWarWith.length > 0;
 
   if (yields.food <= city.population) {
@@ -495,8 +497,20 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         }
       }
 
-      const availableItems = ['warrior', 'scout', 'granary', 'settler'];
-      const chosen = chooseProduction(personality, availableItems, isUnderThreat, civ.cities.length);
+      const civAvailableResources = getCivAvailableResources(newState, civId);
+      const trainableUnits = getTrainableUnitsForCiv(
+        civ.techState.completed,
+        civ.civType,
+        civAvailableResources,
+      ).map(u => u.type as string);
+      const availableBuildingsList = getAvailableBuildings(
+        city,
+        civ.techState.completed,
+        newState.map.tiles,
+        civAvailableResources,
+      ).map(b => b.id);
+      const derivedItems = [...trainableUnits, ...availableBuildingsList];
+      const chosen = chooseProduction(personality, derivedItems.length > 0 ? derivedItems : ['warrior'], isUnderThreat, civ.cities.length);
       city.productionQueue = [chosen];
     }
   }
