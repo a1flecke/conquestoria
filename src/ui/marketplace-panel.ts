@@ -68,6 +68,7 @@ export function createMarketplacePanel(
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:bold;"><span data-text="res-name-${idx}"></span> <span style="font-size:10px;color:${typeColor};" data-text="res-type-${idx}"></span></div>
           <div style="font-size:11px;opacity:0.6;" data-text="res-owned-${idx}"></div>
+          <div style="font-size:10px;opacity:0.65;" data-text="res-effect-${idx}"></div>
         </div>
         <div style="text-align:right;">
           <div style="font-size:14px;color:#e8c170;">💰 <span data-text="res-price-${idx}"></span> ${trendIcon}</div>
@@ -115,6 +116,21 @@ export function createMarketplacePanel(
     setText(`res-type-${idx}`, def.type.charAt(0).toUpperCase() + def.type.slice(1));
     setText(`res-owned-${idx}`, isOwned ? '✓ Owned' : '✗ Not in inventory');
     setText(`res-price-${idx}`, String(price));
+
+    // Effect badge — set via textContent, never innerHTML
+    let effectText: string;
+    if (!def.effect) {
+      effectText = '(unlocks advanced units & buildings)';
+    } else {
+      switch (def.effect.type) {
+        case 'happiness':   effectText = '★ +1 happiness'; break;
+        case 'gold':        effectText = '$ +1 gold/turn'; break;
+        case 'production':  effectText = '⚙ +1 production/turn'; break;
+        case 'food':        effectText = '🌾 +1 food/turn'; break;
+        default:            effectText = '';
+      }
+    }
+    setText(`res-effect-${idx}`, effectText);
   });
 
   // Populate Your Resources section
