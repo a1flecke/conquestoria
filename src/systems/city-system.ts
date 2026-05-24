@@ -1,4 +1,4 @@
-import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters } from '@/core/types';
+import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType } from '@/core/types';
 import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
@@ -239,7 +239,11 @@ export function getProductionIconForItem(itemId: string): string {
     ?? PRODUCTION_ICON_FALLBACK;
 }
 
-export function getTrainableUnitsForCiv(completedTechs: string[], civType?: string): TrainableUnitEntry[] {
+export function getTrainableUnitsForCiv(
+  completedTechs: string[],
+  civType?: string,
+  availableResources?: Set<ResourceType>,
+): TrainableUnitEntry[] {
   const replacedForCiv = new Set(
     TRAINABLE_UNITS
       .filter(u => u.civTypeRequired === civType && u.replacesUnit)
@@ -250,6 +254,9 @@ export function getTrainableUnitsForCiv(completedTechs: string[], civType?: stri
     if (u.obsoletedByTech && completedTechs.includes(u.obsoletedByTech)) return false;
     if (u.civTypeRequired && u.civTypeRequired !== civType) return false;
     if (replacedForCiv.has(u.type)) return false;
+    if (availableResources !== undefined && u.resourceRequired?.length) {
+      if (!u.resourceRequired.every(r => availableResources.has(r))) return false;
+    }
     return true;
   });
 }
