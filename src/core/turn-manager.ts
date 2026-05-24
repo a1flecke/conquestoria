@@ -3,6 +3,7 @@ import { EventBus } from './event-bus';
 import { checkDominationVictory } from '@/systems/victory-system';
 import { resetUnitTurn, createUnit, healUnit, moveUnit } from '@/systems/unit-system';
 import { processCity, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { processResearch, getTechById } from '@/systems/tech-system';
@@ -105,6 +106,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       totalScience += yields.science;
       totalGold += yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
+      const availableResources = getCivAvailableResources(newState, civId);
       const result = processCity(
         city,
         newState.map,
@@ -114,6 +116,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         civ.techState.completed,
         civ.civType,
         newState.era,
+        availableResources,
       );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;

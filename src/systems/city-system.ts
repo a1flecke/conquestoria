@@ -593,6 +593,7 @@ export function processCity(
   completedTechs: string[] = [],
   civType?: string,
   era: number = 1,
+  availableResources?: Set<ResourceType>,
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -617,16 +618,22 @@ export function processCity(
   const newBuildings = [...city.buildings];
   let newGrid = city.grid;
 
-  // Drop queued unit types that aren't trainable for this civ's tech state
-  if (completedTechs.length > 0 && newQueue.length > 0) {
-    const trainable = getTrainableUnitsForCiv(completedTechs, civType);
+  // Drop queued items that are no longer available (tech lost, resource lost)
+  if ((completedTechs.length > 0 || availableResources) && newQueue.length > 0) {
+    const trainable = getTrainableUnitsForCiv(completedTechs, civType, availableResources);
     const trainableTypes = new Set(trainable.map(u => u.type));
     const BUILDING_IDS = new Set(Object.keys(BUILDINGS));
-    const filtered = newQueue.filter(item =>
-      BUILDING_IDS.has(item) ||
-      trainableTypes.has(item as UnitType) ||
-      item.startsWith('legendary:'),
-    );
+    const filtered = newQueue.filter(item => {
+      if (item.startsWith('legendary:')) return true;
+      if (BUILDING_IDS.has(item)) {
+        const building = BUILDINGS[item];
+        if (building?.resourceRequired?.length && availableResources !== undefined) {
+          if (!building.resourceRequired.every(r => availableResources!.has(r))) return false;
+        }
+        return true;
+      }
+      return trainableTypes.has(item as UnitType);
+    });
     if (filtered.length !== newQueue.length) {
       newQueue.length = 0;
       newQueue.push(...filtered);
