@@ -209,4 +209,39 @@ describe('AudioSystem integration', () => {
     // Should not throw; warCount stays at 0
     expect(ctx.transcript.length).toBeGreaterThanOrEqual(0);
   });
+
+  // #246 — era-1 music fix
+  it('#246: start() with era=1 calls setSnapshot("peace",0) — at least one non-zero gain set', () => {
+    system.start(makeState({ era: 1 }), busHelper.bus);
+    // setSnapshot('peace', 0) calls setValueAtTime(value, now) on each bus GainNode.
+    // Peace snapshot: era=1.0, accent=0.70, stinger=1.0 (all non-zero).
+    const nonZeroSetValue = ctx.transcript.filter(
+      e => e.op === 'setValueAtTime' && (e.args[0] as number) > 0,
+    );
+    expect(nonZeroSetValue.length).toBeGreaterThan(0);
+  });
+
+  it('#246: start() with era=1 does NOT trigger director handleEraAdvanced (no linearRamp from era-1 path)', () => {
+    system.start(makeState({ era: 1 }), busHelper.bus);
+    // director.handleEraAdvanced uses linearRampToValueAtTime for its transition.
+    // The era=1 path uses setSnapshot('peace', 0) which uses setValueAtTime only.
+    const ramps = ctx.transcript.filter(e => e.op === 'linearRampToValueAtTime');
+    expect(ramps).toHaveLength(0);
+  });
+
+  it('#246: armIosResume registers a pointerdown listener on document', () => {
+    // The test environment is 'node' so we stub a minimal document to exercise
+    // the gesture-resume path that audio-system.ts guards with typeof document check.
+    const registered: string[] = [];
+    const mockDoc = {
+      addEventListener: vi.fn((evt: string) => { registered.push(evt); }),
+      removeEventListener: vi.fn(),
+    };
+    vi.stubGlobal('document', mockDoc);
+
+    system.start(makeState({ era: 1 }), busHelper.bus);
+    expect(registered).toContain('pointerdown');
+
+    vi.unstubAllGlobals();
+  });
 });

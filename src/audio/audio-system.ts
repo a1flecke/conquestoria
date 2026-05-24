@@ -17,6 +17,7 @@ export class AudioSystem {
   private civTypeById: Record<string, string> = {};
   private started = false;
   private iosResumeListeners: Array<() => void> = [];
+  private gestureResumeHandler: (() => void) | null = null;
 
   constructor(private readonly ctx: AudioContext) {
     this.loader = new AudioLoader(ctx);
@@ -50,6 +51,12 @@ export class AudioSystem {
     // Guard on era only, not musicEnabled — director state must be correct even when muted.
     if (state.era > 1) {
       this.director.handleEraAdvanced({ era: state.era, civType: this.currentCivType });
+    } else {
+      // Era-1 new game: the AudioContext is created before any user gesture and
+      // may be suspended. setSnapshot('peace', 0) is synchronous and ensures gain
+      // nodes are at the correct peace levels as soon as preloadForEra resolves
+      // and setBusSource starts the audio nodes — no stinger needed.
+      this.mixer.setSnapshot('peace', 0);
     }
   }
 
@@ -139,9 +146,21 @@ export class AudioSystem {
 
   private armIosResume(): void {
     if (typeof document === 'undefined') return;
-    const handler = () => void this.tryResume();
-    this.iosResumeListeners.push(handler);
-    document.addEventListener('visibilitychange', handler);
+
+    // Existing visibilitychange handler covers iOS background/foreground resume.
+    const visHandler = () => void this.tryResume();
+    this.iosResumeListeners.push(visHandler);
+    document.addEventListener('visibilitychange', visHandler);
+
+    // Gesture resume: AudioContext created before the first user interaction is
+    // suspended by the browser. A single pointerdown unlocks it; remove the
+    // listener immediately after so it does not fire on every tap.
+    this.gestureResumeHandler = () => {
+      void this.tryResume();
+      document.removeEventListener('pointerdown', this.gestureResumeHandler!);
+      this.gestureResumeHandler = null;
+    };
+    document.addEventListener('pointerdown', this.gestureResumeHandler);
   }
 
   private disarmIosResume(): void {
@@ -150,6 +169,10 @@ export class AudioSystem {
       document.removeEventListener('visibilitychange', handler);
     }
     this.iosResumeListeners = [];
+    if (this.gestureResumeHandler) {
+      document.removeEventListener('pointerdown', this.gestureResumeHandler);
+      this.gestureResumeHandler = null;
+    }
   }
 
   private async reloadAccent(civType: string): Promise<void> {
