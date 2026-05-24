@@ -185,23 +185,88 @@ type ResourceZone = {
 };
 
 const RESOURCE_ZONES: ResourceZone[] = [
-  { resource: 'horses',  terrain: 'plains',    lonMin: 50,   lonMax: 100,  latMin: 40, latMax: 55 },
-  { resource: 'horses',  terrain: 'plains',    lonMin: -110, lonMax: -95,  latMin: 30, latMax: 50 },
-  { resource: 'iron',    terrain: 'hills',     lonMin: 5,    lonMax: 30,   latMin: 50, latMax: 65 },
-  { resource: 'iron',    terrain: 'hills',     lonMin: 105,  lonMax: 120,  latMin: 30, latMax: 45 },
-  { resource: 'iron',    terrain: 'hills',     lonMin: -95,  lonMax: -75,  latMin: 40, latMax: 50 },
-  { resource: 'silk',    terrain: 'grassland', lonMin: 95,   lonMax: 115,  latMin: 30, latMax: 40 },
-  { resource: 'spices',  terrain: 'jungle',    lonMin: 95,   lonMax: 140,  latMin: -10, latMax: 20 },
-  { resource: 'spices',  terrain: 'jungle',    lonMin: 70,   lonMax: 85,   latMin: 8,  latMax: 20 },
-  { resource: 'incense', terrain: 'desert',    lonMin: 40,   lonMax: 60,   latMin: 15, latMax: 30 },
-  { resource: 'incense', terrain: 'desert',    lonMin: 10,   lonMax: 40,   latMin: 15, latMax: 30 },
-  { resource: 'gems',    terrain: 'hills',     lonMin: 20,   lonMax: 40,   latMin: -30, latMax: 5 },
-  { resource: 'gems',    terrain: 'hills',     lonMin: 75,   lonMax: 85,   latMin: 10, latMax: 25 },
-  { resource: 'gems',    terrain: 'jungle',    lonMin: -80,  lonMax: -65,  latMin: -20, latMax: 5 },
-  { resource: 'ivory',   terrain: 'forest',    lonMin: 10,   lonMax: 40,   latMin: -15, latMax: 10 },
-  { resource: 'wine',    terrain: 'grassland', lonMin: -5,   lonMax: 30,   latMin: 35, latMax: 47 },
-  { resource: 'copper',  terrain: 'hills',     lonMin: -80,  lonMax: -65,  latMin: -35, latMax: 10 },
-  { resource: 'copper',  terrain: 'hills',     lonMin: -9,   lonMax: -5,   latMin: 37, latMax: 43 },
+  // Horses
+  { resource: 'horses', terrain: 'plains', lonMin: 50,   lonMax: 100,  latMin: 40, latMax: 55 }, // Central Asian steppe
+  { resource: 'horses', terrain: 'plains', lonMin: -110, lonMax: -95,  latMin: 30, latMax: 50 }, // Great Plains (Americas)
+  { resource: 'horses', terrain: 'plains', lonMin: 35,   lonMax: 55,   latMin: 15, latMax: 30 }, // PATCH: Arabian Peninsula
+
+  // Iron
+  { resource: 'iron', terrain: 'hills', lonMin: 5,   lonMax: 30,   latMin: 50, latMax: 65 }, // N. Europe/Scandinavia
+  { resource: 'iron', terrain: 'hills', lonMin: 105, lonMax: 120,  latMin: 30, latMax: 45 }, // China
+  { resource: 'iron', terrain: 'hills', lonMin: -95, lonMax: -75,  latMin: 40, latMax: 50 }, // Great Lakes (US)
+  { resource: 'iron', terrain: 'hills', lonMin: -50, lonMax: -40,  latMin: -22, latMax: -10 }, // PATCH: Brazil/Minas Gerais
+  { resource: 'iron', terrain: 'hills', lonMin: 83,  lonMax: 88,   latMin: 21, latMax: 25 }, // PATCH: India/Jharkhand
+
+  // Silk
+  { resource: 'silk', terrain: 'grassland', lonMin: 95, lonMax: 115, latMin: 30, latMax: 40 }, // China
+
+  // Spices
+  { resource: 'spices', terrain: 'jungle', lonMin: 95,  lonMax: 140, latMin: -10, latMax: 20 }, // SE Asia
+  { resource: 'spices', terrain: 'jungle', lonMin: 70,  lonMax: 85,  latMin: 8,   latMax: 20 }, // S. India
+  { resource: 'spices', terrain: 'jungle', lonMin: 38,  lonMax: 42,  latMin: -8,  latMax: 0  }, // PATCH: Zanzibar/E. Africa
+
+  // Incense
+  { resource: 'incense', terrain: 'desert', lonMin: 40, lonMax: 60, latMin: 15, latMax: 30 }, // Arabian Peninsula
+  { resource: 'incense', terrain: 'desert', lonMin: 10, lonMax: 40, latMin: 15, latMax: 30 }, // N. Africa / Horn
+
+  // Gems — terrain MUST be 'hills' (mine required; plantation cannot be built on jungle)
+  { resource: 'gems', terrain: 'hills', lonMin: 20,   lonMax: 40,   latMin: -30, latMax: 5  }, // S. Africa
+  { resource: 'gems', terrain: 'hills', lonMin: 75,   lonMax: 85,   latMin: 10,  latMax: 25 }, // India
+  { resource: 'gems', terrain: 'hills', lonMin: -80,  lonMax: -65,  latMin: -20, latMax: 5  }, // S. America (Andes/Colombia — hills not jungle)
+  { resource: 'gems', terrain: 'hills', lonMin: 95,   lonMax: 103,  latMin: 17,  latMax: 27 }, // PATCH: Myanmar
+  { resource: 'gems', terrain: 'hills', lonMin: 135,  lonMax: 145,  latMin: -32, latMax: -25 }, // PATCH: Australia
+
+  // Ivory
+  { resource: 'ivory', terrain: 'forest', lonMin: 10,  lonMax: 40,   latMin: -15, latMax: 10 }, // Central/West Africa
+  { resource: 'ivory', terrain: 'forest', lonMin: 33,  lonMax: 42,   latMin: -10, latMax: 5  }, // PATCH: East Africa
+  { resource: 'ivory', terrain: 'forest', lonMin: 75,  lonMax: 105,  latMin: 8,   latMax: 22 }, // PATCH: South Asia
+
+  // Wine — terrain MUST be 'plains' (wine's RESOURCE_DEFINITION terrain)
+  { resource: 'wine', terrain: 'plains', lonMin: -5,   lonMax: 30,   latMin: 35, latMax: 47 }, // Mediterranean/France/Iberia
+  { resource: 'wine', terrain: 'plains', lonMin: -123, lonMax: -119, latMin: 37, latMax: 39 }, // PATCH: California (Napa)
+  { resource: 'wine', terrain: 'plains', lonMin: 18,   lonMax: 22,   latMin: -34, latMax: -32 }, // PATCH: S. Africa (Cape)
+  { resource: 'wine', terrain: 'plains', lonMin: -72,  lonMax: -68,  latMin: -37, latMax: -30 }, // PATCH: Chile/Mendoza
+
+  // Copper
+  { resource: 'copper', terrain: 'hills', lonMin: -80,  lonMax: -65,  latMin: -35, latMax: 10 }, // S. America (Andes)
+  { resource: 'copper', terrain: 'hills', lonMin: -9,   lonMax: -5,   latMin: 37,  latMax: 43 }, // Iberian Peninsula
+  { resource: 'copper', terrain: 'hills', lonMin: 25,   lonMax: 30,   latMin: -15, latMax: -8 }, // PATCH: Zambia/DRC
+  { resource: 'copper', terrain: 'hills', lonMin: -115, lonMax: -108, latMin: 32,  latMax: 48 }, // PATCH: Arizona/Montana
+
+  // Gold (NEW)
+  { resource: 'gold', terrain: 'hills', lonMin: 25,   lonMax: 32,   latMin: -30, latMax: -22 }, // S. Africa (Witwatersrand)
+  { resource: 'gold', terrain: 'hills', lonMin: -122, lonMax: -114, latMin: 36,  latMax: 42  }, // California/Sierra Nevada
+  { resource: 'gold', terrain: 'hills', lonMin: 120,  lonMax: 150,  latMin: 55,  latMax: 65  }, // Siberia
+  { resource: 'gold', terrain: 'hills', lonMin: -3,   lonMax: 2,    latMin: 5,   latMax: 10  }, // W. Africa (Ghana)
+
+  // Silver (NEW)
+  { resource: 'silver', terrain: 'hills', lonMin: -107, lonMax: -98, latMin: 20, latMax: 30 }, // Mexico (Zacatecas)
+  { resource: 'silver', terrain: 'hills', lonMin: -70,  lonMax: -63, latMin: -24, latMax: -14 }, // Bolivia/Peru (Potosí)
+  { resource: 'silver', terrain: 'hills', lonMin: 12,   lonMax: 20,  latMin: 49, latMax: 53 }, // C. Europe (Saxony)
+
+  // Furs (NEW — forest and tundra)
+  { resource: 'furs', terrain: 'forest', lonMin: 60,   lonMax: 140,  latMin: 55, latMax: 70 }, // Siberia (forest)
+  { resource: 'furs', terrain: 'tundra', lonMin: 60,   lonMax: 140,  latMin: 55, latMax: 70 }, // Siberia (tundra)
+  { resource: 'furs', terrain: 'forest', lonMin: -135, lonMax: -70,  latMin: 50, latMax: 70 }, // Canada (forest)
+  { resource: 'furs', terrain: 'tundra', lonMin: -135, lonMax: -70,  latMin: 50, latMax: 70 }, // Canada (tundra)
+  { resource: 'furs', terrain: 'forest', lonMin: 15,   lonMax: 30,   latMin: 60, latMax: 70 }, // Scandinavia
+
+  // Sheep (NEW — hills and plains)
+  { resource: 'sheep', terrain: 'hills',  lonMin: -10, lonMax: 2,   latMin: 50, latMax: 60 }, // British Isles
+  { resource: 'sheep', terrain: 'plains', lonMin: 80,  lonMax: 120, latMin: 40, latMax: 52 }, // C. Asia/Mongolia
+  { resource: 'sheep', terrain: 'plains', lonMin: -73, lonMax: -60, latMin: -52, latMax: -37 }, // Patagonia
+  { resource: 'sheep', terrain: 'hills',  lonMin: -8,  lonMax: 2,   latMin: 38, latMax: 43 }, // Iberia (merino)
+
+  // Cattle (NEW — grassland and plains)
+  { resource: 'cattle', terrain: 'plains',    lonMin: -105, lonMax: -95, latMin: 35, latMax: 50 }, // Great Plains
+  { resource: 'cattle', terrain: 'grassland', lonMin: -65,  lonMax: -57, latMin: -40, latMax: -28 }, // Argentine Pampas
+  { resource: 'cattle', terrain: 'grassland', lonMin: 32,   lonMax: 42,  latMin: -5,  latMax: 10 }, // East Africa
+
+  // Salt (NEW — hills)
+  { resource: 'salt', terrain: 'hills', lonMin: 12,  lonMax: 25,  latMin: 47, latMax: 55 }, // C. Europe (Wieliczka)
+  { resource: 'salt', terrain: 'hills', lonMin: 44,  lonMax: 58,  latMin: 30, latMax: 38 }, // Zagros/Iran
+  { resource: 'salt', terrain: 'hills', lonMin: -70, lonMax: -65, latMin: -25, latMax: -16 }, // Andes (Atacama)
+  { resource: 'salt', terrain: 'hills', lonMin: -5,  lonMax: 10,  latMin: 30, latMax: 37 }, // N. Africa/Atlas
 ];
 
 function placeResourceForTile(
@@ -213,7 +278,7 @@ function placeResourceForTile(
   const hash = ((lon * 1000 + lat * 997) | 0) ^ seed;
   const r = (Math.abs(hash) % 1000) / 1000;
 
-  if (terrain === 'hills' && r < 0.08) {
+  if (terrain === 'mountain' && r < 0.15) {
     return 'stone';
   }
 
