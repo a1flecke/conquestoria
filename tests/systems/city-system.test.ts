@@ -18,7 +18,8 @@ import {
   getProductionDisplayName,
   getProductionIconForItem,
 } from '@/systems/city-system';
-import type { City, GameMap, ResourceType } from '@/core/types';
+import type { City, GameMap, ResourceType, UnitType } from '@/core/types';
+import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -780,4 +781,21 @@ describe('S4b — new unit entries', () => {
     const entry = TRAINABLE_UNITS.find(u => u.type === 'cavalry');
     expect(entry?.obsoletedByTech).toBeUndefined();
   });
+});
+
+describe('S4b — unit definitions completeness', () => {
+  const NEW_UNITS: UnitType[] = ['axeman', 'spearman', 'horseman', 'cavalry', 'knight', 'crossbowman', 'catapult', 'ballista'];
+
+  for (const type of NEW_UNITS) {
+    it(`UNIT_DEFINITIONS has entry for ${type}`, () => {
+      expect(UNIT_DEFINITIONS[type]).toBeDefined();
+      expect(UNIT_DEFINITIONS[type].strength).toBeGreaterThan(0);
+      expect(UNIT_DEFINITIONS[type].movementPoints).toBeGreaterThan(0);
+    });
+
+    it(`UNIT_DESCRIPTIONS has entry for ${type}`, () => {
+      expect(UNIT_DESCRIPTIONS[type]).toBeDefined();
+      expect(UNIT_DESCRIPTIONS[type].length).toBeGreaterThan(0);
+    });
+  }
 });
