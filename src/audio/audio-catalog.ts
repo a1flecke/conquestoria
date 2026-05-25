@@ -44,18 +44,21 @@ export const WAR_LAYER: Record<EraId, TrackEntry> = {
 };
 
 export const ACCENT: Record<AudioFamily, TrackEntry> = {
-  'east-asian':              ph('accent-east-asian',              'audio/accent/east-asian.ogg'),
-  'south-asian':             ph('accent-south-asian',             'audio/accent/south-asian.ogg'),
-  'middle-eastern':          ph('accent-middle-eastern',          'audio/accent/middle-eastern.ogg'),
-  'mediterranean-antiquity': ph('accent-mediterranean-antiquity', 'audio/accent/mediterranean-antiquity.ogg'),
-  'western-european':        ph('accent-western-european',        'audio/accent/western-european.ogg'),
-  'norse':                   ph('accent-norse',                   'audio/accent/norse.ogg'),
-  'african':                 ph('accent-african',                 'audio/accent/african.ogg'),
-  'mesoamerican':            ph('accent-mesoamerican',            'audio/accent/mesoamerican.ogg'),
-  'steppe':                  ph('accent-steppe',                  'audio/accent/steppe.ogg'),
-  'fantasy-high':            ph('accent-fantasy-high',            'audio/accent/fantasy-high.ogg'),
-  'fantasy-dark':            ph('accent-fantasy-dark',            'audio/accent/fantasy-dark.ogg'),
-  'fantasy-mystical':        ph('accent-fantasy-mystical',        'audio/accent/fantasy-mystical.ogg'),
+  // Kevin MacLeod (incompetech.com) — CC-BY 3.0
+  'east-asian':              { id: 'accent-east-asian',              file: 'audio/accent/east-asian.ogg',              bpm: 0, key: 'pentatonic', loop: { loopStart: 0, loopEnd: 120.000 } },
+  'south-asian':             { id: 'accent-south-asian',             file: 'audio/accent/south-asian.ogg',             bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
+  'middle-eastern':          { id: 'accent-middle-eastern',          file: 'audio/accent/middle-eastern.ogg',          bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  89.365 } },
+  'northern-european':       { id: 'accent-northern-european',       file: 'audio/accent/northern-european.ogg',       bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
+  'norse':                   { id: 'accent-norse',                   file: 'audio/accent/norse.ogg',                   bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
+  'african':                 { id: 'accent-african',                 file: 'audio/accent/african.ogg',                 bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
+  'mesoamerican':            { id: 'accent-mesoamerican',            file: 'audio/accent/mesoamerican.ogg',            bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
+  'fantasy-dark':            { id: 'accent-fantasy-dark',            file: 'audio/accent/fantasy-dark.ogg',            bpm: 0, key: 'percussion', loop: { loopStart: 0, loopEnd: 120.000 } },
+  // Eric Matyas (soundimage.org) — free use with attribution
+  'mediterranean-antiquity': { id: 'accent-mediterranean-antiquity', file: 'audio/accent/mediterranean-antiquity.ogg', bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  80.759 } },
+  'western-european':        { id: 'accent-western-european',        file: 'audio/accent/western-european.ogg',        bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  60.056 } },
+  'steppe':                  { id: 'accent-steppe',                  file: 'audio/accent/steppe.ogg',                  bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
+  'fantasy-high':            { id: 'accent-fantasy-high',            file: 'audio/accent/fantasy-high.ogg',            bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  91.968 } },
+  'fantasy-mystical':        { id: 'accent-fantasy-mystical',        file: 'audio/accent/fantasy-mystical.ogg',        bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  75.777 } },
 };
 
 export const STINGER = {

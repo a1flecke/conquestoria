@@ -4,6 +4,7 @@ export type AudioFamily =
   | 'middle-eastern'
   | 'mediterranean-antiquity'
   | 'western-european'
+  | 'northern-european'
   | 'norse'
   | 'african'
   | 'mesoamerican'
@@ -23,11 +24,11 @@ export const CIV_TO_AUDIO_FAMILY: Record<string, AudioFamily> = {
   rome:        'mediterranean-antiquity',
   greece:      'mediterranean-antiquity',
   egypt:       'mediterranean-antiquity',
-  england:     'western-european',
+  england:     'northern-european',
   france:      'western-european',
   germany:     'western-european',
   spain:       'western-european',
-  russia:      'western-european',
+  russia:      'northern-european',
   viking:      'norse',
   zulu:        'african',
   wakanda:     'african',

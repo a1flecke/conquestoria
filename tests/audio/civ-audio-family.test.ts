@@ -10,7 +10,7 @@ import { MINOR_CIV_DEFINITIONS } from '../../src/systems/minor-civ-definitions';
 
 const ALL_FAMILIES: AudioFamily[] = [
   'east-asian', 'south-asian', 'middle-eastern', 'mediterranean-antiquity',
-  'western-european', 'norse', 'african', 'mesoamerican', 'steppe',
+  'western-european', 'northern-european', 'norse', 'african', 'mesoamerican', 'steppe',
   'fantasy-high', 'fantasy-dark', 'fantasy-mystical',
 ];
 
@@ -49,6 +49,12 @@ describe('getFamilyForCiv', () => {
     expect(getFamilyForCiv('viking')).toBe('norse');
     expect(getFamilyForCiv('isengard')).toBe('fantasy-dark');
     expect(getFamilyForCiv('mongolia')).toBe('steppe');
+    // MR7: northern-european split — England and Russia get Moorland, not Mediterranean Breeze
+    expect(getFamilyForCiv('england')).toBe('northern-european');
+    expect(getFamilyForCiv('russia')).toBe('northern-european');
+    expect(getFamilyForCiv('france')).toBe('western-european');
+    expect(getFamilyForCiv('germany')).toBe('western-european');
+    expect(getFamilyForCiv('spain')).toBe('western-european');
   });
 
   it('returns the correct family for known minor civs', () => {
