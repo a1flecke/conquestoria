@@ -176,7 +176,7 @@ Checks in order:
 Immutable (returns spread-copy). Steps:
 
 1. Resolve `fromCity = resolveFromCity(state, caravanUnit)` (guard: if null, throw — caller should have called `canEstablishRoute` first)
-2. Guard: if `state.marketplace` is undefined, initialise it with `createInitialMarketplaceState()` before proceeding
+2. Guard: if `state.marketplace` is undefined, initialise it with `createMarketplaceState()` (already exported from `trade-system.ts`) before proceeding
 3. Compute `hexDist`: use `wrappedHexDistance(fromCity.position, toCity.position, map.width)` when `map.wrapsHorizontally`, else `hexDistance(fromCity.position, toCity.position)`
 4. `turnsPerTrip = Math.ceil(hexDist / 3)`
 5. `resourceDiversity = getCivAvailableResources(state, fromCiv.owner).size` (distinct resource count from `resource-acquisition-system.ts`; capped at 5 internally by `calculateTradeRouteGold`)
