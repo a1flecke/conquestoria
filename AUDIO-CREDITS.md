@@ -139,6 +139,45 @@ the loop point. Loop endpoint verified < −35 dBFS on all files.
   Used as: fantasy-mystical civ accent (Atlantis, Prydain)
   Modified: re-encoded to OGG Vorbis (source was already < 80 s)
 
+## Stingers
+
+All stingers below are Kevin MacLeod (incompetech.com), CC-BY 3.0 — https://creativecommons.org/licenses/by/3.0/
+
+- "Danse Macabre - Big Hit 1" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100558
+  Used as: era 1 eraAdvance (full 4.96 s) and era 1 eraTransitionCue (trimmed to 1.8 s)
+  Modified: eraAdvance — converted to OGG Vorbis; eraTransitionCue — trimmed to 1.8 s
+
+- "Danse Macabre - Big Hit 2" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100557
+  Used as: era 2 eraAdvance (full 4.34 s) and era 2 eraTransitionCue (trimmed to 1.8 s)
+  Modified: eraAdvance — converted to OGG Vorbis; eraTransitionCue — trimmed to 1.8 s
+
+- "First Call" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100862
+  Used as: era 3 eraAdvance (trimmed to 5 s) and era 3 eraTransitionCue (trimmed to 1.8 s)
+  Modified: trimmed to 5 s / 1.8 s, converted to OGG Vorbis
+
+- "Discovery Hit" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1300023
+  Used as: era 4 eraAdvance (trimmed to 5 s) and era 4 eraTransitionCue (trimmed to 2 s)
+  Modified: trimmed to 5 s / 2 s, converted to OGG Vorbis
+
+- "Fanfare for Space" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1300026
+  Used as: era 5 eraAdvance (trimmed to 5 s) and era 5 eraTransitionCue (trimmed to 1.5 s)
+  Modified: trimmed to 5 s / 1.5 s, converted to OGG Vorbis
+
+- "Light Sting" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100433
+  Used as: cityFounded stinger (trimmed to 3 s)
+  Modified: trimmed to 3 s, converted to OGG Vorbis
+
+- "Danse Macabre - Low Strings Finale" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100552
+  Used as: warDeclared stinger (trimmed to 3 s)
+  Modified: trimmed to 3 s, converted to OGG Vorbis
+
 ## Sound Effects
 
 *(Existing synthesised SFX via Web Audio oscillators require no attribution.)*
