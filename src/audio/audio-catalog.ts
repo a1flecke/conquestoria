@@ -67,22 +67,36 @@ export const ACCENT: Record<AudioFamily, TrackEntry> = {
 };
 
 export const STINGER = {
+  // eraAdvance stingers exist in the catalog but are not yet wired in music-director.ts.
+  // They are provided for a future "big reveal" moment; wiring is deferred.
   eraAdvance: {
-    1: ph('stinger-era1-advance', 'audio/stinger/era1-advance.ogg', 5),
-    2: ph('stinger-era2-advance', 'audio/stinger/era2-advance.ogg', 5),
-    3: ph('stinger-era3-advance', 'audio/stinger/era3-advance.ogg', 5),
-    4: ph('stinger-era4-advance', 'audio/stinger/era4-advance.ogg', 5),
-    5: ph('stinger-era5-advance', 'audio/stinger/era5-advance.ogg', 5),
+    // "Danse Macabre - Big Hit 1" by Kevin MacLeod — CC-BY 3.0
+    1: { id: 'stinger-era1-advance', file: 'audio/stinger/era1-advance.ogg', bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 4.963 } },
+    // "Danse Macabre - Big Hit 2" by Kevin MacLeod — CC-BY 3.0
+    2: { id: 'stinger-era2-advance', file: 'audio/stinger/era2-advance.ogg', bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 4.336 } },
+    // "First Call" by Kevin MacLeod — CC-BY 3.0, trimmed to 5 s
+    3: { id: 'stinger-era3-advance', file: 'audio/stinger/era3-advance.ogg', bpm: 0, key: 'fanfare',    loop: { loopStart: 0, loopEnd: 5.000 } },
+    // "Discovery Hit" by Kevin MacLeod — CC-BY 3.0, trimmed to 5 s
+    4: { id: 'stinger-era4-advance', file: 'audio/stinger/era4-advance.ogg', bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 5.000 } },
+    // "Fanfare for Space" by Kevin MacLeod — CC-BY 3.0, trimmed to 5 s
+    5: { id: 'stinger-era5-advance', file: 'audio/stinger/era5-advance.ogg', bpm: 0, key: 'fanfare',    loop: { loopStart: 0, loopEnd: 5.000 } },
   } as Record<EraId, TrackEntry>,
   eraTransitionCue: {
-    1: ph('stinger-era1-transition-cue', 'audio/stinger/era1-transition-cue.ogg', 2),
-    2: ph('stinger-era2-transition-cue', 'audio/stinger/era2-transition-cue.ogg', 2),
-    3: ph('stinger-era3-transition-cue', 'audio/stinger/era3-transition-cue.ogg', 2),
-    4: ph('stinger-era4-transition-cue', 'audio/stinger/era4-transition-cue.ogg', 2),
-    5: ph('stinger-era5-transition-cue', 'audio/stinger/era5-transition-cue.ogg', 2),
+    // "Danse Macabre - Big Hit 1" by Kevin MacLeod — CC-BY 3.0, trimmed to 1.8 s
+    1: { id: 'stinger-era1-transition-cue', file: 'audio/stinger/era1-transition-cue.ogg', bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 1.800 } },
+    // "Danse Macabre - Big Hit 2" by Kevin MacLeod — CC-BY 3.0, trimmed to 1.8 s
+    2: { id: 'stinger-era2-transition-cue', file: 'audio/stinger/era2-transition-cue.ogg', bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 1.800 } },
+    // "First Call" by Kevin MacLeod — CC-BY 3.0, trimmed to 1.8 s
+    3: { id: 'stinger-era3-transition-cue', file: 'audio/stinger/era3-transition-cue.ogg', bpm: 0, key: 'fanfare',    loop: { loopStart: 0, loopEnd: 1.800 } },
+    // "Discovery Hit" by Kevin MacLeod — CC-BY 3.0, trimmed to 2.0 s
+    4: { id: 'stinger-era4-transition-cue', file: 'audio/stinger/era4-transition-cue.ogg', bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 2.000 } },
+    // "Fanfare for Space" by Kevin MacLeod — CC-BY 3.0, trimmed to 1.5 s
+    5: { id: 'stinger-era5-transition-cue', file: 'audio/stinger/era5-transition-cue.ogg', bpm: 0, key: 'fanfare',    loop: { loopStart: 0, loopEnd: 1.500 } },
   } as Record<EraId, TrackEntry>,
-  cityFounded: ph('stinger-city-founded', 'audio/stinger/city-founded.ogg', 3),
-  warDeclared:  ph('stinger-war-declared',  'audio/stinger/war-declared.ogg',  3),
+  // "Light Sting" by Kevin MacLeod — CC-BY 3.0, trimmed to 3 s
+  cityFounded: { id: 'stinger-city-founded', file: 'audio/stinger/city-founded.ogg', bpm: 0, key: 'uplifting',   loop: { loopStart: 0, loopEnd: 3.000 } },
+  // "Danse Macabre - Low Strings Finale" by Kevin MacLeod — CC-BY 3.0, trimmed to 3 s
+  warDeclared:  { id: 'stinger-war-declared',  file: 'audio/stinger/war-declared.ogg',  bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 3.000 } },
 };
 
 // Er2: clamps era > 5 to 5; no per-civ era tracking in Spec 1
