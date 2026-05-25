@@ -622,6 +622,26 @@ export function createCityPanel(
     });
   });
 
+  panel.querySelector<HTMLElement>('[data-locked-show-more]')?.addEventListener('click', () => {
+    const btn = panel.querySelector<HTMLElement>('[data-locked-show-more]');
+    if (!btn) return;
+    const hiddenItems = lockedItems.slice(LOCKED_SHOW_LIMIT);
+    for (const item of hiddenItems) {
+      let html = `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;margin-bottom:6px;opacity:0.5;">`;
+      html += `<div style="font-weight:bold;font-size:13px;">🔒 ${getProductionIconForItem(item.id)} `;
+      html += `<span data-locked-name-extra="${item.id}"></span></div>`;
+      html += `<div style="font-size:11px;" data-locked-reason-extra="${item.id}"></div>`;
+      html += `</div>`;
+      btn.insertAdjacentHTML('beforebegin', html);
+      // Fill dynamic text via textContent (XSS-safe)
+      const nameEl = panel.querySelector(`[data-locked-name-extra="${item.id}"]`);
+      if (nameEl) nameEl.textContent = item.name;
+      const reasonEl = panel.querySelector(`[data-locked-reason-extra="${item.id}"]`);
+      if (reasonEl) reasonEl.textContent = `Requires ${item.missingResources.map(r => resourceAcquisitionHint(r)).join(' and ')}`;
+    }
+    btn.remove();
+  });
+
   panel.querySelector<HTMLElement>('[data-open-wonder-panel]')?.addEventListener('click', () => {
     callbacks.onOpenWonderPanel(city.id);
     panel.remove();

@@ -1384,4 +1384,32 @@ describe('city-panel locked section — S4b', () => {
     const html = (panel as unknown as HTMLElement).innerHTML ?? '';
     expect(html).not.toContain('more locked');
   });
+
+  it('Show more locked button — clicking reveals all hidden locked items and removes the button', () => {
+    // Many techs, no resources → more than 3 locked items (> LOCKED_SHOW_LIMIT)
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['stone-weapons', 'bronze-working', 'horseback-riding', 'iron-forging', 'tactics', 'siege-warfare'],
+      resources: [],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+
+    const lockedSection = panel.querySelector('[data-section="locked-items"]')!;
+    expect(lockedSection).toBeTruthy();
+
+    // Before click: button should exist, only 3 items visible
+    const btn = lockedSection.querySelector('[data-locked-show-more]');
+    expect(btn).toBeTruthy();
+    const itemsBefore = lockedSection.querySelectorAll('[data-locked-name], [data-locked-name-extra]');
+    expect(itemsBefore.length).toBe(3);
+
+    // Click the "Show N more" button
+    clickElement(btn);
+
+    // After click: button should be gone, more items visible
+    expect(lockedSection.querySelector('[data-locked-show-more]')).toBeNull();
+    const itemsAfter = lockedSection.querySelectorAll('[data-locked-name], [data-locked-name-extra]');
+    expect(itemsAfter.length).toBeGreaterThan(3);
+    // Each revealed item should have non-empty name text
+    itemsAfter.forEach(el => expect(el.textContent!.length).toBeGreaterThan(0));
+  });
 });
