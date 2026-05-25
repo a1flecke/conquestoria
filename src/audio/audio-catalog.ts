@@ -56,11 +56,11 @@ export const ACCENT: Record<AudioFamily, TrackEntry> = {
   'northern-european':       { id: 'accent-northern-european',       file: 'audio/accent/northern-european.ogg',       bpm: 0, key: 'modal',         loop: { loopStart: 0, loopEnd: 108.000 } },
   'norse':                   { id: 'accent-norse',                   file: 'audio/accent/norse.ogg',                   bpm: 0, key: 'dark-ambient',  loop: { loopStart: 0, loopEnd: 108.000 } },
   'african':                 { id: 'accent-african',                 file: 'audio/accent/african.ogg',                 bpm: 0, key: 'polyrhythmic',  loop: { loopStart: 0, loopEnd: 108.000 } },
-  'mesoamerican':            { id: 'accent-mesoamerican',            file: 'audio/accent/mesoamerican.ogg',            bpm: 0, key: 'modal-minor',   loop: { loopStart: 0, loopEnd: 108.000 } },
+  'mesoamerican':            { id: 'accent-mesoamerican',            file: 'audio/accent/mesoamerican.ogg',            bpm: 0, key: 'pentatonic',    loop: { loopStart: 0, loopEnd: 108.000 } },
   'fantasy-dark':            { id: 'accent-fantasy-dark',            file: 'audio/accent/fantasy-dark.ogg',            bpm: 0, key: 'percussion',    loop: { loopStart: 0, loopEnd: 108.000 } },
   // Eric Matyas (soundimage.org) — free use with attribution
   'mediterranean-antiquity': { id: 'accent-mediterranean-antiquity', file: 'audio/accent/mediterranean-antiquity.ogg', bpm: 0, key: 'ambient',       loop: { loopStart: 0, loopEnd:  68.759 } },
-  'western-european':        { id: 'accent-western-european',        file: 'audio/accent/western-european.ogg',        bpm: 0, key: 'major',         loop: { loopStart: 0, loopEnd:  48.056 } },
+  'western-european':        { id: 'accent-western-european',        file: 'audio/accent/western-european.ogg',        bpm: 0, key: 'dorian',        loop: { loopStart: 0, loopEnd: 108.000 } },
   'steppe':                  { id: 'accent-steppe',                  file: 'audio/accent/steppe.ogg',                  bpm: 0, key: 'drone',         loop: { loopStart: 0, loopEnd: 108.000 } },
   'fantasy-high':            { id: 'accent-fantasy-high',            file: 'audio/accent/fantasy-high.ogg',            bpm: 0, key: 'ambient',       loop: { loopStart: 0, loopEnd:  79.968 } },
   'fantasy-mystical':        { id: 'accent-fantasy-mystical',        file: 'audio/accent/fantasy-mystical.ogg',        bpm: 0, key: 'ambient',       loop: { loopStart: 0, loopEnd:  63.777 } },
