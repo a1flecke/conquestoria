@@ -9,7 +9,9 @@
 
 ## Goal
 
-Make the dead `trade-routes` tech unlock real. A player who researches `trade-routes` (era 4) can train a **Caravan** unit, move it toward a destination city, and establish a trade route that pays gold every turn. Domestic routes work unconditionally; foreign routes require a neutral-or-better relationship and no active war. Route capacity is capped per city and scales with economy buildings. The caravan is committed to the route and will be consumed after a fixed number of round trips (implemented as a counter; physical travel arrives in S6b).
+Make the dead `trade-routes` tech unlock real. A player who researches `trade-routes` (era 4) can train a **Caravan** unit and establish a trade route that pays gold every turn. In S5, route establishment is **position-independent** — the player selects a destination from a city picker; the caravan is immediately committed wherever it stands. Physical travel (the caravan actually walking between cities) is S6b scope.
+
+Domestic routes (own cities) require only available capacity. Foreign routes additionally require a neutral-or-better relationship and no active war. Route capacity is capped per city and scales with economy buildings. The caravan is committed to the route for a fixed number of round trips (counter stored, countdown begins in S6b).
 
 ---
 
@@ -70,9 +72,17 @@ tripsRemaining?: number;       // S5 sets it; S6b decrements on each completed r
 routeDirection?: 'outbound' | 'inbound';  // S6b uses; S5 leaves undefined
 ```
 
+### `GameEvents` (in `src/core/types.ts`)
+
+Add one new event:
+```typescript
+'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' };
+```
+(`trade:route-created` already exists.)
+
 ### No new `MarketplaceState` fields
 
-`getRouteCapacity` and `getCaravanTripBonus` are **pure computed functions** — they derive from existing building lists. No new stored state.
+`getRouteCapacity`, `resolveFromCity`, and `getCaravanTripBonus` are **pure computed functions** — they derive from existing building lists and unit positions. No new stored state.
 
 ---
 
@@ -109,16 +119,28 @@ Add `routeCapacity: 1` to the existing `marketplace` entry in `BUILDINGS`. No ot
 
 ## System functions (all in `src/systems/trade-system.ts`)
 
+### `resolveFromCity(state: GameState, caravanUnit: Unit): City | null`
+
+**Exported.** Resolves the FROM city for a given caravan: the nearest owned city (by A* land-path length) that has remaining route capacity. Returns `null` if no eligible city exists (all cities at capacity or no land path to any owned city).
+
+Tiebreaker: highest remaining capacity slots; secondary: highest current gold yield.
+
+Used by both `canEstablishRoute` and `EstablishRoutePanel` so the FROM city is always the same value in both the UI and the mutation.
+
 ### `getRouteCapacity(state: GameState, cityId: string): number`
 
 ```
+// Building IDs are as returned by the Claude design prompt — confirmed at implementation time.
+// Expected: 'caravanserai', 'marketplace', 'bank', 'stock_exchange' (implementer must verify).
 base = 1
-+ (city.buildings includes 'caravanserai' ? 1 : 0)
-+ (city.buildings includes 'marketplace'  ? 1 : 0)
-+ (city.buildings includes 'bank'         ? 1 : 0)
-+ (city.buildings includes 'stockExchange'? 1 : 0)
++ (city.buildings includes 'caravanserai'  ? 1 : 0)
++ (city.buildings includes 'marketplace'   ? 1 : 0)
++ (city.buildings includes 'bank'          ? 1 : 0)
++ (city.buildings includes 'stock_exchange'? 1 : 0)
 return Math.min(total, 5)
 ```
+
+**Note:** The exact IDs for `bank` and `stock_exchange` are defined by the Claude design prompt in the New Buildings section. The implementer must use the IDs exactly as returned. This function must be updated to match.
 
 "Remaining capacity" = `getRouteCapacity(state, cityId)` minus count of existing routes where `fromCityId === cityId`.
 
@@ -128,38 +150,45 @@ return Math.min(total, 5)
 bonus = 0
 + (fromCity.buildings includes 'caravanserai' ? 2 : 0)
 + (toCity.buildings   includes 'caravanserai' ? 2 : 0)
-+ (caravanOwner controls Silk Road wonder ? 3 : 0)
++ (caravanOwner controls 'silk-road' wonder ? 3 : 0)   // forward-compatible placeholder:
+                                                         // returns 0 until Silk Road wonder exists
 return bonus
 ```
+
+**Note on Caravanserai TO city bonus:** This reveals whether a foreign city has a Caravanserai (the trip count preview in the picker will differ). Foreign city buildings are visible on city select per existing conventions — this is acceptable.
+
+**Note on Silk Road wonder:** If the wonder does not yet exist in the game, this clause always returns 0. The check is forward-compatible and harmless.
 
 ### `canEstablishRoute(state, caravanUnit, toCityId): { ok: boolean; reason?: string }`
 
 Checks in order:
 
-1. `toCity` exists
-2. A land path exists: `findPath(fromCity.position, toCity.position, state.map, 'land') !== null` — else `{ ok: false, reason: 'Requires a Naval Trader to cross water' }`
-3. FROM city has remaining capacity — else `{ ok: false, reason: 'City of X is at capacity (N/N routes)' }`
-4. If `toCity.owner !== caravanUnit.owner` (foreign): relationship ≥ 0 AND not at war — else `{ ok: false, reason: 'At war with Y' }` or `{ ok: false, reason: 'Relations too hostile (score: N)' }`
-5. Returns `{ ok: true }`
-
-FROM city = owned city nearest to the caravan's current position with remaining capacity (A* distance, `'land'` domain). Tiebreaker: highest `getRouteCapacity` remaining slots; secondary tiebreaker: city with higher current gold yield.
+1. Caravan does not already have `committedToRouteId` set — else `{ ok: false, reason: 'Caravan is already committed to a route' }`
+2. `toCity` exists
+3. `fromCity = resolveFromCity(state, caravanUnit)` is not null — else `{ ok: false, reason: 'No city with available route capacity' }`
+4. `toCity.id !== fromCity.id` — else `{ ok: false, reason: 'Cannot route a city to itself' }`
+5. A land path exists: `findPath(fromCity.position, toCity.position, state.map, 'land') !== null` — else `{ ok: false, reason: 'Requires a Naval Trader to cross water' }`
+6. If `toCity.owner !== caravanUnit.owner` (foreign): relationship ≥ 0 AND not at war — else `{ ok: false, reason: 'At war with Y' }` or `{ ok: false, reason: 'Relations too hostile (score: N)' }`
+7. Returns `{ ok: true }`
 
 ### `establishRoute(state, caravanUnitId, toCityId): GameState`
 
 Immutable (returns spread-copy). Steps:
 
-1. Resolve FROM city via nearest-eligible logic above
-2. Compute `hexDist = hexDistance(fromCity.position, toCity.position)` (wrapped if `map.wrapsHorizontally`)
-3. `turnsPerTrip = Math.ceil(hexDist / 3)`
-4. `resourceDiversity = getCivAvailableResources(state, fromCiv).size` (count of distinct resource types the FROM civ currently owns — from `resource-acquisition-system.ts`, capped at 5 by `calculateTradeRouteGold` internally)
-5. `goldPerTrip = calculateTradeRouteGold(hexDist, resourceDiversity) * turnsPerTrip`  
-   *(so effective gold/turn ≈ `calculateTradeRouteGold(hexDist, resourceDiversity)` — consistent with current formula)*
-6. `tripsRemaining = 8 + getCaravanTripBonus(state, fromCityId, toCityId, caravanOwner)`
-7. `id = \`route-${state.idCounters.nextRouteId}\``; increment `state.idCounters.nextRouteId`
-8. Push route to `marketplace.tradeRoutes`
-9. Set `unit.committedToRouteId = route.id`, `unit.tripsRemaining = tripsRemaining`, zero out `movementPointsLeft`
-10. Emit `trade:route-created` event (already defined in `types.ts`)
-11. Return new `GameState`
+1. Resolve `fromCity = resolveFromCity(state, caravanUnit)` (guard: if null, throw — caller should have called `canEstablishRoute` first)
+2. Guard: if `state.marketplace` is undefined, initialise it with `createInitialMarketplaceState()` before proceeding
+3. Compute `hexDist`: use `wrappedHexDistance(fromCity.position, toCity.position, map.width)` when `map.wrapsHorizontally`, else `hexDistance(fromCity.position, toCity.position)`
+4. `turnsPerTrip = Math.ceil(hexDist / 3)`
+5. `resourceDiversity = getCivAvailableResources(state, fromCiv.owner).size` (distinct resource count from `resource-acquisition-system.ts`; capped at 5 internally by `calculateTradeRouteGold`)
+6. `goldPerTrip = calculateTradeRouteGold(hexDist, resourceDiversity) * turnsPerTrip`  
+   *(effective gold/turn = `goldPerTrip / turnsPerTrip` ≈ `calculateTradeRouteGold(…)` — S6b fires full `goldPerTrip` on arrival)*
+7. `tripsRemaining = 8 + getCaravanTripBonus(state, fromCityId, toCityId, caravanOwner)`
+8. `foreignCivId = toCity.owner !== fromCity.owner ? toCity.owner : undefined`
+9. `id = \`route-${state.idCounters.nextRouteId}\``; increment `state.idCounters.nextRouteId`
+10. Push `{ id, fromCityId, toCityId, goldPerTrip, turnsPerTrip, foreignCivId }` to `marketplace.tradeRoutes`
+11. Set `unit.committedToRouteId = route.id`, `unit.tripsRemaining = tripsRemaining`, zero out `movementPointsLeft`
+12. Emit `trade:route-created` event (already defined in `types.ts`)
+13. Return new `GameState`
 
 **Actor-complete:** used by both the player path in `main.ts` and AI path in `basic-ai.ts`.
 
@@ -184,9 +213,9 @@ caravan: {
 ```
 
 ```typescript
-caravan: 'Trade unit. Move toward a destination city and establish a trade route. '
-       + 'Committed to the route until consumed (8 round trips base). '
-       + 'Cannot attack or be healed. Raidable by enemy units.',
+caravan: 'Trade unit. Establish a trade route to generate gold each turn. '
+       + 'Once committed, cannot move or act until the route ends (8 round trips base). '
+       + 'Cannot attack. Raidable by enemy units in transit.',
 ```
 
 ### 2. Unit-renderer fallback icon (`src/renderer/unit-visual-resolver.ts`)
@@ -199,9 +228,19 @@ caravan: '🐪',
 
 No special state record. When the production queue completes a `'caravan'` item, the standard unit-creation path suffices — `committedToRouteId` starts `undefined`.
 
-### 4. Death cleanup (`src/main.ts`)
+**Movement block enforcement:** In `src/main.ts`, at the movement intent handler (where a hex tap is resolved as a move for a selected unit), add a guard: if `unit.committedToRouteId` is set, suppress movement and show a notification *"Caravan is committed to a trade route and cannot move."* Also suppress movement highlights in `buildSelectedUnitHighlights` for committed caravans (return an empty highlight set).
 
-When a caravan unit dies (any cause): find route where `route.id === unit.committedToRouteId`, remove it from `state.marketplace.tradeRoutes`, emit `trade:route-ended` notification.
+**Auto-heal skip:** In `src/core/turn-manager.ts`, the auto-heal pass must skip units where `unit.committedToRouteId` is set. Committed caravans do not heal — they are stationary goods trains, not soldiers.
+
+### 4. Death cleanup (`src/main.ts` + `src/core/turn-manager.ts`)
+
+**Actor-complete.** Route cleanup must fire for ALL causes of caravan death, not just player-visible combat:
+
+- **Player kills enemy caravan** (combat in `main.ts`): find route where `route.id === dyingUnit.committedToRouteId`; remove from `marketplace.tradeRoutes`; emit `trade:route-ended` event with `reason: 'unit-died'`.
+- **AI turn / barbarian kills caravan** (combat resolved in `turn-manager.ts` or `basic-ai.ts`): same cleanup via a shared helper `removeRouteForUnit(state, unitId): GameState` called from all death paths.
+- **Player disbands caravan** (`main.ts` disband handler): must show a confirmation dialog — *"Disbanding this Caravan will end your [City A] → [City B] trade route (-N gold/turn). Continue?"* — before removing the unit. On confirm: call `removeRouteForUnit`, then remove the unit. Emit `trade:route-ended` with `reason: 'unit-disbanded'`. This satisfies the "no silent destructive UI" rule.
+
+`removeRouteForUnit(state: GameState, unitId: string): GameState` — shared helper in `src/systems/trade-system.ts`. Finds and removes the route where `caravanUnitId`… wait — routes don't store `caravanUnitId` in this design (the unit stores `committedToRouteId`). The helper looks up the unit, reads `unit.committedToRouteId`, then filters `marketplace.tradeRoutes` to remove the matching `id`. Returns new `GameState`.
 
 ### 5. AI usage (`src/ai/basic-ai.ts`)
 
@@ -234,33 +273,47 @@ caravan: '🐪',
 
 Shown on any selected Caravan unit owned by `state.currentPlayer` that does **not** already have `committedToRouteId` set.
 
-Tapping opens `EstablishRoutePanel`.
+- If `resolveFromCity(state, unit)` returns a city → button enabled, tapping opens `EstablishRoutePanel`
+- If `resolveFromCity` returns `null` (all cities at capacity) → button rendered **disabled** with tooltip *"No cities with available route capacity — build a Caravanserai or Marketplace to add slots"*. Do not hide the button; show it greyed so the player understands the mechanic.
+
+Use `createGameButton()` for both states.
 
 ### `EstablishRoutePanel` (`src/ui/establish-route-panel.ts`)
 
-Mobile-first panel, full-width bottom sheet style.
+Mobile-first panel, full-width bottom sheet style. FROM city is resolved once at panel-open time via `resolveFromCity(state, caravan)` and displayed in the header.
 
 **Layout:**
 ```
-[ Establish Trade Route — Caravan ]  [✕]
+[ Trade Routes from Rome (Caravan) ]  [✕]
+  Rome has 1/2 route slots available.
 
 Domestic Routes
-  ● Athens → Sparta    +3 gold/turn · 8 trips
-  ● Athens → Corinth   +2 gold/turn · 10 trips  ← Caravanserai bonus
+  ● Rome → Athens     +3 gold/turn · 8 trips
+  ● Rome → Corinth    +2 gold/turn · 10 trips  ← caravanserai in Corinth
 
 Foreign Routes
-  ● Athens → Carthage  +6 gold/turn · 8 trips   🟢 Neutral
-  ○ Athens → Persia    +7 gold/turn              🔴 At War
-  ○ Athens → Egypt     +5 gold/turn              Requires Naval Trader
+  ● Rome → Carthage   +6 gold/turn · 8 trips   🟢 Neutral
+  ○ Rome → Persia     +7 gold/turn · 8 trips    🔴 At War
+  ○ Rome → Egypt      +5 gold/turn · 8 trips    Requires Naval Trader
 
 [ Confirm ]  [ Cancel ]
 ```
 
+**Empty state** (no eligible destinations at all):
+```
+[ Trade Routes from Rome (Caravan) ]  [✕]
+  No eligible destinations.
+  Domestic: all own cities at capacity.
+  Foreign: all reachable civs are at war or hostile.
+[ Close ]
+```
+
 Rules:
-- Eligible rows: selectable, show gold/turn + trip count
-- Ineligible rows: greyed, show reason, not selectable
+- FROM city shown in header — always the city returned by `resolveFromCity`, not the caravan's current position tile name
+- Eligible rows: selectable, show `+N gold/turn · N trips`
+- Ineligible rows: greyed, show reason AND projected `+N gold/turn` (so the player can see what they'd earn if relations improved), not selectable
 - Selecting a row previews the route (highlight the TO city on map if possible)
-- "Confirm" calls `establishRoute`; panel closes; selected-unit-info refreshes
+- "Confirm" only enabled when a row is selected; calls `establishRoute`; panel closes; selected-unit-info refreshes
 - `textContent` / `createTextNode` only — no `innerHTML` with game strings
 - All buttons via `createGameButton()`, min-height 44px
 
@@ -280,15 +333,26 @@ In `src/renderer/hex-renderer.ts`, after drawing city dots and before drawing un
 
 ## Marketplace panel update
 
-The existing route list section in `src/ui/marketplace-panel.ts` (currently always empty) is populated:
+The existing route list section in `src/ui/marketplace-panel.ts` (currently always empty) is populated. Routes are grouped by FROM city; each city header shows its capacity:
 
 ```
-Active Trade Routes (2/3 slots used in Rome)
-  Rome → Cairo      +4 gold/turn · 6 trips remaining  🟢
-  Rome → Athens     +2 gold/turn · 8 trips remaining
+Active Trade Routes
+
+  Rome  (2/3 slots)
+    Rome → Cairo      +4 gold/turn · 6 trips remaining  🟢
+    Rome → Athens     +2 gold/turn · 8 trips remaining
+
+  Athens  (1/2 slots)
+    Athens → Sparta   +3 gold/turn · 8 trips remaining
 ```
 
-Tapping a route entry selects the committed caravan unit on the map (if visible).
+If the player has no routes yet:
+```
+Active Trade Routes
+  No active routes. Train a Caravan to establish one.
+```
+
+Tapping a route entry selects the committed caravan unit on the map (if visible). Capacity numbers come from `getRouteCapacity(state, cityId)` and the current route count for that city.
 
 ---
 
@@ -318,11 +382,12 @@ S5 lays the correct model. Future slices only add behaviour — no rework:
 
 ## Save compatibility checklist
 
-- [ ] `TradeRoute` migration: assign `id`, default `goldPerTrip`/`turnsPerTrip` from old `goldPerTurn` field
+- [ ] `TradeRoute` migration: assign `id` (`'route-legacy-N'`), default `goldPerTrip` from `(r as any).goldPerTurn ?? 2`, default `turnsPerTrip` to `3`. In practice old saves have empty `tradeRoutes` arrays (nothing ever pushed to them before S5) so this migration is a safety net only.
+- [ ] `IdCounters` migration: `nextRouteId` defaults to `1` if missing
 - [ ] `Unit`: all new fields optional — no migration needed
-- [ ] New buildings: cities in old saves lack them; `routeCapacity` defaults to 1 (base) — no migration needed
-- [ ] `marketplace.tradeRoutes` existing empty array unchanged
-- [ ] Add one load-old-save regression test
+- [ ] New buildings: cities in old saves lack them; `routeCapacity` base of 1 applies — no migration needed
+- [ ] `marketplace` itself may be `undefined` on very old saves — `establishRoute` guards against this (step 2); save-load should also initialise it on load if absent
+- [ ] Add one load-old-save regression test verifying `tradeRoutes` array is present and `marketplace` is initialized
 
 ---
 
@@ -345,11 +410,23 @@ S5 lays the correct model. Future slices only add behaviour — no rework:
 | `establishRoute`: sets `committedToRouteId` + `tripsRemaining` on unit | `tests/systems/trade-system.test.ts` |
 | `establishRoute`: pushes route to `marketplace.tradeRoutes` | `tests/systems/trade-system.test.ts` |
 | `establishRoute`: emits `trade:route-created` exactly once | `tests/systems/trade-system.test.ts` |
+| `establishRoute`: sets `foreignCivId` when TO city is foreign | `tests/systems/trade-system.test.ts` |
+| `establishRoute`: does NOT set `foreignCivId` when TO city is domestic | `tests/systems/trade-system.test.ts` |
+| `establishRoute`: initialises `marketplace` if undefined on state | `tests/systems/trade-system.test.ts` |
+| `canEstablishRoute`: blocked when caravan already has `committedToRouteId` | `tests/systems/trade-system.test.ts` |
+| `canEstablishRoute`: blocked when FROM city === TO city (self-route) | `tests/systems/trade-system.test.ts` |
+| `canEstablishRoute`: blocked when `resolveFromCity` returns null (all cities at capacity) | `tests/systems/trade-system.test.ts` |
+| `resolveFromCity`: returns nearest city with capacity; returns null when all at cap | `tests/systems/trade-system.test.ts` |
 | `getEffectiveGoldPerTurn`: rounds correctly, min 1 | `tests/systems/trade-system.test.ts` |
 | Route income credited to FROM city owner each turn | `tests/core/turn-manager.test.ts` |
-| Caravan death removes route from `marketplace.tradeRoutes` | `tests/core/turn-manager.test.ts` |
+| Committed caravan skipped by auto-heal pass | `tests/core/turn-manager.test.ts` |
+| Committed caravan cannot move (movement block) | `tests/main/unit-movement.test.ts` (or integration) |
+| Uncommitted caravan CAN move normally | `tests/main/unit-movement.test.ts` |
+| Player-side caravan death removes route (`removeRouteForUnit`) | `tests/systems/trade-system.test.ts` |
+| AI-side caravan death also removes route (actor-complete) | `tests/core/turn-manager.test.ts` |
 | AI establishes domestic route when conditions met (parity) | `tests/ai/basic-ai.test.ts` |
 | Old save with `goldPerTurn` route migrates without error | `tests/storage/save-migration.test.ts` |
+| Old save missing `nextRouteId` on `idCounters` defaults to 1 | `tests/storage/save-migration.test.ts` |
 
 ---
 
