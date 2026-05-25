@@ -104,8 +104,8 @@ the loop point. Loop endpoint verified < −35 dBFS on all files.
   Used as: african civ accent (Zulu, Wakanda)
   Modified: trimmed to 2:00, 12 s fade-out
 
-- "Ritual" by Kevin MacLeod (incompetech.com)
-  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100466
+- "Chee Zee Jungle" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100684
   Used as: mesoamerican civ accent (Aztec)
   Modified: trimmed to 2:00, 12 s fade-out
 
