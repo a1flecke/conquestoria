@@ -43,22 +43,27 @@ export const WAR_LAYER: Record<EraId, TrackEntry> = {
   5: { id: 'era5-war', file: 'audio/war/era5-war.ogg', bpm: 0,   key: 'D-minor',  loop: { loopStart: 0, loopEnd: 180.000 } },
 };
 
+// loopEnd is set to the fade-start (duration − 12 s), not the file end.
+// The Web Audio looping region therefore stays in the main musical body and never
+// enters the fade-out tail, eliminating the periodic 12 s silence dip on every loop.
+// The fade tail (loopEnd → file-end) remains in the buffer but is unreachable during
+// normal playback; it would only sound if the bus is stopped without a crossfade.
 export const ACCENT: Record<AudioFamily, TrackEntry> = {
   // Kevin MacLeod (incompetech.com) — CC-BY 3.0
-  'east-asian':              { id: 'accent-east-asian',              file: 'audio/accent/east-asian.ogg',              bpm: 0, key: 'pentatonic', loop: { loopStart: 0, loopEnd: 120.000 } },
-  'south-asian':             { id: 'accent-south-asian',             file: 'audio/accent/south-asian.ogg',             bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
-  'middle-eastern':          { id: 'accent-middle-eastern',          file: 'audio/accent/middle-eastern.ogg',          bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  89.365 } },
-  'northern-european':       { id: 'accent-northern-european',       file: 'audio/accent/northern-european.ogg',       bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
-  'norse':                   { id: 'accent-norse',                   file: 'audio/accent/norse.ogg',                   bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
-  'african':                 { id: 'accent-african',                 file: 'audio/accent/african.ogg',                 bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
-  'mesoamerican':            { id: 'accent-mesoamerican',            file: 'audio/accent/mesoamerican.ogg',            bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
-  'fantasy-dark':            { id: 'accent-fantasy-dark',            file: 'audio/accent/fantasy-dark.ogg',            bpm: 0, key: 'percussion', loop: { loopStart: 0, loopEnd: 120.000 } },
+  'east-asian':              { id: 'accent-east-asian',              file: 'audio/accent/east-asian.ogg',              bpm: 0, key: 'pentatonic',    loop: { loopStart: 0, loopEnd: 108.000 } },
+  'south-asian':             { id: 'accent-south-asian',             file: 'audio/accent/south-asian.ogg',             bpm: 0, key: 'raga',          loop: { loopStart: 0, loopEnd: 108.000 } },
+  'middle-eastern':          { id: 'accent-middle-eastern',          file: 'audio/accent/middle-eastern.ogg',          bpm: 0, key: 'ambient',       loop: { loopStart: 0, loopEnd:  77.365 } },
+  'northern-european':       { id: 'accent-northern-european',       file: 'audio/accent/northern-european.ogg',       bpm: 0, key: 'modal',         loop: { loopStart: 0, loopEnd: 108.000 } },
+  'norse':                   { id: 'accent-norse',                   file: 'audio/accent/norse.ogg',                   bpm: 0, key: 'dark-ambient',  loop: { loopStart: 0, loopEnd: 108.000 } },
+  'african':                 { id: 'accent-african',                 file: 'audio/accent/african.ogg',                 bpm: 0, key: 'polyrhythmic',  loop: { loopStart: 0, loopEnd: 108.000 } },
+  'mesoamerican':            { id: 'accent-mesoamerican',            file: 'audio/accent/mesoamerican.ogg',            bpm: 0, key: 'modal-minor',   loop: { loopStart: 0, loopEnd: 108.000 } },
+  'fantasy-dark':            { id: 'accent-fantasy-dark',            file: 'audio/accent/fantasy-dark.ogg',            bpm: 0, key: 'percussion',    loop: { loopStart: 0, loopEnd: 108.000 } },
   // Eric Matyas (soundimage.org) — free use with attribution
-  'mediterranean-antiquity': { id: 'accent-mediterranean-antiquity', file: 'audio/accent/mediterranean-antiquity.ogg', bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  80.759 } },
-  'western-european':        { id: 'accent-western-european',        file: 'audio/accent/western-european.ogg',        bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  60.056 } },
-  'steppe':                  { id: 'accent-steppe',                  file: 'audio/accent/steppe.ogg',                  bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd: 120.000 } },
-  'fantasy-high':            { id: 'accent-fantasy-high',            file: 'audio/accent/fantasy-high.ogg',            bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  91.968 } },
-  'fantasy-mystical':        { id: 'accent-fantasy-mystical',        file: 'audio/accent/fantasy-mystical.ogg',        bpm: 0, key: 'unknown',    loop: { loopStart: 0, loopEnd:  75.777 } },
+  'mediterranean-antiquity': { id: 'accent-mediterranean-antiquity', file: 'audio/accent/mediterranean-antiquity.ogg', bpm: 0, key: 'ambient',       loop: { loopStart: 0, loopEnd:  68.759 } },
+  'western-european':        { id: 'accent-western-european',        file: 'audio/accent/western-european.ogg',        bpm: 0, key: 'major',         loop: { loopStart: 0, loopEnd:  48.056 } },
+  'steppe':                  { id: 'accent-steppe',                  file: 'audio/accent/steppe.ogg',                  bpm: 0, key: 'drone',         loop: { loopStart: 0, loopEnd: 108.000 } },
+  'fantasy-high':            { id: 'accent-fantasy-high',            file: 'audio/accent/fantasy-high.ogg',            bpm: 0, key: 'ambient',       loop: { loopStart: 0, loopEnd:  79.968 } },
+  'fantasy-mystical':        { id: 'accent-fantasy-mystical',        file: 'audio/accent/fantasy-mystical.ogg',        bpm: 0, key: 'ambient',       loop: { loopStart: 0, loopEnd:  63.777 } },
 };
 
 export const STINGER = {
