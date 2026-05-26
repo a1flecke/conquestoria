@@ -1,7 +1,7 @@
 import { processTurn } from '@/core/turn-manager';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
-import type { CustomCivDefinition, GameState, UnitType } from '@/core/types';
+import type { CustomCivDefinition, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { foundCity } from '@/systems/city-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
@@ -15,6 +15,7 @@ import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 import { createUnit } from '@/systems/unit-system';
+import { createTechState } from '@/systems/tech-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -912,5 +913,116 @@ describe('espionage post-loop snapshot', () => {
     // The spy city-vision section makes the tile 'visible'; the post-espionage snapshot
     // must have captured its terrain before processTurn returns.
     expect(result.civilizations.player.visibility.lastSeen?.[tileKey]?.terrain).toBe('desert');
+  });
+});
+
+describe('journey automation', () => {
+  function makeJourneyFixture(start: HexCoord, destination: HexCoord): { state: GameState; unitId: string } {
+    const map = createWrappedGrasslandMap(6, 3);
+    map.wrapsHorizontally = false;
+
+    const unit: Unit = {
+      id: 'scout-1',
+      type: 'scout',
+      owner: 'player',
+      position: start,
+      movementPointsLeft: 3,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+      automation: { mode: 'journey', destination },
+    };
+
+    const civ = {
+      id: 'player',
+      name: 'Player',
+      color: '#4a90d9',
+      isHuman: true,
+      civType: 'generic' as const,
+      cities: [],
+      units: ['scout-1'],
+      techState: createTechState(),
+      gold: 0,
+      visibility: {
+        tiles: Object.fromEntries(
+          Object.keys(map.tiles).map(k => [k, 'visible' as const]),
+        ),
+      },
+      knownCivilizations: [],
+      score: 0,
+      diplomacy: createDiplomacyState(['player'], 'player'),
+    };
+
+    const state: GameState = {
+      turn: 1,
+      era: 1,
+      gameId: 'journey-test',
+      gameTitle: 'Journey Test',
+      civilizations: { player: civ },
+      map,
+      units: { 'scout-1': unit },
+      cities: {},
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      settings: {
+        mapSize: 'small', soundEnabled: false, musicEnabled: false,
+        musicVolume: 0, sfxVolume: 0, tutorialEnabled: false,
+        advisorsEnabled: {
+          builder: true, explorer: true, chancellor: true, warchief: true,
+          treasurer: true, scholar: true, spymaster: true, artisan: true,
+        },
+        councilTalkLevel: 'normal',
+      },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
+      idCounters: { nextUnitId: 2, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+    };
+
+    return { state, unitId: 'scout-1' };
+  }
+
+  it('advances unit one step toward destination each turn', () => {
+    const { state, unitId } = makeJourneyFixture({ q: 0, r: 1 }, { q: 3, r: 1 });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    const unit = result.units[unitId];
+    expect(unit).toBeDefined();
+    expect(unit!.position.q).toBeGreaterThan(0);
+    expect(unit!.automation).toBeDefined();
+  });
+
+  it('clears automation when destination is reached', () => {
+    const { state, unitId } = makeJourneyFixture({ q: 0, r: 1 }, { q: 1, r: 1 });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    const unit = result.units[unitId];
+    expect(unit!.position).toEqual({ q: 1, r: 1 });
+    expect(unit!.automation).toBeUndefined();
+  });
+
+  it('emits unit:journey-blocked and clears automation when path is unreachable', () => {
+    const { state, unitId } = makeJourneyFixture({ q: 0, r: 1 }, { q: 5, r: 1 });
+    // Block all paths by making intermediate tiles mountains
+    state.map.tiles['1,1'] = { ...state.map.tiles['1,1']!, terrain: 'mountain' };
+    state.map.tiles['1,0'] = { ...state.map.tiles['1,0']!, terrain: 'mountain' };
+    state.map.tiles['1,2'] = { ...state.map.tiles['1,2']!, terrain: 'mountain' };
+
+    const bus = new EventBus();
+    const blockedEvents: { unitId: string }[] = [];
+    bus.on('unit:journey-blocked', (payload) => blockedEvents.push(payload));
+
+    const result = processTurn(state, bus);
+    expect(blockedEvents).toHaveLength(1);
+    expect(blockedEvents[0].unitId).toBe(unitId);
+    expect(result.units[unitId]!.automation).toBeUndefined();
   });
 });

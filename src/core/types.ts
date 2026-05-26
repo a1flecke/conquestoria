@@ -315,11 +315,9 @@ export interface Unit {
   isResting: boolean;        // player explicitly chose to rest/heal this turn
   skippedTurn?: boolean;     // player chose to hold this unit out of unit cycling this turn
   isFortified?: boolean;    // unit is in defensive stance; excluded from unmoved-unit cycling, +25% defense
-  automation?: {
-    mode: 'auto-explore';
-    lastTargets: string[];
-    startedTurn: number;
-  };
+  automation?:
+    | { mode: 'auto-explore'; lastTargets: string[]; startedTurn: number }
+    | { mode: 'journey'; destination: HexCoord };
   committedToRouteId?: string;   // set on establish; blocks movement while set
   tripsRemaining?: number;       // S5 sets it; S6b decrements on each completed round trip
   routeDirection?: 'outbound' | 'inbound';  // S6b uses; S5 leaves undefined
@@ -1231,4 +1229,5 @@ export interface GameEvents {
   'espionage:intel-extracted': { captorId: string; intel: InterrogationIntel[] };
   'unit:obsolete': { civId: string; unitId: string; unitType: UnitType };
   'espionage:spy-expired': { civId: string; spyId: string; spyName: string; unitType: UnitType };
+  'unit:journey-blocked': { unitId: string; position: HexCoord };
 }

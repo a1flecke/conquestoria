@@ -45,6 +45,7 @@ export class RenderLoop {
   private running = false;
   private animFrameId = 0;
   private highlights: HexHighlight[] = [];
+  private journeyPath: HexCoord[] | null = null;
   private unitMovementAnimations: Array<UnitMovementAnimation & { startTime: number; onComplete?: () => void }> = [];
 
   setHighlights(highlights: HexHighlight[]): void {
@@ -53,6 +54,10 @@ export class RenderLoop {
 
   clearHighlights(): void {
     this.highlights = [];
+  }
+
+  setJourneyPath(path: HexCoord[] | null): void {
+    this.journeyPath = path;
   }
 
   requestWonderDiscoveryHighlight(
@@ -193,6 +198,24 @@ export class RenderLoop {
         const color = HEX_HIGHLIGHT_COLORS[highlight.type];
         drawHexHighlight(this.ctx, screen.x, screen.y, scaledSize, color);
       }
+    }
+
+    // Draw journey path overlay
+    if (this.journeyPath && this.journeyPath.length >= 2) {
+      this.ctx.save();
+      this.ctx.strokeStyle = 'rgba(255, 200, 50, 0.8)';
+      this.ctx.lineWidth = 3;
+      this.ctx.setLineDash([6, 4]);
+      this.ctx.beginPath();
+      let started = false;
+      for (const coord of this.journeyPath) {
+        const pixel = hexToPixel(coord, this.camera.hexSize);
+        const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+        if (!started) { this.ctx.moveTo(screen.x, screen.y); started = true; }
+        else { this.ctx.lineTo(screen.x, screen.y); }
+      }
+      this.ctx.stroke();
+      this.ctx.restore();
     }
 
     // Draw cities
