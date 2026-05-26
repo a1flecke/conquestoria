@@ -42,6 +42,11 @@ export class MusicDirector {
     private readonly loader: AudioLoader,
   ) {}
 
+  initPeaceSnapshot(): void {
+    this.intendedSnapshot = 'peace';
+    this.mixer.setSnapshot('peace', 0);
+  }
+
   handleEraAdvanced(p: EraAdvancedPayload): void {
     const target: SnapshotId = this.intendedSnapshot === 'at-war' ? 'at-war' : 'peace';
     this.intendedSnapshot = target;
