@@ -688,7 +688,7 @@ describe('trade-system', () => {
       const marketplace = { ...state.marketplace!, tradeRoutes: [
         { id: 'route-99', fromCityId: 'city3', toCityId: 'city1', goldPerTrip: 6, turnsPerTrip: 2, foreignCivId: 'player' },
       ]};
-      let s = { ...state, marketplace };
+      let s: GameState = { ...state, marketplace };
       s = { ...s, embargoes: [{ id: 'emb-2', targetCivId: 'enemy', participants: ['player'], proposedTurn: 1 }] };
 
       const events: Array<{ reason: string }> = [];
