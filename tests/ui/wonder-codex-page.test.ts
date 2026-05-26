@@ -123,6 +123,30 @@ describe('wonder-codex-page', () => {
     expect(root.textContent).not.toContain('Play video');
   });
 
+  it('renders compact landmark preview without adding rival actions', () => {
+    const root = createWonderCodexPage(page({
+      id: 'oracle-of-delphi',
+      kind: 'legendary',
+      title: 'Oracle of Delphi',
+      subtitle: 'A sanctuary of prophecy.',
+      stateLabel: 'Completed',
+      visual: getWonderVisualDefinition('oracle-of-delphi'),
+      actions: [],
+      landmarkPreview: {
+        cityId: 'city-river',
+        cityName: 'River City',
+        items: [{
+          wonderId: 'oracle-of-delphi',
+          label: 'Oracle of Delphi',
+          state: 'completed',
+        }],
+      },
+    }), { onAction: () => {}, onSelectRelated: () => {} });
+
+    expect(root.querySelector('[data-section="legendary-landmark-preview"]')?.textContent).toContain('Oracle of Delphi');
+    expect(root.querySelector('[data-codex-action="open-city"]')).toBeNull();
+  });
+
   it('keeps reduced-motion Codex spectacle static', () => {
     const root = createWonderCodexPage(page(), {
       mode: 'desktop',

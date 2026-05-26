@@ -4,7 +4,7 @@ import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { TERRITORY_PRESSURE_BALANCE } from '@/systems/city-territory-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
-import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { getCompletedLegendaryLandmarksForCity } from '@/systems/legendary-wonder-landmark-presentation';
 import { renderTerritoryFrontierInfo } from '@/ui/territory-frontier-info';
 import { createGameButton } from '@/ui/ui-kit';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
@@ -145,9 +145,9 @@ export function createTerritoryInspectionPanel(
   addLine(panel, 'Owner', owner?.name ?? tile.owner ?? 'Unclaimed');
 
   const cityAtCoord = Object.values(state.cities).find(candidate => hexKey(candidate.position) === key);
-  const completedInCity = Object.entries(state.completedLegendaryWonders ?? {})
-    .filter(([, completion]) => completion.ownerId === viewerId && completion.cityId === cityAtCoord?.id)
-    .map(([wonderId]) => getLegendaryWonderDefinition(wonderId)?.name ?? 'Legendary wonder');
+  const completedInCity = cityAtCoord
+    ? getCompletedLegendaryLandmarksForCity(state, viewerId, cityAtCoord.id).map(entry => entry.label)
+    : [];
   if (completedInCity.length > 0) {
     addLine(panel, 'Completed legendary wonders', completedInCity.join(', '));
   }

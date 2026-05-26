@@ -12,6 +12,10 @@ import {
   getLegendaryWonderRivalIntelSummariesForViewer,
   type LegendaryWonderRivalIntelSummary,
 } from '@/systems/legendary-wonder-intel-presentation';
+import {
+  getLegendaryLandmarkPreviewViewForCity,
+  type LegendaryWonderLandmarkPreviewView,
+} from '@/systems/legendary-wonder-landmark-presentation';
 
 export type WonderCodexResponsiveMode = 'desktop' | 'mobile';
 
@@ -46,6 +50,7 @@ export interface WonderCodexPageViewModel extends WonderCodexCatalogEntry {
   };
   statusLines: string[];
   rivalIntel?: LegendaryWonderRivalIntelSummary;
+  landmarkPreview?: LegendaryWonderLandmarkPreviewView;
   sections: WonderCodexSection[];
   relatedEntries: RelatedWonderCodexEntry[];
   actions: WonderCodexAction[];
@@ -203,6 +208,16 @@ function buildPage(
   const status = content.kind === 'natural'
     ? buildNaturalStatus(state, entry.id)
     : buildLegendaryStatus(state, viewerId, entry.id, rivalIntel);
+  const cityIdForPreview = entry.kind === 'legendary'
+    ? safeOwnedHostCityId(
+      state,
+      viewerId,
+      state.completedLegendaryWonders?.[entry.id]?.cityId ?? ownedProject(state, viewerId, entry.id)?.cityId,
+    )
+    : undefined;
+  const landmarkPreview = cityIdForPreview
+    ? getLegendaryLandmarkPreviewViewForCity(state, viewerId, cityIdForPreview)
+    : null;
 
   return {
     ...entry,
@@ -217,6 +232,7 @@ function buildPage(
     },
     statusLines: status.statusLines,
     ...(rivalIntel ? { rivalIntel } : {}),
+    ...(landmarkPreview ? { landmarkPreview } : {}),
     sections: content.sections.map(section => ({ ...section })),
     relatedEntries: getRelatedWonderCodexEntries(entry.id, visibleWonderIds),
     actions: status.actions,
