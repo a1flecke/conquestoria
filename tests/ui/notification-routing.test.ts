@@ -424,4 +424,76 @@ describe('bus listener routing contract', () => {
     expect(p1Calls).toHaveLength(3);
     expect(p2Calls).toHaveLength(0);
   });
+
+  // --- faction transition routing ---
+
+  it('faction:unrest-started includes turn countdown, garrison option, and appease cost', () => {
+    const state = makeState({
+      cities: {
+        c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 3, position: { q: 0, r: 0 } },
+      } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeFactionTransition(state, { type: 'faction:unrest-started', cityId: 'c1', owner: 'p1' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    // 5 = REVOLT_UNREST_TURNS
+    expect(calls[0]!.message).toContain('5');
+    expect(calls[0]!.message).toContain('garrison');
+    // 3 population * 15 gold per pop = 45
+    expect(calls[0]!.message).toContain('45');
+    expect(calls[0]!.type).toBe('warning');
+  });
+
+  it('faction:unrest-started with undefined city calls sink zero times (null guard)', () => {
+    const state = makeState({ cities: {} as any });
+    const { sink, calls } = makeSink();
+    routeFactionTransition(state, { type: 'faction:unrest-started', cityId: 'nonexistent', owner: 'p1' }, sink);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('faction:revolt-started includes 10-turn breakaway warning and city name', () => {
+    const state = makeState({
+      cities: {
+        c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 3, position: { q: 0, r: 0 } },
+      } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeFactionTransition(state, { type: 'faction:revolt-started', cityId: 'c1', owner: 'p1' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.message).toContain('10 turns');
+    expect(calls[0]!.message).toContain('Thebes');
+    expect(calls[0]!.type).toBe('warning');
+  });
+
+  it('faction:revolt-started with undefined city calls sink zero times (null guard)', () => {
+    const state = makeState({ cities: {} as any });
+    const { sink, calls } = makeSink();
+    routeFactionTransition(state, { type: 'faction:revolt-started', cityId: 'nonexistent', owner: 'p1' }, sink);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('faction:critical-status with status=unrest produces a short message and no guidance text (anti-spam regression guard)', () => {
+    const state = makeState({
+      cities: {
+        c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 3, position: { q: 0, r: 0 } },
+      } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeFactionTransition(state, { type: 'faction:critical-status', cityId: 'c1', owner: 'p1', status: 'unrest' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.message.length).toBeLessThan(100);
+    expect(calls[0]!.message).not.toContain('garrison');
+  });
+
+  it('faction:unrest-started where state.civilizations[owner] is undefined does not throw (#263 null guard)', () => {
+    const state = makeState({
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 3, position: { q: 0, r: 0 } } } as any,
+    });
+    delete (state.civilizations as Record<string, unknown>)['p1'];
+    const { sink } = makeSink();
+    expect(() =>
+      routeFactionTransition(state, { type: 'faction:unrest-started', cityId: 'c1', owner: 'p1' }, sink)
+    ).not.toThrow();
+  });
 });
