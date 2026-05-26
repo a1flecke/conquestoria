@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CANVAS_WONDER_SPECTACLE_PRIMITIVES } from '@/renderer/wonders/natural-wonder-effects-renderer';
 import { WONDER_DEFINITIONS } from '@/systems/wonder-definitions';
 import { getWonderCodexContent } from '@/systems/wonder-codex/content';
 import {
@@ -16,6 +17,7 @@ import {
   getDuplicateRecipeIds,
   getMissingNaturalWonderRecipeIds,
 } from '@/systems/wonder-spectacle/validation';
+import { SVG_WONDER_SPECTACLE_PRIMITIVES } from '@/ui/wonder-spectacle-vignette';
 
 function sorted(values: string[]): string[] {
   return [...values].sort((a, b) => a.localeCompare(b));
@@ -62,6 +64,15 @@ describe('natural wonder spectacle recipes', () => {
       const codexTags = new Set(codex?.tags ?? []);
       const overlap = recipe.affinityTags.filter(tag => codexTags.has(tag));
       expect(overlap.length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('keeps every recipe primitive supported by every Stage 2E adapter', () => {
+    for (const recipe of getNaturalWonderSpectacleRecipes()) {
+      for (const primitive of [...recipe.mapPrimitives, ...recipe.codexPrimitives, ...recipe.revealPrimitives]) {
+        expect(CANVAS_WONDER_SPECTACLE_PRIMITIVES).toContain(primitive);
+        expect(SVG_WONDER_SPECTACLE_PRIMITIVES).toContain(primitive);
+      }
     }
   });
 });
