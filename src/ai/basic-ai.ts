@@ -54,6 +54,7 @@ import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definit
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { canEstablishRoute, establishRoute, getRouteCapacity } from '@/systems/trade-system';
 
 function getPersonality(state: GameState, civType: string): PersonalityTraits {
   const def = resolveCivDefinition(state, civType);
@@ -442,6 +443,27 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
+  // --- Handle caravan route establishment ---
+  const idleCaravans = (civ.units ?? [])
+    .map(id => newState.units[id])
+    .filter((u): u is Unit => !!u && u.type === 'caravan' && !u.committedToRouteId);
+
+  for (const caravan of idleCaravans) {
+    // Try domestic cities first (own city), then foreign
+    const ownCities = civ.cities.map(id => newState.cities[id]).filter((c): c is City => !!c);
+    const foreignCities = Object.values(newState.cities).filter(c => c.owner !== civId);
+    const candidates = [...ownCities, ...foreignCities];
+    for (const candidate of candidates) {
+      const check = canEstablishRoute(newState, caravan, candidate.id);
+      if (check.ok) {
+        const resourceDiversity = getCivAvailableResources(newState, civId).size;
+        newState = establishRoute(newState, caravan.id, candidate.id, bus, resourceDiversity);
+        civ = newState.civilizations[civId];
+        break;
+      }
+    }
+  }
+
   // --- Handle research (personality-driven) ---
   if (!civ.techState.currentResearch) {
     const available = getAvailableTechs(civ.techState);
@@ -510,8 +532,25 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         civAvailableResources,
       ).map(b => b.id);
       const derivedItems = [...trainableUnits, ...availableBuildingsList];
-      const chosen = chooseProduction(personality, derivedItems.length > 0 ? derivedItems : ['warrior'], isUnderThreat, civ.cities.length);
-      city.productionQueue = [chosen];
+
+      // Prioritise caravan training when conditions are met
+      const hasTradeTech = civ.techState.completed.includes('trade-routes');
+      const hasRouteCapacity = civ.cities.some(cid => {
+        const c = newState.cities[cid];
+        if (!c) return false;
+        const usedSlots = (newState.marketplace?.tradeRoutes ?? []).filter(r => r.fromCityId === cid).length;
+        return getRouteCapacity(newState, cid) > usedSlots;
+      });
+      const hasUncommittedCaravan = (civ.units ?? []).some(id => {
+        const u = newState.units[id];
+        return u?.type === 'caravan' && !u.committedToRouteId;
+      });
+      if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
+        city.productionQueue = ['caravan'];
+      } else {
+        const chosen = chooseProduction(personality, derivedItems.length > 0 ? derivedItems : ['warrior'], isUnderThreat, civ.cities.length);
+        city.productionQueue = [chosen];
+      }
     }
   }
 

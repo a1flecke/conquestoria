@@ -1,6 +1,7 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getUnmovedUnitsForEndTurn, removePlayerUnitFromState, skipUnitInState } from '@/systems/unit-lifecycle-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getEffectiveGoldPerTurn } from '@/systems/trade-system';
 import { createEndTurnWarningPanel } from '@/ui/end-turn-warning-panel';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 
@@ -19,6 +20,7 @@ export interface UnitTurnFlowDeps {
   showNotification: (message: string, type: 'info' | 'success' | 'warning') => void;
   setBlockingOverlay: (id: string | null) => void;
   endTurn: (options: { allowUnmovedUnits?: boolean }) => void;
+  onUnitDisbanded?: (state: GameState, unitId: string, routeId: string) => GameState;
 }
 
 export interface UnitTurnFlow {
@@ -59,15 +61,37 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
     const unit = state.units[unitId];
     if (!unit || unit.owner !== state.currentPlayer) return;
 
+    // Build caravan-aware confirmation details
+    let displayName = UNIT_DEFINITIONS[unit.type].name;
+    let bodyText: string | undefined;
+    const committedRouteId = unit.committedToRouteId;
+    if (unit.type === 'caravan' && committedRouteId) {
+      const route = state.marketplace?.tradeRoutes.find(r => r.id === committedRouteId);
+      if (route) {
+        const fromName = state.cities[route.fromCityId]?.name ?? route.fromCityId;
+        const toName = state.cities[route.toCityId]?.name ?? route.toCityId;
+        const goldLoss = getEffectiveGoldPerTurn(route);
+        displayName = `Caravan (${fromName} → ${toName})`;
+        bodyText = `Disbanding this Caravan will end your ${fromName} → ${toName} trade route (-${goldLoss.toFixed(1)} gold/turn). Continue?`;
+      }
+    }
+
     deps.setBlockingOverlay('unit-delete-confirmation');
     createUnitDeleteConfirmationPanel(deps.uiLayer, {
-      unitName: UNIT_DEFINITIONS[unit.type].name,
+      unitName: displayName,
+      bodyText,
       onConfirm: () => {
-        const currentState = deps.getState();
+        let currentState = deps.getState();
         const currentUnit = currentState.units[unitId];
         const deletedName = currentUnit ? UNIT_DEFINITIONS[currentUnit.type].name : UNIT_DEFINITIONS[unit.type].name;
         closeUnitDeleteConfirmation();
-        deps.setState(removePlayerUnitFromState(currentState, currentState.currentPlayer, unitId));
+        // Clean up trade route before removing the unit
+        const routeId = currentUnit?.committedToRouteId;
+        if (routeId && deps.onUnitDisbanded) {
+          currentState = deps.onUnitDisbanded(currentState, unitId, routeId);
+          deps.setState(currentState);
+        }
+        deps.setState(removePlayerUnitFromState(deps.getState(), deps.getState().currentPlayer, unitId));
         if (deps.getSelectedUnitId() === unitId) {
           deps.deselectUnit();
         }

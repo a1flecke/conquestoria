@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   RESOURCE_DEFINITIONS,
   RESOURCE_ICONS,
@@ -11,8 +11,19 @@ import {
   updatePrices,
   processFashionCycle,
   processTradeRouteIncome,
+  getEffectiveGoldPerTurn,
+  getRouteCapacity,
+  getCaravanTripBonus,
+  canEstablishRoute,
+  establishRoute,
+  removeRouteForUnit,
+  resolveFromCity,
 } from '@/systems/trade-system';
+import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
+import { TRAINABLE_UNITS, PRODUCTION_ICONS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import type { GameState } from '@/core/types';
+import { EventBus } from '@/core/event-bus';
 
 describe('trade-system', () => {
   describe('RESOURCE_DEFINITIONS', () => {
@@ -247,16 +258,256 @@ describe('trade-system', () => {
   });
 
   describe('processTradeRouteIncome', () => {
-    it('sums gold from all routes', () => {
+    it('sums effective gold/turn from all routes', () => {
       const routes = [
-        { fromCityId: 'c1', toCityId: 'c2', goldPerTurn: 3 },
-        { fromCityId: 'c1', toCityId: 'c3', goldPerTurn: 5 },
+        { id: 'r1', fromCityId: 'c1', toCityId: 'c2', goldPerTrip: 9, turnsPerTrip: 3 },  // 3/turn
+        { id: 'r2', fromCityId: 'c1', toCityId: 'c3', goldPerTrip: 15, turnsPerTrip: 3 }, // 5/turn
       ];
       expect(processTradeRouteIncome(routes)).toBe(8);
     });
 
     it('returns 0 for empty routes', () => {
       expect(processTradeRouteIncome([])).toBe(0);
+    });
+  });
+
+  describe('getEffectiveGoldPerTurn', () => {
+    it('floors goldPerTrip / turnsPerTrip', () => {
+      expect(getEffectiveGoldPerTurn({ id: 'r1', fromCityId: 'c1', toCityId: 'c2', goldPerTrip: 10, turnsPerTrip: 3 })).toBe(3);
+    });
+    it('returns minimum 1 even for tiny routes', () => {
+      expect(getEffectiveGoldPerTurn({ id: 'r1', fromCityId: 'c1', toCityId: 'c2', goldPerTrip: 1, turnsPerTrip: 5 })).toBe(1);
+    });
+  });
+
+  describe('S5 — caravan trade routes', () => {
+    function makeTile(q: number, r: number) {
+      return { coord: { q, r }, terrain: 'grassland' as const, rivers: [], improvement: null, owner: null, resource: null, wonder: null };
+    }
+
+    function makeMinimalState(overrides: Partial<{
+      caravanPos: { q: number; r: number };
+      city1Buildings: string[];
+      city2Buildings: string[];
+      atWarWith: string[];
+      relationship: number;
+      tradeRoutes: any[];
+    }> = {}): GameState {
+      const tiles: Record<string, any> = {};
+      for (let q = 0; q < 5; q++) {
+        for (let r = 0; r < 5; r++) {
+          tiles[`${q},${r}`] = makeTile(q, r);
+        }
+      }
+      const caravanPos = overrides.caravanPos ?? { q: 0, r: 0 };
+      const marketplace = createMarketplaceState();
+      if (overrides.tradeRoutes) {
+        marketplace.tradeRoutes = overrides.tradeRoutes;
+      }
+      return {
+        turn: 1,
+        era: 1,
+        currentPlayer: 'player',
+        map: { tiles, width: 5, height: 5, wrapsHorizontally: false },
+        marketplace,
+        idCounters: { nextUnitId: 10, nextCityId: 10, nextCampId: 10, nextQuestId: 10, nextRouteId: 1 },
+        civilizations: {
+          player: {
+            id: 'player', name: 'Player', color: '#00f', civType: 'generic',
+            gold: 100, cities: ['city1', 'city2'], units: ['caravan1'],
+            techState: { completed: ['trade-routes', 'wheel'], currentResearch: null, progress: {}, trackPriorities: {} as any },
+            diplomacy: { relationships: { enemy: overrides.relationship ?? 0 }, treaties: [], events: [], atWarWith: overrides.atWarWith ?? [] },
+            knownCivilizations: ['enemy'],
+            visibility: { tiles: {}, fogMap: {} },
+          },
+          enemy: {
+            id: 'enemy', name: 'Enemy', color: '#f00', civType: 'generic',
+            gold: 100, cities: ['city3'], units: [],
+            techState: { completed: [], currentResearch: null, progress: {}, trackPriorities: {} as any },
+            diplomacy: { relationships: { player: overrides.relationship ?? 0 }, treaties: [], events: [], atWarWith: overrides.atWarWith?.includes('player') ? ['player'] : [] },
+            knownCivilizations: [],
+            visibility: { tiles: {}, fogMap: {} },
+          },
+        },
+        cities: {
+          city1: { id: 'city1', name: 'Alpha', owner: 'player', position: { q: 0, r: 0 }, buildings: overrides.city1Buildings ?? [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
+          city2: { id: 'city2', name: 'Beta', owner: 'player', position: { q: 2, r: 0 }, buildings: overrides.city2Buildings ?? [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
+          city3: { id: 'city3', name: 'Gamma', owner: 'enemy', position: { q: 4, r: 0 }, buildings: [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
+        },
+        units: {
+          caravan1: { id: 'caravan1', type: 'caravan', owner: 'player', position: caravanPos, health: 100, movementPointsLeft: 3, hasActed: false, hasMoved: false, skippedTurn: false, isResting: false } as any,
+        },
+        barbarianCamps: {}, minorCivs: {}, espionage: {}, pendingEvents: {},
+        tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {}, legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+        legendaryWonderIntel: {}, legendaryWonderProjects: {},
+        settings: { mapSize: 'small', opponentCount: 1, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      } as any;
+    }
+
+    it("'caravan' is in UNIT_DEFINITIONS", () => {
+      expect(UNIT_DEFINITIONS['caravan']).toBeDefined();
+      expect(UNIT_DEFINITIONS['caravan'].strength).toBe(0);
+    });
+
+    it("UNIT_DESCRIPTIONS['caravan'] is present", () => {
+      expect(UNIT_DESCRIPTIONS['caravan']).toBeTruthy();
+    });
+
+    it("PRODUCTION_ICONS['caravan'] is present", () => {
+      expect((PRODUCTION_ICONS as Record<string, string>)['caravan']).toBeTruthy();
+    });
+
+    it("caravan is in TRAINABLE_UNITS gated by trade-routes tech", () => {
+      const entries = TRAINABLE_UNITS as any[];
+      const entry = entries.find((e: any) => e.type === 'caravan');
+      expect(entry).toBeDefined();
+      expect(entry.techRequired).toBe('trade-routes');
+    });
+
+    it("getRouteCapacity: base=1 (marketplace building); +1 per caravanserai", () => {
+      const state = makeMinimalState();
+      expect(getRouteCapacity(state, 'city1')).toBe(1); // has marketplace implicit
+      // Add caravanserai building
+      state.cities['city1'].buildings = ['caravanserai'];
+      expect(getRouteCapacity(state, 'city1')).toBe(2);
+    });
+
+    it("getCaravanTripBonus: +2 from caravanserai at FROM; +2 from caravanserai at TO; Silk Road always 0", () => {
+      const state = makeMinimalState();
+      expect(getCaravanTripBonus(state, 'city1', 'city2', 'player')).toBe(0); // no buildings
+      state.cities['city1'].buildings = ['caravanserai'];
+      expect(getCaravanTripBonus(state, 'city1', 'city2', 'player')).toBe(2);
+      state.cities['city2'].buildings = ['caravanserai'];
+      expect(getCaravanTripBonus(state, 'city1', 'city2', 'player')).toBe(4);
+    });
+
+    it("canEstablishRoute domestic: ok when capacity available", () => {
+      const state = makeMinimalState();
+      const caravan = state.units['caravan1'];
+      const result = canEstablishRoute(state, caravan, 'city2');
+      expect(result.ok).toBe(true);
+    });
+
+    it("canEstablishRoute domestic: blocked when FROM city at capacity", () => {
+      const state = makeMinimalState({ tradeRoutes: [{ id: 'r1', fromCityId: 'city1', toCityId: 'city2', goldPerTrip: 9, turnsPerTrip: 3 }] });
+      const caravan = state.units['caravan1'];
+      const result = canEstablishRoute(state, caravan, 'city2');
+      expect(result.ok).toBe(false);
+    });
+
+    it("canEstablishRoute foreign: ok at relationship >= 0, not at war", () => {
+      const state = makeMinimalState({ relationship: 0, atWarWith: [] });
+      const caravan = state.units['caravan1'];
+      const result = canEstablishRoute(state, caravan, 'city3');
+      expect(result.ok).toBe(true);
+    });
+
+    it("canEstablishRoute foreign: blocked at war", () => {
+      const state = makeMinimalState({ atWarWith: ['enemy'] });
+      const caravan = state.units['caravan1'];
+      const result = canEstablishRoute(state, caravan, 'city3');
+      expect(result.ok).toBe(false);
+    });
+
+    it("canEstablishRoute foreign: blocked at relationship < 0", () => {
+      const state = makeMinimalState({ relationship: -20 });
+      const caravan = state.units['caravan1'];
+      const result = canEstablishRoute(state, caravan, 'city3');
+      expect(result.ok).toBe(false);
+    });
+
+    it("canEstablishRoute: blocked when caravan already has committedToRouteId", () => {
+      const state = makeMinimalState();
+      state.units['caravan1'] = { ...state.units['caravan1'], committedToRouteId: 'route-existing' } as any;
+      const result = canEstablishRoute(state, state.units['caravan1'], 'city2');
+      expect(result.ok).toBe(false);
+    });
+
+    it("canEstablishRoute: blocked when FROM city === TO city (self-route)", () => {
+      const state = makeMinimalState();
+      const result = canEstablishRoute(state, state.units['caravan1'], 'city1');
+      expect(result.ok).toBe(false);
+    });
+
+    it("establishRoute: sets committedToRouteId + tripsRemaining on unit", () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      const newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      const unit = newState.units['caravan1'];
+      expect(unit.committedToRouteId).toBeTruthy();
+      expect(unit.tripsRemaining).toBeGreaterThan(0);
+    });
+
+    it("establishRoute: pushes route to marketplace.tradeRoutes", () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      const newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      expect(newState.marketplace!.tradeRoutes).toHaveLength(1);
+      expect(newState.marketplace!.tradeRoutes[0].fromCityId).toBe('city1');
+      expect(newState.marketplace!.tradeRoutes[0].toCityId).toBe('city2');
+    });
+
+    it("establishRoute: emits trade:route-created exactly once", () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      const emitted: string[] = [];
+      bus.on('trade:route-created', () => emitted.push('route-created'));
+      establishRoute(state, 'caravan1', 'city2', bus, 0);
+      expect(emitted).toHaveLength(1);
+    });
+
+    it("establishRoute: sets foreignCivId when TO city is foreign", () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      const newState = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      const route = newState.marketplace!.tradeRoutes[0];
+      expect(route.foreignCivId).toBe('enemy');
+    });
+
+    it("establishRoute: does NOT set foreignCivId for domestic route", () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      const newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      const route = newState.marketplace!.tradeRoutes[0];
+      expect(route.foreignCivId).toBeUndefined();
+    });
+
+    it("resolveFromCity: returns city1 for caravan at q=0,r=0", () => {
+      const state = makeMinimalState();
+      const city = resolveFromCity(state, state.units['caravan1']);
+      expect(city?.id).toBe('city1');
+    });
+
+    it("resolveFromCity: returns null when all cities at capacity", () => {
+      // Fill city1 and city2 to capacity
+      const state = makeMinimalState({
+        tradeRoutes: [
+          { id: 'r1', fromCityId: 'city1', toCityId: 'city2', goldPerTrip: 9, turnsPerTrip: 3 },
+          { id: 'r2', fromCityId: 'city2', toCityId: 'city1', goldPerTrip: 9, turnsPerTrip: 3 },
+        ],
+      });
+      const city = resolveFromCity(state, state.units['caravan1']);
+      expect(city).toBeNull();
+    });
+
+    it("removeRouteForUnit: removes route and clears committedToRouteId on unit", () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      let newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      const routeId = newState.units['caravan1'].committedToRouteId!;
+      newState = removeRouteForUnit(newState, 'caravan1', bus, 'unit-disbanded');
+      expect(newState.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(newState.units['caravan1']?.committedToRouteId).toBeUndefined();
+    });
+
+    it("removeRouteForUnit: emits trade:route-ended with given reason", () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      let newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      const events: string[] = [];
+      bus.on('trade:route-ended', (e) => events.push(e.reason));
+      newState = removeRouteForUnit(newState, 'caravan1', bus, 'unit-died');
+      expect(events).toEqual(['unit-died']);
     });
   });
 });

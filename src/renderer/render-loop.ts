@@ -200,6 +200,9 @@ export class RenderLoop {
     this.drawInfiltratedSpyIndicators();
     this.drawEmbeddedSpyIndicators();
 
+    // Draw trade route lines (after cities, before units)
+    this.drawTradeRouteLines(viewerId);
+
     // Draw units
     if (viewerVisibility) {
       const colorLookup: Record<string, string> = { barbarian: '#8b4513' };
@@ -280,6 +283,43 @@ export class RenderLoop {
     for (const callback of completedCallbacks) {
       callback();
     }
+  }
+
+  private drawTradeRouteLines(viewerId: string): void {
+    if (!this.state?.marketplace?.tradeRoutes?.length) return;
+    const playerCiv = this.state.civilizations[viewerId];
+    if (!playerCiv) return;
+    const routeColor = playerCiv.color ?? '#888';
+
+    this.ctx.save();
+    this.ctx.setLineDash([6, 4]);
+    this.ctx.lineWidth = 2 * this.camera.zoom;
+    this.ctx.globalAlpha = 0.6;
+    this.ctx.strokeStyle = routeColor;
+
+    for (const route of this.state.marketplace.tradeRoutes) {
+      const fromCity = this.state.cities[route.fromCityId];
+      const toCity   = this.state.cities[route.toCityId];
+      if (!fromCity || !toCity) continue;
+      if (fromCity.owner !== viewerId) continue; // privacy: only show own routes
+
+      // Both endpoints must be at least fog-seen
+      const fromVis = playerCiv.visibility ? getVisibility(playerCiv.visibility, fromCity.position) : 'unexplored';
+      const toVis   = playerCiv.visibility ? getVisibility(playerCiv.visibility, toCity.position) : 'unexplored';
+      if (fromVis === 'unexplored' || toVis === 'unexplored') continue;
+
+      const fromPx = hexToPixel(fromCity.position, this.camera.hexSize);
+      const toPx   = hexToPixel(toCity.position, this.camera.hexSize);
+      const fromScreen = this.camera.worldToScreen(fromPx.x, fromPx.y);
+      const toScreen   = this.camera.worldToScreen(toPx.x, toPx.y);
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(fromScreen.x, fromScreen.y);
+      this.ctx.lineTo(toScreen.x, toScreen.y);
+      this.ctx.stroke();
+    }
+
+    this.ctx.restore();
   }
 
   private drawEmbeddedSpyIndicators(): void {

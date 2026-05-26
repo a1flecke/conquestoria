@@ -14,6 +14,7 @@ import {
 import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
+import { resolveFromCity } from '@/systems/trade-system';
 
 export interface SelectedUnitInfoCallbacks {
   onClose?: () => void;
@@ -29,6 +30,7 @@ export interface SelectedUnitInfoCallbacks {
   onEmbed?: (unitId: string) => void;
   onUpgradeUnit?: (unitId: string, cityId: string) => void;
   onOpenStack?: (coord: HexCoord) => void;
+  onEstablishRoute?: (caravanId: string) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -203,6 +205,29 @@ export function renderSelectedUnitInfo(
           wrapper.appendChild(blockerDiv);
         }
       }
+    }
+  }
+
+  // Caravan-specific actions
+  if (unit.type === 'caravan' && unit.owner === state.currentPlayer) {
+    if (unit.committedToRouteId) {
+      const statusEl = document.createElement('div');
+      statusEl.style.cssText = 'font-size:12px;opacity:0.7;padding:8px 0;';
+      statusEl.textContent = `Committed to route (${unit.tripsRemaining ?? '?'} trips remaining)`;
+      actionsDiv.appendChild(statusEl);
+    } else if (callbacks.onEstablishRoute) {
+      const fromCity = resolveFromCity(state, unit);
+      const hasCapacity = fromCity !== null;
+      const btn = makeButton('Establish Route', '#e8c170');
+      if (!hasCapacity) {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        btn.title = 'No cities with available route capacity — build a Caravanserai or Marketplace to add slots';
+      } else {
+        btn.addEventListener('click', () => callbacks.onEstablishRoute!(unitId));
+      }
+      actionsDiv.appendChild(btn);
     }
   }
 

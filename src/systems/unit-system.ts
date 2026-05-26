@@ -149,6 +149,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 100,
     attackProfile: { kind: 'ranged', range: 3, targets: ['unit'] },
   },
+  // S5 — trade unit
+  caravan: {
+    type: 'caravan', name: 'Caravan', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 60,
+    domain: 'land',
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -271,6 +278,10 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   crossbowman: 'Precision-ranged unit with a longer reach than Archers. Requires Copper.',
   catapult:    'Slow but devastating siege engine that bombards units and cities. Requires Stone.',
   ballista:    'Long-range bolt-thrower effective against massed units. Requires Iron.',
+  // S5 — trade unit
+  caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
+             + 'Once committed, cannot move or act until the route ends (8 round trips base). '
+             + 'Cannot attack. Raidable by enemy units in transit.',
 };
 
 export function getUnmovedUnits(
@@ -278,7 +289,7 @@ export function getUnmovedUnits(
   civId: string,
 ): Unit[] {
   return Object.values(units).filter(
-    u => u.owner === civId && !u.hasMoved && !u.hasActed && !u.skippedTurn && !u.isFortified,
+    u => u.owner === civId && !u.hasMoved && !u.hasActed && !u.skippedTurn && !u.isFortified && !u.committedToRouteId,
   );
 }
 

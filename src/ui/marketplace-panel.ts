@@ -1,9 +1,10 @@
-import type { GameState, MarketplaceState, ResourceType } from '@/core/types';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import type { GameState, ResourceType } from '@/core/types';
+import { RESOURCE_DEFINITIONS, getEffectiveGoldPerTurn, getRouteCapacity } from '@/systems/trade-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 
 interface MarketplaceCallbacks {
   onClose: () => void;
+  onSelectUnit?: (unitId: string) => void;
 }
 
 export function createMarketplacePanel(
@@ -78,9 +79,6 @@ export function createMarketplacePanel(
     `;
   }).join('');
 
-  // Build trade routes HTML
-  const tradeRoutesHtml = buildTradeRoutesHtml(marketplace, state);
-
   panel.innerHTML = `
     <div style="max-width:500px;margin:0 auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -93,7 +91,7 @@ export function createMarketplacePanel(
         ${resourceRowsHtml}
       </div>
       ${unknownCount > 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;margin-top:8px;" data-text="discoverable-footer"></div>' : ''}
-      ${tradeRoutesHtml}
+      <div id="mp-routes-section" style="margin-top:16px;"></div>
     </div>
   `;
 
@@ -157,22 +155,10 @@ export function createMarketplacePanel(
     setText('discoverable-footer', `🔬 ${unknownCount} more resources will become visible as you research new technologies`);
   }
 
-  // Inject trade route city names
-  const playerRoutes = marketplace.tradeRoutes.filter(r => {
-    const city = state.cities[r.fromCityId];
-    return city?.owner === state.currentPlayer;
-  });
-  playerRoutes.forEach((r, idx) => {
-    const from = state.cities[r.fromCityId]?.name ?? 'Unknown';
-    const to = state.cities[r.toCityId]?.name ?? 'Unknown';
-    setText(`route-from-${idx}`, from);
-    setText(`route-to-${idx}`, to);
-    setText(`route-gold-${idx}`, String(r.goldPerTurn));
-  });
-  if (playerRoutes.length > 0) {
-    const totalGold = playerRoutes.reduce((sum, r) => sum + r.goldPerTurn, 0);
-    setText('routes-total-gold', String(totalGold));
-    setText('routes-count', String(playerRoutes.length));
+  // Build route list via DOM (XSS-safe, uses new TradeRoute shape)
+  const routesSection = panel.querySelector('#mp-routes-section');
+  if (routesSection) {
+    routesSection.appendChild(buildRouteListSection(state, state.currentPlayer, callbacks.onSelectUnit));
   }
 
   container.appendChild(panel);
@@ -194,25 +180,71 @@ function renderSparkline(history: number[]): string {
   }).join('');
 }
 
-function buildTradeRoutesHtml(marketplace: MarketplaceState, state: GameState): string {
-  const playerRoutes = marketplace.tradeRoutes.filter(r => {
+function buildRouteListSection(state: GameState, currentPlayer: string, onSelectUnit?: (unitId: string) => void): HTMLElement {
+  const wrapper = document.createElement('div');
+
+  const heading = document.createElement('div');
+  heading.textContent = 'Active Trade Routes';
+  heading.style.cssText = 'font-size:14px;color:#e8c170;margin-bottom:8px;';
+  wrapper.appendChild(heading);
+
+  const playerRoutes = (state.marketplace?.tradeRoutes ?? []).filter(r => {
     const city = state.cities[r.fromCityId];
-    return city?.owner === state.currentPlayer;
+    return city?.owner === currentPlayer;
   });
 
   if (playerRoutes.length === 0) {
-    return '<div style="margin-top:16px;font-size:12px;opacity:0.5;text-align:center;">No active trade routes. Build a Market building to establish routes.</div>';
+    const empty = document.createElement('div');
+    empty.textContent = 'No active routes. Train a Caravan to establish one.';
+    empty.style.cssText = 'font-size:12px;opacity:0.5;text-align:center;padding:16px 0;';
+    wrapper.appendChild(empty);
+    return wrapper;
   }
 
-  const routeRowsHtml = playerRoutes.map((r, idx) => {
-    return `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.1);"><span data-text="route-from-${idx}"></span> → <span data-text="route-to-${idx}"></span>: +<span data-text="route-gold-${idx}"></span> 💰/turn</div>`;
-  }).join('');
+  // Group by fromCityId
+  const groups = new Map<string, typeof playerRoutes>();
+  for (const route of playerRoutes) {
+    const arr = groups.get(route.fromCityId) ?? [];
+    arr.push(route);
+    groups.set(route.fromCityId, arr);
+  }
 
-  return `
-    <div style="margin-top:16px;">
-      <div style="font-size:14px;color:#e8c170;margin-bottom:8px;">Trade Routes (<span data-text="routes-count"></span>)</div>
-      ${routeRowsHtml}
-      <div style="font-size:12px;margin-top:8px;color:#6b9b4b;">Total: +<span data-text="routes-total-gold"></span> 💰/turn</div>
-    </div>
-  `;
+  for (const [cityId, routes] of groups) {
+    const city = state.cities[cityId];
+    if (!city) continue;
+    const total = getRouteCapacity(state, cityId);
+    const used  = routes.length;
+
+    const cityHeader = document.createElement('div');
+    cityHeader.style.cssText = 'font-size:13px;color:#e8c170;margin:10px 0 4px;';
+    cityHeader.appendChild(document.createTextNode(`${city.name}  (${used}/${total} slots)`));
+    wrapper.appendChild(cityHeader);
+
+    for (const route of routes) {
+      const toCity = state.cities[route.toCityId];
+      const committedUnit = Object.values(state.units).find(u => u.committedToRouteId === route.id);
+      const tripsLeft = committedUnit?.tripsRemaining ?? '?';
+      const gold = getEffectiveGoldPerTurn(route);
+
+      const row = document.createElement('div');
+      row.style.cssText = 'font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;min-height:44px;align-items:center;';
+      if (committedUnit && onSelectUnit) {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => onSelectUnit(committedUnit.id));
+      }
+
+      const routeLabel = document.createElement('span');
+      routeLabel.appendChild(document.createTextNode(`${city.name} → ${toCity?.name ?? route.toCityId}`));
+      row.appendChild(routeLabel);
+
+      const routeDetail = document.createElement('span');
+      routeDetail.style.cssText = 'font-size:11px;color:#6b9b4b;';
+      routeDetail.appendChild(document.createTextNode(`+${gold.toFixed(1)} gold/turn · ${tripsLeft} trips`));
+      row.appendChild(routeDetail);
+
+      wrapper.appendChild(row);
+    }
+  }
+
+  return wrapper;
 }

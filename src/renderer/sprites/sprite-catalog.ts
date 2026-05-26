@@ -54,6 +54,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   crossbowman: 'humanoid',
   catapult: 'naval',
   ballista: 'naval',
+  caravan: 'humanoid',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
@@ -113,6 +114,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   crossbowman:    withMotion('crossbowman', CrossbowmanSprite),
   catapult:       withMotion('catapult', CatapultSprite),
   ballista:       withMotion('ballista', BallistaSprite),
+  caravan:        withMotion('caravan', WorkerSprite), // uses civilian fallback; dedicated sprite TBD
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {
@@ -148,6 +150,9 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   'war-academy':          WarAcademySprite,
   'masonry-works':        MasonryWorksSprite,
   'siege-workshop':       SiegeWorkshopSprite,
+  caravanserai:           MarketplaceSprite,  // civilian fallback; dedicated sprite TBD
+  bank:                   MarketplaceSprite,  // civilian fallback; dedicated sprite TBD
+  stock_exchange:         MarketplaceSprite,  // civilian fallback; dedicated sprite TBD
 };
 
 export const UNIT_SPRITE_SIZE = 128;

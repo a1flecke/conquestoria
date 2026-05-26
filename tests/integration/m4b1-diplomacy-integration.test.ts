@@ -87,7 +87,7 @@ describe('M4b-1 integration', () => {
     state.embargoes = proposeEmbargo([], 'player', aiIds[0], state.turn);
     if (state.marketplace) {
       state.marketplace.tradeRoutes = [
-        { fromCityId: city.id, toCityId: 'fake', goldPerTurn: 5, foreignCivId: aiIds[0] },
+        { id: 'route-t', fromCityId: city.id, toCityId: 'fake', goldPerTrip: 5, turnsPerTrip: 1, foreignCivId: aiIds[0] },
       ];
     }
     const newState = processTurn(state, bus);

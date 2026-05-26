@@ -765,9 +765,10 @@ describe('legendary-wonder-system', () => {
       fashionTurnsLeft: 0,
       tradeRoutes: [
         {
+            id: 'route-t',
           fromCityId: 'city-river',
           toCityId: 'city-rival',
-          goldPerTurn: 4,
+          goldPerTrip: 4, turnsPerTrip: 1,
           foreignCivId: 'rival',
         },
       ],
@@ -793,9 +794,10 @@ describe('legendary-wonder-system', () => {
       fashionTurnsLeft: 0,
       tradeRoutes: [
         {
+            id: 'route-t',
           fromCityId: 'city-river',
           toCityId: 'city-rival',
-          goldPerTurn: 4,
+          goldPerTrip: 4, turnsPerTrip: 1,
           foreignCivId: 'rival',
         },
       ],
@@ -862,9 +864,10 @@ describe('legendary-wonder-system', () => {
     state.civilizations.rival.cities.push('city-rival-inland');
     state.marketplace.tradeRoutes = [
       {
+          id: 'route-t',
         fromCityId: 'city-inland',
         toCityId: 'city-rival-inland',
-        goldPerTurn: 4,
+        goldPerTrip: 4, turnsPerTrip: 1,
         foreignCivId: 'rival',
       },
     ];
@@ -898,9 +901,10 @@ describe('legendary-wonder-system', () => {
     state.civilizations.player.cities.push('city-harbor');
     state.marketplace.tradeRoutes = [
       {
+          id: 'route-t',
         fromCityId: 'city-harbor',
         toCityId: 'city-rival',
-        goldPerTurn: 5,
+        goldPerTrip: 5, turnsPerTrip: 1,
         foreignCivId: 'rival',
       },
     ];
@@ -930,9 +934,10 @@ describe('legendary-wonder-system', () => {
       fashionTurnsLeft: 0,
       tradeRoutes: [
         {
+            id: 'route-t',
           fromCityId: 'city-river',
           toCityId: 'city-river',
-          goldPerTurn: 3,
+          goldPerTrip: 3, turnsPerTrip: 1,
         },
       ],
     };
@@ -943,11 +948,12 @@ describe('legendary-wonder-system', () => {
     );
     expect(drydock?.questSteps.find(step => step.id === 'prove-open-sea-command')?.completed).toBe(false);
 
-    state.marketplace.tradeRoutes = [
+    state.marketplace!.tradeRoutes = [
       {
+        id: 'route-t',
         fromCityId: 'city-river',
         toCityId: 'city-rival',
-        goldPerTurn: 6,
+        goldPerTrip: 6, turnsPerTrip: 1,
         foreignCivId: 'rival',
       },
     ];
