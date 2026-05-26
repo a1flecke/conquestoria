@@ -1,6 +1,7 @@
 import {
   canBuildImprovement,
   canDrainSwamp,
+  formatWorkerActionBlockerReason,
   getAvailableWorkerActions,
   getImprovementDisplayName,
   getImprovementYieldBonus,
@@ -17,10 +18,10 @@ describe('canBuildImprovement', () => {
     expect(canBuildImprovement(tile, 'farm')).toBe(true);
   });
 
-  it('allows mine on hills', () => {
+  it('allows mine on hills with iron', () => {
     const tile: HexTile = {
       coord: { q: 0, r: 0 }, terrain: 'hills', elevation: 'highland',
-      resource: null, improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      resource: 'iron', improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
     };
     expect(canBuildImprovement(tile, 'mine')).toBe(true);
   });
@@ -76,19 +77,19 @@ describe('new terrain improvements', () => {
     expect(canBuildImprovement(tile, 'mine')).toBe(false);
   });
 
-  it('can build mine on volcanic', () => {
-    const tile = { terrain: 'volcanic', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false } as any;
+  it('can build mine on volcanic with iron', () => {
+    const tile = { terrain: 'volcanic', resource: 'iron', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false } as any;
     expect(canBuildImprovement(tile, 'mine')).toBe(true);
   });
 });
 
 describe('new improvement terrain validity (S2a)', () => {
-  function makeTile(terrain: string, improvement = 'none'): HexTile {
+  function makeTile(terrain: string, resource: string | null = null, improvement = 'none'): HexTile {
     return {
       coord: { q: 0, r: 0 },
       terrain: terrain as import('@/core/types').TerrainType,
       elevation: 'lowland',
-      resource: null,
+      resource,
       improvement: improvement as import('@/core/types').ImprovementType,
       improvementTurnsLeft: 0,
       owner: 'p1',
@@ -97,48 +98,48 @@ describe('new improvement terrain validity (S2a)', () => {
     };
   }
 
-  it('plantation is allowed on grassland', () => {
-    expect(canBuildImprovement(makeTile('grassland'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('plantation is allowed on grassland with matching resource', () => {
+    expect(canBuildImprovement(makeTile('grassland', 'silk'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
-  it('plantation is allowed on plains', () => {
-    expect(canBuildImprovement(makeTile('plains'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('plantation is allowed on plains with matching resource', () => {
+    expect(canBuildImprovement(makeTile('plains', 'wine'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
-  it('plantation is allowed on jungle', () => {
-    expect(canBuildImprovement(makeTile('jungle'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('plantation is allowed on jungle with matching resource', () => {
+    expect(canBuildImprovement(makeTile('jungle', 'spices'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
-  it('plantation is allowed on desert', () => {
-    expect(canBuildImprovement(makeTile('desert'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('plantation is allowed on desert with matching resource', () => {
+    expect(canBuildImprovement(makeTile('desert', 'incense'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
   it('plantation is rejected on hills', () => {
     expect(canBuildImprovement(makeTile('hills'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(false);
   });
 
-  it('pasture is allowed on plains', () => {
-    expect(canBuildImprovement(makeTile('plains'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('pasture is allowed on plains with matching resource', () => {
+    expect(canBuildImprovement(makeTile('plains', 'sheep'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
-  it('pasture is allowed on grassland', () => {
-    expect(canBuildImprovement(makeTile('grassland'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('pasture is allowed on grassland with matching resource', () => {
+    expect(canBuildImprovement(makeTile('grassland', 'cattle'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
-  it('pasture is allowed on hills', () => {
-    expect(canBuildImprovement(makeTile('hills'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('pasture is allowed on hills with matching resource', () => {
+    expect(canBuildImprovement(makeTile('hills', 'sheep'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
   it('pasture is rejected on jungle', () => {
     expect(canBuildImprovement(makeTile('jungle'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(false);
   });
 
-  it('camp is allowed on forest', () => {
-    expect(canBuildImprovement(makeTile('forest'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('camp is allowed on forest with matching resource', () => {
+    expect(canBuildImprovement(makeTile('forest', 'ivory'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
-  it('camp is allowed on tundra', () => {
-    expect(canBuildImprovement(makeTile('tundra'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('camp is allowed on tundra with matching resource', () => {
+    expect(canBuildImprovement(makeTile('tundra', 'furs'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
   it('camp is rejected on plains', () => {
@@ -149,8 +150,8 @@ describe('new improvement terrain validity (S2a)', () => {
     expect(canBuildImprovement(makeTile('hills'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(false);
   });
 
-  it('quarry is allowed on mountain', () => {
-    expect(canBuildImprovement(makeTile('mountain'), 'quarry' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  it('quarry is allowed on mountain with stone', () => {
+    expect(canBuildImprovement(makeTile('mountain', 'stone'), 'quarry' as import('@/core/types').BuildableImprovementType)).toBe(true);
   });
 
   it('quarry is rejected on grassland', () => {
@@ -267,5 +268,89 @@ describe('lumber camp and watermill eligibility', () => {
     expect(getWorkerActionBlockerReason(tile({ terrain: 'plains', owner: 'p1', improvement: 'mine' }), 'farm', [], 'p1')).toBe('already-improved');
     expect(getWorkerActionBlockerReason(tile({ terrain: 'plains', owner: 'p1', hasRiver: false }), 'watermill', [], 'p1')).toBe('requires-river');
     expect(getWorkerActionBlockerReason(tile({ terrain: 'coast', owner: 'p1' }), 'farm', [], 'p1')).toBe('invalid-terrain');
+  });
+});
+
+describe('canBuildImprovement — resource gating', () => {
+  function rt(terrain: string, resource: string | null = null): HexTile {
+    return {
+      coord: { q: 0, r: 0 },
+      terrain: terrain as import('@/core/types').TerrainType,
+      elevation: 'lowland',
+      resource,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      owner: 'p1',
+      hasRiver: false,
+      wonder: null,
+    };
+  }
+
+  it('plantation on grassland without resource returns false', () => {
+    expect(canBuildImprovement(rt('grassland'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('plantation on grassland with silk returns true', () => {
+    expect(canBuildImprovement(rt('grassland', 'silk'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('plantation on grassland with iron (wrong resource) returns false', () => {
+    expect(canBuildImprovement(rt('grassland', 'iron'), 'plantation' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('pasture on plains without resource returns false', () => {
+    expect(canBuildImprovement(rt('plains'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('pasture on plains with sheep returns true', () => {
+    expect(canBuildImprovement(rt('plains', 'sheep'), 'pasture' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('camp on forest without resource returns false', () => {
+    expect(canBuildImprovement(rt('forest'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('camp on forest with ivory returns true', () => {
+    expect(canBuildImprovement(rt('forest', 'ivory'), 'camp' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('mine on hills without resource returns false', () => {
+    expect(canBuildImprovement(rt('hills'), 'mine')).toBe(false);
+  });
+
+  it('mine on hills with iron returns true', () => {
+    expect(canBuildImprovement(rt('hills', 'iron'), 'mine')).toBe(true);
+  });
+
+  it('farm on plains (not resource-gated) returns true without resource', () => {
+    expect(canBuildImprovement(rt('plains'), 'farm')).toBe(true);
+  });
+});
+
+describe('getWorkerActionBlockerReason — missing-resource', () => {
+  function rt(terrain: string, resource: string | null = null): HexTile {
+    return {
+      coord: { q: 0, r: 0 },
+      terrain: terrain as import('@/core/types').TerrainType,
+      elevation: 'lowland',
+      resource,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      owner: 'p1',
+      hasRiver: false,
+      wonder: null,
+    };
+  }
+
+  it('plantation on grassland without resource returns missing-resource', () => {
+    expect(getWorkerActionBlockerReason(rt('grassland'), 'plantation' as import('@/core/types').WorkerActionType)).toBe('missing-resource');
+  });
+
+  it('plantation on grassland with silk returns none', () => {
+    expect(getWorkerActionBlockerReason(rt('grassland', 'silk'), 'plantation' as import('@/core/types').WorkerActionType)).toBe('none');
+  });
+
+  it('formatWorkerActionBlockerReason missing-resource returns human-readable message', () => {
+    expect(formatWorkerActionBlockerReason('missing-resource' as import('@/systems/improvement-system').WorkerActionBlockerReason)).toBe('No matching resource on this tile');
   });
 });

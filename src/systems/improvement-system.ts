@@ -6,6 +6,16 @@ import type {
   TerrainType,
   WorkerActionType,
 } from '@/core/types';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+
+// Improvements that only make sense on tiles with a specific resource.
+// Derived from RESOURCE_DEFINITIONS at module load — avoids re-scanning on every call.
+const RESOURCE_GATED_IMPROVEMENTS = new Map<BuildableImprovementType, Set<string>>();
+for (const rd of RESOURCE_DEFINITIONS) {
+  const set = RESOURCE_GATED_IMPROVEMENTS.get(rd.requiredImprovement) ?? new Set<string>();
+  set.add(rd.id);
+  RESOURCE_GATED_IMPROVEMENTS.set(rd.requiredImprovement, set);
+}
 
 export interface ImprovementDefinition {
   type: BuildableImprovementType;
@@ -29,6 +39,7 @@ export type WorkerActionBlockerReason =
   | 'invalid-terrain'
   | 'requires-river'
   | 'requires-tech'
+  | 'missing-resource'
   | 'none';
 
 export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, ImprovementDefinition> = {
@@ -143,6 +154,10 @@ export function canBuildImprovement(
   if (!definition.validTerrains.includes(tile.terrain)) return false;
   if (definition.requiresRiver && !tile.hasRiver) return false;
   if (definition.requiredTech && !completedTechs.includes(definition.requiredTech)) return false;
+  const resourceSet = RESOURCE_GATED_IMPROVEMENTS.get(type);
+  if (resourceSet !== undefined) {
+    if (!tile.resource || !resourceSet.has(tile.resource)) return false;
+  }
   return true;
 }
 
@@ -191,6 +206,10 @@ export function getWorkerActionBlockerReason(
   if (!definition.validTerrains.includes(tile.terrain)) return 'invalid-terrain';
   if (definition.requiresRiver && !tile.hasRiver) return 'requires-river';
   if (definition.requiredTech && !completedTechs.includes(definition.requiredTech)) return 'requires-tech';
+  const resourceSet = RESOURCE_GATED_IMPROVEMENTS.get(action as BuildableImprovementType);
+  if (resourceSet !== undefined) {
+    if (!tile.resource || !resourceSet.has(tile.resource)) return 'missing-resource';
+  }
   return 'none';
 }
 
@@ -202,6 +221,7 @@ export function formatWorkerActionBlockerReason(reason: WorkerActionBlockerReaso
     case 'invalid-terrain': return 'No worker improvement fits this terrain';
     case 'requires-river': return 'Requires river';
     case 'requires-tech': return 'Requires technology';
+    case 'missing-resource': return 'No matching resource on this tile';
     case 'none': return '';
   }
 }
