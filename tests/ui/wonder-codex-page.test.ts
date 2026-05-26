@@ -42,6 +42,8 @@ describe('wonder-codex-page', () => {
     });
 
     expect(root.querySelector('img')?.getAttribute('src')).toBe('/images/wonders/codex/volcano.jpg');
+    expect(root.querySelector('figcaption a')?.getAttribute('target')).toBe('_blank');
+    expect(root.querySelector('figcaption a')?.getAttribute('rel')).toBe('noopener noreferrer');
     expect(root.textContent).toContain('USGS / public domain');
     expect(root.textContent).toContain('The Great Volcano dominates its horizon.');
     expect(root.textContent).toContain('Volcanic landscapes can be fertile and dangerous.');

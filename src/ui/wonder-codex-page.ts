@@ -63,6 +63,8 @@ export function createWonderCodexPage(
   caption.style.cssText = 'font-size:11px;line-height:1.35;color:rgba(248,241,223,0.62);';
   const credit = document.createElement('a');
   credit.href = page.image.sourceUrl;
+  credit.target = '_blank';
+  credit.rel = 'noopener noreferrer';
   credit.textContent = `${page.image.attribution} - ${page.image.license}`;
   credit.style.cssText = 'color:inherit;text-decoration:underline;text-decoration-color:rgba(232,193,112,0.45);';
   caption.appendChild(credit);
