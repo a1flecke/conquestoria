@@ -409,7 +409,7 @@ describe('worker action system', () => {
         wrapsHorizontally: false,
         rivers: [],
         tiles: {
-          '0,0': tile({ coord: { q: 0, r: 0 }, terrain: 'hills', owner: 'player' }),
+          '0,0': tile({ coord: { q: 0, r: 0 }, terrain: 'hills', resource: 'iron', owner: 'player' }),
         },
       },
     });

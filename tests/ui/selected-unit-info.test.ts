@@ -358,7 +358,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
   });
 
   it('shows watermill only on valid river land', () => {
-    const state = makeWorkerState({ terrain: 'plains', hasRiver: true });
+    const state = makeWorkerState({ terrain: 'plains', resource: 'iron', hasRiver: true });
     const container = new MockElement('div');
 
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
