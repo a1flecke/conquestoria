@@ -37,6 +37,7 @@ import {
   getLeagueForCiv,
 } from '@/systems/diplomacy-system';
 import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit, scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
+import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
@@ -724,6 +725,11 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   if (newState.embargoes && newState.marketplace) {
     newState = scrubEmbargoedRoutes(newState, bus);
     newState = { ...newState, embargoes: cleanupEmbargoes(newState.embargoes) };
+  }
+
+  // --- S6b: advance caravan route-runners ---
+  if (newState.marketplace) {
+    newState = advanceRouteRunners(newState, bus);
   }
 
   if (newState.marketplace) {
