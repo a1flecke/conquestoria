@@ -1,6 +1,6 @@
 # Stage 2G Legendary City Landmarks Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Execute inline unless the user explicitly authorizes subagents. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build an authored, convention-tested legendary city landmark system with richer owned completed landmarks, late-construction ghosts, overflow rotation, and compact city/Codex previews.
 
@@ -52,6 +52,8 @@ Rules to read before editing:
   - Export renderer support tables for tests.
 - Modify `src/renderer/city-renderer.ts`
   - Targeted landmark layer extraction and explicit draw ordering.
+- Modify `src/renderer/render-loop.ts`
+  - Pass `performance.now()` into city rendering for runtime animation while renderer tests can inject deterministic `nowMs`.
 - Modify `src/ui/territory-inspection-panel.ts`
   - Use helper so inspection lists all owned completed city landmarks.
 - Modify `src/ui/city-panel.ts`
@@ -63,6 +65,7 @@ Rules to read before editing:
 - Add/modify tests:
   - `tests/systems/legendary-wonder-landmark-catalog.test.ts`
   - `tests/systems/legendary-wonder-map-presentation.test.ts`
+  - `tests/renderer/legendary-wonder-slots.test.ts`
   - `tests/systems/wonder-codex/presentation.test.ts`
   - `tests/renderer/legendary-wonder-renderer.test.ts`
   - `tests/renderer/city-renderer.test.ts`
@@ -448,25 +451,29 @@ export type LegendaryWonderLandmark = LegendaryLandmarkFamily | 'masked';
 
 Remove `LEGENDARY_LANDMARK_TYPES` and `landmarkTypeForLegendaryWonder`.
 
-In `LEGENDARY_WONDER_VISUALS`, replace `legendaryLandmark`:
+Replace the `LEGENDARY_WONDER_VISUALS` construction with this block so metadata is computed inside the map callback and no hash fallback remains for known legendary wonders:
 
 ```ts
-const metadata = getLegendaryWonderLandmarkMetadata(definition.id);
-return [
-  definition.id,
-  {
-    id: definition.id,
-    kind: 'legendary',
-    medallionGlyph: '✦',
-    palette: metadata.palette,
-    mapLandmark: 'masked',
-    vignette: 'masked',
-    supportsAmbientAnimation: false,
-    reducedMotionFallback: 'static-medallion',
-    maskedLabel: 'Legendary wonder',
-    legendaryLandmark: metadata.family,
-  } satisfies WonderVisualDefinition,
-];
+const LEGENDARY_WONDER_VISUALS: Record<string, WonderVisualDefinition> = Object.fromEntries(
+  getLegendaryWonderDefinitions().map(definition => {
+    const metadata = getLegendaryWonderLandmarkMetadata(definition.id);
+    return [
+      definition.id,
+      {
+        id: definition.id,
+        kind: 'legendary',
+        medallionGlyph: '✦',
+        palette: metadata.palette,
+        mapLandmark: 'masked',
+        vignette: 'masked',
+        supportsAmbientAnimation: false,
+        reducedMotionFallback: 'static-medallion',
+        maskedLabel: 'Legendary wonder',
+        legendaryLandmark: metadata.family,
+      } satisfies WonderVisualDefinition,
+    ];
+  }),
+);
 ```
 
 - [ ] **Step 8: Run catalog tests**
@@ -493,6 +500,7 @@ git commit -m "feat(wonders): add authored legendary landmark metadata"
 - Modify: `src/systems/legendary-wonder-map-presentation.ts`
 - Modify: `src/renderer/wonders/legendary-wonder-slots.ts`
 - Test: `tests/systems/legendary-wonder-map-presentation.test.ts`
+- Test: `tests/renderer/legendary-wonder-slots.test.ts`
 
 - [ ] **Step 1: Write failing presentation and privacy tests**
 
@@ -600,7 +608,7 @@ it('rotates overflow windows every five turns while keeping a stable overflow co
 ./scripts/run-with-mise.sh yarn test --run tests/systems/legendary-wonder-map-presentation.test.ts tests/renderer/legendary-wonder-slots.test.ts
 ```
 
-Expected: FAIL because `state`, `progressRatio`, and rotation are not implemented.
+Expected: FAIL because map entries do not yet carry completed/under-construction state, ghost progress ratios, or 5-turn overflow rotation.
 
 - [ ] **Step 3: Add presentation helper**
 
@@ -649,7 +657,7 @@ export function getActiveLegendaryConstructionGhostForCity(
     .find(candidate => candidate.ownerId === viewerId && candidate.cityId === city.id && candidate.wonderId === wonderId && candidate.phase === 'building');
   const definition = getLegendaryWonderDefinition(wonderId);
   if (!project || !definition) return null;
-  const progressRatio = Math.max(0, Math.min(1, city.productionProgress / definition.productionCost));
+  const progressRatio = Math.max(0, Math.min(1, project.investedProduction / definition.productionCost));
   if (options.mapOnly && progressRatio < LEGENDARY_CONSTRUCTION_GHOST_MAP_THRESHOLD) return null;
   return {
     wonderId,
@@ -684,6 +692,7 @@ import {
   getActiveLegendaryConstructionGhostForCity,
   getCompletedLegendaryLandmarksForCity,
 } from '@/systems/legendary-wonder-landmark-presentation';
+import { getVisibility } from '@/systems/fog-of-war';
 import type { LegendaryWonderLandmarkState } from '@/systems/legendary-wonder-landmark-types';
 ```
 
@@ -785,6 +794,7 @@ git commit -m "feat(wonders): derive safe legendary landmark views"
 **Files:**
 - Modify: `src/renderer/wonders/legendary-wonder-renderer.ts`
 - Modify: `src/renderer/city-renderer.ts`
+- Modify: `src/renderer/render-loop.ts`
 - Test: `tests/renderer/legendary-wonder-renderer.test.ts`
 - Test: `tests/renderer/city-renderer.test.ts`
 
@@ -846,6 +856,7 @@ it('draws legendary landmark layer before city label and production badges remai
   const state = createNewGame(undefined, 'legendary-layer-order-test');
   const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
   const city = foundCity('player', settler.position, state.map, state.idCounters);
+  city.productionQueue = ['granary'];
   state.cities[city.id] = city;
   state.civilizations.player.cities.push(city.id);
   state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
@@ -858,10 +869,13 @@ it('draws legendary landmark layer before city label and production badges remai
 
   const ops = (ctx as unknown as MockCanvasContext).operations;
   const landmarkIndex = ops.findIndex(operation => operation === 'legendary-landmarks:start');
-  const labelIndex = (ctx as unknown as MockCanvasContext).fillTextCalls.findIndex(call => call.text.includes(city.name));
+  const labelIndex = ops.findIndex(operation => operation.includes(`text:${city.name}`));
+  const badgeIndex = ops.findIndex(operation => operation.includes(`text:${getProductionBadgeIcon(city)}`));
   expect(landmarkIndex).toBeGreaterThanOrEqual(0);
   expect(labelIndex).toBeGreaterThanOrEqual(0);
+  expect(badgeIndex).toBeGreaterThanOrEqual(0);
   expect(landmarkIndex).toBeLessThan(labelIndex);
+  expect(landmarkIndex).toBeLessThan(badgeIndex);
 });
 ```
 
@@ -943,37 +957,93 @@ export function drawLegendaryWonderLandmarkGlyph(options: {
 }
 ```
 
-Update `drawSilhouette` to accept `LegendaryWonderLandmarkMetadata['family']`. Map newly added families to simple shape branches; use existing branch shapes for related families:
+Update `drawSilhouette` to accept `LegendaryWonderLandmarkMetadata['family']` and replace the body with explicit helper calls. This keeps every authored family renderable without adding one-off drawing logic for each wonder:
 
 ```ts
-case 'oracle':
-case 'spire':
-case 'signal':
-  // existing spire shape
-  break;
-case 'waterworks':
-case 'gateway':
-case 'drydock':
-  // existing arch shape
-  break;
-case 'garden':
-case 'observatory':
-  // existing dome shape
-  break;
-case 'laboratory':
-  // existing obelisk shape
-  break;
-case 'foundry':
-case 'bastion':
-case 'hall':
-  // existing citadel shape
-  break;
-case 'archive':
-case 'exchange':
-case 'network':
-default:
-  // existing archive shape
-  break;
+function drawSilhouette(
+  ctx: CanvasRenderingContext2D,
+  family: LegendaryWonderLandmarkMetadata['family'],
+  cx: number,
+  cy: number,
+  radius: number,
+): void {
+  ctx.beginPath();
+  switch (family) {
+    case 'oracle':
+    case 'spire':
+    case 'signal':
+      drawSpireSilhouette(ctx, cx, cy, radius);
+      break;
+    case 'waterworks':
+    case 'gateway':
+    case 'drydock':
+      drawArchSilhouette(ctx, cx, cy, radius);
+      break;
+    case 'garden':
+    case 'observatory':
+      drawDomeSilhouette(ctx, cx, cy, radius);
+      break;
+    case 'laboratory':
+      drawObeliskSilhouette(ctx, cx, cy, radius);
+      break;
+    case 'foundry':
+    case 'bastion':
+    case 'hall':
+      drawCitadelSilhouette(ctx, cx, cy, radius);
+      break;
+    case 'archive':
+    case 'exchange':
+    case 'network':
+    default:
+      drawArchiveSilhouette(ctx, cx, cy, radius);
+      break;
+  }
+  ctx.closePath();
+}
+
+function drawArchSilhouette(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
+  ctx.arc(cx, cy + radius * 0.35, radius * 0.62, Math.PI, Math.PI * 2);
+  ctx.lineTo(cx + radius * 0.48, cy + radius * 0.72);
+  ctx.lineTo(cx - radius * 0.48, cy + radius * 0.72);
+}
+
+function drawDomeSilhouette(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
+  ctx.arc(cx, cy + radius * 0.2, radius * 0.7, Math.PI, Math.PI * 2);
+  ctx.lineTo(cx + radius * 0.7, cy + radius * 0.65);
+  ctx.lineTo(cx - radius * 0.7, cy + radius * 0.65);
+}
+
+function drawObeliskSilhouette(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
+  ctx.moveTo(cx, cy - radius * 0.82);
+  ctx.lineTo(cx + radius * 0.34, cy + radius * 0.7);
+  ctx.lineTo(cx - radius * 0.34, cy + radius * 0.7);
+}
+
+function drawCitadelSilhouette(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
+  ctx.rect(cx - radius * 0.62, cy - radius * 0.34, radius * 1.24, radius * 1.02);
+  ctx.moveTo(cx - radius * 0.62, cy - radius * 0.34);
+  ctx.lineTo(cx - radius * 0.38, cy - radius * 0.68);
+  ctx.lineTo(cx - radius * 0.12, cy - radius * 0.34);
+  ctx.lineTo(cx + radius * 0.12, cy - radius * 0.68);
+  ctx.lineTo(cx + radius * 0.38, cy - radius * 0.34);
+}
+
+function drawArchiveSilhouette(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
+  ctx.rect(cx - radius * 0.66, cy - radius * 0.5, radius * 1.32, radius * 1.08);
+  ctx.moveTo(cx - radius * 0.44, cy - radius * 0.5);
+  ctx.lineTo(cx - radius * 0.44, cy + radius * 0.58);
+  ctx.moveTo(cx, cy - radius * 0.5);
+  ctx.lineTo(cx, cy + radius * 0.58);
+  ctx.moveTo(cx + radius * 0.44, cy - radius * 0.5);
+  ctx.lineTo(cx + radius * 0.44, cy + radius * 0.58);
+}
+
+function drawSpireSilhouette(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number): void {
+  ctx.moveTo(cx, cy - radius * 0.84);
+  ctx.lineTo(cx + radius * 0.54, cy + radius * 0.68);
+  ctx.lineTo(cx, cy + radius * 0.38);
+  ctx.lineTo(cx - radius * 0.54, cy + radius * 0.68);
+}
 ```
 
 - [ ] **Step 4: Update landmark draw loop**
@@ -1010,11 +1080,32 @@ Replace direct `drawSilhouette` call with:
     });
 ```
 
-- [ ] **Step 5: Pass turn/metadata from city renderer**
+- [ ] **Step 5: Pass turn/metadata from city renderer with deterministic timing**
 
-Modify `src/renderer/city-renderer.ts` landmark call:
+Modify `src/renderer/city-renderer.ts` so draw timing is deterministic in tests and does not call `Date.now()` from the city renderer. First change the signature to accept an optional options object while preserving the default call shape:
 
 ```ts
+interface CityRenderOptions {
+  reducedMotion?: boolean;
+  nowMs?: number;
+}
+
+export function drawCities(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  camera: Camera,
+  playerCivId: string,
+  options: CityRenderOptions | boolean = {},
+): void {
+  const reducedMotion = typeof options === 'boolean' ? options : options.reducedMotion ?? false;
+  const nowMs = typeof options === 'boolean' ? state.turn * 1000 : options.nowMs ?? state.turn * 1000;
+```
+
+Then move the existing landmark draw block so it runs after the city circle/icon is drawn and before the city name/population label. Keep unrest, occupation, breakaway, production, and idle badges after the landmark block so badges remain on top. Update the landmark call:
+
+```ts
+const legendaryEntries = projection.liveCityId ? landmarksByCity.get(projection.liveCityId) ?? [] : [];
+if (legendaryEntries.length > 0) {
 drawLegendaryWonderLandmarks({
   ctx,
   cx: screen.x,
@@ -1024,11 +1115,21 @@ drawLegendaryWonderLandmarks({
   reducedMotion,
   lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
   turn: state.turn,
-  nowMs: Date.now(),
+  nowMs,
+});
+}
+```
+
+Update `src/renderer/render-loop.ts` city draw call from the existing boolean argument to an options object:
+
+```ts
+drawCities(this.ctx, this.state, this.camera, viewerId, {
+  reducedMotion: prefersReducedMotion(),
+  nowMs: performance.now(),
 });
 ```
 
-If `Date.now()` is already avoided in renderer tests, use an optional `nowMs` from renderer options if present; otherwise keep default `0` in `drawLegendaryWonderLandmarks`.
+This keeps runtime landmark pulse/glint alive, while renderer tests can call `drawCities(..., { nowMs: 1000 })` for deterministic assertions. Do not introduce `Date.now()` in renderer code.
 
 - [ ] **Step 6: Run renderer tests**
 
@@ -1041,7 +1142,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/renderer/wonders/legendary-wonder-renderer.ts src/renderer/city-renderer.ts tests/renderer/legendary-wonder-renderer.test.ts tests/renderer/city-renderer.test.ts
+git add src/renderer/wonders/legendary-wonder-renderer.ts src/renderer/city-renderer.ts src/renderer/render-loop.ts tests/renderer/legendary-wonder-renderer.test.ts tests/renderer/city-renderer.test.ts
 git commit -m "feat(wonders): render authored legendary city landmarks"
 ```
 
@@ -1357,7 +1458,7 @@ Expected: PASS.
 - [ ] **Step 2: Run source rule check**
 
 ```bash
-scripts/check-src-rule-violations.sh src/systems/legendary-wonder-landmark-types.ts src/systems/legendary-wonder-landmark-catalog.ts src/systems/legendary-wonder-landmark-validation.ts src/systems/wonder-visual-catalog.ts src/systems/legendary-wonder-map-presentation.ts src/systems/legendary-wonder-landmark-presentation.ts src/renderer/wonders/legendary-wonder-slots.ts src/renderer/wonders/legendary-wonder-renderer.ts src/renderer/city-renderer.ts src/ui/territory-inspection-panel.ts src/ui/city-panel.ts src/systems/wonder-codex/presentation.ts src/ui/wonder-codex-page.ts
+scripts/check-src-rule-violations.sh src/systems/legendary-wonder-landmark-types.ts src/systems/legendary-wonder-landmark-catalog.ts src/systems/legendary-wonder-landmark-validation.ts src/systems/wonder-visual-catalog.ts src/systems/legendary-wonder-map-presentation.ts src/systems/legendary-wonder-landmark-presentation.ts src/renderer/wonders/legendary-wonder-slots.ts src/renderer/wonders/legendary-wonder-renderer.ts src/renderer/city-renderer.ts src/renderer/render-loop.ts src/ui/territory-inspection-panel.ts src/ui/city-panel.ts src/systems/wonder-codex/presentation.ts src/ui/wonder-codex-page.ts
 ```
 
 Expected: no output and exit 0.
@@ -1404,6 +1505,7 @@ Review for:
 - no map input behavior changes
 - no missing metadata/test convention
 - no stale hash-based known legendary assignment
+- `docs/superpowers/specs/2026-05-21-wonder-atlas-and-map-identity-design.md` still records deferred Stage 2I bespoke art, Stage 2J rival landmark intel visibility, and Stage 2K city renderer layer architecture work
 
 - [ ] **Step 7: Fix any review findings**
 
