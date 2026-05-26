@@ -24,6 +24,7 @@ class MockCanvasContext {
   lineTo(): void {}
   bezierCurveTo(): void {}
   arc(): void {}
+  ellipse(): void {}
   closePath(): void {}
   fill(): void {}
   fillText(text: string, x: number = 0, y: number = 0): void {

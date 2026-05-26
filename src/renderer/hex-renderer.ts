@@ -6,6 +6,7 @@ import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation
 import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
 import { drawNaturalWonderLandmark } from './wonders/natural-wonder-renderer';
 import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/trade-system';
+import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
 
 // --- Improvement icons ---
 
@@ -76,9 +77,10 @@ function drawTileAtScreen(
   presentationKind: TilePresentationKind,
   nowMs: number,
   reducedMotion: boolean,
+  lowZoom: boolean,
   viewerTechs: ReadonlySet<string> = new Set(),
 ): void {
-  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, viewerTechs);
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, lowZoom, viewerTechs);
   if (shouldShowTerrainLabel(zoom)) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -129,6 +131,7 @@ export function drawHexMap(
         presentation.kind,
         nowMs,
         reducedMotion,
+        camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         viewerTechs,
       );
     }
@@ -244,6 +247,7 @@ function drawHex(
   presentationKind: TilePresentationKind = 'live',
   nowMs: number = 0,
   reducedMotion: boolean = false,
+  lowZoom: boolean = false,
   viewerTechs: ReadonlySet<string> = new Set(),
 ): void {
   ctx.beginPath();
@@ -326,6 +330,7 @@ function drawHex(
       presentationKind,
       nowMs,
       reducedMotion,
+      lowZoom,
     });
   }
 
