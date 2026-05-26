@@ -11,9 +11,108 @@ import {
 } from '@/systems/legendary-wonder-system';
 import { EventBus } from '@/core/event-bus';
 import { createEspionageCivState, processEspionageTurn } from '@/systems/espionage-system';
+import {
+  getLegendaryWonderIntelForViewer,
+  recordLegendaryWonderIntel,
+  sanitizeLegendaryWonderIntel,
+} from '@/systems/legendary-wonder-intel';
 import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 
 describe('legendary-wonder-system', () => {
+  it('preserves started rival wonder intel after the live project is no longer building', () => {
+    const state = makeLegendaryWonderFixture();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'started',
+          eventId: 'started:grand-canal:rival:rival-city:41',
+          projectKey: 'grand-canal:rival:rival-city',
+          wonderId: 'grand-canal',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+        },
+      ],
+    };
+    state.legendaryWonderProjects = {};
+
+    const sanitized = sanitizeLegendaryWonderIntel(state);
+
+    expect(sanitized.player).toHaveLength(1);
+    expect(sanitized.player[0]).toMatchObject({
+      kind: 'started',
+      eventId: 'started:grand-canal:rival:rival-city:41',
+      cityName: 'Rival Harbor',
+    });
+  });
+
+  it('normalizes legacy started rival wonder intel without requiring a live project', () => {
+    const state = makeLegendaryWonderFixture();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          projectKey: 'grand-canal:rival:rival-city',
+          wonderId: 'grand-canal',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+          intelLevel: 'started',
+        },
+      ],
+    };
+    state.legendaryWonderProjects = {};
+
+    const [entry] = getLegendaryWonderIntelForViewer(state, 'player');
+
+    expect(entry).toMatchObject({
+      kind: 'started',
+      eventId: 'started:grand-canal:rival:rival-city:41',
+      cityName: 'Rival Harbor',
+    });
+  });
+
+  it('dedupes exact intel events without removing distinct started and completed events', () => {
+    const state = makeLegendaryWonderFixture();
+    const first = recordLegendaryWonderIntel(state, 'player', {
+      kind: 'started',
+      eventId: 'started:grand-canal:rival:rival-city:41',
+      projectKey: 'grand-canal:rival:rival-city',
+      wonderId: 'grand-canal',
+      civId: 'rival',
+      civName: 'Rival',
+      cityId: 'rival-city',
+      cityName: 'Rival Harbor',
+      revealedTurn: 41,
+    });
+    const second = recordLegendaryWonderIntel({ ...state, legendaryWonderIntel: first }, 'player', {
+      kind: 'started',
+      eventId: 'started:grand-canal:rival:rival-city:41',
+      projectKey: 'grand-canal:rival:rival-city',
+      wonderId: 'grand-canal',
+      civId: 'rival',
+      civName: 'Rival',
+      cityId: 'rival-city',
+      cityName: 'Rival Harbor',
+      revealedTurn: 41,
+    });
+    const third = recordLegendaryWonderIntel({ ...state, legendaryWonderIntel: second }, 'player', {
+      kind: 'completed',
+      eventId: 'completed:grand-canal:rival:58',
+      wonderId: 'grand-canal',
+      civId: 'rival',
+      civName: 'Rival',
+      completionTurn: 58,
+      learnedTurn: 58,
+    });
+
+    expect(third.player).toHaveLength(2);
+    expect(third.player.map(entry => entry.kind)).toEqual(['started', 'completed']);
+  });
+
   it('seeds the full approved legendary wonder roster for a newly founded city', () => {
     const state = makeLegendaryWonderFixture();
     state.legendaryWonderProjects = undefined;
@@ -197,6 +296,128 @@ describe('legendary-wonder-system', () => {
     expect(events).toEqual([
       { civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi', turnCompleted: 41 },
     ]);
+  });
+
+  it('records completed rival wonder intel for human viewers who know the completing rival', () => {
+    const state = makeLegendaryWonderFixture();
+    state.turn = 58;
+    state.civilizations.player.knownCivilizations = ['rival'];
+    state.civilizations.rival.knownCivilizations = ['player'];
+    state.cities['city-rival'] = {
+      ...state.cities['city-rival'],
+      name: 'Rival Harbor',
+      productionQueue: ['legendary:oracle-of-delphi'],
+      productionProgress: 999,
+    };
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi:rival:city-rival': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'rival',
+        cityId: 'city-rival',
+        phase: 'building',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.legendaryWonderIntel?.player).toContainEqual({
+      kind: 'completed',
+      eventId: 'completed:oracle-of-delphi:rival:58',
+      wonderId: 'oracle-of-delphi',
+      civId: 'rival',
+      civName: 'Rival',
+      completionTurn: 58,
+      learnedTurn: 58,
+    });
+  });
+
+  it('does not record completed rival wonder intel for human viewers who do not know the completing rival', () => {
+    const state = makeLegendaryWonderFixture();
+    state.turn = 58;
+    state.civilizations.player.knownCivilizations = [];
+    state.civilizations.rival.knownCivilizations = [];
+    state.cities['city-rival'] = {
+      ...state.cities['city-rival'],
+      name: 'Rival Harbor',
+      productionQueue: ['legendary:oracle-of-delphi'],
+      productionProgress: 999,
+    };
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi:rival:city-rival': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'rival',
+        cityId: 'city-rival',
+        phase: 'building',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.legendaryWonderIntel?.player).toBeUndefined();
+  });
+
+  it('records separate completed rival wonder intel for each known human hot-seat viewer', () => {
+    const state = makeLegendaryWonderFixture();
+    state.turn = 58;
+    state.civilizations.player.knownCivilizations = ['rival'];
+    state.civilizations['player-2'] = {
+      ...state.civilizations.player,
+      id: 'player-2',
+      name: 'Second Player',
+      isHuman: true,
+      cities: [],
+      units: [],
+      knownCivilizations: ['rival'],
+    };
+    state.civilizations.rival.knownCivilizations = ['player', 'player-2'];
+    state.cities['city-rival'] = {
+      ...state.cities['city-rival'],
+      name: 'Rival Harbor',
+      productionQueue: ['legendary:oracle-of-delphi'],
+      productionProgress: 999,
+    };
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi:rival:city-rival': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'rival',
+        cityId: 'city-rival',
+        phase: 'building',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.legendaryWonderIntel?.player).toContainEqual(expect.objectContaining({
+      kind: 'completed',
+      eventId: 'completed:oracle-of-delphi:rival:58',
+    }));
+    expect(result.legendaryWonderIntel?.['player-2']).toContainEqual(expect.objectContaining({
+      kind: 'completed',
+      eventId: 'completed:oracle-of-delphi:rival:58',
+    }));
+  });
+
+  it('does not record completed wonder intel as rival intel for the completing human civ', () => {
+    const state = makeLegendaryWonderFixture();
+    state.turn = 58;
+    state.civilizations.player.knownCivilizations = ['rival'];
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = 999;
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+
+    expect(result.completedLegendaryWonders?.['oracle-of-delphi']?.ownerId).toBe('player');
+    expect(result.legendaryWonderIntel?.player).toBeUndefined();
   });
 
   it('moves a ready project into the building phase when construction starts', () => {
