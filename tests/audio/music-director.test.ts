@@ -160,4 +160,27 @@ describe('MusicDirector', () => {
     expect(snapshotCalls).toContain('at-war');
     expect(snapshotCalls.at(-1)).not.toBe('peace');
   });
+
+  // --- initPeaceSnapshot ---
+
+  it('initPeaceSnapshot sets intendedSnapshot so stinger restore returns to peace', async () => {
+    director.initPeaceSnapshot();
+    director.handleCityFounded({ civType: 'rome' });
+    await flushPromises();
+    const lastSnapshot = vi.mocked(mixer.setSnapshot).mock.calls.at(-1)![0];
+    expect(lastSnapshot).toBe('peace');
+  });
+
+  it('handleCityFounded without initPeaceSnapshot restores to silent (regression guard — confirms bug existed)', async () => {
+    // Default intendedSnapshot is 'silent'. This test proves the pre-fix behavior.
+    director.handleCityFounded({ civType: 'rome' });
+    await flushPromises();
+    const lastSnapshot = vi.mocked(mixer.setSnapshot).mock.calls.at(-1)![0];
+    expect(lastSnapshot).toBe('silent');
+  });
+
+  it('initPeaceSnapshot calls mixer.setSnapshot("peace", 0) immediately', () => {
+    director.initPeaceSnapshot();
+    expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', 0);
+  });
 });
