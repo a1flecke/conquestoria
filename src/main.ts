@@ -9,7 +9,7 @@ import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
-import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
+import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason, findPath } from '@/systems/unit-system';
 import { scanIdCounters } from '@/core/id-counters';
 import { foundCity, BUILDINGS, getProductionDisplayName, getUnplacedBuildings, placeBuilding } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
@@ -168,6 +168,7 @@ let councilPanelOpen = false;
 let persistedSettings: GameState['settings'] | undefined;
 let pacingDebugOpen = false;
 let pendingCityCaptureChoice: PendingCityCaptureChoice | null = null;
+let pendingJourneyUnitId: string | null = null;
 let deferWonderDiscoveryRevealUntilMoveSettles = false;
 
 function mergePersistedSettings(loadedSettings?: GameState['settings']): GameState['settings'] {
@@ -244,6 +245,11 @@ legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
 // --- Resize ---
 window.addEventListener('resize', () => renderLoop.resizeCanvas());
 window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && pendingJourneyUnitId) {
+    pendingJourneyUnitId = null;
+    showNotification('Journey cancelled.', 'info');
+    return;
+  }
   if (event.key !== '`') {
     return;
   }
@@ -1233,6 +1239,15 @@ function selectUnit(unitId: string): void {
   }
   renderLoop.setHighlights(highlightResult.highlights);
 
+  // Update journey path overlay
+  if (unit.automation?.mode === 'journey') {
+    const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+    const path = findPath(unit.position, unit.automation.destination, gameState.map, domain);
+    renderLoop.setJourneyPath(path);
+  } else {
+    renderLoop.setJourneyPath(null);
+  }
+
   // Show unit info panel
   const panel = document.getElementById('info-panel');
   if (panel) {
@@ -1452,6 +1467,7 @@ function deselectUnit(): void {
   movementRange = [];
   attackRange = [];
   renderLoop.clearHighlights();
+  renderLoop.setJourneyPath(null);
   const panel = document.getElementById('info-panel');
   if (panel) {
     panel.style.display = 'none';
@@ -1507,6 +1523,15 @@ function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
 }
 
 function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResult): ExecuteUnitMoveResult {
+  // Clear journey automation when the player manually moves a unit
+  const movingUnit = gameState.units[unitId];
+  if (movingUnit?.automation?.mode === 'journey') {
+    gameState = {
+      ...gameState,
+      units: { ...gameState.units, [unitId]: { ...movingUnit, automation: undefined } },
+    };
+    renderLoop.setJourneyPath(null);
+  }
   deferWonderDiscoveryRevealUntilMoveSettles = true;
   try {
     const moveResult = move();
@@ -1527,7 +1552,7 @@ function startAutoExplore(unitId: string): void {
     automation: {
       mode: 'auto-explore',
       startedTurn: gameState.turn,
-      lastTargets: unit.automation?.lastTargets ?? [],
+      lastTargets: unit.automation?.mode === 'auto-explore' ? unit.automation.lastTargets : [],
     },
   };
 
@@ -1902,6 +1927,30 @@ function handleHexTap(rawCoord: HexCoord): void {
   const coord = gameState.map.wrapsHorizontally
     ? wrapHexCoord(rawCoord, gameState.map.width)
     : rawCoord;
+
+  if (pendingJourneyUnitId) {
+    const unit = gameState.units[pendingJourneyUnitId];
+    if (unit) {
+      const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+      const path = findPath(unit.position, coord, gameState.map, domain);
+      if (!path || path.length < 2) {
+        showNotification('No path to that destination.', 'warning');
+      } else {
+        gameState = {
+          ...gameState,
+          units: {
+            ...gameState.units,
+            [pendingJourneyUnitId]: { ...unit, automation: { mode: 'journey', destination: coord } },
+          },
+        };
+        renderLoop.setGameState(gameState);
+        selectUnit(pendingJourneyUnitId);
+        showNotification('Journey set. Your unit will advance each turn.', 'info');
+      }
+    }
+    pendingJourneyUnitId = null;
+    return;
+  }
   const key = hexKey(coord);
 
   if (isUnitAnimationLocked(selectedUnitId)) {
@@ -2879,6 +2928,12 @@ bus.on('unit:obsolete', ({ civId, unitType }) => {
   appendToCivLog(civId, `Your ${name} is now obsolete — upgrade it in your home city.`, 'info');
 });
 
+bus.on('unit:journey-blocked', ({ unitId, position }) => {
+  const unit = gameState.units[unitId];
+  const type = unit ? UNIT_DEFINITIONS[unit.type]?.name ?? unit.type : 'Unit';
+  appendToCivLog(unit?.owner ?? gameState.currentPlayer, `Your ${type} was blocked and stopped at (${position.q}, ${position.r}).`, 'warning');
+});
+
 bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
   appendToCivLog(civId, `${spyName}'s network dissolved — ${unitType} era ended. No diplomatic penalty.`, 'info');
 });
@@ -3172,8 +3227,34 @@ function startGame(): void {
     installKeyboardShortcuts(document, {
       onOpenCouncil: () => togglePanel('council'),
       onOpenTech: () => togglePanel('tech'),
-      onEndTurn: () => {
-        void endTurn();
+      onEndTurn: () => { void endTurn(); },
+      getSelectedUnitId: () => selectedUnitId,
+      onCenterUnit: () => {
+        if (!selectedUnitId) return;
+        const unit = gameState.units[selectedUnitId];
+        if (unit) renderLoop.camera.centerOn(unit.position);
+      },
+      onFortify: () => {
+        if (!selectedUnitId) return;
+        const unit = gameState.units[selectedUnitId];
+        if (!unit || unit.hasActed || unit.owner !== gameState.currentPlayer) return;
+        gameState = fortifyUnitInState(gameState, gameState.currentPlayer, selectedUnitId);
+        showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(selectedUnitId);
+      },
+      onSettle: () => {
+        if (!selectedUnitId) return;
+        const unit = gameState.units[selectedUnitId];
+        if (!unit || unit.type !== 'settler') return;
+        foundCityAction();
+      },
+      onNextUnit: () => selectNextUnit(),
+      onStartJourney: () => {
+        if (!selectedUnitId) return;
+        pendingJourneyUnitId = selectedUnitId;
+        showNotification('Tap a destination for this unit. Press Escape to cancel.', 'info');
       },
     }, {
       canHandle: () => !uiInteractions.isInteractionBlocked(),

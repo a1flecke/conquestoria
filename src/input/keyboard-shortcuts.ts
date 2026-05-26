@@ -2,6 +2,12 @@ export interface KeyboardShortcutCallbacks {
   onOpenCouncil: () => void;
   onOpenTech: () => void;
   onEndTurn: () => void;
+  onCenterUnit?: () => void;
+  onFortify?: () => void;
+  onSettle?: () => void;
+  onNextUnit?: () => void;
+  onStartJourney?: () => void;
+  getSelectedUnitId?: () => string | null;
 }
 
 export interface KeyboardShortcutOptions {
@@ -29,15 +35,33 @@ export function installKeyboardShortcuts(
     }
 
     const key = event.key.toLowerCase();
+    const hasUnit = callbacks.getSelectedUnitId ? callbacks.getSelectedUnitId() !== null : false;
+
     if (key === 'c') {
       event.preventDefault();
-      callbacks.onOpenCouncil();
+      if (hasUnit && callbacks.onCenterUnit) {
+        callbacks.onCenterUnit();
+      } else {
+        callbacks.onOpenCouncil();
+      }
     } else if (key === 't') {
       event.preventDefault();
       callbacks.onOpenTech();
     } else if (key === 'e') {
       event.preventDefault();
       callbacks.onEndTurn();
+    } else if (key === 'n') {
+      event.preventDefault();
+      callbacks.onNextUnit?.();
+    } else if (key === 'f' && hasUnit) {
+      event.preventDefault();
+      callbacks.onFortify?.();
+    } else if (key === 'b' && hasUnit) {
+      event.preventDefault();
+      callbacks.onSettle?.();
+    } else if (key === 'g' && hasUnit) {
+      event.preventDefault();
+      callbacks.onStartJourney?.();
     }
   });
 }

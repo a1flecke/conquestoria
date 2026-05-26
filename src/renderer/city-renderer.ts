@@ -1,4 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
+
+const CITY_ICON_EMOJI_Y_NUDGE_RATIO = 0.08;
 import { hexToPixel } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { getOccupiedCityMood } from '@/systems/city-occupation-system';
@@ -124,9 +126,9 @@ export function drawCities(
         const icon = def?.archetype === 'militaristic' ? '⚔️'
           : def?.archetype === 'mercantile' ? '🪙'
           : '📜';
-        ctx.fillText(icon, screen.x, screen.y);
+        ctx.fillText(icon, screen.x, screen.y + size * CITY_ICON_EMOJI_Y_NUDGE_RATIO);
       } else {
-        ctx.fillText('🏛️', screen.x, screen.y);
+        ctx.fillText('🏛️', screen.x, screen.y + size * CITY_ICON_EMOJI_Y_NUDGE_RATIO);
       }
 
       // City name + population below

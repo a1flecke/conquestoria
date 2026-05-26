@@ -57,7 +57,7 @@ function rankCandidate(state: GameState, unitId: string, coord: HexCoord): { sco
   const visibility = getVisibility(viewer.visibility, coord);
   const visibilityScore = visibility === 'unexplored' ? 200 : visibility === 'fog' ? 100 : 0;
   const frontierScore = countUnexploredNeighbors(state, unit.owner, coord) * 10;
-  const recencyPenalty = unit.automation?.lastTargets.includes(hexKey(coord)) ? 500 : 0;
+  const recencyPenalty = unit.automation?.mode === 'auto-explore' && unit.automation.lastTargets.includes(hexKey(coord)) ? 500 : 0;
   const tieBreaker = (coord.r * 100) + coord.q;
 
   return {

@@ -1,7 +1,7 @@
 import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { checkDominationVictory } from '@/systems/victory-system';
-import { resetUnitTurn, createUnit, healUnit, moveUnit } from '@/systems/unit-system';
+import { resetUnitTurn, createUnit, healUnit, moveUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { processCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
@@ -12,6 +12,8 @@ import { resolveCombat } from '@/systems/combat-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
+import { hexKey } from '@/systems/hex-utils';
+import { executeUnitMove } from '@/systems/unit-movement-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getCivResourceYieldBonus } from '@/systems/resource-acquisition-system';
 import type { HexCoord } from './types';
@@ -266,6 +268,23 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const unit = newState.units[unitId];
       if (unit?.automation?.mode === 'auto-explore') {
         applyAutoExploreOrder(newState, unitId, { bus });
+      } else if (unit?.automation?.mode === 'journey') {
+        const destination = unit.automation.destination;
+        const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+        const path = findPath(unit.position, destination, newState.map, domain);
+        if (!path || path.length < 2) {
+          newState.units[unitId] = { ...unit, automation: undefined };
+          bus.emit('unit:journey-blocked', { unitId, position: { ...unit.position } });
+        } else {
+          const nextStep = path[1];
+          executeUnitMove(newState, unitId, nextStep, { actor: 'automation', civId, bus });
+          if (hexKey(nextStep) === hexKey(destination)) {
+            const movedUnit = newState.units[unitId];
+            if (movedUnit) {
+              newState.units[unitId] = { ...movedUnit, automation: undefined };
+            }
+          }
+        }
       }
     }
 
