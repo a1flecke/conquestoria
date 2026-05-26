@@ -7,6 +7,8 @@ import { moveUnit, getMovementCostForUnit, findPath, UNIT_DEFINITIONS } from '@/
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { isAtWar } from '@/systems/diplomacy-system';
+import { removeRouteForUnit } from '@/systems/trade-system';
 
 export interface ExecuteUnitMoveOptions {
   actor: 'player' | 'automation' | 'ai';
@@ -172,4 +174,109 @@ export function executeUnitMove(
     discoveredWonders,
     villageOutcome,
   };
+}
+
+function processCaravanArrival(
+  state: GameState,
+  caravanId: string,
+  route: { id: string; fromCityId: string; toCityId: string },
+  arrivedAtToCity: boolean,
+  bus?: EventBus,
+): GameState {
+  if (arrivedAtToCity) {
+    return {
+      ...state,
+      units: {
+        ...state.units,
+        [caravanId]: { ...state.units[caravanId]!, routeDirection: 'inbound' },
+      },
+    };
+  }
+
+  // Arrived at fromCity (inbound leg complete) — decrement trips
+  const caravan = state.units[caravanId]!;
+  const tripsRemaining = (caravan.tripsRemaining ?? 1) - 1;
+
+  if (tripsRemaining <= 0) {
+    const { [caravanId]: _removed, ...remainingUnits } = state.units;
+    const ownerCiv = state.civilizations[caravan.owner];
+    const newCivs = ownerCiv
+      ? {
+          ...state.civilizations,
+          [caravan.owner]: {
+            ...ownerCiv,
+            units: ownerCiv.units.filter((id: string) => id !== caravanId),
+          },
+        }
+      : state.civilizations;
+    const stateWithoutCaravan = { ...state, units: remainingUnits, civilizations: newCivs };
+    return removeRouteForUnit(stateWithoutCaravan, caravanId, bus, 'trips-exhausted', route.id);
+  }
+
+  return {
+    ...state,
+    units: {
+      ...state.units,
+      [caravanId]: { ...state.units[caravanId]!, routeDirection: 'outbound', tripsRemaining },
+    },
+  };
+}
+
+export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState {
+  if (!state.marketplace?.tradeRoutes?.length) return state;
+  let newState = state;
+
+  for (const route of state.marketplace.tradeRoutes) {
+    const caravan = Object.values(newState.units).find(u => u.committedToRouteId === route.id);
+    if (!caravan) continue;
+
+    const isOutbound = (caravan.routeDirection ?? 'outbound') === 'outbound';
+    const targetCity = newState.cities[isOutbound ? route.toCityId : route.fromCityId];
+    if (!targetCity) continue;
+
+    const path = findPath(caravan.position, targetCity.position, newState.map, 'land');
+    if (!path || path.length === 0) continue;
+
+    if (path.length === 1) {
+      newState = processCaravanArrival(newState, caravan.id, route, isOutbound, bus);
+      continue;
+    }
+
+    const nextStep = path[1]!;
+    const ownerCiv = newState.civilizations[caravan.owner];
+    const blocked = ownerCiv != null && Object.values(newState.units).some(u =>
+      u.id !== caravan.id &&
+      u.position.q === nextStep.q && u.position.r === nextStep.r &&
+      isAtWar(ownerCiv.diplomacy, u.owner),
+    );
+
+    if (blocked) {
+      const toCity = newState.cities[route.toCityId];
+      bus?.emit('notification:show', {
+        message: `Trade route to ${toCity?.name ?? route.toCityId} is blocked by enemy forces.`,
+        type: 'warning',
+      });
+      continue;
+    }
+
+    // Move caravan via spread-copy — NOT moveUnit() (movementPointsLeft is already 0)
+    const from = { ...caravan.position };
+    newState = {
+      ...newState,
+      units: {
+        ...newState.units,
+        [caravan.id]: { ...newState.units[caravan.id]!, position: nextStep },
+      },
+    };
+    bus?.emit('unit:move', { unitId: caravan.id, from, to: nextStep });
+
+    if (nextStep.q === targetCity.position.q && nextStep.r === targetCity.position.r) {
+      const movedCaravan = newState.units[caravan.id];
+      if (movedCaravan) {
+        newState = processCaravanArrival(newState, caravan.id, route, isOutbound, bus);
+      }
+    }
+  }
+
+  return newState;
 }

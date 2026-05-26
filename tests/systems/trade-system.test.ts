@@ -27,6 +27,7 @@ import { TRAINABLE_UNITS, PRODUCTION_ICONS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import type { GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
+import { advanceRouteRunners } from '@/systems/unit-movement-system';
 
 // Shared fixture — used by S5 and S6a describe blocks
 function makeTile(q: number, r: number) {
@@ -755,6 +756,208 @@ describe('trade-system', () => {
       expect(s.marketplace!.tradeRoutes).toHaveLength(0);
       expect(s.units['caravan1']?.committedToRouteId).toBeUndefined();
       expect(events[0].reason).toBe('unit-died');
+    });
+  });
+
+  describe('S6b — physical caravan movement', () => {
+    function makeS6bState(overrides: {
+      caravanPos?: { q: number; r: number };
+      routeDirection?: 'outbound' | 'inbound';
+      tripsRemaining?: number;
+      atWarWith?: string[];
+      extraUnits?: Record<string, any>;
+      mountainAt?: { q: number; r: number };
+      extraRoutes?: any[];
+      extraCaravans?: Record<string, any>;
+      caravanOwner?: string;
+    } = {}): GameState {
+      const base = makeMinimalState({
+        caravanPos: overrides.caravanPos ?? { q: 0, r: 0 },
+        atWarWith: overrides.atWarWith ?? [],
+      });
+
+      const route = {
+        id: 'route1',
+        fromCityId: 'city1',
+        toCityId: 'city2',
+        goldPerTrip: 10,
+        turnsPerTrip: 3,
+      };
+
+      const caravan: any = {
+        ...base.units['caravan1'],
+        id: 'caravan1',
+        owner: overrides.caravanOwner ?? 'player',
+        committedToRouteId: 'route1',
+        routeDirection: overrides.routeDirection,
+        tripsRemaining: overrides.tripsRemaining ?? 3,
+        movementPointsLeft: 0,
+        hasActed: true,
+      };
+
+      const units: Record<string, any> = { caravan1: caravan, ...overrides.extraUnits };
+      if (overrides.extraCaravans) {
+        Object.assign(units, overrides.extraCaravans);
+      }
+
+      const tradeRoutes = [route, ...(overrides.extraRoutes ?? [])];
+
+      let civilizations = base.civilizations;
+      if (overrides.caravanOwner === 'enemy') {
+        civilizations = {
+          ...base.civilizations,
+          enemy: { ...base.civilizations['enemy'], units: ['caravan1'] },
+          player: { ...base.civilizations['player'], units: [] },
+        };
+      }
+
+      let tiles = base.map.tiles;
+      if (overrides.mountainAt) {
+        const { q, r } = overrides.mountainAt;
+        tiles = {
+          ...tiles,
+          [`${q},${r}`]: { q, r, terrain: 'mountain', resources: [], improvement: null, featureOverlay: null } as any,
+        };
+      }
+
+      return {
+        ...base,
+        civilizations,
+        units,
+        map: { ...base.map, tiles },
+        marketplace: { ...base.marketplace, tradeRoutes },
+      } as any;
+    }
+
+    it('advances caravan one step per turn toward toCityId', () => {
+      const state = makeS6bState({ caravanPos: { q: 0, r: 0 } });
+      const result = advanceRouteRunners(state);
+      const caravan = result.units['caravan1']!;
+      expect(caravan.position.q).toBeGreaterThan(0);
+    });
+
+    it('flips routeDirection to inbound on arrival at toCityId', () => {
+      const state = makeS6bState({
+        caravanPos: { q: 2, r: 0 },
+        routeDirection: 'outbound',
+        tripsRemaining: 3,
+      });
+      const result = advanceRouteRunners(state);
+      const caravan = result.units['caravan1']!;
+      expect(caravan.routeDirection).toBe('inbound');
+      expect(caravan.tripsRemaining).toBe(3);
+    });
+
+    it('flips routeDirection to outbound and decrements tripsRemaining on arrival at fromCityId', () => {
+      const state = makeS6bState({
+        caravanPos: { q: 0, r: 0 },
+        routeDirection: 'inbound',
+        tripsRemaining: 3,
+      });
+      const result = advanceRouteRunners(state);
+      const caravan = result.units['caravan1']!;
+      expect(caravan.routeDirection).toBe('outbound');
+      expect(caravan.tripsRemaining).toBe(2);
+    });
+
+    it('removes caravan and route with trips-exhausted when tripsRemaining reaches 0', () => {
+      const state = makeS6bState({
+        caravanPos: { q: 0, r: 0 },
+        routeDirection: 'inbound',
+        tripsRemaining: 1,
+      });
+      const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
+      const result = advanceRouteRunners(state, bus);
+
+      expect(result.units['caravan1']).toBeUndefined();
+      expect(result.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(bus.emit).toHaveBeenCalledWith('trade:route-ended', expect.objectContaining({
+        routeId: 'route1',
+        reason: 'trips-exhausted',
+      }));
+    });
+
+    it('blocks caravan movement and emits warning when at-war unit occupies path[1]', () => {
+      const enemyUnit = {
+        id: 'enemy-warrior',
+        type: 'warrior',
+        owner: 'enemy',
+        position: { q: 1, r: 0 },
+        health: 100, movementPointsLeft: 0, hasActed: true, hasMoved: false, skippedTurn: false, isResting: false,
+      };
+      const state = makeS6bState({
+        caravanPos: { q: 0, r: 0 },
+        routeDirection: 'outbound',
+        atWarWith: ['enemy'],
+        extraUnits: { 'enemy-warrior': enemyUnit as any },
+      });
+      const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
+      const result = advanceRouteRunners(state, bus);
+
+      expect(result.units['caravan1']!.position).toEqual({ q: 0, r: 0 });
+      expect(bus.emit).toHaveBeenCalledWith('notification:show', expect.objectContaining({ type: 'warning' }));
+    });
+
+    it('does NOT block caravan when non-war unit occupies path[1]', () => {
+      const neutralUnit = {
+        id: 'neutral-warrior',
+        type: 'warrior',
+        owner: 'neutral',
+        position: { q: 1, r: 0 },
+        health: 100, movementPointsLeft: 0, hasActed: true, hasMoved: false, skippedTurn: false, isResting: false,
+      };
+      const state = makeS6bState({
+        caravanPos: { q: 0, r: 0 },
+        routeDirection: 'outbound',
+        atWarWith: [],
+        extraUnits: { 'neutral-warrior': neutralUnit as any },
+      });
+      const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
+      const result = advanceRouteRunners(state, bus);
+
+      expect(result.units['caravan1']!.position.q).toBeGreaterThan(0);
+      expect(bus.emit).not.toHaveBeenCalledWith('notification:show', expect.anything());
+    });
+
+    it('navigates around an impassable mountain tile', () => {
+      const state = makeS6bState({
+        caravanPos: { q: 0, r: 0 },
+        mountainAt: { q: 1, r: 0 },
+      });
+      const result = advanceRouteRunners(state);
+      const caravan = result.units['caravan1']!;
+      expect(caravan.position).not.toEqual({ q: 1, r: 0 });
+      expect(caravan.position).not.toEqual({ q: 0, r: 0 });
+    });
+
+    it('advances two concurrent routes independently', () => {
+      const route2 = { id: 'route2', fromCityId: 'city1', toCityId: 'city2', goldPerTrip: 10, turnsPerTrip: 3 };
+      const caravan2: any = {
+        id: 'caravan2', type: 'caravan', owner: 'player',
+        position: { q: 0, r: 0 },
+        committedToRouteId: 'route2',
+        routeDirection: undefined,
+        tripsRemaining: 3,
+        health: 100, movementPointsLeft: 0, hasActed: true, hasMoved: false, skippedTurn: false, isResting: false,
+      };
+      const state = makeS6bState({
+        caravanPos: { q: 0, r: 0 },
+        extraCaravans: { caravan2 },
+        extraRoutes: [route2],
+      });
+      const result = advanceRouteRunners(state);
+
+      expect(result.units['caravan1']!.position.q).toBeGreaterThan(0);
+      expect(result.units['caravan2']!.position.q).toBeGreaterThan(0);
+    });
+
+    it('advances AI-owned caravan identically to player-owned caravan (actor-complete)', () => {
+      const state = makeS6bState({
+        caravanPos: { q: 0, r: 0 },
+        caravanOwner: 'enemy',
+      });
+      const result = advanceRouteRunners(state);
+      expect(result.units['caravan1']!.position.q).toBeGreaterThan(0);
     });
   });
 });
