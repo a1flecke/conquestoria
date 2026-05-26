@@ -434,3 +434,40 @@ describe('worker action system', () => {
     expect(result.state.map.tiles['0,0'].improvementOwner).toBeUndefined();
   });
 });
+
+describe('applyWorkerAction with allowReplacement', () => {
+  it('allows replacing an existing improvement when allowReplacement: true', () => {
+    const s = state({
+      map: {
+        width: 5,
+        height: 5,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '0,0': tile({ coord: { q: 0, r: 0 }, terrain: 'grassland', improvement: 'farm', improvementTurnsLeft: 0, owner: 'player' }),
+        },
+      },
+    });
+    const result = applyWorkerAction(s, 'worker-1', 'farm', { allowReplacement: true });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.map.tiles['0,0'].improvement).toBe('farm');
+    }
+  });
+
+  it('rejects an already-improved tile without allowReplacement', () => {
+    const s = state({
+      map: {
+        width: 5,
+        height: 5,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '0,0': tile({ coord: { q: 0, r: 0 }, terrain: 'grassland', improvement: 'farm', improvementTurnsLeft: 0, owner: 'player' }),
+        },
+      },
+    });
+    const result = applyWorkerAction(s, 'worker-1', 'farm');
+    expect(result.ok).toBe(false);
+  });
+});

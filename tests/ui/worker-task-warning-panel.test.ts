@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
+import { createWorkerTaskWarningPanel, createWorkerReplacementConfirmPanel } from '@/ui/worker-task-warning-panel';
 
 describe('worker-task-warning-panel', () => {
   beforeEach(() => {
@@ -97,5 +97,65 @@ describe('worker-task-warning-panel', () => {
       expect(btn.style.background, `${btn.textContent} background`).not.toBe('');
       expect(btn.style.color, `${btn.textContent} color`).not.toBe('');
     }
+  });
+});
+
+describe('createWorkerReplacementConfirmPanel', () => {
+  beforeEach(() => {
+    document.body.textContent = '';
+  });
+
+  it('shows existing and new improvement names in the body', () => {
+    createWorkerReplacementConfirmPanel(document.body, {
+      existingName: 'Farm',
+      newName: 'Pasture',
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+    expect(document.body.textContent).toContain('Farm');
+    expect(document.body.textContent).toContain('Pasture');
+  });
+
+  it('calls onConfirm when Replace is clicked', () => {
+    const onConfirm = vi.fn();
+    const panel = createWorkerReplacementConfirmPanel(document.body, {
+      existingName: 'Farm',
+      newName: 'Pasture',
+      onConfirm,
+      onCancel: vi.fn(),
+    });
+    const replaceButton = Array.from(panel.querySelectorAll('button'))
+      .find(btn => btn.textContent === 'Replace')!;
+    replaceButton.click();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onCancel when Keep is clicked', () => {
+    const onCancel = vi.fn();
+    const panel = createWorkerReplacementConfirmPanel(document.body, {
+      existingName: 'Farm',
+      newName: 'Pasture',
+      onConfirm: vi.fn(),
+      onCancel,
+    });
+    const keepButton = Array.from(panel.querySelectorAll('button'))
+      .find(btn => btn.textContent === 'Keep')!;
+    keepButton.click();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onConfirm at most once', () => {
+    const onConfirm = vi.fn();
+    const panel = createWorkerReplacementConfirmPanel(document.body, {
+      existingName: 'Farm',
+      newName: 'Pasture',
+      onConfirm,
+      onCancel: vi.fn(),
+    });
+    const replaceButton = Array.from(panel.querySelectorAll('button'))
+      .find(btn => btn.textContent === 'Replace')!;
+    replaceButton.click();
+    replaceButton.click();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 });

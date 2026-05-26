@@ -36,6 +36,7 @@ export type WorkerActionFailureReason =
 
 export interface WorkerActionOptions {
   rng?: () => number;
+  allowReplacement?: boolean;
 }
 
 export type WorkerActionResult =
@@ -123,7 +124,7 @@ export function applyWorkerAction(
   if (!tile) return { ok: false, state, reason: 'missing-tile', events: [] };
 
   const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
-  const eligibilityOptions = { isCityTile: isCityCenterTile(state, unit.position) };
+  const eligibilityOptions = { isCityTile: isCityCenterTile(state, unit.position), allowReplacement: options.allowReplacement };
   const blockerReason = getWorkerActionBlockerReason(tile, action, completedTechs, unit.owner, eligibilityOptions);
   if (blockerReason !== 'none') {
     return {

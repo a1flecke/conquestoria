@@ -7,6 +7,7 @@ import type {
   WorkerActionType,
 } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 // Improvements that only make sense on tiles with a specific resource.
 // Derived from RESOURCE_DEFINITIONS at module load — avoids re-scanning on every call.
@@ -30,6 +31,7 @@ export interface ImprovementDefinition {
 
 export interface WorkerActionEligibilityOptions {
   isCityTile?: boolean;
+  allowReplacement?: boolean;
 }
 
 export type WorkerActionBlockerReason =
@@ -150,7 +152,7 @@ export function canBuildImprovement(
   if (!definition) return false;
   if (options.isCityTile) return false;
   if (ownerId && tile.owner !== ownerId) return false;
-  if (tile.improvement !== 'none') return false;
+  if (tile.improvement !== 'none' && !options.allowReplacement) return false;
   if (!definition.validTerrains.includes(tile.terrain)) return false;
   if (definition.requiresRiver && !tile.hasRiver) return false;
   if (definition.requiredTech && !completedTechs.includes(definition.requiredTech)) return false;
@@ -196,7 +198,7 @@ export function getWorkerActionBlockerReason(
   if (!tile) return 'invalid-terrain';
   if (ownerId && tile.owner !== ownerId) return 'outside-territory';
   if (options.isCityTile) return 'city-center';
-  if (tile.improvement !== 'none') return 'already-improved';
+  if (tile.improvement !== 'none' && !options.allowReplacement) return 'already-improved';
 
   if (action === 'drain_swamp') {
     return tile.terrain === 'swamp' ? 'none' : 'invalid-terrain';
@@ -239,4 +241,35 @@ export function getImprovementDisplayName(type: ImprovementType): string {
 export function getWorkerActionLabel(action: WorkerActionType): string {
   if (action === 'drain_swamp') return 'Drain Swamp (20% worker risk)';
   return `Build ${getImprovementDisplayName(action)}`;
+}
+
+export function getWorkerBlockerHints(
+  tile: HexTile | undefined,
+  completedTechs: string[] = [],
+  ownerId?: string,
+  options: WorkerActionEligibilityOptions = {},
+): string[] {
+  if (!tile) return [];
+  if (getAvailableWorkerActions(tile, completedTechs, ownerId, options).length > 0) return [];
+
+  const hints: string[] = [];
+  for (const type of Object.keys(IMPROVEMENT_DEFINITIONS) as BuildableImprovementType[]) {
+    const reason = getWorkerActionBlockerReason(tile, type, completedTechs, ownerId, options);
+    if (reason === 'missing-resource') {
+      const resourceSet = RESOURCE_GATED_IMPROVEMENTS.get(type);
+      if (resourceSet && resourceSet.size > 0) {
+        const names = RESOURCE_DEFINITIONS
+          .filter(rd => resourceSet.has(rd.id))
+          .map(rd => rd.name);
+        hints.push(`${IMPROVEMENT_DEFINITIONS[type].name} requires ${names.join(', ')}`);
+      }
+    } else if (reason === 'requires-tech') {
+      const def = IMPROVEMENT_DEFINITIONS[type];
+      if (def.requiredTech) {
+        const tech = TECH_TREE.find(t => t.id === def.requiredTech);
+        hints.push(`${def.name} requires ${tech?.name ?? def.requiredTech}`);
+      }
+    }
+  }
+  return hints;
 }

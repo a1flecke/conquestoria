@@ -307,6 +307,30 @@ describe('resetUnitTurn', () => {
     expect(reset.hasMoved).toBe(false);
     expect(reset.hasActed).toBe(false);
   });
+
+  it('keeps worker acted and immobile when it has an active workerTask', () => {
+    const worker = createUnit('worker', 'p1', { q: 0, r: 0 }, mkC());
+    const workerWithTask = {
+      ...worker,
+      workerTask: { action: 'farm' as const, coord: { q: 0, r: 0 } },
+    };
+
+    const reset = resetUnitTurn(workerWithTask);
+
+    expect(reset.hasActed).toBe(true);
+    expect(reset.movementPointsLeft).toBe(0);
+    expect(reset.workerTask).toBeDefined();
+  });
+
+  it('restores worker movement once workerTask is cleared', () => {
+    const worker = createUnit('worker', 'p1', { q: 0, r: 0 }, mkC());
+    const workerNoTask = { ...worker, workerTask: undefined };
+
+    const reset = resetUnitTurn(workerNoTask);
+
+    expect(reset.hasActed).toBe(false);
+    expect(reset.movementPointsLeft).toBe(UNIT_DEFINITIONS.worker.movementPoints);
+  });
 });
 
 describe('skippedTurn cycling flag', () => {

@@ -199,13 +199,17 @@ export function moveUnit(unit: Unit, to: HexCoord, cost: number): Unit {
 
 export function resetUnitTurn(unit: Unit): Unit {
   const { skippedTurn: _skippedTurn, ...rest } = unit;
-  return {
+  const base: Unit = {
     ...rest,
     movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0),
     hasMoved: false,
     hasActed: false,
     isResting: false,
   };
+  if (base.workerTask) {
+    return { ...base, movementPointsLeft: 0, hasActed: true };
+  }
+  return base;
 }
 
 // --- Healing constants ---

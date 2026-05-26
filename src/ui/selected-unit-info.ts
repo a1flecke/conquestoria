@@ -1,4 +1,4 @@
-import type { GameState, DisguiseType, HexCoord, WorkerActionType } from '@/core/types';
+import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
@@ -6,8 +6,10 @@ import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
 import {
   formatWorkerActionBlockerReason,
   getAvailableWorkerActions,
+  getImprovementDisplayName,
   getWorkerActionBlockerReason,
   getWorkerActionLabel,
+  getWorkerBlockerHints,
   type WorkerActionBlockerReason,
   type WorkerActionEligibilityOptions,
 } from '@/systems/improvement-system';
@@ -31,6 +33,7 @@ export interface SelectedUnitInfoCallbacks {
   onUpgradeUnit?: (unitId: string, cityId: string) => void;
   onOpenStack?: (coord: HexCoord) => void;
   onEstablishRoute?: (caravanId: string) => void;
+  onReplaceImprovement?: (action: BuildableImprovementType) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -207,13 +210,25 @@ export function renderSelectedUnitInfo(
         actionsDiv.appendChild(makeButton(label, color, () => callbacks.onWorkerAction!(action)));
       }
       if (workerActions.length === 0) {
-        const blockerReason = chooseWorkerBlockerReason(tile, completedTechs, unit.owner, { isCityTile });
-        const blockerText = formatWorkerActionBlockerReason(blockerReason);
-        if (blockerText) {
-          const blockerDiv = document.createElement('div');
-          blockerDiv.style.cssText = 'font-size:11px;color:#f8d28a;margin-top:4px;';
-          blockerDiv.textContent = blockerText;
-          wrapper.appendChild(blockerDiv);
+        const eligibilityOpts = { isCityTile };
+        if (tile && tile.improvement !== 'none' && callbacks.onReplaceImprovement) {
+          const replaceable = getAvailableWorkerActions(tile, completedTechs, unit.owner, { isCityTile, allowReplacement: true })
+            .filter((a): a is BuildableImprovementType => a !== 'drain_swamp');
+          for (const action of replaceable) {
+            const label = `Replace ${getImprovementDisplayName(tile.improvement)} with ${getImprovementDisplayName(action)}`;
+            actionsDiv.appendChild(makeButton(label, '#7c5c38', () => callbacks.onReplaceImprovement!(action)));
+          }
+        } else {
+          const hints = getWorkerBlockerHints(tile, completedTechs, unit.owner, eligibilityOpts);
+          const displayText = hints.length > 0
+            ? hints.join(' · ')
+            : formatWorkerActionBlockerReason(chooseWorkerBlockerReason(tile, completedTechs, unit.owner, eligibilityOpts));
+          if (displayText) {
+            const blockerDiv = document.createElement('div');
+            blockerDiv.style.cssText = 'font-size:11px;color:#f8d28a;margin-top:4px;';
+            blockerDiv.textContent = displayText;
+            wrapper.appendChild(blockerDiv);
+          }
         }
       }
     }
