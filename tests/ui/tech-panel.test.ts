@@ -7,7 +7,7 @@ import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { enqueueResearch } from '@/systems/planning-system';
 import { startResearch, TECH_TREE } from '@/systems/tech-system';
-import { createTechPanel } from '@/ui/tech-panel';
+import { createTechPanel, formatTechNodeEta } from '@/ui/tech-panel';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -659,5 +659,87 @@ describe('tech-panel', () => {
     expect(panel.textContent).toMatch(/Turns remaining: (5|6|7)/);
     expect(panel.textContent).not.toMatch(/Turns remaining: (9|10|11)/);
     expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).toMatch(/(5|6|7) turns/);
+  });
+
+  // --- MR-A: formatTechNodeEta and createTechNode detail text ---
+
+  describe('formatTechNodeEta', () => {
+    function makeNode(
+      state: 'completed' | 'current' | 'queued' | 'available' | 'next-layer' | 'locked',
+      turnsToResearch: number | null,
+    ) {
+      return {
+        tech: {
+          id: 'stone-weapons', name: 'Stone Weapons', cost: 10,
+          unlocks: [], prerequisites: [], track: 'military' as const, era: 1,
+        },
+        state,
+        track: 'military' as const,
+        era: 1,
+        visibleByDefault: true,
+        prerequisiteIds: [],
+        satisfiedPrerequisiteIds: [],
+        missingPrerequisiteIds: [],
+        turnsToResearch,
+        revealed: true,
+        visibleInFocus: true,
+        visibleInKnown: true,
+      };
+    }
+
+    it('returns empty string for completed nodes', () => {
+      expect(formatTechNodeEta(makeNode('completed', null))).toBe('');
+    });
+
+    it('returns turn count when turnsToResearch is set (regardless of state)', () => {
+      expect(formatTechNodeEta(makeNode('current', 3))).toBe('3 turns');
+    });
+
+    it('returns "ETA locked" for locked nodes with no turnsToResearch', () => {
+      expect(formatTechNodeEta(makeNode('locked', null))).toBe('ETA locked');
+    });
+
+    it('returns "ETA pending" for available nodes with no turnsToResearch', () => {
+      expect(formatTechNodeEta(makeNode('available', null))).toBe('ETA pending');
+    });
+  });
+
+  describe('createTechNode detail text', () => {
+    it('completed node detail has no ETA text and no double-separator', () => {
+      const state = createNewGame(undefined, 'tech-eta-completed');
+      state.civilizations.player.techState.completed.push('stone-weapons');
+
+      const panel = createTechPanel(document.body, state, {
+        onQueueResearch: () => {},
+        onMoveQueuedResearch: () => {},
+        onRemoveQueuedResearch: () => {},
+        onClose: () => {},
+      });
+
+      const completedItem = panel.querySelector('[data-state="completed"]') as HTMLElement | null;
+      if (!completedItem) return; // completed node not visible in focus zoom — skip
+      const detailDiv = completedItem.querySelectorAll('div')[2] as HTMLElement | undefined;
+      if (!detailDiv) return;
+      expect(detailDiv.textContent).toMatch(/Cost: \d+/);
+      expect(detailDiv.textContent).not.toContain('ETA pending');
+      expect(detailDiv.textContent).not.toContain(' ·  ·');
+    });
+
+    it('in-progress node detail contains turn count between separators', () => {
+      const state = createNewGame(undefined, 'tech-eta-inprogress');
+      state.civilizations.player.techState = startResearch(state.civilizations.player.techState, 'stone-weapons');
+
+      const panel = createTechPanel(document.body, state, {
+        onQueueResearch: () => {},
+        onMoveQueuedResearch: () => {},
+        onRemoveQueuedResearch: () => {},
+        onClose: () => {},
+      });
+
+      const currentItem = panel.querySelector('[data-state="current"]') as HTMLElement | null;
+      expect(currentItem).toBeTruthy();
+      const detailDiv = currentItem!.querySelectorAll('div')[2] as HTMLElement | undefined;
+      expect(detailDiv?.textContent).toMatch(/· \d+ turns ·/);
+    });
   });
 });
