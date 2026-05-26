@@ -51,6 +51,11 @@ interface CityRenderProjection {
   liveCityId?: string;
 }
 
+interface CityRenderOptions {
+  reducedMotion?: boolean;
+  nowMs?: number;
+}
+
 const OWNER_COLORS: Record<string, string> = {
   player: '#4a90d9',
   'ai-1': '#d94a4a',
@@ -79,8 +84,10 @@ export function drawCities(
   state: GameState,
   camera: Camera,
   playerCivId: string,
-  reducedMotion: boolean = false,
+  options: CityRenderOptions | boolean = {},
 ): void {
+  const reducedMotion = typeof options === 'boolean' ? options : options.reducedMotion ?? false;
+  const nowMs = typeof options === 'boolean' ? state.turn * 1000 : options.nowMs ?? state.turn * 1000;
   const vis = state.civilizations[playerCivId]?.visibility;
   if (!vis) return;
   const landmarksByCity = new Map<string, LegendaryWonderMapEntry[]>();
@@ -131,13 +138,6 @@ export function drawCities(
         ctx.fillText('🏛️', screen.x, screen.y + size * CITY_ICON_EMOJI_Y_NUDGE_RATIO);
       }
 
-      // City name + population below
-      ctx.font = `bold ${Math.max(9, size * 0.22)}px system-ui`;
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText(`${projection.name} (${projection.population})`, screen.x, screen.y + size * 0.5);
-
       const legendaryEntries = projection.liveCityId ? landmarksByCity.get(projection.liveCityId) ?? [] : [];
       if (legendaryEntries.length > 0) {
         drawLegendaryWonderLandmarks({
@@ -148,8 +148,17 @@ export function drawCities(
           entries: legendaryEntries,
           reducedMotion,
           lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
+          turn: state.turn,
+          nowMs,
         });
       }
+
+      // City name + population below
+      ctx.font = `bold ${Math.max(9, size * 0.22)}px system-ui`;
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(`${projection.name} (${projection.population})`, screen.x, screen.y + size * 0.5);
 
       if (projection.isLive && city && breakaway) {
         ctx.font = `${size * 0.28}px system-ui`;

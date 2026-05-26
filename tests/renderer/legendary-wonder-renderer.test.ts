@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { drawLegendaryWonderLandmarks } from '@/renderer/wonders/legendary-wonder-renderer';
+import {
+  drawLegendaryWonderLandmarkGlyph,
+  drawLegendaryWonderLandmarks,
+} from '@/renderer/wonders/legendary-wonder-renderer';
+import {
+  getLegendaryWonderLandmarkMetadata,
+  getLegendaryWonderLandmarkMetadataCatalog,
+} from '@/systems/legendary-wonder-landmark-catalog';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 
 class MockCanvasContext {
@@ -65,5 +72,50 @@ describe('legendary-wonder-renderer', () => {
     });
 
     expect(ctx.operations).toContain('text:+2');
+  });
+
+  it('draws every authored family with nonblank canvas operations', () => {
+    const families = getLegendaryWonderLandmarkMetadataCatalog().map(entry => entry.family);
+    for (const family of families) {
+      const ctx = new MockCanvasContext();
+      drawLegendaryWonderLandmarkGlyph({
+        ctx: ctx as unknown as CanvasRenderingContext2D,
+        cx: 80,
+        cy: 80,
+        radius: 12,
+        metadata: { ...getLegendaryWonderLandmarkMetadata('oracle-of-delphi'), family },
+        state: 'completed',
+        reducedMotion: false,
+        nowMs: 1000,
+      });
+      expect(ctx.operations.length, family).toBeGreaterThan(3);
+      expect(ctx.operations.some(operation => operation.startsWith('fill:') || operation.startsWith('stroke:')), family).toBe(true);
+    }
+  });
+
+  it('draws active construction ghosts as scaffold or outline operations', () => {
+    const ctx = new MockCanvasContext();
+    drawLegendaryWonderLandmarks({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      cx: 80,
+      cy: 80,
+      size: 48,
+      reducedMotion: false,
+      lowZoom: false,
+      turn: 20,
+      entries: [
+        {
+          wonderId: 'oracle-of-delphi',
+          label: 'Oracle of Delphi',
+          turnCompleted: Number.MAX_SAFE_INTEGER,
+          visual: getWonderVisualDefinition('oracle-of-delphi'),
+          state: 'under-construction',
+          metadata: getLegendaryWonderLandmarkMetadata('oracle-of-delphi'),
+          progressRatio: 0.6,
+        },
+      ],
+    });
+
+    expect(ctx.operations.some(operation => operation.includes('ghost') || operation.startsWith('stroke:'))).toBe(true);
   });
 });

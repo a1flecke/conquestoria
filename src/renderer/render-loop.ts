@@ -219,7 +219,10 @@ export class RenderLoop {
     }
 
     // Draw cities
-    drawCities(this.ctx, this.state, this.camera, viewerId, prefersReducedMotion());
+    drawCities(this.ctx, this.state, this.camera, viewerId, {
+      reducedMotion: prefersReducedMotion(),
+      nowMs: performance.now(),
+    });
     this.drawInfiltratedSpyIndicators();
     this.drawEmbeddedSpyIndicators();
 
