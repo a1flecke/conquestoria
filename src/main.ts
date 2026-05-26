@@ -130,6 +130,7 @@ import {
   routeCombatRewardEarned,
   routeCombatResolved,
   routeEconomyTreasuryStrain,
+  routeEraAdvanced,
   routeFactionTransition,
   queueFirstContactPendingEvents,
   routeFirstContact,
@@ -2689,6 +2690,12 @@ function appendFactionNotice(civId: string, message: string, type: NotificationE
     collectEvent(gameState.pendingEvents, civId, { type: 'faction:critical', message, turn: gameState.turn });
   }
 }
+
+bus.on('era:advanced', ({ era }) => {
+  const civId = gameState.currentPlayer;
+  const civName = gameState.civilizations[civId]?.name ?? 'Your civilization';
+  routeEraAdvanced(era, civId, civName, showNotification, appendFactionNotice);
+});
 
 bus.on('faction:unrest-started', event => {
   routeFactionTransition(gameState, { type: 'faction:unrest-started', ...event }, appendFactionNotice);

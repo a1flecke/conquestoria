@@ -322,3 +322,20 @@ export function routeBarbarianSpawned(
     });
   }
 }
+
+export function routeEraAdvanced(
+  era: number,
+  civId: string,
+  civName: string,
+  toastSink: (message: string, type: NotificationEntry['type']) => void,
+  factionSink: NotificationSink,
+): void {
+  toastSink(`${civName} has entered Era ${era}!`, 'success');
+  if (era === 2) {
+    factionSink(
+      civId,
+      `Era 2 begins — cities can now experience unrest. High pressure (overcrowding, distance from capital, unhappiness) will trigger it. Garrison units, spend gold to appease, or build happiness improvements to keep order.`,
+      'info',
+    );
+  }
+}
