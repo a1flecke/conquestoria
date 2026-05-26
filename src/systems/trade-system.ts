@@ -426,11 +426,10 @@ export function scrubEmbargoedRoutes(state: GameState, bus: EventBus | undefined
     if (!route.foreignCivId) continue;
 
     const fromCity = state.cities[route.fromCityId];
-    const toCity = state.cities[route.toCityId];
-    if (!fromCity || !toCity) continue;
+    if (!fromCity) continue;
 
     const fromOwner = fromCity.owner;
-    const toOwner = toCity.owner;
+    const toOwner = route.foreignCivId; // stored at route creation — avoids missing-city lookup
 
     const embargoed = state.embargoes.some(embargo =>
       (embargo.targetCivId === toOwner && embargo.participants.includes(fromOwner)) ||
