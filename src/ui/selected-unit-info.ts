@@ -162,15 +162,17 @@ export function renderSelectedUnitInfo(
   actionsDiv.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;';
 
   if (def.canFoundCity && callbacks.onFoundCity) {
-    if (canFoundCityAt(state, unit.position)) {
+    if (unit.movementPointsLeft > 0 && canFoundCityAt(state, unit.position)) {
       actionsDiv.appendChild(makeButton('Found City', '#e8c170', callbacks.onFoundCity));
     } else {
-      const blockers = getCityFoundingBlockers(state, unit.position);
+      const blockerTitle = unit.movementPointsLeft <= 0
+        ? 'No movement remaining'
+        : formatCityFoundingBlockerMessage(getCityFoundingBlockers(state, unit.position));
       const btn = makeButton('Found City', '#e8c170');
       btn.disabled = true;
       btn.style.opacity = '0.5';
       btn.style.cursor = 'not-allowed';
-      btn.title = formatCityFoundingBlockerMessage(blockers);
+      btn.title = blockerTitle;
       actionsDiv.appendChild(btn);
     }
   }

@@ -6,9 +6,11 @@ import type { GameState } from '@/core/types';
 class MockElement {
   tagName: string;
   children: MockElement[] = [];
-  style = { cssText: '', display: '' };
+  style = { cssText: '', display: '', opacity: '', cursor: '' };
   textContent = '';
   type = '';
+  disabled = false;
+  title = '';
   listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
 
   get childElementCount(): number {
@@ -715,6 +717,39 @@ describe('renderSelectedUnitInfo - found city button', () => {
     expect(btn).toBeDefined();
     btn!.click();
     expect(called).toBe(false);
+  });
+
+  it('renders Found City as disabled when settler has no movement points remaining', () => {
+    const state = makeSettlerState();
+    state.units['settler-1'] = { ...state.units['settler-1'], movementPointsLeft: 0 };
+    const container = new MockElement('div');
+    let called = false;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'settler-1', {
+      onFoundCity: () => { called = true; },
+    });
+
+    const btn = findButtons(container).find(b => b.textContent === 'Found City');
+    expect(btn).toBeDefined();
+    expect(btn!.disabled).toBe(true);
+    btn!.click();
+    expect(called).toBe(false);
+  });
+
+  it('renders Found City as enabled when settler has movement points on a valid tile', () => {
+    const state = makeSettlerState(); // movementPointsLeft: 2 by default
+    const container = new MockElement('div');
+    let called = false;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'settler-1', {
+      onFoundCity: () => { called = true; },
+    });
+
+    const btn = findButtons(container).find(b => b.textContent === 'Found City');
+    expect(btn).toBeDefined();
+    expect(btn!.disabled).toBeFalsy();
+    btn!.click();
+    expect(called).toBe(true);
   });
 });
 
