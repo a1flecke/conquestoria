@@ -3,7 +3,7 @@ import { getWonderSpectacleRenderMode } from '@/systems/wonder-spectacle/present
 import type { WonderSpectacleRenderMode } from '@/systems/wonder-spectacle/types';
 import { createGameButton } from '@/ui/ui-kit';
 import { createWonderSpectacleVignette } from '@/ui/wonder-spectacle-vignette';
-import { createWonderVignette } from '@/ui/wonder-vignette';
+import { createWonderVisualVignette } from '@/ui/wonder-vignette';
 
 export interface WonderCodexPageOptions {
   mode?: WonderCodexResponsiveMode;
@@ -76,16 +76,7 @@ export function createWonderCodexPage(
       });
     }
 
-    return createWonderVignette({
-      kind: page.kind,
-      wonderId: page.id,
-      visibility: 'masked',
-      name: page.title,
-      visual: page.visual,
-      canViewOnMap: false,
-      maskedLabel: page.stateLabel,
-      stateLabel: page.stateLabel,
-    }, { reducedMotion });
+    return createWonderVisualVignette(page.title, page.visual, { reducedMotion, kind: 'legendary' });
   }
 
   const root = document.createElement('article');
