@@ -125,6 +125,9 @@ export function getAttackTargets(
   attacker: Unit,
   options: AttackTargetOptions = {},
 ): AttackTarget[] {
+  // A unit that has already acted cannot attack again this turn.
+  if (attacker.hasActed) return [];
+
   const profile = getUnitAttackProfile(attacker.type);
   const candidates = state.map.wrapsHorizontally
     ? getWrappedHexesInRange(attacker.position, profile.range, state.map.width)

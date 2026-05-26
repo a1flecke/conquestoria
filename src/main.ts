@@ -1440,6 +1440,27 @@ function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
     wonderDiscoveryQueue?.notifyActionSettled();
     const unit = gameState.units[unitId];
     if (!unit || unit.owner !== gameState.currentPlayer) return;
+
+    // Post-move: check if the unit has landed on a hostile major-civ city tile.
+    // This handles the case where canReachCityAssault returned false because the unit
+    // was beyond attack range before moving (e.g., melee at distance 2 from city).
+    // Minor civ cities (owner starts with 'mc-') are excluded — they use the
+    // assault-minor-civ intent path. Allied cities are excluded by the atWarWith check.
+    const destKey = hexKey(unit.position);
+    const cityAtDest = Object.values(gameState.cities).find(c =>
+      hexKey(c.position) === destKey
+      && c.owner !== gameState.currentPlayer
+      && !c.owner.startsWith('mc-')
+      && (gameState.civilizations[gameState.currentPlayer]?.diplomacy?.atWarWith?.includes(c.owner) ?? false),
+    );
+    if (cityAtDest) {
+      beginPlayerCityAssault(unitId, cityAtDest.id);
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      // beginPlayerCityAssault handles its own selectNextUnit call via finalizePendingCityCaptureChoice.
+      return;
+    }
+
     if ((unit.movementPointsLeft ?? 0) <= 0) {
       selectNextUnit();
     } else if (selectedUnitId === unitId) {

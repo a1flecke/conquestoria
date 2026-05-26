@@ -149,4 +149,32 @@ describe('attack-targeting', () => {
 
     expect(getAttackTargets(state, attacker, { viewerId: 'player' }).map(target => hexKey(target.coord))).toEqual(['2,0']);
   });
+
+  it('returns empty array when attacker.hasActed is true even if targets are in range', () => {
+    const attacker = unit('attacker', 'warrior', 'player', { q: 0, r: 0 });
+    const defender = unit('defender', 'warrior', 'ai-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ attacker, defender }, { '1,0': 'visible' });
+    state.units['attacker'] = { ...attacker, hasActed: true };
+
+    expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toEqual([]);
+  });
+
+  it('returns targets normally when attacker.hasActed is false (no regression)', () => {
+    const attacker = unit('attacker', 'warrior', 'player', { q: 0, r: 0 });
+    const defender = unit('defender', 'warrior', 'ai-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ attacker, defender }, { '1,0': 'visible' });
+    state.units['attacker'] = { ...attacker, hasActed: false };
+
+    expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toHaveLength(1);
+  });
+
+  it('returns targets for a ranged unit with movementPointsLeft=0 but hasActed=false', () => {
+    // ranged units can attack without moving — movementPointsLeft alone must not block
+    const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
+    const defender = unit('defender', 'warrior', 'ai-1', { q: 2, r: 0 });
+    const state = stateWithUnits({ attacker, defender }, { '2,0': 'visible' });
+    state.units['attacker'] = { ...attacker, movementPointsLeft: 0, hasActed: false };
+
+    expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toHaveLength(1);
+  });
 });
