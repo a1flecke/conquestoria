@@ -1,5 +1,20 @@
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { assignLegendaryWonderSlots } from '@/renderer/wonders/legendary-wonder-slots';
+import {
+  LEGENDARY_LANDMARK_AURAS,
+  LEGENDARY_LANDMARK_FAMILIES,
+  LEGENDARY_LANDMARK_GHOSTS,
+  LEGENDARY_LANDMARK_MOTIFS,
+  LEGENDARY_LANDMARK_MOTIONS,
+  LEGENDARY_LANDMARK_VARIANTS,
+} from '@/systems/legendary-wonder-landmark-types';
+
+export const CANVAS_LEGENDARY_LANDMARK_FAMILIES = LEGENDARY_LANDMARK_FAMILIES;
+export const CANVAS_LEGENDARY_LANDMARK_VARIANTS = LEGENDARY_LANDMARK_VARIANTS;
+export const CANVAS_LEGENDARY_LANDMARK_MOTIFS = LEGENDARY_LANDMARK_MOTIFS;
+export const CANVAS_LEGENDARY_LANDMARK_AURAS = LEGENDARY_LANDMARK_AURAS;
+export const CANVAS_LEGENDARY_LANDMARK_MOTIONS = LEGENDARY_LANDMARK_MOTIONS;
+export const CANVAS_LEGENDARY_LANDMARK_GHOSTS = LEGENDARY_LANDMARK_GHOSTS;
 
 export interface LegendaryWonderRenderEntry {
   wonderId: string;
