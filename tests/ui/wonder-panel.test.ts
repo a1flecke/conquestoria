@@ -389,6 +389,30 @@ describe('wonder-panel', () => {
     expect(rivalSection?.textContent).not.toContain('Connect two cities');
   });
 
+  it('does not render completed rival atlas intel as an active rival race', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderIntel = {
+      player: [{
+        kind: 'completed',
+        eventId: 'completed:grand-canal:rival:58',
+        wonderId: 'grand-canal',
+        civId: 'rival',
+        civName: 'Rival',
+        completionTurn: 58,
+        learnedTurn: 58,
+      }],
+    };
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-section="rival-wonders"]')).toBeNull();
+    expect(panel.textContent).not.toContain('Rival is pursuing this');
+    expect(panel.textContent).not.toContain('Rival completed Grand Canal');
+  });
+
   it('Start Construction and Close buttons have styled background and color', () => {
     const { container, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['masonry', 'writing', 'calendar'];
