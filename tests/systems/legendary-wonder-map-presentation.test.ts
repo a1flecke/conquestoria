@@ -82,6 +82,30 @@ describe('legendary-wonder-map-presentation', () => {
       .some(entry => entry.state === 'under-construction')).toBe(false);
   });
 
+  it('uses live active city production for construction ghost progress when project investment lags', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
+    state.cities['city-river'].productionProgress = 72;
+    state.civilizations.player.visibility.tiles[hexKey(state.cities['city-river'].position)] = 'visible';
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi:player:city-river': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'building',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    expect(getLegendaryWonderMapEntries(state, 'player')).toContainEqual(expect.objectContaining({
+      wonderId: 'oracle-of-delphi',
+      state: 'under-construction',
+      progressRatio: 0.6,
+    }));
+  });
+
   it('does not render rival landmarks from completed rival intel alone', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     state.completedLegendaryWonders = {
