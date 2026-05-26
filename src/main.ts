@@ -21,7 +21,7 @@ import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
-import { createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
+import { createWorkerReplacementConfirmPanel, createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
@@ -1403,6 +1403,42 @@ function selectUnit(unitId: string): void {
           updateHUD();
           selectUnit(caravanId);
           showNotification('Trade route established!', 'success');
+        });
+      },
+      onReplaceImprovement: (action) => {
+        if (!selectedUnitId) return;
+        const unit = gameState.units[selectedUnitId];
+        if (!unit) return;
+        const tileKey = hexKey(unit.position);
+        const currentTile = gameState.map.tiles[tileKey];
+        if (!currentTile || currentTile.improvement === 'none') return;
+        const existingName = getImprovementDisplayName(currentTile.improvement);
+        const newName = getImprovementDisplayName(action);
+        const uid = selectedUnitId;
+        createWorkerReplacementConfirmPanel(uiLayer, {
+          existingName,
+          newName,
+          onCancel: () => selectUnit(uid),
+          onConfirm: () => {
+            const result = applyWorkerAction(gameState, uid, action, { allowReplacement: true });
+            if (!result.ok) return;
+            gameState = result.state;
+            for (const event of result.events) {
+              if (event.type === 'improvement:started') {
+                bus.emit('improvement:started', event.payload);
+              } else {
+                bus.emit('unit:destroyed', event.payload);
+              }
+            }
+            renderLoop.setGameState(gameState);
+            updateHUD();
+            if (result.workerConsumed || result.workerLost || !gameState.units[uid]) {
+              deselectUnit();
+            } else {
+              selectUnit(uid);
+            }
+            showNotification(result.message, result.workerLost ? 'warning' : 'info');
+          },
         });
       },
     });
