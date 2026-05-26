@@ -132,7 +132,10 @@ describe('wonder-codex-page', () => {
     });
 
     expect(root.querySelector('[data-wonder-spectacle-mode="codex-static"]')).toBeTruthy();
-    root.querySelector<HTMLButtonElement>('[data-codex-replay-animation]')?.click();
+    const replay = root.querySelector<HTMLButtonElement>('[data-codex-replay-animation]');
+    expect(replay?.disabled).toBe(true);
+    expect(replay?.getAttribute('aria-label')).toContain('reduced motion');
+    replay?.click();
     expect(root.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeNull();
   });
 
