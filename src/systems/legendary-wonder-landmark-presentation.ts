@@ -64,3 +64,26 @@ export function getLegendaryLandmarkPreviewForCity(
   const ghost = getActiveLegendaryConstructionGhostForCity(state, viewerId, city, { mapOnly: false });
   return ghost ? [...completed, ghost] : completed;
 }
+
+export interface LegendaryWonderLandmarkPreviewView {
+  cityId: string;
+  cityName: string;
+  items: Array<{
+    wonderId: string;
+    label: string;
+    state: 'completed' | 'under-construction';
+  }>;
+}
+
+export function getLegendaryLandmarkPreviewViewForCity(
+  state: GameState,
+  viewerId: string,
+  cityId: string,
+): LegendaryWonderLandmarkPreviewView | null {
+  const city = state.cities[cityId];
+  if (!city || city.owner !== viewerId) return null;
+  const items = getLegendaryLandmarkPreviewForCity(state, viewerId, cityId)
+    .map(item => ({ wonderId: item.wonderId, label: item.label, state: item.state }));
+  if (items.length === 0) return null;
+  return { cityId, cityName: city.name, items };
+}

@@ -152,6 +152,26 @@ export function createWonderCodexPage(
   for (const line of page.statusLines) appendText(status, 'li', line);
   root.appendChild(status);
 
+  if (page.landmarkPreview) {
+    const preview = document.createElement('section');
+    preview.dataset.section = 'legendary-landmark-preview';
+    preview.style.cssText = 'border:1px solid rgba(232,193,112,0.24);border-radius:8px;padding:10px;background:rgba(232,193,112,0.07);display:grid;gap:6px;';
+    appendText(preview, 'h4', 'City landmark preview', 'margin:0;font-size:13px;color:#f4d188;');
+    appendText(preview, 'p', page.landmarkPreview.cityName, 'margin:0;font-size:12px;color:rgba(248,241,223,0.74);');
+    const list = document.createElement('ul');
+    list.style.cssText = 'margin:0;padding-left:18px;display:grid;gap:4px;font-size:12px;color:rgba(248,241,223,0.74);';
+    for (const item of page.landmarkPreview.items) {
+      const li = document.createElement('li');
+      li.dataset.landmarkPreview = item.wonderId;
+      li.textContent = item.state === 'under-construction'
+        ? `${item.label} — Under construction`
+        : `${item.label} — Completed`;
+      list.appendChild(li);
+    }
+    preview.appendChild(list);
+    root.appendChild(preview);
+  }
+
   if (page.rivalIntel) {
     const rivalIntel = document.createElement('section');
     rivalIntel.dataset.rivalIntelSection = 'true';

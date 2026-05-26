@@ -74,6 +74,37 @@ describe('city-panel legendary wonders', () => {
     expect(compactSection?.textContent).not.toContain('Manhattan Project');
   });
 
+  it('renders compact legendary landmark preview with completed and active ghost states', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: city.id, turnCompleted: 20 },
+    };
+    city.productionQueue = ['legendary:grand-canal'];
+    city.productionProgress = 90;
+    state.legendaryWonderProjects = {
+      'grand-canal:player:city-river': {
+        wonderId: 'grand-canal',
+        ownerId: 'player',
+        cityId: city.id,
+        phase: 'building',
+        investedProduction: 90,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const preview = panel.querySelector('[data-section="legendary-landmark-preview"]');
+    expect(preview?.textContent).toContain('Oracle of Delphi');
+    expect(preview?.textContent).toContain('Grand Canal');
+    expect(preview?.textContent).toContain('Under construction');
+  });
+
   it('renders legendary active production and queued follow-ups with human-readable names and ETA', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.productionQueue = ['legendary:oracle-of-delphi', 'library'];

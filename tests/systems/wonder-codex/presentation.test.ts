@@ -251,4 +251,37 @@ describe('wonder-codex presentation', () => {
     expect(model.selectedPage?.stateLabel).toBe('Under construction');
     expect(model.selectedPage?.actions[0]).toMatchObject({ type: 'open-city', cityId: 'safe-city' });
   });
+
+  it('adds owned legendary landmark preview to owned completed and active pages only', () => {
+    const state = makeState();
+    const baseCity = state.cities[Object.keys(state.cities)[0]];
+    state.cities['safe-city'] = { ...baseCity, id: 'safe-city', owner: 'player' };
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: 'safe-city', turnCompleted: 58 },
+    };
+
+    const owned = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    expect(owned.selectedPage?.landmarkPreview).toMatchObject({
+      cityId: 'safe-city',
+      cityName: state.cities['safe-city'].name,
+    });
+    expect(owned.selectedPage?.landmarkPreview?.items[0]).toMatchObject({
+      wonderId: 'oracle-of-delphi',
+      state: 'completed',
+    });
+
+    state.legendaryWonderIntel = {
+      player: [{
+        kind: 'completed',
+        eventId: 'completed:grand-canal:ai-1:58',
+        wonderId: 'grand-canal',
+        civId: 'ai-1',
+        civName: 'Rival',
+        completionTurn: 58,
+        learnedTurn: 58,
+      }],
+    };
+    const rival = getWonderCodexViewModel(state, 'player', { initialWonderId: 'grand-canal' });
+    expect(rival.selectedPage?.landmarkPreview).toBeUndefined();
+  });
 });

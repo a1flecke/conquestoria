@@ -183,6 +183,27 @@ describe('createTerritoryInspectionPanel', () => {
     expect(panel.textContent).toContain('Completed legendary wonders');
     expect(panel.textContent).toContain('Oracle of Delphi');
   });
+
+  it('lists every completed owned legendary wonder in an overflow city', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    const city = state.cities['city-river'];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: city.id, turnCompleted: 1 },
+      'grand-canal': { ownerId: 'player', cityId: city.id, turnCompleted: 2 },
+      'sun-spire': { ownerId: 'player', cityId: city.id, turnCompleted: 3 },
+      'world-archive': { ownerId: 'player', cityId: city.id, turnCompleted: 4 },
+      'moonwell-gardens': { ownerId: 'player', cityId: city.id, turnCompleted: 5 },
+      'ironroot-foundry': { ownerId: 'player', cityId: city.id, turnCompleted: 6 },
+      'tidecaller-bastion': { ownerId: 'player', cityId: city.id, turnCompleted: 7 },
+    };
+
+    const panel = createTerritoryInspectionPanel(state, city.position, 'player');
+
+    expect(panel.textContent).toContain('Oracle of Delphi');
+    expect(panel.textContent).toContain('Grand Canal');
+    expect(panel.textContent).toContain('Tidecaller Bastion');
+  });
 });
 
 describe('createTerritoryInspectionPanel — S2b acquisition status', () => {

@@ -14,6 +14,7 @@ import {
   getCompactLegendaryWonderEntriesForCity,
   getLegendaryWonderPresentationForCity,
 } from '@/systems/legendary-wonder-presentation';
+import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wonder-landmark-presentation';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
@@ -313,6 +314,14 @@ export function createCityPanel(
     </div>
   `;
 
+  const landmarkPreview = getLegendaryLandmarkPreviewViewForCity(state, state.currentPlayer, city.id);
+  const landmarkPreviewHtml = landmarkPreview
+    ? `<div data-section="legendary-landmark-preview" style="background:rgba(232,193,112,0.08);border:1px solid rgba(232,193,112,0.22);border-radius:8px;padding:10px;margin-bottom:12px;">
+        <div style="font-weight:bold;font-size:13px;color:#e8c170;margin-bottom:6px;">Legendary landmarks</div>
+        ${landmarkPreview.items.map((item, index) => `<div data-landmark-preview="${item.wonderId}" style="font-size:12px;opacity:0.86;"><span data-text="landmark-preview-${index}"></span></div>`).join('')}
+      </div>`
+    : '';
+
   // Idle production selector — always visible; conversion only fires when queue is empty.
   const activeMode = city.idleProduction ?? 'none';
   const goldActive = activeMode === 'gold' ? 'border-color:#d4aa2c;background:rgba(212,170,44,0.3);' : '';
@@ -453,7 +462,7 @@ export function createCityPanel(
       <div id="tab-wonders" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Legendary Wonders</div>
     </div>
     <div id="city-list-view">
-      ${idleSelectorHtml}${currentProductionHtml}
+      ${landmarkPreviewHtml}${idleSelectorHtml}${currentProductionHtml}
       ${city.productionQueue.length > 1 ? `<div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;"><div style="font-weight:bold;color:#e8c170;margin-bottom:8px;">Production Queue</div>${queueRowsHtml}</div>` : ''}
       ${cityWonderProject ? `<div style="margin-bottom:12px;font-size:12px;opacity:0.75;">Wonder carryover: ${cityWonderProject.transferableProduction}</div>` : ''}
       ${city.buildings.length > 0 ? `<div style="margin-bottom:16px;"><h3 style="font-size:14px;margin:0 0 8px;">Buildings</h3>${buildingPlaceholders}</div>` : ''}
@@ -572,6 +581,12 @@ export function createCityPanel(
         : entry.rewardSummary);
     setText(`wonder-recovery-${index}`, entry.recoveryLabel ?? '');
     setText(`wonder-resumed-${index}`, entry.productionResumedLabel ?? '');
+  });
+
+  landmarkPreview?.items.forEach((item, index) => {
+    setText(`landmark-preview-${index}`, item.state === 'under-construction'
+      ? `${item.label} — Under construction`
+      : `${item.label} — Completed`);
   });
 
   container.appendChild(panel);
