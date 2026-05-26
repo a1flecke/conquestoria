@@ -1,5 +1,8 @@
 import type { WonderCodexAction, WonderCodexPageViewModel, WonderCodexResponsiveMode } from '@/systems/wonder-codex/presentation';
+import { getWonderSpectacleRenderMode } from '@/systems/wonder-spectacle/presentation';
+import type { WonderSpectacleRenderMode } from '@/systems/wonder-spectacle/types';
 import { createGameButton } from '@/ui/ui-kit';
+import { createWonderSpectacleVignette } from '@/ui/wonder-spectacle-vignette';
 import { createWonderVignette } from '@/ui/wonder-vignette';
 
 export interface WonderCodexPageOptions {
@@ -48,6 +51,43 @@ export function createWonderCodexPage(
   options: WonderCodexPageOptions,
 ): HTMLElement {
   const mode = options.mode ?? 'desktop';
+  const reducedMotion = options.reducedMotion ?? false;
+  type CodexSpectacleMode = Extract<WonderSpectacleRenderMode, 'codex-ambient' | 'codex-static' | 'reveal-amplified' | 'reveal-static'>;
+  const initialSpectacleMode = getWonderSpectacleRenderMode({
+    surface: 'codex',
+    wonderId: page.id,
+    discovered: page.kind === 'natural',
+    reducedMotion,
+  });
+  let codexSpectacleMode: CodexSpectacleMode =
+    initialSpectacleMode === 'codex-ambient' || initialSpectacleMode === 'codex-static'
+      ? initialSpectacleMode
+      : 'codex-static';
+  let vignetteHost: HTMLElement | null = null;
+  let replayTimer: number | null = null;
+
+  function renderVignette(): HTMLElement {
+    if (page.kind === 'natural') {
+      return createWonderSpectacleVignette({
+        wonderId: page.id,
+        name: page.title,
+        mode: codexSpectacleMode,
+        reducedMotion,
+      });
+    }
+
+    return createWonderVignette({
+      kind: page.kind,
+      wonderId: page.id,
+      visibility: 'masked',
+      name: page.title,
+      visual: page.visual,
+      canViewOnMap: false,
+      maskedLabel: page.stateLabel,
+      stateLabel: page.stateLabel,
+    }, { reducedMotion });
+  }
+
   const root = document.createElement('article');
   root.dataset.codexPage = page.id;
   root.style.cssText = 'min-width:0;display:flex;flex-direction:column;gap:14px;color:#f8f1df;';
@@ -73,22 +113,37 @@ export function createWonderCodexPage(
 
   const hero = document.createElement('div');
   hero.style.cssText = 'display:flex;gap:14px;align-items:center;flex-wrap:wrap;';
-  hero.appendChild(createWonderVignette({
-    kind: page.kind,
-    wonderId: page.id,
-    visibility: page.kind === 'natural' ? 'discovered' : 'masked',
-    name: page.title,
-    visual: page.visual,
-    canViewOnMap: false,
-    ...(page.kind === 'natural'
-      ? { effectSummary: '', locationLabel: '', coord: null }
-      : { maskedLabel: page.stateLabel, stateLabel: page.stateLabel }),
-  } as Parameters<typeof createWonderVignette>[0], { reducedMotion: options.reducedMotion }));
+  vignetteHost = document.createElement('div');
+  vignetteHost.dataset.codexSpectacleHost = 'true';
+  vignetteHost.appendChild(renderVignette());
+  hero.appendChild(vignetteHost);
   const copy = document.createElement('div');
   copy.style.cssText = 'min-width:0;flex:1;';
   appendText(copy, 'p', page.stateLabel, 'margin:0 0 3px;font-size:12px;color:#e8c170;');
   appendText(copy, 'h3', page.title, 'margin:0;font-size:24px;letter-spacing:0;');
   appendText(copy, 'p', page.subtitle, 'margin:5px 0 0;font-size:13px;line-height:1.45;color:rgba(248,241,223,0.74);');
+  if (page.kind === 'natural') {
+    const replay = createGameButton('Replay animation', 'ghost');
+    replay.dataset.codexReplayAnimation = 'true';
+    replay.setAttribute('aria-label', `Replay ${page.title} animation`);
+    replay.addEventListener('click', () => {
+      if (reducedMotion || !vignetteHost) return;
+      if (replayTimer !== null) {
+        window.clearTimeout(replayTimer);
+      }
+      codexSpectacleMode = 'reveal-amplified';
+      vignetteHost.textContent = '';
+      vignetteHost.appendChild(renderVignette());
+      replayTimer = window.setTimeout(() => {
+        if (!vignetteHost) return;
+        codexSpectacleMode = 'codex-ambient';
+        vignetteHost.textContent = '';
+        vignetteHost.appendChild(renderVignette());
+        replayTimer = null;
+      }, 3600);
+    });
+    copy.appendChild(replay);
+  }
   hero.appendChild(copy);
   root.appendChild(hero);
 
