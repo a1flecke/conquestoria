@@ -114,9 +114,15 @@ export function createWonderCodexPage(
   appendText(copy, 'h3', page.title, 'margin:0;font-size:24px;letter-spacing:0;');
   appendText(copy, 'p', page.subtitle, 'margin:5px 0 0;font-size:13px;line-height:1.45;color:rgba(248,241,223,0.74);');
   if (page.kind === 'natural') {
-    const replay = createGameButton('Replay animation', 'ghost');
+    const replay = createGameButton('Replay animation', 'ghost', { disabled: reducedMotion });
     replay.dataset.codexReplayAnimation = 'true';
-    replay.setAttribute('aria-label', `Replay ${page.title} animation`);
+    replay.style.marginTop = '8px';
+    replay.setAttribute('aria-label', reducedMotion
+      ? `Replay ${page.title} animation unavailable while reduced motion is enabled`
+      : `Replay ${page.title} animation`);
+    if (reducedMotion) {
+      replay.title = 'Animation replay is disabled while reduced motion is enabled.';
+    }
     replay.addEventListener('click', () => {
       if (reducedMotion || !vignetteHost) return;
       if (replayTimer !== null) {

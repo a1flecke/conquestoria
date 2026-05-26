@@ -50,6 +50,7 @@ describe('natural wonder spectacle canvas adapter', () => {
     expect(animated.operations).toContain('save');
     expect(animated.operations).toContain('restore');
     expect(animated.operations.some(operation => operation.startsWith('fill:'))).toBe(true);
+    expect(animated.globalAlpha).toBe(1);
 
     const staticCtx = new MockCanvasContext();
     drawNaturalWonderSpectacleEffects({

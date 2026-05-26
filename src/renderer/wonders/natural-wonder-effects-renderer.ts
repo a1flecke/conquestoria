@@ -47,6 +47,7 @@ function drawAura(
   ctx.fillStyle = color;
   ctx.globalAlpha = 0.16 + amount * 0.12;
   ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 function drawPrimitive(

@@ -89,7 +89,7 @@ export function createWonderSpectacleVignette(options: WonderSpectacleVignetteOp
   const svg = createSvgElement('svg') as SVGSVGElement;
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', `${options.name} spectacle animation`);
+  svg.setAttribute('aria-label', motionEnabled ? `${options.name} spectacle animation` : `${options.name} spectacle image`);
   svg.style.cssText = `width:100%;height:100%;filter:drop-shadow(0 0 12px ${visual.palette.glow});`;
 
   const base = createSvgElement('circle');
