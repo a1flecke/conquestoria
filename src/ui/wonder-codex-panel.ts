@@ -101,6 +101,10 @@ export function createWonderCodexPanel(
       const copy = document.createElement('span');
       appendText(copy, 'strong', entry.title, 'display:block;font-size:13px;');
       appendText(copy, 'span', entry.stateLabel, 'display:block;font-size:11px;opacity:0.72;margin-top:2px;');
+      if (entry.rivalIntelCount && entry.rivalIntelBadgeLabel) {
+        const badge = appendText(copy, 'span', entry.rivalIntelBadgeLabel, 'display:inline-block;margin-top:5px;padding:2px 6px;border:1px solid rgba(232,193,112,0.36);border-radius:999px;font-size:10px;color:#f4d188;background:rgba(232,193,112,0.10);');
+        badge.dataset.rivalIntelBadge = 'true';
+      }
       button.appendChild(copy);
       button.addEventListener('click', () => {
         selectedWonderId = entry.id;

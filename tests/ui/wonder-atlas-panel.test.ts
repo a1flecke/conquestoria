@@ -146,6 +146,105 @@ describe('wonder-atlas-panel', () => {
     expect(panel.textContent).not.toContain('90');
   });
 
+  it('renders rival activity badge and journal for the current viewer only', () => {
+    const state = makeState();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'started',
+          eventId: 'started:oracle-of-delphi:ai-1:rival-city:41',
+          projectKey: 'oracle-of-delphi:ai-1:rival-city',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+        },
+      ],
+      'player-2': [
+        {
+          kind: 'completed',
+          eventId: 'completed:grand-canal:ai-1:58',
+          wonderId: 'grand-canal',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 58,
+          learnedTurn: 58,
+        },
+      ],
+    };
+
+    const panel = createWonderAtlasPanel(document.body, state, {
+      initialWonderId: 'oracle-of-delphi',
+      onViewOnMap: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-rival-intel-badge]')?.textContent).toContain('Known rival activity');
+    expect(panel.querySelector('[data-rival-intel-section]')?.textContent).toContain('Spotted rival project');
+    expect(panel.querySelector('[data-rival-intel-section]')?.textContent).toContain('Rival Harbor');
+    expect(panel.textContent).not.toContain('Grand Canal on turn 58');
+    expect(panel.querySelector('[data-codex-action="open-city"]')).toBeNull();
+    expect(panel.querySelector('[data-codex-action="view-map"]')).toBeNull();
+  });
+
+  it('rerenders rival intel when reopened for a different hot-seat viewer', () => {
+    const state = makeState();
+    state.civilizations['player-2'] = {
+      ...state.civilizations.player,
+      id: 'player-2',
+      name: 'Second Player',
+      isHuman: true,
+      cities: [],
+      units: [],
+    };
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'started',
+          eventId: 'started:oracle-of-delphi:ai-1:rival-city:41',
+          projectKey: 'oracle-of-delphi:ai-1:rival-city',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+        },
+      ],
+      'player-2': [
+        {
+          kind: 'completed',
+          eventId: 'completed:grand-canal:ai-1:58',
+          wonderId: 'grand-canal',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 58,
+          learnedTurn: 58,
+        },
+      ],
+    };
+
+    createWonderAtlasPanel(document.body, state, {
+      initialWonderId: 'oracle-of-delphi',
+      onViewOnMap: () => {},
+      onClose: () => {},
+    });
+    expect(document.body.textContent).toContain('Rival Harbor');
+
+    state.currentPlayer = 'player-2';
+    createWonderAtlasPanel(document.body, state, {
+      initialWonderId: 'grand-canal',
+      onViewOnMap: () => {},
+      onClose: () => {},
+    });
+
+    expect(document.querySelectorAll('#wonder-codex-panel')).toHaveLength(1);
+    expect(document.body.textContent).toContain('Rival completed Grand Canal on turn 58');
+    expect(document.body.textContent).not.toContain('Rival Harbor');
+  });
+
   it('uses a static vignette when reduced motion is requested', () => {
     const state = makeState();
     state.discoveredWonders.great_volcano = 'player';
