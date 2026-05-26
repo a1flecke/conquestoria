@@ -364,6 +364,60 @@ describe('save persistence (#38)', () => {
     });
   });
 
+  it('round-trips completed legendary wonder intel through JSON serialization', () => {
+    const state = {
+      legendaryWonderIntel: {
+        observer: [
+          {
+            kind: 'completed',
+            eventId: 'completed:oracle-of-delphi:rival:58',
+            wonderId: 'oracle-of-delphi',
+            civId: 'rival',
+            civName: 'Rival',
+            completionTurn: 58,
+            learnedTurn: 58,
+          },
+        ],
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderIntel.observer[0]).toEqual({
+      kind: 'completed',
+      eventId: 'completed:oracle-of-delphi:rival:58',
+      wonderId: 'oracle-of-delphi',
+      civId: 'rival',
+      civName: 'Rival',
+      completionTurn: 58,
+      learnedTurn: 58,
+    });
+  });
+
+  it('keeps legacy started legendary wonder intel serializable', () => {
+    const state = {
+      legendaryWonderIntel: {
+        observer: [
+          {
+            projectKey: 'oracle-of-delphi:rival:city-rival',
+            wonderId: 'oracle-of-delphi',
+            civId: 'rival',
+            civName: 'Rival',
+            cityId: 'city-rival',
+            cityName: 'Rival Harbor',
+            revealedTurn: 41,
+            intelLevel: 'started',
+          },
+        ],
+      },
+    };
+
+    const roundTrip = JSON.parse(JSON.stringify(state));
+
+    expect(roundTrip.legendaryWonderIntel.observer[0].intelLevel).toBe('started');
+    expect(roundTrip.legendaryWonderIntel.observer[0].cityName).toBe('Rival Harbor');
+  });
+
   it('round-trips campaign identity through JSON serialization', () => {
     const state = {
       gameId: 'game-123',

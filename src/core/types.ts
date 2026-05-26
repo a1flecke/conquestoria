@@ -139,7 +139,9 @@ export interface LegendaryWonderHistory {
   discoveredSites: LegendaryWonderDiscoveredSiteRecord[];
 }
 
-export interface LegendaryWonderIntelEntry {
+export type LegendaryWonderIntelKind = 'started' | 'completed';
+
+export interface LegacyLegendaryWonderStartedIntelEntry {
   projectKey: string;
   wonderId: string;
   civId: string;
@@ -148,7 +150,41 @@ export interface LegendaryWonderIntelEntry {
   cityName: string;
   revealedTurn: number;
   intelLevel: 'started';
+  kind?: undefined;
+  eventId?: undefined;
 }
+
+export interface LegendaryWonderStartedIntelEntry {
+  kind: 'started';
+  eventId: string;
+  projectKey: string;
+  wonderId: string;
+  civId: string;
+  civName: string;
+  cityId: string;
+  cityName: string;
+  revealedTurn: number;
+  intelLevel?: 'started';
+}
+
+export interface LegendaryWonderCompletedIntelEntry {
+  kind: 'completed';
+  eventId: string;
+  wonderId: string;
+  civId: string;
+  civName: string;
+  completionTurn: number;
+  learnedTurn: number;
+}
+
+export type LegendaryWonderIntelEntry =
+  | LegacyLegendaryWonderStartedIntelEntry
+  | LegendaryWonderStartedIntelEntry
+  | LegendaryWonderCompletedIntelEntry;
+
+export type NormalizedLegendaryWonderIntelEntry =
+  | LegendaryWonderStartedIntelEntry
+  | LegendaryWonderCompletedIntelEntry;
 
 // --- Tribal Villages ---
 

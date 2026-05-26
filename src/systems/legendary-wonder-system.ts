@@ -5,6 +5,8 @@ import { getTechById } from '@/systems/tech-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { routeMatchesLegendaryWonderRequirement } from '@/systems/trade-route-classification';
 import {
+  createStartedLegendaryWonderIntelEntry,
+  recordKnownHumanLegendaryWonderCompletionIntel,
   recordLegendaryWonderIntel,
   sanitizeLegendaryWonderIntel,
 } from '@/systems/legendary-wonder-intel';
@@ -318,7 +320,7 @@ export function initializeLegendaryWonderProjectsForAllCities(state: GameState):
   let nextState: GameState = {
     ...state,
     legendaryWonderProjects: sanitizeLegendaryWonderProjects(state),
-    legendaryWonderIntel: sanitizeLegendaryWonderIntel(state, sanitizeLegendaryWonderProjects(state)),
+    legendaryWonderIntel: sanitizeLegendaryWonderIntel(state),
   };
   for (const city of Object.values(state.cities)) {
     nextState = initializeLegendaryWonderProjectsForCity(nextState, city.owner, city.id);
@@ -431,6 +433,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
   const updatedCities = { ...seededState.cities };
   const updatedCivilizations = structuredClone(seededState.civilizations);
   const completedLegendaryWonders = { ...(seededState.completedLegendaryWonders ?? {}) };
+  let legendaryWonderIntel = sanitizeLegendaryWonderIntel(seededState);
   let changed = seededState !== state;
 
   for (const [projectId, rawProject] of Object.entries(seededState.legendaryWonderProjects)) {
@@ -483,6 +486,21 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
           cityId: project.cityId,
           turnCompleted: state.turn,
         };
+        legendaryWonderIntel = recordKnownHumanLegendaryWonderCompletionIntel(
+          {
+            ...seededState,
+            civilizations: updatedCivilizations,
+            cities: updatedCities,
+            completedLegendaryWonders,
+            legendaryWonderIntel,
+          },
+          {
+            wonderId: project.wonderId,
+            civId: project.ownerId,
+            completionTurn: state.turn,
+            learnedTurn: state.turn,
+          },
+        );
         updatedCities[city.id] = {
           ...city,
           productionQueue: city.productionQueue.slice(1),
@@ -564,13 +582,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
     civilizations: updatedCivilizations,
     legendaryWonderProjects: updatedProjects,
     completedLegendaryWonders,
-    legendaryWonderIntel: sanitizeLegendaryWonderIntel(
-      {
-        ...seededState,
-        legendaryWonderProjects: updatedProjects,
-      },
-      updatedProjects,
-    ),
+    legendaryWonderIntel,
   };
 }
 
@@ -633,7 +645,7 @@ export function startLegendaryWonderBuild(
         legendaryWonderIntel,
       },
       observerId,
-      {
+      createStartedLegendaryWonderIntelEntry({
         projectKey,
         wonderId: project.wonderId,
         civId,
@@ -641,8 +653,7 @@ export function startLegendaryWonderBuild(
         cityId,
         cityName: city?.name ?? cityId,
         revealedTurn: state.turn,
-        intelLevel: 'started',
-      },
+      }),
     );
     bus?.emit('wonder:legendary-race-revealed', {
       observerId,
