@@ -4,6 +4,10 @@ import { getLegendaryWonderPresentationForCity } from '@/systems/legendary-wonde
 import { formatNaturalWonderEffectSummary } from '@/systems/wonder-presentation-formatting';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { getWonderVisualDefinition, type WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
+import {
+  getLegendaryWonderRivalIntelSummariesForViewer,
+  type LegendaryWonderRivalIntelSummary,
+} from '@/systems/legendary-wonder-intel-presentation';
 
 export type WonderAtlasEntry =
   | NaturalWonderAtlasEntry
@@ -27,9 +31,11 @@ export interface LegendaryWonderAtlasEntry {
   visibility: 'masked';
   name: string;
   maskedLabel: string;
-  stateLabel: 'Available' | 'Under construction' | 'Completed' | 'Recovered' | 'Legendary wonder';
+  stateLabel: 'Available' | 'Under construction' | 'Completed' | 'Recovered' | 'Known rival completed' | 'Spotted rival project' | 'Legendary wonder';
   canViewOnMap: false;
   visual: WonderVisualDefinition;
+  rivalIntelCount: number;
+  rivalIntelBadgeLabel?: string;
 }
 
 function findWonderCoord(state: GameState, wonderId: string): HexCoord | null {
@@ -63,6 +69,7 @@ function getLegendaryStateLabel(
   state: GameState,
   viewerId: string,
   wonderId: string,
+  rivalIntel: LegendaryWonderRivalIntelSummary | undefined,
 ): LegendaryWonderAtlasEntry['stateLabel'] {
   const completion = state.completedLegendaryWonders?.[wonderId];
   if (completion?.ownerId === viewerId) {
@@ -73,22 +80,27 @@ function getLegendaryStateLabel(
     project.ownerId === viewerId && project.wonderId === wonderId,
   );
   if (!ownedProject) {
-    // Stage 2C has no viewer-scoped completion intel; rival completions stay masked.
-    return 'Legendary wonder';
+    return rivalIntel?.stateLabel ?? 'Legendary wonder';
   }
 
   if (ownedProject.phase === 'ready_to_build') {
     const cityEntry = getLegendaryWonderPresentationForCity(state, viewerId, ownedProject.cityId)
       .find(entry => entry.wonderId === wonderId);
-    return cityEntry?.canStartBuild ? 'Available' : 'Legendary wonder';
+    return cityEntry?.canStartBuild ? 'Available' : rivalIntel?.stateLabel ?? 'Legendary wonder';
   }
   if (ownedProject.phase === 'building') return 'Under construction';
   if (ownedProject.phase === 'completed') return 'Completed';
   if (ownedProject.phase === 'lost_race') return 'Recovered';
-  return 'Legendary wonder';
+  return rivalIntel?.stateLabel ?? 'Legendary wonder';
 }
 
-function legendaryWonderEntry(state: GameState, viewerId: string, wonderId: string, name: string): LegendaryWonderAtlasEntry {
+function legendaryWonderEntry(
+  state: GameState,
+  viewerId: string,
+  wonderId: string,
+  name: string,
+  rivalIntel: LegendaryWonderRivalIntelSummary | undefined,
+): LegendaryWonderAtlasEntry {
   const visual = getWonderVisualDefinition(wonderId);
   return {
     kind: 'legendary',
@@ -96,9 +108,11 @@ function legendaryWonderEntry(state: GameState, viewerId: string, wonderId: stri
     visibility: 'masked',
     name,
     maskedLabel: visual.maskedLabel ?? 'Legendary wonder',
-    stateLabel: getLegendaryStateLabel(state, viewerId, wonderId),
+    stateLabel: getLegendaryStateLabel(state, viewerId, wonderId, rivalIntel),
     canViewOnMap: false,
     visual,
+    rivalIntelCount: rivalIntel?.activityCount ?? 0,
+    rivalIntelBadgeLabel: rivalIntel?.badgeLabel,
   };
 }
 
@@ -108,8 +122,9 @@ export function getWonderAtlasEntries(state: GameState, viewerId: string): Wonde
     .map(([wonderId]) => naturalWonderEntry(state, wonderId))
     .filter((entry): entry is NaturalWonderAtlasEntry => entry !== null);
 
+  const rivalIntelSummaries = getLegendaryWonderRivalIntelSummariesForViewer(state, viewerId);
   const legendaryEntries = getLegendaryWonderDefinitions().map(definition =>
-    legendaryWonderEntry(state, viewerId, definition.id, definition.name),
+    legendaryWonderEntry(state, viewerId, definition.id, definition.name, rivalIntelSummaries.get(definition.id)),
   );
 
   return [...naturalEntries, ...legendaryEntries];

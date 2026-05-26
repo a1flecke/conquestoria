@@ -8,6 +8,10 @@ import { getAllWonderCodexContent, getWonderCodexContent } from '@/systems/wonde
 import { getRelatedWonderCodexEntries, type RelatedWonderCodexEntry } from '@/systems/wonder-codex/related';
 import { getImageSource } from '@/systems/wonder-codex/sources';
 import type { WonderCodexContent, WonderCodexSection } from '@/systems/wonder-codex/types';
+import {
+  getLegendaryWonderRivalIntelSummariesForViewer,
+  type LegendaryWonderRivalIntelSummary,
+} from '@/systems/legendary-wonder-intel-presentation';
 
 export type WonderCodexResponsiveMode = 'desktop' | 'mobile';
 
@@ -26,6 +30,8 @@ export interface WonderCodexCatalogEntry {
   subtitle: string;
   stateLabel: string;
   visual: WonderVisualDefinition;
+  rivalIntelCount?: number;
+  rivalIntelBadgeLabel?: string;
 }
 
 export interface WonderCodexPageViewModel extends WonderCodexCatalogEntry {
@@ -39,6 +45,7 @@ export interface WonderCodexPageViewModel extends WonderCodexCatalogEntry {
     license: string;
   };
   statusLines: string[];
+  rivalIntel?: LegendaryWonderRivalIntelSummary;
   sections: WonderCodexSection[];
   relatedEntries: RelatedWonderCodexEntry[];
   actions: WonderCodexAction[];
@@ -79,22 +86,27 @@ function safeOwnedHostCityId(state: GameState, viewerId: string, cityId: string 
   return city?.owner === viewerId ? cityId : undefined;
 }
 
-function legendaryStateLabel(state: GameState, viewerId: string, wonderId: string): string {
+function legendaryStateLabel(
+  state: GameState,
+  viewerId: string,
+  wonderId: string,
+  rivalIntel: LegendaryWonderRivalIntelSummary | undefined,
+): string {
   const completion = state.completedLegendaryWonders?.[wonderId];
   if (completion?.ownerId === viewerId) return 'Completed';
 
   const project = ownedProject(state, viewerId, wonderId);
-  if (!project) return 'Legendary wonder';
+  if (!project) return rivalIntel?.stateLabel ?? 'Legendary wonder';
   if (project.phase === 'ready_to_build') {
     const cityEntry = getLegendaryWonderPresentationForCity(state, viewerId, project.cityId)
       .find(entry => entry.wonderId === wonderId);
-    return cityEntry?.canStartBuild ? 'Available' : 'Legendary wonder';
+    return cityEntry?.canStartBuild ? 'Available' : rivalIntel?.stateLabel ?? 'Legendary wonder';
   }
   if (project.phase === 'building') return 'Under construction';
   if (project.phase === 'completed') return 'Completed';
   if (project.phase === 'lost_race') return 'Recovered';
   if (project.phase === 'questing') return 'Quest in progress';
-  return 'Legendary wonder';
+  return rivalIntel?.stateLabel ?? 'Legendary wonder';
 }
 
 function visibleCatalogEntries(state: GameState, viewerId: string): WonderCodexCatalogEntry[] {
@@ -112,15 +124,19 @@ function visibleCatalogEntries(state: GameState, viewerId: string): WonderCodexC
       };
     });
 
+  const rivalIntelSummaries = getLegendaryWonderRivalIntelSummariesForViewer(state, viewerId);
   const legendaryEntries = getLegendaryWonderDefinitions().map(definition => {
     const content = getWonderCodexContent(definition.id);
+    const rivalIntel = rivalIntelSummaries.get(definition.id);
     return {
       id: definition.id,
       kind: 'legendary' as const,
       title: content?.title ?? definition.name,
       subtitle: content?.subtitle ?? 'Legendary wonder',
-      stateLabel: legendaryStateLabel(state, viewerId, definition.id),
+      stateLabel: legendaryStateLabel(state, viewerId, definition.id, rivalIntel),
       visual: getWonderVisualDefinition(definition.id),
+      rivalIntelCount: rivalIntel?.activityCount ?? 0,
+      rivalIntelBadgeLabel: rivalIntel?.badgeLabel,
     };
   });
 
@@ -149,11 +165,15 @@ function buildLegendaryStatus(
   state: GameState,
   viewerId: string,
   wonderId: string,
+  rivalIntel: LegendaryWonderRivalIntelSummary | undefined,
 ): { statusLines: string[]; actions: WonderCodexAction[] } {
   const definition = getLegendaryWonderDefinition(wonderId);
-  const label = legendaryStateLabel(state, viewerId, wonderId);
+  const label = legendaryStateLabel(state, viewerId, wonderId, rivalIntel);
   const statusLines = [`Status: ${label}`];
-  if (definition && label !== 'Legendary wonder') statusLines.push(`Reward: ${definition.reward.summary}`);
+  const ownsKnownState = label !== 'Legendary wonder'
+    && label !== 'Known rival completed'
+    && label !== 'Spotted rival project';
+  if (definition && ownsKnownState) statusLines.push(`Reward: ${definition.reward.summary}`);
 
   const project = ownedProject(state, viewerId, wonderId);
   if (project?.phase === 'building') {
@@ -173,14 +193,16 @@ function buildPage(
   viewerId: string,
   entry: WonderCodexCatalogEntry,
   visibleWonderIds: Set<string>,
+  rivalIntelSummaries: Map<string, LegendaryWonderRivalIntelSummary>,
 ): WonderCodexPageViewModel | null {
   const content = getWonderCodexContent(entry.id);
   if (!content) return null;
   const imageSource = getImageSource(content.imageSourceId);
   if (!imageSource) return null;
+  const rivalIntel = entry.kind === 'legendary' ? rivalIntelSummaries.get(entry.id) : undefined;
   const status = content.kind === 'natural'
     ? buildNaturalStatus(state, entry.id)
-    : buildLegendaryStatus(state, viewerId, entry.id);
+    : buildLegendaryStatus(state, viewerId, entry.id, rivalIntel);
 
   return {
     ...entry,
@@ -194,6 +216,7 @@ function buildPage(
       license: imageSource.license,
     },
     statusLines: status.statusLines,
+    ...(rivalIntel ? { rivalIntel } : {}),
     sections: content.sections.map(section => ({ ...section })),
     relatedEntries: getRelatedWonderCodexEntries(entry.id, visibleWonderIds),
     actions: status.actions,
@@ -207,6 +230,7 @@ export function getWonderCodexViewModel(
 ): WonderCodexViewModel {
   const catalogEntries = visibleCatalogEntries(state, viewerId);
   const visibleWonderIds = new Set(catalogEntries.map(entry => entry.id));
+  const rivalIntelSummaries = getLegendaryWonderRivalIntelSummariesForViewer(state, viewerId);
   const selectedEntry = catalogEntries.find(entry => entry.id === options.initialWonderId)
     ?? catalogEntries[0]
     ?? null;
@@ -214,6 +238,6 @@ export function getWonderCodexViewModel(
   return {
     mode: options.mode ?? 'desktop',
     catalogEntries,
-    selectedPage: selectedEntry ? buildPage(state, viewerId, selectedEntry, visibleWonderIds) : null,
+    selectedPage: selectedEntry ? buildPage(state, viewerId, selectedEntry, visibleWonderIds, rivalIntelSummaries) : null,
   };
 }

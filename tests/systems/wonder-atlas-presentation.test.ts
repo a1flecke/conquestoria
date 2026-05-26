@@ -159,4 +159,49 @@ describe('wonder-atlas-presentation', () => {
     expect(JSON.stringify(oracle)).not.toContain('rival-city');
     expect(JSON.stringify(oracle)).not.toContain('90');
   });
+
+  it('adds a rival activity badge count from explicit viewer intel only', () => {
+    const state = makeAtlasState();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:58',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 58,
+          learnedTurn: 58,
+        },
+      ],
+      'player-2': [
+        {
+          kind: 'completed',
+          eventId: 'completed:grand-canal:ai-1:59',
+          wonderId: 'grand-canal',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 59,
+          learnedTurn: 59,
+        },
+      ],
+    };
+
+    const oracle = getWonderAtlasEntries(state, 'player')
+      .find(entry => entry.kind === 'legendary' && entry.wonderId === 'oracle-of-delphi');
+    const canal = getWonderAtlasEntries(state, 'player')
+      .find(entry => entry.kind === 'legendary' && entry.wonderId === 'grand-canal');
+
+    expect(oracle).toMatchObject({
+      kind: 'legendary',
+      stateLabel: 'Known rival completed',
+      rivalIntelCount: 1,
+      rivalIntelBadgeLabel: 'Known rival activity',
+    });
+    expect(canal).toMatchObject({
+      kind: 'legendary',
+      stateLabel: 'Legendary wonder',
+      rivalIntelCount: 0,
+    });
+  });
 });

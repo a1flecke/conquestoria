@@ -78,6 +78,99 @@ describe('wonder-codex presentation', () => {
     expect(serialized).not.toContain('Completed');
   });
 
+  it('surfaces started rival intel from explicit records without action targets', () => {
+    const state = makeState();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'started',
+          eventId: 'started:oracle-of-delphi:ai-1:rival-city:41',
+          projectKey: 'oracle-of-delphi:ai-1:rival-city',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+        },
+      ],
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    const serialized = JSON.stringify(model);
+
+    expect(model.selectedPage?.stateLabel).toBe('Spotted rival project');
+    expect(model.selectedPage?.rivalIntel?.activityCount).toBe(1);
+    expect(model.selectedPage?.rivalIntel?.summaryLine).toContain('Last known: under construction');
+    expect(model.selectedPage?.rivalIntel?.events[0]?.text).toContain('Rival began Oracle of Delphi in Rival Harbor on turn 41');
+    expect(model.selectedPage?.actions).toEqual([]);
+    expect(serialized).not.toContain('"cityId":"rival-city"');
+    expect(serialized).not.toContain('Quest steps');
+    expect(serialized).not.toContain('Reward:');
+  });
+
+  it('surfaces completed rival intel without host city or reward leakage', () => {
+    const state = makeState();
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'ai-1', cityId: 'hidden-city', turnCompleted: 58 },
+    };
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:58',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 58,
+          learnedTurn: 58,
+        },
+      ],
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    const serialized = JSON.stringify(model);
+
+    expect(model.selectedPage?.stateLabel).toBe('Known rival completed');
+    expect(model.selectedPage?.rivalIntel?.summaryLine).toBe('Known rival completed: Rival completed Oracle of Delphi on turn 58.');
+    expect(serialized).not.toContain('hidden-city');
+    expect(serialized).not.toContain('Reward:');
+    expect(model.selectedPage?.actions).toEqual([]);
+  });
+
+  it('keeps owned state primary when owned state and rival intel both exist', () => {
+    const state = makeState();
+    state.legendaryWonderProjects = {
+      own: {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'building',
+        investedProduction: 40,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:58',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 58,
+          learnedTurn: 58,
+        },
+      ],
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+
+    expect(model.selectedPage?.stateLabel).toBe('Under construction');
+    expect(model.selectedPage?.rivalIntel?.stateLabel).toBe('Known rival completed');
+  });
+
   it('does not label blocked ready-to-build legendary projects as available', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
