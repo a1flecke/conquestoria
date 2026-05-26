@@ -10,8 +10,9 @@ import { getCivHappinessFromResources } from './resource-acquisition-system';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
-const REVOLT_UNREST_TURNS = 5;        // turns at unrest before revolt escalates
-const CONQUEST_UNREST_DURATION = 15;  // turns until conquestTurn is cleared
+export const REVOLT_UNREST_TURNS = 5;        // turns at unrest before revolt escalates
+export const BREAKAWAY_REVOLT_TURNS = 10;    // turns at revolt before breakaway
+const CONQUEST_UNREST_DURATION = 15;         // turns until conquestTurn is cleared
 const GOLD_APPEASE_COST_PER_POP = 15;
 
 // Pressure caps per category
@@ -245,7 +246,7 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
           ...nextState,
           cities: { ...nextState.cities, [cityId]: updated },
         };
-        if (updated.unrestTurns >= 10) {
+        if (updated.unrestTurns >= BREAKAWAY_REVOLT_TURNS) {
           nextState = createBreakawayFromCity(nextState, cityId, bus);
         }
       }
