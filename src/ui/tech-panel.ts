@@ -55,7 +55,8 @@ function getNodeStatusLabel(node: TechProgressionNode): string {
   return 'Locked';
 }
 
-function formatTechNodeEta(node: TechProgressionNode): string {
+export function formatTechNodeEta(node: TechProgressionNode): string {
+  if (node.state === 'completed') return '';
   if (node.turnsToResearch !== null) return `${node.turnsToResearch} turns`;
   if (node.state === 'locked') return 'ETA locked';
   return 'ETA pending';
@@ -208,7 +209,8 @@ function createTechNode(
   const detail = document.createElement('div');
   detail.style.cssText = 'font-size:11px;opacity:0.72;line-height:1.3;margin-top:5px;';
   const etaText = formatTechNodeEta(node);
-  detail.textContent = `${node.tech.unlocks[0] ?? 'New options'} · ${etaText} · Cost: ${node.tech.cost}`;
+  const etaSegment = etaText ? ` · ${etaText}` : '';
+  detail.textContent = `${node.tech.unlocks[0] ?? 'New options'}${etaSegment} · Cost: ${node.tech.cost}`;
   item.appendChild(detail);
 
   item.addEventListener('click', () => {
