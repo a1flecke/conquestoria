@@ -18,12 +18,79 @@ import {
   establishRoute,
   removeRouteForUnit,
   resolveFromCity,
+  removeRouteById,
+  scrubStaleForeignRoutes,
+  scrubEmbargoedRoutes,
 } from '@/systems/trade-system';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS, PRODUCTION_ICONS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import type { GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
+
+// Shared fixture — used by S5 and S6a describe blocks
+function makeTile(q: number, r: number) {
+  return { coord: { q, r }, terrain: 'grassland' as const, rivers: [], improvement: null, owner: null, resource: null, wonder: null };
+}
+
+function makeMinimalState(overrides: Partial<{
+  caravanPos: { q: number; r: number };
+  city1Buildings: string[];
+  city2Buildings: string[];
+  atWarWith: string[];
+  relationship: number;
+  tradeRoutes: any[];
+}> = {}): GameState {
+  const tiles: Record<string, any> = {};
+  for (let q = 0; q < 5; q++) {
+    for (let r = 0; r < 5; r++) {
+      tiles[`${q},${r}`] = makeTile(q, r);
+    }
+  }
+  const caravanPos = overrides.caravanPos ?? { q: 0, r: 0 };
+  const marketplace = createMarketplaceState();
+  if (overrides.tradeRoutes) {
+    marketplace.tradeRoutes = overrides.tradeRoutes;
+  }
+  return {
+    turn: 1,
+    era: 1,
+    currentPlayer: 'player',
+    map: { tiles, width: 5, height: 5, wrapsHorizontally: false },
+    marketplace,
+    idCounters: { nextUnitId: 10, nextCityId: 10, nextCampId: 10, nextQuestId: 10, nextRouteId: 1 },
+    civilizations: {
+      player: {
+        id: 'player', name: 'Player', color: '#00f', civType: 'generic',
+        gold: 100, cities: ['city1', 'city2'], units: ['caravan1'],
+        techState: { completed: ['trade-routes', 'wheel'], currentResearch: null, progress: {}, trackPriorities: {} as any },
+        diplomacy: { relationships: { enemy: overrides.relationship ?? 0 }, treaties: [], events: [], atWarWith: overrides.atWarWith ?? [] },
+        knownCivilizations: ['enemy'],
+        visibility: { tiles: {}, fogMap: {} },
+      },
+      enemy: {
+        id: 'enemy', name: 'Enemy', color: '#f00', civType: 'generic',
+        gold: 100, cities: ['city3'], units: [],
+        techState: { completed: [], currentResearch: null, progress: {}, trackPriorities: {} as any },
+        diplomacy: { relationships: { player: overrides.relationship ?? 0 }, treaties: [], events: [], atWarWith: overrides.atWarWith?.includes('player') ? ['player'] : [] },
+        knownCivilizations: [],
+        visibility: { tiles: {}, fogMap: {} },
+      },
+    },
+    cities: {
+      city1: { id: 'city1', name: 'Alpha', owner: 'player', position: { q: 0, r: 0 }, buildings: overrides.city1Buildings ?? [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
+      city2: { id: 'city2', name: 'Beta', owner: 'player', position: { q: 2, r: 0 }, buildings: overrides.city2Buildings ?? [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
+      city3: { id: 'city3', name: 'Gamma', owner: 'enemy', position: { q: 4, r: 0 }, buildings: [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
+    },
+    units: {
+      caravan1: { id: 'caravan1', type: 'caravan', owner: 'player', position: caravanPos, health: 100, movementPointsLeft: 3, hasActed: false, hasMoved: false, skippedTurn: false, isResting: false } as any,
+    },
+    barbarianCamps: {}, minorCivs: {}, espionage: {}, pendingEvents: {},
+    tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {}, legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+    legendaryWonderIntel: {}, legendaryWonderProjects: {},
+    settings: { mapSize: 'small', opponentCount: 1, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+  } as any;
+}
 
 describe('trade-system', () => {
   describe('RESOURCE_DEFINITIONS', () => {
@@ -281,69 +348,6 @@ describe('trade-system', () => {
   });
 
   describe('S5 — caravan trade routes', () => {
-    function makeTile(q: number, r: number) {
-      return { coord: { q, r }, terrain: 'grassland' as const, rivers: [], improvement: null, owner: null, resource: null, wonder: null };
-    }
-
-    function makeMinimalState(overrides: Partial<{
-      caravanPos: { q: number; r: number };
-      city1Buildings: string[];
-      city2Buildings: string[];
-      atWarWith: string[];
-      relationship: number;
-      tradeRoutes: any[];
-    }> = {}): GameState {
-      const tiles: Record<string, any> = {};
-      for (let q = 0; q < 5; q++) {
-        for (let r = 0; r < 5; r++) {
-          tiles[`${q},${r}`] = makeTile(q, r);
-        }
-      }
-      const caravanPos = overrides.caravanPos ?? { q: 0, r: 0 };
-      const marketplace = createMarketplaceState();
-      if (overrides.tradeRoutes) {
-        marketplace.tradeRoutes = overrides.tradeRoutes;
-      }
-      return {
-        turn: 1,
-        era: 1,
-        currentPlayer: 'player',
-        map: { tiles, width: 5, height: 5, wrapsHorizontally: false },
-        marketplace,
-        idCounters: { nextUnitId: 10, nextCityId: 10, nextCampId: 10, nextQuestId: 10, nextRouteId: 1 },
-        civilizations: {
-          player: {
-            id: 'player', name: 'Player', color: '#00f', civType: 'generic',
-            gold: 100, cities: ['city1', 'city2'], units: ['caravan1'],
-            techState: { completed: ['trade-routes', 'wheel'], currentResearch: null, progress: {}, trackPriorities: {} as any },
-            diplomacy: { relationships: { enemy: overrides.relationship ?? 0 }, treaties: [], events: [], atWarWith: overrides.atWarWith ?? [] },
-            knownCivilizations: ['enemy'],
-            visibility: { tiles: {}, fogMap: {} },
-          },
-          enemy: {
-            id: 'enemy', name: 'Enemy', color: '#f00', civType: 'generic',
-            gold: 100, cities: ['city3'], units: [],
-            techState: { completed: [], currentResearch: null, progress: {}, trackPriorities: {} as any },
-            diplomacy: { relationships: { player: overrides.relationship ?? 0 }, treaties: [], events: [], atWarWith: overrides.atWarWith?.includes('player') ? ['player'] : [] },
-            knownCivilizations: [],
-            visibility: { tiles: {}, fogMap: {} },
-          },
-        },
-        cities: {
-          city1: { id: 'city1', name: 'Alpha', owner: 'player', position: { q: 0, r: 0 }, buildings: overrides.city1Buildings ?? [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
-          city2: { id: 'city2', name: 'Beta', owner: 'player', position: { q: 2, r: 0 }, buildings: overrides.city2Buildings ?? [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
-          city3: { id: 'city3', name: 'Gamma', owner: 'enemy', position: { q: 4, r: 0 }, buildings: [], productionQueue: [], food: 0, production: 0, population: 1, workedTiles: [], unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 } as any,
-        },
-        units: {
-          caravan1: { id: 'caravan1', type: 'caravan', owner: 'player', position: caravanPos, health: 100, movementPointsLeft: 3, hasActed: false, hasMoved: false, skippedTurn: false, isResting: false } as any,
-        },
-        barbarianCamps: {}, minorCivs: {}, espionage: {}, pendingEvents: {},
-        tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {}, legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
-        legendaryWonderIntel: {}, legendaryWonderProjects: {},
-        settings: { mapSize: 'small', opponentCount: 1, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
-      } as any;
-    }
-
     it("'caravan' is in UNIT_DEFINITIONS", () => {
       expect(UNIT_DEFINITIONS['caravan']).toBeDefined();
       expect(UNIT_DEFINITIONS['caravan'].strength).toBe(0);
@@ -508,6 +512,214 @@ describe('trade-system', () => {
       bus.on('trade:route-ended', (e) => events.push(e.reason));
       newState = removeRouteForUnit(newState, 'caravan1', bus, 'unit-died');
       expect(events).toEqual(['unit-died']);
+    });
+  });
+
+  describe('S6a — route lifecycle', () => {
+    it('removeRouteById: removes route, clears caravan, emits event with given reason', () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0); // foreign route to 'enemy'
+      const routeId = s.marketplace!.tradeRoutes[0].id;
+      const events: Array<{ reason: string }> = [];
+      bus.on('trade:route-ended', e => events.push({ reason: e.reason }));
+
+      s = removeRouteById(s, routeId, bus, 'war-declared');
+
+      expect(s.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(s.units['caravan1']?.committedToRouteId).toBeUndefined();
+      expect(events).toHaveLength(1);
+      expect(events[0].reason).toBe('war-declared');
+    });
+
+    it('removeRouteById: no-op when route does not exist', () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      const events: string[] = [];
+      bus.on('trade:route-ended', () => events.push('fired'));
+      const result = removeRouteById(state, 'no-such-route', bus, 'embargo');
+      expect(result).toBe(state); // same reference — nothing changed
+      expect(events).toHaveLength(0);
+    });
+
+    it('scrubStaleForeignRoutes: war → foreign route terminated', () => {
+      // Establish route while not at war, then simulate war before lifecycle pass
+      const state = makeMinimalState({ atWarWith: [], relationship: 0 });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0); // foreign route to 'enemy'
+      // Simulate war declared (both sides added to atWarWith — bilateral)
+      s = {
+        ...s,
+        civilizations: {
+          ...s.civilizations,
+          player: { ...s.civilizations['player'], diplomacy: { ...s.civilizations['player'].diplomacy, atWarWith: ['enemy'] } },
+        },
+      };
+      expect(s.marketplace!.tradeRoutes).toHaveLength(1);
+
+      const events: Array<{ reason: string }> = [];
+      bus.on('trade:route-ended', e => events.push({ reason: e.reason }));
+
+      s = scrubStaleForeignRoutes(s, bus);
+
+      expect(s.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(events).toHaveLength(1);
+      expect(events[0].reason).toBe('war-declared');
+    });
+
+    it('scrubStaleForeignRoutes: relations >= 0 + no war → keeps route', () => {
+      const state = makeMinimalState({ relationship: 0, atWarWith: [] });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0); // foreign route
+      s = scrubStaleForeignRoutes(s, bus);
+      expect(s.marketplace!.tradeRoutes).toHaveLength(1); // kept
+    });
+
+    it('scrubStaleForeignRoutes: relations drop to −26 → terminated', () => {
+      // Establish at neutral (0), then drop to −26 before the lifecycle pass
+      const state = makeMinimalState({ relationship: 0, atWarWith: [] });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      // Simulate relation drift (relationship system lowered it)
+      s = {
+        ...s,
+        civilizations: {
+          ...s.civilizations,
+          player: {
+            ...s.civilizations['player'],
+            diplomacy: { ...s.civilizations['player'].diplomacy, relationships: { enemy: -26 } },
+          },
+        },
+      };
+
+      const events: Array<{ reason: string }> = [];
+      bus.on('trade:route-ended', e => events.push({ reason: e.reason }));
+
+      s = scrubStaleForeignRoutes(s, bus);
+
+      expect(s.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(events[0].reason).toBe('hostile-relations');
+    });
+
+    it('scrubStaleForeignRoutes: domestic route unaffected by war', () => {
+      const state = makeMinimalState({ atWarWith: ['enemy'] });
+      const bus = new EventBus();
+      // city2 is owned by 'player' → domestic route (no foreignCivId)
+      let s = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      s = scrubStaleForeignRoutes(s, bus);
+      expect(s.marketplace!.tradeRoutes).toHaveLength(1); // domestic always survives
+    });
+
+    it('scrubStaleForeignRoutes: domestic route unaffected by hostile relations', () => {
+      const state = makeMinimalState({ relationship: -80, atWarWith: [] });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city2', bus, 0); // domestic
+      s = scrubStaleForeignRoutes(s, bus);
+      expect(s.marketplace!.tradeRoutes).toHaveLength(1);
+    });
+
+    it('scrubStaleForeignRoutes: termination event fires exactly once (idempotent)', () => {
+      const state = makeMinimalState({ atWarWith: ['enemy'] });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      const events: string[] = [];
+      bus.on('trade:route-ended', () => events.push('fired'));
+      s = scrubStaleForeignRoutes(s, bus);  // removes route, fires event
+      s = scrubStaleForeignRoutes(s, bus);  // route already gone — no second event
+      expect(events).toHaveLength(1);
+    });
+
+    it('scrubEmbargoedRoutes: participant route to embargoed civ → terminated', () => {
+      // player embargoes enemy; player has a route TO enemy → must die
+      const state = makeMinimalState({ relationship: 0, atWarWith: [] });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0); // player → enemy
+      s = { ...s, embargoes: [{ id: 'emb-1', targetCivId: 'enemy', participants: ['player'], proposedTurn: 1 }] };
+
+      const events: Array<{ reason: string }> = [];
+      bus.on('trade:route-ended', e => events.push({ reason: e.reason }));
+
+      s = scrubEmbargoedRoutes(s, bus);
+
+      expect(s.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(events[0].reason).toBe('embargo');
+    });
+
+    it('scrubEmbargoedRoutes: embargoed civ route to participant → also terminated', () => {
+      // Embargo targets 'enemy'; enemy has a route TO player → must also die
+      const state = makeMinimalState({ relationship: 0, atWarWith: [] });
+      const bus = new EventBus();
+      // Manually inject a route owned by 'enemy' (fromCity=city3) to player's city (city1)
+      const marketplace = { ...state.marketplace!, tradeRoutes: [
+        { id: 'route-99', fromCityId: 'city3', toCityId: 'city1', goldPerTrip: 6, turnsPerTrip: 2, foreignCivId: 'player' },
+      ]};
+      let s = { ...state, marketplace };
+      s = { ...s, embargoes: [{ id: 'emb-2', targetCivId: 'enemy', participants: ['player'], proposedTurn: 1 }] };
+
+      const events: Array<{ reason: string }> = [];
+      bus.on('trade:route-ended', e => events.push({ reason: e.reason }));
+
+      s = scrubEmbargoedRoutes(s, bus);
+
+      expect(s.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(events[0].reason).toBe('embargo');
+    });
+
+    it('scrubEmbargoedRoutes: domestic route unaffected by embargo', () => {
+      const state = makeMinimalState({ relationship: 0, atWarWith: [] });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city2', bus, 0); // domestic
+      s = { ...s, embargoes: [{ id: 'emb-1', targetCivId: 'enemy', participants: ['player'], proposedTurn: 1 }] };
+      s = scrubEmbargoedRoutes(s, bus);
+      expect(s.marketplace!.tradeRoutes).toHaveLength(1);
+    });
+
+    it('actor-complete: AI-declared war terminates the human route owner\'s foreign route', () => {
+      // Start: neutral, no war
+      const state = makeMinimalState({ atWarWith: [], relationship: 5 });
+      const bus = new EventBus();
+      // Establish foreign route player→enemy while relations are good
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      expect(s.marketplace!.tradeRoutes).toHaveLength(1);
+
+      // Simulate AI war declaration: both sides get each other in atWarWith
+      s = {
+        ...s,
+        civilizations: {
+          ...s.civilizations,
+          player: {
+            ...s.civilizations['player'],
+            diplomacy: { ...s.civilizations['player'].diplomacy, atWarWith: ['enemy'] },
+          },
+          enemy: {
+            ...s.civilizations['enemy'],
+            diplomacy: { ...s.civilizations['enemy'].diplomacy, atWarWith: ['player'] },
+          },
+        },
+      };
+
+      const events: Array<{ reason: string }> = [];
+      bus.on('trade:route-ended', e => events.push({ reason: e.reason }));
+
+      s = scrubStaleForeignRoutes(s, bus); // same function called each turn in processTurn
+
+      expect(s.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(events[0].reason).toBe('war-declared');
+    });
+
+    it('unit-loss: removeRouteForUnit unit-died terminates route + caravan cleared', () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      const routeId = s.units['caravan1'].committedToRouteId!;
+      const events: Array<{ reason: string }> = [];
+      bus.on('trade:route-ended', e => events.push({ reason: e.reason }));
+
+      s = removeRouteForUnit(s, 'caravan1', bus, 'unit-died', routeId);
+
+      expect(s.marketplace!.tradeRoutes).toHaveLength(0);
+      expect(s.units['caravan1']?.committedToRouteId).toBeUndefined();
+      expect(events[0].reason).toBe('unit-died');
     });
   });
 });
