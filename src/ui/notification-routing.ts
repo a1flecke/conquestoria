@@ -3,6 +3,7 @@ import { collectEvent } from '@/core/hotseat-events';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { REVOLT_UNREST_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import type { NotificationEntry } from '@/ui/notification-log';
 
@@ -77,13 +78,24 @@ export function routeFactionTransition(
 ): void {
   if (event.type === 'faction:unrest-started') {
     const city = state.cities[event.cityId];
-    sink(event.owner, `${city?.name ?? 'A city'} is slipping into unrest. Stabilize it before revolt spreads.`, 'warning');
+    if (!city) return;
+    const appeaseCost = getCityAppeaseCost(city);
+    sink(
+      event.owner,
+      `${city.name} is slipping into unrest. Stabilize within ${REVOLT_UNREST_TURNS} turns or rebels will spawn. Options: garrison a military unit, spend ${appeaseCost}🪙 to appease, or build happiness improvements.`,
+      'warning',
+    );
     return;
   }
 
   if (event.type === 'faction:revolt-started') {
     const city = state.cities[event.cityId];
-    sink(event.owner, `${city?.name ?? 'A city'} is in open revolt. Defeat nearby rebels and reduce pressure.`, 'warning');
+    if (!city) return;
+    sink(
+      event.owner,
+      `${city.name} is in open revolt! Rebels have spawned. Defeat them and reduce pressure to restore order. After 10 turns of revolt the city may break away permanently.`,
+      'warning',
+    );
     return;
   }
 
