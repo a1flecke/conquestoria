@@ -152,6 +152,24 @@ export function createWonderCodexPage(
   for (const line of page.statusLines) appendText(status, 'li', line);
   root.appendChild(status);
 
+  if (page.rivalIntel) {
+    const rivalIntel = document.createElement('section');
+    rivalIntel.dataset.rivalIntelSection = 'true';
+    rivalIntel.style.cssText = 'border:1px solid rgba(232,193,112,0.24);border-radius:8px;padding:10px;background:rgba(232,193,112,0.07);display:grid;gap:8px;';
+    appendText(rivalIntel, 'h4', 'Known rival activity', 'margin:0;font-size:13px;color:#f4d188;');
+    appendText(rivalIntel, 'p', page.rivalIntel.summaryLine, 'margin:0;font-size:12px;line-height:1.45;color:rgba(248,241,223,0.78);');
+    const list = document.createElement('ul');
+    list.style.cssText = 'margin:0;padding-left:18px;display:grid;gap:4px;font-size:12px;color:rgba(248,241,223,0.74);';
+    for (const event of page.rivalIntel.events) {
+      const item = document.createElement('li');
+      item.dataset.rivalIntelEvent = event.kind;
+      item.textContent = `${event.title}: ${event.text}`;
+      list.appendChild(item);
+    }
+    rivalIntel.appendChild(list);
+    root.appendChild(rivalIntel);
+  }
+
   if (page.actions.length > 0) {
     const actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
