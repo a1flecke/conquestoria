@@ -1,4 +1,6 @@
 import { getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
+import type { LegendaryLandmarkFamily } from '@/systems/legendary-wonder-landmark-types';
 
 export type WonderVisualKind = 'natural' | 'legendary';
 
@@ -21,7 +23,7 @@ export type WonderMapLandmark =
   | 'masked';
 
 export type WonderVignette = WonderMapLandmark;
-export type LegendaryWonderLandmark = 'spire' | 'arch' | 'dome' | 'obelisk' | 'citadel' | 'archive' | 'masked';
+export type LegendaryWonderLandmark = LegendaryLandmarkFamily | 'masked';
 
 export interface WonderVisualDefinition {
   id: string;
@@ -38,13 +40,6 @@ export interface WonderVisualDefinition {
   reducedMotionFallback: 'static-landmark' | 'static-medallion';
   maskedLabel?: string;
   legendaryLandmark?: LegendaryWonderLandmark;
-}
-
-const LEGENDARY_LANDMARK_TYPES = ['spire', 'arch', 'dome', 'obelisk', 'citadel', 'archive'] as const;
-
-function landmarkTypeForLegendaryWonder(wonderId: string): LegendaryWonderLandmark {
-  const hash = [...wonderId].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return LEGENDARY_LANDMARK_TYPES[hash % LEGENDARY_LANDMARK_TYPES.length];
 }
 
 const NATURAL_WONDER_VISUALS: Record<string, WonderVisualDefinition> = {
@@ -66,25 +61,24 @@ const NATURAL_WONDER_VISUALS: Record<string, WonderVisualDefinition> = {
 };
 
 const LEGENDARY_WONDER_VISUALS: Record<string, WonderVisualDefinition> = Object.fromEntries(
-  getLegendaryWonderDefinitions().map(definition => [
-    definition.id,
-    {
-      id: definition.id,
-      kind: 'legendary',
-      medallionGlyph: '✦',
-      palette: {
-        base: '#2b2633',
-        accent: '#e8c170',
-        glow: '#fff0b8',
-      },
-      mapLandmark: 'masked',
-      vignette: 'masked',
-      supportsAmbientAnimation: false,
-      reducedMotionFallback: 'static-medallion',
-      maskedLabel: 'Legendary wonder',
-      legendaryLandmark: landmarkTypeForLegendaryWonder(definition.id),
-    } satisfies WonderVisualDefinition,
-  ]),
+  getLegendaryWonderDefinitions().map(definition => {
+    const metadata = getLegendaryWonderLandmarkMetadata(definition.id);
+    return [
+      definition.id,
+      {
+        id: definition.id,
+        kind: 'legendary',
+        medallionGlyph: '✦',
+        palette: metadata.palette,
+        mapLandmark: 'masked',
+        vignette: 'masked',
+        supportsAmbientAnimation: false,
+        reducedMotionFallback: 'static-medallion',
+        maskedLabel: 'Legendary wonder',
+        legendaryLandmark: metadata.family,
+      } satisfies WonderVisualDefinition,
+    ];
+  }),
 );
 
 const FALLBACK_WONDER_VISUAL: Omit<WonderVisualDefinition, 'id'> = {
