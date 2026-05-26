@@ -134,6 +134,12 @@ function buildNaturalStatus(state: GameState, wonderId: string): { statusLines: 
   return { statusLines, actions };
 }
 
+function publicAssetUrl(localPath: string): string {
+  const base = import.meta.env?.BASE_URL ?? '/';
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  return `${normalizedBase}${localPath.replace(/^\/+/, '')}`;
+}
+
 function buildLegendaryStatus(
   state: GameState,
   viewerId: string,
@@ -176,7 +182,7 @@ function buildPage(
     authoredLead: content.authoredLead,
     learningText: content.learningText,
     image: {
-      src: imageSource.localPath,
+      src: publicAssetUrl(imageSource.localPath),
       alt: `${entry.title} source image`,
       attribution: imageSource.attribution,
       sourceUrl: imageSource.sourceUrl,
