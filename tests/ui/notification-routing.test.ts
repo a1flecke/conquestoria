@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CombatResult, GameState } from '@/core/types';
+import { BREAKAWAY_REVOLT_TURNS } from '@/systems/faction-system';
 import {
   formatEconomyTreasuryStrainMessage,
   getNotificationTargetsForEvent,
@@ -461,7 +462,7 @@ describe('bus listener routing contract', () => {
     const { sink, calls } = makeSink();
     routeFactionTransition(state, { type: 'faction:revolt-started', cityId: 'c1', owner: 'p1' }, sink);
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.message).toContain('10 turns');
+    expect(calls[0]!.message).toContain(`${BREAKAWAY_REVOLT_TURNS} turns`);
     expect(calls[0]!.message).toContain('Thebes');
     expect(calls[0]!.type).toBe('warning');
   });

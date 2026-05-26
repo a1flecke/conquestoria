@@ -3,7 +3,7 @@ import { collectEvent } from '@/core/hotseat-events';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { REVOLT_UNREST_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
+import { REVOLT_UNREST_TURNS, BREAKAWAY_REVOLT_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import type { NotificationEntry } from '@/ui/notification-log';
 
@@ -93,7 +93,7 @@ export function routeFactionTransition(
     if (!city) return;
     sink(
       event.owner,
-      `${city.name} is in open revolt! Rebels have spawned. Defeat them and reduce pressure to restore order. After 10 turns of revolt the city may break away permanently.`,
+      `${city.name} is in open revolt! Rebels have spawned. Defeat them and reduce pressure to restore order. After ${BREAKAWAY_REVOLT_TURNS} turns of revolt the city may break away permanently.`,
       'warning',
     );
     return;
