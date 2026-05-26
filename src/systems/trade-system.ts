@@ -450,7 +450,7 @@ export function removeRouteForUnit(
   state: GameState,
   unitId: string,
   bus?: EventBus,
-  reason: 'unit-died' | 'unit-disbanded' = 'unit-died',
+  reason: 'unit-died' | 'unit-disbanded' | 'trips-exhausted' = 'unit-died',
   /** Pass explicit routeId when the unit may already be removed from state.units */
   explicitRouteId?: string,
 ): GameState {
