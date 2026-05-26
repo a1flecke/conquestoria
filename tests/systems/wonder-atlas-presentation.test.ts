@@ -160,6 +160,24 @@ describe('wonder-atlas-presentation', () => {
     expect(JSON.stringify(oracle)).not.toContain('90');
   });
 
+  it('does not infer rival completed status from hidden completion state alone', () => {
+    const state = makeAtlasState();
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'ai-1', cityId: 'hidden-rival-city', turnCompleted: 58 },
+    };
+
+    const oracle = getWonderAtlasEntries(state, 'player')
+      .find(entry => entry.kind === 'legendary' && entry.wonderId === 'oracle-of-delphi');
+
+    expect(oracle).toMatchObject({
+      kind: 'legendary',
+      stateLabel: 'Legendary wonder',
+      rivalIntelCount: 0,
+    });
+    expect(JSON.stringify(oracle)).not.toContain('hidden-rival-city');
+    expect(JSON.stringify(oracle)).not.toContain('Known rival completed');
+  });
+
   it('adds a rival activity badge count from explicit viewer intel only', () => {
     const state = makeAtlasState();
     state.legendaryWonderIntel = {

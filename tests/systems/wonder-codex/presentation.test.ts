@@ -109,6 +109,55 @@ describe('wonder-codex presentation', () => {
     expect(serialized).not.toContain('Reward:');
   });
 
+  it('renders legacy started rival intel through the safe normalized presentation path', () => {
+    const state = makeState();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          projectKey: 'oracle-of-delphi:ai-1:rival-city',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+          intelLevel: 'started',
+        },
+      ],
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    const serialized = JSON.stringify(model);
+
+    expect(model.selectedPage?.stateLabel).toBe('Spotted rival project');
+    expect(model.selectedPage?.rivalIntel?.events[0]?.text).toContain('Rival Harbor');
+    expect(model.selectedPage?.actions).toEqual([]);
+    expect(serialized).not.toContain('"cityId":"rival-city"');
+  });
+
+  it('surfaces completed rival intel even when hidden completion state is absent', () => {
+    const state = makeState();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:58',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 58,
+          learnedTurn: 58,
+        },
+      ],
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+
+    expect(model.selectedPage?.stateLabel).toBe('Known rival completed');
+    expect(model.selectedPage?.rivalIntel?.summaryLine).toBe('Known rival completed: Rival completed Oracle of Delphi on turn 58.');
+    expect(model.selectedPage?.actions).toEqual([]);
+  });
+
   it('surfaces completed rival intel without host city or reward leakage', () => {
     const state = makeState();
     state.completedLegendaryWonders = {
