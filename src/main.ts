@@ -2845,6 +2845,7 @@ bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
     'war-declared': 'war declared — caravan is free to redeploy',
     'hostile-relations': 'hostile relations — caravan is free to redeploy',
     'embargo': 'embargo enforced — caravan is free to redeploy',
+    'trips-exhausted': 'caravan retired after completing its service',
   };
   appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? toCityId} ended: ${reasonText[reason] ?? reason}`, 'warning');
 });
