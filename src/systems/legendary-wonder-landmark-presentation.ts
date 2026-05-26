@@ -40,7 +40,10 @@ export function getActiveLegendaryConstructionGhostForCity(
     .find(candidate => candidate.ownerId === viewerId && candidate.cityId === city.id && candidate.wonderId === wonderId && candidate.phase === 'building');
   const definition = getLegendaryWonderDefinition(wonderId);
   if (!project || !definition) return null;
-  const progressRatio = Math.max(0, Math.min(1, project.investedProduction / definition.productionCost));
+  const currentInvestment = city.productionQueue[0] === `legendary:${project.wonderId}`
+    ? city.productionProgress
+    : project.investedProduction;
+  const progressRatio = Math.max(0, Math.min(1, currentInvestment / definition.productionCost));
   if (options.mapOnly && progressRatio < LEGENDARY_CONSTRUCTION_GHOST_MAP_THRESHOLD) return null;
   return {
     wonderId,
