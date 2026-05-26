@@ -3,6 +3,8 @@ import type { GameState, City, HexCoord } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import {
+  REVOLT_UNREST_TURNS,
+  BREAKAWAY_REVOLT_TURNS,
   canGarrisonCity,
   computeUnrestPressure,
   getCityAppeaseCost,
@@ -508,5 +510,33 @@ describe('faction-system', () => {
     });
 
     expect(canGarrisonCity('city-1', state)).toBe(true);
+  });
+});
+
+describe('faction-system constant exports and era-gating', () => {
+  it('REVOLT_UNREST_TURNS is exported and equals 5', () => {
+    expect(REVOLT_UNREST_TURNS).toBe(5);
+  });
+
+  it('BREAKAWAY_REVOLT_TURNS is exported and equals 10', () => {
+    expect(BREAKAWAY_REVOLT_TURNS).toBe(10);
+  });
+
+  it('processFactionTurn clears unrest in era 1 (era-gating active)', () => {
+    const bus = new EventBus();
+    const state = makeState({ era: 1, unrestLevel: 1, unrestTurns: 3 });
+    const result = processFactionTurn(state, bus);
+    expect(result.cities['city-1']?.unrestLevel).toBe(0);
+    expect(result.cities['city-1']?.unrestTurns).toBe(0);
+  });
+
+  it('processFactionTurn does NOT clear unrest in era 2 (era-gating lifts)', () => {
+    const bus = new EventBus();
+    // cityCount:10 → 11 total cities → empire pressure (11-5)*3=18; 3 wars → 24; total 42 > 40
+    // City starts at unrestLevel 1, era 2 — processFactionTurn should NOT zero it out
+    const state = makeState({ era: 2, unrestLevel: 1, unrestTurns: 1, atWarCount: 3, cityCount: 10 });
+    const result = processFactionTurn(state, bus);
+    // With pressure > 40 and no garrison, city stays in unrest (not cleared by clearEraOneUnrest)
+    expect(result.cities['city-1']?.unrestLevel).not.toBe(0);
   });
 });
