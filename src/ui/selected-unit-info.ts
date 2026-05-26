@@ -27,6 +27,7 @@ export interface SelectedUnitInfoCallbacks {
   onDeleteUnit?: (unitId: string) => void;
   onFortify?: (unitId: string) => void;
   onCancelAutoExplore?: () => void;
+  onCancelJourney?: () => void;
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
   onInfiltrate?: (unitId: string) => void;
   onEmbed?: (unitId: string) => void;
@@ -157,6 +158,19 @@ export function renderSelectedUnitInfo(
     statusRow.appendChild(statusText);
     if (callbacks.onCancelAutoExplore) {
       statusRow.appendChild(makeButton('Cancel auto-explore', '#0f766e', callbacks.onCancelAutoExplore));
+    }
+    wrapper.appendChild(statusRow);
+  }
+
+  if (unit.automation?.mode === 'journey') {
+    const { q, r } = unit.automation.destination;
+    const statusRow = document.createElement('div');
+    statusRow.style.cssText = 'margin-top:8px;font-size:12px;color:#fcd34d;display:flex;justify-content:space-between;align-items:center;gap:8px;';
+    const statusText = document.createElement('span');
+    statusText.textContent = `Journeying to (${q}, ${r})`;
+    statusRow.appendChild(statusText);
+    if (callbacks.onCancelJourney) {
+      statusRow.appendChild(makeButton('Cancel journey', '#b45309', callbacks.onCancelJourney));
     }
     wrapper.appendChild(statusRow);
   }
