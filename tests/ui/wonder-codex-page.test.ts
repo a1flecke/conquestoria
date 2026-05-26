@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import type { WonderCodexPageViewModel } from '@/systems/wonder-codex/presentation';
 import { createWonderCodexPage } from '@/ui/wonder-codex-page';
@@ -34,6 +34,14 @@ function page(overrides: Partial<WonderCodexPageViewModel> = {}): WonderCodexPag
 }
 
 describe('wonder-codex-page', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders sourced image, attribution, story, status, and sections', () => {
     const root = createWonderCodexPage(page(), {
       mode: 'desktop',
@@ -74,5 +82,76 @@ describe('wonder-codex-page', () => {
     root.querySelector<HTMLElement>('summary')?.click();
     root.querySelector<HTMLElement>('summary')?.click();
     expect(root.textContent?.match(/Smoke and mineral color/g)).toHaveLength(1);
+  });
+
+  it('renders visual-only replay control for natural wonder spectacle', () => {
+    const onAction = vi.fn();
+    const root = createWonderCodexPage(page(), {
+      mode: 'desktop',
+      onAction,
+      onSelectRelated: vi.fn(),
+    });
+
+    const replay = root.querySelector<HTMLButtonElement>('[data-codex-replay-animation]');
+    expect(replay).toBeTruthy();
+    expect(replay!.textContent).toContain('Replay animation');
+    expect(replay!.getAttribute('aria-label')).toBe('Replay Great Volcano animation');
+    expect(root.querySelector('[data-wonder-spectacle-mode="codex-ambient"]')).toBeTruthy();
+
+    replay!.click();
+    expect(root.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeTruthy();
+    expect(onAction).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(3600);
+    expect(root.querySelector('[data-wonder-spectacle-mode="codex-ambient"]')).toBeTruthy();
+  });
+
+  it('does not render replay for legendary pages or promise video playback', () => {
+    const root = createWonderCodexPage(page({
+      id: 'oracle-of-delphi',
+      kind: 'legendary',
+      title: 'Oracle of Delphi',
+      stateLabel: 'Legendary wonder',
+      actions: [],
+    }), {
+      mode: 'desktop',
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+
+    expect(root.querySelector('[data-codex-replay-animation]')).toBeNull();
+    expect(root.textContent).not.toContain('Play video');
+  });
+
+  it('keeps reduced-motion Codex spectacle static', () => {
+    const root = createWonderCodexPage(page(), {
+      mode: 'desktop',
+      reducedMotion: true,
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+
+    expect(root.querySelector('[data-wonder-spectacle-mode="codex-static"]')).toBeTruthy();
+    root.querySelector<HTMLButtonElement>('[data-codex-replay-animation]')?.click();
+    expect(root.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeNull();
+  });
+
+  it('restarts visual replay cleanly when clicked twice', () => {
+    const root = createWonderCodexPage(page(), {
+      mode: 'desktop',
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+
+    const replay = root.querySelector<HTMLButtonElement>('[data-codex-replay-animation]')!;
+
+    replay.click();
+    vi.advanceTimersByTime(1800);
+    replay.click();
+    vi.advanceTimersByTime(2000);
+    expect(root.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeTruthy();
+
+    vi.advanceTimersByTime(1800);
+    expect(root.querySelector('[data-wonder-spectacle-mode="codex-ambient"]')).toBeTruthy();
   });
 });

@@ -55,7 +55,10 @@ describe('wonder-atlas-panel', () => {
     });
 
     expect(panel.querySelector('[data-codex-entry-id="great_volcano"]')).toBeNull();
+    expect(panel.querySelector('[data-codex-replay-animation]')).toBeNull();
     expect(panel.textContent).not.toContain('The Great Volcano');
+    expect(panel.textContent).not.toContain('Replay animation');
+    expect(panel.textContent).not.toContain('volcanic-breath');
     expect(panel.textContent).toContain('Legendary wonder');
   });
 
