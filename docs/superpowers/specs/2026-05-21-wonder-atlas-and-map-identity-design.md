@@ -366,6 +366,10 @@ Deferred from Stage 2D:
 
 Later art slice for richer bespoke landmark silhouettes, variants, and per-wonder visual depth after Stage 2C's generic-but-distinct around-city landmark slot model ships.
 
+### Stage 2F: Atlas Intel Records
+
+Add explicit viewer-scoped rival-known legendary records after the intel model stores that knowledge. This stage owns safe rival Atlas pages, known-rival completion records, and any rival host/progress/reward details that the player has actually earned through intel. Stage 2D must not infer those records from live hidden rival state.
+
 ### Stage 3: Real Video Spike
 
 Prototype 3-5 second video or loop support for selected catalog entries. The spike should evaluate asset size, tooling, offline/PWA cost, macOS/Tauri behavior, and maintenance burden before any production commitment.

@@ -49,8 +49,9 @@ Stage 2C is the **City-First Legendary Presence** slice:
 
 Deferred work is explicitly assigned:
 
-- **Stage 2D: Full 2D Atlas Expansion** - owned legendary detail pages, completed/lost/underway archive, lore/history pages, richer filters, rival-known records from earned intel, city-to-Atlas and Atlas-to-city review flows, and expanded 2D browsing surfaces.
+- **Stage 2D: Full 2D Atlas Expansion** - owned legendary detail pages, completed/lost/underway archive, lore/history pages, richer filters, city-to-Atlas and Atlas-to-city review flows, and expanded 2D browsing surfaces.
 - **Stage 2E: Landmark Art Expansion** - later slice for richer bespoke landmark silhouettes, variants, and per-wonder art depth after the slot model ships.
+- **Stage 2F: Atlas Intel Records** - explicit viewer-scoped rival-known legendary records and safe known-rival Atlas pages after the intel model stores that knowledge.
 - **Stage 3: Real Video Spike** - 3-5 second video or loop experiments, asset-size review, offline/PWA cost review, macOS/Tauri behavior review, and a production recommendation.
 
 ---
