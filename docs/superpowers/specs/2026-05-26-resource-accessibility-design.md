@@ -219,15 +219,80 @@ Already covered above. Session-scoped.
 - Map seeds remain reproducible (guarantee pass uses seeded RNG).
 - The S5–S12 trade roadmap is unaffected — trade routes remain gold-income mechanisms.
 
+## Sprites and Animations
+
+Two new visual elements require sprite work: the **Expedition unit** and the **Resource Outpost** improvement. Both follow a two-phase approach: ship with emoji fallbacks immediately (non-blocking), then replace with proper SVG sprites designed in Claude Design as the final implementation step.
+
+### Expedition unit — emoji fallback (Phase 1)
+
+The sprite catalog test (`tests/renderer/sprites/sprite-catalog.test.ts`) enforces that every `UnitType` has an entry in `UNIT_SPRITE_CATALOG` and `UNIT_MOTION_STYLES`. Both must be wired in the same PR that adds the `'expedition'` `UnitType` — the test will fail otherwise.
+
+| Artifact | Value |
+|----------|-------|
+| `PRODUCTION_ICONS['expedition']` | `'🧭'` — compass; non-conflicting |
+| `UNIT_MOTION_STYLES['expedition']` | `'humanoid'` |
+| `UNIT_SPRITE_CATALOG['expedition']` | `withMotion('expedition', ScoutSprite)` — explorer civilian fallback; comment: `// uses explorer fallback; dedicated sprite TBD via Claude Design` |
+
+🧭 is not used by any existing unit or building. Scout uses 🔭; the compass is visually distinct and semantically correct for an expedition force.
+
+### Resource Outpost improvement — emoji fallback (Phase 1)
+
+Improvements are rendered via `IMPROVEMENT_ICONS` in `src/renderer/hex-renderer.ts` (a `Record<string, string>` mapping improvement type → emoji). Adding an entry is all that's required for the emoji phase — the existing `drawHex` improvement-rendering path already uses `IMPROVEMENT_ICONS[tile.improvement] ?? '◆'`.
+
+| Artifact | Value |
+|----------|-------|
+| `IMPROVEMENT_ICONS['resource_outpost']` | `'🚩'` — flag/banner; non-conflicting |
+
+🚩 is not used by any existing improvement. The flag icon conveys "claimed this spot" at a glance and is immediately legible to young players.
+
+In-progress outpost (while `improvementTurnsLeft > 0`) uses the same progress rendering as any other improvement-under-construction: the turn countdown is shown in the tile center, no emoji drawn until complete.
+
+### Expedition unit — full SVG sprite (Phase 2, Claude Design)
+
+**Implement last, after all other Expedition wiring is complete and tested.**
+
+When ready, use Claude Design to produce an SVG JSX component and follow the extension recipe in `.claude/rules/sprites.md`:
+
+1. Add the exported component to `src/renderer/sprites/units.tsx`.
+2. Replace the `ScoutSprite` fallback in `UNIT_SPRITE_CATALOG` with `withMotion('expedition', ExpeditionSprite)`.
+3. `UNIT_MOTION_STYLES` entry (`'humanoid'`) stays unchanged.
+
+**Visual direction for Claude Design:**
+- Rugged wilderness explorer — heavy pack on back, rolled map or compass in hand, wide-brimmed hat or hood for weather protection.
+- Lighter build and less armour than a Warrior or Scout; this unit is built for distance travel, not combat.
+- No weapons visible — the unit is non-combat and shouldn't look threatening.
+- Civ faction palette applied to clothing/cloak.
+- Walking pose suggesting purposeful forward movement; leaning slightly into a step.
+- Should feel distinct from the Scout (which is a faster, lighter recon unit) — the Expedition is more of a mountain-climber/surveyor archetype.
+
+**Motion:** `'humanoid'` walking animation, same as Scout and Worker.
+
+### Resource Outpost improvement — full SVG sprite (Phase 2, Claude Design)
+
+**Implement last, after Expedition is fully working.**
+
+The improvement sprite system currently renders improvements as emoji only (`IMPROVEMENT_ICONS`). A dedicated improvement sprite path may need to be added to `hex-renderer.ts` similar to how wonders and villages get special rendering. Scope this during implementation — if the improvement sprite system grows to warrant a catalog, follow the building sprite pattern.
+
+**Visual direction for Claude Design:**
+- A short wooden post planted in the ground, topped with a small flag or banner showing the civ's primary colour.
+- The resource type's icon (🧵, ⚙️, 🐎, etc.) subtly incorporated — either painted on the flag or hanging as a tag from the post.
+- Rough and temporary-looking compared to a city or mine — this is an outpost, not a permanent structure.
+- Small footprint so it doesn't visually dominate the tile; the tile's resource icon and terrain should still read clearly.
+- Should clearly convey ownership (civ colour) and temporariness.
+
+---
+
 ## Sequencing
 
 These pillars can be shipped independently:
 
 1. **Pillar 1** (map gen + settler cost) — no dependencies; ship first.
-2. **Pillar 2** (expedition + outpost) — no dependencies; can ship alongside Pillar 1.
+2. **Pillar 2** (expedition + outpost, with emoji fallback sprites) — no dependencies; can ship alongside Pillar 1.
 3. **Pillar 4 partial** (advisor tips, turn-3 tip, resource-discovered tips) — no dependencies; can ship with Pillars 1–2.
 4. **Pillar 4 full** (locked-section button + tooltip text) — depends on S4b being implemented.
 5. **Pillar 3** (diplomatic marketplace) — depends on S5 (trade routes established) and S9 (buy resource for gold) being implemented.
+6. **Expedition SVG sprite** (Phase 2) — depends on Pillar 2 being fully implemented and tested. Requires Claude Design session. Replace `ScoutSprite` fallback with `ExpeditionSprite`.
+7. **Resource Outpost SVG sprite** (Phase 2) — depends on step 6. Requires Claude Design session. Replace 🚩 emoji with SVG improvement rendering.
 
 ## Out of Scope
 
