@@ -51,7 +51,11 @@ function nextTierLabel(currentLabel: string): string | null {
   return null;
 }
 
-const WORKER_ACTIONS: WorkerActionType[] = ['farm', 'mine', 'lumber_camp', 'watermill', 'drain_swamp'];
+const WORKER_ACTIONS: WorkerActionType[] = [
+  'farm', 'mine', 'lumber_camp', 'watermill',
+  'plantation', 'pasture', 'camp', 'quarry',
+  'drain_swamp',
+];
 
 function chooseWorkerBlockerReason(
   tile: GameState['map']['tiles'][string] | undefined,
@@ -192,8 +196,13 @@ export function renderSelectedUnitInfo(
               ? '#476f3a'
               : action === 'watermill'
                 ? '#3f7f8f'
-                : '#64748b';
-        actionsDiv.appendChild(makeButton(getWorkerActionLabel(action), color, () => callbacks.onWorkerAction!(action)));
+                : action === 'drain_swamp'
+                  ? '#4a7c59'
+                  : '#64748b';
+        const label = action === 'drain_swamp'
+          ? 'Drain Swamp (→ Grassland, +1 🌾)'
+          : getWorkerActionLabel(action);
+        actionsDiv.appendChild(makeButton(label, color, () => callbacks.onWorkerAction!(action)));
       }
       if (workerActions.length === 0) {
         const blockerReason = chooseWorkerBlockerReason(tile, completedTechs, unit.owner, { isCityTile });
