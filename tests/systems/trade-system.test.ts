@@ -601,6 +601,41 @@ describe('trade-system', () => {
       expect(events[0].reason).toBe('hostile-relations');
     });
 
+    it('scrubStaleForeignRoutes: relations at exactly −25 → keeps route', () => {
+      // < -25 terminates; exactly -25 must NOT
+      const state = makeMinimalState({ relationship: 0, atWarWith: [] });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      s = {
+        ...s,
+        civilizations: {
+          ...s.civilizations,
+          player: {
+            ...s.civilizations['player'],
+            diplomacy: { ...s.civilizations['player'].diplomacy, relationships: { enemy: -25 } },
+          },
+        },
+      };
+      s = scrubStaleForeignRoutes(s, bus);
+      expect(s.marketplace!.tradeRoutes).toHaveLength(1); // -25 is not < -25 → survives
+    });
+
+    it('scrubStaleForeignRoutes: missing fromCity (razed) → route left untouched', () => {
+      // Guard: if fromCity no longer exists, skip rather than crash or falsely terminate
+      const state = makeMinimalState({ atWarWith: ['enemy'] });
+      const bus = new EventBus();
+      let s = establishRoute(state, 'caravan1', 'city3', bus, 0);
+      // Raze the from-city so it disappears from state.cities
+      const { city1: _removed, ...remainingCities } = s.cities;
+      s = { ...s, cities: remainingCities as typeof s.cities };
+      const events: string[] = [];
+      bus.on('trade:route-ended', () => events.push('fired'));
+      s = scrubStaleForeignRoutes(s, bus);
+      // Route stays (can't determine owner, so skip rather than terminate)
+      expect(s.marketplace!.tradeRoutes).toHaveLength(1);
+      expect(events).toHaveLength(0);
+    });
+
     it('scrubStaleForeignRoutes: domestic route unaffected by war', () => {
       const state = makeMinimalState({ atWarWith: ['enemy'] });
       const bus = new EventBus();
