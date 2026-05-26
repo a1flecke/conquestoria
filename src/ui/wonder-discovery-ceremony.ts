@@ -1,6 +1,7 @@
 import type { WonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
+import { getWonderSpectacleRenderMode } from '@/systems/wonder-spectacle/presentation';
 import { createGameButton } from '@/ui/ui-kit';
-import { createWonderVisualVignette } from '@/ui/wonder-vignette';
+import { createWonderSpectacleVignette } from '@/ui/wonder-spectacle-vignette';
 
 export type WonderDiscoveryCeremonyAction = 'continue' | 'skip' | 'open-atlas';
 
@@ -68,7 +69,18 @@ export function createWonderDiscoveryCeremony(
   skip.dataset.wonderDiscoveryAction = 'skip';
   skipRow.appendChild(skip);
 
-  const vignette = createWonderVisualVignette(item.name, item.visual, { reducedMotion, kind: 'natural' });
+  const spectacleMode = getWonderSpectacleRenderMode({
+    surface: 'reveal',
+    wonderId: item.wonderId,
+    discovered: true,
+    reducedMotion,
+  });
+  const vignette = createWonderSpectacleVignette({
+    wonderId: item.wonderId,
+    name: item.name,
+    mode: spectacleMode === 'reveal-amplified' ? 'reveal-amplified' : 'reveal-static',
+    reducedMotion,
+  });
   vignette.style.width = '148px';
   vignette.style.height = '148px';
   vignette.style.flexBasis = '148px';
