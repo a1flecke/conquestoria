@@ -362,6 +362,9 @@ Deferred from Stage 2D:
 - Stage 2F owns explicit viewer-scoped rival legendary records from earned intel.
 - Stage 2G owns richer completed legendary city landmark silhouettes, spectacle, variants, and multiple-wonder city readability.
 - Stage 2H owns natural-wonder audio stingers/loops that fill Stage 2E sound mood metadata.
+- Stage 2I owns bespoke per-wonder legendary Canvas drawings or sprites, plus art-reference/citation enforcement for historically inspired bespoke work.
+- Stage 2J owns known-rival legendary landmark visibility when explicit host/location intel exists.
+- Stage 2K owns the broader city renderer layer architecture pass beyond 2G's targeted landmark extraction.
 - Stage 3 owns real 3-5 second videos or loops, including asset-size, offline/PWA, macOS/Tauri, and maintenance review.
 
 ### Stage 2E: Natural Wonder Spectacle Expansion
@@ -374,12 +377,36 @@ Add explicit viewer-scoped rival-known legendary records after the intel model s
 
 ### Stage 2G: Legendary City Landmark Art Expansion
 
-Add richer completed legendary city landmark silhouettes, spectacle, variants, and multiple-wonder city readability after Stage 2E establishes reusable spectacle primitives. This stage owns legendary-city visual depth and must preserve owned/rival visibility boundaries.
+Add richer completed legendary city landmark silhouettes, spectacle, variants, active-construction ghosts, and multiple-wonder city readability after Stage 2E establishes reusable spectacle primitives. This stage owns legendary-city visual depth for owned visible cities and must preserve owned/rival visibility boundaries. It replaces hash-based legendary landmark assignment with explicit authored metadata, adds strict convention tests, and performs only the targeted city-renderer layer extraction needed for landmark correctness.
 
 ### Stage 2H: Natural Wonder Audio Stingers
 
 Fill Stage 2E's required natural-wonder sound mood metadata with real stingers or loops. This stage owns playback rules, mute/reduced-audio behavior, offline/PWA and macOS/Tauri asset review, and tests that keep audio metadata and assets in sync.
 
+### Stage 2I: Legendary Wonder Bespoke Art Pass
+
+Replace Stage 2G token silhouettes with per-wonder bespoke Canvas drawings or sprites as art becomes available. This stage owns art reference/citation notes for historically inspired bespoke work, asset/renderer registration, and tests that fail when bespoke `assetKey` entries do not resolve.
+
+### Stage 2J: Legendary Landmark Intel Visibility
+
+Allow known rival legendary landmarks on map or inspection surfaces only when explicit host/location intel exists. This stage must add new viewer-scoped intel tiers or helpers and negative tests proving Stage 2F completed rival intel alone does not reveal host city, map location, or landmark placement.
+
+### Stage 2K: City Renderer Layer Architecture Pass
+
+Expand Stage 2G's targeted city landmark layer extraction into a broader city renderer architecture pass. This stage owns composable render passes for city icon, labels, badges, overlays, selection, occupation/unrest/breakaway indicators, production badges, and landmark sublayers.
+
 ### Stage 3: Real Video Spike
 
 Prototype 3-5 second video or loop support for selected catalog entries. The spike should evaluate asset size, tooling, offline/PWA cost, macOS/Tauri behavior, and maintenance burden before any production commitment.
+
+## Runbook: Picking The Next Wonder Slice
+
+When a wonder slice merges and the next session asks "what's next?", use this order unless the user explicitly reprioritizes:
+
+1. Stage 2H: Natural Wonder Audio Stingers
+2. Stage 2I: Legendary Wonder Bespoke Art Pass
+3. Stage 2J: Legendary Landmark Intel Visibility
+4. Stage 2K: City Renderer Layer Architecture Pass
+5. Stage 3: Real Video Spike
+
+Use each stage's latest design/spec file as the source of truth. If a deferred decision ID is referenced from a prior spec, carry that ID into the next design or plan so the reason for deferral stays traceable.
