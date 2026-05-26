@@ -16,9 +16,20 @@ const OFFSETS = [
   { dx: -0.66, dy: -0.38 },
 ];
 
-export function assignLegendaryWonderSlots(inputs: LegendaryWonderSlotInput[]): LegendaryWonderSlot[] {
+export function assignLegendaryWonderSlots(inputs: LegendaryWonderSlotInput[], turn = 0): LegendaryWonderSlot[] {
   const sorted = [...inputs].sort((a, b) => a.turnCompleted - b.turnCompleted || a.wonderId.localeCompare(b.wonderId));
-  const visible = sorted.length > 6 ? sorted.slice(0, 5) : sorted.slice(0, 6);
+  if (sorted.length <= 6) {
+    return sorted.slice(0, 6).map((input, index) => ({
+      kind: 'landmark',
+      wonderId: input.wonderId,
+      turnCompleted: input.turnCompleted,
+      slotIndex: index,
+      ...OFFSETS[index],
+    }));
+  }
+
+  const windowStart = Math.floor(turn / 5) % sorted.length;
+  const visible = Array.from({ length: 5 }, (_, index) => sorted[(windowStart + index) % sorted.length]);
   const slots: LegendaryWonderSlot[] = visible.map((input, index) => ({
     kind: 'landmark',
     wonderId: input.wonderId,
@@ -26,8 +37,6 @@ export function assignLegendaryWonderSlots(inputs: LegendaryWonderSlotInput[]): 
     slotIndex: index,
     ...OFFSETS[index],
   }));
-  if (sorted.length > 6) {
-    slots.push({ kind: 'overflow', slotIndex: 5, overflowCount: sorted.length - 5, ...OFFSETS[5] });
-  }
+  slots.push({ kind: 'overflow', slotIndex: 5, overflowCount: sorted.length - 5, ...OFFSETS[5] });
   return slots;
 }
