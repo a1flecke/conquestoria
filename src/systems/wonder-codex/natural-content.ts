@@ -102,7 +102,7 @@ export const NATURAL_WONDER_CODEX_CONTENT = [
     'Aurora Fields',
     'Cold ground under curtains of moving sky-light.',
     'The Aurora Fields make night feel awake. Green and violet light moves above the ice, turning a harsh region into a place of wonder.',
-    'Auroras happen when charged particles from the Sun interact with gases high in Earths atmosphere, producing glowing curtains near polar regions.',
+    'Auroras happen when charged particles from the Sun interact with gases high in Earth\'s atmosphere, producing glowing curtains near polar regions.',
     'discovery',
     ['aurora', 'sky', 'ice', 'science', 'light'],
     ['nasa-aurora'],

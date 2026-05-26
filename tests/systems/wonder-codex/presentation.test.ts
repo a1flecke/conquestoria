@@ -3,6 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { getWonderCodexViewModel } from '@/systems/wonder-codex/presentation';
+import { makeLegendaryWonderFixture } from '../helpers/legendary-wonder-fixture';
 
 function makeState(): GameState {
   const state = createNewGame(undefined, 'wonder-codex-presentation-test');
@@ -70,10 +71,21 @@ describe('wonder-codex presentation', () => {
     const serialized = JSON.stringify(model);
 
     expect(model.selectedPage?.stateLabel).toBe('Legendary wonder');
+    expect(model.selectedPage?.statusLines.join(' ')).not.toContain('Reward:');
     expect(serialized).not.toContain('rival-city');
     expect(serialized).not.toContain('rival-canal-city');
     expect(serialized).not.toContain('90');
     expect(serialized).not.toContain('Completed');
+  });
+
+  it('does not label blocked ready-to-build legendary projects as available', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+
+    expect(model.selectedPage?.stateLabel).toBe('Legendary wonder');
+    expect(model.selectedPage?.statusLines.join(' ')).not.toContain('Reward:');
   });
 
   it('surfaces owned host city action only for safe owned city state', () => {
