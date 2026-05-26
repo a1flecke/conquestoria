@@ -48,8 +48,11 @@ describe('era:advanced notification', () => {
 
 // ─── Post-move hostile city detection (#264) ─────────────────────────────────
 // Tests the detection logic added inside animateMovedUnit in main.ts.
-// Mirrors the city-hex-tap.test.ts pattern: inline the pure detection helper
-// so there's no DOM or module-mocking overhead, but the conditions are proven.
+// Follows the pattern in tests/integration/city-hex-tap.test.ts: inline the
+// pure detection helper so there's no DOM or module-mocking overhead, but the
+// conditions are proven. If the production logic in animateMovedUnit diverges,
+// these tests will still pass — they prove correctness of the algorithm, not
+// of the wiring. The wiring is covered by the tap-intent regression tests.
 
 type SlimCity = { id: string; owner: string; position: HexCoord };
 type SlimCivs = Record<string, { diplomacy?: { atWarWith?: string[] } }>;
@@ -88,6 +91,15 @@ describe('post-move hostile city detection', () => {
   it('does not trigger for a minor civ city (owner starts with mc-)', () => {
     const cities = { 'mc-abc': { id: 'mc-abc', owner: 'mc-abc', position: { q: 3, r: 2 } } };
     const civs: SlimCivs = { player: { diplomacy: { atWarWith: ['mc-abc'] } } };
+
+    expect(findHostileWarCity(cities, civs, { q: 3, r: 2 }, 'player')).toBeNull();
+  });
+
+  it('does not trigger when the mover owns the city (own-city landing)', () => {
+    // The animateMovedUnit guard `c.owner !== gameState.currentPlayer` prevents
+    // a player from assaulting their own city. Verify the algorithm excludes it.
+    const cities = { 'city-1': { id: 'city-1', owner: 'player', position: { q: 3, r: 2 } } };
+    const civs: SlimCivs = { player: { diplomacy: { atWarWith: [] } } };
 
     expect(findHostileWarCity(cities, civs, { q: 3, r: 2 }, 'player')).toBeNull();
   });

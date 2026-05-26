@@ -1455,6 +1455,7 @@ function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
     );
     if (cityAtDest) {
       beginPlayerCityAssault(unitId, cityAtDest.id);
+      SFX.tap(); // match audio feedback of the tap-path assault (line ~2094)
       renderLoop.setGameState(gameState);
       updateHUD();
       // beginPlayerCityAssault handles its own selectNextUnit call via finalizePendingCityCaptureChoice.
@@ -1726,7 +1727,10 @@ function executeAttack(attackerId: string, targetKey: string): void {
   const attacker = gameState.units[attackerId];
   const targetCoord = parseHexKey(targetKey);
   const legality = canUnitAttackTarget(gameState, attacker, targetCoord, { viewerId: gameState.currentPlayer });
-  if (!attacker || !legality.ok || legality.targetType !== 'unit') {
+  // hasActed guard: enforce "no action remaining" at the execution layer, not just
+  // the highlight layer (getAttackTargets). Prevents double-action if executeAttack
+  // is ever called outside the normal tap → highlight → confirm flow.
+  if (!attacker || attacker.hasActed || !legality.ok || legality.targetType !== 'unit') {
     showNotification('That target is no longer attackable.', 'warning');
     if (selectedUnitId) selectUnit(selectedUnitId);
     return;
