@@ -28,7 +28,7 @@ This stage remains presentation-first. It does not rebalance legendary wonder co
 
 - Stage 2C does not add full Atlas lore, history, filtering, rival record pages, or a legacy archive. That is Stage 2D.
 - Stage 2C does not add real video assets. That remains the Stage 3 video spike.
-- Stage 2C does not add bespoke final landmark art for every wonder beyond the small 2D landmark types needed for this slice. Deeper art variation belongs in Stage 2E.
+- Stage 2C does not add bespoke final legendary city landmark art beyond the small 2D landmark types needed for this slice. Deeper legendary city landmark variation belongs in Stage 2G; Stage 2E is natural-wonder spectacle only.
 - Stage 2C does not change legendary wonder construction, quest, race, global uniqueness, AI, reward, or lost-race mechanics.
 - Stage 2C does not persist completion ceremony queues or replay old ceremonies after reload.
 - Stage 2C does not reveal rival information beyond existing earned-intel rules.
@@ -50,8 +50,10 @@ Stage 2C is the **City-First Legendary Presence** slice:
 Deferred work is explicitly assigned:
 
 - **Stage 2D: Full 2D Atlas Expansion** - owned legendary detail pages, completed/lost/underway archive, lore/history pages, richer filters, city-to-Atlas and Atlas-to-city review flows, and expanded 2D browsing surfaces.
-- **Stage 2E: Landmark Art Expansion** - later slice for richer bespoke landmark silhouettes, variants, and per-wonder art depth after the slot model ships.
+- **Stage 2E: Natural Wonder Spectacle Expansion** - live-visible natural-wonder map spectacle, Codex/reveal recipe accents, Codex replay, and required sound mood metadata.
 - **Stage 2F: Atlas Intel Records** - explicit viewer-scoped rival-known legendary records and safe known-rival Atlas pages after the intel model stores that knowledge.
+- **Stage 2G: Legendary City Landmark Art Expansion** - richer completed legendary city landmark silhouettes, spectacle, variants, and multiple-wonder city readability.
+- **Stage 2H: Natural Wonder Audio Stingers** - real natural-wonder stingers or loops that fill Stage 2E sound mood metadata.
 - **Stage 3: Real Video Spike** - 3-5 second video or loop experiments, asset-size review, offline/PWA cost review, macOS/Tauri behavior review, and a production recommendation.
 
 ---
