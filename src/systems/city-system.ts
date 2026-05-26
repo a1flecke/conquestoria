@@ -56,7 +56,7 @@ export const BUILDINGS: Record<string, Building> = {
   observatory: { id: 'observatory', name: 'Observatory', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 100, description: 'Studies the stars', techRequired: 'astronomy', adjacencyBonuses: [] },
 
   // Economy
-  marketplace: { id: 'marketplace', name: 'Marketplace', category: 'economy', yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 50, description: 'Center of trade', techRequired: 'currency', adjacencyBonuses: [] },
+  marketplace: { id: 'marketplace', name: 'Marketplace', category: 'economy', yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 50, description: 'Center of trade — adds a trade route slot.', techRequired: 'currency', adjacencyBonuses: [], routeCapacity: 1 },
   harbor: { id: 'harbor', name: 'Harbor', category: 'economy', yields: { food: 1, production: 0, gold: 3, science: 0 }, productionCost: 80, description: 'Enables sea trade', techRequired: 'harbor-tech', coastalRequired: true, adjacencyBonuses: [] },
   dock: { id: 'dock', name: 'Dock', category: 'economy', yields: { food: 2, production: 0, gold: 1, science: 0 }, productionCost: 20, description: 'Harbor for fishing boats. Boosts coastal city food and trade.', techRequired: 'fishing', coastalRequired: true, adjacencyBonuses: [], pacing: { band: 'core', role: 'coastal-food', impact: 1, scope: 'city', snowball: 1.05, urgency: 1, situationality: 1.2, unlockBreadth: 1 } },
 
@@ -181,6 +181,34 @@ export const BUILDINGS: Record<string, Building> = {
     adjacencyBonuses: [],
     pacing: { band: 'infrastructure', role: 'siege-cost-reduction', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.2, unlockBreadth: 1 },
   },
+  // S5 — Trade infrastructure buildings
+  caravanserai: {
+    id: 'caravanserai', name: 'Caravanserai', category: 'economy',
+    yields: { food: 1, production: 0, gold: 1, science: 0 },
+    productionCost: 40,
+    description: 'A roadside inn for merchants — adds a trade route slot and resupplies traveling caravans (+2 bonus trips).',
+    techRequired: 'wheel',
+    adjacencyBonuses: [],
+    routeCapacity: 1,
+  },
+  bank: {
+    id: 'bank', name: 'Bank', category: 'economy',
+    yields: { food: 0, production: 0, gold: 4, science: 0 },
+    productionCost: 90,
+    description: 'Letters of credit enable long-distance commerce without moving gold — adds a trade route slot.',
+    techRequired: 'banking',
+    adjacencyBonuses: [],
+    routeCapacity: 1,
+  },
+  stock_exchange: {
+    id: 'stock_exchange', name: 'Stock Exchange', category: 'economy',
+    yields: { food: 0, production: 0, gold: 6, science: 1 },
+    productionCost: 120,
+    description: 'Joint-stock companies finance global trade empires — adds a trade route slot and generates financial innovation.',
+    techRequired: 'global-logistics',
+    adjacencyBonuses: [],
+    routeCapacity: 1,
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -212,6 +240,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'scout_hound', name: 'Scout Hound', cost: 36, techRequired: 'lookouts', pacing: { band: 'power-spike', role: 'spy-detection', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.15, unlockBreadth: 1 } },
   { type: 'shadow_warden', name: 'Shadow Warden', cost: 36, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.15, unlockBreadth: 1 } },
   { type: 'war_hound', name: 'War Hound', cost: 32, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection-combat', impact: 1.1, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 } },
+  // S5 — trade unit
+  { type: 'caravan', name: 'Caravan', cost: 60, techRequired: 'trade-routes' },
 ];
 
 export const SETTLER_COST_BY_ERA: Record<number, number> = {
@@ -360,6 +390,11 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   'war-academy':     '🏋️',
   'masonry-works':   '⛏️',
   'siege-workshop':  '🪚',
+  // S5 — trade unit + buildings
+  caravan:         '🐪',
+  caravanserai:    '🏕️',
+  bank:            '🏦',
+  stock_exchange:  '📈',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';

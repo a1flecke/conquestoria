@@ -186,9 +186,11 @@ describe('wonder-panel', () => {
       fashionTurnsLeft: 0,
       tradeRoutes: [
         {
+          id: 'route-1',
           fromCityId: 'city-river',
           toCityId: 'city-rival',
-          goldPerTurn: 4,
+          goldPerTrip: 12,
+          turnsPerTrip: 3,
           foreignCivId: 'rival',
         },
       ],

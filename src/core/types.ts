@@ -235,7 +235,8 @@ export type UnitType =
   | 'axeman' | 'spearman' | 'horseman' | 'cavalry' | 'knight'
   | 'crossbowman' | 'catapult' | 'ballista'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
-  | 'scout_hound' | 'shadow_warden' | 'war_hound';
+  | 'scout_hound' | 'shadow_warden' | 'war_hound'
+  | 'caravan';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
@@ -283,6 +284,9 @@ export interface Unit {
     lastTargets: string[];
     startedTurn: number;
   };
+  committedToRouteId?: string;   // set on establish; blocks movement while set
+  tripsRemaining?: number;       // S5 sets it; S6b decrements on each completed round trip
+  routeDirection?: 'outbound' | 'inbound';  // S6b uses; S5 leaves undefined
 }
 
 // --- Cities ---
@@ -308,6 +312,7 @@ export interface Building {
   adjacencyBonuses?: AdjacencyBonus[];
   pacing?: PacingMetadata;
   resourceRequired?: ResourceType[];
+  routeCapacity?: number;   // trade route slots added to the FROM city; 0 or absent = none
 }
 
 export interface OccupiedCityState {
@@ -873,9 +878,11 @@ export type StrategicResource = 'copper' | 'iron' | 'horses' | 'stone' | 'cattle
 export type ResourceType = LuxuryResource | StrategicResource;
 
 export interface TradeRoute {
+  id: string;              // 'route-N' using state.idCounters.nextRouteId
   fromCityId: string;
   toCityId: string;
-  goldPerTurn: number;
+  goldPerTrip: number;     // replaces goldPerTurn; S5 amortises to effective per-turn
+  turnsPerTrip: number;    // ceil(hexDistance(from, to) / 3); stored for display + income math
   foreignCivId?: string;
 }
 
@@ -1020,6 +1027,7 @@ export interface IdCounters {
   nextCityId:  number;
   nextCampId:  number;
   nextQuestId: number;
+  nextRouteId?: number;  // defaults to 1 on old saves (optional for back-compat)
 }
 
 // --- Game State (the whole thing) ---
@@ -1137,6 +1145,7 @@ export interface GameEvents {
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
   'advisor:message': { advisor: AdvisorType; message: string; icon: string; tone?: CouncilCallbackTone; memoryKey?: string };
   'trade:route-created': { route: TradeRoute };
+  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' };
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };
   'wonder:eruption': { wonderId: string; position: HexCoord; tilesAffected: HexCoord[] };

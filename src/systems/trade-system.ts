@@ -1,4 +1,8 @@
-import type { BuildableImprovementType, MarketplaceState, ResourceType, TradeRoute } from '@/core/types';
+import type { BuildableImprovementType, MarketplaceState, ResourceType, TradeRoute, GameState, Unit, City } from '@/core/types';
+import { EventBus } from '@/core/event-bus';
+import { findPath } from '@/systems/unit-system';
+import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
+import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
 
 export interface ResourceEffect {
   type: 'happiness' | 'gold' | 'production' | 'food';
@@ -164,6 +168,233 @@ export function processFashionCycle(
   return marketplace;
 }
 
+// --- S5: per-route effective gold/turn ---
+
+export function getEffectiveGoldPerTurn(route: TradeRoute): number {
+  return Math.max(1, Math.round(route.goldPerTrip / route.turnsPerTrip));
+}
+
 export function processTradeRouteIncome(routes: TradeRoute[]): number {
-  return routes.reduce((total, r) => total + r.goldPerTurn, 0);
+  return routes.reduce((total, r) => total + getEffectiveGoldPerTurn(r), 0);
+}
+
+// --- S5: route capacity ---
+
+export function getRouteCapacity(state: GameState, cityId: string): number {
+  const city = state.cities[cityId];
+  if (!city) return 1;
+  const b = city.buildings;
+  const total = 1
+    + (b.includes('caravanserai')  ? 1 : 0)
+    + (b.includes('marketplace')   ? 1 : 0)
+    + (b.includes('bank')          ? 1 : 0)
+    + (b.includes('stock_exchange') ? 1 : 0);
+  return Math.min(total, 5);
+}
+
+function routesFromCity(state: GameState, cityId: string): number {
+  return (state.marketplace?.tradeRoutes ?? []).filter(r => r.fromCityId === cityId).length;
+}
+
+// --- S5: FROM city resolution ---
+
+export function resolveFromCity(state: GameState, caravanUnit: Unit): City | null {
+  const ownedCities = Object.values(state.cities)
+    .filter(c => c.owner === caravanUnit.owner);
+
+  const candidates: Array<{ city: City; pathLen: number; remaining: number }> = [];
+  for (const city of ownedCities) {
+    const remaining = getRouteCapacity(state, city.id) - routesFromCity(state, city.id);
+    if (remaining <= 0) continue;
+    const path = findPath(caravanUnit.position, city.position, state.map, 'land');
+    if (!path) continue;
+    candidates.push({ city, pathLen: path.length, remaining });
+  }
+
+  if (candidates.length === 0) return null;
+
+  // Sort: nearest first; tiebreak by most remaining capacity
+  candidates.sort((a, b) => {
+    if (a.pathLen !== b.pathLen) return a.pathLen - b.pathLen;
+    return b.remaining - a.remaining;
+  });
+
+  return candidates[0].city;
+}
+
+// --- S5: trip bonus ---
+
+export function getCaravanTripBonus(
+  state: GameState,
+  fromCityId: string,
+  toCityId: string,
+  caravanOwner: string,
+): number {
+  const fromCity = state.cities[fromCityId];
+  const toCity   = state.cities[toCityId];
+  // Silk Road wonder doesn't exist yet — always 0 until added
+  const hasSilkRoad =
+    state.completedLegendaryWonders?.['silk-road']?.ownerId === caravanOwner;
+  return (
+    (fromCity?.buildings.includes('caravanserai') ? 2 : 0) +
+    (toCity?.buildings.includes('caravanserai')   ? 2 : 0) +
+    (hasSilkRoad ? 3 : 0)
+  );
+}
+
+// --- S5: route validation ---
+
+export function canEstablishRoute(
+  state: GameState,
+  caravanUnit: Unit,
+  toCityId: string,
+): { ok: boolean; reason?: string } {
+  // 1. Already committed
+  if (caravanUnit.committedToRouteId) {
+    return { ok: false, reason: 'Caravan is already committed to a route' };
+  }
+  // 2. TO city must exist
+  const toCity = state.cities[toCityId];
+  if (!toCity) return { ok: false, reason: 'Destination city not found' };
+  // 3. FROM city must exist with capacity
+  const fromCity = resolveFromCity(state, caravanUnit);
+  if (!fromCity) return { ok: false, reason: 'No city with available route capacity' };
+  // 4. Self-route blocked
+  if (toCity.id === fromCity.id) return { ok: false, reason: 'Cannot route a city to itself' };
+  // 5. Land path must exist FROM→TO
+  const path = findPath(fromCity.position, toCity.position, state.map, 'land');
+  if (!path) return { ok: false, reason: 'Requires a Naval Trader to cross water' };
+  // 6. Foreign city checks
+  if (toCity.owner !== caravanUnit.owner) {
+    const ownerCiv = state.civilizations[caravanUnit.owner];
+    if (!ownerCiv) return { ok: false, reason: 'Owner civilization not found' };
+    const dip = ownerCiv.diplomacy;
+    if (isAtWar(dip, toCity.owner)) {
+      const enemyName = state.civilizations[toCity.owner]?.name ?? toCity.owner;
+      return { ok: false, reason: `At war with ${enemyName}` };
+    }
+    const rel = getRelationship(dip, toCity.owner);
+    if (rel < 0) {
+      return { ok: false, reason: `Relations too hostile (score: ${rel})` };
+    }
+  }
+  return { ok: true };
+}
+
+// --- S5: route establishment ---
+
+export function establishRoute(
+  state: GameState,
+  caravanUnitId: string,
+  toCityId: string,
+  bus?: EventBus,
+  resourceDiversity: number = 0,
+): GameState {
+  const caravanUnit = state.units[caravanUnitId];
+  if (!caravanUnit) throw new Error(`Unit ${caravanUnitId} not found`);
+
+  const fromCity = resolveFromCity(state, caravanUnit);
+  if (!fromCity) throw new Error('No eligible FROM city — call canEstablishRoute first');
+
+  const toCity = state.cities[toCityId];
+  if (!toCity) throw new Error(`TO city ${toCityId} not found`);
+
+  // Deep-copy state (spread-copy pattern consistent with codebase)
+  let newState: GameState = {
+    ...state,
+    units: { ...state.units },
+    cities: { ...state.cities },
+    idCounters: { ...state.idCounters },
+    marketplace: state.marketplace ? { ...state.marketplace, tradeRoutes: [...state.marketplace.tradeRoutes] } : createMarketplaceState(),
+  };
+
+  // Guard: initialise nextRouteId if missing (old saves)
+  if (!newState.idCounters.nextRouteId) {
+    newState.idCounters.nextRouteId = 1;
+  }
+
+  // Compute distance (map-wrap aware)
+  const hexDist = newState.map.wrapsHorizontally
+    ? wrappedHexDistance(fromCity.position, toCity.position, newState.map.width)
+    : hexDistance(fromCity.position, toCity.position);
+
+  const turnsPerTrip = Math.max(1, Math.ceil(hexDist / 3));
+
+  // resourceDiversity passed by caller (avoids circular import with resource-acquisition-system)
+  const goldPerTrip = calculateTradeRouteGold(hexDist, resourceDiversity) * turnsPerTrip;
+
+  const tripBonus = getCaravanTripBonus(newState, fromCity.id, toCityId, caravanUnit.owner);
+  const tripsRemaining = 8 + tripBonus;
+
+  const foreignCivId = toCity.owner !== caravanUnit.owner ? toCity.owner : undefined;
+
+  const routeId = `route-${newState.idCounters.nextRouteId}`;
+  newState.idCounters.nextRouteId++;
+
+  const route: TradeRoute = {
+    id: routeId,
+    fromCityId: fromCity.id,
+    toCityId,
+    goldPerTrip,
+    turnsPerTrip,
+    ...(foreignCivId ? { foreignCivId } : {}),
+  };
+
+  newState.marketplace!.tradeRoutes.push(route);
+
+  newState.units[caravanUnitId] = {
+    ...caravanUnit,
+    committedToRouteId: routeId,
+    tripsRemaining,
+    movementPointsLeft: 0,
+    hasActed: true,
+  };
+
+  bus?.emit('trade:route-created', { route });
+
+  return newState;
+}
+
+// --- S5: route removal helper ---
+
+export function removeRouteForUnit(
+  state: GameState,
+  unitId: string,
+  bus?: EventBus,
+  reason: 'unit-died' | 'unit-disbanded' = 'unit-died',
+  /** Pass explicit routeId when the unit may already be removed from state.units */
+  explicitRouteId?: string,
+): GameState {
+  const unit = state.units[unitId];
+  const routeId = explicitRouteId ?? unit?.committedToRouteId;
+  if (!routeId) return state;
+  const route = state.marketplace?.tradeRoutes.find(r => r.id === routeId);
+
+  const newRoutes = (state.marketplace?.tradeRoutes ?? []).filter(r => r.id !== routeId);
+  const newMarketplace = state.marketplace
+    ? { ...state.marketplace, tradeRoutes: newRoutes }
+    : undefined;
+
+  if (route) {
+    bus?.emit('trade:route-ended', {
+      routeId,
+      fromCityId: route.fromCityId,
+      toCityId: route.toCityId,
+      reason,
+    });
+  }
+
+  // Only update the unit entry if it still exists in state (may already be removed on death)
+  const updatedUnits = unit
+    ? {
+        ...state.units,
+        [unitId]: { ...unit, committedToRouteId: undefined, tripsRemaining: undefined },
+      }
+    : state.units;
+
+  return {
+    ...state,
+    marketplace: newMarketplace,
+    units: updatedUnits,
+  };
 }

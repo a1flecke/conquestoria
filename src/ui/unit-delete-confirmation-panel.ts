@@ -1,5 +1,6 @@
 export interface UnitDeleteConfirmationConfig {
   unitName: string;
+  bodyText?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -32,7 +33,7 @@ export function createUnitDeleteConfirmationPanel(
   dialog.appendChild(title);
 
   const body = document.createElement('p');
-  body.textContent = 'This removes the unit permanently.';
+  body.textContent = config.bodyText ?? 'This removes the unit permanently.';
   body.style.cssText = 'font-size:13px;line-height:1.4;margin:0 0 16px;opacity:0.85;';
   dialog.appendChild(body);
 

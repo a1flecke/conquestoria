@@ -150,10 +150,12 @@ import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecyc
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
-import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
+import { getCivHappinessFromResources, getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
+import { removeRouteForUnit, createMarketplaceState, establishRoute } from '@/systems/trade-system';
+import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 
 // --- App State ---
 let gameState: GameState;
@@ -1149,6 +1151,12 @@ function togglePanel(panel: string): void {
   } else if (panel === 'marketplace') {
     createMarketplacePanel(uiLayer, gameState, {
       onClose: () => {},
+      onSelectUnit: (unitId) => {
+        document.getElementById('marketplace-panel')?.remove();
+        selectUnit(unitId);
+        const unit = gameState.units[unitId];
+        if (unit) renderLoop.camera.centerOn(unit.position);
+      },
     });
   }
 }
@@ -1215,8 +1223,14 @@ function selectUnit(unitId: string): void {
   selectedUnitId = unitId;
 
   const highlightResult = buildSelectedUnitHighlights(gameState, unitId);
-  movementRange = highlightResult.movementRange;
-  attackRange = highlightResult.attackTargets.map(target => target.coord);
+  if (gameState.units[unitId]?.committedToRouteId) {
+    // Committed caravans cannot move or attack — keep highlights empty
+    movementRange = [];
+    attackRange = [];
+  } else {
+    movementRange = highlightResult.movementRange;
+    attackRange = highlightResult.attackTargets.map(target => target.coord);
+  }
   renderLoop.setHighlights(highlightResult.highlights);
 
   // Show unit info panel
@@ -1381,6 +1395,16 @@ function selectUnit(unitId: string): void {
         selectUnit(uid);
         showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
       },
+      onEstablishRoute: (caravanId) => {
+        openEstablishRoutePanel(uiLayer, gameState, caravanId, (toCityId) => {
+          const resourceDiversity = getCivAvailableResources(gameState, gameState.currentPlayer).size;
+          gameState = establishRoute(gameState, caravanId, toCityId, bus, resourceDiversity);
+          renderLoop.setGameState(gameState);
+          updateHUD();
+          selectUnit(caravanId);
+          showNotification('Trade route established!', 'success');
+        });
+      },
     });
   }
 
@@ -1517,6 +1541,8 @@ function getUnitTurnFlow() {
     showNotification,
     setBlockingOverlay,
     endTurn: options => { void endTurn(options); },
+    onUnitDisbanded: (state, unitId, routeId) =>
+      removeRouteForUnit(state, unitId, bus, 'unit-disbanded', routeId),
   });
 }
 
@@ -1698,6 +1724,9 @@ function executeAttack(attackerId: string, targetKey: string): void {
   const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
   const attackerBonus = currentCivDef()?.bonusEffect;
   const defenderBonus = resolveCivDefinition(gameState, gameState.civilizations[defender.owner]?.civType ?? '')?.bonusEffect;
+  // Capture route IDs before combat (units may be removed from state after)
+  const attackerRouteId = attacker.committedToRouteId;
+  const defenderRouteId = defender.committedToRouteId;
   const result = resolveCombat(
     attacker,
     gameState.units[defenderId] ?? defender,
@@ -1710,6 +1739,13 @@ function executeAttack(attackerId: string, targetKey: string): void {
 
   const applied = applyCombatOutcomeToState(gameState, result, seed);
   gameState = applied.state;
+  // Clean up trade routes for any committed caravans that died
+  if (applied.attackerDefeated && attackerRouteId) {
+    gameState = removeRouteForUnit(gameState, result.attackerId, bus, 'unit-died', attackerRouteId);
+  }
+  if (applied.defenderDefeated && defenderRouteId) {
+    gameState = removeRouteForUnit(gameState, result.defenderId, bus, 'unit-died', defenderRouteId);
+  }
 
   if (applied.attackerDefeated) {
     showNotification('Our unit was destroyed!', 'warning');
@@ -1826,6 +1862,11 @@ function handleHexTap(rawCoord: HexCoord): void {
   if (selectedUnitId && !selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
     const selectedUnit = gameState.units[selectedUnitId];
     if (selectedUnit) {
+      if (selectedUnit.committedToRouteId) {
+        showNotification('Caravan is committed to a trade route and cannot move.', 'warning');
+        selectUnit(selectedUnitId);
+        return;
+      }
       const civ = currentCiv();
       const visibilityState = civ.visibility ? getVisibility(civ.visibility, coord) : undefined;
       const reason = getMovementBlockerReason(selectedUnit, coord, gameState.map, { visibilityState });
@@ -2921,6 +2962,29 @@ function migrateLegacySave(): void {
   // Reconstruct missing lastSeen entries for fog tiles on old saves (M5 migration)
   for (const civId of Object.keys(gameState.civilizations)) {
     reconstructLastSeenFromMap(gameState, civId);
+  }
+  // S5 migration: nextRouteId counter
+  if (!gameState.idCounters.nextRouteId) {
+    gameState.idCounters.nextRouteId = 1;
+  }
+  // S5 migration: marketplace state init
+  if (!gameState.marketplace) {
+    gameState.marketplace = createMarketplaceState();
+  }
+  // S5 migration: TradeRoute shape — assign id, goldPerTrip, turnsPerTrip
+  let legacyRouteN = 1;
+  for (const route of gameState.marketplace.tradeRoutes) {
+    const r = route as any;
+    if (!r.id) {
+      r.id = `route-legacy-${legacyRouteN++}`;
+    }
+    if (!r.goldPerTrip) {
+      r.goldPerTrip = (r.goldPerTurn ?? 2) * (r.turnsPerTrip ?? 3);
+    }
+    if (!r.turnsPerTrip) {
+      r.turnsPerTrip = 3;
+    }
+    delete r.goldPerTurn;
   }
 }
 

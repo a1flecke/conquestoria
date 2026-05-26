@@ -32,6 +32,8 @@ const FALLBACK_ICONS: Record<string, string> = {
   scout_hound: '🐕',
   shadow_warden: '🦅',
   war_hound: '🐺',
+  // S5 — trade unit
+  caravan: '🐪',
 };
 
 export interface UnitVisual {

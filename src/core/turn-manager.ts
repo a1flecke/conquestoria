@@ -37,7 +37,7 @@ import {
   triggerLeagueDefense,
   getLeagueForCiv,
 } from '@/systems/diplomacy-system';
-import { processTradeRouteIncome, processFashionCycle, updatePrices } from '@/systems/trade-system';
+import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
@@ -241,6 +241,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     for (const unitId of civ.units) {
       const unit = newState.units[unitId];
       if (!unit || unit.health >= 100) continue;
+      if (unit.committedToRouteId) continue; // committed caravans do not heal
       const posKey = `${unit.position.q},${unit.position.r}`;
       const tile = newState.map.tiles[posKey];
       const inFriendlyCity = cityPositionsSet.has(posKey) && (tile?.owner === civId);
@@ -252,7 +253,12 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     for (const unitId of civ.units) {
       const unit = newState.units[unitId];
       if (unit) {
-        newState.units[unitId] = resetUnitTurn(unit);
+        let reset = resetUnitTurn(unit);
+        // Committed caravans cannot move — zero restored movement so they don't appear in unmoved cycling
+        if (reset.committedToRouteId) {
+          reset = { ...reset, movementPointsLeft: 0, hasActed: true };
+        }
+        newState.units[unitId] = reset;
       }
     }
 
@@ -483,9 +489,19 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const legality = canUnitAttackTarget(newState, attacker, defender.position, { requireVisibility: false });
     if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
     const combatSeed = barbSeed ^ attack.attackerUnitId.charCodeAt(0);
+    // Capture route IDs before combat (units may be removed from state after)
+    const attackerRouteId = attacker.committedToRouteId;
+    const defenderRouteId = defender.committedToRouteId;
     const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
     const applied = applyCombatOutcomeToState(newState, result, combatSeed);
     newState = applied.state;
+    // Clean up trade routes for any committed caravans that died
+    if (applied.attackerDefeated && attackerRouteId) {
+      newState = removeRouteForUnit(newState, result.attackerId, bus, 'unit-died', attackerRouteId);
+    }
+    if (applied.defenderDefeated && defenderRouteId) {
+      newState = removeRouteForUnit(newState, result.defenderId, bus, 'unit-died', defenderRouteId);
+    }
     bus.emit('combat:resolved', { result });
     for (const reward of applied.rewards) {
       bus.emit('combat:reward-earned', { reward });
