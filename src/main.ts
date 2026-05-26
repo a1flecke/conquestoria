@@ -301,6 +301,10 @@ function openWonderAtlas(initialWonderId?: string): void {
     onViewOnMap: coord => {
       renderLoop.camera.centerOn(coord);
     },
+    onOpenCity: cityId => {
+      const city = gameState.cities[cityId];
+      if (city) openCityPanelForCity(city);
+    },
     onClose: () => {},
   });
 }
