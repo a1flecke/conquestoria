@@ -380,7 +380,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
 
     const buttons = findButtons(container).map(button => button.textContent);
-    expect(buttons).toContain('Drain Swamp (20% worker risk)');
+    expect(buttons.some(l => l.includes('Drain Swamp') && l.includes('Grassland'))).toBe(true);
     expect(buttons).not.toContain('Build Farm');
   });
 
@@ -393,7 +393,8 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
 
     const text = collectAllText(container).join(' ');
-    expect(text).toContain('20% worker risk');
+    expect(text).toContain('Drain Swamp');
+    expect(text).toContain('Grassland');
   });
 
   it('shows no worker actions on unowned or enemy-owned terrain', () => {
@@ -409,7 +410,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
       expect(collectAllText(container).join(' ')).toContain('Worker Charges: 2/2');
       expect(buttons).not.toContain('Build Farm');
       expect(buttons).not.toContain('Build Lumber Camp');
-      expect(buttons).not.toContain('Drain Swamp (20% worker risk)');
+      expect(buttons.every(l => !l.includes('→ Grassland'))).toBe(true);
     }
   });
 
@@ -565,6 +566,58 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     findButtons(container).find(button => button.textContent === 'Build Lumber Camp')?.click();
 
     expect(clicked).toBe('lumber_camp');
+  });
+
+  // --- MR-B #262: drain_swamp label and plantation gating ---
+
+  it('drain_swamp button label describes result (→ Grassland)', () => {
+    const state = makeWorkerState({ terrain: 'swamp' });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    expect(buttons.some(l => l.includes('→ Grassland'))).toBe(true);
+  });
+
+  it('drain_swamp button does not show raw action key as label', () => {
+    const state = makeWorkerState({ terrain: 'swamp' });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    expect(buttons).not.toContain('drain_swamp');
+  });
+
+  it('grassland tile with silk shows plantation button', () => {
+    const state = makeWorkerState({ terrain: 'grassland', resource: 'silk' });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    expect(buttons.some(l => l.toLowerCase().includes('plantation'))).toBe(true);
+  });
+
+  it('grassland tile without resource does not show plantation button', () => {
+    const state = makeWorkerState({ terrain: 'grassland', resource: null });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    expect(buttons.every(l => !l.toLowerCase().includes('plantation'))).toBe(true);
+  });
+
+  it('hills tile with iron shows mine button', () => {
+    const state = makeWorkerState({ terrain: 'hills', resource: 'iron' });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    expect(buttons.some(l => l.toLowerCase().includes('mine'))).toBe(true);
   });
 });
 
