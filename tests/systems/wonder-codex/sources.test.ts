@@ -58,4 +58,20 @@ describe('wonder-codex sources', () => {
       expect(ledger).toContain(source.sourceUrl);
     }
   });
+
+  it('keeps one completed ledger row per codex entry', () => {
+    const ledger = readFileSync(
+      path.join(process.cwd(), 'docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md'),
+      'utf8',
+    );
+    for (const entry of getAllWonderCodexContent()) {
+      const imageSource = getImageSource(entry.imageSourceId);
+      const factSourceCell = entry.factSourceIds.map(sourceId => `\`${sourceId}\``).join(', ');
+      expect(imageSource).toBeTruthy();
+      expect(ledger).toContain(`| \`${entry.id}\` |`);
+      expect(ledger).toContain(`| \`${entry.id}\` | ${factSourceCell} | \`${entry.imageSourceId}\` |`);
+      expect(ledger).toContain(imageSource!.localPath);
+      expect(ledger).toContain(imageSource!.attribution);
+    }
+  });
 });

@@ -176,6 +176,13 @@ export const WONDER_CODEX_FACT_SOURCES = [
     sourceUrl: 'https://www.internetsociety.org/internet/history-internet/brief-history-internet/',
     notes: 'Used for Internet origin and network context.',
   },
+  {
+    id: 'khan-trade-networks',
+    title: 'Archipelago of Trade',
+    publisher: 'Khan Academy',
+    sourceUrl: 'https://www.khanacademy.org/humanities/world-history-project-ap/xb41992e0ff5e0f09:unit-2-networks-of-exchange/xb41992e0ff5e0f09:2-2routes-of-exchange/a/read-archipelago-of-trade',
+    notes: 'Used for trade networks, exchange cities, and knowledge-sharing context.',
+  },
 ] satisfies WonderCodexFactSource[];
 
 export const WONDER_CODEX_IMAGE_SOURCES = [
@@ -194,10 +201,14 @@ export const WONDER_CODEX_IMAGE_SOURCES = [
   image('image-storm', 'Thunderstorm', 'NOAA / public domain', 'https://commons.wikimedia.org/wiki/File:Isolated_supercell_-_NOAA.jpg', '/images/wonders/codex/storm.jpg'),
   image('image-delphi', 'Tholos at Delphi', 'Konstantinos Kousis / CC BY-SA 4.0', 'https://commons.wikimedia.org/wiki/File:IMGP3050W.jpg', '/images/wonders/codex/delphi.jpg'),
   image('image-canal', 'Beijing-Hangzhou Grand Canal in Chongfu Town', 'User MaomaodeRijiben / CC BY-SA 4.0', 'https://commons.wikimedia.org/wiki/File:The_Beijing-Hangzhou_Grand_Canal_in_Chongfu_Town_2014-06.jpg', '/images/wonders/codex/canal.jpg'),
+  image('image-sun-tower', 'Sierra SunTower Power Plant', 'Z22 / CC BY-SA 3.0', 'https://commons.wikimedia.org/wiki/File:Sierra_SunTower_Power_Plant.jpg', '/images/wonders/codex/sun-tower.jpg'),
   image('image-archive', 'Library of Congress Main Reading Room', 'Carol M. Highsmith / public domain', 'https://commons.wikimedia.org/wiki/File:LOC_Main_Reading_Room_Highsmith.jpg', '/images/wonders/codex/archive.jpg'),
   image('image-garden', 'Botanical Garden Bonn', 'Carsondelake / CC BY-SA 4.0', 'https://commons.wikimedia.org/wiki/File:Botanischer_Garten_Bonn.jpg', '/images/wonders/codex/garden.jpg'),
   image('image-foundry', 'Saugus Iron Works', 'Nlynch / CC BY-SA 3.0', 'https://commons.wikimedia.org/wiki/File:Saugus_Iron_Works_National_Historic_Site.JPG', '/images/wonders/codex/foundry.jpg'),
   image('image-observatory', 'Paranal Observatory at sunset', 'ESO and G. Hudepohl / CC BY 4.0', 'https://commons.wikimedia.org/wiki/File:Paranal_and_the_Pacific_at_sunset_(dsc4088,_retouched,_cropped).jpg', '/images/wonders/codex/observatory.jpg'),
+  image('image-exchange', 'Trading Floor, New York Stock Exchange', 'Carol M. Highsmith / public domain', 'https://commons.wikimedia.org/wiki/File:No_Known_Restrictions_Trading_Floor,_New_York_Stock_Exchange_(Highsmith_LOC)_(6718386525).jpg', '/images/wonders/codex/exchange.jpg'),
+  image('image-olympia-stadium', 'Ancient Olympia Stadium', 'dronepicr / CC BY 2.0', 'https://commons.wikimedia.org/wiki/File:Ancient_Olympia_Stadium_in_Greece_(51224128585).jpg', '/images/wonders/codex/olympia-stadium.jpg'),
+  image('image-drydock', 'Puget Sound Naval Shipyard Drydock', 'Asahel Curtis / public domain', 'https://commons.wikimedia.org/wiki/File:Drydock,_Puget_Sound_Naval_Shipyard,_Bremerton,_showing_battleships_WISCONSIN_(left),_NEBRASKA_(right),_and_U_S_revenue_cutter_(CURTIS_771).jpeg', '/images/wonders/codex/drydock.jpeg'),
   image('image-manhattan', 'Calutron operators', 'U.S. Department of Energy / public domain', 'https://commons.wikimedia.org/wiki/File:Calutron_operators.jpg', '/images/wonders/codex/manhattan.jpg'),
   image('image-internet', 'Internet map', 'The Opte Project / CC BY 2.5', 'https://commons.wikimedia.org/wiki/File:Internet_map_1024.jpg', '/images/wonders/codex/internet.jpg'),
 ] satisfies WonderCodexImageSource[];

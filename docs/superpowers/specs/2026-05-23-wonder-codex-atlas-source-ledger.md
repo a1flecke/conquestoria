@@ -33,6 +33,7 @@ These sources are approved starting points. Implementation may add more sources,
 | `nps-grand-canyon` | Grand Canyon factual source | https://www.nps.gov/grca/learn/ | Official National Park Service education pages for Grand Canyon facts. |
 | `nps-manhattan-project` | Manhattan Project factual source | https://www.nps.gov/mapr/learn/manhattan-project.htm | Official National Park Service source for the Manhattan Project and its historical significance. |
 | `internet-society-history` | Internet factual source | https://www.internetsociety.org/internet/history-internet/brief-history-internet/ | Internet Society history source for origins and development of the Internet. |
+| `khan-trade-networks` | Exchange and trade-network factual source | https://www.khanacademy.org/humanities/world-history-project-ap/xb41992e0ff5e0f09:unit-2-networks-of-exchange/xb41992e0ff5e0f09:2-2routes-of-exchange/a/read-archipelago-of-trade | Khan Academy educational source for exchange cities, trade routes, and knowledge-sharing networks. |
 | `noaa-corals` | Coral reef factual source | https://oceanservice.noaa.gov/education/tutorial_corals/ | NOAA educational coral tutorial for reef facts. |
 | `usgs-volcanoes` | Volcano factual source | https://www.usgs.gov/programs/VHP | USGS Volcano Hazards Program source for volcano safety and eruption context. |
 | `nps-geology-mountains` | Mountain factual source | https://www.nps.gov/subjects/geology/mountains.htm | National Park Service geology source for mountain context. |
@@ -74,10 +75,14 @@ These sources are approved starting points. Implementation may add more sources,
 | `image-storm` | https://commons.wikimedia.org/wiki/File:Isolated_supercell_-_NOAA.jpg | `/images/wonders/codex/storm.jpg` | public domain | NOAA / public domain |
 | `image-delphi` | https://commons.wikimedia.org/wiki/File:IMGP3050W.jpg | `/images/wonders/codex/delphi.jpg` | CC BY-SA 4.0 | Konstantinos Kousis / CC BY-SA 4.0 |
 | `image-canal` | https://commons.wikimedia.org/wiki/File:The_Beijing-Hangzhou_Grand_Canal_in_Chongfu_Town_2014-06.jpg | `/images/wonders/codex/canal.jpg` | CC BY-SA 4.0 | User MaomaodeRijiben / CC BY-SA 4.0 |
+| `image-sun-tower` | https://commons.wikimedia.org/wiki/File:Sierra_SunTower_Power_Plant.jpg | `/images/wonders/codex/sun-tower.jpg` | CC BY-SA 3.0 | Z22 / CC BY-SA 3.0 |
 | `image-archive` | https://commons.wikimedia.org/wiki/File:LOC_Main_Reading_Room_Highsmith.jpg | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
 | `image-garden` | https://commons.wikimedia.org/wiki/File:Botanischer_Garten_Bonn.jpg | `/images/wonders/codex/garden.jpg` | CC BY-SA 4.0 | Carsondelake / CC BY-SA 4.0 |
 | `image-foundry` | https://commons.wikimedia.org/wiki/File:Saugus_Iron_Works_National_Historic_Site.JPG | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
 | `image-observatory` | https://commons.wikimedia.org/wiki/File:Paranal_and_the_Pacific_at_sunset_(dsc4088,_retouched,_cropped).jpg | `/images/wonders/codex/observatory.jpg` | CC BY 4.0 | ESO and G. Hudepohl / CC BY 4.0 |
+| `image-exchange` | https://commons.wikimedia.org/wiki/File:No_Known_Restrictions_Trading_Floor,_New_York_Stock_Exchange_(Highsmith_LOC)_(6718386525).jpg | `/images/wonders/codex/exchange.jpg` | public domain | Carol M. Highsmith / public domain |
+| `image-olympia-stadium` | https://commons.wikimedia.org/wiki/File:Ancient_Olympia_Stadium_in_Greece_(51224128585).jpg | `/images/wonders/codex/olympia-stadium.jpg` | CC BY 2.0 | dronepicr / CC BY 2.0 |
+| `image-drydock` | https://commons.wikimedia.org/wiki/File:Drydock,_Puget_Sound_Naval_Shipyard,_Bremerton,_showing_battleships_WISCONSIN_(left),_NEBRASKA_(right),_and_U_S_revenue_cutter_(CURTIS_771).jpeg | `/images/wonders/codex/drydock.jpeg` | public domain | Asahel Curtis / public domain |
 | `image-manhattan` | https://commons.wikimedia.org/wiki/File:Calutron_operators.jpg | `/images/wonders/codex/manhattan.jpg` | public domain | U.S. Department of Energy / public domain |
 | `image-internet` | https://commons.wikimedia.org/wiki/File:Internet_map_1024.jpg | `/images/wonders/codex/internet.jpg` | CC BY 2.5 | The Opte Project / CC BY 2.5 |
 
@@ -104,16 +109,16 @@ During implementation, add a row for every codex entry using this shape:
 | `eternal_storm` | `noaa-severe-weather` | `image-storm` | `/images/wonders/codex/storm.jpg` | public domain | NOAA / public domain |
 | `oracle-of-delphi` | `unesco-delphi` | `image-delphi` | `/images/wonders/codex/delphi.jpg` | CC BY-SA 4.0 | Konstantinos Kousis / CC BY-SA 4.0 |
 | `grand-canal` | `unesco-grand-canal` | `image-canal` | `/images/wonders/codex/canal.jpg` | CC BY-SA 4.0 | User MaomaodeRijiben / CC BY-SA 4.0 |
-| `sun-spire` | `energy-solar` | `image-volcano` | `/images/wonders/codex/volcano.jpg` | public domain | USGS / public domain |
+| `sun-spire` | `energy-solar` | `image-sun-tower` | `/images/wonders/codex/sun-tower.jpg` | CC BY-SA 3.0 | Z22 / CC BY-SA 3.0 |
 | `world-archive` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
 | `moonwell-gardens` | `bgci-gardens` | `image-garden` | `/images/wonders/codex/garden.jpg` | CC BY-SA 4.0 | Carsondelake / CC BY-SA 4.0 |
 | `ironroot-foundry` | `nps-saugus-iron` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
 | `tidecaller-bastion` | `noaa-maritime-heritage` | `image-ruins` | `/images/wonders/codex/ruins.png` | public domain | NOAA / public domain |
 | `starvault-observatory` | `nasa-observatories` | `image-observatory` | `/images/wonders/codex/observatory.jpg` | CC BY 4.0 | ESO and G. Hudepohl / CC BY 4.0 |
-| `whispering-exchange` | `internet-society-history` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
-| `hall-of-champions` | `olympics-ancient` | `image-fossil` | `/images/wonders/codex/fossil.jpg` | CC BY-SA 4.0 | Wikimedia Commons / CC BY-SA 4.0 |
+| `whispering-exchange` | `khan-trade-networks` | `image-exchange` | `/images/wonders/codex/exchange.jpg` | public domain | Carol M. Highsmith / public domain |
+| `hall-of-champions` | `olympics-ancient` | `image-olympia-stadium` | `/images/wonders/codex/olympia-stadium.jpg` | CC BY 2.0 | dronepicr / CC BY 2.0 |
 | `gate-of-the-world` | `noaa-maritime-heritage` | `image-ruins` | `/images/wonders/codex/ruins.png` | public domain | NOAA / public domain |
-| `leviathan-drydock` | `noaa-maritime-heritage` | `image-ruins` | `/images/wonders/codex/ruins.png` | public domain | NOAA / public domain |
+| `leviathan-drydock` | `noaa-maritime-heritage` | `image-drydock` | `/images/wonders/codex/drydock.jpeg` | public domain | Asahel Curtis / public domain |
 | `storm-signal-spire` | `noaa-weather-radio` | `image-storm` | `/images/wonders/codex/storm.jpg` | public domain | NOAA / public domain |
 | `manhattan-project` | `nps-manhattan-project` | `image-manhattan` | `/images/wonders/codex/manhattan.jpg` | public domain | U.S. Department of Energy / public domain |
 | `internet` | `internet-society-history` | `image-internet` | `/images/wonders/codex/internet.jpg` | CC BY 2.5 | The Opte Project / CC BY 2.5 |
