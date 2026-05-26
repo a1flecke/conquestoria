@@ -52,11 +52,9 @@ export class AudioSystem {
     if (state.era > 1) {
       this.director.handleEraAdvanced({ era: state.era, civType: this.currentCivType });
     } else {
-      // Era-1 new game: the AudioContext is created before any user gesture and
-      // may be suspended. setSnapshot('peace', 0) is synchronous and ensures gain
-      // nodes are at the correct peace levels as soon as preloadForEra resolves
-      // and setBusSource starts the audio nodes — no stinger needed.
-      this.mixer.setSnapshot('peace', 0);
+      // Era-1 new game: delegate to director so intendedSnapshot stays in sync.
+      // initPeaceSnapshot is synchronous and idempotent — safe before preloadForEra resolves.
+      this.director.initPeaceSnapshot();
     }
   }
 
