@@ -33,7 +33,7 @@ describe('wonder-discovery-ceremony', () => {
     vi.useFakeTimers();
   });
 
-  it('renders the reveal copy, actions, and animated medallion mode', () => {
+  it('renders the reveal copy, actions, and amplified spectacle mode', () => {
     createWonderDiscoveryCeremony(document.body, item(), { onResolve: () => {} }, { reducedMotion: false });
 
     expect(document.body.textContent).toContain('Natural Wonder Discovered');
@@ -44,7 +44,21 @@ describe('wonder-discovery-ceremony', () => {
     expect(document.querySelector('[data-wonder-discovery-action="continue"]')).toBeTruthy();
     expect(document.querySelector('[data-wonder-discovery-action="open-atlas"]')).toBeTruthy();
     expect(document.querySelector('[data-wonder-discovery-action="skip"]')).toBeTruthy();
-    expect(document.querySelector('[data-vignette-motion="ambient"]')).toBeTruthy();
+    expect(document.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeTruthy();
+  });
+
+  it('renders amplified spectacle from the natural wonder recipe', () => {
+    createWonderDiscoveryCeremony(document.body, item(), { onResolve: () => {} }, { reducedMotion: false });
+
+    expect(document.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeTruthy();
+    expect(document.querySelector('[data-wonder-spectacle-variant="amplified"]')).toBeTruthy();
+  });
+
+  it('uses static spectacle for reduced-motion reveal', () => {
+    createWonderDiscoveryCeremony(document.body, item(), { onResolve: () => {} }, { reducedMotion: true });
+
+    expect(document.querySelector('[data-wonder-spectacle-mode="reveal-static"]')).toBeTruthy();
+    expect(document.querySelector('[data-vignette-motion="static"]')).toBeTruthy();
   });
 
   it('resolves exactly once for repeated action clicks', () => {
