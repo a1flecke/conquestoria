@@ -9,9 +9,10 @@ set -eu
 # Mapping (when $CURRENT_ROOT != $MAIN_ROOT):
 #   yarn test          → vitest run --root $CURRENT_ROOT + bash tests/hooks/run.sh
 #   yarn build         → tsc --project $CURRENT_ROOT/tsconfig.json --noEmit
-#                      + vite build --root $CURRENT_ROOT
+#                      + vite build $CURRENT_ROOT
 #   yarn vitest …      → yarn vitest … --root $CURRENT_ROOT  (appended)
-#   yarn vite …        → yarn vite … --root $CURRENT_ROOT    (appended)
+#   yarn vite build …  → yarn vite build $CURRENT_ROOT …     (positional root)
+#   yarn vite …        → yarn vite $CURRENT_ROOT …           (positional root)
 #   anything else      → unchanged, but executed from $MAIN_ROOT so yarn can
 #                        find .pnp.cjs (e.g. yarn install, yarn add)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -31,12 +32,27 @@ if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ] && [ -f "$MAIN_ROO
     yarn,build)
       # Expand so tsc targets the worktree's tsconfig; vite targets the worktree's root
       (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn tsc --project "$CURRENT_ROOT/tsconfig.json" --noEmit) \
-        && (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn vite build --root "$CURRENT_ROOT")
+        && (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn vite build "$CURRENT_ROOT")
       exit
       ;;
-    yarn,vitest|yarn,vite)
+    yarn,vitest)
       # Pass through with --root appended so aliases and test discovery use this worktree
       cd "$MAIN_ROOT" && exec "$MAIN_RUN" "$@" --root "$CURRENT_ROOT"
+      ;;
+    yarn,vite)
+      # Vite 8 accepts root as a positional argument, not --root. Preserve common
+      # subcommands by placing the worktree root after the subcommand.
+      shift 2
+      case "${1:-}" in
+        build|optimize|preview)
+          subcommand="$1"
+          shift
+          cd "$MAIN_ROOT" && exec "$MAIN_RUN" yarn vite "$subcommand" "$CURRENT_ROOT" "$@"
+          ;;
+        *)
+          cd "$MAIN_ROOT" && exec "$MAIN_RUN" yarn vite "$CURRENT_ROOT" "$@"
+          ;;
+      esac
       ;;
     yarn,*)
       # All other yarn sub-commands (install, add, etc.): just run from the main worktree
