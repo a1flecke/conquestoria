@@ -358,17 +358,27 @@ Testing guardrails:
 
 Deferred from Stage 2D:
 
-- Stage 2E owns richer bespoke landmark silhouettes, animation variants, and per-wonder visual depth.
+- Stage 2E owns natural-wonder spectacle recipes, live-visible map effects, Codex/reveal recipe accents, Codex replay, and required sound mood metadata.
 - Stage 2F owns explicit viewer-scoped rival legendary records from earned intel.
+- Stage 2G owns richer completed legendary city landmark silhouettes, spectacle, variants, and multiple-wonder city readability.
+- Stage 2H owns natural-wonder audio stingers/loops that fill Stage 2E sound mood metadata.
 - Stage 3 owns real 3-5 second videos or loops, including asset-size, offline/PWA, macOS/Tauri, and maintenance review.
 
-### Stage 2E: Landmark Art Expansion
+### Stage 2E: Natural Wonder Spectacle Expansion
 
-Later art slice for richer bespoke landmark silhouettes, variants, and per-wonder visual depth after Stage 2C's generic-but-distinct around-city landmark slot model ships.
+Add shared natural-wonder spectacle recipes and use them across the existing map, Codex, and discovery reveal surfaces. Stage 2E focuses on "wow" for discovered natural wonders: live-visible map spectacle, Codex animated accents, player-triggered Codex replay of the amplified reveal variant, and required per-wonder sound mood metadata. It must not add audio playback, bitmap particle assets, real video, gameplay changes, or legendary city landmark spectacle.
 
 ### Stage 2F: Atlas Intel Records
 
 Add explicit viewer-scoped rival-known legendary records after the intel model stores that knowledge. This stage owns safe rival Atlas pages, known-rival completion records, and any rival host/progress/reward details that the player has actually earned through intel. Stage 2D must not infer those records from live hidden rival state.
+
+### Stage 2G: Legendary City Landmark Art Expansion
+
+Add richer completed legendary city landmark silhouettes, spectacle, variants, and multiple-wonder city readability after Stage 2E establishes reusable spectacle primitives. This stage owns legendary-city visual depth and must preserve owned/rival visibility boundaries.
+
+### Stage 2H: Natural Wonder Audio Stingers
+
+Fill Stage 2E's required natural-wonder sound mood metadata with real stingers or loops. This stage owns playback rules, mute/reduced-audio behavior, offline/PWA and macOS/Tauri asset review, and tests that keep audio metadata and assets in sync.
 
 ### Stage 3: Real Video Spike
 
