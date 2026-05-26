@@ -154,7 +154,7 @@ import { getCivHappinessFromResources, getCivAvailableResources } from '@/system
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
-import { removeRouteForUnit, createMarketplaceState, establishRoute } from '@/systems/trade-system';
+import { removeRouteForUnit, createMarketplaceState, establishRoute, getEffectiveGoldPerTurn } from '@/systems/trade-system';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 
 // --- App State ---
@@ -2831,7 +2831,8 @@ bus.on('trade:route-created', ({ route }) => {
   const ownerCity = gameState.cities[route.fromCityId];
   const toCity = gameState.cities[route.toCityId];
   if (!ownerCity) return;
-  appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? route.toCityId} established`, 'success');
+  const goldPerTurn = getEffectiveGoldPerTurn(route);
+  appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? route.toCityId} established (+${goldPerTurn} gold/turn)`, 'success');
 });
 
 bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {

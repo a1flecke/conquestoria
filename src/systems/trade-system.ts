@@ -371,19 +371,20 @@ export function removeRouteById(
   const newRoutes = state.marketplace!.tradeRoutes.filter(r => r.id !== routeId);
   const newMarketplace = { ...state.marketplace!, tradeRoutes: newRoutes };
 
-  bus?.emit('trade:route-ended', {
-    routeId,
-    fromCityId: route.fromCityId,
-    toCityId: route.toCityId,
-    reason,
-  });
-
+  // Clear caravan commitment before emitting so listeners see freed unit state
   const updatedUnits = { ...state.units };
   for (const [unitId, unit] of Object.entries(state.units)) {
     if (unit.committedToRouteId === routeId) {
       updatedUnits[unitId] = { ...unit, committedToRouteId: undefined, tripsRemaining: undefined };
     }
   }
+
+  bus?.emit('trade:route-ended', {
+    routeId,
+    fromCityId: route.fromCityId,
+    toCityId: route.toCityId,
+    reason,
+  });
 
   return { ...state, marketplace: newMarketplace, units: updatedUnits };
 }
@@ -392,14 +393,15 @@ export function scrubStaleForeignRoutes(state: GameState, bus: EventBus | undefi
   if (!state.marketplace) return state;
 
   let newState = state;
-  const routes = state.marketplace.tradeRoutes;
+  const routes = state.marketplace.tradeRoutes; // snapshot — original array never mutated
 
   for (const route of routes) {
     if (!route.foreignCivId) continue;
 
-    const fromCity = state.cities[route.fromCityId];
+    // Read from newState so any same-turn city/civ changes are visible
+    const fromCity = newState.cities[route.fromCityId];
     if (!fromCity) continue;
-    const ownerCiv = state.civilizations[fromCity.owner];
+    const ownerCiv = newState.civilizations[fromCity.owner];
     if (!ownerCiv) continue;
 
     if (isAtWar(ownerCiv.diplomacy, route.foreignCivId)) {
@@ -417,7 +419,7 @@ export function scrubStaleForeignRoutes(state: GameState, bus: EventBus | undefi
 }
 
 export function scrubEmbargoedRoutes(state: GameState, bus: EventBus | undefined): GameState {
-  if (!state.embargoes || !state.marketplace) return state;
+  if (!state.embargoes || state.embargoes.length === 0 || !state.marketplace) return state;
 
   let newState = state;
   const routes = state.marketplace.tradeRoutes;

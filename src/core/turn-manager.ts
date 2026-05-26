@@ -723,7 +723,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   // --- S6a: terminate routes to embargoed civs ---
   if (newState.embargoes && newState.marketplace) {
     newState = scrubEmbargoedRoutes(newState, bus);
-    newState.embargoes = cleanupEmbargoes(newState.embargoes);
+    newState = { ...newState, embargoes: cleanupEmbargoes(newState.embargoes) };
   }
 
   if (newState.marketplace) {
