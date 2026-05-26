@@ -1273,6 +1273,7 @@ function selectUnit(unitId: string): void {
         selectUnit(uid);
       },
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
+      onCancelJourney: () => cancelJourney(unitId),
       onOpenStack: (coord) => {
         handleFriendlyUnitStackTap(gameState, coord, selectedUnitId, {
           onSelectUnit: selectUnit,
@@ -1466,6 +1467,7 @@ function deselectUnit(): void {
   selectedUnitId = null;
   movementRange = [];
   attackRange = [];
+  pendingJourneyUnitId = null;
   renderLoop.clearHighlights();
   renderLoop.setJourneyPath(null);
   const panel = document.getElementById('info-panel');
@@ -1570,6 +1572,21 @@ function cancelAutoExplore(unitId: string): void {
   if (!unit?.automation) return;
   delete gameState.units[unitId].automation;
   renderLoop.setGameState(gameState);
+  updateHUD();
+  if (selectedUnitId === unitId) {
+    selectUnit(unitId);
+  }
+}
+
+function cancelJourney(unitId: string): void {
+  const unit = gameState.units[unitId];
+  if (!unit?.automation) return;
+  gameState = {
+    ...gameState,
+    units: { ...gameState.units, [unitId]: { ...unit, automation: undefined } },
+  };
+  renderLoop.setGameState(gameState);
+  renderLoop.setJourneyPath(null);
   updateHUD();
   if (selectedUnitId === unitId) {
     selectUnit(unitId);
@@ -2931,7 +2948,9 @@ bus.on('unit:obsolete', ({ civId, unitType }) => {
 bus.on('unit:journey-blocked', ({ unitId, position }) => {
   const unit = gameState.units[unitId];
   const type = unit ? UNIT_DEFINITIONS[unit.type]?.name ?? unit.type : 'Unit';
-  appendToCivLog(unit?.owner ?? gameState.currentPlayer, `Your ${type} was blocked and stopped at (${position.q}, ${position.r}).`, 'warning');
+  const msg = `Your ${type} was blocked and stopped at (${position.q}, ${position.r}).`;
+  showNotification(msg, 'warning');
+  appendToCivLog(unit?.owner ?? gameState.currentPlayer, msg, 'warning');
 });
 
 bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
@@ -3238,8 +3257,13 @@ function startGame(): void {
         if (!selectedUnitId) return;
         const unit = gameState.units[selectedUnitId];
         if (!unit || unit.hasActed || unit.owner !== gameState.currentPlayer) return;
-        gameState = fortifyUnitInState(gameState, gameState.currentPlayer, selectedUnitId);
-        showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
+        if (unit.isFortified) {
+          gameState = unfortifyUnitInState(gameState, gameState.currentPlayer, selectedUnitId);
+          showNotification('Unit unfortified.', 'info');
+        } else {
+          gameState = fortifyUnitInState(gameState, gameState.currentPlayer, selectedUnitId);
+          showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
+        }
         renderLoop.setGameState(gameState);
         updateHUD();
         selectUnit(selectedUnitId);

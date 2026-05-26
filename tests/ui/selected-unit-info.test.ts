@@ -753,6 +753,61 @@ describe('renderSelectedUnitInfo - found city button', () => {
   });
 });
 
+describe('renderSelectedUnitInfo - journey automation', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeScoutState(unitOverrides: Record<string, unknown> = {}): GameState {
+    return {
+      turn: 1, era: 1, currentPlayer: 'player', gameOver: false, winner: null,
+      map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+      units: {
+        'scout-1': { id: 'scout-1', type: 'scout', owner: 'player', position: { q: 0, r: 0 }, health: 100, experience: 0, movementPointsLeft: 3, hasMoved: false, hasActed: false, isResting: false, ...unitOverrides },
+      },
+      cities: {},
+      civilizations: { player: { color: '#fff', techState: { completed: [] } } },
+    } as unknown as GameState;
+  }
+
+  it('shows journey destination text when unit has journey automation', () => {
+    const state = makeScoutState({ automation: { mode: 'journey', destination: { q: 5, r: 3 } } });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'scout-1', {});
+    const texts = collectAllText(container);
+    expect(texts.some(t => t.includes('5') && t.includes('3'))).toBe(true);
+    expect(texts.some(t => t.toLowerCase().includes('journey'))).toBe(true);
+  });
+
+  it('does not show journey status for a unit without automation', () => {
+    const state = makeScoutState();
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'scout-1', {});
+    const texts = collectAllText(container);
+    expect(texts.some(t => t.toLowerCase().includes('journey'))).toBe(false);
+  });
+
+  it('renders Cancel journey button when onCancelJourney is provided', () => {
+    const state = makeScoutState({ automation: { mode: 'journey', destination: { q: 5, r: 3 } } });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'scout-1', {
+      onCancelJourney: () => {},
+    });
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns.some(t => t?.toLowerCase().includes('cancel') && t?.toLowerCase().includes('journey'))).toBe(true);
+  });
+
+  it('fires onCancelJourney when cancel button is clicked', () => {
+    const state = makeScoutState({ automation: { mode: 'journey', destination: { q: 5, r: 3 } } });
+    const container = new MockElement('div');
+    let cancelled = false;
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'scout-1', {
+      onCancelJourney: () => { cancelled = true; },
+    });
+    findButtons(container).find(b => b.textContent?.toLowerCase().includes('cancel') && b.textContent?.toLowerCase().includes('journey'))?.click();
+    expect(cancelled).toBe(true);
+  });
+});
+
 describe('renderSelectedUnitInfo - fortify button', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
