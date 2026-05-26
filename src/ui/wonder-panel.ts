@@ -1,4 +1,4 @@
-import type { GameState, LegendaryWonderIntelEntry } from '@/core/types';
+import type { GameState, LegendaryWonderStartedIntelEntry } from '@/core/types';
 import {
   getLegendaryWonderPresentationForCity,
   type LegendaryWonderPresentationEntry,
@@ -94,7 +94,7 @@ function appendProjectCard(
 }
 
 function appendRivalIntelCard(
-  intel: LegendaryWonderIntelEntry,
+  intel: LegendaryWonderStartedIntelEntry,
   section: HTMLElement,
 ): void {
   const definition = getLegendaryWonderDefinition(intel.wonderId);
@@ -140,7 +140,7 @@ function appendRivalIntelSection(
   panel: HTMLElement,
   heading: string,
   dataSection: string,
-  entries: LegendaryWonderIntelEntry[],
+  entries: LegendaryWonderStartedIntelEntry[],
 ): void {
   if (entries.length === 0) {
     return;
@@ -204,7 +204,8 @@ export function createWonderPanel(
   appendIntroSection('Construction Race', 'Losing returns 25% coins and 25% carryover.');
 
   const cityEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, cityId);
-  const rivalIntel = getLegendaryWonderIntelForViewer(state, state.currentPlayer);
+  const rivalIntel = getLegendaryWonderIntelForViewer(state, state.currentPlayer)
+    .filter((entry): entry is LegendaryWonderStartedIntelEntry => entry.kind === 'started');
 
   if (cityEntries.length === 0) {
     appendText(panel, 'p', 'No legendary wonders are available in this city yet.');
