@@ -256,6 +256,32 @@ describe('city renderer', () => {
     const labels = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
     expect(labels).toContain(`${city.name} (${city.population})`);
   });
+
+  it('draws legendary landmark layer before city label and production badges remain above it', () => {
+    const state = createNewGame(undefined, 'legendary-layer-order-test');
+    const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
+    city.productionQueue = ['granary'];
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: city.id, turnCompleted: 20 },
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    const ops = (ctx as unknown as MockCanvasContext).operations;
+    const landmarkIndex = ops.findIndex(operation => operation === 'legendary-landmarks:start');
+    const labelIndex = ops.findIndex(operation => operation.includes(`text:${city.name}`));
+    const badgeIndex = ops.findIndex(operation => operation.includes(`text:${getProductionBadgeIcon(city)}`));
+    expect(landmarkIndex).toBeGreaterThanOrEqual(0);
+    expect(labelIndex).toBeGreaterThanOrEqual(0);
+    expect(badgeIndex).toBeGreaterThanOrEqual(0);
+    expect(landmarkIndex).toBeLessThan(labelIndex);
+    expect(landmarkIndex).toBeLessThan(badgeIndex);
+  });
 });
 
 function makeCamera(): Camera {
