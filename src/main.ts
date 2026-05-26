@@ -2827,6 +2827,27 @@ bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
   appendToCivLog(civId, `Your spy was auto-exfiltrated from ${city?.name ?? 'a city'} after it changed hands.`, 'info');
 });
 
+bus.on('trade:route-created', ({ route }) => {
+  const ownerCity = gameState.cities[route.fromCityId];
+  const toCity = gameState.cities[route.toCityId];
+  if (!ownerCity) return;
+  appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? route.toCityId} established`, 'success');
+});
+
+bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
+  const ownerCity = gameState.cities[fromCityId];
+  const toCity = gameState.cities[toCityId];
+  if (!ownerCity) return;
+  const reasonText: Record<string, string> = {
+    'unit-died': 'caravan destroyed',
+    'unit-disbanded': 'caravan disbanded',
+    'war-declared': 'war declared — caravan is free to redeploy',
+    'hostile-relations': 'hostile relations — caravan is free to redeploy',
+    'embargo': 'embargo enforced — caravan is free to redeploy',
+  };
+  appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? toCityId} ended: ${reasonText[reason] ?? reason}`, 'warning');
+});
+
 // --- Initialization ---
 async function init(): Promise<void> {
   await registerConquestoriaServiceWorker();
