@@ -35,6 +35,7 @@ describe('natural-wonder-renderer', () => {
       presentationKind: 'live',
       nowMs: 1200,
       reducedMotion: false,
+      lowZoom: false,
     });
 
     expect(ctx.operations).toContain('save');
@@ -54,9 +55,48 @@ describe('natural-wonder-renderer', () => {
       presentationKind: 'last-seen',
       nowMs: 2400,
       reducedMotion: true,
+      lowZoom: false,
     });
 
     expect(ctx.operations).toContain('save');
     expect(ctx.operations).toContain('restore');
+  });
+
+  it('draws spectacle effects for live natural wonders at normal zoom', () => {
+    const ctx = new MockCanvasContext();
+
+    drawNaturalWonderLandmark({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      cx: 40,
+      cy: 40,
+      size: 32,
+      wonderId: 'great_volcano',
+      presentationKind: 'live',
+      nowMs: 1200,
+      reducedMotion: false,
+      lowZoom: false,
+    });
+
+    expect(ctx.operations.some(operation => operation.includes('rgba('))).toBe(true);
+  });
+
+  it('does not draw spectacle effects for last-seen, reduced-motion, or low-zoom landmarks', () => {
+    for (const options of [
+      { presentationKind: 'last-seen' as const, reducedMotion: false, lowZoom: false },
+      { presentationKind: 'live' as const, reducedMotion: true, lowZoom: false },
+      { presentationKind: 'live' as const, reducedMotion: false, lowZoom: true },
+    ]) {
+      const ctx = new MockCanvasContext();
+      drawNaturalWonderLandmark({
+        ctx: ctx as unknown as CanvasRenderingContext2D,
+        cx: 40,
+        cy: 40,
+        size: 32,
+        wonderId: 'great_volcano',
+        nowMs: 1200,
+        ...options,
+      });
+      expect(ctx.operations.some(operation => operation.includes('rgba('))).toBe(false);
+    }
   });
 });

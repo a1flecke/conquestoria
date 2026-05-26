@@ -1,5 +1,7 @@
 import type { TilePresentationKind } from '@/renderer/tile-presentation';
+import { drawNaturalWonderSpectacleEffects } from '@/renderer/wonders/natural-wonder-effects-renderer';
 import { getWonderVisualDefinition, type WonderMapLandmark } from '@/systems/wonder-visual-catalog';
+import { getWonderSpectacleRenderMode } from '@/systems/wonder-spectacle/presentation';
 
 export interface NaturalWonderRenderOptions {
   ctx: CanvasRenderingContext2D;
@@ -10,6 +12,7 @@ export interface NaturalWonderRenderOptions {
   presentationKind: TilePresentationKind;
   nowMs: number;
   reducedMotion: boolean;
+  lowZoom: boolean;
 }
 
 function pulse(nowMs: number, reducedMotion: boolean): number {
@@ -97,7 +100,7 @@ function drawLandmarkShape(
 }
 
 export function drawNaturalWonderLandmark(options: NaturalWonderRenderOptions): void {
-  const { ctx, cx, cy, size, wonderId, presentationKind, nowMs, reducedMotion } = options;
+  const { ctx, cx, cy, size, wonderId, presentationKind, nowMs, reducedMotion, lowZoom } = options;
   const visual = getWonderVisualDefinition(wonderId);
   const anim = pulse(nowMs, reducedMotion);
   const radius = size * (0.32 + anim);
@@ -109,6 +112,16 @@ export function drawNaturalWonderLandmark(options: NaturalWonderRenderOptions): 
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.fillStyle = visual.palette.base;
   ctx.fill();
+
+  const spectacleMode = getWonderSpectacleRenderMode({
+    surface: 'map',
+    wonderId,
+    presentationKind,
+    lowZoom,
+    reducedMotion,
+    discovered: presentationKind === 'live' || presentationKind === 'last-seen',
+  });
+  drawNaturalWonderSpectacleEffects({ ctx, cx, cy, size, wonderId, nowMs, mode: spectacleMode });
 
   ctx.beginPath();
   ctx.arc(cx, cy, size * 0.42, 0, Math.PI * 2);
