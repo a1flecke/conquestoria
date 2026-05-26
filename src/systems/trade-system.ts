@@ -357,6 +357,94 @@ export function establishRoute(
 
 // --- S5: route removal helper ---
 
+// --- S6a: route lifecycle helpers ---
+
+export function removeRouteById(
+  state: GameState,
+  routeId: string,
+  bus: EventBus | undefined,
+  reason: 'war-declared' | 'hostile-relations' | 'embargo',
+): GameState {
+  const route = state.marketplace?.tradeRoutes.find(r => r.id === routeId);
+  if (!route) return state;
+
+  const newRoutes = state.marketplace!.tradeRoutes.filter(r => r.id !== routeId);
+  const newMarketplace = { ...state.marketplace!, tradeRoutes: newRoutes };
+
+  bus?.emit('trade:route-ended', {
+    routeId,
+    fromCityId: route.fromCityId,
+    toCityId: route.toCityId,
+    reason,
+  });
+
+  const updatedUnits = { ...state.units };
+  for (const [unitId, unit] of Object.entries(state.units)) {
+    if (unit.committedToRouteId === routeId) {
+      updatedUnits[unitId] = { ...unit, committedToRouteId: undefined, tripsRemaining: undefined };
+    }
+  }
+
+  return { ...state, marketplace: newMarketplace, units: updatedUnits };
+}
+
+export function scrubStaleForeignRoutes(state: GameState, bus: EventBus | undefined): GameState {
+  if (!state.marketplace) return state;
+
+  let newState = state;
+  const routes = state.marketplace.tradeRoutes;
+
+  for (const route of routes) {
+    if (!route.foreignCivId) continue;
+
+    const fromCity = state.cities[route.fromCityId];
+    if (!fromCity) continue;
+    const ownerCiv = state.civilizations[fromCity.owner];
+    if (!ownerCiv) continue;
+
+    if (isAtWar(ownerCiv.diplomacy, route.foreignCivId)) {
+      newState = removeRouteById(newState, route.id, bus, 'war-declared');
+      continue;
+    }
+
+    const rel = getRelationship(ownerCiv.diplomacy, route.foreignCivId);
+    if (rel < -25) {
+      newState = removeRouteById(newState, route.id, bus, 'hostile-relations');
+    }
+  }
+
+  return newState;
+}
+
+export function scrubEmbargoedRoutes(state: GameState, bus: EventBus | undefined): GameState {
+  if (!state.embargoes || !state.marketplace) return state;
+
+  let newState = state;
+  const routes = state.marketplace.tradeRoutes;
+
+  for (const route of routes) {
+    if (!route.foreignCivId) continue;
+
+    const fromCity = state.cities[route.fromCityId];
+    const toCity = state.cities[route.toCityId];
+    if (!fromCity || !toCity) continue;
+
+    const fromOwner = fromCity.owner;
+    const toOwner = toCity.owner;
+
+    const embargoed = state.embargoes.some(embargo =>
+      (embargo.targetCivId === toOwner && embargo.participants.includes(fromOwner)) ||
+      (embargo.targetCivId === fromOwner && embargo.participants.includes(toOwner)),
+    );
+
+    if (embargoed) {
+      newState = removeRouteById(newState, route.id, bus, 'embargo');
+    }
+  }
+
+  return newState;
+}
+
 export function removeRouteForUnit(
   state: GameState,
   unitId: string,
