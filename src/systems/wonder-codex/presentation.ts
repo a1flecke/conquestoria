@@ -1,5 +1,6 @@
 import type { GameState, HexCoord, LegendaryWonderProject } from '@/core/types';
 import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderPresentationForCity } from '@/systems/legendary-wonder-presentation';
 import { formatNaturalWonderEffectSummary } from '@/systems/wonder-presentation-formatting';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { getWonderVisualDefinition, type WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
@@ -84,7 +85,11 @@ function legendaryStateLabel(state: GameState, viewerId: string, wonderId: strin
 
   const project = ownedProject(state, viewerId, wonderId);
   if (!project) return 'Legendary wonder';
-  if (project.phase === 'ready_to_build') return 'Available';
+  if (project.phase === 'ready_to_build') {
+    const cityEntry = getLegendaryWonderPresentationForCity(state, viewerId, project.cityId)
+      .find(entry => entry.wonderId === wonderId);
+    return cityEntry?.canStartBuild ? 'Available' : 'Legendary wonder';
+  }
   if (project.phase === 'building') return 'Under construction';
   if (project.phase === 'completed') return 'Completed';
   if (project.phase === 'lost_race') return 'Recovered';
@@ -148,7 +153,7 @@ function buildLegendaryStatus(
   const definition = getLegendaryWonderDefinition(wonderId);
   const label = legendaryStateLabel(state, viewerId, wonderId);
   const statusLines = [`Status: ${label}`];
-  if (definition) statusLines.push(`Reward: ${definition.reward.summary}`);
+  if (definition && label !== 'Legendary wonder') statusLines.push(`Reward: ${definition.reward.summary}`);
 
   const project = ownedProject(state, viewerId, wonderId);
   if (project?.phase === 'building') {
