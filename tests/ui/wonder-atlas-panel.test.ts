@@ -19,6 +19,7 @@ function makeState(): GameState {
   state.map.tiles[hexKey({ q: 0, r: 0 })].wonder = 'great_volcano';
   state.discoveredWonders = {};
   state.wonderDiscoverers = {};
+  state.currentPlayer = 'player';
   return state;
 }
 
@@ -31,22 +32,7 @@ describe('wonder-atlas-panel', () => {
     });
   });
 
-  it('renders a useful empty Known Natural state without fake unknown wonder cards', () => {
-    const state = makeState();
-
-    const panel = createWonderAtlasPanel(document.body, state, {
-      onViewOnMap: () => {},
-      onClose: () => {},
-    });
-
-    expect(panel.id).toBe('wonder-atlas-panel');
-    expect(panel.textContent).toContain('No natural wonders discovered yet.');
-    expect(panel.textContent).not.toContain('Great Volcano');
-    expect(panel.querySelector('[data-wonder-detail]')?.textContent).not.toContain('Legendary wonder');
-    expect(panel.querySelectorAll('[data-wonder-kind="natural"]')).toHaveLength(0);
-  });
-
-  it('selects a discovered natural wonder and updates the vignette immediately', () => {
+  it('keeps createWonderAtlasPanel as the public entry point for the codex shell', () => {
     const state = makeState();
     state.discoveredWonders.great_volcano = 'player';
     state.wonderDiscoverers.great_volcano = ['player'];
@@ -56,11 +42,39 @@ describe('wonder-atlas-panel', () => {
       onClose: () => {},
     });
 
-    click(panel.querySelector('[data-wonder-entry="great_volcano"]'));
+    expect(panel.id).toBe('wonder-codex-panel');
+    expect(document.querySelector('#wonder-codex-panel')).toBeTruthy();
+    expect(document.body.textContent).toContain('Wonder Codex');
+    expect(document.body.textContent).toContain('Great Volcano');
+  });
 
-    expect(panel.querySelector('[data-wonder-detail]')?.textContent).toContain('Great Volcano');
-    expect(panel.querySelector('[data-wonder-detail]')?.textContent).toContain('Q0, R0');
-    expect(panel.querySelector('[data-wonder-detail]')?.textContent).toContain('Yields');
+  it('does not reveal undiscovered natural wonders through the catalog or reader', () => {
+    const panel = createWonderAtlasPanel(document.body, makeState(), {
+      onViewOnMap: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-codex-entry-id="great_volcano"]')).toBeNull();
+    expect(panel.textContent).not.toContain('The Great Volcano');
+    expect(panel.textContent).toContain('Legendary wonder');
+  });
+
+  it('selects a discovered natural wonder and renders sourced codex detail', () => {
+    const state = makeState();
+    state.discoveredWonders.great_volcano = 'player';
+    state.wonderDiscoverers.great_volcano = ['player'];
+
+    const panel = createWonderAtlasPanel(document.body, state, {
+      onViewOnMap: () => {},
+      onClose: () => {},
+    });
+
+    click(panel.querySelector('[data-codex-entry-id="great_volcano"]'));
+
+    expect(panel.querySelector('[data-codex-reader]')?.textContent).toContain('Great Volcano');
+    expect(panel.querySelector('[data-codex-reader]')?.textContent).toContain('Q0, R0');
+    expect(panel.querySelector('[data-codex-reader]')?.textContent).toContain('USGS / public domain');
+    expect(panel.querySelector('img')?.getAttribute('src')).toBe('/images/wonders/codex/volcano.jpg');
   });
 
   it('calls View on map for a discovered wonder with a coordinate', () => {
@@ -73,8 +87,8 @@ describe('wonder-atlas-panel', () => {
       onViewOnMap,
       onClose: () => {},
     });
-    click(panel.querySelector('[data-wonder-entry="great_volcano"]'));
-    click(panel.querySelector('[data-view-wonder-on-map="great_volcano"]'));
+    click(panel.querySelector('[data-codex-entry-id="great_volcano"]'));
+    click(panel.querySelector('[data-codex-action="view-map"]'));
 
     expect(onViewOnMap).toHaveBeenCalledWith({ q: 0, r: 0 }, 'great_volcano');
   });
@@ -86,30 +100,16 @@ describe('wonder-atlas-panel', () => {
     state.wonderDiscoverers.great_volcano = ['player'];
 
     const panel = createWonderAtlasPanel(document.body, state, {
+      initialWonderId: 'great_volcano',
       onViewOnMap: () => {},
       onClose: () => {},
     });
-    click(panel.querySelector('[data-wonder-entry="great_volcano"]'));
 
-    expect(panel.querySelector('[data-view-wonder-on-map="great_volcano"]')).toBeNull();
+    expect(panel.querySelector('[data-codex-action="view-map"]')).toBeNull();
     expect(panel.textContent).toContain('Location unknown');
   });
 
-  it('renders legendary wonders as masked slots only', () => {
-    const state = makeState();
-
-    const panel = createWonderAtlasPanel(document.body, state, {
-      onViewOnMap: () => {},
-      onClose: () => {},
-    });
-    click(panel.querySelector('[data-atlas-tab="legendary"]'));
-
-    expect(panel.querySelectorAll('[data-wonder-kind="legendary"]').length).toBeGreaterThan(0);
-    expect(panel.textContent).toContain('Legendary wonder');
-    expect(panel.textContent).not.toContain('Start Construction');
-  });
-
-  it('renders safe legendary Atlas state labels without exposing rival progress', () => {
+  it('renders safe legendary codex entries without exposing rival progress', () => {
     const state = makeState();
     state.legendaryWonderProjects = {
       'oracle-of-delphi:player:city-river': {
@@ -136,10 +136,9 @@ describe('wonder-atlas-panel', () => {
       onViewOnMap: () => {},
       onClose: () => {},
     });
-    click(panel.querySelector('[data-atlas-tab="legendary"]'));
+    click(panel.querySelector('[data-codex-entry-id="oracle-of-delphi"]'));
 
     expect(panel.textContent).toContain('Under construction');
-    expect(panel.textContent).toContain('Legendary wonder');
     expect(panel.textContent).not.toContain('rival-city');
     expect(panel.textContent).not.toContain('90');
   });
@@ -150,11 +149,11 @@ describe('wonder-atlas-panel', () => {
     state.wonderDiscoverers.great_volcano = ['player'];
 
     const panel = createWonderAtlasPanel(document.body, state, {
+      initialWonderId: 'great_volcano',
       onViewOnMap: () => {},
       onClose: () => {},
       reducedMotion: true,
     });
-    click(panel.querySelector('[data-wonder-entry="great_volcano"]'));
 
     expect(panel.querySelector('[data-vignette-motion="static"]')).toBeTruthy();
   });
@@ -176,7 +175,7 @@ describe('wonder-atlas-panel', () => {
       onClose: () => {},
     });
 
-    expect(document.querySelectorAll('#wonder-atlas-panel')).toHaveLength(1);
+    expect(document.querySelectorAll('#wonder-codex-panel')).toHaveLength(1);
     expect(document.body.textContent).toContain('Great Volcano');
   });
 });
