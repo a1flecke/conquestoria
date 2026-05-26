@@ -30,14 +30,13 @@ import {
   endVassalageUnilateral,
   declareWar,
   decayTreachery,
-  enforceEmbargoes,
   joinEmbargo,
   cleanupEmbargoes,
   checkLeagueDissolution,
   triggerLeagueDefense,
   getLeagueForCiv,
 } from '@/systems/diplomacy-system';
-import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit } from '@/systems/trade-system';
+import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit, scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
@@ -716,15 +715,14 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     }
   }
 
-  // --- Enforce embargoes ---
+  // --- S6a: terminate stale foreign routes (war / hostile relations) ---
+  if (newState.marketplace) {
+    newState = scrubStaleForeignRoutes(newState, bus);
+  }
+
+  // --- S6a: terminate routes to embargoed civs ---
   if (newState.embargoes && newState.marketplace) {
-    const cityOwners: Record<string, string> = {};
-    for (const [cityId, city] of Object.entries(newState.cities)) {
-      cityOwners[cityId] = city.owner;
-    }
-    newState.marketplace.tradeRoutes = enforceEmbargoes(
-      newState.embargoes, newState.marketplace.tradeRoutes, cityOwners,
-    );
+    newState = scrubEmbargoedRoutes(newState, bus);
     newState.embargoes = cleanupEmbargoes(newState.embargoes);
   }
 
