@@ -82,7 +82,7 @@ function sameCoord(left: HexCoord, right: HexCoord): boolean {
 }
 
 function isWorkableTerrain(terrain: string): boolean {
-  return terrain !== 'mountain' && terrain !== 'ocean';
+  return terrain !== 'ocean';
 }
 
 function isWaterTerrain(terrain: string): boolean {
