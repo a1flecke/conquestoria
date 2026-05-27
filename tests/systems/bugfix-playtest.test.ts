@@ -24,7 +24,7 @@ describe('playtest bugfixes', () => {
     expect(getMovementCost('plains')).toBe(1);
     expect(getMovementCost('forest')).toBe(2);
     expect(getMovementCost('hills')).toBe(2);
-    expect(getMovementCost('mountain')).toBe(Infinity);
+    expect(getMovementCost('mountain')).toBe(4);
   });
 
   it('granary requires granary-design tech (#19)', () => {

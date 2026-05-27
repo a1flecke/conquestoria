@@ -212,15 +212,13 @@ describe('moveUnit', () => {
 });
 
 describe('getMovementBlockerReason', () => {
-  it('explains why a scout cannot enter a mountain tile', () => {
+  it('scout can enter an adjacent mountain tile via forced march (mountains now passable)', () => {
     const map = createWrappedGrasslandMap(5, 5);
     map.tiles['2,2'] = { ...map.tiles['2,2'], terrain: 'mountain' };
     const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
 
-    expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map)).toEqual({
-      code: 'impassable-mountain',
-      message: 'Mountain too steep to climb.',
-    });
+    // Mountain cost is 4 but scout is adjacent with ≥1 movement — forced march allows it
+    expect(getMovementBlockerReason(scout, { q: 2, r: 2 }, map)).toBeNull();
   });
 
   it('uses a distinct reason for land units tapping water', () => {

@@ -1011,10 +1011,10 @@ describe('journey automation', () => {
 
   it('emits unit:journey-blocked and clears automation when path is unreachable', () => {
     const { state, unitId } = makeJourneyFixture({ q: 0, r: 1 }, { q: 5, r: 1 });
-    // Block all paths by making intermediate tiles mountains
-    state.map.tiles['1,1'] = { ...state.map.tiles['1,1']!, terrain: 'mountain' };
-    state.map.tiles['1,0'] = { ...state.map.tiles['1,0']!, terrain: 'mountain' };
-    state.map.tiles['1,2'] = { ...state.map.tiles['1,2']!, terrain: 'mountain' };
+    // Block all paths by making intermediate tiles ocean (impassable for land units)
+    state.map.tiles['1,1'] = { ...state.map.tiles['1,1']!, terrain: 'ocean' };
+    state.map.tiles['1,0'] = { ...state.map.tiles['1,0']!, terrain: 'ocean' };
+    state.map.tiles['1,2'] = { ...state.map.tiles['1,2']!, terrain: 'ocean' };
 
     const bus = new EventBus();
     const blockedEvents: { unitId: string }[] = [];
