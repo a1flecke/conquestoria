@@ -101,3 +101,16 @@ export function getLegendaryWonderRivalIntelSummariesForViewer(
 
   return summaries;
 }
+
+export function isLegendaryWonderVisibleToPlayer(
+  state: GameState,
+  viewerId: string,
+  wonderId: string,
+  precomputedRivalIntel?: Map<string, LegendaryWonderRivalIntelSummary>,
+): boolean {
+  const owned = Object.values(state.legendaryWonderProjects ?? {})
+    .find(p => p.ownerId === viewerId && p.wonderId === wonderId);
+  if (owned && owned.phase !== 'locked') return true;
+  const summaries = precomputedRivalIntel ?? getLegendaryWonderRivalIntelSummariesForViewer(state, viewerId);
+  return summaries.has(wonderId);
+}

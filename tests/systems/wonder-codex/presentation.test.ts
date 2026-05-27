@@ -3,6 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { getWonderCodexViewModel } from '@/systems/wonder-codex/presentation';
+import { isLegendaryWonderVisibleToPlayer } from '@/systems/legendary-wonder-intel-presentation';
 import { makeLegendaryWonderFixture } from '../helpers/legendary-wonder-fixture';
 
 function makeState(): GameState {
@@ -283,5 +284,65 @@ describe('wonder-codex presentation', () => {
     };
     const rival = getWonderCodexViewModel(state, 'player', { initialWonderId: 'grand-canal' });
     expect(rival.selectedPage?.landmarkPreview).toBeUndefined();
+  });
+});
+
+describe('isLegendaryWonderVisibleToPlayer', () => {
+  function baseState(): GameState {
+    const s = createNewGame(undefined, 'vis-gate-test');
+    s.legendaryWonderProjects = {};
+    return s;
+  }
+
+  it('returns false when the player has no project and no rival intel', () => {
+    const state = baseState();
+    expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(false);
+  });
+
+  it('returns false when the player project phase is locked', () => {
+    const state = baseState();
+    state.legendaryWonderProjects!['p1'] = {
+      wonderId: 'oracle-of-delphi',
+      ownerId: 'player',
+      cityId: 'c1',
+      phase: 'locked',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: [],
+    };
+    expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(false);
+  });
+
+  it('returns true when the player project phase is questing', () => {
+    const state = baseState();
+    state.legendaryWonderProjects!['p1'] = {
+      wonderId: 'oracle-of-delphi',
+      ownerId: 'player',
+      cityId: 'c1',
+      phase: 'questing',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: [],
+    };
+    expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(true);
+  });
+
+  it('returns true when rival intel exists for the wonder (no owned project needed)', () => {
+    const state = baseState();
+    state.legendaryWonderIntel = {
+      player: [{
+        kind: 'started',
+        eventId: 'started:grand-canal:rival:5',
+        projectKey: 'grand-canal:rival',
+        wonderId: 'grand-canal',
+        civId: 'rival',
+        civName: 'Rival',
+        cityId: 'city-rival',
+        cityName: 'Rival City',
+        revealedTurn: 5,
+      }],
+    };
+    expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'grand-canal')).toBe(true);
+    expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(false);
   });
 });
