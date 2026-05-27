@@ -28,13 +28,13 @@ Future MRs add only catalog entries, converted files, credits, and catalog-test 
 
 Create:
 
-- `src/audio/natural-wonder-audio-sources.ts`  
+- `src/audio/natural-wonder-audio-sources.ts`
   Typed source/credit manifest for every real MR1 source track or sound effect.
-- `src/audio/natural-wonder-audio-catalog.ts`  
+- `src/audio/natural-wonder-audio-catalog.ts`
   Typed natural-wonder audio catalog with complete and pending entries.
-- `src/audio/natural-wonder-audio-director.ts`  
+- `src/audio/natural-wonder-audio-director.ts`
   Playback coordinator for discovery stingers, replay stingers, Codex ambience, map-focus ambience, timeout cleanup, and no-op pending entries.
-- `src/input/natural-wonder-audio-focus.ts`  
+- `src/input/natural-wonder-audio-focus.ts`
   Viewer-safe helper that allows map ambience only for live visible, discovered natural-wonder tiles.
 - `tests/audio/natural-wonder-audio-catalog.test.ts`
 - `tests/audio/natural-wonder-audio-director.test.ts`
@@ -48,21 +48,21 @@ Create:
 
 Modify:
 
-- `AUDIO-CREDITS.md`  
+- `AUDIO-CREDITS.md`
   Add exact Soundimage credits and source URLs for the six MR1 files.
-- `src/audio/audio-mixer.ts`  
+- `src/audio/audio-mixer.ts`
   Add a dedicated ambience loop path routed through the SFX gain, separate from one-shot SFX and music buses.
-- `src/audio/music-director.ts`  
+- `src/audio/music-director.ts`
   Make `playStingerWithDuck(path)` public so natural-wonder stingers reuse the existing ducking state machine.
-- `src/audio/audio-system.ts`  
+- `src/audio/audio-system.ts`
   Own `NaturalWonderAudioDirector`, expose natural-wonder audio methods, stop ambience on hot-seat handoff and game end.
-- `src/main.ts`  
+- `src/main.ts`
   Wire discovery reveal, map tap, territory inspection open/close, and Codex callbacks to `AudioSystem`.
-- `src/ui/wonder-atlas-panel.ts`  
+- `src/ui/wonder-atlas-panel.ts`
   Pass natural-wonder audio callbacks through to the Codex panel.
-- `src/ui/wonder-codex-panel.ts`  
+- `src/ui/wonder-codex-panel.ts`
   Start/stop Codex ambience as selected natural-wonder pages become visible or hidden.
-- `src/ui/wonder-codex-page.ts`  
+- `src/ui/wonder-codex-page.ts`
   Trigger audio replay when the natural-wonder replay button is clicked and reduced motion is not active.
 - `tests/audio/audio-mixer.test.ts`
 - `tests/audio/music-director.test.ts`
