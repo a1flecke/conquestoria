@@ -3,7 +3,7 @@ import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notificati
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 
 describe('legendary-wonder-notifications', () => {
-  it('points ready wonders back to the city Build list and journal action', () => {
+  it('points ready wonders to the city via tap-to-open notification', () => {
     const state = makeLegendaryWonderFixture();
 
     const visible = getLegendaryWonderNotification(state, 'player', {
@@ -13,9 +13,9 @@ describe('legendary-wonder-notifications', () => {
       wonderId: 'oracle-of-delphi',
     });
 
-    expect(visible?.message).toContain('city-river');
-    expect(visible?.message).toContain('Build list');
-    expect(visible?.message).toContain('Start Construction');
+    expect(visible?.message).toContain('can start');
+    expect(visible?.message).toContain('Tap to open');
+    expect(visible?.linkedCityId).toBe('city-river');
   });
 
   it('only shows race-revealed notifications to the observing current player', () => {
@@ -79,5 +79,28 @@ describe('legendary-wonder-notifications', () => {
     // Observer has not met the builder in the fixture — name is redacted.
     expect(observerView?.message).toMatch(/A rival civilization completed/);
     expect(observerView?.type).toBe('info');
+  });
+
+  it('wonder:legendary-ready notification includes linkedCityId pointing to the build city', () => {
+    const state = makeLegendaryWonderFixture();
+    const entry = getLegendaryWonderNotification(state, 'player', {
+      type: 'wonder:legendary-ready',
+      civId: 'player',
+      cityId: 'city-river',
+      wonderId: 'oracle-of-delphi',
+    });
+    expect(entry?.linkedCityId).toBe('city-river');
+  });
+
+  it('wonder:legendary-completed notification does not include linkedCityId for the rival observer', () => {
+    const state = makeLegendaryWonderFixture();
+    const entry = getLegendaryWonderNotification(state, 'player', {
+      type: 'wonder:legendary-completed',
+      civId: 'rival',
+      cityId: 'city-rival',
+      wonderId: 'grand-canal',
+      turnCompleted: 10,
+    });
+    expect(entry?.linkedCityId).toBeUndefined();
   });
 });

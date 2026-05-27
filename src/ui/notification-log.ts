@@ -11,6 +11,7 @@ export interface NotificationEntry {
   type: 'info' | 'success' | 'warning';
   turn: number;
   target?: NotificationMapTarget;
+  linkedCityId?: string;
 }
 
 export type NotificationLog = Record<string, NotificationEntry[]>;
