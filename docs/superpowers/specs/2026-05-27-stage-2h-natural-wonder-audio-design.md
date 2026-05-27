@@ -1,7 +1,7 @@
 # Stage 2H: Natural Wonder Audio Design
 
 **Date:** 2026-05-27
-**Status:** Draft for review
+**Status:** Reviewed draft for implementation planning
 **Related roadmap:** `docs/superpowers/specs/2026-05-21-wonder-atlas-and-map-identity-design.md`
 **Builds on:** `docs/superpowers/specs/2026-05-26-natural-wonder-spectacle-expansion-design.md`
 
@@ -18,11 +18,12 @@ This is a bespoke-audio series, not a placeholder pass. Every natural wonder eve
 - Keep attribution complete in `AUDIO-CREDITS.md`.
 - Map each natural wonder's Stage 2E `soundMood` to a concrete stinger and ambient loop.
 - Route discovery/replay stingers through the existing stinger/music ducking path.
-- Route ambient loops through the SFX side so music mute does not silence environmental ambience, while SFX mute does.
+- Route ambient loops through an ambience path controlled by existing SFX settings so music mute does not silence environmental ambience, while SFX mute does.
 - Play audio only from viewer-safe, current-human-player actions.
 - Support partial rollout through explicit pending entries that fail closed by playing nothing.
 - End the series with strict coverage requiring every natural wonder to have complete bespoke audio.
 - Preserve browser/PWA and macOS/Tauri shared behavior.
+- Avoid pre-caching the full wonder-audio set during PWA install; assets should load and cache on demand.
 
 ## Non-Goals
 
@@ -33,14 +34,15 @@ This is a bespoke-audio series, not a placeholder pass. Every natural wonder eve
 - No voice lines, unit SFX, combat SFX, or broader audio settings redesign.
 - No persistent map ambience based on camera location alone.
 - No audio hints for undiscovered, last-seen-only, fog-only, or rival-only natural wonders.
+- No reuse of the existing single-source SFX bus state for long-lived ambience if that would cut off UI one-shots or synthesized SFX.
 
 ## Player Experience
 
 When a human player discovers a natural wonder and the discovery ceremony starts, a short bespoke stinger plays with the existing music ducking behavior. The stinger should feel like a reveal accent for that specific wonder: volcanic impact for the Great Volcano, rustling life for the Ancient Forest, glassy resonance for Crystal Caverns, and so on.
 
-When the player opens a discovered natural wonder in the Codex, a subtle ambient loop may play while the page remains active. When the player triggers `Replay animation`, the same wonder's stinger plays once and the ambient loop starts or refreshes for the replay moment.
+When the player opens a discovered natural wonder in the Codex, a subtle ambient loop may play while the page remains active. The loop should sit below the music bed and feel environmental rather than foregrounded. When the player triggers `Replay animation`, the same wonder's stinger plays once and the ambient loop starts or refreshes for the replay moment.
 
-When the player focuses or inspects a currently visible discovered natural wonder tile on the map, the wonder's ambient loop may play briefly as environmental ambience. This is a focus/inspection response, not continuous camera-scanning audio.
+When the player focuses or inspects a currently visible discovered natural wonder tile on the map, the wonder's ambient loop may play briefly as environmental ambience. This is a focus/inspection response, not continuous camera-scanning audio, and it should fade out automatically after a short duration.
 
 Audio never reveals hidden information. Unknown wonders, fog-only memories, last-seen tiles, rival-only knowledge, and another hot-seat player's discoveries do not trigger natural-wonder audio.
 
@@ -63,6 +65,8 @@ Approved source policy follows the existing audio roadmap:
 - forbidden: NC, SA, unclear-license, AI-generated audio without explicit approved licensing, and assets that cannot be redistributed in browser/PWA and macOS/Tauri builds
 
 Each asset MR must include listening/approval notes in the PR body or an adjacent source note. The project cannot prove subjective quality through tests, so human approval remains part of the asset workflow.
+
+Add a typed source manifest for new wonder audio, colocated with the natural-wonder audio catalog or in a small adjacent module. `AUDIO-CREDITS.md` remains the human-facing attribution ledger, while the typed manifest gives tests a structured way to prove source IDs, licenses, authors, local paths, and credit text stay synchronized.
 
 ## Rollout Plan
 
@@ -114,8 +118,8 @@ The catalog defines entries with fields equivalent to:
 - `wonderId`
 - `soundMood`
 - `status: 'complete' | 'pending'`
-- `stinger`
-- `ambientLoop`
+- `stinger` metadata with file path, duration hint, gain hint, and source ID
+- `ambientLoop` metadata with file path, loop points, gain hint, fade timing, and source ID
 - source IDs or credit IDs
 - bundle metadata
 - loop points for ambient loops
@@ -143,7 +147,9 @@ The director owns natural-wonder playback decisions:
 
 The director does not inspect raw game state. Callers pass already viewer-safe actions. If the catalog entry is pending or missing, the director does nothing.
 
-Only one natural-wonder ambient loop may be active at a time. Starting another wonder's ambient loop fades out the previous one and fades in the new one. Restarting the same loop refreshes its lifetime rather than stacking duplicate sources.
+Only one natural-wonder ambient loop may be active at a time. Starting another wonder's ambient loop fades out the previous one and fades in the new one. Restarting the same loop refreshes its lifetime rather than stacking duplicate sources. Map-focus ambience must have an explicit timeout; Codex ambience may continue while the eligible page remains active.
+
+The director should track the active ambient wonder ID, source state, last-start time, and stop reason so page rerenders, hot-seat changes, panel closes, and rapid replay clicks do not create duplicate loops or stale fade timers.
 
 ### Audio System
 
@@ -155,7 +161,9 @@ Only one natural-wonder ambient loop may be active at a time. Starting another w
 - `startNaturalWonderMapFocusAmbient(wonderId)`
 - `stopNaturalWonderAmbient(reason)`
 
-Discovery stingers use the existing stinger/music ducking behavior from `MusicDirector` or a shared helper with the same semantics. Ambient loops route through the SFX side, using `sfxEnabled` and `sfxVolume`.
+Discovery stingers use the existing stinger/music ducking behavior from `MusicDirector` or a shared helper with the same semantics. The current ducking helper is private, so implementation must expose a small public method such as `playStingerWithDuck(path)` or move the shared stinger helper to a module that both directors can use. Do not duplicate duck/restore state machines.
+
+Ambient loops route through an ambience path controlled by `sfxEnabled` and `sfxVolume`. `AudioSystem` must also stop or revalidate active natural-wonder ambience when `currentPlayer:changed-after-handoff`, `game:over`, and panel-close events make the current audio ineligible.
 
 ### Mixer
 
@@ -166,19 +174,30 @@ Discovery stingers use the existing stinger/music ducking behavior from `MusicDi
 - replace active ambience without stacking
 - obey SFX mute and volume
 - remain independent from music mute
+- keep ordinary UI/SFX one-shots working while ambience plays
 
-If an existing mixer SFX path can support this cleanly, implementation should extend it instead of adding an unnecessary bus. If a separate ambience bus is cleaner, it must still be controlled by the SFX enable/volume settings for 2H.
+The current SFX bus is a single `BusState` used as the routing node for synthesized UI sounds. Implementation must not drive long-lived ambience through `setBusSource('sfx', ...)` if that would replace or cross-cut UI SFX. Prefer a dedicated ambience source chain connected under the SFX master gain, or a separate `ambience` bus whose gain is controlled by `soundEnabled` and `sfxVolume`.
+
+Mixer disposal must stop any active ambience source and clear pending fade timers.
 
 ### UI And Event Hooks
 
 Use existing hooks where possible:
 
 - `wonder-discovery-queue` already exposes `onRevealStarted`; 2H should play discovery stingers there.
-- Codex replay should call explicit audio callbacks when the player triggers `Replay animation`.
-- Codex page lifecycle should start and stop ambient loops for discovered natural wonder pages.
+- Codex replay should call an explicit audio callback when the player triggers `Replay animation`, before or alongside the existing visual replay state change.
+- Codex page lifecycle should start and stop ambient loops for discovered natural wonder pages through panel-level callbacks. `createWonderCodexPage` currently has no teardown hook, so `createWonderCodexPanel` must stop the previous page's ambience before replacing reader DOM and stop ambience on close.
 - Map focus or territory inspection should call audio only through a viewer-safe helper that proves the focused tile is a currently visible discovered natural wonder for the current human player.
 
 UI code must not read hidden tile state or raw rival state to decide audio.
+
+Add or extend a shared helper with behavior equivalent to:
+
+```text
+resolveNaturalWonderAudioFocus(state, viewerId, coord) -> { type: 'play'; wonderId } | { type: 'none' }
+```
+
+Unlike `resolveWonderAtlasIntent`, this helper must require live visibility. `resolveWonderAtlasIntent` intentionally allows last-seen discovered wonders for Atlas navigation, but audio focus must not play from last-seen memory because sound implies a current live place.
 
 ## Playback Rules
 
@@ -193,6 +212,7 @@ Do not play when:
 - no ceremony is shown
 - the catalog entry is pending
 - music is muted
+- the audio context is unavailable or still suspended; in that case fail quietly and do not block the ceremony
 
 ### Codex Replay
 
@@ -204,12 +224,15 @@ When the player triggers `Replay animation` for a discovered natural wonder:
 - do not add notifications
 - do not mutate game state
 - do not imply video playback
+- do not create duplicate ambient loops on repeated rapid clicks
 
 ### Codex Ambient
 
 When a discovered natural-wonder Codex page is active, start its ambient loop quietly. Stop or fade it when the page closes, the selected page changes, or the entry is no longer eligible for the current viewer.
 
 Codex ambient is allowed for discovered natural wonders even if the map tile is not currently live visible, because Codex is a reference surface rather than live map intel.
+
+Codex ambient must be quiet enough to read over. Initial guidance: use per-asset gain hints and start below the current SFX volume rather than at full SFX gain.
 
 ### Map Focus Ambient
 
@@ -224,6 +247,8 @@ Do not play map focus ambience for:
 - hidden hot-seat state
 - generic camera position without an explicit focus/inspection action
 
+Map focus ambience should fade in quickly, stay audible briefly, then fade out automatically unless the same wonder is explicitly focused again. The implementation plan may tune exact values, but it must include tests for timeout/replacement behavior so ambience cannot run forever after a one-time map tap.
+
 ### Settings And Accessibility
 
 Discovery and replay stingers respect `musicEnabled` and `musicVolume`.
@@ -231,6 +256,8 @@ Discovery and replay stingers respect `musicEnabled` and `musicVolume`.
 Ambient loops respect `soundEnabled` and `sfxVolume`. Music mute does not silence ambient loops.
 
 Reduced motion does not automatically mute audio. If a future reduced-audio setting exists, this feature should use it, but 2H does not add a new settings UI unless implementation discovers an existing reduced-audio preference to honor.
+
+If `soundEnabled` changes while ambient audio is active, the active ambience gain must update immediately through the existing SFX mute/volume machinery.
 
 ## Privacy And Visibility
 
@@ -253,6 +280,8 @@ Implementation must confirm both release targets can load the assets through the
 - GitHub Pages/PWA uses the existing base URL behavior.
 - macOS/Tauri uses relative asset paths through the existing shared frontend build.
 
+Do not add all wonder audio files to the service worker pre-cache. The current service worker uses cache-first behavior for fetched files; 2H assets should load on demand and then cache. If an implementation slice changes service worker pre-cache rules, it must run the dual-release checks required by `AGENTS.md` and explicitly justify the install-size impact.
+
 Every asset MR must include a bundle-size note. 2H should keep each complete-wonder MR small enough to review and should avoid one huge audio dump. If an asset candidate is too large, the MR pauses for a user decision: re-encode, trim, choose another source, or accept the size.
 
 ## Testing Requirements
@@ -268,7 +297,9 @@ Every asset MR must include a bundle-size note. 2H should keep each complete-won
 - Every complete path exists under `public/audio/wonders/`.
 - Every complete file has OGG magic bytes.
 - Ambient loop points are valid: `loopStart >= 0` and `loopEnd > loopStart`.
-- Every complete source or credit ID resolves to `AUDIO-CREDITS.md` or a typed source record.
+- Every complete source ID resolves in the typed audio source manifest.
+- Every complete source record has title, creator, source URL, license, local path, and credit text.
+- Every complete source's credit text appears in `AUDIO-CREDITS.md`.
 - MR5 final coverage requires every natural wonder to be complete.
 
 ### Director And Mixer Tests
@@ -284,6 +315,8 @@ Every asset MR must include a bundle-size note. 2H should keep each complete-won
 - Ambient loops obey SFX mute and volume.
 - Ambient loops continue to be controlled separately from music mute.
 - Stingers obey music mute and use stinger ducking.
+- UI/SFX one-shots still play while natural-wonder ambience is active.
+- Disposing `AudioSystem` or `AudioMixer` stops active ambience.
 
 ### Privacy Tests
 
@@ -292,6 +325,7 @@ Every asset MR must include a bundle-size note. 2H should keep each complete-won
 - Undiscovered Codex entries do not expose audio controls or play audio.
 - Last-seen, fog-only, unexplored, or rival-only map state does not trigger ambience.
 - Current-player change stops or revalidates active ambience.
+- Atlas navigation may resolve a last-seen discovered wonder, but natural-wonder audio focus must not.
 
 ### UI Tests
 
@@ -300,6 +334,7 @@ Every asset MR must include a bundle-size note. 2H should keep each complete-won
 - Codex page selection starts eligible ambient and stops previous ambient.
 - Closing the Codex stops ambient.
 - Replay button text remains `Replay animation` or equivalent and does not promise video playback.
+- Rapid replay clicks refresh audio state without duplicated stingers beyond the deliberate one-shot behavior and without stacked ambience.
 
 ## Required Checks
 
@@ -335,4 +370,3 @@ The Stage 2H series is complete when:
 - audio privacy tests cover undiscovered, fog-only, last-seen, rival-only, AI, and hot-seat wrong-viewer cases
 - PWA and Tauri asset loading paths remain shared
 - targeted tests, wonder regressions, build, and full test suite pass
-
