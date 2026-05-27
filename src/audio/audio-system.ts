@@ -3,6 +3,7 @@ import type { GameState } from '../core/types';
 import { AudioLoader } from './audio-loader';
 import { AudioMixer } from './audio-mixer';
 import { MusicDirector } from './music-director';
+import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from './natural-wonder-audio-director';
 import { getFamilyForCiv } from './civ-audio-family';
 import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra } from './audio-catalog';
 
@@ -10,6 +11,7 @@ export class AudioSystem {
   private loader: AudioLoader;
   private mixer: AudioMixer;
   private director: MusicDirector;
+  private naturalWonderDirector: NaturalWonderAudioDirector;
   private unsubscribers: Array<() => void> = [];
   private warCount = 0;
   private currentPlayerId = '';
@@ -23,6 +25,11 @@ export class AudioSystem {
     this.loader = new AudioLoader(ctx);
     this.mixer = new AudioMixer(ctx);
     this.director = new MusicDirector(this.mixer, this.loader);
+    this.naturalWonderDirector = new NaturalWonderAudioDirector(
+      this.mixer,
+      this.loader,
+      path => this.director.playStingerWithDuck(path),
+    );
   }
 
   start(state: GameState, bus: EventBus): void {
@@ -78,10 +85,31 @@ export class AudioSystem {
     return this.mixer.getSfxRoutingNode();
   }
 
+  playNaturalWonderDiscovery(wonderId: string): Promise<boolean> {
+    return this.naturalWonderDirector.playDiscoveryStinger(wonderId);
+  }
+
+  playNaturalWonderReplay(wonderId: string): Promise<boolean> {
+    return this.naturalWonderDirector.playCodexReplay(wonderId);
+  }
+
+  startNaturalWonderCodexAmbient(wonderId: string): Promise<boolean> {
+    return this.naturalWonderDirector.startCodexAmbient(wonderId);
+  }
+
+  startNaturalWonderMapFocusAmbient(wonderId: string): Promise<boolean> {
+    return this.naturalWonderDirector.startMapFocusAmbient(wonderId);
+  }
+
+  stopNaturalWonderAmbient(reason: NaturalWonderAmbientStopReason): void {
+    this.naturalWonderDirector.stopAmbient(reason);
+  }
+
   dispose(): void {
     this.unsubscribers.forEach(fn => fn());
     this.unsubscribers = [];
     this.disarmIosResume();
+    this.naturalWonderDirector.stopAmbient('system-disposed');
     this.mixer.dispose();
     this.warCount = 0;
     this.currentPlayerId = '';
@@ -124,6 +152,7 @@ export class AudioSystem {
         this.currentPlayerId = p.civId;
         this.currentCivType = this.civTypeById[p.civId] ?? p.civId;
         this.warCount = 0;
+        this.naturalWonderDirector.stopAmbient('player-changed');
         this.director.handlePlayerChanged({ civType: this.currentCivType });
         // Swap in the new civ's accent track; era + adaptive buses keep their current sources
         void this.reloadAccent(this.currentCivType);
@@ -131,6 +160,7 @@ export class AudioSystem {
 
       bus.on('game:over', p => {
         const outcome = p.winnerId === this.currentPlayerId ? 'victory' : 'defeat';
+        this.naturalWonderDirector.stopAmbient('game-ended');
         this.director.handleGameEnded({ outcome });
       }),
     );

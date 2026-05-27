@@ -10,6 +10,7 @@ export interface WonderCodexPageOptions {
   reducedMotion?: boolean;
   onAction: (action: WonderCodexAction) => void;
   onSelectRelated: (wonderId: string) => void;
+  onReplayNaturalWonder?: (wonderId: string) => void;
 }
 
 function appendText(parent: HTMLElement, tag: keyof HTMLElementTagNameMap, text: string, style?: string): HTMLElement {
@@ -139,6 +140,7 @@ export function createWonderCodexPage(
     }
     replay.addEventListener('click', () => {
       if (reducedMotion || !vignetteHost) return;
+      options.onReplayNaturalWonder?.(page.id);
       if (replayTimer !== null) {
         window.clearTimeout(replayTimer);
       }

@@ -178,6 +178,40 @@ All stingers below are Kevin MacLeod (incompetech.com), CC-BY 3.0 — https://cr
   Used as: warDeclared stinger (trimmed to 3 s)
   Modified: trimmed to 3 s, converted to OGG Vorbis
 
+## Natural Wonder Audio
+
+All Stage 2H MR1 natural wonder audio is by Eric Matyas / Soundimage.org and converted from MP3 to OGG Vorbis for in-game use.
+
+- `audio/wonders/great-volcano-stinger.ogg` — "Underwater Rumble" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2019/11/Underwater-Rumble.mp3
+  Used as: Great Volcano discovery and replay stinger
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/great-volcano-ambient.ogg` — "Quiet Tension_Looping" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2018/10/Quiet-Tension_Looping.mp3
+  Used as: Great Volcano Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/ancient-forest-stinger.ogg` — "Morning Dew" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3
+  Used as: Ancient Forest discovery and replay stinger
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/ancient-forest-ambient.ogg` — "Sunrise_Looping" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2018/10/Sunrise_Looping.mp3
+  Used as: Ancient Forest Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/coral-reef-stinger.ogg` — "Life in a Drop" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3
+  Used as: Coral Reef discovery and replay stinger
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/coral-reef-ambient.ogg` — "Underwater World_Looping" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2016/11/Underwater-World_Looping.mp3
+  Used as: Coral Reef Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
 ## Sound Effects
 
 *(Existing synthesised SFX via Web Audio oscillators require no attribution.)*

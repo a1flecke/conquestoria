@@ -7,6 +7,9 @@ export interface WonderAtlasCallbacks {
   onOpenCity?: (cityId: string) => void;
   initialWonderId?: string;
   reducedMotion?: boolean;
+  onNaturalWonderPageShown?: (wonderId: string) => void;
+  onNaturalWonderPageHidden?: (wonderId: string) => void;
+  onNaturalWonderReplay?: (wonderId: string) => void;
 }
 
 export function createWonderAtlasPanel(
@@ -20,5 +23,8 @@ export function createWonderAtlasPanel(
     onViewOnMap: callbacks.onViewOnMap,
     onOpenCity: callbacks.onOpenCity ?? (() => {}),
     onClose: callbacks.onClose,
+    onNaturalWonderPageShown: callbacks.onNaturalWonderPageShown,
+    onNaturalWonderPageHidden: callbacks.onNaturalWonderPageHidden,
+    onNaturalWonderReplay: callbacks.onNaturalWonderReplay,
   });
 }

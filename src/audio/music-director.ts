@@ -78,7 +78,7 @@ export class MusicDirector {
     this.mixer.setSnapshot('silent', GAME_END_FADE_MS);
   }
 
-  private async playStingerWithDuck(path: string): Promise<void> {
+  async playStingerWithDuck(path: string): Promise<void> {
     this.mixer.setSnapshot('stinger-duck', STINGER_DUCK_FADE_MS);
     const buffer = await this.loader.get(path);
     await this.mixer.playOneShot('stinger', buffer);

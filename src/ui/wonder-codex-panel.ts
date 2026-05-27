@@ -16,6 +16,9 @@ export interface WonderCodexPanelCallbacks {
   initialWonderId?: string;
   mode?: WonderCodexResponsiveMode;
   reducedMotion?: boolean;
+  onNaturalWonderPageShown?: (wonderId: string) => void;
+  onNaturalWonderPageHidden?: (wonderId: string) => void;
+  onNaturalWonderReplay?: (wonderId: string) => void;
 }
 
 function defaultMode(): WonderCodexResponsiveMode {
@@ -56,6 +59,7 @@ export function createWonderCodexPanel(
   const mode = callbacks.mode ?? defaultMode();
   let selectedWonderId = callbacks.initialWonderId;
   let mobileShowingCatalog = mode === 'mobile' && !callbacks.initialWonderId;
+  let audibleNaturalWonderId: string | null = null;
 
   const panel = document.createElement('section');
   panel.id = 'wonder-codex-panel';
@@ -70,6 +74,7 @@ export function createWonderCodexPanel(
   const close = createGameButton('Close', 'ghost');
   close.dataset.codexClose = 'true';
   close.addEventListener('click', () => {
+    setAudibleNaturalWonder(null);
     panel.remove();
     callbacks.onClose();
   });
@@ -83,6 +88,13 @@ export function createWonderCodexPanel(
   function handleAction(action: WonderCodexAction): void {
     if (action.type === 'view-map' && action.coord) callbacks.onViewOnMap(action.coord, action.wonderId);
     if (action.type === 'open-city' && action.cityId) callbacks.onOpenCity(action.cityId);
+  }
+
+  function setAudibleNaturalWonder(nextWonderId: string | null): void {
+    if (audibleNaturalWonderId === nextWonderId) return;
+    if (audibleNaturalWonderId) callbacks.onNaturalWonderPageHidden?.(audibleNaturalWonderId);
+    audibleNaturalWonderId = nextWonderId;
+    if (audibleNaturalWonderId) callbacks.onNaturalWonderPageShown?.(audibleNaturalWonderId);
   }
 
   function renderCatalog(entries: WonderCodexCatalogEntry[]): HTMLElement {
@@ -150,14 +162,18 @@ export function createWonderCodexPanel(
         mobileShowingCatalog = false;
         render();
       },
+      onReplayNaturalWonder: callbacks.onNaturalWonderReplay,
     }));
     return reader;
   }
 
   function render(): void {
-    body.textContent = '';
     const model = getWonderCodexViewModel(state, state.currentPlayer, { mode, initialWonderId: selectedWonderId });
     selectedWonderId = model.selectedPage?.id ?? selectedWonderId;
+    setAudibleNaturalWonder(!mobileShowingCatalog && model.selectedPage?.kind === 'natural'
+      ? model.selectedPage.id
+      : null);
+    body.textContent = '';
     if (mode === 'mobile') {
       body.style.gridTemplateColumns = '1fr';
       body.appendChild(mobileShowingCatalog ? renderCatalog(model.catalogEntries) : renderReader(model.selectedPage));

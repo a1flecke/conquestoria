@@ -164,4 +164,22 @@ describe('wonder-discovery-queue', () => {
 
     expect(overlays).toEqual(['wonder-discovery-ceremony', null]);
   });
+
+  it('notifies when a reveal starts so audio can play in sync with the ceremony', () => {
+    const onRevealStarted = vi.fn();
+    const queue = createWonderDiscoveryRevealQueue({
+      container: document.body,
+      isInteractionBlocked: () => false,
+      present: () => Promise.resolve('continue'),
+      requestMapHighlight: vi.fn(),
+      openAtlas: vi.fn(),
+      reducedMotion: () => false,
+      onRevealStarted,
+    });
+
+    queue.enqueue(item('great_volcano', 2));
+    queue.notifyActionSettled();
+
+    expect(onRevealStarted).toHaveBeenCalledWith(expect.objectContaining({ wonderId: 'great_volcano' }));
+  });
 });

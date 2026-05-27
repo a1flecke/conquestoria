@@ -24,6 +24,9 @@ interface BusState {
 export class AudioMixer {
   private musicBuses: Record<MusicBusId, BusState>;
   private sfxBus: BusState;
+  private ambienceGain: GainNode;
+  private ambienceSourceGain: GainNode | null = null;
+  private ambienceSource: AudioBufferSourceNode | null = null;
   private musicMasterGain: GainNode;
   private currentMusicVolume = 1.0;
   private musicEnabled = true;
@@ -54,6 +57,10 @@ export class AudioMixer {
     sfxGain.gain.setValueAtTime(1.0, ctx.currentTime);
     sfxGain.connect(ctx.destination);
     this.sfxBus = { snapshotGain: sfxGain, sourceGain: null, source: null };
+
+    this.ambienceGain = ctx.createGain();
+    this.ambienceGain.gain.setValueAtTime(1.0, ctx.currentTime);
+    this.ambienceGain.connect(this.sfxBus.snapshotGain);
   }
 
   private getBus(id: BusId): BusState {
@@ -126,6 +133,51 @@ export class AudioMixer {
       src.start();
       b.source = src;
     });
+  }
+
+  setAmbienceLoop(
+    buffer: AudioBuffer | null,
+    loopPoints: LoopPoints | null,
+    fadeMs: number,
+    gain = 0.35,
+  ): void {
+    const fadeS = Math.max(fadeMs / 1000, 0.001);
+    const now = this.ctx.currentTime;
+
+    if (this.ambienceSource && this.ambienceSourceGain) {
+      const oldGain = this.ambienceSourceGain;
+      const oldSource = this.ambienceSource;
+      this.ambienceSource = null;
+      this.ambienceSourceGain = null;
+      oldGain.gain.setValueAtTime(oldGain.gain.value, now);
+      oldGain.gain.linearRampToValueAtTime(0, now + fadeS);
+      oldSource.stop(now + fadeS);
+    }
+
+    if (!buffer) return;
+
+    const targetGain = Math.max(0, Math.min(1, gain));
+    const sourceGain = this.ctx.createGain();
+    sourceGain.gain.setValueAtTime(0, now);
+    sourceGain.gain.linearRampToValueAtTime(targetGain, now + fadeS);
+    sourceGain.connect(this.ambienceGain);
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    if (loopPoints) {
+      source.loopStart = loopPoints.loopStart;
+      source.loopEnd = loopPoints.loopEnd;
+    }
+    source.connect(sourceGain);
+    source.start();
+
+    this.ambienceSourceGain = sourceGain;
+    this.ambienceSource = source;
+  }
+
+  stopAmbience(fadeMs = 500): void {
+    this.setAmbienceLoop(null, null, fadeMs);
   }
 
   setSnapshot(id: SnapshotId, fadeMs: number): void {
@@ -203,6 +255,7 @@ export class AudioMixer {
         bus.source?.stop();
       }
       this.sfxBus.source?.stop();
+      this.ambienceSource?.stop();
     } catch {
       // Sources may already be stopped
     }
