@@ -51,7 +51,7 @@ describe('wonder-codex presentation', () => {
     expect(model.selectedPage).toBeNull();
   });
 
-  it('does not expose rival legendary project or completion details', () => {
+  it('rival-owned project and completion do not appear in player catalog and no private data leaks', () => {
     const state = makeState();
     state.legendaryWonderProjects = {
       rival: {
@@ -354,6 +354,20 @@ describe('isLegendaryWonderVisibleToPlayer', () => {
     };
     expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(true);
     expect(isLegendaryWonderVisibleToPlayer(state, 'other-player', 'oracle-of-delphi')).toBe(false);
+  });
+
+  it('returns true when the player project phase is lost_race', () => {
+    const state = baseState();
+    state.legendaryWonderProjects!['p1'] = {
+      wonderId: 'oracle-of-delphi',
+      ownerId: 'player',
+      cityId: 'c1',
+      phase: 'lost_race',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: [],
+    };
+    expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(true);
   });
 });
 

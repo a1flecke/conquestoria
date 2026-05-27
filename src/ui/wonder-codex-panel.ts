@@ -139,7 +139,6 @@ export function createWonderCodexPanel(
       reader.appendChild(back);
     }
     if (!page) {
-      appendText(reader, 'p', 'No legendary wonders discovered yet — complete quests and explore to uncover them.', 'margin:0;font-size:12px;opacity:0.5;');
       return reader;
     }
     reader.appendChild(createWonderCodexPage(page, {
