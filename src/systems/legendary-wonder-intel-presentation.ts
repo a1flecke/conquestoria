@@ -108,6 +108,7 @@ export function isLegendaryWonderVisibleToPlayer(
   wonderId: string,
   precomputedRivalIntel?: Map<string, LegendaryWonderRivalIntelSummary>,
 ): boolean {
+  if (state.completedLegendaryWonders?.[wonderId]?.ownerId === viewerId) return true;
   const owned = Object.values(state.legendaryWonderProjects ?? {})
     .find(p => p.ownerId === viewerId && p.wonderId === wonderId);
   if (owned && owned.phase !== 'locked') return true;

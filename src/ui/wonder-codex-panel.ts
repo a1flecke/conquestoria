@@ -87,7 +87,12 @@ export function createWonderCodexPanel(
     catalog.dataset.codexCatalog = 'true';
     catalog.style.cssText = 'min-width:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;border-right:1px solid rgba(255,255,255,0.08);';
     if (entries.length === 0) {
-      appendText(catalog, 'p', 'No wonders recorded yet.', 'margin:0;font-size:13px;opacity:0.74;');
+      appendText(
+        catalog,
+        'p',
+        'No legendary wonders discovered yet — complete quests and explore to uncover them.',
+        'margin:0;font-size:12px;opacity:0.5;padding:8px;',
+      );
       return catalog;
     }
     for (const entry of entries) {
@@ -131,7 +136,7 @@ export function createWonderCodexPanel(
       reader.appendChild(back);
     }
     if (!page) {
-      appendText(reader, 'p', 'No wonders recorded yet.', 'margin:0;opacity:0.74;');
+      appendText(reader, 'p', 'No legendary wonders discovered yet — complete quests and explore to uncover them.', 'margin:0;font-size:12px;opacity:0.5;');
       return reader;
     }
     reader.appendChild(createWonderCodexPage(page, {

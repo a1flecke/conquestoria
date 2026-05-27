@@ -16,11 +16,11 @@ function makeState(): GameState {
 }
 
 describe('wonder-codex presentation', () => {
-  it('hides undiscovered natural wonders without hiding the legendary catalog', () => {
+  it('hides undiscovered natural wonders and gates legendaries without a project or intel', () => {
     const model = getWonderCodexViewModel(makeState(), 'player');
 
     expect(model.catalogEntries.some(entry => entry.id === 'great_volcano')).toBe(false);
-    expect(model.catalogEntries.some(entry => entry.id === 'oracle-of-delphi')).toBe(true);
+    expect(model.catalogEntries.filter(entry => entry.kind === 'legendary')).toHaveLength(0);
   });
 
   it('shows discovered natural pages with source image and safe map action', () => {
@@ -42,13 +42,13 @@ describe('wonder-codex presentation', () => {
     });
   });
 
-  it('falls back to the first visible entry when a deep link is not viewer-safe', () => {
+  it('does not load a page for a wonder the player cannot see', () => {
     const state = makeState();
 
     const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'great_volcano' });
 
     expect(model.selectedPage?.id).not.toBe('great_volcano');
-    expect(model.selectedPage?.kind).toBe('legendary');
+    expect(model.selectedPage).toBeNull();
   });
 
   it('does not expose rival legendary project or completion details', () => {
@@ -71,8 +71,9 @@ describe('wonder-codex presentation', () => {
     const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
     const serialized = JSON.stringify(model);
 
-    expect(model.selectedPage?.stateLabel).toBe('Legendary wonder');
-    expect(model.selectedPage?.statusLines.join(' ')).not.toContain('Reward:');
+    // Rival-owned projects and completions do not grant visibility to viewer
+    expect(model.catalogEntries.some(e => e.id === 'oracle-of-delphi')).toBe(false);
+    expect(model.catalogEntries.some(e => e.id === 'grand-canal')).toBe(false);
     expect(serialized).not.toContain('rival-city');
     expect(serialized).not.toContain('rival-canal-city');
     expect(serialized).not.toContain('90');
@@ -344,5 +345,53 @@ describe('isLegendaryWonderVisibleToPlayer', () => {
     };
     expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'grand-canal')).toBe(true);
     expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(false);
+  });
+
+  it('returns true when the player owns a completed legendary wonder', () => {
+    const state = baseState();
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: 'c1', turnCompleted: 50 },
+    };
+    expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(true);
+    expect(isLegendaryWonderVisibleToPlayer(state, 'other-player', 'oracle-of-delphi')).toBe(false);
+  });
+});
+
+describe('legendary wonder catalog gating', () => {
+  it('excludes legendary wonders the player has no project or rival intel for', () => {
+    const state = createNewGame(undefined, 'gate-test');
+    state.legendaryWonderProjects = {};
+    const model = getWonderCodexViewModel(state, 'player');
+    const legendaryIds = model.catalogEntries
+      .filter(e => e.kind === 'legendary')
+      .map(e => e.id);
+    expect(legendaryIds).toHaveLength(0);
+  });
+
+  it('includes a legendary wonder once the player project phase is questing', () => {
+    const state = createNewGame(undefined, 'gate-questing-test');
+    state.legendaryWonderProjects = {
+      p1: {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'player',
+        cityId: 'c1',
+        phase: 'questing',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+    const model = getWonderCodexViewModel(state, 'player');
+    expect(model.catalogEntries.some(e => e.id === 'oracle-of-delphi')).toBe(true);
+  });
+
+  it('selectedPage is null when no legendary wonders are visible and no naturals are known', () => {
+    const state = createNewGame(undefined, 'gate-null-test');
+    state.legendaryWonderProjects = {};
+    state.wonderDiscoverers = {};
+    for (const tile of Object.values(state.map.tiles)) tile.wonder = null;
+    const model = getWonderCodexViewModel(state, 'player');
+    expect(model.catalogEntries).toHaveLength(0);
+    expect(model.selectedPage).toBeNull();
   });
 });
