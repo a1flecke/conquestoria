@@ -36,7 +36,7 @@ export class NaturalWonderAudioDirector {
   async playDiscoveryStinger(wonderId: string): Promise<boolean> {
     const entry = getCompleteNaturalWonderAudioEntry(wonderId);
     if (!entry) return false;
-    void this.playStingerWithDuck(entry.stinger.file);
+    void this.playStingerWithDuck(entry.stinger.file).catch(() => {});
     return true;
   }
 
@@ -79,7 +79,12 @@ export class NaturalWonderAudioDirector {
   private async startAmbient(wonderId: string, requestId: number): Promise<boolean> {
     const entry = getCompleteNaturalWonderAudioEntry(wonderId);
     if (!entry) return false;
-    const buffer = await this.loader.get(entry.ambientLoop.file);
+    let buffer: AudioBuffer;
+    try {
+      buffer = await this.loader.get(entry.ambientLoop.file);
+    } catch {
+      return false;
+    }
     if (requestId !== this.ambientRequestId) return false;
     this.mixer.setAmbienceLoop(
       buffer,
