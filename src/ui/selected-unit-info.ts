@@ -4,6 +4,7 @@ import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier }
 import { isSpyUnitType } from '@/systems/espionage-system';
 import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
 import {
+  formatImprovementYieldLabel,
   formatWorkerActionBlockerReason,
   getAvailableWorkerActions,
   getImprovementDisplayName,
@@ -229,7 +230,8 @@ export function renderSelectedUnitInfo(
           const replaceable = getAvailableWorkerActions(tile, completedTechs, unit.owner, { isCityTile, allowReplacement: true })
             .filter((a): a is BuildableImprovementType => a !== 'drain_swamp');
           for (const action of replaceable) {
-            const label = `Replace ${getImprovementDisplayName(tile.improvement)} with ${getImprovementDisplayName(action)}`;
+            const yieldStr = formatImprovementYieldLabel(action);
+            const label = `Replace ${getImprovementDisplayName(tile.improvement)} with ${getImprovementDisplayName(action)}${yieldStr ? ` ${yieldStr}` : ''}`;
             actionsDiv.appendChild(makeButton(label, '#7c5c38', () => callbacks.onReplaceImprovement!(action)));
           }
         } else {

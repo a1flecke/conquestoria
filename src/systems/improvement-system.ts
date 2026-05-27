@@ -59,7 +59,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     type: 'mine',
     name: 'Mine',
     buildTurns: 5,
-    validTerrains: ['hills', 'plains', 'mountain', 'volcanic'],
+    validTerrains: ['hills', 'plains', 'volcanic'],
     requiresRiver: false,
     requiredTech: null,
     yieldBonus: { food: 0, production: 2, gold: 1, science: 0 },
@@ -119,7 +119,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     type: 'quarry',
     name: 'Quarry',
     buildTurns: 5,
-    validTerrains: ['mountain'],
+    validTerrains: ['mountain', 'hills'],
     requiresRiver: false,
     requiredTech: null,
     yieldBonus: { food: 0, production: 1, gold: 0, science: 0 },
@@ -152,7 +152,7 @@ export function canBuildImprovement(
   if (!definition) return false;
   if (options.isCityTile) return false;
   if (ownerId && tile.owner !== ownerId) return false;
-  if (tile.improvement !== 'none' && !options.allowReplacement) return false;
+  if (tile.improvement !== 'none' && (!options.allowReplacement || tile.improvement === type)) return false;
   if (!definition.validTerrains.includes(tile.terrain)) return false;
   if (definition.requiresRiver && !tile.hasRiver) return false;
   if (definition.requiredTech && !completedTechs.includes(definition.requiredTech)) return false;
@@ -198,7 +198,7 @@ export function getWorkerActionBlockerReason(
   if (!tile) return 'invalid-terrain';
   if (ownerId && tile.owner !== ownerId) return 'outside-territory';
   if (options.isCityTile) return 'city-center';
-  if (tile.improvement !== 'none' && !options.allowReplacement) return 'already-improved';
+  if (tile.improvement !== 'none' && (!options.allowReplacement || tile.improvement === action)) return 'already-improved';
 
   if (action === 'drain_swamp') {
     return tile.terrain === 'swamp' ? 'none' : 'invalid-terrain';
@@ -236,6 +236,17 @@ export function getImprovementYieldBonus(type: ImprovementType): ResourceYield {
 export function getImprovementDisplayName(type: ImprovementType): string {
   if (type === 'none') return 'None';
   return IMPROVEMENT_DEFINITIONS[type].name;
+}
+
+export function formatImprovementYieldLabel(type: ImprovementType): string {
+  if (type === 'none') return '';
+  const bonus = IMPROVEMENT_DEFINITIONS[type as BuildableImprovementType].yieldBonus;
+  const parts: string[] = [];
+  if (bonus.food) parts.push(`+${bonus.food} Food`);
+  if (bonus.production) parts.push(`+${bonus.production} Prod`);
+  if (bonus.gold) parts.push(`+${bonus.gold} Gold`);
+  if (bonus.science) parts.push(`+${bonus.science} Science`);
+  return parts.length ? `(${parts.join(', ')})` : '';
 }
 
 export function getWorkerActionLabel(action: WorkerActionType): string {

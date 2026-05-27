@@ -436,7 +436,26 @@ describe('worker action system', () => {
 });
 
 describe('applyWorkerAction with allowReplacement', () => {
-  it('allows replacing an existing improvement when allowReplacement: true', () => {
+  it('allows replacing an existing improvement with a different type when allowReplacement: true', () => {
+    const s = state({
+      map: {
+        width: 5,
+        height: 5,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '0,0': tile({ coord: { q: 0, r: 0 }, terrain: 'grassland', improvement: 'farm', improvementTurnsLeft: 0, owner: 'player', hasRiver: true }),
+        },
+      },
+    });
+    const result = applyWorkerAction(s, 'worker-1', 'watermill', { allowReplacement: true });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.state.map.tiles['0,0'].improvementTurnsLeft).toBeGreaterThan(0);
+    }
+  });
+
+  it('rejects replacing an improvement with the same type even when allowReplacement: true', () => {
     const s = state({
       map: {
         width: 5,
@@ -449,10 +468,7 @@ describe('applyWorkerAction with allowReplacement', () => {
       },
     });
     const result = applyWorkerAction(s, 'worker-1', 'farm', { allowReplacement: true });
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.state.map.tiles['0,0'].improvement).toBe('farm');
-    }
+    expect(result.ok).toBe(false);
   });
 
   it('rejects an already-improved tile without allowReplacement', () => {

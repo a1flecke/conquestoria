@@ -158,4 +158,29 @@ describe('createWorkerReplacementConfirmPanel', () => {
     replaceButton.click();
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
+
+  it('shows yield strings in the body when provided', () => {
+    createWorkerReplacementConfirmPanel(document.body, {
+      existingName: 'Farm',
+      newName: 'Mine',
+      existingYield: '(+2 Food)',
+      newYield: '(+2 Prod, +1 Gold)',
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+    expect(document.body.textContent).toContain('(+2 Prod, +1 Gold)');
+    expect(document.body.textContent).toContain('(+2 Food)');
+  });
+
+  it('shows plain names without yield when not provided', () => {
+    createWorkerReplacementConfirmPanel(document.body, {
+      existingName: 'Farm',
+      newName: 'Mine',
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+    expect(document.body.textContent).toContain('Mine');
+    expect(document.body.textContent).toContain('Farm');
+    expect(document.body.textContent).not.toContain('(+');
+  });
 });

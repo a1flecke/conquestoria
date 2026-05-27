@@ -16,7 +16,7 @@ import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
-import { getImprovementDisplayName } from '@/systems/improvement-system';
+import { formatImprovementYieldLabel, getImprovementDisplayName } from '@/systems/improvement-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
@@ -1435,10 +1435,14 @@ function selectUnit(unitId: string): void {
         if (!currentTile || currentTile.improvement === 'none') return;
         const existingName = getImprovementDisplayName(currentTile.improvement);
         const newName = getImprovementDisplayName(action);
+        const existingYield = formatImprovementYieldLabel(currentTile.improvement) || undefined;
+        const newYield = formatImprovementYieldLabel(action) || undefined;
         const uid = selectedUnitId;
         createWorkerReplacementConfirmPanel(uiLayer, {
           existingName,
           newName,
+          existingYield,
+          newYield,
           onCancel: () => selectUnit(uid),
           onConfirm: () => {
             const result = applyWorkerAction(gameState, uid, action, { allowReplacement: true });

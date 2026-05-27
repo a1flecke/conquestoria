@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
 import type { GameState } from '@/core/types';
@@ -620,6 +620,38 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
     const buttons = findButtons(container).map(b => b.textContent ?? '');
     expect(buttons.some(l => l.toLowerCase().includes('mine'))).toBe(true);
+  });
+
+  it('replacement button labels include yield information for the new improvement', () => {
+    // grassland tile with farm already built; worker on it with onReplaceImprovement
+    const state = makeWorkerState({ terrain: 'grassland', improvement: 'farm', hasRiver: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+      onReplaceImprovement: vi.fn(),
+    });
+
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    // Watermill is valid on grassland+river; its yield is (+1 Food, +1 Prod)
+    const watermillReplace = buttons.find(l => l.includes('Replace') && l.includes('Watermill'));
+    expect(watermillReplace).toBeDefined();
+    expect(watermillReplace).toContain('+1 Food');
+    expect(watermillReplace).toContain('+1 Prod');
+  });
+
+  it('does not show a Replace-with-same-type button', () => {
+    // grassland tile with farm already built; farm must NOT appear as a replace-with option
+    const state = makeWorkerState({ terrain: 'grassland', improvement: 'farm', hasRiver: false });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+      onReplaceImprovement: vi.fn(),
+    });
+
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    expect(buttons.every(l => !l.includes('Farm with Farm'))).toBe(true);
   });
 });
 
