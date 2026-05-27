@@ -10,6 +10,8 @@ import { createGameButton } from '@/ui/ui-kit';
 export interface WorkerReplacementConfirmPanelConfig {
   existingName: string;
   newName: string;
+  existingYield?: string;
+  newYield?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -27,7 +29,9 @@ export function createWorkerReplacementConfirmPanel(
   const title = document.createElement('h3');
   title.textContent = `Replace ${config.existingName}?`;
   const body = document.createElement('p');
-  body.textContent = `Building ${config.newName} will remove the existing ${config.existingName}.`;
+  const newPart = config.newYield ? `${config.newName} ${config.newYield}` : config.newName;
+  const existingPart = config.existingYield ? `${config.existingName} ${config.existingYield}` : config.existingName;
+  body.textContent = `Building ${newPart} will remove the existing ${existingPart}.`;
 
   const buttonRow = document.createElement('div');
   buttonRow.style.cssText = 'display:flex;gap:8px;';

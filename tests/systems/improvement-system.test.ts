@@ -1,6 +1,7 @@
 import {
   canBuildImprovement,
   canDrainSwamp,
+  formatImprovementYieldLabel,
   formatWorkerActionBlockerReason,
   getAvailableWorkerActions,
   getImprovementDisplayName,
@@ -43,12 +44,28 @@ describe('canBuildImprovement', () => {
     expect(canBuildImprovement(tile, 'mine')).toBe(false);
   });
 
-  it('allows replacement when allowReplacement: true and terrain is valid', () => {
+  it('allows replacement with a different improvement when allowReplacement: true and terrain is valid', () => {
+    const tile: HexTile = {
+      coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
+      resource: null, improvement: 'farm', owner: 'p1', improvementTurnsLeft: 0, hasRiver: true, wonder: null,
+    };
+    expect(canBuildImprovement(tile, 'watermill', [], 'p1', { allowReplacement: true })).toBe(true);
+  });
+
+  it('rejects replacing an improvement with the same type even when allowReplacement: true', () => {
     const tile: HexTile = {
       coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
       resource: null, improvement: 'farm', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
     };
-    expect(canBuildImprovement(tile, 'farm', [], 'p1', { allowReplacement: true })).toBe(true);
+    expect(canBuildImprovement(tile, 'farm', [], 'p1', { allowReplacement: true })).toBe(false);
+  });
+
+  it('allows replacing an improvement with a DIFFERENT type when allowReplacement: true', () => {
+    const tile: HexTile = {
+      coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
+      resource: null, improvement: 'farm', owner: 'p1', improvementTurnsLeft: 0, hasRiver: true, wonder: null,
+    };
+    expect(canBuildImprovement(tile, 'watermill', [], 'p1', { allowReplacement: true })).toBe(true);
   });
 
   it('still blocks on wrong terrain even with allowReplacement: true', () => {
@@ -286,6 +303,12 @@ describe('lumber camp and watermill eligibility', () => {
     expect(getWorkerActionBlockerReason(tile({ terrain: 'plains', owner: 'p1', hasRiver: false }), 'watermill', [], 'p1')).toBe('requires-river');
     expect(getWorkerActionBlockerReason(tile({ terrain: 'coast', owner: 'p1' }), 'farm', [], 'p1')).toBe('invalid-terrain');
   });
+
+  it('returns already-improved when replacing with the same type and allowReplacement: true', () => {
+    expect(
+      getWorkerActionBlockerReason(tile({ terrain: 'grassland', owner: 'p1', improvement: 'farm' }), 'farm', [], 'p1', { allowReplacement: true }),
+    ).toBe('already-improved');
+  });
 });
 
 describe('canBuildImprovement — resource gating', () => {
@@ -428,5 +451,23 @@ describe('getWorkerBlockerHints', () => {
   it('returns empty array when an improvement is available (no blocker)', () => {
     const hints = getWorkerBlockerHints(rt('grassland'), [], 'p1');
     expect(hints).toEqual([]);
+  });
+});
+
+describe('formatImprovementYieldLabel', () => {
+  it('formats a mixed-yield improvement', () => {
+    expect(formatImprovementYieldLabel('mine')).toBe('(+2 Prod, +1 Gold)');
+  });
+
+  it('formats a single-yield improvement', () => {
+    expect(formatImprovementYieldLabel('lumber_camp')).toBe('(+2 Prod)');
+  });
+
+  it('returns empty string for none', () => {
+    expect(formatImprovementYieldLabel('none')).toBe('');
+  });
+
+  it('formats farm yield', () => {
+    expect(formatImprovementYieldLabel('farm')).toBe('(+2 Food)');
   });
 });
