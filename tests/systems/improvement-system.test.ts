@@ -454,6 +454,44 @@ describe('getWorkerBlockerHints', () => {
   });
 });
 
+describe('quarry terrain eligibility (issue #280)', () => {
+  function makeTileForQuarry(terrain: string, resource: string | null = null): HexTile {
+    return {
+      coord: { q: 0, r: 0 },
+      terrain: terrain as import('@/core/types').TerrainType,
+      elevation: 'lowland',
+      resource,
+      improvement: 'none' as import('@/core/types').ImprovementType,
+      improvementTurnsLeft: 0,
+      owner: 'p1',
+      hasRiver: false,
+      wonder: null,
+    };
+  }
+
+  it('quarry is allowed on hills with stone (unblocks old saves)', () => {
+    expect(canBuildImprovement(makeTileForQuarry('hills', 'stone'), 'quarry' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('quarry is rejected on hills without stone', () => {
+    expect(canBuildImprovement(makeTileForQuarry('hills', null), 'quarry' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('quarry is still allowed on mountain with stone', () => {
+    expect(canBuildImprovement(makeTileForQuarry('mountain', 'stone'), 'quarry' as import('@/core/types').BuildableImprovementType)).toBe(true);
+  });
+
+  it('mine is rejected on mountain (quarry handles mountain minerals)', () => {
+    expect(canBuildImprovement(makeTileForQuarry('mountain', 'stone'), 'mine' as import('@/core/types').BuildableImprovementType)).toBe(false);
+  });
+
+  it('getAvailableWorkerActions on hills+stone tile includes quarry', () => {
+    const tile = makeTileForQuarry('hills', 'stone');
+    const actions = getAvailableWorkerActions(tile, [], 'p1');
+    expect(actions).toContain('quarry');
+  });
+});
+
 describe('formatImprovementYieldLabel', () => {
   it('formats a mixed-yield improvement', () => {
     expect(formatImprovementYieldLabel('mine')).toBe('(+2 Prod, +1 Gold)');

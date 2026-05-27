@@ -282,3 +282,41 @@ describe('getCivAvailableResources', () => {
     expect(result.size).toBe(2);
   });
 });
+
+describe('stone on mountain resource accessibility (issue #280)', () => {
+  it('stone on a mountain tile is accessible when tile is owned, has a completed quarry, and tech is researched', () => {
+    const state = makeState({
+      tileResource: 'stone',
+      tileTerrain: 'mountain',
+      tileImprovement: 'quarry',
+      tileImprovementTurnsLeft: 0,
+      completed: ['gathering'],
+    });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('stone')).toBe(true);
+  });
+
+  it('stone on a mountain tile is NOT accessible without a completed quarry', () => {
+    const state = makeState({
+      tileResource: 'stone',
+      tileTerrain: 'mountain',
+      tileImprovement: 'none',
+      tileImprovementTurnsLeft: 0,
+      completed: ['gathering'],
+    });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('stone')).toBe(false);
+  });
+
+  it('stone on a hills tile is accessible when tile is owned, has a completed quarry, and tech is researched', () => {
+    const state = makeState({
+      tileResource: 'stone',
+      tileTerrain: 'hills',
+      tileImprovement: 'quarry',
+      tileImprovementTurnsLeft: 0,
+      completed: ['gathering'],
+    });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('stone')).toBe(true);
+  });
+});
