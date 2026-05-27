@@ -260,3 +260,46 @@ describe('AudioMixer SFX volume + enable symmetry', () => {
     expect(musicBuses['stinger']?.source).toBeNull();
   });
 });
+
+describe('AudioMixer natural wonder ambience', () => {
+  it('routes ambience through a dedicated path without occupying the one-shot SFX source', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    ctx.clearTranscript();
+
+    mixer.setAmbienceLoop(makeBuf(ctx), { loopStart: 0, loopEnd: 10 }, 500, 0.35);
+    void mixer.playOneShot('sfx', makeBuf(ctx));
+
+    expect(ctx.opsOf('start').length).toBe(2);
+    const mixerAny = mixer as unknown as {
+      ambienceSource: unknown;
+      sfxBus: { source: unknown };
+    };
+    expect(mixerAny.ambienceSource).toBeTruthy();
+    expect(mixerAny.sfxBus.source).toBeTruthy();
+  });
+
+  it('fades out the old ambience loop when a new one starts', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    mixer.setAmbienceLoop(makeBuf(ctx), { loopStart: 0, loopEnd: 10 }, 0, 0.35);
+    ctx.clearTranscript();
+
+    mixer.setAmbienceLoop(makeBuf(ctx), { loopStart: 0, loopEnd: 12 }, 600, 0.25);
+
+    expect(ctx.opsOf('stop').length).toBe(1);
+    expect(ctx.opsOf('linearRampToValueAtTime').some(entry => entry.args[0] === 0)).toBe(true);
+    expect(ctx.opsOf('linearRampToValueAtTime').some(entry => entry.args[0] === 0.25)).toBe(true);
+  });
+
+  it('stops ambience on dispose', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    mixer.setAmbienceLoop(makeBuf(ctx), { loopStart: 0, loopEnd: 10 }, 0, 0.35);
+    ctx.clearTranscript();
+
+    mixer.dispose();
+
+    expect(ctx.opsOf('stop').length).toBeGreaterThan(0);
+  });
+});

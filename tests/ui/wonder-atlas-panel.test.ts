@@ -36,16 +36,19 @@ describe('wonder-atlas-panel', () => {
     const state = makeState();
     state.discoveredWonders.great_volcano = 'player';
     state.wonderDiscoverers.great_volcano = ['player'];
+    const onNaturalWonderPageShown = vi.fn();
 
     const panel = createWonderAtlasPanel(document.body, state, {
       onViewOnMap: () => {},
       onClose: () => {},
+      onNaturalWonderPageShown,
     });
 
     expect(panel.id).toBe('wonder-codex-panel');
     expect(document.querySelector('#wonder-codex-panel')).toBeTruthy();
     expect(document.body.textContent).toContain('Wonder Codex');
     expect(document.body.textContent).toContain('Great Volcano');
+    expect(onNaturalWonderPageShown).toHaveBeenCalledWith('great_volcano');
   });
 
   it('does not reveal undiscovered natural wonders through the catalog or reader', () => {
