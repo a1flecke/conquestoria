@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createUnit, getMovementRange, resetUnitTurn, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { createUnit, getMovementBlockerReason, getMovementCost, getMovementRange, resetUnitTurn, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import type { GameMap } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -195,5 +195,54 @@ describe('cross-civ movement bonus isolation (#85)', () => {
     expect(franceWarrior?.movementBonus, 'France warrior bonus').toBeUndefined();
     expect(germanyWarrior?.movementBonus, 'Germany warrior bonus').toBeUndefined();
     expect(romeWarrior?.movementBonus, 'Rome warrior bonus').toBeUndefined();
+  });
+});
+
+describe('mountain terrain — movement cost and forced march (issue #280)', () => {
+  function mountainMap(): GameMap {
+    const tiles: GameMap['tiles'] = {
+      '0,0': { coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null } as any,
+      '1,0': { coord: { q: 1, r: 0 }, terrain: 'mountain', elevation: 'mountain', resource: 'stone', improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null } as any,
+      '2,0': { coord: { q: 2, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null } as any,
+      '-1,0': { coord: { q: -1, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null } as any,
+      '0,1': { coord: { q: 0, r: 1 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null } as any,
+      '0,-1': { coord: { q: 0, r: -1 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null } as any,
+      '1,-1': { coord: { q: 1, r: -1 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null } as any,
+      '1,1': { coord: { q: 1, r: 1 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null } as any,
+    };
+    return { width: 20, height: 20, tiles, wrapsHorizontally: false, rivers: [] } as GameMap;
+  }
+
+  it('mountain movement cost is 4 (not Infinity)', () => {
+    expect(getMovementCost('mountain')).toBe(4);
+  });
+
+  it('a unit with exactly 4 movement points can enter a mountain', () => {
+    const unit = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
+    const unitWithMovement = { ...unit, movementPointsLeft: 4 };
+    const reason = getMovementBlockerReason(unitWithMovement as any, { q: 1, r: 0 }, mountainMap());
+    expect(reason).toBeNull();
+  });
+
+  it('forced march: worker (2 movement) can always move to an adjacent mountain', () => {
+    const unit = createUnit('worker', 'p1', { q: 0, r: 0 }, mkC());
+    // Worker is adjacent to (1,0) mountain — forced march should allow it despite cost 4
+    const reason = getMovementBlockerReason(unit, { q: 1, r: 0 }, mountainMap());
+    expect(reason).toBeNull();
+  });
+
+  it('getMovementRange includes adjacent mountain for a 2-movement worker (forced march)', () => {
+    const unit = createUnit('worker', 'p1', { q: 0, r: 0 }, mkC());
+    const range = getMovementRange(unit, mountainMap(), {});
+    const keys = range.map(c => hexKey(c));
+    expect(keys).toContain('1,0'); // adjacent mountain — reachable via forced march
+  });
+
+  it('getMovementRange does NOT include a plains tile beyond the mountain for a 2-movement worker', () => {
+    const unit = createUnit('worker', 'p1', { q: 0, r: 0 }, mkC());
+    const range = getMovementRange(unit, mountainMap(), {});
+    const keys = range.map(c => hexKey(c));
+    // (2,0) is plains but requires passing through mountain (cost 4) first — total cost 5 > 2
+    expect(keys).not.toContain('2,0');
   });
 });

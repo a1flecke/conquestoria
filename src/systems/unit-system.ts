@@ -191,7 +191,7 @@ export function moveUnit(unit: Unit, to: HexCoord, cost: number): Unit {
   return {
     ...unit,
     position: { ...to },
-    movementPointsLeft: unit.movementPointsLeft - cost,
+    movementPointsLeft: Math.max(0, unit.movementPointsLeft - cost),
     hasMoved: true,
     isFortified: undefined,
   };
@@ -302,7 +302,7 @@ export function getMovementCost(terrain: string): number {
     grassland: 1, plains: 1, desert: 1, tundra: 1,
     forest: 2, hills: 2, snow: 2,
     jungle: 2, swamp: 2, volcanic: 2,
-    mountain: Infinity, ocean: Infinity, coast: Infinity,
+    mountain: 4, ocean: Infinity, coast: Infinity,
   };
   return costs[terrain] ?? Infinity;
 }
@@ -322,7 +322,6 @@ export interface MovementBlockerReason {
   code:
     | 'unexplored'
     | 'unknown-tile'
-    | 'impassable-mountain'
     | 'impassable-water'
     | 'impassable-terrain'
     | 'unreachable'
@@ -351,9 +350,6 @@ export function getMovementBlockerReason(
     if (domain === 'naval') {
       return { code: 'impassable-terrain', message: 'Naval units cannot move on land.' };
     }
-    if (tile.terrain === 'mountain') {
-      return { code: 'impassable-mountain', message: 'Mountain too steep to climb.' };
-    }
     if (tile.terrain === 'ocean' || tile.terrain === 'coast') {
       return { code: 'impassable-water', message: 'Land units cannot cross water yet.' };
     }
@@ -369,6 +365,13 @@ export function getMovementBlockerReason(
     const stepTile = map.tiles[hexKey(coord)];
     return total + (stepTile ? getMovementCostForUnit(stepTile.terrain, domain) : Infinity);
   }, 0);
+
+  // Forced march: a unit can always move to an adjacent passable tile with ≥1 move remaining.
+  const isAdjacentMove = path.length === 2;
+  if (isAdjacentMove && unit.movementPointsLeft >= 1) {
+    return null;
+  }
+
   if (pathCost > unit.movementPointsLeft) {
     return { code: 'insufficient-movement', message: 'Not enough movement left this turn.' };
   }
@@ -410,7 +413,15 @@ export function getMovementRange(
 
       const cost = getMovementCostForUnit(tile.terrain, domain);
       const remaining = current.remaining - cost;
-      if (remaining < 0) continue;
+
+      // Forced march: if this is a direct neighbor of the start position and the unit
+      // has ≥1 movement remaining, allow entry even when the tile cost exceeds remaining points.
+      const isFromStartPosition = hexKey(current.coord) === hexKey(unit.position);
+      const forcedMarch = isFromStartPosition && current.remaining >= 1 && remaining < 0;
+
+      if (remaining < 0 && !forcedMarch) continue;
+
+      const effectiveRemaining = forcedMarch ? 0 : remaining;
 
       const occupants = normalizeOccupants(unitPositions[key]).filter(id => id !== unit.id);
       if (occupants.length > 0) {
@@ -429,8 +440,8 @@ export function getMovementRange(
 
         if (occupants.some(isHostileOccupant)) {
           const prevRemaining = visited.get(key) ?? -1;
-          if (remaining > prevRemaining) {
-            visited.set(key, remaining);
+          if (effectiveRemaining > prevRemaining) {
+            visited.set(key, effectiveRemaining);
             reachable.push(neighbor);
           }
           continue;
@@ -438,10 +449,12 @@ export function getMovementRange(
       }
 
       const prevRemaining = visited.get(key) ?? -1;
-      if (remaining > prevRemaining) {
-        visited.set(key, remaining);
+      if (effectiveRemaining > prevRemaining) {
+        visited.set(key, effectiveRemaining);
         reachable.push(neighbor);
-        queue.push({ coord: neighbor, remaining });
+        if (effectiveRemaining > 0) {
+          queue.push({ coord: neighbor, remaining: effectiveRemaining });
+        }
       }
     }
   }
