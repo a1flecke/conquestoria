@@ -110,7 +110,21 @@ export function createWonderCodexPage(
   hero.appendChild(vignetteHost);
   const copy = document.createElement('div');
   copy.style.cssText = 'min-width:0;flex:1;';
-  appendText(copy, 'p', page.stateLabel, 'margin:0 0 3px;font-size:12px;color:#e8c170;');
+  if (page.kind === 'legendary') {
+    const badge = document.createElement('span');
+    badge.dataset.codexStatusBadge = 'true';
+    badge.textContent = page.stateLabel;
+    const badgeColor = page.stateLabel === 'Available' ? '#d9a441'
+      : page.stateLabel === 'Under construction' ? '#4a90d9'
+      : page.stateLabel === 'Completed' ? '#4a9b6b'
+      : page.stateLabel === 'Recovered' ? 'rgba(248,241,223,0.28)'
+      : '#e8c170';
+    const badgeTextColor = page.stateLabel === 'Recovered' ? 'rgba(248,241,223,0.55)' : '#0a0d12';
+    badge.style.cssText = `display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${badgeColor};color:${badgeTextColor};margin-bottom:6px;`;
+    copy.appendChild(badge);
+  } else {
+    appendText(copy, 'p', page.stateLabel, 'margin:0 0 3px;font-size:12px;color:#e8c170;');
+  }
   appendText(copy, 'h3', page.title, 'margin:0;font-size:24px;letter-spacing:0;');
   appendText(copy, 'p', page.subtitle, 'margin:5px 0 0;font-size:13px;line-height:1.45;color:rgba(248,241,223,0.74);');
   if (page.kind === 'natural') {
@@ -151,6 +165,29 @@ export function createWonderCodexPage(
   status.style.cssText = 'margin:0;padding-left:18px;display:grid;gap:4px;font-size:12px;color:rgba(248,241,223,0.76);';
   for (const line of page.statusLines) appendText(status, 'li', line);
   root.appendChild(status);
+
+  if (page.questSteps && page.questSteps.length > 0) {
+    const questSection = document.createElement('section');
+    questSection.style.cssText = 'margin-top:4px;';
+    const questLabel = document.createElement('p');
+    questLabel.style.cssText = 'margin:0 0 5px;font-size:11px;color:rgba(248,241,223,0.55);text-transform:uppercase;letter-spacing:0.05em;';
+    questLabel.textContent = 'Quest steps';
+    questSection.appendChild(questLabel);
+    const list = document.createElement('ul');
+    list.dataset.codexQuestSteps = 'true';
+    list.style.cssText = 'margin:0;padding-left:18px;display:grid;gap:4px;font-size:12px;';
+    for (const step of page.questSteps) {
+      const item = document.createElement('li');
+      item.dataset.completed = String(step.completed);
+      item.style.cssText = step.completed
+        ? 'color:rgba(248,241,223,0.42);text-decoration:line-through;'
+        : 'color:rgba(248,241,223,0.78);';
+      item.textContent = step.description;
+      list.appendChild(item);
+    }
+    questSection.appendChild(list);
+    root.appendChild(questSection);
+  }
 
   if (page.landmarkPreview) {
     const preview = document.createElement('section');
@@ -194,10 +231,17 @@ export function createWonderCodexPage(
     const actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
     for (const action of page.actions) {
-      const button = createGameButton(action.label, 'secondary');
-      button.dataset.codexAction = action.type === 'view-map' ? 'view-map' : 'open-city';
-      button.addEventListener('click', () => options.onAction(action));
-      actions.appendChild(button);
+      if (page.canStartBuild && action.type === 'open-city') {
+        const btn = createGameButton('Start Construction', 'primary');
+        btn.dataset.codexAction = 'start-construction';
+        btn.addEventListener('click', () => options.onAction(action));
+        actions.appendChild(btn);
+      } else {
+        const button = createGameButton(action.label, 'secondary');
+        button.dataset.codexAction = action.type === 'view-map' ? 'view-map' : 'open-city';
+        button.addEventListener('click', () => options.onAction(action));
+        actions.appendChild(button);
+      }
     }
     root.appendChild(actions);
   }

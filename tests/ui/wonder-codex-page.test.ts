@@ -182,3 +182,80 @@ describe('wonder-codex-page', () => {
     expect(root.querySelector('[data-wonder-spectacle-mode="codex-ambient"]')).toBeTruthy();
   });
 });
+
+function legendaryPage(overrides: Partial<WonderCodexPageViewModel> = {}): WonderCodexPageViewModel {
+  return page({
+    id: 'oracle-of-delphi',
+    kind: 'legendary',
+    title: 'Oracle of Delphi',
+    subtitle: 'A sanctuary of prophecy.',
+    stateLabel: 'Quest in progress',
+    actions: [],
+    sections: [],
+    relatedEntries: [],
+    ...overrides,
+  });
+}
+
+describe('wonder-codex-page — legendary UI redesign', () => {
+  it('renders a status badge element for legendary wonders', () => {
+    const root = createWonderCodexPage(legendaryPage({ stateLabel: 'Quest in progress' }), {
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+    const badge = root.querySelector('[data-codex-status-badge]');
+    expect(badge).not.toBeNull();
+    expect(badge?.textContent).toContain('Quest in progress');
+  });
+
+  it('renders a primary Start Construction button when canStartBuild is true', () => {
+    const root = createWonderCodexPage(legendaryPage({
+      canStartBuild: true,
+      stateLabel: 'Available',
+      actions: [{ type: 'open-city', label: 'Open City', wonderId: 'oracle-of-delphi', cityId: 'c1' }],
+    }), { onAction: vi.fn(), onSelectRelated: vi.fn() });
+
+    const primaryBtn = root.querySelector('[data-codex-action="start-construction"]') as HTMLButtonElement | null;
+    expect(primaryBtn).not.toBeNull();
+    expect(root.querySelectorAll('[data-codex-action="open-city"]')).toHaveLength(0);
+  });
+
+  it('does not render a primary Start Construction button when canStartBuild is false', () => {
+    const root = createWonderCodexPage(legendaryPage({
+      canStartBuild: false,
+      actions: [{ type: 'open-city', label: 'Open City', wonderId: 'oracle-of-delphi', cityId: 'c1' }],
+    }), { onAction: vi.fn(), onSelectRelated: vi.fn() });
+
+    expect(root.querySelector('[data-codex-action="start-construction"]')).toBeNull();
+    expect(root.querySelector('[data-codex-action="open-city"]')).not.toBeNull();
+  });
+
+  it('renders quest steps as a checklist when questSteps is present', () => {
+    const root = createWonderCodexPage(legendaryPage({
+      questSteps: [
+        { id: 'q1', description: 'Discover a natural wonder', completed: true },
+        { id: 'q2', description: 'Establish a trade route', completed: false },
+      ],
+    }), { onAction: vi.fn(), onSelectRelated: vi.fn() });
+
+    const checklist = root.querySelector('[data-codex-quest-steps]');
+    expect(checklist).not.toBeNull();
+    const items = checklist?.querySelectorAll('li');
+    expect(items).toHaveLength(2);
+    expect(items?.[0]?.dataset.completed).toBe('true');
+    expect(items?.[1]?.dataset.completed).toBe('false');
+    expect(items?.[0]?.textContent).toContain('Discover a natural wonder');
+  });
+
+  it('fires onAction with the open-city action when Start Construction is clicked', () => {
+    const onAction = vi.fn();
+    const cityAction = { type: 'open-city' as const, label: 'Open City', wonderId: 'oracle-of-delphi', cityId: 'c1' };
+    const root = createWonderCodexPage(legendaryPage({
+      canStartBuild: true,
+      actions: [cityAction],
+    }), { onAction, onSelectRelated: vi.fn() });
+
+    root.querySelector<HTMLElement>('[data-codex-action="start-construction"]')?.click();
+    expect(onAction).toHaveBeenCalledWith(cityAction);
+  });
+});
