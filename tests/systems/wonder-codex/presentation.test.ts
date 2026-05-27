@@ -395,3 +395,30 @@ describe('legendary wonder catalog gating', () => {
     expect(model.selectedPage).toBeNull();
   });
 });
+
+describe('legendary page view-model fields', () => {
+  it('canStartBuild is true when project is ready_to_build and city requirements are met', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'pilgrimages'],
+      resources: ['stone'],
+      hasRiver: true,
+    });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    expect(model.selectedPage?.canStartBuild).toBe(true);
+  });
+
+  it('canStartBuild is false when project is still questing', () => {
+    const state = makeLegendaryWonderFixture();
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    expect(model.selectedPage?.canStartBuild).toBe(false);
+  });
+
+  it('questSteps are populated from the project when available', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 1 });
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    expect(Array.isArray(model.selectedPage?.questSteps)).toBe(true);
+    expect(model.selectedPage?.questSteps?.length).toBeGreaterThan(0);
+    expect(model.selectedPage?.questSteps?.[0]?.completed).toBe(true);
+  });
+});

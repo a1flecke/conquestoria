@@ -52,6 +52,8 @@ export interface WonderCodexPageViewModel extends WonderCodexCatalogEntry {
   statusLines: string[];
   rivalIntel?: LegendaryWonderRivalIntelSummary;
   landmarkPreview?: LegendaryWonderLandmarkPreviewView;
+  canStartBuild?: boolean;
+  questSteps?: Array<{ id: string; description: string; completed: boolean }>;
   sections: WonderCodexSection[];
   relatedEntries: RelatedWonderCodexEntry[];
   actions: WonderCodexAction[];
@@ -151,7 +153,14 @@ function visibleCatalogEntries(state: GameState, viewerId: string): WonderCodexC
   return [...naturalEntries, ...legendaryEntries];
 }
 
-function buildNaturalStatus(state: GameState, wonderId: string): { statusLines: string[]; actions: WonderCodexAction[] } {
+type StatusResult = {
+  statusLines: string[];
+  actions: WonderCodexAction[];
+  canStartBuild: boolean;
+  questSteps?: Array<{ id: string; description: string; completed: boolean }>;
+};
+
+function buildNaturalStatus(state: GameState, wonderId: string): StatusResult {
   const coord = findWonderCoord(state, wonderId);
   const statusLines = [
     formatNaturalWonderEffectSummary(wonderId),
@@ -160,7 +169,7 @@ function buildNaturalStatus(state: GameState, wonderId: string): { statusLines: 
   const actions: WonderCodexAction[] = coord
     ? [{ type: 'view-map', label: 'View on Map', wonderId, coord }]
     : [];
-  return { statusLines, actions };
+  return { statusLines, actions, canStartBuild: false };
 }
 
 function publicAssetUrl(localPath: string): string {
@@ -174,7 +183,7 @@ function buildLegendaryStatus(
   viewerId: string,
   wonderId: string,
   rivalIntel: LegendaryWonderRivalIntelSummary | undefined,
-): { statusLines: string[]; actions: WonderCodexAction[] } {
+): StatusResult {
   const definition = getLegendaryWonderDefinition(wonderId);
   const label = legendaryStateLabel(state, viewerId, wonderId, rivalIntel);
   const statusLines = [`Status: ${label}`];
@@ -188,12 +197,15 @@ function buildLegendaryStatus(
     statusLines.push(`Progress recorded in your city: ${project.investedProduction} production invested.`);
   }
 
+  const canStartBuild = label === 'Available';
+  const questSteps = project?.questSteps;
+
   const completion = state.completedLegendaryWonders?.[wonderId];
   const cityId = safeOwnedHostCityId(state, viewerId, completion?.cityId ?? project?.cityId);
   const actions: WonderCodexAction[] = cityId
     ? [{ type: 'open-city', label: 'Open City', wonderId, cityId }]
     : [];
-  return { statusLines, actions };
+  return { statusLines, actions, canStartBuild, questSteps };
 }
 
 function buildPage(
@@ -236,6 +248,8 @@ function buildPage(
     statusLines: status.statusLines,
     ...(rivalIntel ? { rivalIntel } : {}),
     ...(landmarkPreview ? { landmarkPreview } : {}),
+    canStartBuild: status.canStartBuild,
+    ...(status.questSteps ? { questSteps: status.questSteps } : {}),
     sections: content.sections.map(section => ({ ...section })),
     relatedEntries: getRelatedWonderCodexEntries(entry.id, visibleWonderIds),
     actions: status.actions,
