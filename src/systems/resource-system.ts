@@ -15,7 +15,7 @@ export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   snow:       { food: 0, production: 0, gold: 0, science: 0 },
   forest:     { food: 1, production: 1, gold: 0, science: 0 },
   hills:      { food: 0, production: 2, gold: 0, science: 0 },
-  mountain:   { food: 0, production: 0, gold: 0, science: 0 },
+  mountain:   { food: 0, production: 1, gold: 0, science: 0 },
   ocean:      { food: 1, production: 0, gold: 0, science: 0 },
   coast:      { food: 2, production: 0, gold: 1, science: 0 },
   jungle:     { food: 2, production: 0, gold: 0, science: 0 },
