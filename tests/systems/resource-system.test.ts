@@ -231,4 +231,8 @@ describe('new terrain yields', () => {
     expect(TERRAIN_YIELDS.volcanic.food).toBe(0);
     expect(TERRAIN_YIELDS.volcanic.production).toBe(0);
   });
+
+  it('mountain tile yields 1 production (issue #280)', () => {
+    expect(TERRAIN_YIELDS.mountain).toEqual({ food: 0, production: 1, gold: 0, science: 0 });
+  });
 });
