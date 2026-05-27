@@ -32,6 +32,23 @@ describe('NaturalWonderAudioDirector', () => {
     expect(playStingerWithDuck).toHaveBeenCalledWith('audio/wonders/great-volcano-stinger.ogg');
   });
 
+  it('swallows failed stinger playback so discovery UI is not blocked', async () => {
+    const failingStinger = vi.fn(async () => {
+      throw new Error('decode failed');
+    });
+    const director = new NaturalWonderAudioDirector(
+      mixer as never,
+      loader as never,
+      failingStinger,
+      timers,
+    );
+
+    await expect(director.playDiscoveryStinger('great_volcano')).resolves.toBe(true);
+    await Promise.resolve();
+
+    expect(failingStinger).toHaveBeenCalledWith('audio/wonders/great-volcano-stinger.ogg');
+  });
+
   it('does nothing for pending entries', async () => {
     const director = new NaturalWonderAudioDirector(
       mixer as never,
@@ -78,6 +95,24 @@ describe('NaturalWonderAudioDirector', () => {
     await director.startMapFocusAmbient('ancient_forest');
 
     expect(timers.setTimeout).toHaveBeenCalledWith(expect.any(Function), 12000);
+  });
+
+  it('fails quietly when an ambient loop cannot load', async () => {
+    const failingLoader = {
+      get: vi.fn(async () => {
+        throw new Error('decode failed');
+      }),
+    };
+    const director = new NaturalWonderAudioDirector(
+      mixer as never,
+      failingLoader as never,
+      playStingerWithDuck,
+      timers,
+    );
+
+    await expect(director.startCodexAmbient('coral_reef')).resolves.toBe(false);
+
+    expect(mixer.setAmbienceLoop).not.toHaveBeenCalled();
   });
 
   it('clears previous map-focus timeout when ambience changes or stops', async () => {
