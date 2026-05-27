@@ -456,3 +456,21 @@ describe('calculateProjectedCityYields — idle production projection', () => {
     expect(yields.production).toBeGreaterThan(0);
   });
 });
+
+describe('mountain tile workability (issue #280)', () => {
+  it('mountain tile owned by a city is workable', () => {
+    const state = createNewGame(undefined, 'city-work-mountain');
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+
+    state.map.tiles['16,15'] = {
+      coord: { q: 16, r: 15 }, terrain: 'mountain', elevation: 'mountain' as any,
+      resource: null, improvement: 'none' as any, owner: 'player',
+      improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    state.cities[city.id] = { ...city, ownedTiles: [...city.ownedTiles, { q: 16, r: 15 }] };
+
+    const workable = getWorkableTilesForCity(state, city.id);
+    const keys = workable.map(entry => hexKey(entry.coord));
+    expect(keys).toContain('16,15');
+  });
+});
