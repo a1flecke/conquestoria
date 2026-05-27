@@ -3,6 +3,7 @@ import type { NotificationEntry, NotificationMapTarget } from '@/ui/notification
 interface NotificationLogPanelOptions {
   onClose: () => void;
   onFocusTarget: (target: NotificationMapTarget) => void;
+  onOpenCity?: (cityId: string) => void;
 }
 
 const colors: Record<NotificationEntry['type'], string> = {
@@ -59,6 +60,15 @@ function createNotificationRow(
     row.addEventListener('click', event => {
       event.stopPropagation();
       options.onFocusTarget(entry.target!);
+    });
+  }
+  if (entry.linkedCityId) {
+    row.dataset.notificationCity = entry.linkedCityId;
+    row.style.cursor = 'pointer';
+    row.title = 'Open city panel';
+    row.addEventListener('click', event => {
+      event.stopPropagation();
+      options.onOpenCity?.(entry.linkedCityId!);
     });
   }
 

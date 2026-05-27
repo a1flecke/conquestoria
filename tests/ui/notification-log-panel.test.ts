@@ -26,4 +26,22 @@ describe('notification log panel', () => {
     row?.click();
     expect(onFocusTarget).toHaveBeenCalledWith(target);
   });
+
+  it('renders city-linked entries as clickable and fires onOpenCity on click', () => {
+    const onOpenCity = vi.fn();
+    const entries: NotificationEntry[] = [
+      { message: 'Carthage can start Oracle of Delphi. Tap to open that city.', type: 'info', turn: 5, linkedCityId: 'city-1' },
+    ];
+
+    const panel = createNotificationLogPanel(entries, {
+      onClose: vi.fn(),
+      onFocusTarget: vi.fn(),
+      onOpenCity,
+    });
+
+    const row = panel.querySelector('[data-notification-city]') as HTMLElement | null;
+    expect(row).not.toBeNull();
+    row?.click();
+    expect(onOpenCity).toHaveBeenCalledWith('city-1');
+  });
 });

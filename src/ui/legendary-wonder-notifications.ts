@@ -52,9 +52,10 @@ export function getLegendaryWonderNotification(
 
   if (event.type === 'wonder:legendary-ready') {
     return {
-      message: `${city.name} can start ${wonder?.name ?? event.wonderId}. Open the city Build list, choose its Wonder Ambitions card, then Start Construction.`,
+      message: `${city.name} can start ${wonder?.name ?? event.wonderId}. Tap to open that city.`,
       type: 'info',
       turn: state.turn,
+      linkedCityId: event.cityId,
     };
   }
 

@@ -504,6 +504,11 @@ function toggleNotificationLog(): void {
   const panel = createNotificationLogPanel(entries, {
     onClose: () => panel.remove(),
     onFocusTarget: focusNotificationTarget,
+    onOpenCity: (cityId) => {
+      panel.remove();
+      const city = gameState?.cities[cityId];
+      if (city) openCityPanelForCity(city);
+    },
   });
 
   ul.appendChild(panel);
