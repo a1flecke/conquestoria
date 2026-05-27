@@ -109,10 +109,10 @@ Use these exact source URLs and credit all of them in `AUDIO-CREDITS.md`:
 |---|---|---|---|
 | `great_volcano` | `great-volcano-stinger.ogg` | `Underwater Rumble` | `https://soundimage.org/wp-content/uploads/2019/11/Underwater-Rumble.mp3` |
 | `great_volcano` | `great-volcano-ambient.ogg` | `Quiet Tension_Looping` | `https://soundimage.org/wp-content/uploads/2018/10/Quiet-Tension_Looping.mp3` |
-| `ancient_forest` | `ancient-forest-stinger.ogg` | `Morning Dew` | `http://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3` |
-| `ancient_forest` | `ancient-forest-ambient.ogg` | `Sunrise_Looping` | `http://soundimage.org/wp-content/uploads/2014/02/Sunrise_Looping.mp3` |
-| `coral_reef` | `coral-reef-stinger.ogg` | `Life in a Drop` | `http://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3` |
-| `coral_reef` | `coral-reef-ambient.ogg` | `Underwater World_Looping` | `http://soundimage.org/wp-content/uploads/2014/02/Underwater-World_Looping.mp3` |
+| `ancient_forest` | `ancient-forest-stinger.ogg` | `Morning Dew` | `https://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3` |
+| `ancient_forest` | `ancient-forest-ambient.ogg` | `Sunrise_Looping` | `https://soundimage.org/wp-content/uploads/2018/10/Sunrise_Looping.mp3` |
+| `coral_reef` | `coral-reef-stinger.ogg` | `Life in a Drop` | `https://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3` |
+| `coral_reef` | `coral-reef-ambient.ogg` | `Underwater World_Looping` | `https://soundimage.org/wp-content/uploads/2016/11/Underwater-World_Looping.mp3` |
 
 All six sources are by Eric Matyas / Soundimage.org. The source manifest must store `license: 'Soundimage.org free use with attribution'` and tests must verify the credits file contains the source titles and `soundimage.org`.
 
@@ -254,7 +254,7 @@ export const NATURAL_WONDER_AUDIO_SOURCES: readonly NaturalWonderAudioSource[] =
     title: 'Morning Dew',
     creator: 'Eric Matyas',
     site: 'Soundimage.org',
-    sourceUrl: 'http://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3',
+    sourceUrl: 'https://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3',
     license: 'Soundimage.org free use with attribution',
   },
   {
@@ -262,7 +262,7 @@ export const NATURAL_WONDER_AUDIO_SOURCES: readonly NaturalWonderAudioSource[] =
     title: 'Sunrise_Looping',
     creator: 'Eric Matyas',
     site: 'Soundimage.org',
-    sourceUrl: 'http://soundimage.org/wp-content/uploads/2014/02/Sunrise_Looping.mp3',
+    sourceUrl: 'https://soundimage.org/wp-content/uploads/2018/10/Sunrise_Looping.mp3',
     license: 'Soundimage.org free use with attribution',
   },
   {
@@ -270,7 +270,7 @@ export const NATURAL_WONDER_AUDIO_SOURCES: readonly NaturalWonderAudioSource[] =
     title: 'Life in a Drop',
     creator: 'Eric Matyas',
     site: 'Soundimage.org',
-    sourceUrl: 'http://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3',
+    sourceUrl: 'https://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3',
     license: 'Soundimage.org free use with attribution',
   },
   {
@@ -278,7 +278,7 @@ export const NATURAL_WONDER_AUDIO_SOURCES: readonly NaturalWonderAudioSource[] =
     title: 'Underwater World_Looping',
     creator: 'Eric Matyas',
     site: 'Soundimage.org',
-    sourceUrl: 'http://soundimage.org/wp-content/uploads/2014/02/Underwater-World_Looping.mp3',
+    sourceUrl: 'https://soundimage.org/wp-content/uploads/2016/11/Underwater-World_Looping.mp3',
     license: 'Soundimage.org free use with attribution',
   },
 ] as const;
@@ -350,7 +350,7 @@ const COMPLETE_ENTRIES: Record<(typeof MR1_NATURAL_WONDER_AUDIO_IDS)[number], Co
       file: 'audio/wonders/great-volcano-ambient.ogg',
       sourceId: 'soundimage-quiet-tension-looping',
       gain: 0.30,
-      loop: { loopStart: 0, loopEnd: 88.0 },
+      loop: { loopStart: 0, loopEnd: 84.0 },
       fadeInMs: 650,
       fadeOutMs: 550,
       mapFocusTimeoutMs: 12000,
@@ -371,7 +371,7 @@ const COMPLETE_ENTRIES: Record<(typeof MR1_NATURAL_WONDER_AUDIO_IDS)[number], Co
       file: 'audio/wonders/ancient-forest-ambient.ogg',
       sourceId: 'soundimage-sunrise-looping',
       gain: 0.28,
-      loop: { loopStart: 0, loopEnd: 66.0 },
+      loop: { loopStart: 0, loopEnd: 64.8 },
       fadeInMs: 700,
       fadeOutMs: 550,
       mapFocusTimeoutMs: 12000,
@@ -392,7 +392,7 @@ const COMPLETE_ENTRIES: Record<(typeof MR1_NATURAL_WONDER_AUDIO_IDS)[number], Co
       file: 'audio/wonders/coral-reef-ambient.ogg',
       sourceId: 'soundimage-underwater-world-looping',
       gain: 0.30,
-      loop: { loopStart: 0, loopEnd: 60.0 },
+      loop: { loopStart: 0, loopEnd: 20.0 },
       fadeInMs: 700,
       fadeOutMs: 550,
       mapFocusTimeoutMs: 12000,
@@ -1356,10 +1356,10 @@ Run:
 mkdir -p /private/tmp/conquestoria-2h-audio-src public/audio/wonders
 curl -L 'https://soundimage.org/wp-content/uploads/2019/11/Underwater-Rumble.mp3' -o /private/tmp/conquestoria-2h-audio-src/great-volcano-stinger.mp3
 curl -L 'https://soundimage.org/wp-content/uploads/2018/10/Quiet-Tension_Looping.mp3' -o /private/tmp/conquestoria-2h-audio-src/great-volcano-ambient.mp3
-curl -L 'http://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3' -o /private/tmp/conquestoria-2h-audio-src/ancient-forest-stinger.mp3
-curl -L 'http://soundimage.org/wp-content/uploads/2014/02/Sunrise_Looping.mp3' -o /private/tmp/conquestoria-2h-audio-src/ancient-forest-ambient.mp3
-curl -L 'http://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3' -o /private/tmp/conquestoria-2h-audio-src/coral-reef-stinger.mp3
-curl -L 'http://soundimage.org/wp-content/uploads/2014/02/Underwater-World_Looping.mp3' -o /private/tmp/conquestoria-2h-audio-src/coral-reef-ambient.mp3
+curl -L 'https://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3' -o /private/tmp/conquestoria-2h-audio-src/ancient-forest-stinger.mp3
+curl -L 'https://soundimage.org/wp-content/uploads/2018/10/Sunrise_Looping.mp3' -o /private/tmp/conquestoria-2h-audio-src/ancient-forest-ambient.mp3
+curl -L 'https://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3' -o /private/tmp/conquestoria-2h-audio-src/coral-reef-stinger.mp3
+curl -L 'https://soundimage.org/wp-content/uploads/2016/11/Underwater-World_Looping.mp3' -o /private/tmp/conquestoria-2h-audio-src/coral-reef-ambient.mp3
 ```
 
 Expected: six non-empty MP3 files exist under `/private/tmp/conquestoria-2h-audio-src`.
@@ -1400,10 +1400,10 @@ All Stage 2H MR1 natural wonder audio is by Eric Matyas / Soundimage.org and con
 
 - `public/audio/wonders/great-volcano-stinger.ogg` — "Underwater Rumble" by Eric Matyas, Soundimage.org. Source: https://soundimage.org/wp-content/uploads/2019/11/Underwater-Rumble.mp3
 - `public/audio/wonders/great-volcano-ambient.ogg` — "Quiet Tension_Looping" by Eric Matyas, Soundimage.org. Source: https://soundimage.org/wp-content/uploads/2018/10/Quiet-Tension_Looping.mp3
-- `public/audio/wonders/ancient-forest-stinger.ogg` — "Morning Dew" by Eric Matyas, Soundimage.org. Source: http://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3
-- `public/audio/wonders/ancient-forest-ambient.ogg` — "Sunrise_Looping" by Eric Matyas, Soundimage.org. Source: http://soundimage.org/wp-content/uploads/2014/02/Sunrise_Looping.mp3
-- `public/audio/wonders/coral-reef-stinger.ogg` — "Life in a Drop" by Eric Matyas, Soundimage.org. Source: http://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3
-- `public/audio/wonders/coral-reef-ambient.ogg` — "Underwater World_Looping" by Eric Matyas, Soundimage.org. Source: http://soundimage.org/wp-content/uploads/2014/02/Underwater-World_Looping.mp3
+- `public/audio/wonders/ancient-forest-stinger.ogg` — "Morning Dew" by Eric Matyas, Soundimage.org. Source: https://soundimage.org/wp-content/uploads/2014/02/Morning-Dew.mp3
+- `public/audio/wonders/ancient-forest-ambient.ogg` — "Sunrise_Looping" by Eric Matyas, Soundimage.org. Source: https://soundimage.org/wp-content/uploads/2018/10/Sunrise_Looping.mp3
+- `public/audio/wonders/coral-reef-stinger.ogg` — "Life in a Drop" by Eric Matyas, Soundimage.org. Source: https://soundimage.org/wp-content/uploads/2014/02/Life-in-a-Drop.mp3
+- `public/audio/wonders/coral-reef-ambient.ogg` — "Underwater World_Looping" by Eric Matyas, Soundimage.org. Source: https://soundimage.org/wp-content/uploads/2016/11/Underwater-World_Looping.mp3
 ```
 
 - [ ] **Step 6: Run catalog test**

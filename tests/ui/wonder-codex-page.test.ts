@@ -86,10 +86,12 @@ describe('wonder-codex-page', () => {
 
   it('renders visual-only replay control for natural wonder spectacle', () => {
     const onAction = vi.fn();
+    const onReplayNaturalWonder = vi.fn();
     const root = createWonderCodexPage(page(), {
       mode: 'desktop',
       onAction,
       onSelectRelated: vi.fn(),
+      onReplayNaturalWonder,
     });
 
     const replay = root.querySelector<HTMLButtonElement>('[data-codex-replay-animation]');
@@ -101,6 +103,7 @@ describe('wonder-codex-page', () => {
     replay!.click();
     expect(root.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeTruthy();
     expect(onAction).not.toHaveBeenCalled();
+    expect(onReplayNaturalWonder).toHaveBeenCalledWith('great_volcano');
 
     vi.advanceTimersByTime(3600);
     expect(root.querySelector('[data-wonder-spectacle-mode="codex-ambient"]')).toBeTruthy();
@@ -148,11 +151,13 @@ describe('wonder-codex-page', () => {
   });
 
   it('keeps reduced-motion Codex spectacle static', () => {
+    const onReplayNaturalWonder = vi.fn();
     const root = createWonderCodexPage(page(), {
       mode: 'desktop',
       reducedMotion: true,
       onAction: vi.fn(),
       onSelectRelated: vi.fn(),
+      onReplayNaturalWonder,
     });
 
     expect(root.querySelector('[data-wonder-spectacle-mode="codex-static"]')).toBeTruthy();
@@ -161,6 +166,7 @@ describe('wonder-codex-page', () => {
     expect(replay?.getAttribute('aria-label')).toContain('reduced motion');
     replay?.click();
     expect(root.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeNull();
+    expect(onReplayNaturalWonder).not.toHaveBeenCalled();
   });
 
   it('restarts visual replay cleanly when clicked twice', () => {

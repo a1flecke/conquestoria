@@ -183,4 +183,15 @@ describe('MusicDirector', () => {
     director.initPeaceSnapshot();
     expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', 0);
   });
+
+  it('exposes ducked stinger playback for natural wonder stingers', async () => {
+    director.initPeaceSnapshot();
+
+    await director.playStingerWithDuck('audio/wonders/great-volcano-stinger.ogg');
+
+    expect(loader.get).toHaveBeenCalledWith('audio/wonders/great-volcano-stinger.ogg');
+    expect(mixer.setSnapshot).toHaveBeenCalledWith('stinger-duck', expect.any(Number));
+    expect(mixer.playOneShot).toHaveBeenCalledWith('stinger', fakeBuffer);
+    expect(mixer.setSnapshot).toHaveBeenLastCalledWith('peace', expect.any(Number));
+  });
 });

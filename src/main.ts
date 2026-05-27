@@ -89,6 +89,7 @@ import {
 } from '@/input/city-assault-flow';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
 import { resolveWonderAtlasIntent } from '@/input/wonder-atlas-intent';
+import { resolveNaturalWonderAudioFocus } from '@/input/natural-wonder-audio-focus';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import {
   initializeLegendaryWonderProjectsForCity,
@@ -224,6 +225,9 @@ wonderDiscoveryQueue = createWonderDiscoveryRevealQueue({
     renderLoop.requestWonderDiscoveryHighlight(item.coord, item.visual, { reducedMotion });
   },
   openAtlas: wonderId => openWonderAtlas(wonderId),
+  onRevealStarted: item => {
+    void audio.playNaturalWonderDiscovery(item.wonderId);
+  },
   reducedMotion: prefersReducedMotion,
   setBlockingOverlay,
 });
@@ -305,6 +309,7 @@ function createUI(): void {
 }
 
 function openWonderAtlas(initialWonderId?: string): void {
+  audio.stopNaturalWonderAmbient('codex-page-hidden');
   createWonderAtlasPanel(uiLayer, gameState, {
     initialWonderId,
     onViewOnMap: coord => {
@@ -313,6 +318,15 @@ function openWonderAtlas(initialWonderId?: string): void {
     onOpenCity: cityId => {
       const city = gameState.cities[cityId];
       if (city) openCityPanelForCity(city);
+    },
+    onNaturalWonderPageShown: wonderId => {
+      void audio.startNaturalWonderCodexAmbient(wonderId);
+    },
+    onNaturalWonderPageHidden: () => {
+      audio.stopNaturalWonderAmbient('codex-page-hidden');
+    },
+    onNaturalWonderReplay: wonderId => {
+      void audio.playNaturalWonderReplay(wonderId);
     },
     onClose: () => {},
   });
@@ -2326,6 +2340,8 @@ function handleHexTap(rawCoord: HexCoord): void {
   const wonderAtlasIntent = resolveWonderAtlasIntent(gameState, gameState.currentPlayer, coord);
   if (wonderAtlasIntent.type === 'open-atlas') {
     deselectUnit();
+    const audioFocus = resolveNaturalWonderAudioFocus(gameState, gameState.currentPlayer, coord);
+    if (audioFocus) void audio.startNaturalWonderMapFocusAmbient(audioFocus.wonderId);
     openWonderAtlas(wonderAtlasIntent.wonderId);
     SFX.tap();
     return;
@@ -2338,13 +2354,17 @@ function handleHexTap(rawCoord: HexCoord): void {
 
 function openTerritoryInspectionPanel(coord: HexCoord): void {
   document.getElementById('territory-inspection-panel')?.remove();
+  const audioFocus = resolveNaturalWonderAudioFocus(gameState, gameState.currentPlayer, coord);
+  if (audioFocus) void audio.startNaturalWonderMapFocusAmbient(audioFocus.wonderId);
   const panel = createTerritoryInspectionPanel(gameState, coord, gameState.currentPlayer, () => {
+    audio.stopNaturalWonderAmbient('panel-closed');
     document.getElementById('territory-inspection-panel')?.remove();
   });
   uiLayer.appendChild(panel);
 }
 
 function closeTerritoryInspectionPanel(): void {
+  audio.stopNaturalWonderAmbient('panel-closed');
   document.getElementById('territory-inspection-panel')?.remove();
 }
 

@@ -244,4 +244,24 @@ describe('AudioSystem integration', () => {
 
     vi.unstubAllGlobals();
   });
+
+  it('plays natural wonder discovery through the public audio system method', async () => {
+    system.start(makeState(), busHelper.bus);
+
+    await system.playNaturalWonderDiscovery('great_volcano');
+    await flushPromises();
+
+    expect(ctx.transcript.some(e => e.op === 'start')).toBe(true);
+  });
+
+  it('stops natural wonder ambience on hot-seat handoff and game over', async () => {
+    system.start(makeState(), busHelper.bus);
+    await system.startNaturalWonderCodexAmbient('coral_reef');
+    ctx.clearTranscript();
+
+    busHelper.emit('currentPlayer:changed-after-handoff', { civId: 'egypt' });
+    busHelper.emit('game:over', { winnerId: 'egypt' });
+
+    expect(ctx.transcript.some(e => e.op === 'stop')).toBe(true);
+  });
 });

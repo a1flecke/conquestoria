@@ -101,6 +101,45 @@ describe('wonder-codex-panel', () => {
     expect(document.querySelector('#wonder-codex-panel')).toBeNull();
   });
 
+  it('starts and stops natural wonder ambience as visible Codex pages change', () => {
+    const onNaturalWonderPageShown = vi.fn();
+    const onNaturalWonderPageHidden = vi.fn();
+    const panel = createWonderCodexPanel(document.body, makeState(), {
+      mode: 'desktop',
+      initialWonderId: 'great_volcano',
+      onViewOnMap: vi.fn(),
+      onOpenCity: vi.fn(),
+      onClose: vi.fn(),
+      onNaturalWonderPageShown,
+      onNaturalWonderPageHidden,
+    });
+
+    expect(onNaturalWonderPageShown).toHaveBeenCalledWith('great_volcano');
+
+    click(panel.querySelector('[data-codex-close]'));
+
+    expect(onNaturalWonderPageHidden).toHaveBeenCalledWith('great_volcano');
+  });
+
+  it('stops mobile natural wonder ambience when returning to the catalog', () => {
+    const onNaturalWonderPageShown = vi.fn();
+    const onNaturalWonderPageHidden = vi.fn();
+    const panel = createWonderCodexPanel(document.body, makeState(), {
+      mode: 'mobile',
+      initialWonderId: 'great_volcano',
+      onViewOnMap: vi.fn(),
+      onOpenCity: vi.fn(),
+      onClose: vi.fn(),
+      onNaturalWonderPageShown,
+      onNaturalWonderPageHidden,
+    });
+
+    click(panel.querySelector('[data-codex-catalog-back]'));
+
+    expect(onNaturalWonderPageShown).toHaveBeenCalledWith('great_volcano');
+    expect(onNaturalWonderPageHidden).toHaveBeenCalledWith('great_volcano');
+  });
+
   it('catalog entry buttons have card-style background', () => {
     const state = makeLegendaryWonderFixture();
     state.currentPlayer = 'player';
