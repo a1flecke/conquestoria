@@ -10,6 +10,7 @@ import { getImageSource } from '@/systems/wonder-codex/sources';
 import type { WonderCodexContent, WonderCodexSection } from '@/systems/wonder-codex/types';
 import {
   getLegendaryWonderRivalIntelSummariesForViewer,
+  isLegendaryWonderVisibleToPlayer,
   type LegendaryWonderRivalIntelSummary,
 } from '@/systems/legendary-wonder-intel-presentation';
 import {
@@ -130,20 +131,22 @@ function visibleCatalogEntries(state: GameState, viewerId: string): WonderCodexC
     });
 
   const rivalIntelSummaries = getLegendaryWonderRivalIntelSummariesForViewer(state, viewerId);
-  const legendaryEntries = getLegendaryWonderDefinitions().map(definition => {
-    const content = getWonderCodexContent(definition.id);
-    const rivalIntel = rivalIntelSummaries.get(definition.id);
-    return {
-      id: definition.id,
-      kind: 'legendary' as const,
-      title: content?.title ?? definition.name,
-      subtitle: content?.subtitle ?? 'Legendary wonder',
-      stateLabel: legendaryStateLabel(state, viewerId, definition.id, rivalIntel),
-      visual: getWonderVisualDefinition(definition.id),
-      rivalIntelCount: rivalIntel?.activityCount ?? 0,
-      rivalIntelBadgeLabel: rivalIntel?.badgeLabel,
-    };
-  });
+  const legendaryEntries = getLegendaryWonderDefinitions()
+    .filter(definition => isLegendaryWonderVisibleToPlayer(state, viewerId, definition.id, rivalIntelSummaries))
+    .map(definition => {
+      const content = getWonderCodexContent(definition.id);
+      const rivalIntel = rivalIntelSummaries.get(definition.id);
+      return {
+        id: definition.id,
+        kind: 'legendary' as const,
+        title: content?.title ?? definition.name,
+        subtitle: content?.subtitle ?? 'Legendary wonder',
+        stateLabel: legendaryStateLabel(state, viewerId, definition.id, rivalIntel),
+        visual: getWonderVisualDefinition(definition.id),
+        rivalIntelCount: rivalIntel?.activityCount ?? 0,
+        rivalIntelBadgeLabel: rivalIntel?.badgeLabel,
+      };
+    });
 
   return [...naturalEntries, ...legendaryEntries];
 }

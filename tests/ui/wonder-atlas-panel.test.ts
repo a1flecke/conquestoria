@@ -59,7 +59,6 @@ describe('wonder-atlas-panel', () => {
     expect(panel.textContent).not.toContain('The Great Volcano');
     expect(panel.textContent).not.toContain('Replay animation');
     expect(panel.textContent).not.toContain('volcanic-breath');
-    expect(panel.textContent).toContain('Legendary wonder');
   });
 
   it('selects a discovered natural wonder and renders sourced codex detail', () => {
