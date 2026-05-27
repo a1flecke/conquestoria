@@ -37,6 +37,9 @@ function styleCatalogButton(button: HTMLButtonElement, selected: boolean): void 
   button.style.gridTemplateColumns = '34px 1fr';
   button.style.gap = '8px';
   button.style.alignItems = 'center';
+  button.style.background = 'rgba(255,255,255,0.05)';
+  button.style.borderRadius = '6px';
+  button.style.padding = '8px';
   if (selected) {
     button.style.boxShadow = '0 0 0 2px rgba(232,193,112,0.34) inset';
   }
