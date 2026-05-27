@@ -5,6 +5,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createWonderCodexPanel } from '@/ui/wonder-codex-panel';
+import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 
 function click(element: Element | null | undefined): void {
   expect(element).toBeTruthy();
@@ -98,5 +99,23 @@ describe('wonder-codex-panel', () => {
     click(panel.querySelector('[data-codex-close]'));
     expect(onClose).toHaveBeenCalled();
     expect(document.querySelector('#wonder-codex-panel')).toBeNull();
+  });
+
+  it('catalog entry buttons have card-style background', () => {
+    const state = makeLegendaryWonderFixture();
+    state.currentPlayer = 'player';
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    createWonderCodexPanel(container, state, {
+      onViewOnMap: vi.fn(),
+      onOpenCity: vi.fn(),
+      onClose: vi.fn(),
+    });
+
+    const entryBtn = container.querySelector('[data-codex-entry-id="oracle-of-delphi"]') as HTMLElement | null;
+    expect(entryBtn).not.toBeNull();
+    expect(entryBtn?.style.background).toBeTruthy();
+    container.remove();
   });
 });
