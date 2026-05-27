@@ -76,7 +76,7 @@ export function cityDistance(a: HexCoord, b: HexCoord, map: GameMap): number {
 }
 
 function canClaimTile(tile: GameState['map']['tiles'][string] | undefined): boolean {
-  return Boolean(tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain');
+  return Boolean(tile && tile.terrain !== 'ocean');
 }
 
 const CULTURE_BUILDING_IDS = new Set(

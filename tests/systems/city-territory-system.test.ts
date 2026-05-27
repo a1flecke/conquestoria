@@ -111,7 +111,7 @@ describe('city founding territory rules', () => {
     expect(formatCityFoundingBlockerMessage([{ reason: 'invalid-terrain' }])).toBe('Cities must be founded on land.');
   });
 
-  it('recalculates a founded city to radius 2 without claiming ocean or mountains', () => {
+  it('recalculates a founded city to radius 2 — claims mountains but not ocean', () => {
     const state = createNewGame(undefined, 'territory-radius-2');
     state.cities = {};
     state.civilizations.player.cities = [];
@@ -129,8 +129,8 @@ describe('city founding territory rules', () => {
 
     expect(ownedKeys).toContain('10,10');
     expect(ownedKeys).toContain('10,12');
-    expect(ownedKeys).not.toContain('11,10');
-    expect(ownedKeys).not.toContain('12,10');
+    expect(ownedKeys).toContain('11,10');   // mountain is now claimable
+    expect(ownedKeys).not.toContain('12,10'); // ocean still excluded
     for (const key of ownedKeys) {
       expect(result.state.map.tiles[key]?.owner).toBe('player');
     }
