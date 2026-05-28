@@ -26,16 +26,20 @@ If listening review rejects one of the selected Soundimage sources, stop impleme
 
 Use these exact Soundimage-first sources for the first implementation pass:
 
-| Wonder | Output | Source title | Source URL | Fit rationale |
-|---|---|---|---|---|
-| `sacred_mountain` | `audio/wonders/sacred-mountain-stinger.ogg` | `Reaching Altitude` | `https://soundimage.org/wp-content/uploads/2017/04/Reaching-Altitude.mp3` | Aerial lift and altitude language fit a mountain reveal; trim to a short discovery accent. |
-| `sacred_mountain` | `audio/wonders/sacred-mountain-ambient.ogg` | `Our Mountain_v003` | `https://soundimage.org/wp-content/uploads/2024/01/Our-Mountain_v003.wav` | Explicit mountain identity and earthy calm fit Codex/map ambience. |
-| `crystal_caverns` | `audio/wonders/crystal-caverns-stinger.ogg` | `Chamber of Jewels` | `http://soundimage.org/wp-content/uploads/2015/03/Chamber-of-Jewels.mp3` | Jewel/cavern association gives a short crystalline reveal candidate. |
-| `crystal_caverns` | `audio/wonders/crystal-caverns-ambient.ogg` | `Crystal Caverns` | `http://soundimage.org/wp-content/uploads/2016/04/Crystal-Caverns.mp3` | Direct title match and short loop-friendly duration. |
-| `aurora_fields` | `audio/wonders/aurora-fields-stinger.ogg` | `Updraft` | `https://soundimage.org/wp-content/uploads/2024/01/Updraft.wav` | Upward sweep fits a luminous sky reveal. |
-| `aurora_fields` | `audio/wonders/aurora-fields-ambient.ogg` | `Strange Phenomenon` | `https://soundimage.org/wp-content/uploads/2024/01/Strange-Phenomenon.wav` | Mysterious, skylike phenomenon language fits aurora ambience without implying combat. |
+| Wonder | Output | Source title | Source URL | License category | Fit rationale |
+|---|---|---|---|---|---|
+| `sacred_mountain` | `audio/wonders/sacred-mountain-stinger.ogg` | `Reaching Altitude` | `https://soundimage.org/wp-content/uploads/2017/04/Reaching-Altitude.mp3` | Soundimage.org free use with attribution | Aerial lift and altitude language fit a mountain reveal; trim to a short discovery accent. |
+| `sacred_mountain` | `audio/wonders/sacred-mountain-ambient.ogg` | `Our Mountain_v003` | `https://soundimage.org/wp-content/uploads/2024/01/Our-Mountain_v003.wav` | Soundimage.org free use with attribution | Explicit mountain identity and earthy calm fit Codex/map ambience. |
+| `crystal_caverns` | `audio/wonders/crystal-caverns-stinger.ogg` | `Chamber of Jewels` | `http://soundimage.org/wp-content/uploads/2015/03/Chamber-of-Jewels.mp3` | Soundimage.org free use with attribution | Jewel/cavern association gives a short crystalline reveal candidate. |
+| `crystal_caverns` | `audio/wonders/crystal-caverns-ambient.ogg` | `Crystal Caverns` | `http://soundimage.org/wp-content/uploads/2016/04/Crystal-Caverns.mp3` | Soundimage.org free use with attribution | Direct title match and short loop-friendly duration. |
+| `aurora_fields` | `audio/wonders/aurora-fields-stinger.ogg` | `Updraft` | `https://soundimage.org/wp-content/uploads/2024/01/Updraft.wav` | Soundimage.org free use with attribution | Upward sweep fits a luminous sky reveal. |
+| `aurora_fields` | `audio/wonders/aurora-fields-ambient.ogg` | `Strange Phenomenon` | `https://soundimage.org/wp-content/uploads/2024/01/Strange-Phenomenon.wav` | Soundimage.org free use with attribution | Mysterious, skylike phenomenon language fits aurora ambience without implying combat. |
 
-All six sources are by Eric Matyas / Soundimage.org and use the Soundimage free-use-with-attribution policy. Credits must point to the exact source URLs above and include the local output path.
+All six sources are by Eric Matyas / Soundimage.org and use the Soundimage free-use-with-attribution policy. Credits must point to the exact source URLs above and include the local output path. The source-page evidence is:
+
+- `Reaching Altitude` appears on Soundimage's Aerial / Drone and Events / Travel pages.
+- `Our Mountain_v003`, `Updraft`, and `Strange Phenomenon` appear on Soundimage's Fantasy 1 / Fantasy 1 Ogg pages.
+- `Chamber of Jewels` and `Crystal Caverns` appear on Soundimage's Misc Looping Music page.
 
 ## File Structure
 
