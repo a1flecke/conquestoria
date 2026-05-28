@@ -1,6 +1,8 @@
 import { createNewGame, createHotSeatGame, MAP_DIMENSIONS } from '@/core/game-state';
-import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig, MapScript } from '@/core/types';
+import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig, MapScript, ResourceType } from '@/core/types';
 import { getMinimumStartDistance, getStartPositionDistance } from '@/systems/map-generator';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { getWrappedHexesInRange, hexKey } from '@/systems/hex-utils';
 
 const customCiv: CustomCivDefinition = {
   id: 'custom-sunfolk',
@@ -26,6 +28,39 @@ function expectMajorStartsToRespectSpacing(state: GameState): void {
     for (let j = i + 1; j < starts.length; j++) {
       expect(getStartPositionDistance(state.map, starts[i], starts[j])).toBeGreaterThanOrEqual(minimumDistance);
     }
+  }
+}
+
+const LUXURY_IDS = new Set<ResourceType>(
+  RESOURCE_DEFINITIONS.filter(def => def.type === 'luxury').map(def => def.id),
+);
+const STRATEGIC_IDS = new Set<ResourceType>(
+  RESOURCE_DEFINITIONS.filter(def => def.type === 'strategic').map(def => def.id),
+);
+
+function getStartingSettlerByOwner(state: GameState, owner: string): HexCoord {
+  const settler = Object.values(state.units).find(unit => unit.owner === owner && unit.type === 'settler');
+  expect(settler, `expected starting Settler for ${owner}`).toBeDefined();
+  return settler!.position;
+}
+
+function expectResourceTypeNearStart(
+  state: GameState,
+  start: HexCoord,
+  resourceIds: Set<ResourceType>,
+): void {
+  const hasResource = getWrappedHexesInRange(start, 5, state.map.width).some(coord => {
+    const resource = state.map.tiles[hexKey(coord)]?.resource;
+    return resource !== null && resource !== undefined && resourceIds.has(resource as ResourceType);
+  });
+  expect(hasResource, `expected resource within radius 5 of ${hexKey(start)}`).toBe(true);
+}
+
+function expectAllMajorStartsHaveGuaranteedResources(state: GameState): void {
+  for (const civId of Object.keys(state.civilizations)) {
+    const start = getStartingSettlerByOwner(state, civId);
+    expectResourceTypeNearStart(state, start, LUXURY_IDS);
+    expectResourceTypeNearStart(state, start, STRATEGIC_IDS);
   }
 }
 
@@ -201,6 +236,19 @@ describe('createNewGame', () => {
 
     expectMajorStartsToRespectSpacing(state);
   });
+
+  it('guarantees luxury and strategic resources near each major civ start', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      seed: 'resource-red-solo-4',
+      mapSize: 'small',
+      opponentCount: 2,
+      mapScript: 'procedural',
+      gameTitle: 'Resource Guarantee Solo',
+    });
+
+    expectAllMajorStartsHaveGuaranteedResources(state);
+  });
 });
 
 describe('minor civ integration', () => {
@@ -302,6 +350,21 @@ describe('createHotSeatGame', () => {
     }, 'issue-172-hotseat-wrap');
 
     expectMajorStartsToRespectSpacing(state);
+  });
+
+  it('guarantees luxury and strategic resources near each hot-seat civ start', () => {
+    const state = createHotSeatGame({
+      playerCount: 3,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+        { name: 'AI Greece', slotId: 'ai-1', civType: 'greece', isHuman: false },
+      ],
+      mapScript: 'procedural',
+    }, 'resource-red-hotseat-2');
+
+    expectAllMajorStartsHaveGuaranteedResources(state);
   });
 });
 

@@ -1,5 +1,5 @@
 import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig, MapScript, GameMap, HexCoord } from './types';
-import { generateMap, findStartPositions, createRng } from '@/systems/map-generator';
+import { generateMap, findStartPositions, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import { EARTH_TILES, EARTH_START_POSITIONS, EARTH_RIVERS } from '@/systems/earth-map-data';
 import { OLD_WORLD_TILES, OLD_WORLD_START_POSITIONS, OLD_WORLD_RIVERS } from '@/systems/old-world-map-data';
@@ -172,6 +172,7 @@ export function createNewGame(
   }
 
   // Place wonders and villages
+  guaranteeStartResources(map, startPositions, createRng(gameSeed + '-resource-guarantee'));
   placeWonders(map, startPositions, actualSize, gameSeed);
   const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
 
@@ -342,6 +343,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
   }
 
   // Place wonders and villages
+  guaranteeStartResources(map, startPositions, createRng(gameSeed + '-resource-guarantee'));
   placeWonders(map, startPositions, config.mapSize, gameSeed);
   const tribalVillages = placeVillages(map, startPositions, config.mapSize, gameSeed);
 

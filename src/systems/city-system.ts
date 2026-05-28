@@ -245,8 +245,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
 ];
 
 export const SETTLER_COST_BY_ERA: Record<number, number> = {
-  1: 24,
-  2: 32,
+  1: 16,
+  2: 24,
   3: 40,
   4: 48,
   5: 56,
