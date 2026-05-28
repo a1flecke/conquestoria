@@ -57,8 +57,8 @@ describe('NaturalWonderAudioDirector', () => {
       timers,
     );
 
-    await expect(director.playDiscoveryStinger('sacred_mountain')).resolves.toBe(false);
-    await expect(director.startCodexAmbient('sacred_mountain')).resolves.toBe(false);
+    await expect(director.playDiscoveryStinger('singing_sands')).resolves.toBe(false);
+    await expect(director.startCodexAmbient('singing_sands')).resolves.toBe(false);
 
     expect(loader.get).not.toHaveBeenCalled();
     expect(playStingerWithDuck).not.toHaveBeenCalled();
@@ -143,6 +143,20 @@ describe('NaturalWonderAudioDirector', () => {
 
     expect(playStingerWithDuck).toHaveBeenCalledWith('audio/wonders/ancient-forest-stinger.ogg');
     expect(loader.get).toHaveBeenCalledWith('audio/wonders/ancient-forest-ambient.ogg');
+  });
+
+  it('replay works for MR2 complete entries without new UI wiring', async () => {
+    const director = new NaturalWonderAudioDirector(
+      mixer as never,
+      loader as never,
+      playStingerWithDuck,
+      timers,
+    );
+
+    await expect(director.playCodexReplay('aurora_fields')).resolves.toBe(true);
+
+    expect(playStingerWithDuck).toHaveBeenCalledWith('audio/wonders/aurora-fields-stinger.ogg');
+    expect(loader.get).toHaveBeenCalledWith('audio/wonders/aurora-fields-ambient.ogg');
   });
 
   it('does not let stale map-focus loading override newer Codex ambience', async () => {
