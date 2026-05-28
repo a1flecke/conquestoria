@@ -8,16 +8,36 @@ import {
   createRng,
   getMinimumStartDistance,
   getStartPositionDistance,
+  guaranteeStartResources,
 } from '@/systems/map-generator';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
-import type { GameMap, HexTile, TerrainType } from '@/core/types';
-import { hexKey } from '@/systems/hex-utils';
+import type { GameMap, HexCoord, HexTile, ResourceType, TerrainType } from '@/core/types';
+import { getWrappedHexesInRange, hexKey } from '@/systems/hex-utils';
 
 const SUPPORTED_START_CASES = [
   { width: 30, height: 30, count: 3, seed: 'issue-172-small-wrap' },
   { width: 50, height: 50, count: 5, seed: 'issue-172-medium-wrap' },
   { width: 80, height: 80, count: 8, seed: 'issue-172-large-wrap' },
 ] as const;
+
+const LUXURY_IDS = new Set<ResourceType>(
+  RESOURCE_DEFINITIONS.filter(def => def.type === 'luxury').map(def => def.id),
+);
+const STRATEGIC_IDS = new Set<ResourceType>(
+  RESOURCE_DEFINITIONS.filter(def => def.type === 'strategic').map(def => def.id),
+);
+
+function hasResourceTypeWithinRadius(
+  map: GameMap,
+  start: HexCoord,
+  resourceIds: Set<ResourceType>,
+  radius: number,
+): boolean {
+  return getWrappedHexesInRange(start, radius, map.width).some(coord => {
+    const resource = map.tiles[hexKey(coord)]?.resource;
+    return resource !== null && resource !== undefined && resourceIds.has(resource as ResourceType);
+  });
+}
 
 describe('generateMap', () => {
   let map: GameMap;
@@ -286,6 +306,17 @@ describe('S2a resource catalog coverage in placeResources', () => {
     expect(stoneOnMountain, 'stone must be placed on mountain tiles').toBeGreaterThan(0);
   });
 
+  it('uses the retuned 20 percent default resource probability', () => {
+    const tiles: Record<string, HexTile> = {
+      '0,0': makeBlankTile(0, 'grassland'),
+    };
+    const rolls = [0.19, 0];
+
+    placeResources(tiles, () => rolls.shift() ?? 0);
+
+    expect(tiles['0,0'].resource).not.toBeNull();
+  });
+
   it('every resource in RESOURCE_DEFINITIONS appears on its declared terrain after placeResources', () => {
     // Build a tile set with 30 tiles of each relevant terrain
     const terrainSet: TerrainType[] = ['grassland', 'plains', 'jungle', 'hills', 'forest', 'desert', 'mountain', 'tundra'];
@@ -312,5 +343,84 @@ describe('S2a resource catalog coverage in placeResources', () => {
       }
       expect(found, `resource "${def.id}" never placed — check TERRAIN_RESOURCES derivation`).toBe(true);
     }
+  });
+});
+
+describe('guaranteeStartResources', () => {
+  function makeSmallMap(): GameMap {
+    return generateMap(20, 20, 'guarantee-test-seed');
+  }
+
+  it('places at least one luxury resource within radius 5 of each start', () => {
+    const map = makeSmallMap();
+    for (const tile of Object.values(map.tiles)) tile.resource = null;
+    const starts: HexCoord[] = [{ q: 5, r: 5 }, { q: 15, r: 15 }];
+
+    guaranteeStartResources(map, starts, createRng('guarantee-luxury-test'));
+
+    for (const start of starts) {
+      expect(hasResourceTypeWithinRadius(map, start, LUXURY_IDS, 5)).toBe(true);
+    }
+  });
+
+  it('places at least one strategic resource within radius 5 of each start', () => {
+    const map = makeSmallMap();
+    for (const tile of Object.values(map.tiles)) tile.resource = null;
+    const starts: HexCoord[] = [{ q: 5, r: 5 }, { q: 15, r: 15 }];
+
+    guaranteeStartResources(map, starts, createRng('guarantee-strategic-test'));
+
+    for (const start of starts) {
+      expect(hasResourceTypeWithinRadius(map, start, STRATEGIC_IDS, 5)).toBe(true);
+    }
+  });
+
+  it('does not overwrite existing resources', () => {
+    const map = makeSmallMap();
+    for (const tile of Object.values(map.tiles)) tile.resource = null;
+    const nearKey = hexKey({ q: 5, r: 6 });
+    const nearTile = map.tiles[nearKey];
+    expect(nearTile).toBeDefined();
+    nearTile.terrain = 'grassland';
+    nearTile.resource = 'silk';
+
+    const resourcesBefore = Object.fromEntries(
+      Object.entries(map.tiles).map(([key, tile]) => [key, tile.resource]),
+    );
+
+    guaranteeStartResources(map, [{ q: 5, r: 5 }], createRng('no-overwrite-test'));
+
+    for (const [key, originalResource] of Object.entries(resourcesBefore)) {
+      if (originalResource !== null) {
+        expect(map.tiles[key].resource).toBe(originalResource);
+      }
+    }
+  });
+
+  it('is deterministic for the same seed and start positions', () => {
+    const map1 = makeSmallMap();
+    const map2 = makeSmallMap();
+    for (const tile of Object.values(map1.tiles)) tile.resource = null;
+    for (const tile of Object.values(map2.tiles)) tile.resource = null;
+    const starts: HexCoord[] = [{ q: 5, r: 5 }];
+
+    guaranteeStartResources(map1, starts, createRng('determinism-test'));
+    guaranteeStartResources(map2, starts, createRng('determinism-test'));
+
+    for (const key of Object.keys(map1.tiles)) {
+      expect(map1.tiles[key].resource).toBe(map2.tiles[key].resource);
+    }
+  });
+
+  it('does not crash when no eligible terrain exists within radius 5', () => {
+    const map = generateMap(8, 8, 'ocean-test-seed');
+    for (const tile of Object.values(map.tiles)) {
+      tile.resource = null;
+      tile.terrain = 'ocean';
+    }
+
+    expect(() =>
+      guaranteeStartResources(map, [{ q: 4, r: 4 }], createRng('ocean-test')),
+    ).not.toThrow();
   });
 });

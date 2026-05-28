@@ -1,4 +1,4 @@
-import type { GameMap, HexTile, HexCoord, TerrainType, Elevation, MapScript } from '@/core/types';
+import type { GameMap, HexTile, HexCoord, TerrainType, Elevation, MapScript, ResourceType } from '@/core/types';
 import {
   hexKey,
   hexDistance,
@@ -208,12 +208,12 @@ export function generateMap(width: number, height: number, seed: string): GameMa
 const TERRAIN_PROBABILITIES: Record<string, number> = {
   hills: 0.10,
 };
-const DEFAULT_RESOURCE_PROBABILITY = 0.15;
+const DEFAULT_RESOURCE_PROBABILITY = 0.20;
 
 // Derived at module load from RESOURCE_DEFINITIONS — eliminates dual-maintenance.
 // terrain field is string | string[]; we expand multi-terrain entries here.
-function buildTerrainResourceMap(): Record<string, string[]> {
-  const map: Record<string, string[]> = {};
+function buildTerrainResourceMap(): Record<string, ResourceType[]> {
+  const map: Record<string, ResourceType[]> = {};
   for (const def of RESOURCE_DEFINITIONS) {
     const terrains = Array.isArray(def.terrain) ? def.terrain : [def.terrain];
     for (const t of terrains) {
@@ -234,6 +234,79 @@ export function placeResources(tiles: Record<string, HexTile>, rng: () => number
       tile.resource = candidates[Math.floor(rng() * candidates.length)] as typeof tile.resource;
     }
   }
+}
+
+/**
+ * Ensures every major-civ start has at least one luxury and one strategic
+ * resource within radius 5 without overwriting existing resource placement.
+ */
+export function guaranteeStartResources(
+  map: GameMap,
+  startPositions: HexCoord[],
+  rng: () => number,
+): void {
+  const terrainResourceMap = buildTerrainResourceMap();
+  const luxuryIds = new Set<ResourceType>(
+    RESOURCE_DEFINITIONS.filter(def => def.type === 'luxury').map(def => def.id),
+  );
+  const strategicIds = new Set<ResourceType>(
+    RESOURCE_DEFINITIONS.filter(def => def.type === 'strategic').map(def => def.id),
+  );
+
+  for (const start of startPositions) {
+    const neighborhoodData = getCandidateNeighborhood(map, start, 5)
+      .map(coord => ({ coord, tile: map.tiles[hexKey(coord)] }))
+      .filter((item): item is { coord: HexCoord; tile: HexTile } => item.tile !== undefined);
+
+    const hasLuxury = neighborhoodData.some(({ tile }) =>
+      isTargetResource(tile.resource, luxuryIds),
+    );
+    if (!hasLuxury) {
+      guaranteePlaceResource(neighborhoodData, luxuryIds, terrainResourceMap, start, map, rng);
+    }
+
+    const hasStrategic = neighborhoodData.some(({ tile }) =>
+      isTargetResource(tile.resource, strategicIds),
+    );
+    if (!hasStrategic) {
+      guaranteePlaceResource(neighborhoodData, strategicIds, terrainResourceMap, start, map, rng);
+    }
+  }
+}
+
+function guaranteePlaceResource(
+  neighborhoodData: Array<{ coord: HexCoord; tile: HexTile }>,
+  targetIds: Set<ResourceType>,
+  terrainResourceMap: Record<string, ResourceType[]>,
+  start: HexCoord,
+  map: GameMap,
+  rng: () => number,
+): void {
+  const eligible = neighborhoodData.filter(({ tile }) => {
+    if (tile.resource !== null) return false;
+    const candidates = terrainResourceMap[tile.terrain] ?? [];
+    return candidates.some(resource => targetIds.has(resource));
+  });
+  if (eligible.length === 0) return;
+
+  const keyed = eligible.map(item => ({
+    ...item,
+    distance: map.wrapsHorizontally
+      ? wrappedHexDistance(item.coord, start, map.width)
+      : hexDistance(item.coord, start),
+    tie: rng(),
+  }));
+  keyed.sort((a, b) => a.distance - b.distance || a.tie - b.tie);
+
+  const target = keyed[0];
+  const candidates = (terrainResourceMap[target.tile.terrain] ?? [])
+    .filter(resource => targetIds.has(resource));
+  if (candidates.length === 0) return;
+  target.tile.resource = candidates[Math.floor(rng() * candidates.length)];
+}
+
+function isTargetResource(resource: string | null, targetIds: Set<ResourceType>): resource is ResourceType {
+  return resource !== null && targetIds.has(resource as ResourceType);
 }
 
 function isLandTerrain(terrain: TerrainType): boolean {

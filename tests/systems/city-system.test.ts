@@ -17,6 +17,7 @@ import {
   getCatalogProductionCost,
   getProductionDisplayName,
   getProductionIconForItem,
+  getSettlerProductionCost,
 } from '@/systems/city-system';
 import type { City, GameMap, ResourceType, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
@@ -406,6 +407,14 @@ describe('processCity', () => {
     expect(era4Result.completedUnit).toBeNull();
     expect(era4Result.city.productionQueue).toEqual(['settler']);
     expect(era4Result.city.productionProgress).toBe(40);
+  });
+});
+
+describe('getSettlerProductionCost', () => {
+  it('uses cheaper early-game Settler costs for eras 1 and 2', () => {
+    expect(getSettlerProductionCost(1)).toBe(16);
+    expect(getSettlerProductionCost(2)).toBe(24);
+    expect(getSettlerProductionCost(3)).toBe(40);
   });
 });
 

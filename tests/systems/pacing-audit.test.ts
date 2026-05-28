@@ -50,8 +50,8 @@ describe('pacing-audit', () => {
     const era1Settler = buildPacingAudit({ era: 1 }).find(row => row.id === 'settler');
     const era4Settler = buildPacingAudit({ era: 4 }).find(row => row.id === 'settler');
 
-    expect(era1Settler?.currentCost).toBe(24);
-    expect(era1Settler?.estimatedTurns).toBe(6);
+    expect(era1Settler?.currentCost).toBe(16);
+    expect(era1Settler?.estimatedTurns).toBe(4);
     expect(era4Settler?.currentCost).toBe(48);
     expect(era4Settler?.estimatedTurns).toBe(5);
   });
