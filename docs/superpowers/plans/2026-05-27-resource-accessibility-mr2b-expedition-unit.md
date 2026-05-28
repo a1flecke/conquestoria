@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add the Expedition unit — a civilian explorer that can travel mountains/hills at full speed and plant Resource Outposts on distant resource tiles, immediately consuming itself. AI civs train and use Expeditions. All six end-to-end wirings required by `.claude/rules/end-to-end-wiring.md` are included.
+**Goal:** Add the Expedition unit — a civilian explorer that travels hills and mountains at full speed (cost 1 vs the standard 2/4) and plants Resource Outposts on distant resource tiles, immediately consuming itself. AI civs train and use Expeditions. All six end-to-end wirings required by `.claude/rules/end-to-end-wiring.md` are included.
 
 **Architecture:** `'expedition'` is added to the `UnitType` union and wired into all six mandatory endpoints: `UNIT_DEFINITIONS`/`UNIT_DESCRIPTIONS`, `UNIT_SPRITE_CATALOG`/`UNIT_MOTION_STYLES`/`FALLBACK_ICONS`, `TRAINABLE_UNITS`/`PRODUCTION_ICONS`, `performEstablishOutpost` shared helper (actor-complete: used by both human and AI), selected-unit-info panel action, and AI training + use. The Expedition has no associated GameState record beyond the `Unit` itself, so no death-cleanup is needed.
+
+**Upstream context:** Mountains are cost 4 (not Infinity) since `1e7f59a` with forced-march — all land units can enter mountains. The Expedition's `terrainCostOverrides: { hills: 1, mountain: 1 }` gives it genuine full-speed travel (3 hexes/turn across mountains) vs. the standard forced-march behaviour (spend all remaining MPs to enter a mountain). The `'impassable-mountain'` code literal was already removed from the codebase — do not re-add it.
 
 **Depends on:** MR 2a (`'resource_outpost'` type + `getCivAvailableResources` outpost pass must exist).
 
@@ -29,7 +31,7 @@
 - Modify: `tests/ui/selected-unit-info.test.ts` — action button test
 - Modify: `tests/ai/basic-ai.test.ts` — AI expedition training test
 
-> **Terrain movement note:** Current system has `mountain: Infinity` (impassable for all land units) and `hills: 2`. The spec says Expedition crosses hills AND mountains at full speed (cost 1). Task 1 wires `terrainCostOverrides` into `UnitDefinition` and `getMovementCostForUnit`/`getMovementBlockerReason` to enable this. Without this change the Expedition cannot enter mountain tiles, breaking the spec's core value proposition.
+> **Terrain movement note (updated 2026-05-28):** Mountains are now **cost 4** (not Infinity) with a forced-march rule since `1e7f59a` landed on main. All land units can now enter mountains; the forced-march rule ensures any unit with ≥1 MP can always enter an adjacent passable tile (spending all remaining points). The `'impassable-mountain'` code literal has already been removed from `MovementBlockerReason`. The `terrainCostOverrides` mechanism added in Task 1 therefore reduces mountain cost from **4 → 1** for the Expedition, giving it genuine full-speed mountain travel (3 hexes/turn including a mountain) vs. the forced-march behaviour for other units (enter mountain, spend all remaining MPs). The test in Task 1 verifies Expedition costs 1 and Warrior costs 4 — NOT that Warrior is blocked (warriors can enter mountains now).
 
 ---
 
@@ -133,7 +135,7 @@ const def = UNIT_DEFINITIONS[unit.type];
 cost += tile ? getMovementCostForUnit(tile.terrain, domain, def?.terrainCostOverrides) : 1;
 ```
 
-Also update `getMovementBlockerReason` in `unit-system.ts` (line 333): the mountain impassability check uses `isPassableForUnit` which calls `getMovementCostForUnit`. Update `isPassableForUnit` to also accept overrides:
+Also update `isPassableForUnit` (used internally in `getMovementBlockerReason`) to accept and pass through overrides:
 ```typescript
 function isPassableForUnit(
   terrain: string,
@@ -144,23 +146,16 @@ function isPassableForUnit(
 }
 ```
 
-And pass overrides through `getMovementBlockerReason`:
+And pass the unit's overrides in `getMovementBlockerReason` at the passability check:
 ```typescript
-export function getMovementBlockerReason(
-  unit: Unit,
-  to: HexCoord,
-  map: GameMap,
-  options: { visibilityState?: VisibilityState } = {},
-): MovementBlockerReason | null {
-  // ...
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
   const overrides = UNIT_DEFINITIONS[unit.type]?.terrainCostOverrides;
   if (!isPassableForUnit(tile.terrain, domain, overrides)) {
-    // ...
+    // existing water/terrain error messages...
   }
-  // ...
-}
 ```
+
+> **Note:** The `'impassable-mountain'` code literal and its branch were removed in commit `1e7f59a` (already on main). Do NOT add it back. This update is only about passing the `overrides` parameter through the call chain — no mountain-specific branches needed.
 
 - [ ] **Step 2c: Add expedition to `UNIT_DEFINITIONS` in `unit-system.ts`**
 
@@ -184,26 +179,34 @@ export function getMovementBlockerReason(
 
 - [ ] **Step 2d: Write and run a movement cost test**
 
+Note: As of commit `1e7f59a` on main, mountains have cost 4 (not Infinity) for all land units with forced-march. The test below reflects this — warriors can enter mountains (cost 4); expedition enters at full speed (cost 1).
+
 In `tests/systems/unit-system.test.ts`, add:
 ```typescript
-describe('Expedition terrain movement', () => {
-  it('has movement cost 1 on hills (override)', () => {
+describe('Expedition terrain movement (terrainCostOverrides)', () => {
+  it('expedition has movement cost 1 on hills (override, default is 2)', () => {
     const def = UNIT_DEFINITIONS['expedition'];
     const cost = getMovementCostForUnit('hills', 'land', def.terrainCostOverrides);
     expect(cost).toBe(1);
   });
 
-  it('can enter mountains (cost 1, not Infinity)', () => {
+  it('expedition has movement cost 1 on mountains (override, default is 4)', () => {
     const def = UNIT_DEFINITIONS['expedition'];
     const cost = getMovementCostForUnit('mountain', 'land', def.terrainCostOverrides);
     expect(cost).toBe(1);
-    expect(cost).not.toBe(Infinity);
   });
 
-  it('warriors still cannot enter mountains', () => {
+  it('warriors pay the standard cost 4 for mountains (no override)', () => {
+    // Mountains are passable for all units since 1e7f59a but cost 4 by default
     const def = UNIT_DEFINITIONS['warrior'];
     const cost = getMovementCostForUnit('mountain', 'land', def.terrainCostOverrides);
-    expect(cost).toBe(Infinity);
+    expect(cost).toBe(4);
+  });
+
+  it('warriors pay cost 2 for hills (no override)', () => {
+    const def = UNIT_DEFINITIONS['warrior'];
+    const cost = getMovementCostForUnit('hills', 'land', def.terrainCostOverrides);
+    expect(cost).toBe(2);
   });
 });
 ```
@@ -212,7 +215,7 @@ Run:
 ```bash
 bash scripts/run-with-mise.sh yarn test -- tests/systems/unit-system.test.ts 2>&1 | grep -E "PASS|FAIL|terrain movement"
 ```
-Expected: All 3 pass.
+Expected: All 4 pass.
 
 - [ ] **Step 3: Add expedition to `UNIT_DESCRIPTIONS` in `unit-system.ts`**
 

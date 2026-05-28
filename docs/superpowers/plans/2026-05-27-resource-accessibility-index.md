@@ -12,16 +12,28 @@
 
 ## MR Sequence
 
-| MR | Plan file | Depends on | Ships |
-|----|-----------|-----------|-------|
-| MR 1 — Map Gen + Settler Cost | [mr1-map-gen-settler.md](2026-05-27-resource-accessibility-mr1-map-gen-settler.md) | nothing | immediately |
-| MR 2a — Outpost Foundation | [mr2a-outpost-foundation.md](2026-05-27-resource-accessibility-mr2a-outpost-foundation.md) | nothing | immediately |
-| MR 2b — Expedition Unit | [mr2b-expedition-unit.md](2026-05-27-resource-accessibility-mr2b-expedition-unit.md) | MR 2a | after MR 2a |
-| MR 3 — Advisor Tips | [mr3-advisor-tips.md](2026-05-27-resource-accessibility-mr3-advisor-tips.md) | nothing | immediately |
-| MR 4 — Locked-Section UI | [mr4-locked-ui.md](2026-05-27-resource-accessibility-mr4-locked-ui.md) | S4b implemented | after S4b |
-| MR 5 — Diplomatic Marketplace | [mr5-diplomatic-marketplace.md](2026-05-27-resource-accessibility-mr5-diplomatic-marketplace.md) | S5 + S9 implemented | after S5+S9 |
-| Phase 2 — Expedition SVG Sprite | (no plan — Claude Design session) | MR 2b | after MR 2b |
-| Phase 2 — Outpost SVG Sprite | (no plan — Claude Design session) | MR 2b | after Expedition sprite |
+| MR | Plan file | Status | Depends on |
+|----|-----------|--------|-----------|
+| MR 1 — Map Gen + Settler Cost | [mr1-map-gen-settler.md](2026-05-27-resource-accessibility-mr1-map-gen-settler.md) | ✅ **LANDED** main @ `75d70f4` (2026-05-27) | — |
+| MR 2a — Outpost Foundation | [mr2a-outpost-foundation.md](2026-05-27-resource-accessibility-mr2a-outpost-foundation.md) | 🔲 pending | nothing |
+| MR 2b — Expedition Unit | [mr2b-expedition-unit.md](2026-05-27-resource-accessibility-mr2b-expedition-unit.md) | 🔲 pending | MR 2a |
+| MR 3 — Advisor Tips | [mr3-advisor-tips.md](2026-05-27-resource-accessibility-mr3-advisor-tips.md) | 🔲 pending | nothing |
+| MR 4 — Locked-Section UI | [mr4-locked-ui.md](2026-05-27-resource-accessibility-mr4-locked-ui.md) | ⏸ blocked | S4b |
+| MR 5 — Diplomatic Marketplace | [mr5-diplomatic-marketplace.md](2026-05-27-resource-accessibility-mr5-diplomatic-marketplace.md) | ⏸ blocked | S5 + S9 |
+| Phase 2 — Expedition SVG Sprite | (no plan — Claude Design session) | ⏸ blocked | MR 2b |
+| Phase 2 — Outpost SVG Sprite | (no plan — Claude Design session) | ⏸ blocked | Expedition sprite |
+
+---
+
+## Upstream changes relevant to pending MRs
+
+The following commits landed on main after these plans were written. They affect MR 2b.
+
+| Commit | Change | Impact on plans |
+|--------|--------|----------------|
+| `1e7f59a` | Mountain movement cost changed from `Infinity` → `4`; forced-march rule added (any unit with ≥1 MP can always enter an adjacent passable tile, spending all remaining points); `'impassable-mountain'` removed from `MovementBlockerReason` union | **MR 2b updated:** Expedition's `terrainCostOverrides` now reduces mountain cost from 4→1 (full speed) rather than making mountains passable. The `'impassable-mountain'` type literal no longer needs to be removed (already gone). Test updated to assert Expedition pays 1 and Warrior pays 4, not that Warrior is blocked. |
+| `2f2fdb3` | Quarry now valid on `['mountain', 'hills']`; mine excludes mountain | **MR 2a note:** Stone on mountain tiles is now acquirable via city expansion + quarry, which is the normal worker path. The outpost path (MR 2b) gives a shortcut for distant mountain Stone before territory expansion reaches it. |
+| `639197c`–`b431c85` | Mountain tiles claimable as city territory + workable by citizens + base yield +1 production | **MR 2a note:** Outpost on mountain is consistent with the new mountain-workability model. No design conflict. |
 
 ---
 
