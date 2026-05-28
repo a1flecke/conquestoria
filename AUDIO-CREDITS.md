@@ -180,7 +180,7 @@ All stingers below are Kevin MacLeod (incompetech.com), CC-BY 3.0 — https://cr
 
 ## Natural Wonder Audio
 
-All Stage 2H MR1 natural wonder audio is by Eric Matyas / Soundimage.org and converted from MP3 to OGG Vorbis for in-game use.
+All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and converted to OGG Vorbis for in-game use.
 
 - `audio/wonders/great-volcano-stinger.ogg` — "Underwater Rumble" by Eric Matyas, Soundimage.org.
   Source: https://soundimage.org/wp-content/uploads/2019/11/Underwater-Rumble.mp3
@@ -210,6 +210,36 @@ All Stage 2H MR1 natural wonder audio is by Eric Matyas / Soundimage.org and con
 - `audio/wonders/coral-reef-ambient.ogg` — "Underwater World_Looping" by Eric Matyas, Soundimage.org.
   Source: https://soundimage.org/wp-content/uploads/2016/11/Underwater-World_Looping.mp3
   Used as: Coral Reef Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/sacred-mountain-stinger.ogg` — "Reaching Altitude" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2017/04/Reaching-Altitude.mp3
+  Used as: Sacred Mountain discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/sacred-mountain-ambient.ogg` — "Our Mountain_v003" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2024/01/Our-Mountain_v003.wav
+  Used as: Sacred Mountain Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/crystal-caverns-stinger.ogg` — "Chamber of Jewels" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2015/03/Chamber-of-Jewels.mp3
+  Used as: Crystal Caverns discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/crystal-caverns-ambient.ogg` — "Crystal Caverns" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2016/04/Crystal-Caverns.mp3
+  Used as: Crystal Caverns Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/aurora-fields-stinger.ogg` — "Updraft" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2024/01/Updraft.wav
+  Used as: Aurora Fields discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/aurora-fields-ambient.ogg` — "Strange Phenomenon" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2024/01/Strange-Phenomenon.wav
+  Used as: Aurora Fields Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
 ## Sound Effects
