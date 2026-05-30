@@ -124,3 +124,73 @@ export function getCivHappinessFromResources(
 
   return count;
 }
+
+/**
+ * Returns true when an Expedition unit can use "Establish Outpost" at its
+ * current position. All conditions must be met:
+ *   1. Unit is an Expedition.
+ *   2. Tile has a resource and no existing improvement.
+ *   3. Civ has researched the tech that enables that resource.
+ *   4. Tile is NOT in this civ's city territory (worker path applies there).
+ */
+export function canEstablishOutpost(state: GameState, unitId: string): boolean {
+  const unit = state.units[unitId];
+  if (!unit || unit.type !== 'expedition') return false;
+
+  const tileKey = hexKey(unit.position);
+  const tile = state.map.tiles[tileKey];
+  if (!tile || !tile.resource || tile.improvement !== 'none') return false;
+
+  const civ = state.civilizations[unit.owner];
+  if (!civ) return false;
+
+  const def = RESOURCE_DEFINITIONS.find(d => d.id === tile.resource);
+  if (!def || !civ.techState.completed.includes(def.tech)) return false;
+
+  for (const cityId of civ.cities) {
+    const city = state.cities[cityId];
+    if (!city) continue;
+    if (city.ownedTiles.some(coord => hexKey(coord) === tileKey)) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Establishes a Resource Outpost on the tile the Expedition stands on and
+ * immediately removes the Expedition unit. Used by both human and AI paths.
+ *
+ * Precondition: canEstablishOutpost(state, unitId) === true.
+ * Returns a new GameState (immutable spread-copy).
+ */
+export function performEstablishOutpost(state: GameState, unitId: string): GameState {
+  const unit = state.units[unitId];
+  if (!unit) return state;
+
+  const tileKey = hexKey(unit.position);
+  const existingTile = state.map.tiles[tileKey];
+  if (!existingTile) return state;
+
+  const civId = unit.owner;
+
+  const updatedTile = {
+    ...existingTile,
+    improvement: 'resource_outpost' as const,
+    improvementTurnsLeft: 2,
+    owner: civId,
+  };
+
+  const { [unitId]: _removed, ...remainingUnits } = state.units;
+
+  return {
+    ...state,
+    units: remainingUnits,
+    map: {
+      ...state.map,
+      tiles: {
+        ...state.map.tiles,
+        [tileKey]: updatedTile,
+      },
+    },
+  };
+}
