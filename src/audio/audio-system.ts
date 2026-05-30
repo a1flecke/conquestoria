@@ -6,6 +6,7 @@ import { MusicDirector } from './music-director';
 import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from './natural-wonder-audio-director';
 import { getFamilyForCiv } from './civ-audio-family';
 import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra } from './audio-catalog';
+import { allSfxEntries } from './sfx-catalog';
 
 export class AudioSystem {
   private loader: AudioLoader;
@@ -53,6 +54,7 @@ export class AudioSystem {
     this.armIosResume();
 
     void this.preloadForEra(state.era, this.currentCivType);
+    void this.preloadSfx();
 
     // Restore correct snapshot state machine when resuming a saved game mid-era.
     // Guard on era only, not musicEnabled — director state must be correct even when muted.
@@ -208,6 +210,10 @@ export class AudioSystem {
     const accentEntry = ACCENT[family];
     const buffer = await this.loader.get(accentEntry.file);
     this.mixer.setBusSource('accent', buffer, true, accentEntry.loop, 500);
+  }
+
+  private preloadSfx(): Promise<void> {
+    return this.loader.preload(allSfxEntries().map(e => e.file));
   }
 
   private async preloadForEra(era: number, civType: string): Promise<void> {

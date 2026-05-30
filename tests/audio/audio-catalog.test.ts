@@ -4,6 +4,10 @@ import * as path from 'path';
 import { ERA_BASE, WAR_LAYER, ACCENT, STINGER, resolveEra, type EraId } from '../../src/audio/audio-catalog';
 import { CIV_TO_AUDIO_FAMILY, MINOR_CIV_TO_AUDIO_FAMILY } from '../../src/audio/civ-audio-family';
 
+// Resolve relative to this test file so disk checks work in both the main worktree
+// and git worktrees (where process.cwd() points to the main root, not the worktree).
+const PROJECT_ROOT = path.resolve(__dirname, '../..');
+
 const ERAS: EraId[] = [1, 2, 3, 4, 5];
 
 const ALL_ENTRIES = [
@@ -74,7 +78,7 @@ describe('on-disk OGG integrity', () => {
   // They will FAIL if run before the ffmpeg step — that is expected and intentional.
   for (const entry of ALL_ENTRIES) {
     it(`${entry.id}: file exists at public/${entry.file} with OGG magic bytes`, () => {
-      const diskPath = path.join('public', entry.file);
+      const diskPath = path.join(PROJECT_ROOT, 'public', entry.file);
       expect(fs.existsSync(diskPath), `missing file: ${diskPath}`).toBe(true);
       const head = fs.readFileSync(diskPath).slice(0, 4);
       expect(head.toString('ascii')).toBe('OggS');
