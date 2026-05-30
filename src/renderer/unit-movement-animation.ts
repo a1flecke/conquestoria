@@ -56,8 +56,13 @@ export function createMovementAnimation(unit: Unit, path: HexCoord[], map: GameM
 }
 
 export function getMovementAnimationPosition(animation: UnitMovementAnimation, progress: number): UnitMovementFrame {
+  // Degenerate: nothing to interpolate
+  if (animation.renderPath.length < 2) {
+    return { coord: animation.renderPath[0] ?? animation.from, motion: 'idle' };
+  }
+
   const clamped = Math.max(0, Math.min(1, progress));
-  const steps = Math.max(1, animation.renderPath.length - 1);
+  const steps = animation.renderPath.length - 1;
 
   // Map overall progress to a step index + intra-step fraction
   const rawStepProgress = clamped * steps;

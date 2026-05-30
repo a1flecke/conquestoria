@@ -131,4 +131,27 @@ describe('unit-movement-animation', () => {
       expect(getMovingUnitIds([anim])).toEqual(new Set(['u1']));
     });
   });
+
+  describe('degenerate / edge-case paths', () => {
+    it('createMovementAnimation handles empty path without crashing', () => {
+      const anim = createMovementAnimation(unit('u1'), [], map);
+      expect(anim.duration).toBe(0);
+      expect(anim.from).toEqual(unit('u1').position);
+    });
+
+    it('createMovementAnimation handles single-coord path without crashing', () => {
+      const anim = createMovementAnimation(unit('u1'), [{ q: 3, r: 3 }], map);
+      expect(anim.duration).toBe(0);
+      expect(anim.from).toEqual({ q: 3, r: 3 });
+    });
+
+    it('getMovementAnimationPosition on a degenerate animation returns the only coord', () => {
+      const anim = createMovementAnimation(unit('u1'), [{ q: 3, r: 3 }], map);
+      // Must not throw
+      const frame0 = getMovementAnimationPosition(anim, 0);
+      const frame1 = getMovementAnimationPosition(anim, 1);
+      expect(frame0.coord).toEqual({ q: 3, r: 3 });
+      expect(frame1.coord).toEqual({ q: 3, r: 3 });
+    });
+  });
 });

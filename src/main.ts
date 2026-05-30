@@ -2433,6 +2433,8 @@ type AIMoveRecord = { unit: Unit; path: HexCoord[] };
 function captureAIMoves(fn: () => void): AIMoveRecord[] {
   const moves: AIMoveRecord[] = [];
   const unsub = bus.on('unit:move', ({ unitId, from, path }) => {
+    // executeUnitMove mutates state.units before emitting, so the unit is already
+    // at `to` when this fires. Override position: from so animation starts correctly.
     const unit = gameState.units[unitId];
     if (unit) moves.push({ unit: { ...unit, position: from }, path });
   });
