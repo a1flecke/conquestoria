@@ -267,16 +267,15 @@ function drawHex(
   ctx.fillStyle = TERRAIN_COLORS[tile.terrain] ?? '#888';
   ctx.fill();
 
-  // Draw terrain tile image if loaded (replaces flat color within canvas hex clip)
+  // Draw terrain tile image if loaded (replaces flat color within canvas hex clip).
+  // Tiles are 128×111 SVG — designed at the 2:√3 bounding-box ratio, so draw at
+  // 2*size × √3*size (≈1.732*size). Flat color above fills the tiny hex-tip triangles
+  // that the tile doesn't reach at top/bottom. Canvas clip keeps edges clean.
   const terrainImg = getTerrainTileImage(tile.terrain, tile.coord.q, tile.coord.r);
   if (terrainImg) {
     ctx.save();
     ctx.clip();
-    // Scale to hex height (2*size); maintain SVG aspect ratio (viewBox 128×111).
-    // The SVG's hex is wider than the canvas hex, so the canvas clip trims the edges cleanly.
-    const drawH = size * 2;
-    const drawW = drawH * (128 / 111);
-    ctx.drawImage(terrainImg, cx - drawW / 2, cy - size, drawW, drawH);
+    ctx.drawImage(terrainImg, cx - size, cy - size * 0.866, size * 2, size * 1.732);
     ctx.restore();
   }
 
