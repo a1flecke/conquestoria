@@ -156,6 +156,14 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 60,
     domain: 'land',
   },
+  // Resource Accessibility MR 2b — exploration unit
+  expedition: {
+    type: 'expedition', name: 'Expedition', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 18,
+    domain: 'land',
+    terrainCostOverrides: { hills: 1, mountain: 1 },
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -286,6 +294,12 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '
              + 'Cannot attack. Raidable by enemy units in transit.',
+  // Resource Accessibility MR 2b
+  expedition:  'Civilian explorer. Crosses hills and mountains at full speed. '
+             + 'When standing on a resource tile (outside city territory), use '
+             + '"Establish Outpost" to plant a flag — the unit is consumed '
+             + 'immediately and the outpost completes in 2 turns, granting the '
+             + 'resource and charging 2 gold/turn upkeep. Requires Foraging tech.',
 };
 
 export function getUnmovedUnits(
@@ -307,15 +321,26 @@ export function getMovementCost(terrain: string): number {
   return costs[terrain] ?? Infinity;
 }
 
-export function getMovementCostForUnit(terrain: string, domain: 'land' | 'naval'): number {
+export function getMovementCostForUnit(
+  terrain: string,
+  domain: 'land' | 'naval',
+  terrainCostOverrides?: Partial<Record<string, number>>,
+): number {
   if (domain === 'naval') {
     return (terrain === 'ocean' || terrain === 'coast') ? 1 : Infinity;
+  }
+  if (terrainCostOverrides && terrain in terrainCostOverrides) {
+    return terrainCostOverrides[terrain]!;
   }
   return getMovementCost(terrain);
 }
 
-function isPassableForUnit(terrain: string, domain: 'land' | 'naval'): boolean {
-  return getMovementCostForUnit(terrain, domain) < Infinity;
+function isPassableForUnit(
+  terrain: string,
+  domain: 'land' | 'naval',
+  terrainCostOverrides?: Partial<Record<string, number>>,
+): boolean {
+  return getMovementCostForUnit(terrain, domain, terrainCostOverrides) < Infinity;
 }
 
 export interface MovementBlockerReason {
@@ -346,7 +371,8 @@ export function getMovementBlockerReason(
   }
 
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  if (!isPassableForUnit(tile.terrain, domain)) {
+  const overrides = UNIT_DEFINITIONS[unit.type]?.terrainCostOverrides;
+  if (!isPassableForUnit(tile.terrain, domain, overrides)) {
     if (domain === 'naval') {
       return { code: 'impassable-terrain', message: 'Naval units cannot move on land.' };
     }
@@ -363,7 +389,7 @@ export function getMovementBlockerReason(
 
   const pathCost = path.slice(1).reduce((total, coord) => {
     const stepTile = map.tiles[hexKey(coord)];
-    return total + (stepTile ? getMovementCostForUnit(stepTile.terrain, domain) : Infinity);
+    return total + (stepTile ? getMovementCostForUnit(stepTile.terrain, domain, overrides) : Infinity);
   }, 0);
 
   // Forced march: a unit can always move to an adjacent passable tile with ≥1 move remaining.
@@ -392,6 +418,7 @@ export function getMovementRange(
   hostileOwners?: Set<string>,
 ): HexCoord[] {
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+  const moveOverrides = UNIT_DEFINITIONS[unit.type]?.terrainCostOverrides;
   const reachable: HexCoord[] = [];
   const visited = new Map<string, number>();
   const queue: Array<{ coord: HexCoord; remaining: number }> = [];
@@ -409,9 +436,9 @@ export function getMovementRange(
     for (const neighbor of neighbors) {
       const key = hexKey(neighbor);
       const tile = map.tiles[key];
-      if (!tile || !isPassableForUnit(tile.terrain, domain)) continue;
+      if (!tile || !isPassableForUnit(tile.terrain, domain, moveOverrides)) continue;
 
-      const cost = getMovementCostForUnit(tile.terrain, domain);
+      const cost = getMovementCostForUnit(tile.terrain, domain, moveOverrides);
       const remaining = current.remaining - cost;
 
       // Forced march: if this is a direct neighbor of the start position and the unit

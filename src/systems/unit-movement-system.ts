@@ -91,6 +91,7 @@ export function executeUnitMove(
 
   const from = { ...unit.position };
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+  const terrainCostOverrides = UNIT_DEFINITIONS[unit.type]?.terrainCostOverrides;
 
   // Calculate total path cost
   let cost = 0;
@@ -98,12 +99,12 @@ export function executeUnitMove(
   if (path) {
     for (let i = 1; i < path.length; i++) {
       const tile = state.map.tiles[hexKey(path[i])];
-      cost += tile ? getMovementCostForUnit(tile.terrain, domain) : 1;
+      cost += tile ? getMovementCostForUnit(tile.terrain, domain, terrainCostOverrides) : 1;
     }
   } else {
     // Fallback for single-step moves or if pathfinding fails unexpectedly
     const tile = state.map.tiles[hexKey(to)];
-    cost = tile ? getMovementCostForUnit(tile.terrain, domain) : 1;
+    cost = tile ? getMovementCostForUnit(tile.terrain, domain, terrainCostOverrides) : 1;
   }
   state.units = {
     ...state.units,

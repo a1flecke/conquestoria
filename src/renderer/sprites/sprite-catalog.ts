@@ -55,6 +55,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   catapult: 'naval',
   ballista: 'naval',
   caravan: 'humanoid',
+  expedition: 'humanoid',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
@@ -115,6 +116,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   catapult:       withMotion('catapult', CatapultSprite),
   ballista:       withMotion('ballista', BallistaSprite),
   caravan:        withMotion('caravan', WorkerSprite), // uses civilian fallback; dedicated sprite TBD
+  expedition:     withMotion('expedition', ScoutSprite), // uses explorer fallback; dedicated sprite TBD via Claude Design
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {

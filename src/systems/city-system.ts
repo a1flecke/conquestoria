@@ -242,6 +242,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'war_hound', name: 'War Hound', cost: 32, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection-combat', impact: 1.1, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 } },
   // S5 — trade unit
   { type: 'caravan', name: 'Caravan', cost: 60, techRequired: 'trade-routes' },
+  // Resource Accessibility MR 2b — exploration unit
+  { type: 'expedition', name: 'Expedition', cost: 18, techRequired: 'foraging' },
 ];
 
 export const SETTLER_COST_BY_ERA: Record<number, number> = {
@@ -393,6 +395,8 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // S5 — trade unit + buildings
   caravan:         '🐪',
   caravanserai:    '🏕️',
+  // Resource Accessibility MR 2b
+  expedition:      '🧭',
   bank:            '🏦',
   stock_exchange:  '📈',
 };

@@ -273,7 +273,8 @@ export type UnitType =
   | 'crossbowman' | 'catapult' | 'ballista'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound'
-  | 'caravan';
+  | 'caravan'
+  | 'expedition';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
@@ -293,6 +294,7 @@ export interface UnitDefinition {
   domain?: 'land' | 'naval';
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
   attackProfile?: UnitAttackProfile;
+  terrainCostOverrides?: Partial<Record<string, number>>;
 }
 
 export interface WorkerTask {
