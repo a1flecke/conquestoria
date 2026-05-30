@@ -211,6 +211,15 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
     }
 
+    // Resource outpost upkeep: 2 gold/turn per completed outpost owned by this civ
+    const outpostUpkeep = Object.values(newState.map.tiles).filter(
+      tile =>
+        tile.improvement === 'resource_outpost' &&
+        tile.improvementTurnsLeft === 0 &&
+        tile.owner === civId,
+    ).length * 2;
+    totalGold -= outpostUpkeep;
+
     // Vassalage tribute (25% of gold income flows to overlord)
     if (civ.diplomacy?.vassalage.overlord) {
       const tribute = processVassalageTribute(totalGold);
