@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
 import type { GameState } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
 
 // Minimal GameState builder — only the fields getCivAvailableResources reads.
 function makeTechState(completed: string[] = []) {
@@ -440,4 +441,136 @@ describe('outpost pass (Pillar 2)', () => {
     expect(result.has('iron')).toBe(false);
   });
 
+});
+
+// ── performEstablishOutpost tests ────────────────────────────────────────────
+
+function makeStateWithExpedition(opts: {
+  resource: string | null;
+  improvement: string;
+  tileInCityTerritory: boolean;
+  civTechs: string[];
+}): { state: GameState; unitId: string } {
+  const civId = 'player';
+  const pos = { q: 5, r: 5 };
+  const tileKey = hexKey(pos);
+  const cityPos = { q: 3, r: 3 };
+
+  const resourceTile: Record<string, unknown> = {
+    coord: pos,
+    terrain: 'hills',
+    elevation: 'flat',
+    resource: opts.resource,
+    improvement: opts.improvement,
+    improvementTurnsLeft: 0,
+    owner: opts.tileInCityTerritory ? civId : null,
+    hasRiver: false,
+    wonder: null,
+  };
+
+  const ownedTiles = opts.tileInCityTerritory
+    ? [cityPos, pos]
+    : [cityPos];
+
+  const unitId = 'unit-test-expedition';
+
+  const state = {
+    map: {
+      width: 20, height: 20, wrapsHorizontally: false, rivers: [],
+      tiles: {
+        '3,3': {
+          coord: cityPos, terrain: 'grassland', elevation: 'lowland',
+          resource: null, improvement: 'none', improvementTurnsLeft: 0,
+          owner: null, hasRiver: false, wonder: null,
+        },
+        [tileKey]: resourceTile,
+      },
+    },
+    cities: {
+      'city-1': {
+        id: 'city-1', name: 'TestCity', owner: civId, position: cityPos,
+        ownedTiles,
+        population: 1, food: 0, production: 0, gold: 0,
+        buildings: [], productionQueue: [], workedTiles: [], specialistSlots: [],
+        garrisonUnitId: null, hp: 100, maxHp: 100,
+      },
+    },
+    civilizations: {
+      [civId]: {
+        id: civId, cities: ['city-1'],
+        techState: {
+          completed: opts.civTechs,
+          currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {},
+        },
+        units: [unitId],
+      },
+    },
+    units: {
+      [unitId]: {
+        id: unitId, type: 'expedition', owner: civId, position: { ...pos },
+        movementPointsLeft: 3, health: 100, experience: 0,
+        hasMoved: false, hasActed: false, isResting: false,
+      },
+    },
+  } as unknown as GameState;
+
+  return { state, unitId };
+}
+
+describe('performEstablishOutpost', () => {
+  it('sets tile.improvement = resource_outpost, improvementTurnsLeft = 2, owner = civId; removes unit', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: 'iron',
+      improvement: 'none',
+      tileInCityTerritory: false,
+      civTechs: ['bronze-working'],
+    });
+    const newState = performEstablishOutpost(state, unitId);
+    const tile = newState.map.tiles[hexKey({ q: 5, r: 5 })];
+    expect(tile.improvement).toBe('resource_outpost');
+    expect(tile.improvementTurnsLeft).toBe(2);
+    expect(tile.owner).toBe('player');
+    expect(newState.units[unitId]).toBeUndefined();
+  });
+
+  it('is unavailable when tile is already in civ city territory (canEstablishOutpost = false)', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: 'iron',
+      improvement: 'none',
+      tileInCityTerritory: true,
+      civTechs: ['bronze-working'],
+    });
+    expect(canEstablishOutpost(state, unitId)).toBe(false);
+  });
+
+  it('is unavailable when tile has no resource', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: null,
+      improvement: 'none',
+      tileInCityTerritory: false,
+      civTechs: ['foraging'],
+    });
+    expect(canEstablishOutpost(state, unitId)).toBe(false);
+  });
+
+  it('is unavailable when civ lacks the enabling tech', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: 'iron',
+      improvement: 'none',
+      tileInCityTerritory: false,
+      civTechs: [],
+    });
+    expect(canEstablishOutpost(state, unitId)).toBe(false);
+  });
+
+  it('returns a new state object (immutability)', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: 'iron',
+      improvement: 'none',
+      tileInCityTerritory: false,
+      civTechs: ['bronze-working'],
+    });
+    const newState = performEstablishOutpost(state, unitId);
+    expect(newState).not.toBe(state);
+  });
 });
