@@ -9,6 +9,7 @@ import {
   SpyOperativeSprite, SpyHackerSprite,
   AxemanSprite, SpearmanSprite, HorsemanSprite, CavalrySprite, KnightSprite,
   CrossbowmanSprite, CatapultSprite, BallistaSprite,
+  CaravanSprite, ExpeditionSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -20,6 +21,7 @@ import {
   SafehouseSprite, IntelAgencySprite, SecurityBureauSprite,
   BronzeWorkshopSprite, ArmorySprite, RanchSprite, CavalryAcademySprite,
   IronFoundrySprite, WarAcademySprite, MasonryWorksSprite, SiegeWorkshopSprite,
+  CaravanseraiSprite, BankSprite, StockExchangeSprite,
 } from './buildings';
 
 export type UnitSpriteComponent = (props: UnitSpriteProps) => string;
@@ -115,8 +117,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   crossbowman:    withMotion('crossbowman', CrossbowmanSprite),
   catapult:       withMotion('catapult', CatapultSprite),
   ballista:       withMotion('ballista', BallistaSprite),
-  caravan:        withMotion('caravan', WorkerSprite), // uses civilian fallback; dedicated sprite TBD
-  expedition:     withMotion('expedition', ScoutSprite), // uses explorer fallback; dedicated sprite TBD via Claude Design
+  caravan:        withMotion('caravan', CaravanSprite),
+  expedition:     withMotion('expedition', ExpeditionSprite),
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {
@@ -152,9 +154,9 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   'war-academy':          WarAcademySprite,
   'masonry-works':        MasonryWorksSprite,
   'siege-workshop':       SiegeWorkshopSprite,
-  caravanserai:           MarketplaceSprite,  // civilian fallback; dedicated sprite TBD
-  bank:                   MarketplaceSprite,  // civilian fallback; dedicated sprite TBD
-  stock_exchange:         MarketplaceSprite,  // civilian fallback; dedicated sprite TBD
+  caravanserai:           CaravanseraiSprite,
+  bank:                   BankSprite,
+  stock_exchange:         StockExchangeSprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;

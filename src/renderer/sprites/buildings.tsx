@@ -1043,3 +1043,214 @@ export function SiegeWorkshopSprite({ palette, svgOnly = false }: BuildingSprite
     </BuildingFrame>
   );
 }
+
+/* === CARAVANSERAI === */
+
+export function CaravanseraiSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Caravanserai" sub="Economy" category="gold" svgOnly={svgOnly}>
+      <BuildingPlinth w={160} color={P.stone.dark} />
+      {/* sandy inner courtyard peeking above the wall */}
+      <rect x="36" y="66" width="120" height="20" fill={P.ground.sand} />
+      {/* camel head peeks over the inner wall — .cq-peek bob */}
+      <g transform="translate(122 70)"><g className="cq-peek">
+        <path d="M-2,14 Q-6,2 -3,-8 Q-1,-16 6,-18 Q12,-19 13,-13 L9,-10 Q4,-9 3,-3 Q2,6 4,14 Z" fill="#c8a878" stroke={P.ink.line} strokeWidth="0.8" />
+        <ellipse cx="9" cy="-13" rx="5" ry="4" fill="#c8a878" stroke={P.ink.line} strokeWidth="0.7" />
+        <ellipse cx="13" cy="-11" rx="2.6" ry="2" fill="#b89568" stroke={P.ink.line} strokeWidth="0.5" />
+        <path d="M5,-17 L4,-22 L8,-18 Z" fill="#b89568" stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="10" cy="-14" r="0.7" fill={P.ink.line} />
+      </g></g>
+      {/* main sandstone wall + crenellations */}
+      <rect x="34" y="80" width="124" height="60" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="34" y="80" width="124" height="60" fill="url(#stoneTexture)" opacity="0.6" />
+      <rect x="30" y="74" width="132" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="34" y="68" width="10" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="54" y="68" width="10" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="74" y="68" width="10" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="110" y="68" width="10" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="130" y="68" width="10" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="150" y="68" width="10" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* arched windows on each wing */}
+      <path d="M48,140 L48,116 Q48,106 56,106 Q64,106 64,116 L64,140 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
+      <path d="M51,140 L51,117 Q51,110 56,110 Q61,110 61,117 L61,140 Z" fill={P.ink.line} />
+      <path d="M128,140 L128,116 Q128,106 136,106 Q144,106 144,116 L144,140 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
+      <path d="M131,140 L131,117 Q131,110 136,110 Q141,110 141,117 L141,140 Z" fill={P.ink.line} />
+      {/* central pointed gateway, wide enough for a loaded camel */}
+      <path d="M74,140 L74,104 Q74,86 96,80 Q118,86 118,104 L118,140 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M80,140 L80,106 Q80,92 96,87 Q112,92 112,106 L112,140 Z" fill={P.ink.line} />
+      <path d="M91,86 L101,86 L99,92 L93,92 Z" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* courtyard well in the foreground */}
+      <g transform="translate(52 132)">
+        <ellipse cx="0" cy="2" rx="11" ry="4" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.7" />
+        <ellipse cx="0" cy="0" rx="11" ry="4" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
+        <ellipse cx="0" cy="0" rx="6" ry="2.2" fill={P.ground.water} />
+        <rect x="-1" y="-12" width="2" height="12" fill={P.wood.dark} />
+        <rect x="-7" y="-13" width="14" height="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+      {/* traders milling at the gate — bustle in the busy state (.cq-trade-fig) */}
+      <g className="cq-trade-fig" transform="translate(86 138)">
+        <circle cx="0" cy="-9" r="3" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M-4,4 Q-4,-6 0,-6 Q4,-6 4,4 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <g className="cq-trade-fig" transform="translate(104 139)">
+        <circle cx="0" cy="-8" r="2.8" fill={P.skin.cool} stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M-4,4 Q-4,-5 0,-5 Q4,-5 4,4 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <g className="cq-trade-fig" transform="translate(70 140)">
+        <circle cx="0" cy="-7" r="2.6" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M-3.6,4 Q-3.6,-4 0,-4 Q3.6,-4 3.6,4 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <Banner x={62} y={66} palette={palette} scale={0.9} />
+    </BuildingFrame>
+  );
+}
+
+/* === BANK === */
+
+export function BankSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Bank" sub="Economy" category="gold" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} />
+      {/* steps */}
+      <rect x="36" y="134" width="120" height="6" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="44" y="128" width="104" height="6" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* facade behind columns */}
+      <rect x="52" y="72" width="88" height="58" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="52" y="72" width="88" height="58" fill="url(#stoneTexture)" opacity="0.5" />
+      {/* four fluted columns */}
+      <g>
+        <ellipse cx="44" cy="74" rx="8" ry="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="37" y="74" width="14" height="54" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.7" />
+        <line x1="40" y1="78" x2="40" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <line x1="44" y1="78" x2="44" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <line x1="48" y1="78" x2="48" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <rect x="35" y="126" width="18" height="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <g>
+        <ellipse cx="66" cy="74" rx="8" ry="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="59" y="74" width="14" height="54" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.7" />
+        <line x1="62" y1="78" x2="62" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <line x1="66" y1="78" x2="66" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <line x1="70" y1="78" x2="70" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <rect x="57" y="126" width="18" height="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <g>
+        <ellipse cx="126" cy="74" rx="8" ry="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="119" y="74" width="14" height="54" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.7" />
+        <line x1="122" y1="78" x2="122" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <line x1="126" y1="78" x2="126" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <line x1="130" y1="78" x2="130" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <rect x="117" y="126" width="18" height="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <g>
+        <ellipse cx="148" cy="74" rx="8" ry="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="141" y="74" width="14" height="54" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.7" />
+        <line x1="144" y1="78" x2="144" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <line x1="148" y1="78" x2="148" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <line x1="152" y1="78" x2="152" y2="126" stroke={P.stone.mid} strokeWidth="0.5" />
+        <rect x="139" y="126" width="18" height="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      {/* entablature + triangular pediment */}
+      <rect x="34" y="64" width="124" height="10" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M30,64 L96,34 L162,64 Z" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M30,64 L96,34 L162,64 Z" fill="url(#stoneTexture)" opacity="0.5" />
+      <circle cx="96" cy="55" r="4.5" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* vault interior glow — .cq-glow implies stored wealth */}
+      <rect className="cq-glow" x="82" y="86" width="28" height="42" rx="2" fill={P.metal.gold} opacity="0.3" />
+      {/* iron vault door + gear-wheel lock + gold rivets */}
+      <rect x="84" y="88" width="24" height="42" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+      <rect x="84" y="96" width="24" height="2.4" fill={P.ink.soft} />
+      <rect x="84" y="118" width="24" height="2.4" fill={P.ink.soft} />
+      <circle cx="96" cy="109" r="8" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="96" cy="109" r="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      <line x1="104" y1="109" x2="88" y2="109" stroke={P.ink.line} strokeWidth="0.7" />
+      <line x1="101.66" y1="114.66" x2="90.34" y2="103.34" stroke={P.ink.line} strokeWidth="0.7" />
+      <line x1="96" y1="117" x2="96" y2="101" stroke={P.ink.line} strokeWidth="0.7" />
+      <line x1="90.34" y1="114.66" x2="101.66" y2="103.34" stroke={P.ink.line} strokeWidth="0.7" />
+      <circle cx="89" cy="92" r="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.3" />
+      <circle cx="103" cy="92" r="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.3" />
+      {/* stacked gold coins at the foot of the steps — glint when busy (.cq-coin-shimmer) */}
+      <g className="cq-coin-shimmer" transform="translate(60 132)">
+        <ellipse cx="0" cy="0" rx="7" ry="2.6" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="0" cy="-2.8" rx="7" ry="2.6" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="1" cy="-5.6" rx="7" ry="2.6" fill="#e8c64a" stroke={P.ink.line} strokeWidth="0.6" />
+      </g>
+      {/* patrons on the steps — bustle when busy (.cq-trade-fig) */}
+      <g className="cq-trade-fig" transform="translate(118 132)">
+        <circle cx="0" cy="-9" r="3" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M-4,5 Q-4,-6 0,-6 Q4,-6 4,5 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <g className="cq-trade-fig" transform="translate(132 137)">
+        <circle cx="0" cy="-8" r="2.8" fill={P.skin.cool} stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M-3.6,4 Q-3.6,-5 0,-5 Q3.6,-5 3.6,4 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <Banner x={96} y={34} palette={palette} scale={0.9} />
+    </BuildingFrame>
+  );
+}
+
+/* === STOCK EXCHANGE === */
+
+export function StockExchangeSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Stock Exchange" sub="Economy" category="gold" svgOnly={svgOnly}>
+      <BuildingPlinth w={170} />
+      {/* main hall */}
+      <rect x="26" y="86" width="140" height="54" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="26" y="86" width="140" height="54" fill="url(#stoneTexture)" opacity="0.5" />
+      <rect x="22" y="80" width="148" height="8" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* domed rotunda */}
+      <rect x="78" y="58" width="36" height="22" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M76,60 Q96,30 116,60 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M76,60 Q96,42 116,60" fill="none" stroke={P.stone.light} strokeWidth="0.8" opacity="0.6" />
+      <circle cx="96" cy="32" r="2.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* three tall arched windows, warm glow inside — .cq-glow */}
+      <rect className="cq-glow" x="38" y="98" width="12" height="34" fill="#ffce6a" opacity="0.4" />
+      <path d="M37,134 L37,108 Q37,98 44,98 Q51,98 51,108 L51,134 Z" fill="none" stroke={P.stone.dark} strokeWidth="1.4" />
+      <line x1="44" y1="100" x2="44" y2="134" stroke={P.stone.dark} strokeWidth="0.6" />
+      <rect className="cq-glow" x="90" y="98" width="12" height="34" fill="#ffce6a" opacity="0.4" />
+      <path d="M89,134 L89,108 Q89,98 96,98 Q103,98 103,108 L103,134 Z" fill="none" stroke={P.stone.dark} strokeWidth="1.4" />
+      <line x1="96" y1="100" x2="96" y2="134" stroke={P.stone.dark} strokeWidth="0.6" />
+      <rect className="cq-glow" x="132" y="98" width="12" height="34" fill="#ffce6a" opacity="0.4" />
+      <path d="M131,134 L131,108 Q131,98 138,98 Q145,98 145,108 L145,134 Z" fill="none" stroke={P.stone.dark} strokeWidth="1.4" />
+      <line x1="138" y1="100" x2="138" y2="134" stroke={P.stone.dark} strokeWidth="0.6" />
+      {/* exterior ledger / ticker boards with quill sparks */}
+      <g transform="translate(34 96)">
+        <rect x="0" y="0" width="26" height="20" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.7" />
+        <line x1="3" y1="4" x2="23" y2="4" stroke={P.ink.soft} strokeWidth="0.6" />
+        <line x1="3" y1="8" x2="23" y2="8" stroke={P.ink.soft} strokeWidth="0.6" />
+        <line x1="3" y1="12" x2="23" y2="12" stroke={P.ink.soft} strokeWidth="0.6" />
+        <line x1="3" y1="16" x2="23" y2="16" stroke={P.ink.soft} strokeWidth="0.6" />
+        <circle className="cq-spark" cx="20" cy="5" r="1.3" fill="#ffd966" />
+        <circle className="cq-spark cq-spark--b" cx="22" cy="11" r="1.1" fill="#ffd966" />
+      </g>
+      <g transform="translate(132 96)">
+        <rect x="0" y="0" width="26" height="20" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.7" />
+        <line x1="3" y1="4" x2="23" y2="4" stroke={P.ink.soft} strokeWidth="0.6" />
+        <line x1="3" y1="8" x2="23" y2="8" stroke={P.ink.soft} strokeWidth="0.6" />
+        <line x1="3" y1="12" x2="23" y2="12" stroke={P.ink.soft} strokeWidth="0.6" />
+        <line x1="3" y1="16" x2="23" y2="16" stroke={P.ink.soft} strokeWidth="0.6" />
+        <circle className="cq-spark cq-spark--c" cx="5" cy="6" r="1.2" fill="#ffb84d" />
+      </g>
+      {/* corner bell tower with a hanging bronze bell */}
+      <rect x="150" y="52" width="20" height="34" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="150" y="52" width="20" height="34" fill="url(#stoneTexture)" opacity="0.5" />
+      <path d="M148,52 L172,52 L160,40 Z" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.7" />
+      <path d="M154,72 Q154,62 160,62 Q166,62 166,72 Z" fill={P.ink.line} />
+      <path d="M157,70 Q157,64 160,64 Q163,64 163,70 L164,72 L156,72 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="160" cy="72" r="0.9" fill={P.metal.bronze} />
+      {/* two haggling merchant silhouettes — bustle when busy (.cq-trade-fig) */}
+      <g className="cq-trade-fig" transform="translate(70 130)">
+        <circle cx="0" cy="-12" r="4" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.5" />
+        <path d="M-6,8 Q-6,-8 0,-8 Q6,-8 6,8 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        <path d="M5,-6 Q12,-10 13,-15" fill="none" stroke={P.skin.warm} strokeWidth="2.2" strokeLinecap="round" />
+      </g>
+      <g className="cq-trade-fig" transform="translate(108 130)">
+        <circle cx="0" cy="-12" r="4" fill={P.skin.cool} stroke={P.ink.line} strokeWidth="0.5" />
+        <path d="M-6,8 Q-6,-8 0,-8 Q6,-8 6,8 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
+        <path d="M-5,-6 Q-12,-9 -13,-14" fill="none" stroke={P.skin.cool} strokeWidth="2.2" strokeLinecap="round" />
+      </g>
+      <Banner x={96} y={20} palette={palette} scale={0.85} />
+    </BuildingFrame>
+  );
+}

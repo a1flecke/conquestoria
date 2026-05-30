@@ -568,3 +568,60 @@
     transform-box: fill-box;
   }
 }
+
+/* ───────────────────────── S5 · economy & expansion ───────────────────────── */
+
+/* Trade buildings come alive in the BUSY state: patrons mill at the
+   counter, coins are counted, quills tally the ledgers. Idle = open but
+   calm. (Banner / glow / peek stay always-on for ambient life.) */
+@keyframes cq-bustle {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  50%      { transform: translateX(1.4px) translateY(-0.8px); }
+}
+.cq-trade-fig { transform-box: fill-box; transform-origin: 50% 100%; }
+[data-state="busy"] .cq-trade-fig { animation: cq-bustle 0.8s ease-in-out infinite; }
+[data-state="busy"] .cq-trade-fig:nth-of-type(2n) { animation-delay: 0.3s; }
+[data-state="busy"] .cq-trade-fig:nth-of-type(3n) { animation-delay: 0.55s; }
+[data-state="busy"] .cq-coin-shimmer { animation: cq-shimmer 1.1s ease-in-out infinite; }
+
+/* Non-combat CIVILIAN units perform a WORK action — never a combat lunge.
+   The dedicated `work` state means cq-lunge (keyed on `attack`) never fires. */
+@keyframes cq-work-bob {
+  0%, 100% { transform: translateY(0); }
+  45%      { transform: translateY(1.8px); }
+}
+[data-state="work"] .cq-sprite-figure { animation: cq-work-bob 1.1s ease-in-out infinite; }
+/* Prospector chops the pick down into the ground — pivots at the grip
+   via the inline transform-origin already on the .cq-tool group. */
+@keyframes cq-dig {
+  0%   { transform: rotate(0deg); }
+  45%  { transform: rotate(30deg); }
+  62%  { transform: rotate(24deg); }
+  100% { transform: rotate(0deg); }
+}
+[data-state="work"] .cq-tool { animation: cq-dig 0.85s ease-in-out infinite; }
+/* Dust kicked up by the dig. */
+@keyframes cq-work-dust {
+  0%, 58% { opacity: 0; transform: translateY(0) scale(0.5); }
+  72%     { opacity: 0.7; }
+  100%    { opacity: 0; transform: translateY(-7px) scale(1.5); }
+}
+.cq-work-dust { transform-box: fill-box; transform-origin: center; opacity: 0; }
+[data-state="work"] .cq-work-dust { animation: cq-work-dust 0.85s ease-out infinite; }
+/* Caravan deposits its goods — coins glint as a trade route is established. */
+.cq-deliver { opacity: 0; }
+[data-state="work"] .cq-deliver { animation: cq-shimmer 1.1s ease-in-out infinite; }
+
+/* Pause everything when prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .cq-sprite-figure, .cq-weapon, .cq-tool, .cq-smoke, .cq-dust, .cq-work-dust,
+  .cq-spark, .cq-glow, .cq-fire, .cq-wheel, .cq-water-stream, .cq-spotlight,
+  .cq-camera-led, .cq-beacon, .cq-crowd-fig, .cq-trade-fig, .cq-coin-shimmer,
+  .cq-deliver, .cq-peek, .cq-mark, .cq-candle, .cq-shimmer,
+  .cq-banner-cloth, .cq-muzzle-flash, .cq-cape {
+    animation: none !important;
+  }
+}
+
+/* Pause when the sprite is offscreen (set by IntersectionObserver in the runtime) */
+[data-visible="false"] * { animation-play-state: paused !important; }

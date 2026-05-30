@@ -7,6 +7,8 @@ import { resolveTilePresentationForViewer, type TilePresentationKind } from './t
 import { drawNaturalWonderLandmark } from './wonders/natural-wonder-renderer';
 import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/trade-system';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
+import { getOutpostMarkerImage } from './improvements/resource-outpost-marker';
+import { getTerrainTileImage } from './terrain/terrain-tile-loader';
 
 // --- Improvement icons ---
 
@@ -19,7 +21,7 @@ export const IMPROVEMENT_ICONS: Record<string, string> = {
   pasture: '🐂',
   camp: '⛺',
   quarry: '⚒️',
-  resource_outpost: '🚩',  // dedicated SVG sprite TBD via Claude Design
+  resource_outpost: '🚩',  // emoji fallback; SVG drawn via getOutpostMarkerImage when loaded
 };
 
 // --- Terrain labels ---
@@ -261,9 +263,22 @@ function drawHex(
   }
   ctx.closePath();
 
-  // Fill with terrain color
+  // Fill with terrain color (always — acts as fallback while tile loads)
   ctx.fillStyle = TERRAIN_COLORS[tile.terrain] ?? '#888';
   ctx.fill();
+
+  // Draw terrain tile image if loaded (replaces flat color within canvas hex clip)
+  const terrainImg = getTerrainTileImage(tile.terrain, tile.coord.q, tile.coord.r);
+  if (terrainImg) {
+    ctx.save();
+    ctx.clip();
+    // Scale to hex height (2*size); maintain SVG aspect ratio (viewBox 128×111).
+    // The SVG's hex is wider than the canvas hex, so the canvas clip trims the edges cleanly.
+    const drawH = size * 2;
+    const drawW = drawH * (128 / 111);
+    ctx.drawImage(terrainImg, cx - drawW / 2, cy - size, drawW, drawH);
+    ctx.restore();
+  }
 
   // Border
   ctx.strokeStyle = 'rgba(0,0,0,0.15)';
@@ -272,12 +287,26 @@ function drawHex(
 
   // Draw improvement indicator
   if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.font = `${size * 0.5}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const icon = IMPROVEMENT_ICONS[tile.improvement] ?? '◆';
-    ctx.fillText(icon, cx, cy);
+    if (tile.improvement === 'resource_outpost') {
+      const outpostImg = getOutpostMarkerImage();
+      if (outpostImg) {
+        const s = size * 0.6;
+        ctx.drawImage(outpostImg, cx - s / 2, cy - s, s, s);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.font = `${size * 0.5}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🚩', cx, cy);
+      }
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = `${size * 0.5}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const icon = IMPROVEMENT_ICONS[tile.improvement] ?? '◆';
+      ctx.fillText(icon, cx, cy);
+    }
   }
 
   // Draw construction progress indicator
