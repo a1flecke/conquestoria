@@ -34,6 +34,8 @@ const FALLBACK_ICONS: Record<string, string> = {
   war_hound: '🐺',
   // S5 — trade unit
   caravan: '🐪',
+  // Resource Accessibility MR 2b
+  expedition: '🧭',
 };
 
 export interface UnitVisual {

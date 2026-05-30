@@ -8,6 +8,7 @@ import {
   getUnmovedUnits,
   healUnit,
   getMovementBlockerReason,
+  getMovementCostForUnit,
 } from '@/systems/unit-system';
 import type { GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
@@ -400,5 +401,31 @@ describe('new unit types', () => {
     expect(unit.type).toBe('musketeer');
     expect(UNIT_DEFINITIONS.musketeer.strength).toBe(50);
     expect(UNIT_DEFINITIONS.musketeer.productionCost).toBe(90);
+  });
+});
+
+describe('Expedition terrain movement (terrainCostOverrides)', () => {
+  it('expedition has movement cost 1 on hills (override, default is 2)', () => {
+    const def = UNIT_DEFINITIONS['expedition'];
+    const cost = getMovementCostForUnit('hills', 'land', def.terrainCostOverrides);
+    expect(cost).toBe(1);
+  });
+
+  it('expedition has movement cost 1 on mountains (override, default is 4)', () => {
+    const def = UNIT_DEFINITIONS['expedition'];
+    const cost = getMovementCostForUnit('mountain', 'land', def.terrainCostOverrides);
+    expect(cost).toBe(1);
+  });
+
+  it('warriors pay the standard cost 4 for mountains (no override)', () => {
+    const def = UNIT_DEFINITIONS['warrior'];
+    const cost = getMovementCostForUnit('mountain', 'land', def.terrainCostOverrides);
+    expect(cost).toBe(4);
+  });
+
+  it('warriors pay cost 2 for hills (no override)', () => {
+    const def = UNIT_DEFINITIONS['warrior'];
+    const cost = getMovementCostForUnit('hills', 'land', def.terrainCostOverrides);
+    expect(cost).toBe(2);
   });
 });
