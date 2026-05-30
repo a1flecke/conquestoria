@@ -153,6 +153,8 @@ export function canBuildImprovement(
   if (!definition) return false;
   if (options.isCityTile) return false;
   if (ownerId && tile.owner !== ownerId) return false;
+  // resource_outpost is established only by Expeditions — Workers can never overwrite it
+  if (tile.improvement === 'resource_outpost') return false;
   if (tile.improvement !== 'none' && (!options.allowReplacement || tile.improvement === type)) return false;
   if (!definition.validTerrains.includes(tile.terrain)) return false;
   if (definition.requiresRiver && !tile.hasRiver) return false;
@@ -199,6 +201,8 @@ export function getWorkerActionBlockerReason(
   if (!tile) return 'invalid-terrain';
   if (ownerId && tile.owner !== ownerId) return 'outside-territory';
   if (options.isCityTile) return 'city-center';
+  // resource_outpost is established only by Expeditions — Workers can never overwrite it
+  if (tile.improvement === 'resource_outpost') return 'already-improved';
   if (tile.improvement !== 'none' && (!options.allowReplacement || tile.improvement === action)) return 'already-improved';
 
   if (action === 'drain_swamp') {
