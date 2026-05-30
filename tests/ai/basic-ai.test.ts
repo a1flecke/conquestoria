@@ -1604,3 +1604,105 @@ describe('S4b — AI resource-aware production', () => {
     expect(city.productionQueue).not.toContain('bronze-workshop');
   });
 });
+
+describe('Expedition AI parity', () => {
+  function makeExpeditionAiState(opts: {
+    completedTechs: string[];
+    expeditionUnit?: { pos: { q: number; r: number }; resource: string; techForResource: string };
+  }): GameState {
+    const cityTile = {
+      coord: { q: 0, r: 0 }, terrain: 'grassland' as const,
+      elevation: 'lowland' as const, resource: null, improvement: 'none' as const,
+      owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    // Resource tile far outside city territory (distance ~7)
+    const farResourcePos = { q: 5, r: 0 };
+    const farResourceTile = {
+      coord: farResourcePos, terrain: 'forest' as const,
+      elevation: 'lowland' as const, resource: 'ivory' as const,
+      improvement: 'none' as const, owner: null,
+      improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+
+    const tiles: Record<string, GameState['map']['tiles'][string]> = {
+      '0,0': cityTile,
+      [hexKey(farResourcePos)]: farResourceTile,
+    };
+
+    // If testing expedition use, also put the expedition's resource tile in
+    let expeditionUnitEntry: Record<string, GameState['units'][string]> = {};
+    let civUnitIds: string[] = [];
+
+    if (opts.expeditionUnit) {
+      const { pos, resource } = opts.expeditionUnit;
+      const resourceKey = hexKey(pos);
+      tiles[resourceKey] = {
+        coord: pos, terrain: 'hills' as const,
+        elevation: 'lowland' as const, resource: resource as never,
+        improvement: 'none' as const, owner: null,
+        improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+      expeditionUnitEntry = {
+        'ai-exp-1': {
+          id: 'ai-exp-1', type: 'expedition' as const, owner: 'ai-1',
+          position: { ...pos }, movementPointsLeft: 3, health: 100, experience: 0,
+          hasMoved: false, hasActed: false, isResting: false,
+        } as never,
+      };
+      civUnitIds = ['ai-exp-1'];
+    }
+
+    const counters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    const map = { width: 20, height: 20, tiles, wrapsHorizontally: false, rivers: [] };
+    const city = foundCity('ai-1', { q: 0, r: 0 }, map, counters);
+
+    return {
+      turn: 5, era: 1, currentPlayer: 'ai-1', gameOver: false, winner: null,
+      map,
+      units: expeditionUnitEntry,
+      cities: { [city.id]: city },
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1', name: 'Test AI', color: '#ff0000',
+          isHuman: false, civType: 'generic',
+          cities: [city.id],
+          units: civUnitIds,
+          techState: {
+            completed: opts.completedTechs,
+            current: null, progress: 0,
+          },
+          gold: 50,
+          visibility: { tiles: {} },
+          score: 0,
+          diplomacy: { relationships: {}, atWarWith: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
+        },
+      },
+      barbarianCamps: {}, tribalVillages: {}, minorCivs: {},
+      marketplace: { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] },
+      espionage: {},
+      legendaryWonderProjects: {},
+    } as unknown as GameState;
+  }
+
+  it('queues an Expedition when foraging tech is researched and an unowned resource tile exists', () => {
+    const state = makeExpeditionAiState({ completedTechs: ['foraging'] });
+    const bus = new EventBus();
+    const newState = processAITurn(state, 'ai-1', bus);
+    const city = Object.values(newState.cities).find(c => c.owner === 'ai-1')!;
+    expect(city.productionQueue).toContain('expedition');
+  });
+
+  it('calls performEstablishOutpost when Expedition is on an eligible resource tile', () => {
+    const pos = { q: 8, r: 0 };
+    const state = makeExpeditionAiState({
+      completedTechs: ['foraging', 'bronze-working'],
+      expeditionUnit: { pos, resource: 'iron', techForResource: 'bronze-working' },
+    });
+    const bus = new EventBus();
+    const newState = processAITurn(state, 'ai-1', bus);
+    // Unit should be consumed by outpost
+    expect(newState.units['ai-exp-1']).toBeUndefined();
+    // Tile should have an outpost
+    expect(newState.map.tiles[hexKey(pos)].improvement).toBe('resource_outpost');
+  });
+});

@@ -1,6 +1,6 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { foundCity, getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
@@ -53,8 +53,9 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
-import { canEstablishRoute, establishRoute, getRouteCapacity } from '@/systems/trade-system';
+import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
+import { canEstablishRoute, establishRoute, getRouteCapacity, RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+
 
 function getPersonality(state: GameState, civType: string): PersonalityTraits {
   const def = resolveCivDefinition(state, civType);
@@ -464,6 +465,33 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
+  // --- Handle expedition outpost establishment ---
+  const idleExpeditions = (civ.units ?? [])
+    .map(id => newState.units[id])
+    .filter((u): u is Unit => !!u && u.type === 'expedition' && !u.hasActed && !u.hasMoved);
+
+  for (const exp of idleExpeditions) {
+    if (canEstablishOutpost(newState, exp.id)) {
+      newState = performEstablishOutpost(newState, exp.id);
+      civ = newState.civilizations[civId];
+      continue;
+    }
+    // Move toward nearest unowned resource tile the civ has tech for
+    const nearest = findNearestResourceTile(newState, exp, civId);
+    if (nearest) {
+      const path = findPath(exp.position, nearest, newState.map);
+      if (path && path.length >= 2) {
+        const next = path[1];
+        const occupied = Object.values(newState.units).some(
+          u => u.id !== exp.id && hexKey(u.position) === hexKey(next),
+        );
+        if (!occupied) {
+          newState.units[exp.id] = moveUnit(exp, next, 1);
+        }
+      }
+    }
+  }
+
   // --- Handle research (personality-driven) ---
   if (!civ.techState.currentResearch) {
     const available = getAvailableTechs(civ.techState);
@@ -548,8 +576,29 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {
-        const chosen = chooseProduction(personality, derivedItems.length > 0 ? derivedItems : ['warrior'], isUnderThreat, civ.cities.length);
-        city.productionQueue = [chosen];
+        // Train Expedition when: foraging tech, an unowned resource tile within
+        // 8 hex distance exists, and civ has no uncommitted expedition unit.
+        const hasForagingTech = civ.techState.completed.includes('foraging');
+        const hasUncommittedExpedition = (civ.units ?? []).some(id => {
+          const u = newState.units[id];
+          return u?.type === 'expedition' && !u.hasActed;
+        });
+        const cityPos = city.position;
+        const hasNearbyUnownedResource = hasForagingTech && Object.values(newState.map.tiles).some(tile => {
+          if (!tile.resource || tile.owner !== null || tile.improvement !== 'none') return false;
+          const resDef = RESOURCE_DEFINITIONS.find(d => d.id === tile.resource);
+          if (!resDef || !civ.techState.completed.includes(resDef.tech)) return false;
+          const dist = newState.map.wrapsHorizontally
+            ? wrappedHexDistance(tile.coord, cityPos, newState.map.width)
+            : hexDistance(tile.coord, cityPos);
+          return dist <= 8;
+        });
+        if (hasForagingTech && !hasUncommittedExpedition && trainableUnits.includes('expedition') && hasNearbyUnownedResource) {
+          city.productionQueue = ['expedition'];
+        } else {
+          const chosen = chooseProduction(personality, derivedItems.length > 0 ? derivedItems : ['warrior'], isUnderThreat, civ.cities.length);
+          city.productionQueue = [chosen];
+        }
       }
     }
   }
@@ -1124,4 +1173,33 @@ export function chooseAiMission(
     if (available.includes(mission)) return mission;
   }
   return available[0];
+}
+
+/**
+ * Finds the nearest unowned resource tile that the civ has tech to exploit.
+ * Used by the AI to direct Expedition movement.
+ */
+function findNearestResourceTile(
+  state: GameState,
+  unit: Unit,
+  civId: string,
+): HexCoord | null {
+  const civ = state.civilizations[civId];
+  if (!civ) return null;
+  const completedTechs = new Set(civ.techState.completed);
+  const resourceDefMap = new Map<string, typeof RESOURCE_DEFINITIONS[number]>(RESOURCE_DEFINITIONS.map(d => [d.id as string, d]));
+
+  let best: { coord: HexCoord; dist: number } | null = null;
+  for (const tile of Object.values(state.map.tiles)) {
+    if (!tile.resource || tile.owner !== null || tile.improvement !== 'none') continue;
+    const def = resourceDefMap.get(tile.resource);
+    if (!def || !completedTechs.has(def.tech)) continue;
+
+    const dist = state.map.wrapsHorizontally
+      ? wrappedHexDistance(tile.coord, unit.position, state.map.width)
+      : hexDistance(tile.coord, unit.position);
+
+    if (!best || dist < best.dist) best = { coord: tile.coord, dist };
+  }
+  return best?.coord ?? null;
 }
