@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
 import type { GameState } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
 
 class MockElement {
   tagName: string;
@@ -931,5 +932,88 @@ describe('renderSelectedUnitInfo - fortify button', () => {
 
     findButtons(container).find(b => b.textContent === 'Unfortify')?.click();
     expect(fortifiedId).toBe('warrior-1');
+  });
+});
+
+describe('Expedition — Establish Outpost action', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeExpeditionState(tileInCityTerritory: boolean): GameState {
+    const pos = { q: 3, r: 3 };
+    const tileKey = hexKey(pos);
+    const cityPos = { q: 0, r: 0 };
+    const unitId = 'u-expedition';
+
+    const ownedTiles = tileInCityTerritory ? [cityPos, pos] : [cityPos];
+
+    return {
+      turn: 1, era: 1, currentPlayer: 'player', gameOver: false, winner: null,
+      map: {
+        width: 20, height: 20, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          [hexKey(cityPos)]: {
+            coord: cityPos, terrain: 'grassland', elevation: 'lowland',
+            resource: null, improvement: 'none', improvementTurnsLeft: 0,
+            owner: 'player', hasRiver: false, wonder: null,
+          },
+          [tileKey]: {
+            coord: pos, terrain: 'hills', elevation: 'flat',
+            resource: 'iron', improvement: 'none', improvementTurnsLeft: 0,
+            owner: tileInCityTerritory ? 'player' : null, hasRiver: false, wonder: null,
+          },
+        },
+      },
+      units: {
+        [unitId]: {
+          id: unitId, type: 'expedition', owner: 'player', position: { ...pos },
+          movementPointsLeft: 3, health: 100, experience: 0,
+          hasMoved: false, hasActed: false, isResting: false,
+        },
+      },
+      cities: {
+        'city-1': {
+          id: 'city-1', name: 'TestCity', owner: 'player', position: cityPos,
+          ownedTiles,
+          population: 1, food: 0, production: 0, gold: 0,
+          buildings: [], productionQueue: [], workedTiles: [], specialistSlots: [],
+          garrisonUnitId: null, hp: 100, maxHp: 100,
+        },
+      },
+      civilizations: {
+        player: {
+          id: 'player', color: '#fff', cities: ['city-1'],
+          techState: { completed: ['bronze-working'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+        },
+      },
+      espionage: {},
+    } as unknown as GameState;
+  }
+
+  it('renders the Establish Outpost button when canEstablishOutpost is true', () => {
+    const state = makeExpeditionState(false);
+    const container = new MockElement('div');
+    let outpostCalled = false;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u-expedition', {
+      onEstablishOutpost: () => { outpostCalled = true; },
+    });
+
+    const btn = findButtons(container).find(b => b.textContent?.includes('Establish Outpost'));
+    expect(btn).toBeTruthy();
+    btn?.click();
+    expect(outpostCalled).toBe(true);
+  });
+
+  it('does NOT render the button when the tile is in city territory', () => {
+    const state = makeExpeditionState(true);
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u-expedition', {
+      onEstablishOutpost: () => {},
+    });
+
+    const buttons = findButtons(container);
+    expect(buttons.some(b => b.textContent?.includes('Establish Outpost'))).toBe(false);
   });
 });

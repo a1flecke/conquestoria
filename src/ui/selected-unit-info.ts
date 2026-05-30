@@ -18,6 +18,7 @@ import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/wor
 import { hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-system';
+import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
 
 export interface SelectedUnitInfoCallbacks {
   onClose?: () => void;
@@ -35,6 +36,7 @@ export interface SelectedUnitInfoCallbacks {
   onUpgradeUnit?: (unitId: string, cityId: string) => void;
   onOpenStack?: (coord: HexCoord) => void;
   onEstablishRoute?: (caravanId: string) => void;
+  onEstablishOutpost?: (unitId: string) => void;
   onReplaceImprovement?: (action: BuildableImprovementType) => void;
 }
 
@@ -269,6 +271,16 @@ export function renderSelectedUnitInfo(
       } else {
         btn.addEventListener('click', () => callbacks.onEstablishRoute!(unitId));
       }
+      actionsDiv.appendChild(btn);
+    }
+  }
+
+  if (unit.type === 'expedition' && !unit.hasActed && callbacks.onEstablishOutpost) {
+    if (canEstablishOutpost(state, unitId)) {
+      const btn = makeButton('🚩 Establish Outpost', '#4a7c59');
+      btn.title = 'Plant a Resource Outpost on this tile. Expedition is consumed immediately. Outpost completes in 2 turns.';
+      btn.style.cssText += ';min-height:44px;width:100%;margin-top:6px;';
+      btn.addEventListener('click', () => callbacks.onEstablishOutpost!(unitId));
       actionsDiv.appendChild(btn);
     }
   }

@@ -151,7 +151,7 @@ import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecyc
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
-import { getCivHappinessFromResources, getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
@@ -1429,6 +1429,15 @@ function selectUnit(unitId: string): void {
         executeUpgrade(uid, upgrade.targetType, upgrade.cost);
         selectUnit(uid);
         showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
+      },
+      onEstablishOutpost: (unitId) => {
+        if (!canEstablishOutpost(gameState, unitId)) return;
+        gameState = performEstablishOutpost(gameState, unitId);
+        autoSave(gameState).catch(() => {});
+        selectedUnitId = null;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        showNotification('Expedition planted a flag! Outpost completes in 2 turns.', 'success');
       },
       onEstablishRoute: (caravanId) => {
         openEstablishRoutePanel(uiLayer, gameState, caravanId, (toCityId) => {
