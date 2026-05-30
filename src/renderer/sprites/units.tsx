@@ -763,3 +763,105 @@ export function BallistaSprite({ palette, svgOnly = false }: UnitSpriteProps): s
     </SpriteFrame>
   );
 }
+
+/* === CARAVAN === */
+
+export function CaravanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={94} rx={30} ry={6} />
+      {/* lead rope — merchant hand to donkey muzzle, drawn under the donkey */}
+      <path d="M40,78 Q64,70 92,66" fill="none" stroke={P.wood.dark} strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
+      {/* DONKEY — stocky quadruped, head to the right */}
+      <g transform="translate(62 74)">
+        <rect x="-14" y="8" width="5" height="18" fill="#6f5436" stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="16" y="8" width="5" height="18" fill="#6f5436" stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="-15" cy="-1" rx="13" ry="13" fill="#9a7550" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="0" cy="0" rx="24" ry="14" fill="#9a7550" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="-2" cy="-3" rx="22" ry="9" fill="#ab8560" />
+        <path d="M-26,-4 Q-32,2 -29,9" fill="none" stroke="#6f5436" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M-29,9 L-31,13 L-27,13 Z" fill="#5e3f24" />
+        <rect x="-9" y="9" width="5.4" height="18" fill="#9a7550" stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="10" y="9" width="5.4" height="18" fill="#9a7550" stroke={P.ink.line} strokeWidth="0.6" />
+        <ellipse cx="-6.3" cy="27" rx="3.2" ry="1.8" fill="#5e3f24" stroke={P.ink.line} strokeWidth="0.4" />
+        <ellipse cx="12.7" cy="27" rx="3.2" ry="1.8" fill="#5e3f24" stroke={P.ink.line} strokeWidth="0.4" />
+        <path d="M16,-6 Q24,-12 26,-12 L31,-8 Q30,-2 22,2 Z" fill="#9a7550" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="29" cy="-9" rx="8.5" ry="7" fill="#9a7550" stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="35" cy="-6" rx="4.5" ry="3.6" fill="#ab8560" stroke={P.ink.line} strokeWidth="0.6" />
+        <circle cx="37" cy="-6" r="0.7" fill={P.ink.line} />
+        <path d="M24,-15 Q22,-26 26,-28 Q28,-22 27,-14 Z" fill="#9a7550" stroke={P.ink.line} strokeWidth="0.7" />
+        <path d="M30,-15 Q31,-26 35,-26 Q35,-20 33,-13 Z" fill="#8a6748" stroke={P.ink.line} strokeWidth="0.7" />
+        <circle cx="31" cy="-11" r="0.8" fill={P.ink.line} />
+        <path d="M20,-12 L21,-17 L23,-12 L25,-16 L26,-11 Z" fill="#6f5436" />
+        {/* saddle blanket (faction cloth) + linen saddlebags + strapped crate */}
+        <path d="M-16,-10 Q-2,-16 12,-10 L13,-2 L-17,-2 Z" fill={palette.mid} stroke={palette.dark} strokeWidth="0.8" />
+        <rect x="-17" y="-3" width="30" height="2.2" fill={palette.dark} />
+        <rect x="-15" y="-1" width="14" height="17" rx="6" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="2" y="-1" width="14" height="17" rx="6" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="-9.5" y="-2" width="2.6" height="18" fill={P.wood.dark} />
+        <rect x="7.5" y="-2" width="2.6" height="18" fill={P.wood.dark} />
+        <path d="M-13,7 Q-8,10 -3,7" fill="none" stroke="#cabfa0" strokeWidth="0.6" />
+        <path d="M4,7 Q9,10 14,7" fill="none" stroke="#cabfa0" strokeWidth="0.6" />
+        <g transform="translate(-2 -24)">
+          <rect x="-9" y="0" width="18" height="14" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+          <path d="M-9,5 H9 M0,0 V14" stroke={P.wood.dark} strokeWidth="0.6" />
+          <rect x="-9" y="3" width="18" height="2" fill={P.wood.dark} opacity="0.7" />
+        </g>
+      </g>
+      <Banner x={56} y={42} palette={palette} scale={0.65} />
+      {/* MERCHANT walking alongside, holding the lead rope */}
+      <Humanoid cx={30} cy={80} scale={0.62} cloth={P.cloth.tunic} pants={P.cloth.wool} accent={palette.mid} skin={P.skin.warm} hair="#3a2a1a"
+        hat={<path d="M-8,-34 Q0,-42 8,-34 Q9,-31 6,-30 L-6,-30 Q-9,-31 -8,-34 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.6" />}
+      />
+      <path d="M34,76 Q39,76 41,78" fill="none" stroke={P.skin.warm} strokeWidth="2.4" strokeLinecap="round" />
+      {/* WORK action = delivering goods: coins glint at the merchant's feet (.cq-deliver) */}
+      <g className="cq-deliver">
+        <ellipse cx="24" cy="90" rx="4.5" ry="1.8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="24" cy="87.8" rx="4.5" ry="1.8" fill="#e8c64a" stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="34" cy="91" rx="3.4" ry="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+/* === EXPEDITION === */
+
+export function ExpeditionSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={92} rx={22} />
+      {/* rolled map tucked under the left arm */}
+      <g transform="translate(43 74) rotate(-18)">
+        <rect x="-11" y="-3.4" width="22" height="6.8" rx="3.4" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.7" />
+        <ellipse cx="-11" cy="0" rx="2.2" ry="3.4" fill="#d8ccae" stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="11" cy="0" rx="2.2" ry="3.4" fill="#d8ccae" stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="-2" y="-3.6" width="3" height="7.2" fill={P.wood.dark} />
+      </g>
+      <Humanoid cx={64} cy={70} scale={1} cloth={P.cloth.tunic} pants={P.cloth.wool} accent={palette.mid} skin={P.skin.warm} hair="#3a2a1a"
+        hat={
+          <g>
+            <ellipse cx="0" cy="-34" rx="15" ry="4" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.7" />
+            <path d="M-9,-34 Q-8,-46 0,-46 Q8,-46 9,-34 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+            <rect x="-9" y="-38" width="18" height="2.6" fill={palette.mid} />
+            <path d="M-15,-34 Q0,-31 15,-34" fill="none" stroke="#3a2616" strokeWidth="0.6" />
+          </g>
+        }
+      />
+      {/* WORK action = prospecting: dust kicked up where the pick strikes (.cq-work-dust) */}
+      <g className="cq-work-dust">
+        <ellipse cx="92" cy="88" rx="6" ry="2.6" fill={P.ground.dirt} />
+      </g>
+      {/* PICKAXE over the right shoulder — .cq-tool digs down on the work action,
+         grip pivot at hand (79,76). NOT .cq-weapon: civilians never do a combat swing. */}
+      <g transform="translate(79 76) rotate(-38)">
+        <g className="cq-tool" style="transform-origin: 79px 76px; transform-box: view-box;">
+          <rect x="-1.4" y="-40" width="2.8" height="40" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="-1.8" y="-2" width="3.6" height="6" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.4" />
+          <path d="M-12,-44 Q-2,-48 0,-42 Q2,-48 12,-44 Q4,-39 0,-40 Q-4,-39 -12,-44 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+          <path d="M-10,-44 Q-2,-46 0,-43 Q-4,-43 -10,-44 Z" fill={P.metal.shine} opacity="0.4" />
+        </g>
+      </g>
+      <Banner x={50} y={48} palette={palette} scale={0.58} />
+    </SpriteFrame>
+  );
+}
