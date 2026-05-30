@@ -21,7 +21,7 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, and visible-UI contract preservation
 - `.claude/rules/incremental-mr-completion.md` — partial-MR PR title/body requirements and dead-end UX prevention
 - `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests
-- `.claude/rules/sprites.md` — sprite extension recipe, FactionPalette contract, catalog coverage, LOD constant location, barbarian fallback
+- `.claude/rules/sprites.md` — unit/building/terrain/improvement extension recipes, FactionPalette contract, catalog coverage, animation class reference, terrain tile contracts
 
 A PostToolUse hook (`.claude/hooks/check-src-edit.sh`) greps every Write/Edit under `src/` for known rule violations and returns feedback in the same turn.
 
@@ -29,8 +29,11 @@ A PostToolUse hook (`.claude/hooks/check-src-edit.sh`) greps every Write/Edit un
 
 Project-level skills live in `.claude/skills/` and are invoked by the Skill tool:
 - `.claude/skills/button-styling.md` — `createGameButton()` API reference; invoke before writing any button in `src/ui/`
+- `.claude/skills/generate-sprite-prompt.md` — invoke whenever the user asks to add sprites, terrain tiles, animations, improvement markers, or wonder graphics, or asks you to generate a Claude Design prompt for any visual asset
 
 When planning interactive UI or queue work, use `docs/superpowers/plans/README.md` as the minimum checklist for player-visible state transitions, misleading derived labels, and replayable interaction coverage.
+
+**Visual asset reference**: `docs/sprite-design-system.md` — canonical inventory of all sprites (units, buildings, terrain, improvements, wonders), placeholder list, full material palette, animation class map, and GitHub reference URLs for Claude Design prompts.
 
 ## Architecture
 - Event-driven: systems communicate via EventBus, not direct imports
@@ -38,6 +41,8 @@ When planning interactive UI or queue work, use `docs/superpowers/plans/README.m
 - Canvas 2D renders the hex map; DOM/CSS handles all UI panels
 - Mobile-first: touch input is primary, mouse/keyboard secondary
 - Offline-first: Service Worker caches everything, IndexedDB stores saves
+- Sprites: JSX→SVG→HTMLImageElement pipeline; unit/building sprites in `src/renderer/sprites/`; terrain tiles in `src/renderer/terrain/` (planned); improvement markers in `src/renderer/improvements/` (planned)
+- Terrain tiles: 4 SVG variants per terrain type, variant chosen by `Math.abs(q*7 + r*13) % 4`; fallback to flat `TERRAIN_COLORS` while loading
 
 ## Conventions
 - Axial hex coordinates (q, r) everywhere
