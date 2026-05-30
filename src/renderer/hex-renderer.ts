@@ -19,6 +19,7 @@ export const IMPROVEMENT_ICONS: Record<string, string> = {
   pasture: '🐂',
   camp: '⛺',
   quarry: '⚒️',
+  resource_outpost: '🚩',  // dedicated SVG sprite TBD via Claude Design
 };
 
 // --- Terrain labels ---
