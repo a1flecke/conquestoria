@@ -508,4 +508,36 @@ describe('formatImprovementYieldLabel', () => {
   it('formats farm yield', () => {
     expect(formatImprovementYieldLabel('farm')).toBe('(+2 Food)');
   });
+
+  it('returns empty string for resource_outpost (no yield bonus)', () => {
+    expect(formatImprovementYieldLabel('resource_outpost')).toBe('');
+  });
+});
+
+describe('resource_outpost immutability — workers cannot overwrite it', () => {
+  const outpostTile: HexTile = {
+    coord: { q: 0, r: 0 }, terrain: 'hills', elevation: 'highland',
+    resource: 'iron', improvement: 'resource_outpost', owner: 'p1',
+    improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+  };
+
+  it('canBuildImprovement returns false even with allowReplacement: true', () => {
+    expect(canBuildImprovement(outpostTile, 'mine', ['bronze-working'], 'p1', { allowReplacement: true })).toBe(false);
+  });
+
+  it('getWorkerActionBlockerReason returns already-improved even with allowReplacement: true', () => {
+    expect(getWorkerActionBlockerReason(outpostTile, 'mine', ['bronze-working'], 'p1', { allowReplacement: true })).toBe('already-improved');
+  });
+
+  it('getAvailableWorkerActions returns empty array on an outpost tile', () => {
+    expect(getAvailableWorkerActions(outpostTile, ['bronze-working'], 'p1', { allowReplacement: true })).toEqual([]);
+  });
+
+  it('getImprovementDisplayName returns "Resource Outpost"', () => {
+    expect(getImprovementDisplayName('resource_outpost')).toBe('Resource Outpost');
+  });
+
+  it('getImprovementYieldBonus returns all-zero yield', () => {
+    expect(getImprovementYieldBonus('resource_outpost')).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+  });
 });

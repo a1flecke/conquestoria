@@ -332,7 +332,7 @@ describe('outpost pass (Pillar 2)', () => {
     const outpostTile = {
       coord: { q: 10, r: 10 },
       terrain: 'hills',
-      elevation: 'flat',
+      elevation: 'lowland',
       resource: opts.resourceId,
       improvement: opts.outpostImprovement ?? 'resource_outpost',
       improvementTurnsLeft: opts.improvementTurnsLeft,
@@ -428,4 +428,16 @@ describe('outpost pass (Pillar 2)', () => {
     const result = getCivAvailableResources(state, 'ai-1');
     expect(result.has('iron')).toBe(false);
   });
+
+  it('does NOT grant the resource when the owning civ lacks the required tech', () => {
+    const state = makeStateWithOutpost({
+      outpostOwner: 'player',
+      resourceId: 'iron',
+      improvementTurnsLeft: 0,
+      playerTech: [], // no bronze-working
+    });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('iron')).toBe(false);
+  });
+
 });
