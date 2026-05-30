@@ -57,6 +57,23 @@ export function getCivAvailableResources(state: GameState, civId: string): Set<R
     }
   }
 
+  // Pass 2 — resource outpost tiles owned by this civ (outside city territory)
+  // Linear scan over all tiles: 60×40 = 2,400 tiles maximum.
+  for (const tile of Object.values(state.map.tiles)) {
+    if (
+      tile.improvement !== 'resource_outpost' ||
+      tile.improvementTurnsLeft !== 0 ||
+      tile.owner !== civId ||
+      !tile.resource
+    ) continue;
+
+    const def = resourceDefMap.get(tile.resource as ResourceType);
+    if (!def) continue;
+    if (!completedTechs.has(def.tech)) continue;
+
+    result.add(tile.resource as ResourceType);
+  }
+
   return result;
 }
 

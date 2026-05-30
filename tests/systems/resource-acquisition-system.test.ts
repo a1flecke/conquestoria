@@ -320,3 +320,112 @@ describe('stone on mountain resource accessibility (issue #280)', () => {
     expect(result.has('stone')).toBe(true);
   });
 });
+
+describe('outpost pass (Pillar 2)', () => {
+  function makeStateWithOutpost(opts: {
+    outpostOwner: string;
+    resourceId: string;
+    improvementTurnsLeft: number;
+    playerTech: string[];
+    outpostImprovement?: string;
+  }): GameState {
+    const outpostTile = {
+      coord: { q: 10, r: 10 },
+      terrain: 'hills',
+      elevation: 'flat',
+      resource: opts.resourceId,
+      improvement: opts.outpostImprovement ?? 'resource_outpost',
+      improvementTurnsLeft: opts.improvementTurnsLeft,
+      owner: opts.outpostOwner,
+      hasRiver: false,
+      wonder: null,
+    };
+
+    return {
+      map: {
+        width: 20, height: 20,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '3,3': { coord: { q: 3, r: 3 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', improvementTurnsLeft: 0, owner: null, hasRiver: false, wonder: null },
+          '10,10': outpostTile,
+        },
+      },
+      cities: {
+        'city-player': {
+          id: 'city-player', name: 'PlayerCity', owner: 'player',
+          position: { q: 3, r: 3 },
+          ownedTiles: [{ q: 3, r: 3 }],
+          population: 1, food: 0, production: 0, gold: 0,
+          buildings: [], productionQueue: [], workedTiles: [], specialistSlots: [],
+          garrisonUnitId: null, hp: 100, maxHp: 100,
+        },
+        'city-ai1': {
+          id: 'city-ai1', name: 'AI1City', owner: 'ai-1',
+          position: { q: 5, r: 5 },
+          ownedTiles: [{ q: 5, r: 5 }],
+          population: 1, food: 0, production: 0, gold: 0,
+          buildings: [], productionQueue: [], workedTiles: [], specialistSlots: [],
+          garrisonUnitId: null, hp: 100, maxHp: 100,
+        },
+      },
+      civilizations: {
+        'player': {
+          id: 'player',
+          cities: ['city-player'],
+          techState: { completed: opts.playerTech, currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+        },
+        'ai-1': {
+          id: 'ai-1',
+          cities: ['city-ai1'],
+          techState: { completed: opts.playerTech, currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+        },
+      },
+    } as unknown as GameState;
+  }
+
+  it('grants the resource when outpost is complete (improvementTurnsLeft === 0)', () => {
+    const state = makeStateWithOutpost({
+      outpostOwner: 'player',
+      resourceId: 'iron',
+      improvementTurnsLeft: 0,
+      playerTech: ['bronze-working'],
+    });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('iron')).toBe(true);
+  });
+
+  it('does NOT grant the resource when outpost is still in progress (improvementTurnsLeft > 0)', () => {
+    const state = makeStateWithOutpost({
+      outpostOwner: 'player',
+      resourceId: 'iron',
+      improvementTurnsLeft: 1,
+      playerTech: ['bronze-working'],
+    });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('iron')).toBe(false);
+  });
+
+  it('does NOT grant the resource when outpost is pillaged (improvement = none)', () => {
+    const state = makeStateWithOutpost({
+      outpostOwner: 'player',
+      resourceId: 'iron',
+      improvementTurnsLeft: 0,
+      playerTech: ['bronze-working'],
+      outpostImprovement: 'none',
+    });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('iron')).toBe(false);
+  });
+
+  it('does NOT grant the resource to a different civ', () => {
+    const state = makeStateWithOutpost({
+      outpostOwner: 'player',
+      resourceId: 'iron',
+      improvementTurnsLeft: 0,
+      playerTech: ['bronze-working'],
+    });
+    const result = getCivAvailableResources(state, 'ai-1');
+    expect(result.has('iron')).toBe(false);
+  });
+});
