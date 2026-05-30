@@ -136,6 +136,7 @@ export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
   pasture: IMPROVEMENT_DEFINITIONS.pasture.buildTurns,
   camp: IMPROVEMENT_DEFINITIONS.camp.buildTurns,
   quarry: IMPROVEMENT_DEFINITIONS.quarry.buildTurns,
+  resource_outpost: 0,  // set by Expedition unit, not by Worker
   none: 0,
 };
 
@@ -229,17 +230,18 @@ export function formatWorkerActionBlockerReason(reason: WorkerActionBlockerReaso
 }
 
 export function getImprovementYieldBonus(type: ImprovementType): ResourceYield {
-  if (type === 'none') return { ...NO_YIELD };
+  if (type === 'none' || type === 'resource_outpost') return { ...NO_YIELD };
   return { ...IMPROVEMENT_DEFINITIONS[type].yieldBonus };
 }
 
 export function getImprovementDisplayName(type: ImprovementType): string {
   if (type === 'none') return 'None';
+  if (type === 'resource_outpost') return 'Resource Outpost';
   return IMPROVEMENT_DEFINITIONS[type].name;
 }
 
 export function formatImprovementYieldLabel(type: ImprovementType): string {
-  if (type === 'none') return '';
+  if (type === 'none' || type === 'resource_outpost') return '';
   const bonus = IMPROVEMENT_DEFINITIONS[type as BuildableImprovementType].yieldBonus;
   const parts: string[] = [];
   if (bonus.food) parts.push(`+${bonus.food} Food`);
