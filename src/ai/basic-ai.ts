@@ -1,6 +1,6 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { foundCity, getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
@@ -13,7 +13,7 @@ import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
-import { hexDistance } from '@/systems/hex-utils';
+
 import { chooseTech, chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import {
@@ -55,7 +55,6 @@ import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { canEstablishRoute, establishRoute, getRouteCapacity, RESOURCE_DEFINITIONS } from '@/systems/trade-system';
-
 
 function getPersonality(state: GameState, civType: string): PersonalityTraits {
   const def = resolveCivDefinition(state, civType);
