@@ -829,6 +829,40 @@ describe('processTurn', () => {
     const afterCi = result.espionage!['player']!.counterIntelligence[cityId] ?? 0;
     expect(afterCi).toBe(startCi + 2); // perTurnBonus = 2 + floor(0 * 0.1) = 2
   });
+
+  it('deducts 2 gold per completed outpost from the owning civ each turn', () => {
+    const state = createNewGame(undefined, 'outpost-upkeep-test', 'small');
+    const bus = new EventBus();
+    const civId = 'player';
+
+    // Zero out income/maintenance for the player so gold change is purely upkeep
+    state.civilizations[civId].cities = [];
+    state.civilizations[civId].units = [];
+    state.civilizations[civId].gold = 100;
+
+    // 2 completed outposts owned by player
+    state.map.tiles['20,20'] = {
+      coord: { q: 20, r: 20 }, terrain: 'hills', elevation: 'lowland',
+      resource: 'iron', improvement: 'resource_outpost', improvementTurnsLeft: 0,
+      owner: civId, hasRiver: false, wonder: null,
+    };
+    state.map.tiles['21,21'] = {
+      coord: { q: 21, r: 21 }, terrain: 'hills', elevation: 'lowland',
+      resource: 'iron', improvement: 'resource_outpost', improvementTurnsLeft: 0,
+      owner: civId, hasRiver: false, wonder: null,
+    };
+    // In-progress outpost — must NOT charge upkeep
+    state.map.tiles['22,22'] = {
+      coord: { q: 22, r: 22 }, terrain: 'hills', elevation: 'lowland',
+      resource: 'iron', improvement: 'resource_outpost', improvementTurnsLeft: 1,
+      owner: civId, hasRiver: false, wonder: null,
+    };
+
+    const result = processTurn(state, bus);
+
+    // 2 completed outposts × 2 gold = 4 deducted; no income/maintenance → 100 - 4 = 96
+    expect(result.civilizations[civId].gold).toBe(96);
+  });
 });
 
 describe('espionage post-loop snapshot', () => {
