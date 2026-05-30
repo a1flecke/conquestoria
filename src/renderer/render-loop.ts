@@ -82,10 +82,13 @@ export class RenderLoop {
     );
   }
 
-  animateUnitMove(unit: Unit, from: HexCoord, to: HexCoord, onComplete?: () => void): void {
-    if (!this.state) return;
+  animateUnitMove(unit: Unit, path: HexCoord[], onComplete?: () => void): void {
+    if (!this.state || path.length < 2) {
+      onComplete?.();
+      return;
+    }
     this.unitMovementAnimations.push({
-      ...createMovementAnimation(unit, from, to, this.state.map),
+      ...createMovementAnimation(unit, path, this.state.map),
       startTime: performance.now(),
       onComplete,
     });

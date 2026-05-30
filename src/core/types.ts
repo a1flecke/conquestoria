@@ -1121,7 +1121,7 @@ export interface GameSettings {
 export interface GameEvents {
   'turn:start': { turn: number; playerId: string };
   'turn:end': { turn: number; playerId: string };
-  'unit:move': { unitId: string; from: HexCoord; to: HexCoord };
+  'unit:move': { unitId: string; from: HexCoord; to: HexCoord; path: HexCoord[] };
   'unit:created': { unit: Unit };
   'unit:destroyed': { unitId: string; position: HexCoord };
   'city:founded': { city: City; founderId: string };

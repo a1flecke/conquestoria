@@ -1504,13 +1504,13 @@ function isUnitAnimationLocked(unitId: string | null): boolean {
   return Boolean(unitId && renderLoop.hasMovingUnit(unitId));
 }
 
-function animateMovedUnit(unitId: string, from: HexCoord, to: HexCoord): void {
+function animateMovedUnit(unitId: string, path: HexCoord[]): void {
   const movedUnit = gameState.units[unitId];
-  if (!movedUnit) return;
+  if (!movedUnit || path.length < 2) return;
   movementRange = [];
   attackRange = [];
   renderLoop.clearHighlights();
-  renderLoop.animateUnitMove({ ...movedUnit, position: from }, from, to, () => {
+  renderLoop.animateUnitMove({ ...movedUnit, position: path[0]! }, path, () => {
     renderLoop.setGameState(gameState);
     updateHUD();
     deferWonderDiscoveryRevealUntilMoveSettles = false;
@@ -1560,7 +1560,7 @@ function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResu
   deferWonderDiscoveryRevealUntilMoveSettles = true;
   try {
     const moveResult = move();
-    animateMovedUnit(unitId, moveResult.from, moveResult.to);
+    animateMovedUnit(unitId, moveResult.path);
     return moveResult;
   } catch (error) {
     deferWonderDiscoveryRevealUntilMoveSettles = false;
@@ -2428,6 +2428,32 @@ function handleVictoryIfNeeded(): boolean {
   return true;
 }
 
+type AIMoveRecord = { unit: Unit; path: HexCoord[] };
+
+function captureAIMoves(fn: () => void): AIMoveRecord[] {
+  const moves: AIMoveRecord[] = [];
+  const unsub = bus.on('unit:move', ({ unitId, from, path }) => {
+    const unit = gameState.units[unitId];
+    if (unit) moves.push({ unit: { ...unit, position: from }, path });
+  });
+  fn();
+  unsub();
+  return moves;
+}
+
+async function replayAIMoves(moves: AIMoveRecord[]): Promise<void> {
+  const playerVis = gameState.civilizations[gameState.currentPlayer]?.visibility;
+  const visibleMoves = moves
+    .filter(({ path }) => {
+      const dest = path[path.length - 1];
+      return dest && playerVis && getVisibility(playerVis, dest) !== 'unexplored';
+    })
+    .slice(0, 6);
+  for (const { unit, path } of visibleMoves) {
+    await new Promise<void>(resolve => renderLoop.animateUnitMove(unit, path, resolve));
+  }
+}
+
 async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
   if (gameState.gameOver) return;
   try {
@@ -2451,13 +2477,19 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
         // Last human player finished — process improvements, AI, and round end
         processImprovements();
 
+        const hotSeatAIMoves: AIMoveRecord[] = [];
         for (const ai of getAIPlayers(hotSeat)) {
-          gameState = processAITurn(gameState, ai.slotId, bus);
+          hotSeatAIMoves.push(...captureAIMoves(() => {
+            gameState = processAITurn(gameState, ai.slotId, bus);
+          }));
         }
 
         gameState = processTurn(gameState, bus);
 
         if (handleVictoryIfNeeded()) return;
+
+        renderLoop.setGameState(gameState);
+        await replayAIMoves(hotSeatAIMoves);
 
       }
 
@@ -2483,12 +2515,15 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       // --- Solo Mode ---
       processImprovements();
 
-      gameState = processAITurn(gameState, 'ai-1', bus);
+      const soloAIMoves = captureAIMoves(() => {
+        gameState = processAITurn(gameState, 'ai-1', bus);
+      });
       gameState = processTurn(gameState, bus);
 
       if (handleVictoryIfNeeded()) return;
 
       renderLoop.setGameState(gameState);
+      await replayAIMoves(soloAIMoves);
       updateHUD();
 
       showNotification(`Turn ${gameState.turn}`, 'info');

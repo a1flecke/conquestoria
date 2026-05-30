@@ -158,7 +158,7 @@ describe('render-loop wrap parity', () => {
 
     loop.setGameState(state);
     loop.camera.isHexVisible = () => true;
-    loop.animateUnitMove(unit as Unit, { q: 0, r: 0 }, { q: 1, r: 0 }, () => {
+    loop.animateUnitMove(unit as Unit, [{ q: 0, r: 0 }, { q: 1, r: 0 }], () => {
       callbackSawMoving = loop.hasMovingUnit('u1');
     });
     nowSpy.mockReturnValue(1000);

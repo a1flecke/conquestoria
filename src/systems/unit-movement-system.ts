@@ -25,6 +25,7 @@ export interface WonderDiscoveryResult {
 export interface ExecuteUnitMoveResult {
   from: HexCoord;
   to: HexCoord;
+  path: HexCoord[];
   revealedTiles: HexCoord[];
   discoveredWonders: WonderDiscoveryResult[];
   villageOutcome?: {
@@ -82,6 +83,7 @@ export function executeUnitMove(
     return {
       from: to,
       to,
+      path: [to],
       revealedTiles: [],
       discoveredWonders: [],
     };
@@ -107,7 +109,8 @@ export function executeUnitMove(
     ...state.units,
     [unitId]: moveUnit(unit, to, cost),
   };
-  options.bus?.emit('unit:move', { unitId, from, to });
+  const movePath = path ?? [from, to];
+  options.bus?.emit('unit:move', { unitId, from, to, path: movePath });
 
   let villageOutcome: ExecuteUnitMoveResult['villageOutcome'];
   const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(to));
@@ -170,6 +173,7 @@ export function executeUnitMove(
   return {
     from,
     to,
+    path: movePath,
     revealedTiles,
     discoveredWonders,
     villageOutcome,
@@ -268,7 +272,7 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
         [caravan.id]: { ...newState.units[caravan.id]!, position: nextStep },
       },
     };
-    bus?.emit('unit:move', { unitId: caravan.id, from, to: nextStep });
+    bus?.emit('unit:move', { unitId: caravan.id, from, to: nextStep, path: [from, nextStep] });
 
     if (nextStep.q === targetCity.position.q && nextStep.r === targetCity.position.r) {
       const movedCaravan = newState.units[caravan.id];
