@@ -2,34 +2,44 @@ import { describe, it, expect } from 'vitest';
 import { UNIT_SPRITE_CATALOG, BUILDING_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 import { derivePalette } from '@/renderer/sprites/sprite-system';
 import { BUILDINGS } from '@/systems/city-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
-const ALL_UNIT_TYPES = [
-  'settler', 'worker', 'scout', 'warrior', 'archer',
-  'swordsman', 'pikeman', 'musketeer', 'galley', 'trireme',
-  'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker',
-  'scout_hound', 'shadow_warden', 'war_hound',
-] as const;
+// Derive the authoritative unit-type list from UNIT_DEFINITIONS so this test
+// automatically catches any new UnitType added to types.ts without a matching
+// sprite or motion wiring.
+const ALL_UNIT_TYPES = Object.keys(UNIT_DEFINITIONS) as Array<keyof typeof UNIT_DEFINITIONS>;
 
 describe('sprite-catalog coverage', () => {
   describe('UNIT_SPRITE_CATALOG', () => {
-    for (const unitType of ALL_UNIT_TYPES) {
-      it(`has a component for unit type: ${unitType}`, () => {
-        expect(UNIT_SPRITE_CATALOG[unitType]).toBeDefined();
-        expect(typeof UNIT_SPRITE_CATALOG[unitType]).toBe('function');
-      });
-    }
+    it('has an entry for every UnitType in UNIT_DEFINITIONS', () => {
+      for (const unitType of ALL_UNIT_TYPES) {
+        expect(UNIT_SPRITE_CATALOG[unitType], `missing sprite for unit type: ${unitType}`).toBeDefined();
+        expect(typeof UNIT_SPRITE_CATALOG[unitType], `sprite for ${unitType} must be a function`).toBe('function');
+      }
+    });
 
-    it('every unit sprite returns distinct moving output', () => {
+    it('UNIT_SPRITE_CATALOG has no entries for unknown types', () => {
+      for (const unitType of Object.keys(UNIT_SPRITE_CATALOG)) {
+        expect(UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS], `${unitType} in sprite catalog but not in UNIT_DEFINITIONS`).toBeDefined();
+      }
+    });
+
+    it('every unit sprite responds to all three motion states', () => {
       const palette = derivePalette('#4a90d9');
-      for (const [type, render] of Object.entries(UNIT_SPRITE_CATALOG)) {
-        const idle = render({ palette, svgOnly: true, motion: 'idle' });
+      for (const unitType of ALL_UNIT_TYPES) {
+        const render = UNIT_SPRITE_CATALOG[unitType];
+        if (!render) continue; // caught by entry test above
+
+        const idle    = render({ palette, svgOnly: true, motion: 'idle' });
         const movingA = render({ palette, svgOnly: true, motion: 'move-a' });
         const movingB = render({ palette, svgOnly: true, motion: 'move-b' });
-        expect(idle, `${type} idle sprite`).toContain('data-motion="idle"');
-        expect(movingA, `${type} move-a sprite`).toContain('data-motion="move-a"');
-        expect(movingB, `${type} move-b sprite`).toContain('data-motion="move-b"');
-        expect(movingA, `${type} move-a differs from idle`).not.toBe(idle);
-        expect(movingB, `${type} move-b differs from move-a`).not.toBe(movingA);
+
+        expect(idle,    `${unitType} idle`).toContain('data-motion="idle"');
+        expect(movingA, `${unitType} move-a`).toContain('data-motion="move-a"');
+        expect(movingB, `${unitType} move-b`).toContain('data-motion="move-b"');
+
+        expect(movingA, `${unitType} move-a must differ from idle`).not.toBe(idle);
+        expect(movingB, `${unitType} move-b must differ from move-a`).not.toBe(movingA);
       }
     });
   });
