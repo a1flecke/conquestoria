@@ -155,6 +155,7 @@ import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
+import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
@@ -1654,7 +1655,26 @@ function selectNextUnit(): void {
 
 function refreshCurrentPlayerVisibility(): void {
   if (!currentCiv()?.visibility) return;
+
+  // Snapshot unexplored tile keys before the update so we can detect fog-lift transitions
+  const visTiles = currentCiv()!.visibility!.tiles;
+  const prevUnexplored = new Set(
+    Object.keys(visTiles).filter(k => visTiles[k] === 'unexplored'),
+  );
+
   updateAndRefreshVisibility(gameState, gameState.currentPlayer);
+
+  // Fire resource-discovered advisor tip for any tile that just emerged from unexplored
+  const updatedTiles = currentCiv()?.visibility?.tiles ?? {};
+  for (const key of prevUnexplored) {
+    if (updatedTiles[key] !== 'unexplored') {
+      const tile = gameState.map.tiles[key];
+      if (tile?.resource) {
+        fireResourceDiscoveredTip(tile.resource, gameState, bus);
+      }
+    }
+  }
+
   for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
     bus.emit('civilization:first-contact', contact);
   }

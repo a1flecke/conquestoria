@@ -5,6 +5,15 @@ import { NEW_WORLD_START_POSITIONS } from '@/systems/new-world-map-data';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { getNextCouncilCallback, markCouncilCallbackDelivered } from '@/systems/council-memory';
 import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+
+/**
+ * Session-scoped tip suppression. Cleared on page load (module re-init).
+ * Shared across all players in a hot-seat session — tips are tutorial reminders,
+ * not per-player notifications.
+ */
+export const SESSION_SHOWN_TIPS = new Set<string>();
 
 interface AdvisorMessage {
   id: string;
@@ -87,6 +96,22 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: "You're doing great! You now know the basics. Explore, expand, research, and conquer. The world is yours to shape!",
     trigger: (state) => state.turn >= 10,
     tutorialStep: 'complete',
+  },
+
+  // --- Explorer — Resource Accessibility ---
+  {
+    id: 'resources-intro',
+    advisor: 'explorer',
+    icon: '🗺️',
+    message: 'Special resources are scattered across the world — Iron, Silk, Ivory, and more. '
+           + 'Each unlocks powerful units and buildings. Explore to find them!',
+    trigger: (state) => {
+      if (SESSION_SHOWN_TIPS.has('resources-intro')) return false;
+      if (state.turn < 3) return false;
+      const civ = state.civilizations[state.currentPlayer];
+      if (!civ) return false;
+      return getCivAvailableResources(state, state.currentPlayer).size === 0;
+    },
   },
 
   // --- Chancellor ---
@@ -653,6 +678,7 @@ export class AdvisorSystem {
 
       if (msg.trigger(state)) {
         this.shownIds.add(msg.id);
+        SESSION_SHOWN_TIPS.add(msg.id);
 
         if (msg.tutorialStep) {
           this.bus.emit('tutorial:step', {
@@ -710,4 +736,55 @@ export class AdvisorSystem {
 /** Get the list of advisor message IDs (for testing) */
 export function getAdvisorMessageIds(): string[] {
   return ADVISOR_MESSAGES.map(m => m.id);
+}
+
+/**
+ * Fires an advisor tip when the fog lifts on a tile that has a resource.
+ * Safe to call multiple times — SESSION_SHOWN_TIPS prevents duplicate messages
+ * per resource type per session.
+ *
+ * @param resourceId  The resource ID on the newly-visible tile (e.g. 'iron').
+ * @param state       Current game state (for tech check).
+ * @param bus         EventBus to emit the advisor message on.
+ */
+export function fireResourceDiscoveredTip(
+  resourceId: string,
+  state: GameState,
+  bus: EventBus,
+): void {
+  const tipId = `resource-discovered-${resourceId}`;
+  if (SESSION_SHOWN_TIPS.has(tipId)) return;
+
+  const civ = state.civilizations[state.currentPlayer];
+  if (!civ) return;
+
+  if (!state.settings?.advisorsEnabled?.explorer) return;
+
+  SESSION_SHOWN_TIPS.add(tipId);
+
+  const resourceDef = RESOURCE_DEFINITIONS.find(d => d.id === resourceId);
+  const resourceName = resourceDef?.name ?? resourceId;
+  const hasTech = resourceDef ? civ.techState.completed.includes(resourceDef.tech) : false;
+
+  let message: string;
+  if (hasTech) {
+    const impMap: Record<string, string> = {
+      mine: 'Mine', pasture: 'Pasture', camp: 'Camp',
+      plantation: 'Plantation', quarry: 'Quarry',
+    };
+    const reqImp = resourceDef?.requiredImprovement;
+    const impName = reqImp ? (impMap[reqImp] ?? reqImp) : 'improvement';
+    message = `We spotted ${resourceName} nearby! `
+            + `Build a ${impName} there to claim it — or train an Expedition to plant a Resource Outpost!`;
+  } else {
+    const techId = resourceDef?.tech ?? 'unknown tech';
+    message = `Scouts report an unknown deposit nearby. Our scholars say we need `
+            + `${techId} to make use of it.`;
+  }
+
+  bus.emit('advisor:message', {
+    advisor: 'explorer',
+    message,
+    icon: '🗺️',
+  });
 }
