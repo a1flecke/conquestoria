@@ -11,6 +11,8 @@ import {
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
+import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
+import { createGameButton } from './ui-kit';
 import {
   getCompactLegendaryWonderEntriesForCity,
   getLegendaryWonderPresentationForCity,
@@ -47,6 +49,10 @@ export interface CityPanelCallbacks {
   onUpgradeUnit?: (unitId: string) => void;
   onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => void;
   onRushBuyActiveProduction?: (cityId: string) => GameState | void;
+  onFindResources?: (
+    highlights: HexCoord[],
+    toasts: Array<{ message: string; type: 'info' | 'warning' }>,
+  ) => void;
 }
 
 type CityPanelTab = 'list' | 'grid';
@@ -247,12 +253,21 @@ export function createCityPanel(
     })),
   ];
 
-  function resourceAcquisitionHint(resourceId: ResourceType): string {
+  const IMPROVEMENT_LABELS: Record<string, string> = { mine: 'Mine', pasture: 'Pasture', quarry: 'Quarry', plantation: 'Plantation', camp: 'Camp' };
+
+  function buildLockedItemReason(resourceId: ResourceType, techs: string[]): string {
     const def = RESOURCE_DEFINITIONS.find(d => d.id === resourceId);
     if (!def) return String(resourceId);
-    const impMap: Record<string, string> = { mine: 'Mine', pasture: 'Pasture', quarry: 'Quarry', plantation: 'Plantation', camp: 'Camp' };
-    const impName = impMap[def.requiredImprovement] ?? def.requiredImprovement;
-    return `${def.name} (${impName} on a ${def.name} tile)`;
+    const impName = IMPROVEMENT_LABELS[def.requiredImprovement] ?? def.requiredImprovement;
+    const lines = [
+      `Needs ${def.name}. To get it:`,
+      `• Expand your city + build a ${impName} on a nearby ${def.name} tile`,
+      `• Send an Expedition to plant a Resource Outpost (no tech wait)`,
+    ];
+    if (techs.includes('trade-routes')) {
+      lines.push(`• Buy access from a known civ (mid-game)`);
+    }
+    return lines.join('\n');
   }
 
   const LOCKED_SHOW_LIMIT = 3;
@@ -566,7 +581,7 @@ export function createCityPanel(
     const nameEl = panel.querySelector(`[data-locked-name="${item.id}"]`);
     if (nameEl) nameEl.textContent = item.name;
     const reasonEl = panel.querySelector(`[data-locked-reason="${item.id}"]`);
-    if (reasonEl) reasonEl.textContent = `Requires ${item.missingResources.map(r => resourceAcquisitionHint(r)).join(' and ')}`;
+    if (reasonEl) reasonEl.textContent = item.missingResources.map(r => buildLockedItemReason(r, completedTechs)).join('\n\n');
   }
 
   city.productionQueue.forEach((itemId, index) => {
@@ -596,6 +611,84 @@ export function createCityPanel(
 
   // Declare ref early so rerenderPanel (below) can cancel the timer via closure.
   const frustrationRef: { timer: ReturnType<typeof setTimeout> | null } = { timer: null };
+
+  // Insert 📍 Find missing resources button into the locked section header
+  if (lockedItems.length > 0) {
+    const lockedSection = panel.querySelector('[data-section="locked-items"]');
+    if (lockedSection) {
+      const sectionHeader = lockedSection.firstElementChild as HTMLElement | null;
+      if (sectionHeader) {
+        sectionHeader.style.display = 'flex';
+        sectionHeader.style.alignItems = 'center';
+        sectionHeader.style.justifyContent = 'space-between';
+        sectionHeader.style.gap = '8px';
+        const findBtn = createGameButton('📍 Find missing resources', 'ghost');
+        findBtn.dataset.findResourcesBtn = 'true';
+        findBtn.style.fontSize = '11px';
+        findBtn.style.padding = '4px 8px';
+        sectionHeader.appendChild(findBtn);
+
+        findBtn.addEventListener('click', () => {
+          // Cancel frustration timer so it doesn't fire after panel closes.
+          if (frustrationRef.timer !== null) {
+            clearTimeout(frustrationRef.timer);
+            frustrationRef.timer = null;
+          }
+
+          const highlights: HexCoord[] = [];
+          const toasts: Array<{ message: string; type: 'info' | 'warning' }> = [];
+          const seenResources = new Set<ResourceType>();
+          const vis = state.civilizations[state.currentPlayer]?.visibility?.tiles ?? {};
+          const calcDist = state.map.wrapsHorizontally
+            ? (a: HexCoord, b: HexCoord) => wrappedHexDistance(a, b, state.map.width)
+            : hexDistance;
+
+          for (const item of lockedItems) {
+            for (const resourceId of item.missingResources) {
+              if (seenResources.has(resourceId)) continue;
+              seenResources.add(resourceId);
+
+              let nearestCoord: HexCoord | null = null;
+              let nearestDist = Infinity;
+              for (const [key, tile] of Object.entries(state.map.tiles)) {
+                if (tile.resource !== resourceId) continue;
+                const tileVis = vis[key];
+                if (tileVis !== 'visible' && tileVis !== 'fog') continue;
+                const dist = calcDist(city.position, tile.coord);
+                if (dist < nearestDist) {
+                  nearestDist = dist;
+                  nearestCoord = tile.coord;
+                }
+              }
+
+              const def = RESOURCE_DEFINITIONS.find(d => d.id === resourceId);
+              const resourceName = def?.name ?? String(resourceId);
+              const impName = def ? (IMPROVEMENT_LABELS[def.requiredImprovement] ?? def.requiredImprovement) : '';
+
+              if (nearestCoord) {
+                highlights.push(nearestCoord);
+                const lines = [
+                  `${resourceName} spotted! To acquire it:`,
+                  `• Expand your city + build a ${impName} on that tile`,
+                  `• Send an Expedition to plant a Resource Outpost there (no tech wait)`,
+                ];
+                if (completedTechs.includes('trade-routes')) {
+                  lines.push(`• Buy access from a known civ (mid-game)`);
+                }
+                toasts.push({ message: lines.join('\n'), type: 'info' });
+              } else {
+                toasts.push({ message: `No ${resourceName} spotted yet — keep exploring!`, type: 'warning' });
+              }
+            }
+          }
+
+          callbacks.onFindResources?.(highlights, toasts);
+          panel.remove();
+          callbacks.onClose();
+        });
+      }
+    }
+  }
 
   const rerenderPanel = (nextState: GameState | void = state, nextTab: CityPanelTab = 'list') => {
     // Cancel the frustration timer before destroying this panel instance.
@@ -694,7 +787,7 @@ export function createCityPanel(
       const nameEl = panel.querySelector(`[data-locked-name-extra="${item.id}"]`);
       if (nameEl) nameEl.textContent = item.name;
       const reasonEl = panel.querySelector(`[data-locked-reason-extra="${item.id}"]`);
-      if (reasonEl) reasonEl.textContent = `Requires ${item.missingResources.map(r => resourceAcquisitionHint(r)).join(' and ')}`;
+      if (reasonEl) reasonEl.textContent = item.missingResources.map(r => buildLockedItemReason(r, completedTechs)).join('\n\n');
     }
     btn.remove();
   });
