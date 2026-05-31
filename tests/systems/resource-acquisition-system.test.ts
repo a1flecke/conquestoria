@@ -563,6 +563,16 @@ describe('performEstablishOutpost', () => {
     expect(canEstablishOutpost(state, unitId)).toBe(false);
   });
 
+  it('is unavailable when tile already has an improvement (canEstablishOutpost = false)', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: 'iron',
+      improvement: 'mine',         // tile already improved — outpost blocked
+      tileInCityTerritory: false,
+      civTechs: ['bronze-working'],
+    });
+    expect(canEstablishOutpost(state, unitId)).toBe(false);
+  });
+
   it('returns a new state object (immutability)', () => {
     const { state, unitId } = makeStateWithExpedition({
       resource: 'iron',
@@ -572,5 +582,17 @@ describe('performEstablishOutpost', () => {
     });
     const newState = performEstablishOutpost(state, unitId);
     expect(newState).not.toBe(state);
+  });
+
+  it('sets improvementOwner so processImprovements can log completion to the civ', () => {
+    const { state, unitId } = makeStateWithExpedition({
+      resource: 'iron',
+      improvement: 'none',
+      tileInCityTerritory: false,
+      civTechs: ['bronze-working'],
+    });
+    const newState = performEstablishOutpost(state, unitId);
+    const tile = newState.map.tiles[hexKey({ q: 5, r: 5 })];
+    expect(tile.improvementOwner).toBe('player');
   });
 });
