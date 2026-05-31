@@ -799,6 +799,10 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       showNotification(`${targetCity.name}: rush bought ${result.label} for ${result.cost} gold.`, 'success');
       return gameState;
     },
+    onFindResources: (highlights, toasts) => {
+      renderLoop.setHighlights(highlights.map(coord => ({ coord, type: 'worker-buildable' as const })));
+      for (const t of toasts) showNotification(t.message, t.type);
+    },
   });
 }
 

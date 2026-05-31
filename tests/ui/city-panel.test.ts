@@ -7,7 +7,7 @@ import { createUnit } from '@/systems/unit-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
-import type { City, ResourceType } from '@/core/types';
+import type { City, HexCoord, ResourceType } from '@/core/types';
 
 function activeCityGrid(container: HTMLElement): HTMLElement {
   const panel = container.querySelector<HTMLElement>('[id="city-panel"]');
@@ -1573,5 +1573,219 @@ describe('city-panel locked frustration tip', () => {
     });
     vi.advanceTimersByTime(5001); // should NOT fire again
     expect(tips).toHaveLength(1); // still only 1
+  });
+});
+
+describe('locked section — MR4 Find Resources button', () => {
+  function makeLockedMR4Fixture(options: {
+    completedTechs?: string[];
+    resourceTile?: { coord: HexCoord; resource: ResourceType; visible: boolean };
+  } = {}) {
+    const { container, state } = makeWonderPanelFixture();
+    const civId = state.currentPlayer;
+    state.civilizations[civId].techState.completed = options.completedTechs ?? ['stone-weapons'];
+
+    if (options.resourceTile) {
+      const { coord, resource, visible } = options.resourceTile;
+      const key = hexKey(coord);
+      state.map.tiles[key] = {
+        coord,
+        terrain: 'hills',
+        elevation: 'lowland',
+        resource,
+        improvement: 'none',
+        owner: null,
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+      };
+      if (visible) {
+        state.civilizations[civId].visibility.tiles[key] = 'visible';
+      }
+    }
+
+    const city = Object.values(state.cities).find(c => c.owner === civId)!;
+    return { container, city, state, civId };
+  }
+
+  it('📍 button is present in the locked section header', () => {
+    const { container, city, state } = makeLockedMR4Fixture();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const lockedSection = panel.querySelector('[data-section="locked-items"]');
+    expect(lockedSection).toBeTruthy();
+    const btn = lockedSection?.querySelector('[data-find-resources-btn]');
+    expect(btn).toBeTruthy();
+  });
+
+  it('clicking 📍 calls onFindResources with the nearest visible copper tile coords', () => {
+    const tileCoord: HexCoord = { q: 10, r: 10 };
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons'],
+      resourceTile: { coord: tileCoord, resource: 'copper', visible: true },
+    });
+
+    const capturedHighlights: HexCoord[] = [];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onFindResources: (h) => { capturedHighlights.push(...h); },
+    });
+
+    panel.querySelector<HTMLElement>('[data-find-resources-btn]')!.click();
+
+    expect(capturedHighlights).toHaveLength(1);
+    expect(capturedHighlights[0]).toEqual(tileCoord);
+  });
+
+  it('clicking 📍 with NO seen copper tile → onFindResources called with empty highlights and "No ... spotted yet" toast', () => {
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons'],
+      // no resourceTile — no copper visible
+    });
+
+    let capturedHighlights: HexCoord[] = [];
+    let capturedToasts: Array<{ message: string; type: string }> = [];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onFindResources: (h, t) => { capturedHighlights = h; capturedToasts = t; },
+    });
+
+    panel.querySelector<HTMLElement>('[data-find-resources-btn]')!.click();
+
+    expect(capturedHighlights).toHaveLength(0);
+    expect(capturedToasts.some(t => t.message.includes('spotted yet'))).toBe(true);
+  });
+
+  it('trade-routes NOT researched → toast does NOT mention "buy access"', () => {
+    const tileCoord: HexCoord = { q: 10, r: 10 };
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons'], // no trade-routes
+      resourceTile: { coord: tileCoord, resource: 'copper', visible: true },
+    });
+
+    let capturedToasts: Array<{ message: string; type: string }> = [];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onFindResources: (_, t) => { capturedToasts = t; },
+    });
+
+    panel.querySelector<HTMLElement>('[data-find-resources-btn]')!.click();
+
+    expect(capturedToasts.every(t => !t.message.toLowerCase().includes('buy access'))).toBe(true);
+  });
+
+  it('trade-routes researched → toast DOES mention "buy access"', () => {
+    const tileCoord: HexCoord = { q: 10, r: 10 };
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons', 'trade-routes'],
+      resourceTile: { coord: tileCoord, resource: 'copper', visible: true },
+    });
+
+    let capturedToasts: Array<{ message: string; type: string }> = [];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onFindResources: (_, t) => { capturedToasts = t; },
+    });
+
+    panel.querySelector<HTMLElement>('[data-find-resources-btn]')!.click();
+
+    expect(capturedToasts.some(t => t.message.toLowerCase().includes('buy access'))).toBe(true);
+  });
+
+  it('reason text (data-locked-reason) contains Expedition path', () => {
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons'],
+    });
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const reasonEl = panel.querySelector('[data-locked-reason]');
+    expect(reasonEl?.textContent).toContain('Expedition');
+  });
+
+  it('reason text does NOT mention "buy access" without trade-routes', () => {
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons'],
+    });
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const reasonEl = panel.querySelector('[data-locked-reason]');
+    expect(reasonEl?.textContent?.toLowerCase()).not.toContain('buy access');
+  });
+
+  it('fog-visibility tile IS highlighted (not only "visible")', () => {
+    const tileCoord: HexCoord = { q: 10, r: 10 };
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons'],
+      resourceTile: { coord: tileCoord, resource: 'copper', visible: false },
+    });
+    const civId = state.currentPlayer;
+    state.civilizations[civId].visibility.tiles[hexKey(tileCoord)] = 'fog';
+
+    const capturedHighlights: HexCoord[] = [];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onFindResources: (h) => { capturedHighlights.push(...h); },
+    });
+
+    panel.querySelector<HTMLElement>('[data-find-resources-btn]')!.click();
+
+    expect(capturedHighlights).toHaveLength(1);
+    expect(capturedHighlights[0]).toEqual(tileCoord);
+  });
+
+  it('unexplored tile is NOT highlighted', () => {
+    const tileCoord: HexCoord = { q: 10, r: 10 };
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons'],
+      resourceTile: { coord: tileCoord, resource: 'copper', visible: false },
+    });
+    // Tile exists in map but visibility is 'unexplored' (no entry in vis.tiles = unexplored)
+
+    const capturedHighlights: HexCoord[] = [];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onFindResources: (h) => { capturedHighlights.push(...h); },
+    });
+
+    panel.querySelector<HTMLElement>('[data-find-resources-btn]')!.click();
+
+    expect(capturedHighlights).toHaveLength(0);
+  });
+
+  it('clicking 📍 calls onClose to close the panel', () => {
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['stone-weapons'],
+    });
+    let closeCalled = false;
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => { closeCalled = true; },
+    });
+
+    panel.querySelector<HTMLElement>('[data-find-resources-btn]')!.click();
+
+    expect(closeCalled).toBe(true);
   });
 });
