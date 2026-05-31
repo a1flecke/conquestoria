@@ -594,7 +594,15 @@ export function createCityPanel(
 
   container.appendChild(panel);
 
+  // Declare ref early so rerenderPanel (below) can cancel the timer via closure.
+  const frustrationRef: { timer: ReturnType<typeof setTimeout> | null } = { timer: null };
+
   const rerenderPanel = (nextState: GameState | void = state, nextTab: CityPanelTab = 'list') => {
+    // Cancel the frustration timer before destroying this panel instance.
+    if (frustrationRef.timer !== null) {
+      clearTimeout(frustrationRef.timer);
+      frustrationRef.timer = null;
+    }
     const renderState = nextState ?? state;
     const refreshedCity = renderState.cities[city.id];
     if (!refreshedCity) {
@@ -609,30 +617,36 @@ export function createCityPanel(
 
   // Locked-item frustration tip: if the player stares at a locked section for
   // 5 s without tapping a build item, suggest how to unlock the top resource.
-  let frustrationTimer: ReturnType<typeof setTimeout> | null = null;
   if (lockedItems.length > 0 && callbacks.onTip) {
     const onTip = callbacks.onTip;
-    frustrationTimer = setTimeout(() => {
-      frustrationTimer = null;
-      const item = lockedItems[0];
-      const resourceId = item.missingResources[0];
-      const tipId = `locked-frustration-${resourceId ?? item.id}`;
-      if (SESSION_SHOWN_TIPS.has(tipId)) return;
-      SESSION_SHOWN_TIPS.add(tipId);
-      const def = resourceId ? RESOURCE_DEFINITIONS.find(d => d.id === resourceId) : null;
-      const resourceName = def?.name ?? resourceId ?? 'this resource';
-      onTip(
-        `To unlock ${item.name}, you need ${resourceName}. `
-        + `Train an Expedition to find and claim a nearby deposit!`,
-      );
-    }, 5000);
+    // Only suggest for items that have a concrete missing resource
+    const actionableItem = lockedItems.find(it => it.missingResources.length > 0);
+    if (actionableItem) {
+      frustrationRef.timer = setTimeout(() => {
+        frustrationRef.timer = null;
+        const resourceId = actionableItem.missingResources[0];
+        const tipId = `locked-frustration-${resourceId}`;
+        if (SESSION_SHOWN_TIPS.has(tipId)) return;
+        SESSION_SHOWN_TIPS.add(tipId);
+        const def = RESOURCE_DEFINITIONS.find(d => d.id === resourceId);
+        const resourceName = def?.name ?? String(resourceId);
+        onTip(
+          `To unlock ${actionableItem.name}, you need ${resourceName}. `
+          + `Train an Expedition to find and claim a nearby deposit!`,
+        );
+      }, 5000);
+    }
   }
 
-  byId('city-close')?.addEventListener('click', () => {
-    if (frustrationTimer !== null) {
-      clearTimeout(frustrationTimer);
-      frustrationTimer = null;
+  const cancelFrustrationTimer = () => {
+    if (frustrationRef.timer !== null) {
+      clearTimeout(frustrationRef.timer);
+      frustrationRef.timer = null;
     }
+  };
+
+  byId('city-close')?.addEventListener('click', () => {
+    cancelFrustrationTimer();
     panel.remove();
     callbacks.onClose();
   });

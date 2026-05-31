@@ -747,18 +747,23 @@ export function getAdvisorMessageIds(): string[] {
  * @param state       Current game state (for tech check).
  * @param bus         EventBus to emit the advisor message on.
  */
+/**
+ * Returns true if a tip was actually emitted (tip was not suppressed by
+ * SESSION_SHOWN_TIPS or a disabled advisor). Callers can use this to avoid
+ * flooding the player with multiple tips in the same visibility update.
+ */
 export function fireResourceDiscoveredTip(
   resourceId: string,
   state: GameState,
   bus: EventBus,
-): void {
+): boolean {
   const tipId = `resource-discovered-${resourceId}`;
-  if (SESSION_SHOWN_TIPS.has(tipId)) return;
+  if (SESSION_SHOWN_TIPS.has(tipId)) return false;
 
   const civ = state.civilizations[state.currentPlayer];
-  if (!civ) return;
+  if (!civ) return false;
 
-  if (!state.settings?.advisorsEnabled?.explorer) return;
+  if (!state.settings?.advisorsEnabled?.explorer) return false;
 
   SESSION_SHOWN_TIPS.add(tipId);
 
@@ -787,4 +792,5 @@ export function fireResourceDiscoveredTip(
     message,
     icon: '🗺️',
   });
+  return true;
 }
