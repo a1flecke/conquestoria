@@ -178,6 +178,8 @@ export function performEstablishOutpost(state: GameState, unitId: string): GameS
     improvement: 'resource_outpost' as const,
     improvementTurnsLeft: 2,
     owner: civId,
+    // improvementOwner lets processImprovements() log "Resource Outpost completed!" to the civ
+    improvementOwner: civId,
   };
 
   const { [unitId]: _removed, ...remainingUnits } = state.units;
