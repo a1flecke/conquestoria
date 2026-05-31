@@ -10,6 +10,7 @@ import {
 } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import {
   getCompactLegendaryWonderEntriesForCity,
   getLegendaryWonderPresentationForCity,
@@ -39,6 +40,8 @@ export interface CityPanelCallbacks {
   onToggleWorkedTile?: (cityId: string, coord: HexCoord, worked: boolean) => GameState | void;
   onPlaceBuilding?: (cityId: string, buildingId: string, row: number, col: number) => void;
   onClose: () => void;
+  /** Called when a locked-item frustration tip fires (5 s of looking at locked items). */
+  onTip?: (message: string) => void;
   onPrevCity?: () => void;
   onNextCity?: () => void;
   onUpgradeUnit?: (unitId: string) => void;
@@ -604,7 +607,32 @@ export function createCityPanel(
     createCityPanel(container, refreshedCity, renderState, callbacks, nextTab);
   };
 
+  // Locked-item frustration tip: if the player stares at a locked section for
+  // 5 s without tapping a build item, suggest how to unlock the top resource.
+  let frustrationTimer: ReturnType<typeof setTimeout> | null = null;
+  if (lockedItems.length > 0 && callbacks.onTip) {
+    const onTip = callbacks.onTip;
+    frustrationTimer = setTimeout(() => {
+      frustrationTimer = null;
+      const item = lockedItems[0];
+      const resourceId = item.missingResources[0];
+      const tipId = `locked-frustration-${resourceId ?? item.id}`;
+      if (SESSION_SHOWN_TIPS.has(tipId)) return;
+      SESSION_SHOWN_TIPS.add(tipId);
+      const def = resourceId ? RESOURCE_DEFINITIONS.find(d => d.id === resourceId) : null;
+      const resourceName = def?.name ?? resourceId ?? 'this resource';
+      onTip(
+        `To unlock ${item.name}, you need ${resourceName}. `
+        + `Train an Expedition to find and claim a nearby deposit!`,
+      );
+    }, 5000);
+  }
+
   byId('city-close')?.addEventListener('click', () => {
+    if (frustrationTimer !== null) {
+      clearTimeout(frustrationTimer);
+      frustrationTimer = null;
+    }
     panel.remove();
     callbacks.onClose();
   });

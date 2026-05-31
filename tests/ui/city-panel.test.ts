@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
+import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { createEmptyCityGrid } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
@@ -1441,5 +1442,105 @@ describe('city-panel locked section — S4b', () => {
     expect(itemsAfter.length).toBeGreaterThan(3);
     // Each revealed item should have non-empty name text
     itemsAfter.forEach(el => expect(el.textContent!.length).toBeGreaterThan(0));
+  });
+});
+
+// ── Locked-item frustration tip ───────────────────────────────────────────────
+
+describe('city-panel locked frustration tip', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    SESSION_SHOWN_TIPS.clear();
+  });
+
+  function makeLockedForFrustration() {
+    const { container, state } = makeWonderPanelFixture();
+    const civId = state.currentPlayer;
+    // 'stone-weapons' tech unlocks Axeman which needs copper → creates a locked item
+    state.civilizations[civId].techState.completed = ['stone-weapons'];
+    const city = Object.values(state.cities).find(c => c.owner === civId)!;
+    return { container, city, state };
+  }
+
+  it('fires onTip after 5 seconds when the locked section is visible', () => {
+    vi.useFakeTimers();
+    const { container, city, state } = makeLockedForFrustration();
+    const tips: string[] = [];
+    createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onTip: (msg) => tips.push(msg),
+    });
+
+    expect(tips).toHaveLength(0);
+    vi.advanceTimersByTime(5001);
+    expect(tips).toHaveLength(1);
+    expect(tips[0]).toContain('Expedition');
+  });
+
+  it('does NOT fire onTip when the close button is clicked before 5 seconds', () => {
+    vi.useFakeTimers();
+    const { container, city, state } = makeLockedForFrustration();
+    const tips: string[] = [];
+    createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onTip: (msg) => tips.push(msg),
+    });
+
+    // The frustration timer should be pending
+    expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
+
+    // The container is in document.body — take the last #city-close in doc
+    // (safe against earlier tests leaving stale panels in the jsdom document)
+    const allClose = [...document.querySelectorAll<HTMLElement>('[id="city-close"]')];
+    const closeBtn = allClose.at(-1);
+    expect(closeBtn).toBeTruthy();
+    closeBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    // Timer should be cleared; advancing past 5s should not fire the tip
+    vi.advanceTimersByTime(6000);
+    expect(tips).toHaveLength(0);
+  });
+
+  it('does NOT fire if onTip callback is omitted', () => {
+    vi.useFakeTimers();
+    const { container, city, state } = makeLockedForFrustration();
+    // No onTip — should not error and should not fire
+    createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    vi.advanceTimersByTime(6000);
+    // No assertion needed — test passes if no error thrown
+  });
+
+  it('deduplicates: second open of city panel does NOT fire tip again for same resource', () => {
+    vi.useFakeTimers();
+    const { container, city, state } = makeLockedForFrustration();
+    const tips: string[] = [];
+    const onTip = (msg: string) => tips.push(msg);
+
+    createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onTip,
+    });
+    vi.advanceTimersByTime(5001); // first fire
+    expect(tips).toHaveLength(1);
+
+    // Open a second panel (SESSION_SHOWN_TIPS now has the key)
+    createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onTip,
+    });
+    vi.advanceTimersByTime(5001); // should NOT fire again
+    expect(tips).toHaveLength(1); // still only 1
   });
 });

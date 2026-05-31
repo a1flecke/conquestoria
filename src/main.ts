@@ -733,6 +733,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       return gameState;
     },
     onClose: () => {},
+    onTip: (message) => { showNotification(message, 'info'); },
     onPrevCity: () => {
       const cities = currentCiv().cities;
       if (cities.length <= 1) return;
