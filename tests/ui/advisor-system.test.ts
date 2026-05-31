@@ -535,6 +535,36 @@ describe('SESSION_SHOWN_TIPS deduplication', () => {
     advisor.check(state);
     expect(SESSION_SHOWN_TIPS.has('resources-intro')).toBe(true);
   });
+
+  it('resources-intro does NOT fire when civ has already acquired a resource', () => {
+    // stateWithCity() founds a city so getCivAvailableResources can inspect ownedTiles.
+    // makeState() has no city yet (only a settler), so getCivAvailableResources would
+    // always return an empty set and the trigger would fire incorrectly.
+    const state = stateWithCity();
+    state.tutorial.active = false;
+    state.turn = 5;
+    state.settings.advisorsEnabled = { builder: false, explorer: true, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    const civId = state.currentPlayer;
+    state.civilizations[civId].techState.completed = ['bronze-working'];
+    // Add a completed mine on an iron tile inside the city's owned territory
+    const cityId = state.civilizations[civId].cities[0];
+    const tileCoord = { q: 99, r: 0 };
+    state.map.tiles['99,0'] = {
+      coord: tileCoord, terrain: 'hills', elevation: 'lowland',
+      resource: 'iron' as never, improvement: 'mine', owner: civId,
+      improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    state.cities[cityId] = {
+      ...state.cities[cityId],
+      ownedTiles: [...state.cities[cityId].ownedTiles, tileCoord],
+    };
+    const bus = new EventBus();
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+    const advisor = new AdvisorSystem(bus);
+    advisor.check(state);
+    expect(messages.some(m => (m.message as string).includes('Special resources'))).toBe(false);
+  });
 });
 
 // ── fireResourceDiscoveredTip ─────────────────────────────────────────────────
@@ -544,7 +574,7 @@ describe('fireResourceDiscoveredTip', () => {
     SESSION_SHOWN_TIPS.clear();
   });
 
-  it('emits advisor:message for a known resource the civ has tech for', () => {
+  it('emits advisor:message for a known resource the civ has tech for and returns true', () => {
     const state = makeState();
     state.tutorial.active = false;
     state.settings.advisorsEnabled = { builder: false, explorer: true, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
@@ -554,8 +584,9 @@ describe('fireResourceDiscoveredTip', () => {
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));
 
-    fireResourceDiscoveredTip('iron', state, bus);
+    const fired = fireResourceDiscoveredTip('iron', state, bus);
 
+    expect(fired).toBe(true);
     expect(messages).toHaveLength(1);
     expect(messages[0].advisor).toBe('explorer');
     expect(messages[0].message).toContain('Iron');
@@ -571,12 +602,13 @@ describe('fireResourceDiscoveredTip', () => {
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));
 
-    fireResourceDiscoveredTip('iron', state, bus);
+    const fired = fireResourceDiscoveredTip('iron', state, bus);
 
+    expect(fired).toBe(true);
     expect(messages[0].message).toContain('bronze-working');
   });
 
-  it('deduplicates: only fires once per resource per session', () => {
+  it('deduplicates: only fires once per resource per session and returns false on repeat', () => {
     const state = makeState();
     state.tutorial.active = false;
     state.settings.advisorsEnabled = { builder: false, explorer: true, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
@@ -585,13 +617,15 @@ describe('fireResourceDiscoveredTip', () => {
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));
 
-    fireResourceDiscoveredTip('iron', state, bus);
-    fireResourceDiscoveredTip('iron', state, bus);
+    const first = fireResourceDiscoveredTip('iron', state, bus);
+    const second = fireResourceDiscoveredTip('iron', state, bus);
 
+    expect(first).toBe(true);
+    expect(second).toBe(false);
     expect(messages).toHaveLength(1);
   });
 
-  it('does not fire when explorer advisor is disabled', () => {
+  it('returns false and does not fire when explorer advisor is disabled', () => {
     const state = makeState();
     state.tutorial.active = false;
     state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
@@ -600,8 +634,28 @@ describe('fireResourceDiscoveredTip', () => {
     const messages: any[] = [];
     bus.on('advisor:message', (msg) => messages.push(msg));
 
-    fireResourceDiscoveredTip('iron', state, bus);
+    const fired = fireResourceDiscoveredTip('iron', state, bus);
 
+    expect(fired).toBe(false);
     expect(messages).toHaveLength(0);
+  });
+
+  it('returns false when disabled (not adding to SESSION_SHOWN_TIPS), so it can fire later when enabled', () => {
+    const state = makeState();
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    state.civilizations.player.techState.completed = ['bronze-working'];
+    const bus = new EventBus();
+
+    fireResourceDiscoveredTip('iron', state, bus); // disabled — should NOT add to SESSION_SHOWN_TIPS
+    expect(SESSION_SHOWN_TIPS.has('resource-discovered-iron')).toBe(false);
+
+    // Now enable the advisor — tip should fire
+    state.settings.advisorsEnabled = { builder: false, explorer: true, chancellor: false, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    const messages: any[] = [];
+    bus.on('advisor:message', (msg) => messages.push(msg));
+    const fired = fireResourceDiscoveredTip('iron', state, bus);
+    expect(fired).toBe(true);
+    expect(messages).toHaveLength(1);
   });
 });

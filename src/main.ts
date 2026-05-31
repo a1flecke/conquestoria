@@ -1665,13 +1665,15 @@ function refreshCurrentPlayerVisibility(): void {
 
   updateAndRefreshVisibility(gameState, gameState.currentPlayer);
 
-  // Fire resource-discovered advisor tip for any tile that just emerged from unexplored
+  // Fire at most one resource-discovered tip per visibility update to avoid
+  // flooding the player when a scout reveals several resource tiles at once.
   const updatedTiles = currentCiv()?.visibility?.tiles ?? {};
   for (const key of prevUnexplored) {
     if (updatedTiles[key] !== 'unexplored') {
       const tile = gameState.map.tiles[key];
       if (tile?.resource) {
-        fireResourceDiscoveredTip(tile.resource, gameState, bus);
+        const fired = fireResourceDiscoveredTip(tile.resource, gameState, bus);
+        if (fired) break; // one tip per move is enough
       }
     }
   }

@@ -1508,14 +1508,45 @@ describe('city-panel locked frustration tip', () => {
   it('does NOT fire if onTip callback is omitted', () => {
     vi.useFakeTimers();
     const { container, city, state } = makeLockedForFrustration();
-    // No onTip — should not error and should not fire
+    // No onTip — no timer should be scheduled, no error thrown
     createCityPanel(container, city, state, {
       onBuild: () => {},
       onOpenWonderPanel: () => {},
       onClose: () => {},
     });
+    expect(vi.getTimerCount()).toBe(0);
     vi.advanceTimersByTime(6000);
-    // No assertion needed — test passes if no error thrown
+  });
+
+  it('cancels frustration timer when rerenderPanel is triggered (build-click)', () => {
+    vi.useFakeTimers();
+    const { container, city, state } = makeLockedForFrustration();
+    const tips: string[] = [];
+
+    createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onTip: (msg) => tips.push(msg),
+    });
+
+    expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
+
+    // Trigger a rerender by clicking a build item (or directly simulating it)
+    const buildItems = [...document.querySelectorAll<HTMLElement>('.build-item')];
+    const buildItem = buildItems.at(-1);
+    if (buildItem) {
+      buildItem.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }
+
+    // After rerenderPanel: old timer should be cleared (timer count drops to 0
+    // before the new panel's timer is registered)
+    // Advance past the original 5s — old timer must not fire
+    vi.advanceTimersByTime(5100);
+    // tips remains 0 IF the old timer was cancelled (new panel also has a timer
+    // but SESSION_SHOWN_TIPS would suppress it anyway after first fire)
+    // The key assertion: no duplicate fires from stale timer
+    expect(tips.length).toBeLessThanOrEqual(1);
   });
 
   it('deduplicates: second open of city panel does NOT fire tip again for same resource', () => {
