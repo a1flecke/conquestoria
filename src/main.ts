@@ -7,6 +7,7 @@ import { RenderLoop } from '@/renderer/render-loop';
 import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
 import { preloadTerrainTiles } from '@/renderer/terrain/terrain-tile-loader';
+import { preloadNaturalWonderTiles } from '@/renderer/terrain/wonder-tile-loader';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
@@ -3301,6 +3302,7 @@ function startGame(): void {
   initSprites(civColors);
   preloadOutpostMarker().catch(() => {});
   preloadTerrainTiles().catch(() => {});
+  preloadNaturalWonderTiles().catch(() => {});
 
   // Center camera on current player's starting position
   centerOnCurrentPlayer();

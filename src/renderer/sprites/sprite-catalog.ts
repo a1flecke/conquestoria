@@ -23,6 +23,9 @@ import {
   IronFoundrySprite, WarAcademySprite, MasonryWorksSprite, SiegeWorkshopSprite,
   CaravanseraiSprite, BankSprite, StockExchangeSprite,
 } from './buildings';
+import {
+  PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
+} from './wonders';
 
 export type UnitSpriteComponent = (props: UnitSpriteProps) => string;
 export type BuildingSpriteComponent = (props: BuildingSpriteProps) => string;
@@ -157,6 +160,13 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   caravanserai:           CaravanseraiSprite,
   bank:                   BankSprite,
   stock_exchange:         StockExchangeSprite,
+  // S6 legendary wonder sprites — keyed by wonder ID so the sprite loader
+  // caches them and city/production badge renderers can look them up when
+  // these wonders are added to the game's legendary-wonder definitions.
+  pyramids:               PyramidsSprite,
+  colosseum:              ColosseumSprite,
+  great_library:          GreatLibrarySprite,
+  lighthouse:             LighthouseSprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;

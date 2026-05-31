@@ -2,6 +2,7 @@ import type { TilePresentationKind } from '@/renderer/tile-presentation';
 import { drawNaturalWonderSpectacleEffects } from '@/renderer/wonders/natural-wonder-effects-renderer';
 import { getWonderVisualDefinition, type WonderMapLandmark } from '@/systems/wonder-visual-catalog';
 import { getWonderSpectacleRenderMode } from '@/systems/wonder-spectacle/presentation';
+import { getNaturalWonderTileImage } from '@/renderer/terrain/wonder-tile-loader';
 
 export interface NaturalWonderRenderOptions {
   ctx: CanvasRenderingContext2D;
@@ -102,33 +103,60 @@ function drawLandmarkShape(
 export function drawNaturalWonderLandmark(options: NaturalWonderRenderOptions): void {
   const { ctx, cx, cy, size, wonderId, presentationKind, nowMs, reducedMotion, lowZoom } = options;
   const visual = getWonderVisualDefinition(wonderId);
-  const anim = pulse(nowMs, reducedMotion);
-  const radius = size * (0.32 + anim);
 
   ctx.save();
   ctx.globalAlpha = presentationKind === 'last-seen' ? 0.72 : 1;
 
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fillStyle = visual.palette.base;
-  ctx.fill();
+  // Draw S6 SVG hex tile if one is available for this wonder — same draw
+  // dimensions as terrain tiles (2*size × √3*size, centred on the hex).
+  const wonderTileImg = getNaturalWonderTileImage(wonderId);
+  if (wonderTileImg && !reducedMotion) {
+    // Clip to the hex path before drawing (caller's path is still active)
+    ctx.save();
+    ctx.beginPath();
+    // Re-trace the hex boundary so clip is fresh
+    const HEX_ANGLES = [-30, 30, 90, 150, 210, 270];
+    for (let i = 0; i < 6; i++) {
+      const rad = (Math.PI / 180) * HEX_ANGLES[i];
+      const px = cx + Math.cos(rad) * size;
+      const py = cy + Math.sin(rad) * size;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(wonderTileImg, cx - size, cy - size * 0.866, size * 2, size * 1.732);
+    ctx.restore();
+    // Draw the glow ring and spectacle effects on top of the SVG tile
+    const spectacleMode = getWonderSpectacleRenderMode({
+      surface: 'map', wonderId, presentationKind, lowZoom, reducedMotion,
+      discovered: presentationKind === 'live' || presentationKind === 'last-seen',
+    });
+    drawNaturalWonderSpectacleEffects({ ctx, cx, cy, size, wonderId, nowMs, mode: spectacleMode });
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.42, 0, Math.PI * 2);
+    ctx.strokeStyle = visual.palette.glow;
+    ctx.lineWidth = Math.max(1.5, size * 0.045);
+    ctx.stroke();
+  } else {
+    // Fallback: existing procedural canvas landmark
+    const anim = pulse(nowMs, reducedMotion);
+    const radius = size * (0.32 + anim);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = visual.palette.base;
+    ctx.fill();
+    const spectacleMode = getWonderSpectacleRenderMode({
+      surface: 'map', wonderId, presentationKind, lowZoom, reducedMotion,
+      discovered: presentationKind === 'live' || presentationKind === 'last-seen',
+    });
+    drawNaturalWonderSpectacleEffects({ ctx, cx, cy, size, wonderId, nowMs, mode: spectacleMode });
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.42, 0, Math.PI * 2);
+    ctx.strokeStyle = visual.palette.glow;
+    ctx.lineWidth = Math.max(1.5, size * 0.045);
+    ctx.stroke();
+    drawLandmarkShape(ctx, visual.mapLandmark, cx, cy, size, visual.palette.accent);
+  }
 
-  const spectacleMode = getWonderSpectacleRenderMode({
-    surface: 'map',
-    wonderId,
-    presentationKind,
-    lowZoom,
-    reducedMotion,
-    discovered: presentationKind === 'live' || presentationKind === 'last-seen',
-  });
-  drawNaturalWonderSpectacleEffects({ ctx, cx, cy, size, wonderId, nowMs, mode: spectacleMode });
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, size * 0.42, 0, Math.PI * 2);
-  ctx.strokeStyle = visual.palette.glow;
-  ctx.lineWidth = Math.max(1.5, size * 0.045);
-  ctx.stroke();
-
-  drawLandmarkShape(ctx, visual.mapLandmark, cx, cy, size, visual.palette.accent);
   ctx.restore();
 }

@@ -1,163 +1,119 @@
-# Sprite Defect Prompts — 2026-05-30
+# Sprite Defect Prompts — 2026-05-30 (updated after S6 handoff)
 
-Prompts to give Claude Design to fix issues found during the handoff ZIP review.
-Each section is a self-contained prompt; paste one at a time into Claude Design.
+## Status summary
+
+| Defect | Status |
+|--------|--------|
+| Work-state preview button missing (S5) | ✅ Fixed — preview now has Idle / Walk / Work tabs |
+| Wonders not included | ✅ Fixed — S6 delivers 4 legendary + 4 natural wonders |
+| V2 animation rollout (15 units) | ❌ Still outstanding |
+| PikemanV2 forward-thrust keyframe | ❌ Still outstanding |
+| More wonders (beyond S6 4+4) | ❌ Not yet started |
+
+Prompts below are for the three remaining gaps.
 
 ---
 
 ## DEFECT 1 — V2 animation rollout: 15 units still on V1
 
-**Status**: Canary sprites work. Rollout not finished.
-
-**Background**: The design project already contains four working V2 canary sprites
-(`SwordsmanV2Sprite`, `WorkerV2Sprite`, `ArcherV2Sprite`, `SpyOperativeV2Sprite`)
-in `lib/units-v2.jsx`, plus the full animation stylesheet in
-`lib/sprite-animations-v2.css`. The HANDOFF.md describes the per-sprite checklist
-and architecture rules.
+**Status**: Four canary sprites work (SwordsmanV2, WorkerV2, ArcherV2, SpyOperativeV2).
+The remaining 14 (excluding blocked Pikeman) need V2 ports following HANDOFF.md.
 
 **Prompt for Claude Design**:
 
 > Continue the V2 animation rollout following the HANDOFF.md in this project.
-> Fifteen units still need V2 ports:
+> These units still need porting — group them by which canary they follow:
 >
-> **Like Worker (civilian + tool, arms="free" + armRContent):**
-> - SettlerSprite — ox-cart body art, walking staff in armRContent
-> - ScoutSprite — spyglass at brow (arm raised via armRContent at shoulder level)
+> **Like Worker (civilian + tool, `arms="free"` + `armRContent`):**
+> - SettlerSprite — ox-cart body art, walking staff in `armRContent`
+> - ScoutSprite — spyglass at brow (`armRContent` at shoulder-level, not hand-level)
 >
-> **Like Archer (ranged, arms="locked" + external weapon):**
-> - MusketeerSprite — replace bow with musket; add .cq-muzzle-flash at muzzle tip
+> **Like Archer (ranged, `arms="locked"` + external weapon):**
+> - MusketeerSprite — replace bow with musket; add `.cq-muzzle-flash` at muzzle tip
 >
 > **Like Swordsman (melee, custom geometry):**
-> - WarriorSprite — HumanoidV2 arms="free", club in .cq-weapon, round shield in armLContent
-> - PikemanSprite — see DEFECT 2 below (blocked on new keyframe; do the other 14 first)
+> - WarriorSprite — HumanoidV2 `arms="free"`, club in `.cq-weapon`, round shield in `armLContent`
 >
 > **Like SpyOperative (cloak + gadget):**
 > - SpyScoutSprite — monocular gadget
 > - SpyInformantSprite — newspaper/papers gadget
 > - SpyAgentSprite — mini radio gadget
 > - SpyHackerSprite — handheld terminal
-> - ShadowWardenSprite — arms="free", lantern in armRContent, .cq-cape
+> - ShadowWardenSprite — `arms="free"` + `.cq-cape` + lantern in `armRContent`
 >
-> **Quadrupeds (don't use HumanoidV2; just wrap existing legs for bob):**
-> - ScoutHoundSprite — wrap each leg group in outer translate / inner (no hook class), gives body-bob only
-> - WarHoundSprite — same pattern
+> **Quadrupeds (just wrap existing legs for body-bob, no articulation):**
+> - ScoutHoundSprite — outer translate / inner wrapper (no hook class) per leg
+> - WarHoundSprite — same
 >
-> **Naval (just needs auto-phase; .cq-sail already animated):**
-> - GalleySprite — confirm no detached parts, add SpriteFrameV2 wrapper
+> **Naval (auto-phase only; `.cq-sail` already animated):**
+> - GalleySprite — confirm no detached parts, add `SpriteFrameV2` wrapper
 > - TriremeSprite — same
 >
 > For each sprite: add a V2 row to `anim-compare.jsx`, run the devtools lint
 > snippet from HANDOFF.md, and confirm walk + attack loops have no flying parts.
-> Commit once all 14 (excluding Pikeman) pass the per-sprite checklist.
+> Do NOT port PikemanSprite — it is blocked on DEFECT 2 below.
 
 ---
 
 ## DEFECT 2 — PikemanV2 blocked: needs forward-thrust keyframe
 
-**Status**: HANDOFF.md explicitly says to flag this back rather than inventing the keyframe.
+**Status**: HANDOFF.md explicitly says to flag this rather than invent the keyframe alone.
 
 **Prompt for Claude Design**:
 
 > Add a `cq-pike-thrust` keyframe to `lib/sprite-animations-v2.css` for the Pikeman's
-> attack animation. The pikeman thrusts forward — it should NOT use the generic
-> `cq2-swing` rotation because a pike doesn't swing like a sword; it extends linearly.
+> attack animation. A pike thrusts linearly — it must NOT use the generic `cq2-swing`
+> rotation (which looks like a sword).
 >
 > Desired motion:
-> - Idle / walk: pike rests diagonally over the shoulder (no CSS movement needed — the
->   SVG geometry already places it there).
-> - Attack: the whole pike assembly translates forward along its shaft axis ~12px,
->   then snaps back over ~0.3s. A very slight rotation (±3°) at the start gives
->   anticipation. Total duration ~1.1s to match the other melee units.
+> - Idle / walk: pike rests diagonally over the shoulder (static geometry).
+> - Attack: the whole pike assembly translates forward ~12px along its shaft axis,
+>   with a slight anticipatory pullback (−4px) in the first 15% of the cycle, then
+>   snaps forward and returns. Total duration ~1.1s to match other melee units.
 >
-> Hook class: `.cq-weapon` (already in CSS scope). Use `data-kind="melee"` selector
-> so it only fires on Pikeman (melee units get `data-kind="melee"` from `SpriteFrameV2`).
+> Hook class: `.cq-weapon` on `data-kind="melee"` units. Scope it with a
+> `[data-kind="pikeman"]` attribute (or a dedicated `data-subkind`) so it only
+> fires on Pikeman and doesn't override Swordsman / Warrior.
 >
-> After adding the keyframe, port PikemanV2Sprite following the HANDOFF.md checklist.
-> The pike shaft is long — confirm the tip does not exit the 128×128 viewBox during
-> the thrust frame. If it does, shorten the pike geometry slightly.
+> After adding the keyframe, port PikemanV2Sprite following HANDOFF.md checklist.
+> The pike shaft is long — confirm the tip doesn't exit the 128×128 viewBox during
+> the thrust frame.
 
 ---
 
-## DEFECT 3 — Wonder sprites not included in handoff
+## DEFECT 3 — Additional wonders (beyond S6 4+4)
 
-**Status**: Zero wonder sprites delivered. The game has two wonder categories:
-legendary (player-built) and natural (discovered on the map).
+**Status**: S6 delivered the minimum four of each category. The note in the S6
+REVIEW.md says "Say the word for the rest of each category."
 
-**Prompt for Claude Design**:
+**Prompt for Claude Design** (additional legendary wonders):
 
-> The Conquestoria handoff ZIP is missing wonder sprites. The game already has
-> placeholder canvas renderers for wonders. Replace them with SVG sprites matching
-> the S4b/S5 art style (128×128 viewBox, earthy palette, no gradients/filters,
-> `stroke-linecap="round"` throughout).
+> Add four more legendary wonder sprites to the `sprites-s7/` folder, following
+> the same S6 conventions (`BuildingFrame` · 192×192 · `palette.*` · existing hooks only):
 >
-> **Legendary wonders** (player-built, shown at city scale — same size as buildings):
-> Use `BuildingFrame` / `BuildingPlinth` like the existing building sprites.
-> Faction color flows through `palette.*`. Build at least these four first:
+> | Wonder | Category | Concept |
+> |--------|----------|---------|
+> | Hanging Gardens | food | multi-level terraced garden, waterwheels feeding canals, `.cq-water-stream`, lush `#7ea860` terraces |
+> | Great Wall | military | crenellated wall section in `P.stone.mid`, watchtower at left, `.cq-smoke` beacon fire |
+> | Leviathan Drydock | economy | enormous dry dock, half-built warship hull, `.cq-spark` metalwork, `.cq-smoke` furnace |
+> | Moonwell Gardens | science | moonlit reflecting pool, stone observatory dome, `.cq-glow` pool surface, starfield detail |
 >
-> | Wonder | Concept |
-> |--------|---------|
-> | Pyramids | three stepped stone pyramids, desert sand base, tiny workers hauling blocks |
-> | Colosseum | oval stone amphitheater cross-section, arched tiers, crowd silhouettes |
-> | Great Library | tall columned hall, scroll tubes visible through open doors, .cq-glow inside |
-> | Lighthouse | tall lighthouse tower, .cq-beacon rotating light at top, rocky shore plinth |
+> Deliver: `sprites-s7/wonders-legendary.tsx` (paste-ready into `wonders.tsx`),
+> plus a `REVIEW.md` checklist confirming no new animation keyframes were needed.
+
+**Prompt for Claude Design** (additional natural wonder tiles):
+
+> Add four more natural wonder hex tiles to `sprites-s7/wonders-natural.tsx`,
+> following the S6 hex tile format (`viewBox 0 0 128 111`, unique `clipPath id="hexW-*"`,
+> SMIL only, no faction palette):
 >
-> **Natural wonders** (map features, drawn on hex tile — 128×111 hex viewBox):
-> Use the same hex clipPath format as the terrain tiles (`viewBox="0 0 128 111"`,
-> `<clipPath id="hex"><polygon points="64,0 128,27.75 128,83.25 64,111 0,83.25 0,27.75"/></clipPath>`).
-> No faction palette. SMIL animation is allowed (same pattern as ocean/volcanic tiles).
-> Build at least:
+> | Wonder ID | Concept | SMIL |
+> |-----------|---------|------|
+> | `coral_reef` | turquoise water, fan corals, darting fish silhouettes | fish `<animateTransform type="translate">` + gentle wave `<animate>` on water |
+> | `aurora_fields` | dark tundra, sweeping aurora bands in teal/violet | aurora `<animate attributeName="opacity">` + slow colour shift |
+> | `frozen_falls` | icy blue cliff, frozen waterfall curtain, snow dusting | light particle drift matching snow tile pattern |
+> | `grand_canyon` | layered rust-red strata, river glint at base, long shadows | river glint `<animate attributeName="opacity">` shimmer |
 >
-> | Natural Wonder | Concept |
-> |----------------|---------|
-> | Mount Olympus | dramatic grey peak, snow cap, lightning bolt accent |
-> | El Dorado | golden temple ruins, lush jungle border, gold shimmer SMIL |
-> | Fountain of Youth | sparkling pool, stone surround, water ripple SMIL |
-> | Krakatoa | volcanic hex tile (derive from volcanic terrain variant), active lava vent |
->
-> Deliver: a `wonders-legendary.tsx` and `wonders-natural.tsx` in the `sprites-s6/`
-> folder (same layout as `sprites-s5/`), plus a REVIEW.md checklist.
-
----
-
-## DEFECT 4 — Work-state screenshots show identical idle view
-
-**Status**: Static screenshots only; cannot confirm `data-state="work"` CSS fires correctly.
-
-**Context**: The `dig-test.png` and `s5-work.png` screenshots appear to show the same
-idle pose for Expedition. The work-state dust (`cq-work-dust`) and dig animation
-(`cq-tool`) are CSS-driven by `[data-state="work"]` selectors. If the preview page
-doesn't toggle to `data-state="work"` (it may only toggle idle/walk/attack), the
-animation never fires.
-
-**Prompt for Claude Design**:
-
-> In `Conquestoria S5 Sprites.html`, the state toggle buttons currently show
-> **Idle | Walk | Attack**. Expedition and Caravan need a **Work** button because
-> their action state is `data-state="work"`, not `"attack"`.
->
-> Add a **Work** button to the S5 preview (alongside Idle/Walk/Attack) that sets
-> `data-state="work"` on all unit SpriteFrame roots. Then:
->
-> 1. Confirm the Expedition `cq-dig` animation fires — the pickaxe should swing
->    ~30° down from its resting shoulder position.
-> 2. Confirm `cq-work-dust` appears as a brief opacity-in/out puff below the pickaxe.
-> 3. Confirm `cq-work-bob` gently bounces the whole figure.
-> 4. Confirm the Caravan `cq-deliver` coins appear and shimmer.
->
-> If any of these don't fire, debug the CSS selector chain — check that the SpriteFrame
-> root has `data-state="work"` set (not just the inner figure), since all selectors
-> are `[data-state="work"] .cq-*`.
->
-> Take a screenshot of each animation mid-frame and attach to the review.
-
----
-
-## NOT A DEFECT — S5 class= vs className= inconsistency
-
-The S5 sprite TSX files (`sprites-s5/units-new.tsx`, `sprites-s5/buildings-new.tsx`)
-use raw `class="cq-*"` attributes instead of `className="cq-*"`. Both work with the
-game's custom JSX runtime (the runtime passes unknown keys through verbatim, and the
-`CAMEL_TO_SVG` map converts `className` → `class`). This is cosmetic inconsistency;
-the game integration will normalize to `className` during paste.
-
-No Claude Design action needed.
+> Deliver: `sprites-s7/wonders-natural.tsx` with the four new entries in the
+> `NATURAL_WONDER_TILES` record. These will be merged into the game's
+> `src/renderer/terrain/wonder-tiles.ts`.
