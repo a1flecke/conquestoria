@@ -56,6 +56,15 @@ Out of scope:
 
 Add a separate buildable `Transport` naval unit.
 
+Architecture:
+
+- Transport and cargo rules live in a shared system module, not in UI callbacks. The UI should ask the transport system for legal actions and call the same system to mutate state.
+- Cargo state is plain serializable data: Transports store cargo unit ids, and loaded land units store the carrying transport id.
+- Loaded cargo units stay in `state.units` for save compatibility, but are excluded from map occupancy, rendering, selection cycling, and unit-to-move queues while loaded.
+- Loaded cargo unit positions are synchronized to the carrying Transport position for save/debug readability, but `transportId` is the source of truth for whether the unit occupies a tile.
+- The cargo model uses definition metadata (`cargoCapacity` on cargo carriers and `cargoSize` on cargo units) so later eras can raise capacity and large units can consume more capacity without rewriting the core data shape.
+- Transport destruction is resolved through shared destruction cleanup so combat, direct removal, and future system callers destroy cargo consistently.
+
 Rules:
 
 - Unlocks with `Galleys`.
@@ -132,6 +141,16 @@ SFX:
 - Existing ships and the new Transport require coastal cities.
 - City panel availability and `processCity` use the same coastal eligibility rule.
 - If an invalid queued ship or Transport is encountered, it is dropped with visible feedback instead of silently completing.
+- Trainable unit metadata includes coastal requirements, and production validation uses that metadata for both newly selected and already queued items.
+
+### Architecture And State Consistency
+
+- Movement legality must have one state-aware helper used by range previews, blocker reasons, pathfinding, and movement execution. The helper receives owner tech context so Transport ocean movement cannot diverge between UI and execution.
+- Movement execution returns a typed success/failure result and performs no mutation on failure. Callers must show or log the failure reason instead of assuming highlights were authoritative.
+- Unit occupancy helpers must ignore loaded cargo units and still reject foreign/neutral stacking for active map units.
+- Unit-to-move selection must use one helper for "needs orders" so start-turn auto-selection, next-unit cycling, save-load restoration, busy workers, loaded cargo, fortified units, and route-committed units agree.
+- Worker action eligibility has a viewer-safe mode. Player-facing UI cannot inspect raw hidden resources; execution may inspect raw map state only after using the same visible eligibility contract for player-issued actions.
+- Generic terrain improvements and resource-enhancing improvements are distinct concepts. A Mine on an empty hill is a legal generic terrain improvement; a Mine prompted by Gems, Gold, Silver, Salt, Copper, or Iron requires that resource to be known before it appears as a resource-specific recommendation. Improvements that only make sense for resources, such as Plantations, Pastures, and Camps, stay hidden until the matching resource is known.
 
 ## Root Causes
 
