@@ -149,6 +149,7 @@ export function loadUnitOntoTransport(state: GameState, unitId: string, transpor
 export function getUnloadDestinations(state: GameState, transportId: string): HexCoord[];
 export function canUnloadUnitFromTransport(state: GameState, transportId: string, cargoUnitId: string, destination: HexCoord): { ok: true } | { ok: false; reason: TransportFailureReason; message: string };
 export function unloadUnitFromTransport(state: GameState, transportId: string, cargoUnitId: string, destination: HexCoord): TransportActionResult;
+export function syncTransportCargoPositions(state: GameState, transportId: string): GameState;
 export function removeTransportAndCargo(state: GameState, transportId: string): GameState;
 ```
 
@@ -159,6 +160,14 @@ export function removeTransportAndCargo(state: GameState, transportId: string): 
   - unload is legal onto an adjacent land tile that is passable for that land unit and unoccupied, or through a friendly coastal city tile if the city tile is a valid destination.
 
 - [ ] Use `UNIT_DEFINITIONS[unit.type].domain ?? 'land'` to reject naval cargo and prevent Transport-in-Transport loops.
+
+- [ ] Search every unit removal/destruction path and route Transport removal through `removeTransportAndCargo()`:
+
+```bash
+rg -n "unit:destroyed|delete .*units|remainingUnits|removeUnit|defenderSurvived|attackerSurvived" src tests
+```
+
+- [ ] When a Transport moves, call `syncTransportCargoPositions()` so loaded cargo positions remain aligned with the carrying Transport for save/debug readability.
 
 ---
 
@@ -313,6 +322,8 @@ export type ExecuteUnitMoveResult =
 
 - [ ] Make `executeUnitMove()` call `validateUnitMove()` before mutation and return the failure result without mutating state.
 
+- [ ] After a successful Transport move, synchronize cargo positions to the Transport destination before visibility refresh. Loaded cargo must not create additional vision, because visibility updates already ignore loaded cargo through the active-unit filters.
+
 - [ ] Update all `executeUnitMove()` callers to check `result.ok` before reading success-only fields. Use `rg`:
 
 ```bash
@@ -422,6 +433,7 @@ export interface TrainableUnitEntry {
 - [ ] Update `src/systems/city-system.ts`:
   - add `transport` to `TRAINABLE_UNITS` with `techRequired: 'galleys'` and `coastalRequired: true`.
   - mark `galley` and `trireme` with `coastalRequired: true`.
+  - add `transport` to `PRODUCTION_ICONS`.
   - add `getTrainableUnitsForCity(city, completedTechs, mapTiles, civType?, availableResources?)`.
   - make `getTrainableUnitsForCiv()` remain tech/resource/civ-only for callers that do not have a city.
   - update city-panel callers to use `getTrainableUnitsForCity()`.
