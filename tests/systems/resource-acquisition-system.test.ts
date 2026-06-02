@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 
 // Minimal GameState builder — only the fields getCivAvailableResources reads.
 function makeTechState(completed: string[] = []) {
@@ -594,5 +595,229 @@ describe('performEstablishOutpost', () => {
     const newState = performEstablishOutpost(state, unitId);
     const tile = newState.map.tiles[hexKey({ q: 5, r: 5 })];
     expect(tile.improvementOwner).toBe('player');
+  });
+});
+
+describe('getCivAvailableResources — pass 3: purchased resources', () => {
+  function makeStateWithPurchase(overrides: {
+    civId?: string;
+    resource?: string;
+    expiresOnTurn?: number;
+    currentTurn?: number;
+    completed?: string[];
+    noMarketplace?: boolean;
+  }): GameState {
+    const {
+      civId = 'player',
+      resource = 'silk',
+      expiresOnTurn = 15,
+      currentTurn = 10,
+      completed = ['irrigation'],  // silk requires 'irrigation'
+      noMarketplace = false,
+    } = overrides;
+
+    return {
+      turn: currentTurn,
+      map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+      cities: {},
+      civilizations: {
+        'player': {
+          id: 'player',
+          cities: [],
+          techState: { completed, currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+        } as unknown as never,
+      },
+      marketplace: noMarketplace ? undefined : {
+        prices: {},
+        priceHistory: {},
+        fashionable: null,
+        fashionTurnsLeft: 0,
+        tradeRoutes: [],
+        purchasedResources: [{ civId, resource: resource as never, expiresOnTurn }],
+      },
+    } as unknown as GameState;
+  }
+
+  it('grants resource when purchasedResources entry matches civId and has not expired', () => {
+    const state = makeStateWithPurchase({ civId: 'player', expiresOnTurn: 15, currentTurn: 10 });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('silk')).toBe(true);
+  });
+
+  it('does NOT grant resource when purchasedResources entry belongs to a different civ (hot-seat isolation)', () => {
+    const state = makeStateWithPurchase({ civId: 'enemy', expiresOnTurn: 15, currentTurn: 10 });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('silk')).toBe(false);
+  });
+
+  it('does NOT grant resource when purchasedResources entry has expired (expiresOnTurn <= state.turn)', () => {
+    const state = makeStateWithPurchase({ civId: 'player', expiresOnTurn: 10, currentTurn: 10 });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('silk')).toBe(false);
+  });
+
+  it('does NOT crash and returns empty set when marketplace is absent (old save without purchasedResources)', () => {
+    const state = makeStateWithPurchase({ civId: 'player', expiresOnTurn: 15, currentTurn: 10, noMarketplace: true });
+    const result = getCivAvailableResources(state, 'player');
+    expect(result.has('silk')).toBe(false);
+  });
+});
+
+describe('canBuyResourceAccess', () => {
+  // iron: tech='bronze-working', basePrice=8, requiredImprovement='mine'
+  function makeBuyState(overrides: {
+    buyerGold?: number;
+    sellerHasResource?: boolean;
+    buyerAlreadyOwns?: boolean;
+    atWar?: boolean;
+    relationshipScore?: number;
+    metSeller?: boolean;
+  }): GameState {
+    const {
+      buyerGold = 100,
+      sellerHasResource = true,
+      buyerAlreadyOwns = false,
+      atWar = false,
+      relationshipScore = 10,
+      metSeller = true,
+    } = overrides;
+
+    const tiles: Record<string, unknown> = {
+      '0,0': {
+        coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
+        resource: null, improvement: 'none', improvementTurnsLeft: 0,
+        hasRiver: false, wonder: null, owner: 'buyer',
+      },
+    };
+    if (sellerHasResource) {
+      tiles['5,5'] = {
+        coord: { q: 5, r: 5 }, terrain: 'hills', elevation: 'lowland',
+        resource: 'iron', improvement: 'mine', improvementTurnsLeft: 0,
+        hasRiver: false, wonder: null, owner: 'seller',
+      };
+    }
+
+    const buyerDiplomacy = {
+      relationships: metSeller ? { seller: relationshipScore } : {} as Record<string, number>,
+      treaties: [],
+      events: [],
+      atWarWith: atWar ? ['seller'] : [] as string[],
+      treacheryScore: 0,
+      vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
+    };
+
+    const prices: Record<string, number> = {};
+    const priceHistory: Record<string, number[]> = {};
+    for (const r of RESOURCE_DEFINITIONS) { prices[r.id] = r.basePrice; priceHistory[r.id] = [r.basePrice]; }
+
+    return {
+      turn: 5,
+      map: { width: 20, height: 20, tiles, wrapsHorizontally: false, rivers: [] },
+      cities: {
+        'buyer-city': {
+          id: 'buyer-city', owner: 'buyer', position: { q: 0, r: 0 },
+          ownedTiles: buyerAlreadyOwns ? [{ q: 5, r: 5 }] : [{ q: 0, r: 0 }],
+          workedTiles: [], population: 1, food: 0, production: 0, gold: 0,
+          buildings: [], productionQueue: [], specialistSlots: [],
+          garrisonUnitId: null, hp: 100, maxHp: 100,
+        },
+        'seller-city': {
+          id: 'seller-city', owner: 'seller', position: { q: 5, r: 5 },
+          ownedTiles: sellerHasResource ? [{ q: 5, r: 5 }] : [],
+          workedTiles: [], population: 1, food: 0, production: 0, gold: 0,
+          buildings: [], productionQueue: [], specialistSlots: [],
+          garrisonUnitId: null, hp: 100, maxHp: 100,
+        },
+      },
+      civilizations: {
+        buyer: {
+          id: 'buyer', cities: ['buyer-city'], units: [], gold: buyerGold,
+          techState: { completed: ['bronze-working', 'trade-routes'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+          diplomacy: buyerDiplomacy,
+        } as unknown as never,
+        seller: {
+          id: 'seller', cities: ['seller-city'], units: [], gold: 0,
+          techState: { completed: ['bronze-working'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+          diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: atWar ? ['buyer'] : [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
+        } as unknown as never,
+      },
+      marketplace: {
+        prices, priceHistory, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [], purchasedResources: [],
+      },
+    } as unknown as GameState;
+  }
+
+  it('returns true when all conditions are met', () => {
+    expect(canBuyResourceAccess(makeBuyState({}), 'buyer', 'seller', 'iron')).toBe(true);
+  });
+
+  it('returns false when at war', () => {
+    expect(canBuyResourceAccess(makeBuyState({ atWar: true }), 'buyer', 'seller', 'iron')).toBe(false);
+  });
+
+  it('returns false when relationship score is negative', () => {
+    expect(canBuyResourceAccess(makeBuyState({ relationshipScore: -5 }), 'buyer', 'seller', 'iron')).toBe(false);
+  });
+
+  it('returns false when seller is not in buyer relationships (never met)', () => {
+    expect(canBuyResourceAccess(makeBuyState({ metSeller: false }), 'buyer', 'seller', 'iron')).toBe(false);
+  });
+
+  it('returns false when seller does not have the resource', () => {
+    expect(canBuyResourceAccess(makeBuyState({ sellerHasResource: false }), 'buyer', 'seller', 'iron')).toBe(false);
+  });
+
+  it('returns false when buyer already owns the resource', () => {
+    expect(canBuyResourceAccess(makeBuyState({ buyerAlreadyOwns: true }), 'buyer', 'seller', 'iron')).toBe(false);
+  });
+});
+
+describe('performBuyResourceAccess', () => {
+  function makeBuyStateForPerform(): GameState {
+    const prices: Record<string, number> = {};
+    const priceHistory: Record<string, number[]> = {};
+    for (const r of RESOURCE_DEFINITIONS) { prices[r.id] = r.basePrice; priceHistory[r.id] = [r.basePrice]; }
+
+    return {
+      turn: 5,
+      map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+      cities: {},
+      civilizations: {
+        buyer: {
+          id: 'buyer', cities: [], units: [], gold: 100,
+          techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+          diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
+        } as unknown as never,
+      },
+      marketplace: { prices, priceHistory, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [], purchasedResources: [] },
+    } as unknown as GameState;
+  }
+
+  it('deducts 3× basePrice gold from the buyer immediately (iron basePrice=8 → cost=24)', () => {
+    const state = makeBuyStateForPerform();
+    const newState = performBuyResourceAccess(state, 'buyer', 'seller', 'iron');
+    expect(newState.civilizations['buyer'].gold).toBe(76); // 100 - 24
+  });
+
+  it('adds purchasedResources entry with correct civId, resource, and expiresOnTurn = turn + 10', () => {
+    const state = makeBuyStateForPerform();
+    const newState = performBuyResourceAccess(state, 'buyer', 'seller', 'iron');
+    const entries = newState.marketplace!.purchasedResources ?? [];
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ civId: 'buyer', resource: 'iron', expiresOnTurn: 15 }); // 5 + 10
+  });
+
+  it('does not mutate the original state (immutable spread-copy)', () => {
+    const state = makeBuyStateForPerform();
+    performBuyResourceAccess(state, 'buyer', 'seller', 'iron');
+    expect(state.civilizations['buyer'].gold).toBe(100);
+    expect(state.marketplace!.purchasedResources).toHaveLength(0);
+  });
+
+  it('returns state unchanged when marketplace is absent', () => {
+    const state = makeBuyStateForPerform();
+    (state as unknown as Record<string, unknown>).marketplace = undefined;
+    const newState = performBuyResourceAccess(state, 'buyer', 'seller', 'iron');
+    expect(newState.civilizations['buyer'].gold).toBe(100); // gold unchanged
   });
 });

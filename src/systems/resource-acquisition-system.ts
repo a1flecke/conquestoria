@@ -1,6 +1,7 @@
-import type { GameState, ResourceType, ResourceYield } from '@/core/types';
+import type { GameState, ResourceType, ResourceYield, PurchasedResourceEntry } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { RESOURCE_DEFINITIONS } from './trade-system';
+import { isAtWar } from './diplomacy-system';
 
 /**
  * Returns the set of resource IDs that a civ currently has access to.
@@ -72,6 +73,19 @@ export function getCivAvailableResources(state: GameState, civId: string): Set<R
     if (!completedTechs.has(def.tech)) continue;
 
     result.add(tile.resource as ResourceType);
+  }
+
+  // Pass 3 — purchased resource access (Diplomatic Marketplace / S9)
+  // Entries are cleaned up by the turn-manager; this pass just reads what remains.
+  for (const entry of (state.marketplace?.purchasedResources ?? [])) {
+    if (entry.civId !== civId) continue;
+    if (entry.expiresOnTurn <= state.turn) continue;
+
+    const def = resourceDefMap.get(entry.resource);
+    if (!def) continue;
+    if (!completedTechs.has(def.tech)) continue;
+
+    result.add(entry.resource);
   }
 
   return result;
@@ -193,6 +207,84 @@ export function performEstablishOutpost(state: GameState, unitId: string): GameS
         ...state.map.tiles,
         [tileKey]: updatedTile,
       },
+    },
+  };
+}
+
+/**
+ * Returns true when a buyer civ can purchase 10-turn resource access from a seller civ.
+ *
+ * All conditions must hold:
+ *   1. Seller is in buyer's diplomacy.relationships (civs have met).
+ *   2. Not at war.
+ *   3. Relationship score >= 0.
+ *   4. Seller has the resource (via getCivAvailableResources).
+ *   5. Buyer does NOT already own the resource.
+ */
+export function canBuyResourceAccess(
+  state: GameState,
+  buyerCivId: string,
+  sellerCivId: string,
+  resource: ResourceType,
+): boolean {
+  const buyer = state.civilizations[buyerCivId];
+  if (!buyer) return false;
+
+  // Must have met the seller (key present in relationships map)
+  if (!(sellerCivId in buyer.diplomacy.relationships)) return false;
+
+  // Not at war
+  if (isAtWar(buyer.diplomacy, sellerCivId)) return false;
+
+  // Relationship score must be >= 0
+  const score = buyer.diplomacy.relationships[sellerCivId] ?? -100;
+  if (score < 0) return false;
+
+  // Seller must have the resource
+  const sellerResources = getCivAvailableResources(state, sellerCivId);
+  if (!sellerResources.has(resource)) return false;
+
+  // Buyer must not already own it
+  const buyerResources = getCivAvailableResources(state, buyerCivId);
+  if (buyerResources.has(resource)) return false;
+
+  return true;
+}
+
+/**
+ * Deducts 3× basePrice gold from the buyer and adds a 10-turn purchasedResources entry.
+ * Precondition: canBuyResourceAccess(state, buyerCivId, sellerCivId, resource) === true.
+ * Returns a new GameState (immutable spread-copy). Returns state unchanged if marketplace absent.
+ */
+export function performBuyResourceAccess(
+  state: GameState,
+  buyerCivId: string,
+  sellerCivId: string,
+  resource: ResourceType,
+): GameState {
+  if (!state.marketplace) return state;
+
+  const def = RESOURCE_DEFINITIONS.find(d => d.id === resource);
+  const cost = (def?.basePrice ?? 5) * 3;
+
+  const buyer = state.civilizations[buyerCivId];
+  if (!buyer) return state;
+
+  const newEntry: PurchasedResourceEntry = {
+    civId: buyerCivId,
+    resource,
+    expiresOnTurn: state.turn + 10,
+  };
+
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [buyerCivId]: { ...buyer, gold: buyer.gold - cost },
+    },
+    marketplace: {
+      ...state.marketplace,
+      purchasedResources: [...(state.marketplace.purchasedResources ?? []), newEntry],
     },
   };
 }
