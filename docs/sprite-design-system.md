@@ -37,8 +37,8 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 | spy_agent | ✅ sprite | spy |
 | spy_operative | ✅ sprite | spy |
 | spy_hacker | ✅ sprite | spy |
-| **caravan** | ⚠️ uses WorkerSprite fallback | civilian |
-| **expedition** | ⚠️ uses ScoutSprite fallback | civilian |
+| caravan | ✅ sprite | civilian |
+| expedition | ✅ sprite | civilian |
 
 ### Buildings — `src/renderer/sprites/buildings.tsx`
 Registered in `BUILDING_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
@@ -77,28 +77,28 @@ Registered in `BUILDING_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.
 | safehouse | ✅ sprite | espionage |
 | intelligence-agency | ✅ sprite | espionage |
 | security-bureau | ✅ sprite | espionage |
-| **caravanserai** | ⚠️ uses MarketplaceSprite fallback | gold |
-| **bank** | ⚠️ uses MarketplaceSprite fallback | gold |
-| **stock_exchange** | ⚠️ uses MarketplaceSprite fallback | gold |
+| caravanserai | ✅ sprite | gold |
+| bank | ✅ sprite | gold |
+| stock_exchange | ✅ sprite | gold |
 
 ### Terrain Tiles — `src/renderer/terrain/terrain-tiles.ts` (not yet created)
 13 terrain types × 4 variants each = 52 tiles. Variant chosen by `Math.abs(q*7 + r*13) % 4`.
 
 | Terrain | Status | Base Color |
 |---------|--------|------------|
-| grassland | ⚠️ flat fill only | `#5b8c3e` |
-| plains | ⚠️ flat fill only | `#c4a94d` |
-| desert | ⚠️ flat fill only | `#e0c872` |
-| tundra | ⚠️ flat fill only | `#a0b8a0` |
-| snow | ⚠️ flat fill only | `#e8e8f0` |
-| forest | ⚠️ flat fill only | `#3d6b3d` |
-| hills | ⚠️ flat fill only | `#8b7355` |
-| mountain | ⚠️ flat fill only | `#6b6b7b` |
-| ocean | ⚠️ flat fill only | `#2a5f8f` |
-| coast | ⚠️ flat fill only | `#4a8faf` |
-| jungle | ⚠️ flat fill only | `#2d5a2d` |
-| swamp | ⚠️ flat fill only | `#4a6b4a` |
-| volcanic | ⚠️ flat fill only | `#5a3a3a` |
+| grassland | ✅ 4 tile variants | `#5b8c3e` |
+| plains | ✅ 4 tile variants | `#c4a94d` |
+| desert | ✅ 4 tile variants | `#e0c872` |
+| tundra | ✅ 4 tile variants | `#a0b8a0` |
+| snow | ✅ 4 tile variants | `#e8e8f0` |
+| forest | ✅ 4 tile variants | `#3d6b3d` |
+| hills | ✅ 4 tile variants | `#8b7355` |
+| mountain | ✅ 4 tile variants | `#6b6b7b` |
+| ocean | ✅ 4 tile variants (animated) | `#2a5f8f` |
+| coast | ✅ 4 tile variants (animated) | `#4a8faf` |
+| jungle | ✅ 4 tile variants | `#2d5a2d` |
+| swamp | ✅ 4 tile variants (animated) | `#4a6b4a` |
+| volcanic | ✅ 4 tile variants (animated) | `#5a3a3a` |
 
 ### Improvement Markers — `src/renderer/hex-renderer.ts` → `IMPROVEMENT_ICONS`
 Canvas-drawn emoji icons. Target: replace with proper SVG marker images.
@@ -113,7 +113,7 @@ Canvas-drawn emoji icons. Target: replace with proper SVG marker images.
 | pasture | ⚠️ `'🐂'` emoji |
 | camp | ⚠️ `'⛺'` emoji |
 | quarry | ⚠️ `'⚒️'` emoji |
-| **resource_outpost** | ⚠️ `'🚩'` emoji — **priority: Claude Design prompt written** |
+| resource_outpost | ✅ SVG marker (`src/renderer/improvements/resource-outpost-marker.ts`) |
 
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`
 No map sprites yet. Production queue falls back to `'🏗️'`. Codex images exist in `public/images/wonders/codex/*.jpg` (lore art only, not map sprites).
