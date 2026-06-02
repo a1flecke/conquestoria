@@ -294,6 +294,18 @@ describe('processCity', () => {
     expect(result.city.productionProgress).toBe(0);
   });
 
+  it('processCity records unavailable resource-gated units without reporting them as coastal drops', () => {
+    const map = generateMap(30, 30, 'resource-unit-drop-test');
+    const city = { ...foundCity('p1', { q: 2, r: 2 }, map, mkC()), productionQueue: ['swordsman'], productionProgress: 40 };
+
+    const result = processCity(city, map, 2, 100, undefined, ['bronze-working'], undefined, 1, new Set());
+
+    expect(result.droppedProductionItem).toBe('swordsman');
+    expect(result.droppedUnit).toBeNull();
+    expect(result.city.productionQueue).not.toContain('swordsman');
+    expect(result.completedUnit).toBeNull();
+  });
+
   it('processCity completes harbor normally for coastal city', () => {
     const map = generateMap(30, 30, 'coastal-test');
     const waterTile = Object.values(map.tiles).find(t => t.terrain === 'ocean' || t.terrain === 'coast')!;

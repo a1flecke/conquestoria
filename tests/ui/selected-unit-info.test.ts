@@ -1042,7 +1042,9 @@ describe('renderSelectedUnitInfo - transport actions', () => {
       onLoadTransport: (unitId, transportId) => { loaded = { unitId, transportId }; },
     });
 
-    findButtons(container).find(b => b.textContent === 'Load onto Transport')?.click();
+    const button = findButtons(container).find(b => b.textContent === 'Load onto Transport');
+    expect(button?.style.cssText).toContain('min-height:44px');
+    button?.click();
     expect(loaded).toEqual({ unitId: 'warrior-1', transportId: 'transport-1' });
   });
 

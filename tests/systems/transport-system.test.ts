@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameMap, GameState, HexCoord, HexTile, Unit } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey } from '@/systems/hex-utils';
 import {
   canLoadUnitOntoTransport,
@@ -199,10 +200,22 @@ describe('transport system', () => {
     const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) return;
-    const destinations = getUnloadDestinations(loaded.state, 'transport-1').map(hexKey);
+    const readyState = {
+      ...loaded.state,
+      units: {
+        ...loaded.state.units,
+        'warrior-1': {
+          ...loaded.state.units['warrior-1'],
+          hasMoved: false,
+          hasActed: false,
+          movementPointsLeft: 2,
+        },
+      },
+    };
+    const destinations = getUnloadDestinations(readyState, 'transport-1').map(hexKey);
     expect(destinations).toContain('0,1');
 
-    const result = unloadUnitFromTransport(loaded.state, 'transport-1', 'warrior-1', { q: 0, r: 1 });
+    const result = unloadUnitFromTransport(readyState, 'transport-1', 'warrior-1', { q: 0, r: 1 });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -217,6 +230,87 @@ describe('transport system', () => {
     });
   });
 
+  it('rejects same-turn unload after the cargo spent its action loading', () => {
+    const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+
+    expect(getUnloadDestinations(loaded.state, 'transport-1')).toEqual([]);
+    expect(unloadUnitFromTransport(loaded.state, 'transport-1', 'warrior-1', { q: 0, r: 1 })).toMatchObject({
+      ok: false,
+      reason: 'no-action',
+    });
+  });
+
+  it('loads from a coastal city across the horizontal map wrap', () => {
+    const start = state();
+    start.map = {
+      ...start.map,
+      wrapsHorizontally: true,
+      tiles: {
+        '0,0': tile({ q: 0, r: 0 }, 'grassland', 'player'),
+        '4,0': tile({ q: 4, r: 0 }, 'coast'),
+      },
+    };
+    start.units['transport-1'] = {
+      ...start.units['transport-1'],
+      position: { q: 4, r: 0 },
+    };
+    delete start.units['worker-1'];
+    start.civilizations.player.units = start.civilizations.player.units.filter(unitId => unitId !== 'worker-1');
+    start.cities['city-1'] = city({ position: { q: 0, r: 0 }, ownedTiles: [{ q: 0, r: 0 }] });
+
+    const result = loadUnitOntoTransport(start, 'warrior-1', 'transport-1');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.units['warrior-1']).toMatchObject({
+      transportId: 'transport-1',
+      position: { q: 4, r: 0 },
+    });
+  });
+
+  it('unloads cargo onto wrapped adjacent land', () => {
+    const start = state();
+    start.map = {
+      ...start.map,
+      wrapsHorizontally: true,
+      tiles: {
+        '0,0': tile({ q: 0, r: 0 }, 'grassland', 'player'),
+        '4,0': tile({ q: 4, r: 0 }, 'coast'),
+      },
+    };
+    start.units['transport-1'] = {
+      ...start.units['transport-1'],
+      position: { q: 4, r: 0 },
+    };
+    delete start.units['worker-1'];
+    start.civilizations.player.units = start.civilizations.player.units.filter(unitId => unitId !== 'worker-1');
+    start.cities['city-1'] = city({ position: { q: 0, r: 0 }, ownedTiles: [{ q: 0, r: 0 }] });
+    const loaded = loadUnitOntoTransport(start, 'warrior-1', 'transport-1');
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const readyState = {
+      ...loaded.state,
+      units: {
+        ...loaded.state.units,
+        'warrior-1': {
+          ...loaded.state.units['warrior-1'],
+          hasMoved: false,
+          hasActed: false,
+          movementPointsLeft: 2,
+        },
+      },
+    };
+
+    expect(getUnloadDestinations(readyState, 'transport-1').map(hexKey)).toContain('0,0');
+    const result = unloadUnitFromTransport(readyState, 'transport-1', 'warrior-1', { q: 0, r: 0 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.units['warrior-1']).toMatchObject({ position: { q: 0, r: 0 } });
+  });
+
   it('destroys cargo when the transport is destroyed', () => {
     const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
     expect(loaded.ok).toBe(true);
@@ -228,5 +322,44 @@ describe('transport system', () => {
     expect(next.units['warrior-1']).toBeUndefined();
     expect(next.civilizations.player.units).not.toContain('transport-1');
     expect(next.civilizations.player.units).not.toContain('warrior-1');
+  });
+
+  it('destroys cargo linked by transportId even if the Transport cargo list drifted', () => {
+    const start = state();
+    start.units['warrior-1'] = {
+      ...start.units['warrior-1'],
+      transportId: 'transport-1',
+      position: { ...start.units['transport-1'].position },
+    };
+    start.units['transport-1'] = {
+      ...start.units['transport-1'],
+      cargoUnitIds: [],
+    };
+
+    const next = removeTransportAndCargo(start, 'transport-1');
+
+    expect(next.units['transport-1']).toBeUndefined();
+    expect(next.units['warrior-1']).toBeUndefined();
+    expect(next.civilizations.player.units).not.toContain('warrior-1');
+  });
+
+  it('cleans spy records when a Transport carrying a spy is destroyed', () => {
+    const start = state();
+    const spy = unit({ id: 'spy-1', type: 'spy_scout', position: { q: 0, r: 0 } });
+    start.units = {
+      'transport-1': start.units['transport-1'],
+      'spy-1': spy,
+    };
+    start.civilizations.player.units = ['transport-1', 'spy-1'];
+    const spyState = createSpyFromUnit(createEspionageCivState(), 'spy-1', 'player', 'spy_scout', 'spy-cargo-seed').state;
+    start.espionage = { player: spyState };
+    const loaded = loadUnitOntoTransport(start, 'spy-1', 'transport-1');
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+
+    const next = removeTransportAndCargo(loaded.state, 'transport-1');
+
+    expect(next.units['spy-1']).toBeUndefined();
+    expect(next.espionage?.player.spies['spy-1']).toBeUndefined();
   });
 });

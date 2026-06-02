@@ -61,7 +61,7 @@ function makeButton(label: string, color: string, onClick?: () => void): HTMLBut
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = label;
-  button.style.cssText = `padding:8px 16px;border-radius:8px;background:${color};border:none;color:white;cursor:pointer;`;
+  button.style.cssText = `padding:8px 16px;min-height:44px;border-radius:8px;background:${color};border:none;color:white;cursor:pointer;`;
   if (onClick) {
     button.addEventListener('click', onClick);
   }

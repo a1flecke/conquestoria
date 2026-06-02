@@ -62,7 +62,7 @@ describe('sfx-catalog completeness', () => {
     }
   });
 
-  it('allSfxEntries returns exactly 64 entries', () => {
+  it('allSfxEntries returns exactly 65 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 3 move-step = 65
     expect(allSfxEntries()).toHaveLength(65);
@@ -118,4 +118,11 @@ describe('on-disk OGG integrity', () => {
       expect(head.toString('ascii')).toBe('OggS');
     });
   }
+
+  it('transport death sound is not an exact duplicate of the Galley death sound', () => {
+    const transportDeath = fs.readFileSync(path.join(PROJECT_ROOT, 'public/audio/sfx/transport-death.ogg'));
+    const galleyDeath = fs.readFileSync(path.join(PROJECT_ROOT, 'public/audio/sfx/galley-death.ogg'));
+
+    expect(Buffer.compare(transportDeath, galleyDeath)).not.toBe(0);
+  });
 });
