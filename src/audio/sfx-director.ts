@@ -19,12 +19,11 @@ export class SfxDirector {
   start(units: Record<string, Unit>, bus: EventBus): void {
     if (this.started) return;
     this.started = true;
-    // Seed cache from initial snapshot. Units trained after start() are not cached
-    // here; they receive SFX once they appear in a combat:resolved event while alive.
     for (const [id, unit] of Object.entries(units)) {
       this.unitTypeCache.set(id, unit.type);
     }
     this.unsubscribers.push(
+      bus.on('unit:created', p => this.unitTypeCache.set(p.unit.id, p.unit.type)),
       bus.on('combat:resolved', p => this.handleCombatResolved(p.result)),
       bus.on('unit:move', p => this.handleUnitMove(p.unitId, p.path)),
       bus.on('unit:destroyed', p => this.handleUnitDestroyed(p.unitId)),
