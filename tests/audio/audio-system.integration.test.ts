@@ -18,6 +18,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
       egypt: { civType: 'egypt' },
       gaul:  { civType: 'gaul' },
     },
+    units: {},
     ...overrides,
   } as unknown as GameState;
 }
