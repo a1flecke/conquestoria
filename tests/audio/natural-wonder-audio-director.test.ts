@@ -57,8 +57,8 @@ describe('NaturalWonderAudioDirector', () => {
       timers,
     );
 
-    await expect(director.playDiscoveryStinger('singing_sands')).resolves.toBe(false);
-    await expect(director.startCodexAmbient('singing_sands')).resolves.toBe(false);
+    await expect(director.playDiscoveryStinger('bioluminescent_bay')).resolves.toBe(false);
+    await expect(director.startCodexAmbient('bioluminescent_bay')).resolves.toBe(false);
 
     expect(loader.get).not.toHaveBeenCalled();
     expect(playStingerWithDuck).not.toHaveBeenCalled();

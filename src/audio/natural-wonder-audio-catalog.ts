@@ -48,13 +48,82 @@ export const MR3_NATURAL_WONDER_AUDIO_IDS = [
   'grand_canyon',
   'dragon_bones',
 ] as const;
+export const MR4_NATURAL_WONDER_AUDIO_IDS = [
+  'singing_sands',
+  'sunken_ruins',
+  'floating_islands',
+] as const;
 export const COMPLETE_NATURAL_WONDER_AUDIO_IDS = [
   ...MR1_NATURAL_WONDER_AUDIO_IDS,
   ...MR2_NATURAL_WONDER_AUDIO_IDS,
   ...MR3_NATURAL_WONDER_AUDIO_IDS,
+  ...MR4_NATURAL_WONDER_AUDIO_IDS,
 ] as const;
 
 const COMPLETE_ENTRIES: Record<(typeof COMPLETE_NATURAL_WONDER_AUDIO_IDS)[number], CompleteNaturalWonderAudioEntry> = {
+  singing_sands: {
+    wonderId: 'singing_sands',
+    status: 'complete',
+    soundMood: 'singing-sand',
+    stinger: {
+      id: 'singing-sands-stinger',
+      file: 'audio/wonders/singing-sands-stinger.ogg',
+      sourceId: 'soundimage-arizona-sunset',
+      gain: 0.72,
+    },
+    ambientLoop: {
+      id: 'singing-sands-ambient',
+      file: 'audio/wonders/singing-sands-ambient.ogg',
+      sourceId: 'soundimage-a-sea-of-stars',
+      gain: 0.28,
+      loop: { loopStart: 0, loopEnd: 66.6 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
+  sunken_ruins: {
+    wonderId: 'sunken_ruins',
+    status: 'complete',
+    soundMood: 'sunken-ruin',
+    stinger: {
+      id: 'sunken-ruins-stinger',
+      file: 'audio/wonders/sunken-ruins-stinger.ogg',
+      sourceId: 'soundimage-the-darkness-below',
+      gain: 0.70,
+    },
+    ambientLoop: {
+      id: 'sunken-ruins-ambient',
+      file: 'audio/wonders/sunken-ruins-ambient.ogg',
+      sourceId: 'soundimage-mysterious-ambience',
+      gain: 0.26,
+      loop: { loopStart: 0, loopEnd: 87.6 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
+  floating_islands: {
+    wonderId: 'floating_islands',
+    status: 'complete',
+    soundMood: 'floating-wind',
+    stinger: {
+      id: 'floating-islands-stinger',
+      file: 'audio/wonders/floating-islands-stinger.ogg',
+      sourceId: 'soundimage-over-a-mysterious-island',
+      gain: 0.70,
+    },
+    ambientLoop: {
+      id: 'floating-islands-ambient',
+      file: 'audio/wonders/floating-islands-ambient.ogg',
+      sourceId: 'soundimage-high-altitude-bliss',
+      gain: 0.26,
+      loop: { loopStart: 0, loopEnd: 156.1 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
   great_volcano: {
     wonderId: 'great_volcano',
     status: 'complete',

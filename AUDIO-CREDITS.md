@@ -272,6 +272,36 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
   Used as: Dragon Bones Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
+- `audio/wonders/singing-sands-stinger.ogg` — "Arizona Sunset" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2020/01/Arizona-Sunset.mp3
+  Used as: Singing Sands discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/singing-sands-ambient.ogg` — "A Sea of Stars" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2020/04/A-Sea-of-Stars.mp3
+  Used as: Singing Sands Codex and map-focus ambience
+  Modified: 5 s fade-out applied, converted to OGG Vorbis
+
+- `audio/wonders/sunken-ruins-stinger.ogg` — "The Darkness Below" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2014/02/The-Darkness-Below.mp3
+  Used as: Sunken Ruins discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/sunken-ruins-ambient.ogg` — "Mysterious Ambience" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2019/05/Mysterious-Ambience.mp3
+  Used as: Sunken Ruins Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/floating-islands-stinger.ogg` — "Over a Mysterious Island" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2017/08/Over-a-Mysterious-Island.mp3
+  Used as: Floating Islands discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/floating-islands-ambient.ogg` — "High Altitude Bliss" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2017/05/High-Altitude-Bliss.mp3
+  Used as: Floating Islands Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
 ## Sound Effects
 
 *(Existing synthesised SFX via Web Audio oscillators require no attribution.)*
