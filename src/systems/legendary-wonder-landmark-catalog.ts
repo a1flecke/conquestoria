@@ -10,9 +10,9 @@ import type { LegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder
  * - Run tests/systems/legendary-wonder-landmark-catalog.test.ts before merge.
  */
 const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmarkMetadata> = {
-  'oracle-of-delphi': landmark('oracle-of-delphi', 'oracle', 'tall', 'prophecy', '#2f2943', '#d8c47a', '#fff0b8', 1.02, 'dedicationGlow', 'glint', 'outline'),
-  'grand-canal': landmark('grand-canal', 'waterworks', 'wide', 'canal', '#173c52', '#74d0ff', '#c8f3ff', 1.05, 'civicAura', 'pulse', 'foundation'),
-  'sun-spire': landmark('sun-spire', 'spire', 'tall', 'sun', '#46311f', '#f2c45d', '#fff1a6', 1.08, 'dedicationGlow', 'glint', 'scaffold'),
+  'oracle-of-delphi': landmark('oracle-of-delphi', 'oracle', 'tall', 'prophecy', '#2f2943', '#d8c47a', '#fff0b8', 1.02, 'dedicationGlow', 'glint', 'outline', 'oracle-of-delphi-bespoke'),
+  'grand-canal': landmark('grand-canal', 'waterworks', 'wide', 'canal', '#173c52', '#74d0ff', '#c8f3ff', 1.05, 'civicAura', 'pulse', 'foundation', 'grand-canal-bespoke'),
+  'sun-spire': landmark('sun-spire', 'spire', 'tall', 'sun', '#46311f', '#f2c45d', '#fff1a6', 1.08, 'dedicationGlow', 'glint', 'scaffold', 'sun-spire-bespoke'),
   'world-archive': landmark('world-archive', 'archive', 'wide', 'knowledge', '#263044', '#b9c7ff', '#edf0ff', 1, 'civicAura', 'pulse', 'outline'),
   'moonwell-gardens': landmark('moonwell-gardens', 'garden', 'wide', 'moon', '#203b34', '#9fd7a0', '#def7bf', 1, 'civicAura', 'spark', 'foundation'),
   'ironroot-foundry': landmark('ironroot-foundry', 'foundry', 'compact', 'forge', '#3a2b26', '#e08b52', '#ffd2a0', 1.04, 'foundationPulse', 'pulse', 'scaffold'),
@@ -39,6 +39,7 @@ function landmark(
   aura: LegendaryWonderLandmarkMetadata['aura'],
   motion: LegendaryWonderLandmarkMetadata['motion'],
   constructionGhost: LegendaryWonderLandmarkMetadata['constructionGhost'],
+  assetKey?: string,
 ): LegendaryWonderLandmarkMetadata {
   return {
     wonderId,
@@ -50,6 +51,7 @@ function landmark(
     aura,
     motion,
     constructionGhost,
+    ...(assetKey ? { assetKey } : {}),
   };
 }
 
