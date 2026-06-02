@@ -480,4 +480,153 @@ describe('createMarketplacePanel', () => {
     const text = document.getElementById('marketplace-panel')?.textContent ?? '';
     expect(text).not.toContain('more resources');
   });
+
+  // ── Available from Known Civs section ─────────────────────────────────────
+  // Two-civ state: 'p1' has trade-routes + bronze-working; 'enemy' has iron
+  // (iron: tech='bronze-working', basePrice=8, mine, cost = 3×8 = 24)
+  function buildStateWithKnownCiv(params: {
+    playerTechs?: string[];
+    playerGold?: number;
+    knownCivHasResource?: boolean;
+    atWar?: boolean;
+    relationshipScore?: number;
+    playerAlreadyOwns?: boolean;
+  } = {}): GameState {
+    const {
+      playerTechs = ['bronze-working', 'trade-routes'],
+      playerGold = 100,
+      knownCivHasResource = true,
+      atWar = false,
+      relationshipScore = 10,
+      playerAlreadyOwns = false,
+    } = params;
+
+    const ironTile: Record<string, unknown> = knownCivHasResource ? {
+      '5,5': {
+        coord: { q: 5, r: 5 }, terrain: 'hills', elevation: 'lowland',
+        resource: 'iron', improvement: 'mine', improvementTurnsLeft: 0,
+        hasRiver: false, wonder: null, owner: 'enemy',
+      },
+    } : {};
+
+    return {
+      turn: 5,
+      currentPlayer: 'p1',
+      marketplace: buildMarketState(),
+      map: {
+        tiles: {
+          '0,0': {
+            coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
+            resource: null, improvement: 'none', improvementTurnsLeft: 0,
+            hasRiver: false, wonder: null, owner: 'p1',
+          },
+          ...ironTile,
+        },
+        width: 20, height: 20, wrapsHorizontally: false, rivers: [],
+      },
+      cities: {
+        'p1-city': {
+          id: 'p1-city', owner: 'p1',
+          position: { q: 0, r: 0 },
+          ownedTiles: playerAlreadyOwns ? [{ q: 5, r: 5 }] : [{ q: 0, r: 0 }],
+          workedTiles: [], population: 1, food: 0, production: 0, gold: 0,
+          buildings: [], productionQueue: [], specialistSlots: [],
+          garrisonUnitId: null, hp: 100, maxHp: 100,
+        },
+        'enemy-city': {
+          id: 'enemy-city', owner: 'enemy',
+          position: { q: 5, r: 5 },
+          ownedTiles: knownCivHasResource ? [{ q: 5, r: 5 }] : [],
+          workedTiles: [], population: 1, food: 0, production: 0, gold: 0,
+          buildings: [], productionQueue: [], specialistSlots: [],
+          garrisonUnitId: null, hp: 100, maxHp: 100,
+        },
+      },
+      civilizations: {
+        p1: {
+          id: 'p1',
+          cities: ['p1-city'], units: [], gold: playerGold,
+          techState: { completed: playerTechs, currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+          diplomacy: {
+            relationships: { enemy: relationshipScore },
+            treaties: [], events: [],
+            atWarWith: atWar ? ['enemy'] : [],
+            treacheryScore: 0,
+            vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
+          },
+          civType: 'egypt',
+        } as unknown as never,
+        enemy: {
+          id: 'enemy',
+          cities: ['enemy-city'], units: [], gold: 0,
+          techState: { completed: ['bronze-working'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+          diplomacy: {
+            relationships: {},
+            treaties: [], events: [],
+            atWarWith: atWar ? ['p1'] : [],
+            treacheryScore: 0,
+            vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
+          },
+          civType: 'rome',
+        } as unknown as never,
+      },
+    } as unknown as GameState;
+  }
+
+  describe('Available from Known Civs section', () => {
+    it('section is absent when player has not researched trade-routes', () => {
+      const state = buildStateWithKnownCiv({ playerTechs: ['bronze-working'] });
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+      expect(container.querySelector('[data-section="known-civs"]')).toBeNull();
+    });
+
+    it('section is present when player has trade-routes and a known civ has a resource the player lacks', () => {
+      const state = buildStateWithKnownCiv();
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+      expect(container.querySelector('[data-section="known-civs"]')).not.toBeNull();
+    });
+
+    it('buy button shows correct price (3× basePrice) and duration when conditions are met', () => {
+      const state = buildStateWithKnownCiv();
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+      const section = container.querySelector('[data-section="known-civs"]') as HTMLElement;
+      // iron basePrice=8, cost=24
+      expect(section.textContent).toContain('24');
+      expect(section.textContent).toContain('10 turns');
+    });
+
+    it('shows at-war text (no buy button) when at war', () => {
+      const state = buildStateWithKnownCiv({ atWar: true });
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+      const section = container.querySelector('[data-section="known-civs"]') as HTMLElement;
+      expect(section.textContent).toContain('at war');
+      expect(section.querySelector('[data-buy-resource-btn]')).toBeNull();
+    });
+
+    it('shows "Already have" text (no buy button) when player already owns the resource', () => {
+      const state = buildStateWithKnownCiv({ playerAlreadyOwns: true });
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+      const section = container.querySelector('[data-section="known-civs"]') as HTMLElement;
+      expect(section.textContent).toContain('Already have');
+      expect(section.querySelector('[data-buy-resource-btn]')).toBeNull();
+    });
+
+    it('calls onBuyResourceAccess with seller civ id and resource when Buy Access is clicked', () => {
+      const state = buildStateWithKnownCiv();
+      const onBuy = vi.fn();
+      createMarketplacePanel(container, state, { onClose: vi.fn(), onBuyResourceAccess: onBuy });
+      const buyBtn = container.querySelector('[data-buy-resource-btn]') as HTMLButtonElement;
+      expect(buyBtn).not.toBeNull();
+      buyBtn.click();
+      expect(onBuy).toHaveBeenCalledWith('enemy', 'iron');
+    });
+
+    it('buy button is disabled when relationship score is negative', () => {
+      const state = buildStateWithKnownCiv({ relationshipScore: -10 });
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+      const buyBtn = container.querySelector('[data-buy-resource-btn]') as HTMLButtonElement;
+      expect(buyBtn).not.toBeNull();
+      expect(buyBtn.disabled).toBe(true);
+    });
+  });
 });

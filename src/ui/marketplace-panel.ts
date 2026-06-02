@@ -1,10 +1,14 @@
 import type { GameState, ResourceType } from '@/core/types';
 import { RESOURCE_DEFINITIONS, getEffectiveGoldPerTurn, getRouteCapacity } from '@/systems/trade-system';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources, canBuyResourceAccess } from '@/systems/resource-acquisition-system';
+import { isAtWar } from '@/systems/diplomacy-system';
+import { resolveCivDefinition } from '@/systems/civ-registry';
+import { createGameButton } from './ui-kit';
 
 interface MarketplaceCallbacks {
   onClose: () => void;
   onSelectUnit?: (unitId: string) => void;
+  onBuyResourceAccess?: (sellerCivId: string, resource: ResourceType) => void;
 }
 
 export function createMarketplacePanel(
@@ -92,6 +96,7 @@ export function createMarketplacePanel(
       </div>
       ${unknownCount > 0 ? '<div style="font-size:12px;opacity:0.5;text-align:center;margin-top:8px;" data-text="discoverable-footer"></div>' : ''}
       <div id="mp-routes-section" style="margin-top:16px;"></div>
+      <div id="mp-known-civs-anchor"></div>
     </div>
   `;
 
@@ -159,6 +164,13 @@ export function createMarketplacePanel(
   const routesSection = panel.querySelector('#mp-routes-section');
   if (routesSection) {
     routesSection.appendChild(buildRouteListSection(state, state.currentPlayer, callbacks.onSelectUnit));
+  }
+
+  // Known Civs section (Diplomatic Marketplace — S9, trade-routes tech gated)
+  const knownCivsAnchor = panel.querySelector('#mp-known-civs-anchor');
+  if (knownCivsAnchor) {
+    const knownCivsSection = buildKnownCivResourceSection(state, state.currentPlayer, callbacks.onBuyResourceAccess);
+    if (knownCivsSection) knownCivsAnchor.appendChild(knownCivsSection);
   }
 
   container.appendChild(panel);
@@ -247,4 +259,105 @@ function buildRouteListSection(state: GameState, currentPlayer: string, onSelect
   }
 
   return wrapper;
+}
+
+/**
+ * Builds the "Available from Known Civs" section (Diplomatic Marketplace / Pillar 3 / S9).
+ * Returns null when trade-routes is not researched, or when no rows to show.
+ * All text via textContent; all buttons via createGameButton().
+ */
+function buildKnownCivResourceSection(
+  state: GameState,
+  currentPlayer: string,
+  onBuyResourceAccess?: (sellerCivId: string, resource: ResourceType) => void,
+): HTMLElement | null {
+  const civ = state.civilizations[currentPlayer];
+  if (!civ) return null;
+
+  // Gate: only show after Trade Routes tech
+  if (!civ.techState.completed.includes('trade-routes')) return null;
+
+  const playerOwned = getCivAvailableResources(state, currentPlayer);
+  const playerDip = civ.diplomacy;
+  const knownCivIds = Object.keys(playerDip.relationships);
+  if (knownCivIds.length === 0) return null;
+
+  // Collect rows: all resources known civs have (player may or may not already own them)
+  // Rows where player already owns the resource show "Already have this" instead of buy button.
+  type Row = { sellerCivId: string; resource: ResourceType };
+  const rows: Row[] = [];
+  for (const sellerCivId of knownCivIds) {
+    const sellerResources = getCivAvailableResources(state, sellerCivId);
+    for (const def of RESOURCE_DEFINITIONS) {
+      const resource = def.id as ResourceType;
+      if (!sellerResources.has(resource)) continue;
+      rows.push({ sellerCivId, resource });
+    }
+  }
+  if (rows.length === 0) return null;
+
+  const section = document.createElement('div');
+  section.dataset.section = 'known-civs';
+  section.style.cssText = 'margin-top:16px;';
+
+  const heading = document.createElement('div');
+  heading.style.cssText = 'font-size:14px;color:#e8c170;margin-bottom:8px;';
+  heading.textContent = 'Available from Known Civilizations';
+  section.appendChild(heading);
+
+  for (const { sellerCivId, resource } of rows) {
+    const def = RESOURCE_DEFINITIONS.find(d => d.id === resource)!;
+    const sellerCivDef = resolveCivDefinition(state, state.civilizations[sellerCivId]?.civType ?? '');
+    const sellerName = sellerCivDef?.name ?? sellerCivId;
+    const sellerColor = sellerCivDef?.color ?? '#888888';
+    const score = playerDip.relationships[sellerCivId] ?? -100;
+    const atWar = isAtWar(playerDip, sellerCivId);
+    const cost = def.basePrice * 3;
+
+    const row = document.createElement('div');
+    row.style.cssText =
+      'background:rgba(255,255,255,0.05);border-radius:6px;padding:8px 10px;' +
+      'display:flex;align-items:center;gap:8px;margin-bottom:6px;min-height:44px;';
+
+    const resLabel = document.createElement('span');
+    resLabel.style.cssText = 'flex:1;font-size:13px;';
+    resLabel.textContent = `${def.icon} ${def.name}`;
+    row.appendChild(resLabel);
+
+    const civChip = document.createElement('span');
+    civChip.style.cssText =
+      `background:${sellerColor};color:#000;border-radius:4px;` +
+      'font-size:11px;padding:2px 6px;font-weight:bold;';
+    civChip.textContent = sellerName;
+    row.appendChild(civChip);
+
+    const relBand = document.createElement('span');
+    relBand.style.cssText = 'font-size:11px;opacity:0.7;min-width:52px;text-align:center;';
+    relBand.textContent = atWar ? 'War' : score >= 30 ? 'Friendly' : score >= 0 ? 'Neutral' : 'Hostile';
+    row.appendChild(relBand);
+
+    if (atWar) {
+      const warLabel = document.createElement('span');
+      warLabel.style.cssText = 'font-size:11px;color:#f87171;';
+      warLabel.textContent = `⚔️ at war with ${sellerName}`;
+      row.appendChild(warLabel);
+    } else if (playerOwned.has(resource)) {
+      const ownedLabel = document.createElement('span');
+      ownedLabel.style.cssText = 'font-size:11px;color:#6b9b4b;';
+      ownedLabel.textContent = '✓ Already have this';
+      row.appendChild(ownedLabel);
+    } else {
+      const canBuy = canBuyResourceAccess(state, currentPlayer, sellerCivId, resource);
+      const buyBtn = createGameButton(`Buy (${cost}g / 10 turns)`, 'primary', { disabled: !canBuy });
+      buyBtn.dataset.buyResourceBtn = 'true';
+      buyBtn.addEventListener('click', () => {
+        if (canBuy && onBuyResourceAccess) onBuyResourceAccess(sellerCivId, resource);
+      });
+      row.appendChild(buyBtn);
+    }
+
+    section.appendChild(row);
+  }
+
+  return section;
 }
