@@ -929,12 +929,19 @@ export interface TradeRoute {
   foreignCivId?: string;
 }
 
+export interface PurchasedResourceEntry {
+  civId: string;          // hot-seat: which civ made the purchase
+  resource: ResourceType;
+  expiresOnTurn: number;  // = state.turn + 10 at time of purchase
+}
+
 export interface MarketplaceState {
   prices: Record<string, number>;
   priceHistory: Record<string, number[]>;
   fashionable: ResourceType | null;
   fashionTurnsLeft: number;
   tradeRoutes: TradeRoute[];
+  purchasedResources?: PurchasedResourceEntry[];  // optional; defaults to [] for old saves
 }
 
 // --- Advisors ---
