@@ -6,6 +6,7 @@ import { hexDistance } from './hex-utils';
 
 function hasNearbyDetector(units: Record<string, Unit>, viewerCivId: string, spyPosition: { q: number; r: number }): boolean {
   for (const u of Object.values(units)) {
+    if (u.transportId) continue;
     if (u.owner !== viewerCivId) continue;
     const def = UNIT_DEFINITIONS[u.type];
     const isDetector = !!def?.spyDetectionChance || isSpyUnitType(u.type);
@@ -31,6 +32,8 @@ export function getVisibleUnitsForPlayer(
   const result: Record<string, Unit> = {};
 
   for (const [id, unit] of Object.entries(units)) {
+    if (unit.transportId) continue;
+
     if (unit.owner === viewerCivId) {
       result[id] = unit;
       continue;

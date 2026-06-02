@@ -18,6 +18,8 @@ paths:
 - Movement must show where the unit CAN move (highlighted hexes)
 - Building must show what it does (yields, description) at the point of selection
 - Errors and state changes must be communicated visually, not just logged to console
+- Movement failures returned by shared movement helpers must show a player-facing warning and must not trigger movement animation.
+- Cargo state changes such as load/unload must visibly refresh the selected-unit panel and play/use the same feedback path as other unit actions.
 
 ## Coordinate transforms must be end-to-end
 - If the map wraps horizontally, wrapping must be applied in BOTH rendering (ghost tiles) AND input (coordinate normalization)
@@ -40,6 +42,7 @@ paths:
   4. **Death cleanup.** If the unit type has matching system state, `src/main.ts` death branches MUST clean it up to avoid zombie records.
   5. **AI usage.** `src/ai/basic-ai.ts` MUST queue the new unit type when its conditions hold; otherwise AI civs become asymmetric with the player.
   6. **Tech-gated dequeue.** `processCity` MUST consult `getTrainableUnitsForCiv(civ.techState.completed)` — or an equivalent — so an obsolete queued unit silently dequeues instead of producing forever.
+- If the unit is terrain- or city-location-gated (for example a naval unit requiring a coastal city), both the production chooser and city processing/dequeue path must consult the same city-aware eligibility helper.
 - Adding a `UnitType` to `TRAINABLE_UNITS` without all six wirings is "dead computed data" and is a bug.
 
 ## Production icons must be wired end-to-end

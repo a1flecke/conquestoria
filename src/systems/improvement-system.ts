@@ -2,6 +2,7 @@ import type {
   BuildableImprovementType,
   HexTile,
   ImprovementType,
+  ResourceType,
   ResourceYield,
   TerrainType,
   WorkerActionType,
@@ -27,11 +28,13 @@ export interface ImprovementDefinition {
   requiredTech: string | null;
   yieldBonus: ResourceYield;
   preservesTerrain: boolean;
+  resourceMode: 'generic' | 'resource-only' | 'generic-or-resource';
 }
 
 export interface WorkerActionEligibilityOptions {
   isCityTile?: boolean;
   allowReplacement?: boolean;
+  knownResource?: ResourceType | null;
 }
 
 export type WorkerActionBlockerReason =
@@ -54,6 +57,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     requiredTech: null,
     yieldBonus: { food: 2, production: 0, gold: 0, science: 0 },
     preservesTerrain: false,
+    resourceMode: 'generic',
   },
   mine: {
     type: 'mine',
@@ -64,6 +68,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     requiredTech: null,
     yieldBonus: { food: 0, production: 2, gold: 1, science: 0 },
     preservesTerrain: true,
+    resourceMode: 'generic-or-resource',
   },
   lumber_camp: {
     type: 'lumber_camp',
@@ -74,6 +79,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     requiredTech: null,
     yieldBonus: { food: 0, production: 2, gold: 0, science: 0 },
     preservesTerrain: true,
+    resourceMode: 'generic',
   },
   watermill: {
     type: 'watermill',
@@ -84,6 +90,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     requiredTech: null,
     yieldBonus: { food: 1, production: 1, gold: 0, science: 0 },
     preservesTerrain: true,
+    resourceMode: 'generic',
   },
   plantation: {
     type: 'plantation',
@@ -94,6 +101,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     requiredTech: null,
     yieldBonus: { food: 1, production: 0, gold: 1, science: 0 },
     preservesTerrain: true,
+    resourceMode: 'resource-only',
   },
   pasture: {
     type: 'pasture',
@@ -104,6 +112,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     requiredTech: null,
     yieldBonus: { food: 1, production: 0, gold: 0, science: 0 },
     preservesTerrain: true,
+    resourceMode: 'resource-only',
   },
   camp: {
     type: 'camp',
@@ -114,6 +123,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     requiredTech: null,
     yieldBonus: { food: 1, production: 0, gold: 0, science: 0 },
     preservesTerrain: true,
+    resourceMode: 'resource-only',
   },
   quarry: {
     type: 'quarry',
@@ -124,6 +134,7 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     requiredTech: null,
     yieldBonus: { food: 0, production: 1, gold: 0, science: 0 },
     preservesTerrain: true,
+    resourceMode: 'generic-or-resource',
   },
 };
 
@@ -142,6 +153,36 @@ export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
 
 const NO_YIELD: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
 
+export function getKnownTileResourceForWorkerAction(
+  tile: HexTile,
+  completedTechs: string[],
+): ResourceType | null {
+  if (!tile.resource) return null;
+  const definition = RESOURCE_DEFINITIONS.find(resource => resource.id === tile.resource);
+  return definition && completedTechs.includes(definition.tech) ? definition.id : null;
+}
+
+function getWorkerActionKnownResource(
+  tile: HexTile,
+  completedTechs: string[],
+  options: WorkerActionEligibilityOptions,
+): ResourceType | null {
+  if ('knownResource' in options) return options.knownResource ?? null;
+  return getKnownTileResourceForWorkerAction(tile, completedTechs);
+}
+
+function hasMatchingKnownResource(
+  tile: HexTile,
+  type: BuildableImprovementType,
+  completedTechs: string[],
+  options: WorkerActionEligibilityOptions,
+): boolean {
+  const resourceSet = RESOURCE_GATED_IMPROVEMENTS.get(type);
+  if (!resourceSet) return false;
+  const knownResource = getWorkerActionKnownResource(tile, completedTechs, options);
+  return Boolean(knownResource && resourceSet.has(knownResource));
+}
+
 export function canBuildImprovement(
   tile: HexTile,
   type: BuildableImprovementType,
@@ -159,10 +200,10 @@ export function canBuildImprovement(
   if (!definition.validTerrains.includes(tile.terrain)) return false;
   if (definition.requiresRiver && !tile.hasRiver) return false;
   if (definition.requiredTech && !completedTechs.includes(definition.requiredTech)) return false;
-  const resourceSet = RESOURCE_GATED_IMPROVEMENTS.get(type);
-  if (resourceSet !== undefined) {
-    if (!tile.resource || !resourceSet.has(tile.resource)) return false;
+  if (definition.resourceMode === 'resource-only') {
+    return hasMatchingKnownResource(tile, type, completedTechs, options);
   }
+  if (definition.resourceMode === 'generic-or-resource') return true;
   return true;
 }
 
@@ -213,9 +254,10 @@ export function getWorkerActionBlockerReason(
   if (!definition.validTerrains.includes(tile.terrain)) return 'invalid-terrain';
   if (definition.requiresRiver && !tile.hasRiver) return 'requires-river';
   if (definition.requiredTech && !completedTechs.includes(definition.requiredTech)) return 'requires-tech';
-  const resourceSet = RESOURCE_GATED_IMPROVEMENTS.get(action as BuildableImprovementType);
-  if (resourceSet !== undefined) {
-    if (!tile.resource || !resourceSet.has(tile.resource)) return 'missing-resource';
+  if (definition.resourceMode === 'resource-only') {
+    return hasMatchingKnownResource(tile, action as BuildableImprovementType, completedTechs, options)
+      ? 'none'
+      : 'missing-resource';
   }
   return 'none';
 }
@@ -257,7 +299,8 @@ export function formatImprovementYieldLabel(type: ImprovementType): string {
 
 export function getWorkerActionLabel(action: WorkerActionType): string {
   if (action === 'drain_swamp') return 'Drain Swamp (20% worker risk)';
-  return `Build ${getImprovementDisplayName(action)}`;
+  const yieldLabel = formatImprovementYieldLabel(action);
+  return `Build ${getImprovementDisplayName(action)}${yieldLabel ? ` ${yieldLabel}` : ''}`;
 }
 
 export function getWorkerBlockerHints(
@@ -273,6 +316,7 @@ export function getWorkerBlockerHints(
   for (const type of Object.keys(IMPROVEMENT_DEFINITIONS) as BuildableImprovementType[]) {
     const reason = getWorkerActionBlockerReason(tile, type, completedTechs, ownerId, options);
     if (reason === 'missing-resource') {
+      if (!options.knownResource) continue;
       const resourceSet = RESOURCE_GATED_IMPROVEMENTS.get(type);
       if (resourceSet && resourceSet.size > 0) {
         const names = RESOURCE_DEFINITIONS

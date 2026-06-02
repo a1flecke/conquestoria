@@ -51,7 +51,14 @@ export function resolveSelectedUnitTapIntent(
         hostileOwners.add(mcId);
       }
     }
-    return getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, hostileOwners);
+    return getMovementRange(
+      unit,
+      state.map,
+      occupancy.unitIdsByHex,
+      occupancy.ownersByUnitId,
+      hostileOwners,
+      { completedTechs: civ?.techState.completed ?? [] },
+    );
   })();
 
   const targetKey = hexKey(targetCoord);

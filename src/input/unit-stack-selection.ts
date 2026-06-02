@@ -17,7 +17,7 @@ export function getFriendlyUnitIdsAtHex(
 ): string[] {
   const key = hexKey(coord);
   return Object.values(state.units)
-    .filter(unit => unit.owner === state.currentPlayer && hexKey(unit.position) === key)
+    .filter(unit => unit.owner === state.currentPlayer && !unit.transportId && hexKey(unit.position) === key)
     .map(unit => unit.id)
     .sort((a, b) => a.localeCompare(b));
 }

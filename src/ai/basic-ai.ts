@@ -431,7 +431,14 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         aiHostileOwners.add(mcId);
       }
     }
-    const range = getMovementRange(unit, newState.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, aiHostileOwners);
+    const range = getMovementRange(
+      unit,
+      newState.map,
+      occupancy.unitIdsByHex,
+      occupancy.ownersByUnitId,
+      aiHostileOwners,
+      { completedTechs: civ.techState.completed },
+    );
     if (range.length > 0) {
       const unexplored = range.filter(
         coord => civ.visibility.tiles[hexKey(coord)] !== 'visible',

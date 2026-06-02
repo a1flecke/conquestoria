@@ -8,6 +8,7 @@ import {
   formatWorkerActionBlockerReason,
   getAvailableWorkerActions,
   getImprovementDisplayName,
+  getKnownTileResourceForWorkerAction,
   getWorkerActionBlockerReason,
   getWorkerActionLabel,
   getWorkerBlockerHints,
@@ -19,6 +20,18 @@ import { hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-system';
 import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
+import { getTransportCargo } from '@/systems/transport-system';
+
+export interface TransportLoadOption {
+  transportId: string;
+  label: string;
+}
+
+export interface TransportUnloadOption {
+  cargoUnitId: string;
+  destination: HexCoord;
+  label: string;
+}
 
 export interface SelectedUnitInfoCallbacks {
   onClose?: () => void;
@@ -38,6 +51,10 @@ export interface SelectedUnitInfoCallbacks {
   onEstablishRoute?: (caravanId: string) => void;
   onEstablishOutpost?: (unitId: string) => void;
   onReplaceImprovement?: (action: BuildableImprovementType) => void;
+  getTransportOptions?: (unitId: string) => TransportLoadOption[];
+  getUnloadOptions?: (transportId: string) => TransportUnloadOption[];
+  onLoadTransport?: (unitId: string, transportId: string) => void;
+  onUnloadTransport?: (transportId: string, cargoUnitId: string, destination: HexCoord) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -140,7 +157,7 @@ export function renderSelectedUnitInfo(
   wrapper.appendChild(xpDiv);
 
   const friendlyUnitsHere = Object.values(state.units).filter(other =>
-    other.owner === unit.owner && hexKey(other.position) === hexKey(unit.position),
+    other.owner === unit.owner && !other.transportId && hexKey(other.position) === hexKey(unit.position),
   );
   if (friendlyUnitsHere.length > 1 && callbacks.onOpenStack) {
     const stackRow = document.createElement('div');
@@ -181,6 +198,26 @@ export function renderSelectedUnitInfo(
   const actionsDiv = document.createElement('div');
   actionsDiv.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;';
 
+  if (unit.transportId) {
+    const transport = state.units[unit.transportId];
+    const transportStatus = document.createElement('div');
+    transportStatus.style.cssText = 'margin-top:8px;font-size:12px;color:#a5f3fc;';
+    transportStatus.textContent = `Aboard ${transport ? UNIT_DEFINITIONS[transport.type]?.name ?? 'Transport' : 'Transport'}`;
+    wrapper.appendChild(transportStatus);
+    container.appendChild(wrapper);
+    return;
+  }
+
+  if (unit.type === 'transport') {
+    const cargo = getTransportCargo(state, unitId);
+    const cargoDiv = document.createElement('div');
+    cargoDiv.style.cssText = 'margin-top:8px;font-size:12px;color:#bfdbfe;';
+    cargoDiv.textContent = cargo.length === 0
+      ? 'Cargo: Empty'
+      : `Cargo: Carrying ${cargo.map(cargoUnit => UNIT_DEFINITIONS[cargoUnit.type]?.name ?? cargoUnit.type).join(', ')}`;
+    wrapper.appendChild(cargoDiv);
+  }
+
   if (def.canFoundCity && callbacks.onFoundCity) {
     if (unit.movementPointsLeft > 0 && canFoundCityAt(state, unit.position)) {
       actionsDiv.appendChild(makeButton('Found City', '#e8c170', callbacks.onFoundCity));
@@ -208,7 +245,9 @@ export function renderSelectedUnitInfo(
       const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
       const unitTileKey = hexKey(unit.position);
       const isCityTile = Object.values(state.cities).some(city => hexKey(city.position) === unitTileKey);
-      const workerActions = getAvailableWorkerActions(tile, completedTechs, unit.owner, { isCityTile });
+      const knownResource = tile ? getKnownTileResourceForWorkerAction(tile, completedTechs) : null;
+      const workerEligibilityOptions = { isCityTile, knownResource };
+      const workerActions = getAvailableWorkerActions(tile, completedTechs, unit.owner, workerEligibilityOptions);
       for (const action of workerActions) {
         const color = action === 'farm'
           ? '#6b9b4b'
@@ -227,9 +266,9 @@ export function renderSelectedUnitInfo(
         actionsDiv.appendChild(makeButton(label, color, () => callbacks.onWorkerAction!(action)));
       }
       if (workerActions.length === 0) {
-        const eligibilityOpts = { isCityTile };
+        const eligibilityOpts = workerEligibilityOptions;
         if (tile && tile.improvement !== 'none' && callbacks.onReplaceImprovement) {
-          const replaceable = getAvailableWorkerActions(tile, completedTechs, unit.owner, { isCityTile, allowReplacement: true })
+          const replaceable = getAvailableWorkerActions(tile, completedTechs, unit.owner, { ...workerEligibilityOptions, allowReplacement: true })
             .filter((a): a is BuildableImprovementType => a !== 'drain_swamp');
           for (const action of replaceable) {
             const yieldStr = formatImprovementYieldLabel(action);
@@ -285,7 +324,25 @@ export function renderSelectedUnitInfo(
     }
   }
 
-  if (canHeal(unit) && !unit.hasActed && callbacks.onRest) {
+  if (!unit.transportId && unit.type !== 'transport' && callbacks.getTransportOptions && callbacks.onLoadTransport) {
+    const transportOptions = callbacks.getTransportOptions(unitId);
+    for (const option of transportOptions) {
+      actionsDiv.appendChild(makeButton(option.label, '#2563eb', () => callbacks.onLoadTransport!(unitId, option.transportId)));
+    }
+  }
+
+  if (unit.type === 'transport' && callbacks.getUnloadOptions && callbacks.onUnloadTransport) {
+    const unloadOptions = callbacks.getUnloadOptions(unitId);
+    for (const option of unloadOptions) {
+      actionsDiv.appendChild(makeButton(option.label, '#0f766e', () => callbacks.onUnloadTransport!(
+        unitId,
+        option.cargoUnitId,
+        option.destination,
+      )));
+    }
+  }
+
+  if (canHeal(unit) && !unit.hasMoved && !unit.hasActed && unit.movementPointsLeft > 0 && callbacks.onRest) {
     actionsDiv.appendChild(makeButton('Rest (+15 HP)', '#4a90d9', callbacks.onRest));
   }
 
@@ -300,7 +357,7 @@ export function renderSelectedUnitInfo(
   if (def.strength > 0 && callbacks.onFortify) {
     if (unit.isFortified) {
       actionsDiv.appendChild(makeButton('Unfortify', '#6b7a8a', () => callbacks.onFortify!(unitId)));
-    } else if (!unit.hasActed) {
+    } else if (!unit.hasMoved && !unit.hasActed && unit.movementPointsLeft > 0) {
       actionsDiv.appendChild(makeButton('Fortify', '#3b5268', () => callbacks.onFortify!(unitId)));
     }
   }

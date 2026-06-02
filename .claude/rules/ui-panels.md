@@ -28,6 +28,8 @@ paths:
 - Enemy units must show: owner civ name, civ color (as border/accent), unit description, diplomatic relationship (At War / Neutral / Allied)
 - Friendly units must show: description, HP, moves remaining, and available actions
 - Use `textContent` / `createTextNode()` for dynamic text — never `innerHTML` with game-generated strings (XSS risk)
+- If a selected unit can load, carry, or unload cargo, the panel must show cargo state and expose tested load/unload callbacks wired to shared gameplay helpers.
+- Loaded cargo selected directly must render as aboard a transport and must not expose normal land-unit actions until unloaded.
 
 ## Notifications
 - Notifications must queue — never overwrite one notification with another

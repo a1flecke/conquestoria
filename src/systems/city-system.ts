@@ -220,8 +220,9 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'swordsman',    name: 'Swordsman',    cost: 50,  techRequired: 'bronze-working',   resourceRequired: ['iron'],           pacing: { band: 'power-spike', role: 'melee-breakpoint',       impact: 1.2,  scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'pikeman',      name: 'Pikeman',      cost: 70,  techRequired: 'fortification',                                          pacing: { band: 'power-spike', role: 'anti-cavalry-breakpoint', impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
   { type: 'musketeer',    name: 'Musketeer',    cost: 90,  techRequired: 'tactics' },
-  { type: 'galley',       name: 'Galley',       cost: 40,  techRequired: 'galleys' },
-  { type: 'trireme',      name: 'Trireme',      cost: 70,  techRequired: 'triremes',                                              pacing: { band: 'power-spike', role: 'naval-breakpoint',       impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'galley',       name: 'Galley',       cost: 40,  techRequired: 'galleys', coastalRequired: true },
+  { type: 'transport',    name: 'Transport',    cost: 45,  techRequired: 'galleys', coastalRequired: true },
+  { type: 'trireme',      name: 'Trireme',      cost: 70,  techRequired: 'triremes', coastalRequired: true,                       pacing: { band: 'power-spike', role: 'naval-breakpoint',       impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
   // S4b — melee
   { type: 'axeman',       name: 'Axeman',       cost: 22,  techRequired: 'stone-weapons',    resourceRequired: ['copper'],         obsoletedByTech: 'fortification', pacing: { band: 'power-spike', role: 'early-copper-melee',    impact: 1.1,  scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'spearman',     name: 'Spearman',     cost: 32,  techRequired: 'bronze-working',                                        obsoletedByTech: 'fortification', pacing: { band: 'power-spike', role: 'ungated-era2-melee',    impact: 1.05, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
@@ -366,6 +367,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   musketeer: '🔫',
   galley: '⛵',
   trireme: '🚢',
+  transport: '⛴️',
   spy_scout: '👁️',
   spy_informant: '📡',
   spy_agent: '🕵️',
@@ -440,6 +442,18 @@ export function getTrainableUnitsForCiv(
     }
     return true;
   });
+}
+
+export function getTrainableUnitsForCity(
+  city: City,
+  completedTechs: string[],
+  mapTiles: GameMap['tiles'],
+  civType?: string,
+  availableResources?: Set<ResourceType>,
+): TrainableUnitEntry[] {
+  const coastal = isCityCoastal(city, mapTiles);
+  return getTrainableUnitsForCiv(completedTechs, civType, availableResources)
+    .filter(unit => !unit.coastalRequired || coastal);
 }
 
 export function getDetectionUnitTypeForCiv(civType?: string): UnitType {
@@ -573,6 +587,8 @@ export interface CityProcessResult {
   idleScienceBonus: number;
   /** The building id that was silently dequeued because the city is no longer coastal, or null. */
   droppedBuilding: string | null;
+  droppedUnit: UnitType | null;
+  droppedProductionItem: string | null;
 }
 
 export interface CityProductionCompletionResult {
@@ -656,10 +672,13 @@ export function processCity(
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
   let newGrid = city.grid;
+  let droppedBuilding: string | null = null;
+  let droppedUnit: UnitType | null = null;
+  let droppedProductionItem: string | null = null;
 
   // Drop queued items that are no longer available (tech lost, resource lost)
   if ((completedTechs.length > 0 || availableResources) && newQueue.length > 0) {
-    const trainable = getTrainableUnitsForCiv(completedTechs, civType, availableResources);
+    const trainable = getTrainableUnitsForCity(city, completedTechs, map.tiles, civType, availableResources);
     const trainableTypes = new Set(trainable.map(u => u.type));
     const BUILDING_IDS = new Set(Object.keys(BUILDINGS));
     const filtered = newQueue.filter(item => {
@@ -670,6 +689,12 @@ export function processCity(
           if (!building.resourceRequired.every(r => availableResources!.has(r))) return false;
         }
         return true;
+      }
+      const unit = TRAINABLE_UNITS.find(candidate => candidate.type === item);
+      if (unit && !trainableTypes.has(unit.type)) {
+        droppedUnit ??= unit.type;
+        droppedProductionItem ??= unit.type;
+        return false;
       }
       return trainableTypes.has(item as UnitType);
     });
@@ -683,11 +708,17 @@ export function processCity(
   // Coastal guard: drop the queue head BEFORE accumulating production so no yield is wasted.
   // A building with coastalRequired cannot be built in an inland city; if this city
   // lost coastal access (e.g. map-script edge case), remove the item silently.
-  let droppedBuilding: string | null = null;
   if (newQueue.length > 0) {
     const headBuilding = BUILDINGS[newQueue[0]];
     if (headBuilding?.coastalRequired && !isCityCoastal(city, map.tiles)) {
       droppedBuilding = newQueue.shift()!;
+      droppedProductionItem = droppedBuilding;
+      newProgress = 0;
+    }
+    const headUnit = TRAINABLE_UNITS.find(unit => unit.type === newQueue[0]);
+    if (headUnit?.coastalRequired && !isCityCoastal(city, map.tiles)) {
+      droppedUnit = newQueue.shift() as UnitType;
+      droppedProductionItem = droppedUnit;
       newProgress = 0;
     }
   }
@@ -742,6 +773,8 @@ export function processCity(
     idleGoldBonus,
     idleScienceBonus,
     droppedBuilding,
+    droppedUnit,
+    droppedProductionItem,
   };
 }
 

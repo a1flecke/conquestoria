@@ -61,4 +61,14 @@ describe('unit stack selection tap resolution', () => {
       enemy: unit('enemy', 'ai-1', 1, 1),
     }), { q: 1, r: 1 }, null)).toEqual({ kind: 'none' });
   });
+
+  it('ignores loaded cargo when resolving friendly stack selection', () => {
+    const transport = { ...unit('transport', 'player', 1, 1), type: 'transport' as const, cargoUnitIds: ['cargo'] };
+    const cargo = { ...unit('cargo', 'player', 1, 1), transportId: 'transport' };
+
+    expect(resolveFriendlyUnitStackTap(state({ transport, cargo }), { q: 1, r: 1 }, null)).toEqual({
+      kind: 'select-unit',
+      unitId: 'transport',
+    });
+  });
 });

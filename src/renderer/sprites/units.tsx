@@ -326,6 +326,30 @@ export function TriremeSprite({ palette, svgOnly = false }: UnitSpriteProps): st
   );
 }
 
+export function TransportSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
+      <Shadow cx={64} cy={98} rx={44} ry={7} />
+      <path d="M14,84 Q64,74 114,84 Q106,101 64,104 Q22,101 14,84 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M22,78 Q64,70 106,78 L100,88 Q64,94 28,88 Z" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M30,76 Q64,70 98,76 L94,82 L34,82 Z" fill={P.wood.light} />
+      <rect x="32" y="66" width="18" height="13" rx="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="54" y="64" width="16" height="15" rx="2" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="76" y="67" width="18" height="12" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M34,68 L48,78 M48,68 L34,78" stroke={P.wood.dark} strokeWidth="0.8" />
+      <path d="M56,68 L68,76 M68,68 L56,76" stroke={P.ink.soft} strokeWidth="0.7" />
+      <line x1="62" y1="76" x2="62" y2="18" stroke={P.wood.dark} strokeWidth="2.4" />
+      <path d="M62,22 L96,42 L96,68 L62,72 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M62,22 L40,42 L40,68 L62,72 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="62" y="34" width="34" height="9" fill={palette.mid} opacity="0.82" />
+      <rect x="40" y="34" width="22" height="9" fill={palette.mid} opacity="0.82" />
+      <path d="M18,88 Q64,96 110,88" fill="none" stroke={P.metal.bronze} strokeWidth="1" opacity="0.8" />
+      <Banner x={62} y={18} palette={palette} scale={0.85} />
+      <path d="M14,86 L3,92 L14,92 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.6" />
+    </SpriteFrame>
+  );
+}
+
 /* === SPY FAMILY (shared base) === */
 
 function spyBase({ palette, hat, gadget, cloak = '#2a2a32', svgOnly = false }: {

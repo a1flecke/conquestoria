@@ -3,7 +3,7 @@ import {
   getAvailableBuildings,
   BUILDINGS,
   TRAINABLE_UNITS,
-  getTrainableUnitsForCiv,
+  getTrainableUnitsForCity,
   getProductionCostForItem,
   getProductionDisplayName,
   getProductionIconForItem,
@@ -231,10 +231,10 @@ export function createCityPanel(
   }
 
   const completedTechs = currentCiv.techState.completed;
-  const availableUnits = getTrainableUnitsForCiv(completedTechs, currentCiv.civType, playerResources);
+  const availableUnits = getTrainableUnitsForCity(city, completedTechs, state.map.tiles, currentCiv.civType, playerResources);
 
   // Locked items: tech met + resource NOT met (tech-missing items stay hidden entirely)
-  const allTechUnlockedUnits = getTrainableUnitsForCiv(completedTechs, currentCiv.civType, undefined);
+  const allTechUnlockedUnits = getTrainableUnitsForCity(city, completedTechs, state.map.tiles, currentCiv.civType, undefined);
   const lockedUnits = allTechUnlockedUnits.filter(u => !availableUnits.some(a => a.type === u.type));
 
   const allTechUnlockedBuildings = getAvailableBuildings(city, completedTechs, state.map.tiles, undefined);

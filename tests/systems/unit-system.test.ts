@@ -100,6 +100,25 @@ describe('createUnit', () => {
   });
 });
 
+describe('getUnmovedUnits', () => {
+  it('excludes loaded cargo and busy workers from units needing orders', () => {
+    const idleWarrior = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    idleWarrior.id = 'idle-warrior';
+    const busyWorker = createUnit('worker', 'player', { q: 1, r: 0 }, mkC());
+    busyWorker.id = 'busy-worker';
+    busyWorker.workerTask = { action: 'farm', coord: { q: 1, r: 0 } };
+    const loadedWarrior = createUnit('warrior', 'player', { q: 2, r: 0 }, mkC());
+    loadedWarrior.id = 'loaded-warrior';
+    loadedWarrior.transportId = 'transport-1';
+
+    expect(getUnmovedUnits({
+      [idleWarrior.id]: idleWarrior,
+      [busyWorker.id]: busyWorker,
+      [loadedWarrior.id]: loadedWarrior,
+    }, 'player').map(unit => unit.id)).toEqual(['idle-warrior']);
+  });
+});
+
 describe('getMovementRange', () => {
   let map: GameMap;
 
@@ -246,6 +265,18 @@ describe('getMovementBlockerReason', () => {
       code: 'unexplored',
       message: 'Too far away to spot.',
     });
+  });
+
+  it('uses distinct Transport tech blocker reasons for coast and ocean', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    map.tiles['0,0'] = { ...map.tiles['0,0'], terrain: 'coast' };
+    map.tiles['1,0'] = { ...map.tiles['1,0'], terrain: 'coast' };
+    map.tiles['2,0'] = { ...map.tiles['2,0'], terrain: 'ocean' };
+    const transport = createUnit('transport', 'player', { q: 0, r: 0 }, mkC());
+
+    expect(getMovementBlockerReason(transport, { q: 1, r: 0 }, map)?.code).toBe('requires-galleys');
+    expect(getMovementBlockerReason(transport, { q: 2, r: 0 }, map, { completedTechs: ['galleys'] })?.code)
+      .toBe('requires-celestial-navigation');
   });
 });
 

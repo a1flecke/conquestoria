@@ -119,6 +119,26 @@ describe('resolveCombat', () => {
 
     expect(defender?.id).toBe(warrior.id);
   });
+
+  it('ranged attacker takes no counter-damage from a melee-only defender at range', () => {
+    const attacker = createUnit('archer', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 12, r: 10 }, mkC());
+
+    const result = resolveCombat(attacker, defender, map, 42);
+
+    expect(result.defenderDamage).toBeGreaterThan(0);
+    expect(result.attackerDamage).toBe(0);
+  });
+
+  it('ranged attacker can take counter-damage from a ranged defender at range', () => {
+    const attacker = createUnit('archer', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('archer', 'p2', { q: 12, r: 10 }, mkC());
+
+    const result = resolveCombat(attacker, defender, map, 42);
+
+    expect(result.defenderDamage).toBeGreaterThan(0);
+    expect(result.attackerDamage).toBeGreaterThan(0);
+  });
 });
 
 describe('new terrain defense bonuses', () => {

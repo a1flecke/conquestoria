@@ -58,4 +58,12 @@ export const SFX = {
   },
   notification: () => playTone(700, 0.1, 0.1, 'triangle'),
   error: () => playTone(200, 0.2, 0.15, 'square'),
+  transportLoad: () => {
+    playTone(330, 0.08, 0.12, 'triangle');
+    setTimeout(() => playTone(440, 0.1, 0.12, 'triangle'), 80);
+  },
+  transportUnload: () => {
+    playTone(440, 0.08, 0.12, 'triangle');
+    setTimeout(() => playTone(330, 0.1, 0.12, 'triangle'), 80);
+  },
 };

@@ -1287,6 +1287,43 @@ describe('city-panel build list icons', () => {
   });
 });
 
+describe('city-panel coastal unit gating', () => {
+  it('shows Transport only for coastal cities with Galleys', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations[state.currentPlayer].techState.completed = ['galleys'];
+    city.productionQueue = [];
+    city.ownedTiles = [city.position];
+
+    const inlandPanel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const inlandText = (inlandPanel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? inlandPanel.textContent ?? '';
+    expect(inlandText).not.toContain('Transport');
+
+    state.map.tiles['99,99'] = {
+      coord: { q: 99, r: 99 },
+      terrain: 'coast',
+      elevation: 'lowland',
+      resource: null,
+      improvement: 'none',
+      owner: null,
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+    };
+    const coastalCity = { ...city, ownedTiles: [city.position, { q: 99, r: 99 }] };
+    const coastalPanel = createCityPanel(container, coastalCity, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const coastalText = (coastalPanel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? coastalPanel.textContent ?? '';
+    expect(coastalText).toContain('Transport');
+  });
+});
+
 describe('city-panel locked section — S4b', () => {
   function makeLockedFixture(options: {
     completedTechs?: string[];

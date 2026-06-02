@@ -85,6 +85,17 @@ describe('unit occupancy', () => {
     expect(hasHostileUnitAtCoord(afterAllDefendersDie, { q: 2, r: 1 }, 'player')).toBe(false);
   });
 
+  it('does not count loaded cargo as occupying a map hex', () => {
+    const occupancy = buildUnitOccupancy({
+      transport: unit('transport', 'player', 1, 0, { type: 'transport', cargoUnitIds: ['cargo'] }),
+      cargo: unit('cargo', 'player', 1, 0, { transportId: 'transport' }),
+      enemy: unit('enemy', 'ai-1', 2, 0),
+    });
+
+    expect(getUnitIdsAtCoord(occupancy, { q: 1, r: 0 })).toEqual(['transport']);
+    expect(getUnitIdsAtCoord(occupancy, { q: 2, r: 0 })).toEqual(['enemy']);
+  });
+
   it('sorts stack picker rows by ready state, current unit, name, then id', () => {
     const units = [
       unit('worker-2', 'player', 0, 0, { type: 'worker', movementPointsLeft: 0 }),

@@ -175,20 +175,39 @@ function removeUnitFromCopies(
 } {
   const removed = units[unitId];
   if (!removed) return { units, civilizations, espionage };
-  const { [unitId]: _removedUnit, ...remainingUnits } = units;
-  let nextCivilizations = civilizations;
+  const removedIds = new Set([unitId, ...(removed.cargoUnitIds ?? [])]);
+  const remainingUnits: Record<string, Unit> = {};
+  for (const [candidateId, candidate] of Object.entries(units)) {
+    if (removedIds.has(candidateId)) continue;
+    if (candidate.transportId === unitId) continue;
+    if (removed.transportId && candidateId === removed.transportId) {
+      remainingUnits[candidateId] = {
+        ...candidate,
+        cargoUnitIds: (candidate.cargoUnitIds ?? []).filter(cargoUnitId => cargoUnitId !== unitId),
+      };
+    } else {
+      remainingUnits[candidateId] = candidate;
+    }
+  }
+
+  let nextCivilizations = { ...civilizations };
   let nextEspionage = espionage;
 
-  const civ = civilizations[removed.owner];
-  if (civ) {
+  for (const [civId, civ] of Object.entries(civilizations)) {
     nextCivilizations = {
-      ...civilizations,
-      [removed.owner]: {
+      ...nextCivilizations,
+      [civId]: {
         ...civ,
-        units: civ.units.filter(id => id !== unitId),
+        units: civ.units.filter(id => !removedIds.has(id)),
       },
     };
-    nextEspionage = espionage ? cleanupDeadSpyUnit(espionage, removed.owner, unitId) : espionage;
+  }
+
+  for (const removedId of removedIds) {
+    const removedUnit = units[removedId];
+    if (removedUnit) {
+      nextEspionage = nextEspionage ? cleanupDeadSpyUnit(nextEspionage, removedUnit.owner, removedId) : nextEspionage;
+    }
   }
 
   return { units: remainingUnits, civilizations: nextCivilizations, espionage: nextEspionage };

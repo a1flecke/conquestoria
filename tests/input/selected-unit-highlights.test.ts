@@ -170,4 +170,40 @@ describe('selected-unit-highlights', () => {
 
     expect(result.highlights).not.toContainEqual({ coord: { q: 1, r: -1 }, type: 'worker-foreign-blocked' });
   });
+
+  it('does not highlight Transport coast movement before Galleys and does after unlock', () => {
+    const state = createNewGame(undefined, 'transport-highlight-tech-gate', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      transport: { ...createUnit('transport', 'player', { q: 0, r: 0 }, mkC()), id: 'transport', movementPointsLeft: 3 },
+    };
+    state.civilizations.player.units = ['transport'];
+    state.map.tiles['0,0'] = {
+      coord: { q: 0, r: 0 },
+      terrain: 'coast',
+      elevation: 'lowland',
+      resource: null,
+      owner: null,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+    };
+    state.map.tiles['1,0'] = {
+      coord: { q: 1, r: 0 },
+      terrain: 'coast',
+      elevation: 'lowland',
+      resource: null,
+      owner: null,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+    };
+
+    expect(buildSelectedUnitHighlights(state, 'transport').movementRange.map(hexKey)).not.toContain('1,0');
+
+    state.civilizations.player.techState.completed = ['galleys'];
+    expect(buildSelectedUnitHighlights(state, 'transport').movementRange.map(hexKey)).toContain('1,0');
+  });
 });

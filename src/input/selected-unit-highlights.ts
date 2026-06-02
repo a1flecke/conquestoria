@@ -3,7 +3,7 @@ import type { HexHighlight } from '@/renderer/render-loop';
 import { getAttackTargets, type AttackTarget } from '@/systems/attack-targeting';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
-import { getAvailableWorkerActions } from '@/systems/improvement-system';
+import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getMovementRange } from '@/systems/unit-system';
 
@@ -27,7 +27,8 @@ function isPlausibleWorkerActionTile(
 ): boolean {
   const tile = state.map.tiles[hexKey(coord)];
   if (!tile) return false;
-  return getAvailableWorkerActions(tile, completedTechs, undefined, { isCityTile: isCityTile(state, coord) })
+  const knownResource = getKnownTileResourceForWorkerAction(tile, completedTechs);
+  return getAvailableWorkerActions(tile, completedTechs, undefined, { isCityTile: isCityTile(state, coord), knownResource })
     .some(action => WORKER_ACTIONS.includes(action));
 }
 
@@ -53,7 +54,8 @@ function buildWorkerGuidanceHighlights(
     if (!tile) continue;
     if (visibility && getVisibility(visibility, coord) === 'unexplored') continue;
 
-    const options = { isCityTile: isCityTile(state, coord) };
+    const knownResource = getKnownTileResourceForWorkerAction(tile, completedTechs);
+    const options = { isCityTile: isCityTile(state, coord), knownResource };
     const availableActions = getAvailableWorkerActions(tile, completedTechs, unit.owner, options);
     if (availableActions.length > 0) {
       highlights.push({ coord, type: 'worker-buildable' });
@@ -86,8 +88,14 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
 
   const occupancy = buildUnitOccupancy(state.units);
   const hostileOwners = buildHostileOwners(state, state.currentPlayer);
+  const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
   const movementRange = getMovementRange(
-    unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, hostileOwners,
+    unit,
+    state.map,
+    occupancy.unitIdsByHex,
+    occupancy.ownersByUnitId,
+    hostileOwners,
+    { completedTechs },
   );
   const attackTargets = getAttackTargets(state, unit, { viewerId: state.currentPlayer })
     .filter(target => target.result.targetType === 'unit');

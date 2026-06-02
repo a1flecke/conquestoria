@@ -655,6 +655,8 @@ rg -n "next.*unit|unit.*orders|getUnmovedUnits|skippedTurn|isFortified|workerTas
 
 ## Task 13: Follow-Up GitHub Issue For Fuller Naval Transport Roadmap
 
+Created during implementation as https://github.com/a1flecke/conquestoria/issues/312, with the MVP dependency noted in the issue body.
+
 - [ ] After the bug-fix branch lands, create a GitHub issue titled:
 
 ```text
