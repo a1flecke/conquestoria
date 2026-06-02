@@ -159,6 +159,20 @@ describe('NaturalWonderAudioDirector', () => {
     expect(loader.get).toHaveBeenCalledWith('audio/wonders/aurora-fields-ambient.ogg');
   });
 
+  it('replay works for MR3 complete entries without new UI wiring', async () => {
+    const director = new NaturalWonderAudioDirector(
+      mixer as never,
+      loader as never,
+      playStingerWithDuck,
+      timers,
+    );
+
+    await expect(director.playCodexReplay('dragon_bones')).resolves.toBe(true);
+
+    expect(playStingerWithDuck).toHaveBeenCalledWith('audio/wonders/dragon-bones-stinger.ogg');
+    expect(loader.get).toHaveBeenCalledWith('audio/wonders/dragon-bones-ambient.ogg');
+  });
+
   it('does not let stale map-focus loading override newer Codex ambience', async () => {
     const resolves = new Map<string, (buffer: AudioBuffer) => void>();
     const deferredLoader = {

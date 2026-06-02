@@ -7,7 +7,7 @@ import {
   FINAL_NATURAL_WONDER_AUDIO_COVERAGE,
   getCompleteNaturalWonderAudioEntry,
   getNaturalWonderAudioCatalog,
-  MR2_NATURAL_WONDER_AUDIO_IDS,
+  MR3_NATURAL_WONDER_AUDIO_IDS,
 } from '../../src/audio/natural-wonder-audio-catalog';
 import { getNaturalWonderAudioSource } from '../../src/audio/natural-wonder-audio-sources';
 import { WONDER_DEFINITIONS } from '../../src/systems/wonder-definitions';
@@ -28,14 +28,14 @@ describe('natural wonder audio catalog', () => {
     );
   });
 
-  it('keeps MR1 and MR2 wonders complete and all remaining wonders explicit pending entries', () => {
+  it('keeps MR1, MR2, and MR3 wonders complete and all remaining wonders explicit pending entries', () => {
     const catalog = getNaturalWonderAudioCatalog();
     const completeIds = new Set<string>(COMPLETE_NATURAL_WONDER_AUDIO_IDS);
 
-    expect(MR2_NATURAL_WONDER_AUDIO_IDS).toEqual([
-      'sacred_mountain',
-      'crystal_caverns',
-      'aurora_fields',
+    expect(MR3_NATURAL_WONDER_AUDIO_IDS).toEqual([
+      'frozen_falls',
+      'grand_canyon',
+      'dragon_bones',
     ]);
 
     for (const entry of catalog) {
