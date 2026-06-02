@@ -67,8 +67,6 @@ export const ACCENT: Record<AudioFamily, TrackEntry> = {
 };
 
 export const STINGER = {
-  // eraAdvance stingers exist in the catalog but are not yet wired in music-director.ts.
-  // They are provided for a future "big reveal" moment; wiring is deferred.
   eraAdvance: {
     // "Danse Macabre - Big Hit 1" by Kevin MacLeod — CC-BY 3.0
     1: { id: 'stinger-era1-advance', file: 'audio/stinger/era1-advance.ogg', bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 4.963 } },
