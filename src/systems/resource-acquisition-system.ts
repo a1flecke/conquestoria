@@ -259,7 +259,7 @@ export function canBuyResourceAccess(
 export function performBuyResourceAccess(
   state: GameState,
   buyerCivId: string,
-  sellerCivId: string,
+  _sellerCivId: string,   // reserved: future diplomatic impact on relationship score
   resource: ResourceType,
 ): GameState {
   if (!state.marketplace) return state;
