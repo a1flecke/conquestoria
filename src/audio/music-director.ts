@@ -52,6 +52,7 @@ export class MusicDirector {
     this.intendedSnapshot = target;
     this.mixer.setSnapshot(target, CROSSFADE_MS);
     void this.playStingerWithDuck(STINGER.eraTransitionCue[resolveEra(p.era)].file);
+    void this.playStingerWithDuck(STINGER.eraAdvance[resolveEra(p.era)].file);
   }
 
   handleWarDeclared(_p: WarDeclaredPayload): void {
