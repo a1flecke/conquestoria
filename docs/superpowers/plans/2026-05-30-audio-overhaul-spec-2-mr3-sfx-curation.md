@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace 64 silent SFX placeholders with real CC0/CC-BY audio assets, add 5 spy-type death entries to the SFX catalog, and create two tracking plan docs for deferred audio work.
+**Goal:** Replace 65 silent SFX placeholders with real CC0/CC-BY audio assets, add 5 spy-type death entries to the SFX catalog, and create two tracking plan docs for deferred audio work.
 
-**Architecture:** Audio sourced from Kenney CC0 packs via direct ZIP download + ffmpeg re-encode at -14 LUFS. Task B (spy entries) is pure TypeScript + placeholder OGG copy. Task C is docs-only. No changes to sfx-director.ts or audio-system.ts — wiring was MR2.
+**Architecture:** Audio sourced from Kenney CC0 packs via direct ZIP download + ffmpeg re-encode at -14 LUFS. Task B (spy entries) is pure TypeScript + placeholder OGG copy. Task C is docs-only. SfxDirector gains a `unit:created` subscription to cache mid-game trained units.
 
 **Tech Stack:** TypeScript, ffmpeg 8.0.1 (on PATH), OGG/Vorbis, vitest, Kenney CC0 packs
 
@@ -14,8 +14,8 @@
 
 ### Modified
 - `src/audio/sfx-catalog.ts` — add 5 spy death entries; update `bpm`, `key`, `loop.loopEnd` for each real file sourced
-- `tests/audio/sfx-catalog.test.ts` — update entry count 64 → 69; add spy-types test
-- `public/audio/sfx/*.ogg` — replace 64 silent stubs with real audio; add 5 spy death stubs
+- `tests/audio/sfx-catalog.test.ts` — update entry count 65 → 70; add spy-types and non-combat tests
+- `public/audio/sfx/*.ogg` — replace 65 silent stubs with real audio; add 5 spy death stubs
 - `AUDIO-CREDITS.md` — add CC-BY attribution for any non-CC0 asset; CC0 entries added for traceability
 
 ### Created
@@ -78,13 +78,13 @@ it('every spy type has a death entry', () => {
 });
 ```
 
-Also update the count test (line 65-69) — change the description and the count:
+Also update the count test — change the description and the count:
 
 ```typescript
-it('allSfxEntries returns exactly 69 entries', () => {
-  // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval (2×3)
-  // + 6 siege (2×3) + 9 special-combat (3×3) + 5 non-combat (5×1) + 5 spy-death (5×1) + 3 move-step = 69
-  expect(allSfxEntries()).toHaveLength(69);
+it('allSfxEntries returns exactly 70 entries', () => {
+  // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
+  // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
+  expect(allSfxEntries()).toHaveLength(70);
 });
 ```
 
@@ -93,7 +93,7 @@ it('allSfxEntries returns exactly 69 entries', () => {
 ```bash
 bash scripts/run-with-mise.sh yarn test tests/audio/sfx-catalog.test.ts
 ```
-Expected: FAIL — "every spy type has a death entry" fails with `UNIT_SFX missing for spy_scout`; count test fails with `expected 64 to equal 69`.
+Expected: FAIL — "every spy type has a death entry" fails with `UNIT_SFX missing for spy_scout`; count test fails with `expected 65 to equal 70`.
 
 - [ ] **Step 3: Add spy death entries to sfx-catalog.ts**
 
@@ -123,7 +123,7 @@ done
 ```bash
 bash scripts/run-with-mise.sh yarn test tests/audio/sfx-catalog.test.ts
 ```
-Expected: PASS — all spy types have death entries; total entries = 69; all OGG files exist with valid magic bytes.
+Expected: PASS — all spy types have death entries; total entries = 70; all OGG files exist with valid magic bytes.
 
 - [ ] **Step 6: Build**
 
@@ -148,7 +148,7 @@ git commit -m "feat(sfx): add spy type death catalog entries + placeholder OGGs 
 
 ## Task 2: Download Kenney CC0 Audio Packs (Task A setup)
 
-Download the two primary Kenney CC0 packs that will cover all 64 SFX slots.
+Download the two primary Kenney CC0 packs that will cover all 65 SFX slots.
 
 **Kenney Impact Sounds** covers: metal impacts, weapon swings, wooden impacts, soft thuds — good for attack-swing, attack-impact, siege-fire, siege-impact, death.
 
@@ -722,7 +722,7 @@ git commit -m "docs: add natural wonder audio curation index (Task C2)"
 ```bash
 bash scripts/run-with-mise.sh yarn test
 ```
-Expected: PASS — all 69 SFX catalog entries present, all OGG files exist with OGG magic bytes.
+Expected: PASS — all 70 SFX catalog entries present, all OGG files exist with OGG magic bytes.
 
 - [ ] **Run build**
 
@@ -735,12 +735,13 @@ Expected: exit 0.
 
 ## Self-Review Checklist
 
-- Task A: 64 placeholder OGGs replaced with real Kenney CC0 audio ✓
+- Task A: 65 placeholder OGGs replaced with real Kenney CC0 audio ✓
 - Task A: sfx-catalog.ts updated with real `loopEnd` durations ✓
 - Task A: AUDIO-CREDITS.md updated with pack attribution ✓
 - Task B: 5 spy death entries added to UNIT_SFX ✓
 - Task B: 5 spy death OGG files created (stubs) ✓
-- Task B: test updated to 69 entries + spy assertion ✓
+- Task B: test updated to 70 entries + non-combat + spy assertion ✓
 - Task C1: era-advance stinger wiring plan created ✓
 - Task C2: natural wonder curation index created ✓
+- SfxDirector: `unit:created` subscription added for mid-game unit caching ✓
 - Build + test both green before PR ✓

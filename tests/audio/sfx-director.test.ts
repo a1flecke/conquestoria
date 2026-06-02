@@ -223,6 +223,18 @@ describe('SfxDirector', () => {
     expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(deathPath));
   });
 
+  it('unit:created mid-game caches type so death sound plays later', async () => {
+    // Start with empty snapshot — spy trained after game start
+    director.start({}, busHelper.bus);
+    busHelper.emit('unit:created', { unit: makeUnit('s1', 'spy_scout') });
+    busHelper.emit('unit:destroyed', { unitId: 's1', position: { q: 0, r: 0 } });
+    await tick();
+
+    const deathPath = UNIT_SFX.spy_scout!.death!.file;
+    expect(loader.get).toHaveBeenCalledWith(deathPath);
+    expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(deathPath));
+  });
+
   // === dispose ===
 
   it('dispose() cancels pending movement timeouts — no sounds after dispose', async () => {
