@@ -40,13 +40,13 @@ Use Soundimage-first sources to match MR1/MR2 attribution and conversion pattern
 | Wonder | Output | Source title | Source URL | Fit rationale |
 |---|---|---|---|---|
 | `frozen_falls` | `audio/wonders/frozen-falls-stinger.ogg` | `Arctic Sunrise` | `http://soundimage.org/wp-content/uploads/2014/02/Arctic-Sunrise.mp3` | Short polar reveal cue; the source description explicitly places the sun over ice. |
-| `frozen_falls` | `audio/wonders/frozen-falls-ambient.ogg` | `Icicles_Looping` | `http://soundimage.org/wp-content/uploads/2014/02/Icicles_Looping.mp3` | Glistening ice ambience; direct match for `frozen-fall` without implying combat or storm. |
+| `frozen_falls` | `audio/wonders/frozen-falls-ambient.ogg` | `Icicles` | `http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3` | Glistening ice ambience; direct match for `frozen-fall` without implying combat or storm. |
 | `grand_canyon` | `audio/wonders/grand-canyon-stinger.ogg` | `Distant Mountains` | `http://soundimage.org/wp-content/uploads/2014/07/Distant-Mountains.mp3` | Broad landscape cue with explicit American Southwest fit. |
-| `grand_canyon` | `audio/wonders/grand-canyon-ambient.ogg` | `River in Trouble_Looping` | `http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble_Looping.mp3` | Colorado River association gives canyon identity while staying environmental. |
+| `grand_canyon` | `audio/wonders/grand-canyon-ambient.ogg` | `River in Trouble` | `http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3` | Colorado River association gives canyon identity while staying environmental. |
 | `dragon_bones` | `audio/wonders/dragon-bones-stinger.ogg` | `The Ancients` | `https://soundimage.org/wp-content/uploads/2025/05/The-Ancients.mp3` | Ancient discovery cue suitable for fossil remains. |
 | `dragon_bones` | `audio/wonders/dragon-bones-ambient.ogg` | `Secret Catacombs` | `http://soundimage.org/wp-content/uploads/2015/04/Secret-Catacombs.mp3` | Subterranean ancient ambience suitable for skeletal remains; use low gain so it does not read as horror foreground music. |
 
-If a listed loop-variant URL fails during implementation, use the non-looping source from the same Soundimage page, convert it to OGG, measure the resulting duration, and set the catalog loop end to a safe value below the decoded duration. Record the exact URL used in both source metadata and credits.
+The originally considered loop-variant URLs for `Icicles_Looping.mp3` and `River-in-Trouble_Looping.mp3` returned 404 HTML during implementation. This slice therefore uses the non-looping sources from the same Soundimage pages, converts them to OGG, measures the resulting duration, and sets catalog loop ends below the decoded durations.
 
 ## Catalog Contract
 

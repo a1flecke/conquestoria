@@ -25,23 +25,18 @@ This plan implements only Stage 2H MR3:
 
 ## Source Selection
 
-Use these exact Soundimage sources first:
+Use these exact Soundimage sources:
 
 | Wonder | Output | Source title | Source URL |
 |---|---|---|---|
 | `frozen_falls` | `frozen-falls-stinger.ogg` | `Arctic Sunrise` | `http://soundimage.org/wp-content/uploads/2014/02/Arctic-Sunrise.mp3` |
-| `frozen_falls` | `frozen-falls-ambient.ogg` | `Icicles_Looping` | `http://soundimage.org/wp-content/uploads/2014/02/Icicles_Looping.mp3` |
+| `frozen_falls` | `frozen-falls-ambient.ogg` | `Icicles` | `http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3` |
 | `grand_canyon` | `grand-canyon-stinger.ogg` | `Distant Mountains` | `http://soundimage.org/wp-content/uploads/2014/07/Distant-Mountains.mp3` |
-| `grand_canyon` | `grand-canyon-ambient.ogg` | `River in Trouble_Looping` | `http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble_Looping.mp3` |
+| `grand_canyon` | `grand-canyon-ambient.ogg` | `River in Trouble` | `http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3` |
 | `dragon_bones` | `dragon-bones-stinger.ogg` | `The Ancients` | `https://soundimage.org/wp-content/uploads/2025/05/The-Ancients.mp3` |
 | `dragon_bones` | `dragon-bones-ambient.ogg` | `Secret Catacombs` | `http://soundimage.org/wp-content/uploads/2015/04/Secret-Catacombs.mp3` |
 
-If `Icicles_Looping.mp3` or `River-in-Trouble_Looping.mp3` returns a non-2xx response during download, replace only that source with the non-looping URL from the same Soundimage page:
-
-- `http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3`
-- `http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3`
-
-When a fallback URL is used, update the source title in code and credits by removing `_Looping`.
+The originally considered `Icicles_Looping.mp3` and `River-in-Trouble_Looping.mp3` URLs returned 404 HTML during implementation. The plan now records the same-page non-looping sources that were actually downloaded and credited.
 
 ## File Structure
 
