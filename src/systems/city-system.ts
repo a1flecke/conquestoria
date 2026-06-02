@@ -587,7 +587,9 @@ export interface CityProcessResult {
   idleScienceBonus: number;
   /** The building id that was silently dequeued because the city is no longer coastal, or null. */
   droppedBuilding: string | null;
+  /** The coastal-required unit type that was dequeued because the city is no longer coastal, or null. */
   droppedUnit: UnitType | null;
+  /** Any production item dequeued because it is no longer available. */
   droppedProductionItem: string | null;
 }
 
@@ -678,7 +680,7 @@ export function processCity(
 
   // Drop queued items that are no longer available (tech lost, resource lost)
   if ((completedTechs.length > 0 || availableResources) && newQueue.length > 0) {
-    const trainable = getTrainableUnitsForCity(city, completedTechs, map.tiles, civType, availableResources);
+    const trainable = getTrainableUnitsForCiv(completedTechs, civType, availableResources);
     const trainableTypes = new Set(trainable.map(u => u.type));
     const BUILDING_IDS = new Set(Object.keys(BUILDINGS));
     const filtered = newQueue.filter(item => {
@@ -692,7 +694,6 @@ export function processCity(
       }
       const unit = TRAINABLE_UNITS.find(candidate => candidate.type === item);
       if (unit && !trainableTypes.has(unit.type)) {
-        droppedUnit ??= unit.type;
         droppedProductionItem ??= unit.type;
         return false;
       }
