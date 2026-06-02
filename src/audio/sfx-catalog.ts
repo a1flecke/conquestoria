@@ -136,6 +136,13 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   scout:      { death: ph('sfx-scout-death',      'audio/sfx/scout-death.ogg') },
   expedition: { death: ph('sfx-expedition-death', 'audio/sfx/expedition-death.ogg') },
   transport:  { death: ph('sfx-transport-death',  'audio/sfx/transport-death.ogg') },
+
+  // === Spy Types (death only — spies are dispatched, never attack directly) ===
+  spy_scout:     { death: ph('sfx-spy_scout-death',     'audio/sfx/spy_scout-death.ogg') },
+  spy_informant: { death: ph('sfx-spy_informant-death', 'audio/sfx/spy_informant-death.ogg') },
+  spy_agent:     { death: ph('sfx-spy_agent-death',     'audio/sfx/spy_agent-death.ogg') },
+  spy_operative: { death: ph('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg') },
+  spy_hacker:    { death: ph('sfx-spy_hacker-death',    'audio/sfx/spy_hacker-death.ogg') },
 };
 
 // Mirrors UNIT_MOTION_STYLES in src/renderer/sprites/sprite-catalog.ts — keep in sync.

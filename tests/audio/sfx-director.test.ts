@@ -213,12 +213,14 @@ describe('SfxDirector', () => {
     expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(deathPath));
   });
 
-  it('unit:destroyed for spy type produces no sound', async () => {
+  it('unit:destroyed for spy type plays death sound', async () => {
     director.start({ u1: makeUnit('u1', 'spy_scout') }, busHelper.bus);
     busHelper.emit('unit:destroyed', { unitId: 'u1', position: { q: 0, r: 0 } });
     await tick();
 
-    expect(mixer.playOneShot).not.toHaveBeenCalled();
+    const deathPath = UNIT_SFX.spy_scout!.death!.file;
+    expect(loader.get).toHaveBeenCalledWith(deathPath);
+    expect(mixer.playOneShot).toHaveBeenCalledWith('sfx', loader.bufferFor(deathPath));
   });
 
   // === dispose ===
