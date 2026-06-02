@@ -22,6 +22,8 @@ const COMBAT_MELEE_TYPES: UnitType[] = [
 ];
 const RANGED_TYPES: UnitType[] = ['archer', 'crossbowman'];
 const SIEGE_TYPES: UnitType[] = ['catapult', 'ballista'];
+const NON_COMBAT_TYPES: UnitType[] = ['settler', 'worker', 'caravan', 'scout', 'expedition', 'transport'];
+const SPY_TYPES: UnitType[] = ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker'];
 const ALL_LOCOMOTION_CLASSES: LocomotionClass[] = ['humanoid', 'animal', 'naval'];
 
 describe('sfx-catalog completeness', () => {
@@ -62,10 +64,26 @@ describe('sfx-catalog completeness', () => {
     }
   });
 
-  it('allSfxEntries returns exactly 65 entries', () => {
+  it('every non-combat unit type has a death entry', () => {
+    for (const unitType of NON_COMBAT_TYPES) {
+      const sfx = UNIT_SFX[unitType];
+      expect(sfx, `UNIT_SFX missing for ${unitType}`).toBeDefined();
+      expect(sfx!['death'], `${unitType} missing death`).toBeDefined();
+    }
+  });
+
+  it('every spy type has a death entry', () => {
+    for (const unitType of SPY_TYPES) {
+      const sfx = UNIT_SFX[unitType];
+      expect(sfx, `UNIT_SFX missing for ${unitType}`).toBeDefined();
+      expect(sfx!['death'], `${unitType} missing death`).toBeDefined();
+    }
+  });
+
+  it('allSfxEntries returns exactly 70 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
-    // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 3 move-step = 65
-    expect(allSfxEntries()).toHaveLength(65);
+    // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
+    expect(allSfxEntries()).toHaveLength(70);
   });
 
   it('no two entries share the same ID', () => {
@@ -102,7 +120,7 @@ describe('getLocomotionClass', () => {
   });
 
   it('maps humanoid units correctly', () => {
-    const humanoidTypes: UnitType[] = ['warrior', 'archer', 'settler', 'caravan', 'scout'];
+    const humanoidTypes: UnitType[] = ['warrior', 'archer', 'settler', 'caravan', 'scout', 'spy_scout', 'spy_hacker'];
     for (const t of humanoidTypes) {
       expect(getLocomotionClass(t), t).toBe('humanoid');
     }
