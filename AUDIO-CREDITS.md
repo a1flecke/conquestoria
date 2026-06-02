@@ -223,12 +223,12 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
   Modified: converted to OGG Vorbis
 
 - `audio/wonders/crystal-caverns-stinger.ogg` — "Chamber of Jewels" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2015/03/Chamber-of-Jewels.mp3
+  Source: https://soundimage.org/wp-content/uploads/2015/03/Chamber-of-Jewels.mp3
   Used as: Crystal Caverns discovery and replay stinger
   Modified: trimmed to 5 s, converted to OGG Vorbis
 
 - `audio/wonders/crystal-caverns-ambient.ogg` — "Crystal Caverns" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2016/04/Crystal-Caverns.mp3
+  Source: https://soundimage.org/wp-content/uploads/2016/04/Crystal-Caverns.mp3
   Used as: Crystal Caverns Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
@@ -243,22 +243,22 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
   Modified: converted to OGG Vorbis
 
 - `audio/wonders/frozen-falls-stinger.ogg` — "Arctic Sunrise" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2014/02/Arctic-Sunrise.mp3
+  Source: https://soundimage.org/wp-content/uploads/2014/02/Arctic-Sunrise.mp3
   Used as: Frozen Falls discovery and replay stinger
   Modified: trimmed to 5 s, converted to OGG Vorbis
 
 - `audio/wonders/frozen-falls-ambient.ogg` — "Icicles" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3
+  Source: https://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3
   Used as: Frozen Falls Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
 - `audio/wonders/grand-canyon-stinger.ogg` — "Distant Mountains" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2014/07/Distant-Mountains.mp3
+  Source: https://soundimage.org/wp-content/uploads/2014/07/Distant-Mountains.mp3
   Used as: Grand Canyon discovery and replay stinger
   Modified: trimmed to 5 s, converted to OGG Vorbis
 
 - `audio/wonders/grand-canyon-ambient.ogg` — "River in Trouble" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3
+  Source: https://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3
   Used as: Grand Canyon Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
@@ -268,7 +268,7 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
   Modified: trimmed to 5 s, converted to OGG Vorbis
 
 - `audio/wonders/dragon-bones-ambient.ogg` — "Secret Catacombs" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2015/04/Secret-Catacombs.mp3
+  Source: https://soundimage.org/wp-content/uploads/2015/04/Secret-Catacombs.mp3
   Used as: Dragon Bones Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
