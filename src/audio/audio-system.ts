@@ -7,12 +7,14 @@ import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from 
 import { getFamilyForCiv } from './civ-audio-family';
 import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra } from './audio-catalog';
 import { allSfxEntries } from './sfx-catalog';
+import { SfxDirector } from './sfx-director';
 
 export class AudioSystem {
   private loader: AudioLoader;
   private mixer: AudioMixer;
   private director: MusicDirector;
   private naturalWonderDirector: NaturalWonderAudioDirector;
+  private sfxDirector: SfxDirector;
   private unsubscribers: Array<() => void> = [];
   private warCount = 0;
   private currentPlayerId = '';
@@ -31,6 +33,7 @@ export class AudioSystem {
       this.loader,
       path => this.director.playStingerWithDuck(path),
     );
+    this.sfxDirector = new SfxDirector(this.mixer, this.loader);
   }
 
   start(state: GameState, bus: EventBus): void {
@@ -51,6 +54,7 @@ export class AudioSystem {
     this.mixer.setSfxVolume(settings.sfxVolume);
 
     this.wireEvents(bus);
+    this.sfxDirector.start(state.units, bus);
     this.armIosResume();
 
     void this.preloadForEra(state.era, this.currentCivType);
@@ -112,6 +116,7 @@ export class AudioSystem {
     this.unsubscribers = [];
     this.disarmIosResume();
     this.naturalWonderDirector.stopAmbient('system-disposed');
+    this.sfxDirector.dispose();
     this.mixer.dispose();
     this.warCount = 0;
     this.currentPlayerId = '';
