@@ -76,6 +76,18 @@ describe('MusicDirector', () => {
     expect(stingerCalls).toHaveLength(2);
   });
 
+  it('era advance stingers duck and restore sequentially — cue finishes before advance starts', async () => {
+    director.handleEraAdvanced({ era: 1, civType: 'rome' });
+    await flushPromises();
+    const snapshots = vi.mocked(mixer.setSnapshot).mock.calls.map(([s]) => s);
+    // Filter to snapshot-duck/restore sequence only (excludes CROSSFADE_MS era/war transitions)
+    const duckRestorePattern = snapshots.filter(s => s === 'stinger-duck' || s === 'peace');
+    // Sequential: peace(era-crossfade), stinger-duck(cue), peace(cue-restore),
+    //             stinger-duck(advance), peace(advance-restore)
+    // Concurrent (broken): peace, stinger-duck, stinger-duck, peace, peace
+    expect(duckRestorePattern).toEqual(['peace', 'stinger-duck', 'peace', 'stinger-duck', 'peace']);
+  });
+
   // --- handleWarDeclared ---
 
   it('transitions to at-war snapshot on war declared', () => {
