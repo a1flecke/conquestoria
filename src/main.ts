@@ -161,7 +161,7 @@ import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecyc
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
-import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
+import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
@@ -628,6 +628,27 @@ function openDiplomacyPanel(): void {
     onGiftGold: handleGiftGold,
     onMinorCivWarPeace: handleMinorCivWarPeace,
     onClose: () => {},
+  });
+}
+
+function openMarketplacePanel(): void {
+  document.getElementById('marketplace-panel')?.remove();
+  createMarketplacePanel(uiLayer, gameState, {
+    onClose: () => {},
+    onSelectUnit: (unitId) => {
+      document.getElementById('marketplace-panel')?.remove();
+      selectUnit(unitId);
+      const unit = gameState.units[unitId];
+      if (unit) renderLoop.camera.centerOn(unit.position);
+    },
+    onBuyResourceAccess: (sellerCivId, resource) => {
+      if (!canBuyResourceAccess(gameState, gameState.currentPlayer, sellerCivId, resource)) return;
+      gameState = performBuyResourceAccess(gameState, gameState.currentPlayer, sellerCivId, resource);
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(`Purchased ${resource} access for 10 turns.`, 'success');
+      openMarketplacePanel(); // re-render panel with updated state
+    },
   });
 }
 
@@ -1190,15 +1211,7 @@ function togglePanel(panel: string): void {
   } else if (panel === 'diplomacy') {
     openDiplomacyPanel();
   } else if (panel === 'marketplace') {
-    createMarketplacePanel(uiLayer, gameState, {
-      onClose: () => {},
-      onSelectUnit: (unitId) => {
-        document.getElementById('marketplace-panel')?.remove();
-        selectUnit(unitId);
-        const unit = gameState.units[unitId];
-        if (unit) renderLoop.camera.centerOn(unit.position);
-      },
-    });
+    openMarketplacePanel();
   }
 }
 
