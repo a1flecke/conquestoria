@@ -245,3 +245,21 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
 ## Sound Effects
 
 *(Existing synthesised SFX via Web Audio oscillators require no attribution.)*
+
+## SFX — Kenney Impact Sounds (CC0)
+
+All unit and movement sound effects in `public/audio/sfx/` were sourced from
+the "Impact Sounds" pack and "RPG Audio" pack by Kenney.
+
+Source (Impact Sounds): https://kenney.nl/assets/impact-sounds
+Source (RPG Audio):     https://kenney.nl/assets/rpg-audio
+License: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
+Author: Kenney (kenney.nl)
+
+Files used: impactMetal_*, impactPunch_*, impactWood_*, impactSoft_*,
+            impactPlate_*, impactPlank_*, impactMining_*, impactGeneric_*,
+            footstep_grass_*, footstep_wood_*, chop.ogg, knifeSlice.ogg
+
+Used for: all unit attack-swing, attack-impact, ranged-loose, ranged-impact,
+          siege-fire, siege-impact, and death sounds; humanoid/animal/naval
+          movement step sounds.
