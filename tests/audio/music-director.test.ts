@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MusicDirector } from '../../src/audio/music-director';
+import { STINGER, resolveEra } from '../../src/audio/audio-catalog';
 import type { AudioMixer } from '../../src/audio/audio-mixer';
 import type { AudioLoader } from '../../src/audio/audio-loader';
 
@@ -60,6 +61,19 @@ describe('MusicDirector', () => {
     director.handleEraAdvanced({ era: 2, civType: 'rome' });
     await flushPromises();
     expect(mixer.playOneShot).toHaveBeenCalledWith('stinger', fakeBuffer);
+  });
+
+  it('plays eraAdvance stinger for the resolved era', async () => {
+    director.handleEraAdvanced({ era: 3, civType: 'rome' });
+    await flushPromises();
+    expect(loader.get).toHaveBeenCalledWith(STINGER.eraAdvance[resolveEra(3)].file);
+  });
+
+  it('era advance fires both transition-cue and eraAdvance stingers (2 playOneShot calls)', async () => {
+    director.handleEraAdvanced({ era: 2, civType: 'rome' });
+    await flushPromises();
+    const stingerCalls = vi.mocked(mixer.playOneShot).mock.calls.filter(([bus]) => bus === 'stinger');
+    expect(stingerCalls).toHaveLength(2);
   });
 
   // --- handleWarDeclared ---
