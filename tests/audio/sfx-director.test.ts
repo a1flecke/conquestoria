@@ -154,8 +154,9 @@ describe('SfxDirector', () => {
     }
   });
 
-  it('unit:move 3-step path schedules 3 movement sounds', async () => {
-    // 3 steps: totalDuration = min(800, 3×220) = 660ms, interval = 220ms
+  it('unit:move 3-step path schedules 3 movement sounds at 220ms intervals', async () => {
+    // 3 steps: totalDuration = min(800, 3×220) = 660ms, interval = 660/3 = 220ms
+    // Sounds should fire at: 0ms, 220ms, 440ms
     vi.useFakeTimers();
     try {
       director.start({ u1: makeUnit('u1', 'warrior') }, busHelper.bus);
@@ -165,9 +166,17 @@ describe('SfxDirector', () => {
         to: { q: 3, r: 0 },
         path: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }],
       });
-      expect(mixer.playOneShot).toHaveBeenCalledTimes(0);
-      await vi.runAllTimersAsync();
-      expect(mixer.playOneShot).toHaveBeenCalledTimes(3);
+
+      expect(mixer.playOneShot).toHaveBeenCalledTimes(0); // no sounds yet
+
+      await vi.advanceTimersByTimeAsync(0);               // fire delay=0ms timer
+      expect(mixer.playOneShot).toHaveBeenCalledTimes(1); // step 1
+
+      await vi.advanceTimersByTimeAsync(220);             // fire delay=220ms timer
+      expect(mixer.playOneShot).toHaveBeenCalledTimes(2); // step 2
+
+      await vi.advanceTimersByTimeAsync(220);             // fire delay=440ms timer
+      expect(mixer.playOneShot).toHaveBeenCalledTimes(3); // step 3
     } finally {
       vi.useRealTimers();
     }

@@ -1,7 +1,7 @@
 import type { AudioMixer } from './audio-mixer';
 import type { AudioLoader } from './audio-loader';
 import type { EventBus } from '../core/event-bus';
-import type { Unit, UnitType, CombatResult } from '../core/types';
+import type { Unit, UnitType, CombatResult, HexCoord } from '../core/types';
 import { UNIT_SFX, MOVEMENT_SFX, getLocomotionClass } from './sfx-catalog';
 import { getMovementDurationMs } from '../renderer/unit-movement-animation';
 
@@ -9,6 +9,7 @@ export class SfxDirector {
   private unitTypeCache = new Map<string, UnitType>();
   private pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
   private unsubscribers: Array<() => void> = [];
+  private started = false;
 
   constructor(
     private readonly mixer: AudioMixer,
@@ -16,7 +17,11 @@ export class SfxDirector {
   ) {}
 
   start(units: Record<string, Unit>, bus: EventBus): void {
-    for (const [id, unit] of Object.entries(units ?? {})) {
+    if (this.started) return;
+    this.started = true;
+    // Seed cache from initial snapshot. Units trained after start() are not cached
+    // here; they receive SFX once they appear in a combat:resolved event while alive.
+    for (const [id, unit] of Object.entries(units)) {
       this.unitTypeCache.set(id, unit.type);
     }
     this.unsubscribers.push(
@@ -32,6 +37,7 @@ export class SfxDirector {
     for (const id of this.pendingTimeouts) clearTimeout(id);
     this.pendingTimeouts = [];
     this.unitTypeCache.clear();
+    this.started = false;
   }
 
   private playFile(path: string): void {
@@ -67,7 +73,7 @@ export class SfxDirector {
     }
   }
 
-  private handleUnitMove(unitId: string, path: { q: number; r: number }[]): void {
+  private handleUnitMove(unitId: string, path: HexCoord[]): void {
     const unitType = this.unitTypeCache.get(unitId);
     if (!unitType) return;
 
