@@ -863,6 +863,26 @@ describe('processTurn', () => {
     // 2 completed outposts × 2 gold = 4 deducted; no income/maintenance → 100 - 4 = 96
     expect(result.civilizations[civId].gold).toBe(96);
   });
+
+  it('cleans up expired purchasedResources entries at the start of each turn (expiresOnTurn <= state.turn)', () => {
+    const state = createNewGame(undefined, 'purchased-expiry-test', 'small');
+    const bus = new EventBus();
+
+    // state.turn starts at 1 for a new game
+    state.marketplace = {
+      ...(state.marketplace ?? { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] }),
+      purchasedResources: [
+        { civId: 'player', resource: 'silk' as never, expiresOnTurn: state.turn },      // = 1 → expires this turn
+        { civId: 'player', resource: 'wine' as never, expiresOnTurn: state.turn + 5 },  // = 6 → still active
+      ],
+    };
+
+    const result = processTurn(state, bus);
+
+    const remaining = result.marketplace?.purchasedResources ?? [];
+    expect(remaining.some(e => e.resource === 'silk')).toBe(false); // expired → removed
+    expect(remaining.some(e => e.resource === 'wine')).toBe(true);  // active → kept
+  });
 });
 
 describe('espionage post-loop snapshot', () => {
