@@ -194,7 +194,7 @@ const COMPLETE_ENTRIES: Record<(typeof COMPLETE_NATURAL_WONDER_AUDIO_IDS)[number
     ambientLoop: {
       id: 'frozen-falls-ambient',
       file: 'audio/wonders/frozen-falls-ambient.ogg',
-      sourceId: 'soundimage-icicles-looping',
+      sourceId: 'soundimage-icicles',
       gain: 0.24,
       loop: { loopStart: 0, loopEnd: 69.8 },
       fadeInMs: 700,
@@ -215,7 +215,7 @@ const COMPLETE_ENTRIES: Record<(typeof COMPLETE_NATURAL_WONDER_AUDIO_IDS)[number
     ambientLoop: {
       id: 'grand-canyon-ambient',
       file: 'audio/wonders/grand-canyon-ambient.ogg',
-      sourceId: 'soundimage-river-in-trouble-looping',
+      sourceId: 'soundimage-river-in-trouble',
       gain: 0.24,
       loop: { loopStart: 0, loopEnd: 85.8 },
       fadeInMs: 700,
