@@ -43,9 +43,15 @@ export const MR2_NATURAL_WONDER_AUDIO_IDS = [
   'crystal_caverns',
   'aurora_fields',
 ] as const;
+export const MR3_NATURAL_WONDER_AUDIO_IDS = [
+  'frozen_falls',
+  'grand_canyon',
+  'dragon_bones',
+] as const;
 export const COMPLETE_NATURAL_WONDER_AUDIO_IDS = [
   ...MR1_NATURAL_WONDER_AUDIO_IDS,
   ...MR2_NATURAL_WONDER_AUDIO_IDS,
+  ...MR3_NATURAL_WONDER_AUDIO_IDS,
 ] as const;
 
 const COMPLETE_ENTRIES: Record<(typeof COMPLETE_NATURAL_WONDER_AUDIO_IDS)[number], CompleteNaturalWonderAudioEntry> = {
@@ -170,6 +176,69 @@ const COMPLETE_ENTRIES: Record<(typeof COMPLETE_NATURAL_WONDER_AUDIO_IDS)[number
       sourceId: 'soundimage-strange-phenomenon',
       gain: 0.25,
       loop: { loopStart: 0, loopEnd: 73.1 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
+  frozen_falls: {
+    wonderId: 'frozen_falls',
+    status: 'complete',
+    soundMood: 'frozen-fall',
+    stinger: {
+      id: 'frozen-falls-stinger',
+      file: 'audio/wonders/frozen-falls-stinger.ogg',
+      sourceId: 'soundimage-arctic-sunrise',
+      gain: 0.70,
+    },
+    ambientLoop: {
+      id: 'frozen-falls-ambient',
+      file: 'audio/wonders/frozen-falls-ambient.ogg',
+      sourceId: 'soundimage-icicles-looping',
+      gain: 0.24,
+      loop: { loopStart: 0, loopEnd: 69.8 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
+  grand_canyon: {
+    wonderId: 'grand_canyon',
+    status: 'complete',
+    soundMood: 'canyon-echo',
+    stinger: {
+      id: 'grand-canyon-stinger',
+      file: 'audio/wonders/grand-canyon-stinger.ogg',
+      sourceId: 'soundimage-distant-mountains',
+      gain: 0.68,
+    },
+    ambientLoop: {
+      id: 'grand-canyon-ambient',
+      file: 'audio/wonders/grand-canyon-ambient.ogg',
+      sourceId: 'soundimage-river-in-trouble-looping',
+      gain: 0.24,
+      loop: { loopStart: 0, loopEnd: 85.8 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
+  dragon_bones: {
+    wonderId: 'dragon_bones',
+    status: 'complete',
+    soundMood: 'ancient-bones',
+    stinger: {
+      id: 'dragon-bones-stinger',
+      file: 'audio/wonders/dragon-bones-stinger.ogg',
+      sourceId: 'soundimage-the-ancients',
+      gain: 0.70,
+    },
+    ambientLoop: {
+      id: 'dragon-bones-ambient',
+      file: 'audio/wonders/dragon-bones-ambient.ogg',
+      sourceId: 'soundimage-secret-catacombs',
+      gain: 0.22,
+      loop: { loopStart: 0, loopEnd: 106.8 },
       fadeInMs: 700,
       fadeOutMs: 550,
       mapFocusTimeoutMs: 12000,
