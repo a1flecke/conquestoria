@@ -242,6 +242,36 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
   Used as: Aurora Fields Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
+- `audio/wonders/frozen-falls-stinger.ogg` — "Arctic Sunrise" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2014/02/Arctic-Sunrise.mp3
+  Used as: Frozen Falls discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/frozen-falls-ambient.ogg` — "Icicles" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3
+  Used as: Frozen Falls Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/grand-canyon-stinger.ogg` — "Distant Mountains" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2014/07/Distant-Mountains.mp3
+  Used as: Grand Canyon discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/grand-canyon-ambient.ogg` — "River in Trouble" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3
+  Used as: Grand Canyon Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/dragon-bones-stinger.ogg` — "The Ancients" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2025/05/The-Ancients.mp3
+  Used as: Dragon Bones discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/dragon-bones-ambient.ogg` — "Secret Catacombs" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2015/04/Secret-Catacombs.mp3
+  Used as: Dragon Bones Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
 ## Sound Effects
 
 *(Existing synthesised SFX via Web Audio oscillators require no attribution.)*
