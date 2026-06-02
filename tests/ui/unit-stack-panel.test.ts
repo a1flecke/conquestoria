@@ -114,4 +114,20 @@ describe('unit stack panel', () => {
     expect(container.textContent).toContain('Veteran');
     expect(container.textContent).toContain('XP 25');
   });
+
+  it('does not render loaded cargo even if the caller passes its id', () => {
+    const state = stateWithStack();
+    state.units.transport = unit('transport', 'transport', { movementPointsLeft: 3, cargoUnitIds: ['cargo'] });
+    state.units.cargo = unit('cargo', 'warrior', { transportId: 'transport' });
+    const container = document.createElement('div');
+
+    renderUnitStackPanel(container, state, { q: 2, r: 1 }, ['transport', 'cargo'], {
+      onSelectUnit: () => {},
+    });
+
+    const rows = Array.from(container.querySelectorAll('[data-unit-stack-item]'));
+    expect(rows.map(row => row.getAttribute('data-unit-id'))).toEqual(['transport']);
+    expect(container.textContent).toContain('Transport');
+    expect(container.textContent).not.toContain('Warrior');
+  });
 });

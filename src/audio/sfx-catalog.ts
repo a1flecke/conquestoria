@@ -135,6 +135,7 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   caravan:    { death: ph('sfx-caravan-death',    'audio/sfx/caravan-death.ogg') },
   scout:      { death: ph('sfx-scout-death',      'audio/sfx/scout-death.ogg') },
   expedition: { death: ph('sfx-expedition-death', 'audio/sfx/expedition-death.ogg') },
+  transport:  { death: ph('sfx-transport-death',  'audio/sfx/transport-death.ogg') },
 };
 
 // Mirrors UNIT_MOTION_STYLES in src/renderer/sprites/sprite-catalog.ts — keep in sync.
@@ -153,6 +154,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   musketeer:     'humanoid',
   galley:        'naval',
   trireme:       'naval',
+  transport:     'naval',
   spy_scout:     'humanoid',
   spy_informant: 'humanoid',
   spy_agent:     'humanoid',

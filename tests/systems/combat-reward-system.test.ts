@@ -315,4 +315,40 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.units['attacker']).toBeUndefined();
     expect(applied.attackerDefeated).toBe(true);
   });
+
+  it('removes loaded cargo when a Transport is destroyed in combat', () => {
+    const state = makeRewardState();
+    const transport = {
+      ...createUnit('transport', 'ai-1', { q: 1, r: 0 }, mkC()),
+      id: 'transport',
+      cargoUnitIds: ['cargo'],
+    };
+    const cargo = {
+      ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()),
+      id: 'cargo',
+      transportId: 'transport',
+    };
+    state.units = {
+      attacker: state.units.attacker,
+      transport,
+      cargo,
+    };
+    state.civilizations['ai-1'].units = ['transport', 'cargo'];
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'transport',
+      attackerDamage: 0,
+      defenderDamage: 100,
+      attackerSurvived: true,
+      defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.transport).toBeUndefined();
+    expect(applied.state.units.cargo).toBeUndefined();
+    expect(applied.state.civilizations['ai-1'].units).toEqual([]);
+  });
 });

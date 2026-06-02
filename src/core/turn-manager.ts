@@ -146,6 +146,12 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       if (result.droppedBuilding) {
         bus.emit('city:building-dropped', { cityId, buildingId: result.droppedBuilding });
       }
+      if (result.droppedUnit) {
+        bus.emit('notification:show', {
+          message: `${city.name} needs a coast to build ${result.droppedUnit}.`,
+          type: 'warning',
+        });
+      }
       if (result.completedUnit) {
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
         const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);

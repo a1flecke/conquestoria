@@ -20,6 +20,7 @@ export function buildUnitOccupancy(units: Record<string, Unit>): UnitOccupancyIn
   const ownersByUnitId: Record<string, string> = {};
 
   for (const [unitId, unit] of Object.entries(units)) {
+    if (unit.transportId) continue;
     const key = hexKey(unit.position);
     unitIdsByHex[key] ??= [];
     unitIdsByHex[key].push(unitId);

@@ -1,5 +1,5 @@
 import type { Unit, CombatResult, GameMap, CivBonusEffect } from '@/core/types';
-import { hexKey } from './hex-utils';
+import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderCombatBonus } from './wonder-system';
 import { getVeterancyCombatModifier } from './combat-reward-system';
@@ -44,6 +44,14 @@ export interface CombatContext {
   attackerBonus?: CivBonusEffect;
   defenderBonus?: CivBonusEffect;
   defenderInFortifiedCity?: boolean;
+}
+
+function canCounterAttackAtDistance(defender: Unit, distance: number): boolean {
+  const definition = UNIT_DEFINITIONS[defender.type];
+  const profile = definition.attackProfile;
+  if (!profile) return distance <= 1 && definition.strength > 0;
+  if (profile.kind === 'melee') return distance <= 1;
+  return profile.range >= distance;
 }
 
 export function resolveCombat(
@@ -140,7 +148,10 @@ export function resolveCombat(
   }
 
   const defenderDamage = Math.round(baseDamage * adjustedRatio * siegeMultiplier);
-  const attackerDamage = Math.round(baseDamage * (1 - adjustedRatio));
+  const distance = hexDistance(attacker.position, defender.position);
+  const attackerDamage = canCounterAttackAtDistance(defender, distance)
+    ? Math.round(baseDamage * (1 - adjustedRatio))
+    : 0;
 
   const attackerHealthAfter = attacker.health - attackerDamage;
   const defenderHealthAfter = defender.health - defenderDamage;

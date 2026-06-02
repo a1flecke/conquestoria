@@ -12,6 +12,7 @@ import { createRng } from './map-generator';
 import { hexDistance, hexKey } from './hex-utils';
 import {
   IMPROVEMENT_BUILD_TURNS,
+  getKnownTileResourceForWorkerAction,
   getWorkerActionBlockerReason,
   getWorkerActionLabel,
 } from './improvement-system';
@@ -124,7 +125,11 @@ export function applyWorkerAction(
   if (!tile) return { ok: false, state, reason: 'missing-tile', events: [] };
 
   const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
-  const eligibilityOptions = { isCityTile: isCityCenterTile(state, unit.position), allowReplacement: options.allowReplacement };
+  const eligibilityOptions = {
+    isCityTile: isCityCenterTile(state, unit.position),
+    allowReplacement: options.allowReplacement,
+    knownResource: getKnownTileResourceForWorkerAction(tile, completedTechs),
+  };
   const blockerReason = getWorkerActionBlockerReason(tile, action, completedTechs, unit.owner, eligibilityOptions);
   if (blockerReason !== 'none') {
     return {

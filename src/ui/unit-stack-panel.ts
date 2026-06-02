@@ -48,7 +48,7 @@ export function renderUnitStackPanel(
   options: UnitStackPanelOptions = {},
 ): void {
   const units = sortUnitsForStackPicker(
-    unitIds.map(unitId => state.units[unitId]).filter((unit): unit is Unit => Boolean(unit)),
+    unitIds.map(unitId => state.units[unitId]).filter((unit): unit is Unit => Boolean(unit) && !unit.transportId),
     options.selectedUnitId ?? null,
   );
   const city = findFriendlyCityAtCoord(state, coord);

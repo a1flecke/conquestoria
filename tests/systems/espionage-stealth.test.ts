@@ -102,6 +102,39 @@ describe('getVisibleUnitsForPlayer', () => {
     expect(visible['unit-1'].type).toBe('warrior');
     expect(visible['unit-1'].owner).toBe('barbarian');
   });
+
+  it('does not return loaded cargo as a visible map unit', () => {
+    const state = makeStealthState();
+    state.units = {
+      transport: {
+        id: 'transport',
+        type: 'transport',
+        owner: 'player',
+        position: { q: 5, r: 3 },
+        health: 100,
+        maxHealth: 100,
+        movementPointsLeft: 3,
+        hasActed: false,
+        cargoUnitIds: ['cargo'],
+      } as any,
+      cargo: {
+        id: 'cargo',
+        type: 'warrior',
+        owner: 'player',
+        position: { q: 5, r: 3 },
+        health: 100,
+        maxHealth: 100,
+        movementPointsLeft: 2,
+        hasActed: true,
+        transportId: 'transport',
+      } as any,
+    };
+
+    const visible = getVisibleUnitsForPlayer(state.units, state, 'player');
+
+    expect(visible.transport).toBeDefined();
+    expect(visible.cargo).toBeUndefined();
+  });
 });
 
 describe('setDisguise', () => {

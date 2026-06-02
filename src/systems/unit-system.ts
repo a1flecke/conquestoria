@@ -62,6 +62,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 70,
     domain: 'naval',
   },
+  transport: {
+    type: 'transport', name: 'Transport', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 45,
+    domain: 'naval',
+    cargoCapacity: 1,
+  },
   spy_scout: {
     type: 'spy_scout', name: 'Scout Agent', movementPoints: 2,
     visionRange: 2, strength: 3, canFoundCity: false,
@@ -179,6 +186,7 @@ export function createUnit(
     bonusEffect?.type === 'naval_raiding' && VIKING_MOBILITY_UNITS.has(type)
       ? bonusEffect.movementBonus
       : 0;
+  const definition = UNIT_DEFINITIONS[type];
   return {
     id: `unit-${counters.nextUnitId++}`,
     type,
@@ -192,6 +200,7 @@ export function createUnit(
     hasActed: false,
     chargesRemaining: type === 'worker' ? 2 : undefined,
     isResting: false,
+    cargoUnitIds: definition.cargoCapacity !== undefined ? [] : undefined,
   };
 }
 
@@ -271,8 +280,9 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   swordsman: 'Stronger melee fighter, requires Bronze Working',
   pikeman: 'Anti-cavalry specialist, requires Fortification',
   musketeer: 'Gunpowder infantry, requires Tactics',
-  galley: 'Coastal vessel for transport and exploration',
+  galley: 'Coastal vessel for exploration and early naval patrols',
   trireme: 'Warship with strong naval combat capabilities',
+  transport: 'Civilian ship that carries one land unit between coasts. Cannot attack.',
   spy_scout: 'Lightly trained scout agent. Move to an enemy city and attempt to infiltrate. Era 1: infiltration and scouting resolve in one action.',
   spy_informant: 'Experienced informant. Infiltrates cities for multi-turn intelligence operations. Unlocks disguise.',
   spy_agent: 'Skilled field operative. Conducts sabotage, tech theft, and disruption missions.',
@@ -306,9 +316,17 @@ export function getUnmovedUnits(
   units: Record<string, Unit>,
   civId: string,
 ): Unit[] {
-  return Object.values(units).filter(
-    u => u.owner === civId && !u.hasMoved && !u.hasActed && !u.skippedTurn && !u.isFortified && !u.committedToRouteId,
-  );
+  return Object.values(units).filter(u => u.owner === civId && isUnitAwaitingOrders(u));
+}
+
+export function isUnitAwaitingOrders(unit: Unit): boolean {
+  return !unit.transportId
+    && !unit.hasMoved
+    && !unit.hasActed
+    && !unit.skippedTurn
+    && !unit.isFortified
+    && !unit.committedToRouteId
+    && !unit.workerTask;
 }
 
 export function getMovementCost(terrain: string): number {
@@ -335,6 +353,44 @@ export function getMovementCostForUnit(
   return getMovementCost(terrain);
 }
 
+export type UnitMovementBlockerCode =
+  | 'unknown-tile'
+  | 'unexplored'
+  | 'impassable-water'
+  | 'impassable-terrain'
+  | 'requires-galleys'
+  | 'requires-celestial-navigation'
+  | 'occupied'
+  | 'unreachable'
+  | 'insufficient-movement';
+
+export interface UnitMovementContext {
+  completedTechs?: string[];
+}
+
+export function getMovementCostForUnitInContext(
+  unit: Unit,
+  terrain: string,
+  context: UnitMovementContext = {},
+): number {
+  const definition = UNIT_DEFINITIONS[unit.type];
+  const domain = definition?.domain ?? 'land';
+
+  if (domain === 'naval') {
+    if (terrain !== 'ocean' && terrain !== 'coast') return Infinity;
+    if (unit.type !== 'transport') return 1;
+    const completedTechs = context.completedTechs ?? [];
+    if (!completedTechs.includes('galleys')) return Infinity;
+    if (terrain === 'ocean' && !completedTechs.includes('celestial-navigation')) return Infinity;
+    return 1;
+  }
+
+  if (definition?.terrainCostOverrides && terrain in definition.terrainCostOverrides) {
+    return definition.terrainCostOverrides[terrain]!;
+  }
+  return getMovementCost(terrain);
+}
+
 function isPassableForUnit(
   terrain: string,
   domain: 'land' | 'naval',
@@ -343,12 +399,23 @@ function isPassableForUnit(
   return getMovementCostForUnit(terrain, domain, terrainCostOverrides) < Infinity;
 }
 
+function isPassableForUnitInContext(
+  unit: Unit,
+  terrain: string,
+  context: UnitMovementContext = {},
+): boolean {
+  return getMovementCostForUnitInContext(unit, terrain, context) < Infinity;
+}
+
 export interface MovementBlockerReason {
   code:
     | 'unexplored'
     | 'unknown-tile'
     | 'impassable-water'
     | 'impassable-terrain'
+    | 'requires-galleys'
+    | 'requires-celestial-navigation'
+    | 'occupied'
     | 'unreachable'
     | 'insufficient-movement';
   message: string;
@@ -358,7 +425,7 @@ export function getMovementBlockerReason(
   unit: Unit,
   to: HexCoord,
   map: GameMap,
-  options: { visibilityState?: VisibilityState } = {},
+  options: { visibilityState?: VisibilityState; completedTechs?: string[] } = {},
 ): MovementBlockerReason | null {
   if (options.visibilityState === 'unexplored') {
     return { code: 'unexplored', message: 'Too far away to spot.' };
@@ -371,8 +438,13 @@ export function getMovementBlockerReason(
   }
 
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  const overrides = UNIT_DEFINITIONS[unit.type]?.terrainCostOverrides;
-  if (!isPassableForUnit(tile.terrain, domain, overrides)) {
+  if (!isPassableForUnitInContext(unit, tile.terrain, { completedTechs: options.completedTechs })) {
+    if (unit.type === 'transport' && (tile.terrain === 'coast' || tile.terrain === 'ocean') && !options.completedTechs?.includes('galleys')) {
+      return { code: 'requires-galleys', message: 'Need Galleys to sail a Transport.' };
+    }
+    if (unit.type === 'transport' && tile.terrain === 'ocean') {
+      return { code: 'requires-celestial-navigation', message: 'Need Celestial Navigation to cross ocean.' };
+    }
     if (domain === 'naval') {
       return { code: 'impassable-terrain', message: 'Naval units cannot move on land.' };
     }
@@ -382,14 +454,14 @@ export function getMovementBlockerReason(
     return { code: 'impassable-terrain', message: 'This terrain cannot be entered.' };
   }
 
-  const path = findPath(unit.position, target, map, domain);
+  const path = findPath(unit.position, target, map, domain, { unit, completedTechs: options.completedTechs });
   if (!path) {
     return { code: 'unreachable', message: 'No passable route to that tile.' };
   }
 
   const pathCost = path.slice(1).reduce((total, coord) => {
     const stepTile = map.tiles[hexKey(coord)];
-    return total + (stepTile ? getMovementCostForUnit(stepTile.terrain, domain, overrides) : Infinity);
+    return total + (stepTile ? getMovementCostForUnitInContext(unit, stepTile.terrain, { completedTechs: options.completedTechs }) : Infinity);
   }, 0);
 
   // Forced march: a unit can always move to an adjacent passable tile with ≥1 move remaining.
@@ -416,9 +488,8 @@ export function getMovementRange(
   unitPositions: Record<string, string | string[]>,
   unitOwners?: Record<string, string>,
   hostileOwners?: Set<string>,
+  options: UnitMovementContext = {},
 ): HexCoord[] {
-  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  const moveOverrides = UNIT_DEFINITIONS[unit.type]?.terrainCostOverrides;
   const reachable: HexCoord[] = [];
   const visited = new Map<string, number>();
   const queue: Array<{ coord: HexCoord; remaining: number }> = [];
@@ -436,9 +507,9 @@ export function getMovementRange(
     for (const neighbor of neighbors) {
       const key = hexKey(neighbor);
       const tile = map.tiles[key];
-      if (!tile || !isPassableForUnit(tile.terrain, domain, moveOverrides)) continue;
+      if (!tile || !isPassableForUnitInContext(unit, tile.terrain, options)) continue;
 
-      const cost = getMovementCostForUnit(tile.terrain, domain, moveOverrides);
+      const cost = getMovementCostForUnitInContext(unit, tile.terrain, options);
       const remaining = current.remaining - cost;
 
       // Forced march: if this is a direct neighbor of the start position and the unit
@@ -494,10 +565,14 @@ export function findPath(
   to: HexCoord,
   map: GameMap,
   domain: 'land' | 'naval' = 'land',
+  options: UnitMovementContext & { unit?: Unit } = {},
 ): HexCoord[] | null {
   const toKey = hexKey(to);
   const toTile = map.tiles[toKey];
-  if (!toTile || !isPassableForUnit(toTile.terrain, domain)) return null;
+  const canEnter = options.unit
+    ? isPassableForUnitInContext(options.unit, toTile?.terrain ?? '', options)
+    : Boolean(toTile && isPassableForUnit(toTile.terrain, domain));
+  if (!toTile || !canEnter) return null;
 
   const parents = new Map<string, string>();
   const gScore = new Map<string, number>();
@@ -549,9 +624,13 @@ export function findPath(
       if (closedSet.has(nKey)) continue;
 
       const tile = map.tiles[nKey];
-      if (!tile || !isPassableForUnit(tile.terrain, domain)) continue;
+      if (!tile) continue;
+      const stepCost = options.unit
+        ? getMovementCostForUnitInContext(options.unit, tile.terrain, options)
+        : getMovementCostForUnit(tile.terrain, domain);
+      if (stepCost === Infinity) continue;
 
-      const tentativeG = (gScore.get(currentKey) ?? Infinity) + getMovementCostForUnit(tile.terrain, domain);
+      const tentativeG = (gScore.get(currentKey) ?? Infinity) + stepCost;
       if (tentativeG < (gScore.get(nKey) ?? Infinity)) {
         parents.set(nKey, currentKey);
         gScore.set(nKey, tentativeG);

@@ -48,3 +48,13 @@ paths:
 
 ## Spawn Occupancy
 - Any code that adds a unit to the map (rebel spawns, free unit rewards, barbarian raids, scenario seeding) MUST check `state.map.tiles[key]` exists AND no existing unit occupies that tile. If no free adjacent tile is found, skip the spawn — never stack.
+
+## Movement Validation
+- Unit movement execution must validate the destination in the shared movement system before mutating state. UI highlights are advisory and cannot be the only blocker.
+- Movement failures should return a structured reason/message so UI, AI, and automation callers can avoid animating or treating the move as successful.
+- Transported cargo is not an occupying map unit and must not contribute visibility, unmoved-unit prompts, or order-selection prompts while aboard.
+
+## Transport Cargo
+- Load/unload rules, cargo capacity, cargo position sync, and transport destruction cascades must live in shared system helpers, not in UI-only branches.
+- Loading and unloading consume the land unit/cargo action state, not the ship action state.
+- If a transport is removed by combat or another actor-agnostic lifecycle path, all cargo must be removed from `state.units` and owner unit rosters in the same mutation.

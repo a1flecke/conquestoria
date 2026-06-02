@@ -3,12 +3,20 @@ import type { GameState, HexCoord, VillageOutcomeType } from '@/core/types';
 import { updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
-import { moveUnit, getMovementCostForUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import {
+  moveUnit,
+  getMovementCostForUnitInContext,
+  findPath,
+  UNIT_DEFINITIONS,
+  type UnitMovementBlockerCode,
+} from '@/systems/unit-system';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { removeRouteForUnit } from '@/systems/trade-system';
+import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
+import { syncTransportCargoPositions } from '@/systems/transport-system';
 
 export interface ExecuteUnitMoveOptions {
   actor: 'player' | 'automation' | 'ai';
@@ -22,18 +30,30 @@ export interface WonderDiscoveryResult {
   isFirstDiscoverer: boolean;
 }
 
-export interface ExecuteUnitMoveResult {
-  from: HexCoord;
-  to: HexCoord;
-  path: HexCoord[];
-  revealedTiles: HexCoord[];
-  discoveredWonders: WonderDiscoveryResult[];
-  villageOutcome?: {
-    outcome: VillageOutcomeType;
-    message: string;
-    position: HexCoord;
-  };
-}
+export type ExecuteUnitMoveResult =
+  | {
+      ok: true;
+      from: HexCoord;
+      to: HexCoord;
+      path: HexCoord[];
+      revealedTiles: HexCoord[];
+      discoveredWonders: WonderDiscoveryResult[];
+      villageOutcome?: {
+        outcome: VillageOutcomeType;
+        message: string;
+        position: HexCoord;
+      };
+    }
+  | {
+      ok: false;
+      from: HexCoord;
+      to: HexCoord;
+      path: HexCoord[];
+      reason: UnitMovementBlockerCode | 'missing-unit';
+      message: string;
+      revealedTiles: [];
+      discoveredWonders: [];
+    };
 
 export function isWorkerBusy(state: GameState, unitId: string): boolean {
   const unit = state.units[unitId];
@@ -63,7 +83,7 @@ export function abandonWorkerTask(state: GameState, unitId: string): void {
 function getCivUnits(state: GameState, civId: string) {
   return state.civilizations[civId]?.units
     .map(id => state.units[id])
-    .filter((unit): unit is NonNullable<typeof unit> => unit !== undefined) ?? [];
+    .filter((unit): unit is NonNullable<typeof unit> => unit !== undefined && !unit.transportId) ?? [];
 }
 
 function getCivCityPositions(state: GameState, civId: string): HexCoord[] {
@@ -78,43 +98,26 @@ export function executeUnitMove(
   to: HexCoord,
   options: ExecuteUnitMoveOptions,
 ): ExecuteUnitMoveResult {
-  const unit = state.units[unitId];
-  if (!unit) {
-    return {
-      from: to,
-      to,
-      path: [to],
-      revealedTiles: [],
-      discoveredWonders: [],
-    };
+  const validation = validateUnitMove(state, unitId, to, options);
+  if (!validation.ok) {
+    return validation;
   }
 
+  const unit = state.units[unitId]!;
   const from = { ...unit.position };
-  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  const terrainCostOverrides = UNIT_DEFINITIONS[unit.type]?.terrainCostOverrides;
-
-  // Calculate total path cost
-  let cost = 0;
-  const path = findPath(from, to, state.map, domain);
-  if (path) {
-    for (let i = 1; i < path.length; i++) {
-      const tile = state.map.tiles[hexKey(path[i])];
-      cost += tile ? getMovementCostForUnit(tile.terrain, domain, terrainCostOverrides) : 1;
-    }
-  } else {
-    // Fallback for single-step moves or if pathfinding fails unexpectedly
-    const tile = state.map.tiles[hexKey(to)];
-    cost = tile ? getMovementCostForUnit(tile.terrain, domain, terrainCostOverrides) : 1;
-  }
   state.units = {
     ...state.units,
-    [unitId]: moveUnit(unit, to, cost),
+    [unitId]: moveUnit(unit, validation.to, validation.cost),
   };
-  const movePath = path ?? [from, to];
-  options.bus?.emit('unit:move', { unitId, from, to, path: movePath });
+  if (unit.type === 'transport') {
+    const synced = syncTransportCargoPositions(state, unitId);
+    state.units = synced.units;
+  }
+  const movePath = validation.path;
+  options.bus?.emit('unit:move', { unitId, from, to: validation.to, path: movePath });
 
-  let villageOutcome: ExecuteUnitMoveResult['villageOutcome'];
-  const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(to));
+  let villageOutcome: Extract<ExecuteUnitMoveResult, { ok: true }>['villageOutcome'];
+  const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(validation.to));
   if (villageAtDestination) {
     let rngState = state.turn * 16807 + unit.id.charCodeAt(0);
     const villageRng = () => {
@@ -172,13 +175,115 @@ export function executeUnitMove(
   }
 
   return {
+    ok: true,
     from,
-    to,
+    to: validation.to,
     path: movePath,
     revealedTiles,
     discoveredWonders,
     villageOutcome,
   };
+}
+
+type UnitMoveValidationResult =
+  | { ok: true; from: HexCoord; to: HexCoord; path: HexCoord[]; cost: number }
+  | Extract<ExecuteUnitMoveResult, { ok: false }>;
+
+function movementFailure(
+  from: HexCoord,
+  to: HexCoord,
+  path: HexCoord[],
+  reason: UnitMovementBlockerCode | 'missing-unit',
+  message: string,
+): Extract<ExecuteUnitMoveResult, { ok: false }> {
+  return {
+    ok: false,
+    from,
+    to,
+    path,
+    reason,
+    message,
+    revealedTiles: [],
+    discoveredWonders: [],
+  };
+}
+
+function getOwnerCompletedTechs(state: GameState, owner: string): string[] {
+  return state.civilizations[owner]?.techState.completed ?? [];
+}
+
+function getImpassableReason(
+  unitType: string,
+  terrain: string,
+  completedTechs: string[],
+): { reason: UnitMovementBlockerCode; message: string } {
+  if (unitType === 'transport' && (terrain === 'coast' || terrain === 'ocean') && !completedTechs.includes('galleys')) {
+    return { reason: 'requires-galleys', message: 'Need Galleys to sail a Transport.' };
+  }
+  if (unitType === 'transport' && terrain === 'ocean' && !completedTechs.includes('celestial-navigation')) {
+    return { reason: 'requires-celestial-navigation', message: 'Need Celestial Navigation to cross ocean.' };
+  }
+  if (terrain === 'ocean' || terrain === 'coast') {
+    return { reason: 'impassable-water', message: 'Land units cannot cross water yet.' };
+  }
+  return { reason: 'impassable-terrain', message: 'This terrain cannot be entered.' };
+}
+
+function normalizeDestination(state: GameState, coord: HexCoord): HexCoord {
+  if (!state.map.wrapsHorizontally) return { ...coord };
+  return { ...coord, q: ((coord.q % state.map.width) + state.map.width) % state.map.width };
+}
+
+export function validateUnitMove(
+  state: GameState,
+  unitId: string,
+  to: HexCoord,
+  _options: ExecuteUnitMoveOptions,
+): UnitMoveValidationResult {
+  const unit = state.units[unitId];
+  if (!unit) return movementFailure(to, to, [to], 'missing-unit', 'Unit not found');
+
+  const from = { ...unit.position };
+  const target = normalizeDestination(state, to);
+  if (unit.transportId) {
+    return movementFailure(from, target, [from], 'occupied', 'Loaded units cannot move until they unload.');
+  }
+
+  const tile = state.map.tiles[hexKey(target)];
+  if (!tile) return movementFailure(from, target, [from], 'unknown-tile', 'Too far away to spot.');
+
+  const completedTechs = getOwnerCompletedTechs(state, unit.owner);
+  const targetCost = getMovementCostForUnitInContext(unit, tile.terrain, { completedTechs });
+  if (targetCost === Infinity) {
+    const blocker = getImpassableReason(unit.type, tile.terrain, completedTechs);
+    return movementFailure(from, target, [from, target], blocker.reason, blocker.message);
+  }
+
+  const occupancy = buildUnitOccupancy(state.units);
+  const occupants = getUnitIdsAtCoord(occupancy, target).filter(id => id !== unitId);
+  if (occupants.length > 0) {
+    return movementFailure(from, target, [from, target], 'occupied', 'Another unit is already there.');
+  }
+
+  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+  const path = findPath(from, target, state.map, domain, { unit, completedTechs });
+  if (!path) return movementFailure(from, target, [from], 'unreachable', 'No passable route to that tile.');
+
+  let cost = 0;
+  for (let i = 1; i < path.length; i++) {
+    const stepTile = state.map.tiles[hexKey(path[i])];
+    cost += stepTile ? getMovementCostForUnitInContext(unit, stepTile.terrain, { completedTechs }) : Infinity;
+  }
+
+  const distance = state.map.wrapsHorizontally
+    ? wrappedHexDistance(from, target, state.map.width)
+    : hexDistance(from, target);
+  const forcedMarch = distance === 1 && unit.movementPointsLeft >= 1 && cost > unit.movementPointsLeft;
+  if (!forcedMarch && cost > unit.movementPointsLeft) {
+    return movementFailure(from, target, path, 'insufficient-movement', 'Not enough movement left this turn.');
+  }
+
+  return { ok: true, from, to: target, path, cost };
 }
 
 function processCaravanArrival(

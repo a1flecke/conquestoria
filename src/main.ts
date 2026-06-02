@@ -121,6 +121,13 @@ import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { canUpgradeUnit, applyUpgrade } from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy, type ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
+import {
+  canLoadUnitOntoTransport,
+  getTransportCargo,
+  getUnloadDestinations,
+  loadUnitOntoTransport,
+  unloadUnitFromTransport,
+} from '@/systems/transport-system';
 import type { GameEvents, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
@@ -1270,7 +1277,8 @@ function selectUnit(unitId: string): void {
   // Update journey path overlay
   if (unit.automation?.mode === 'journey') {
     const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-    const path = findPath(unit.position, unit.automation.destination, gameState.map, domain);
+    const completedTechs = gameState.civilizations[unit.owner]?.techState.completed ?? [];
+    const path = findPath(unit.position, unit.automation.destination, gameState.map, domain, { unit, completedTechs });
     renderLoop.setJourneyPath(path);
   } else {
     renderLoop.setJourneyPath(null);
@@ -1307,6 +1315,47 @@ function selectUnit(unitId: string): void {
           onSelectUnit: selectUnit,
           onOpenStackPicker: openUnitStackPicker,
         });
+      },
+      getTransportOptions: uid => Object.values(gameState.units)
+        .filter(candidate => canLoadUnitOntoTransport(gameState, uid, candidate.id).ok)
+        .map(candidate => ({
+          transportId: candidate.id,
+          label: `Load onto Transport (${candidate.position.q}, ${candidate.position.r})`,
+        })),
+      getUnloadOptions: transportId => getTransportCargo(gameState, transportId).flatMap(cargoUnit =>
+        getUnloadDestinations(gameState, transportId).map(destination => ({
+          cargoUnitId: cargoUnit.id,
+          destination,
+          label: `Unload ${UNIT_DEFINITIONS[cargoUnit.type]?.name ?? cargoUnit.type} (${destination.q}, ${destination.r})`,
+        })),
+      ),
+      onLoadTransport: (uid, transportId) => {
+        const result = loadUnitOntoTransport(gameState, uid, transportId);
+        if (!result.ok) {
+          showNotification(result.message, 'warning');
+          SFX.error();
+          return;
+        }
+        gameState = result.state;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(transportId);
+        showNotification('Unit loaded onto Transport.', 'info');
+        SFX.transportLoad();
+      },
+      onUnloadTransport: (transportId, cargoUnitId, destination) => {
+        const result = unloadUnitFromTransport(gameState, transportId, cargoUnitId, destination);
+        if (!result.ok) {
+          showNotification(result.message, 'warning');
+          SFX.error();
+          return;
+        }
+        gameState = result.state;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(cargoUnitId);
+        showNotification('Unit unloaded from Transport.', 'info');
+        SFX.transportUnload();
       },
       onSetDisguise: (uid, disguise) => {
         const unit = gameState.units[uid];
@@ -1566,18 +1615,27 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
 }
 
 function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResult): ExecuteUnitMoveResult {
-  // Clear journey automation when the player manually moves a unit
   const movingUnit = gameState.units[unitId];
-  if (movingUnit?.automation?.mode === 'journey') {
-    gameState = {
-      ...gameState,
-      units: { ...gameState.units, [unitId]: { ...movingUnit, automation: undefined } },
-    };
-    renderLoop.setJourneyPath(null);
-  }
   deferWonderDiscoveryRevealUntilMoveSettles = true;
   try {
     const moveResult = move();
+    if (!moveResult.ok) {
+      deferWonderDiscoveryRevealUntilMoveSettles = false;
+      showNotification(moveResult.message, 'warning');
+      SFX.error();
+      return moveResult;
+    }
+    // Clear journey automation when the player manually moves a unit.
+    if (movingUnit?.automation?.mode === 'journey') {
+      const movedUnit = gameState.units[unitId];
+      if (movedUnit) {
+        gameState = {
+          ...gameState,
+          units: { ...gameState.units, [unitId]: { ...movedUnit, automation: undefined } },
+        };
+      }
+      renderLoop.setJourneyPath(null);
+    }
     animateMovedUnit(unitId, moveResult.path);
     return moveResult;
   } catch (error) {
@@ -2058,7 +2116,8 @@ function handleHexTap(rawCoord: HexCoord): void {
       }
       const civ = currentCiv();
       const visibilityState = civ.visibility ? getVisibility(civ.visibility, coord) : undefined;
-      const reason = getMovementBlockerReason(selectedUnit, coord, gameState.map, { visibilityState });
+      const completedTechs = gameState.civilizations[selectedUnit.owner]?.techState.completed ?? [];
+      const reason = getMovementBlockerReason(selectedUnit, coord, gameState.map, { visibilityState, completedTechs });
       if (reason) {
         const type = reason.code === 'unexplored' || reason.code === 'unknown-tile' ? 'info' : 'warning';
         showNotification(reason.message, type);

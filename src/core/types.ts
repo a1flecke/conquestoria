@@ -274,7 +274,8 @@ export type UnitType =
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound'
   | 'caravan'
-  | 'expedition';
+  | 'expedition'
+  | 'transport';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
@@ -295,6 +296,8 @@ export interface UnitDefinition {
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
   attackProfile?: UnitAttackProfile;
   terrainCostOverrides?: Partial<Record<string, number>>;
+  cargoCapacity?: number;
+  cargoSize?: number;
 }
 
 export interface WorkerTask {
@@ -324,6 +327,8 @@ export interface Unit {
   committedToRouteId?: string;   // set on establish; blocks movement while set
   tripsRemaining?: number;       // S5 sets it; S6b decrements on each completed round trip
   routeDirection?: 'outbound' | 'inbound';  // S6b uses; S5 leaves undefined
+  cargoUnitIds?: string[];      // unit ids loaded into this carrier
+  transportId?: string;         // set when this unit is loaded as cargo
 }
 
 // --- Cities ---
@@ -728,6 +733,7 @@ export interface TrainableUnitEntry {
   civTypeRequired?: string;  // only available/shown for this civ
   replacesUnit?: UnitType;   // hides this standard unit for the civ above
   resourceRequired?: ResourceType[];
+  coastalRequired?: boolean;
 }
 
 // --- Civilizations ---

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
-import type { GameState } from '@/core/types';
+import type { GameState, HexCoord } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 
 class MockElement {
@@ -354,9 +354,9 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     const text = collectAllText(container).join(' ');
     const buttons = findButtons(container).map(button => button.textContent);
     expect(text).toContain('Worker Charges: 2/2');
-    expect(buttons).toContain('Build Farm');
-    expect(buttons).toContain('Build Lumber Camp');
-    expect(buttons).not.toContain('Build Watermill');
+    expect(buttons).toContain('Build Farm (+2 Food)');
+    expect(buttons).toContain('Build Lumber Camp (+2 Prod)');
+    expect(buttons).not.toContain('Build Watermill (+1 Food, +1 Prod)');
     expect(buttons).not.toContain('Drain Swamp (20% worker risk)');
   });
 
@@ -369,9 +369,9 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
 
     const buttons = findButtons(container).map(button => button.textContent);
-    expect(buttons).toContain('Build Farm');
-    expect(buttons).toContain('Build Mine');
-    expect(buttons).toContain('Build Watermill');
+    expect(buttons).toContain('Build Farm (+2 Food)');
+    expect(buttons).toContain('Build Mine (+2 Prod, +1 Gold)');
+    expect(buttons).toContain('Build Watermill (+1 Food, +1 Prod)');
   });
 
   it('shows Drain Swamp only on unimproved swamp', () => {
@@ -384,7 +384,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
 
     const buttons = findButtons(container).map(button => button.textContent);
     expect(buttons.some(l => l.includes('Drain Swamp') && l.includes('Grassland'))).toBe(true);
-    expect(buttons).not.toContain('Build Farm');
+    expect(buttons).not.toContain('Build Farm (+2 Food)');
   });
 
   it('communicates swamp danger before the player clicks', () => {
@@ -411,8 +411,8 @@ describe('renderSelectedUnitInfo - worker actions', () => {
 
       const buttons = findButtons(container).map(button => button.textContent);
       expect(collectAllText(container).join(' ')).toContain('Worker Charges: 2/2');
-      expect(buttons).not.toContain('Build Farm');
-      expect(buttons).not.toContain('Build Lumber Camp');
+      expect(buttons).not.toContain('Build Farm (+2 Food)');
+      expect(buttons).not.toContain('Build Lumber Camp (+2 Prod)');
       expect(buttons.every(l => !l.includes('→ Grassland'))).toBe(true);
     }
   });
@@ -428,7 +428,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     const text = collectAllText(container).join(' ');
     const buttons = findButtons(container).map(button => button.textContent);
     expect(text).toContain('Outside your territory');
-    expect(buttons).not.toContain('Build Farm');
+    expect(buttons).not.toContain('Build Farm (+2 Food)');
   });
 
   it('updates worker current-tile reason after territory ownership changes', () => {
@@ -439,7 +439,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
 
     expect(collectAllText(first).join(' ')).not.toContain('Outside your territory');
-    expect(findButtons(first).map(button => button.textContent)).toContain('Build Farm');
+    expect(findButtons(first).map(button => button.textContent)).toContain('Build Farm (+2 Food)');
 
     const changed: GameState = {
       ...state,
@@ -457,7 +457,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
 
     expect(collectAllText(second).join(' ')).toContain('Outside your territory');
-    expect(findButtons(second).map(button => button.textContent)).not.toContain('Build Farm');
+    expect(findButtons(second).map(button => button.textContent)).not.toContain('Build Farm (+2 Food)');
   });
 
   it('explains local worker blockers on owned current tiles', () => {
@@ -481,8 +481,8 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
 
     const buttons = findButtons(container).map(button => button.textContent);
-    expect(buttons).not.toContain('Build Farm');
-    expect(buttons).not.toContain('Build Lumber Camp');
+    expect(buttons).not.toContain('Build Farm (+2 Food)');
+    expect(buttons).not.toContain('Build Lumber Camp (+2 Prod)');
   });
 
   it('hides worker actions when the worker has no charges left', () => {
@@ -496,8 +496,8 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     const text = collectAllText(container).join(' ');
     const buttons = findButtons(container).map(button => button.textContent);
     expect(text).toContain('Worker Charges: 0/2');
-    expect(buttons).not.toContain('Build Farm');
-    expect(buttons).not.toContain('Build Lumber Camp');
+    expect(buttons).not.toContain('Build Farm (+2 Food)');
+    expect(buttons).not.toContain('Build Lumber Camp (+2 Prod)');
   });
 
   it('hides worker actions on already improved tiles', () => {
@@ -510,7 +510,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
 
     const buttons = findButtons(container).map(button => button.textContent);
     expect(buttons).not.toContain('Drain Swamp (20% worker risk)');
-    expect(buttons).not.toContain('Build Farm');
+    expect(buttons).not.toContain('Build Farm (+2 Food)');
   });
 
   it('hides worker action buttons on city-center tiles', () => {
@@ -532,8 +532,8 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     const text = collectAllText(container).join(' ');
     const buttons = findButtons(container).map(button => button.textContent);
     expect(text).toContain('Worker Charges: 2/2');
-    expect(buttons).not.toContain('Build Farm');
-    expect(buttons).not.toContain('Build Lumber Camp');
+    expect(buttons).not.toContain('Build Farm (+2 Food)');
+    expect(buttons).not.toContain('Build Lumber Camp (+2 Prod)');
   });
 
   it('keeps worker action buttons on adjacent owned non-city tiles', () => {
@@ -553,8 +553,8 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
 
     const buttons = findButtons(container).map(button => button.textContent);
-    expect(buttons).toContain('Build Farm');
-    expect(buttons).toContain('Build Lumber Camp');
+    expect(buttons).toContain('Build Farm (+2 Food)');
+    expect(buttons).toContain('Build Lumber Camp (+2 Prod)');
   });
 
   it('fires onWorkerAction with the clicked action id', () => {
@@ -566,7 +566,7 @@ describe('renderSelectedUnitInfo - worker actions', () => {
       onWorkerAction: action => { clicked = action; },
     });
 
-    findButtons(container).find(button => button.textContent === 'Build Lumber Camp')?.click();
+    findButtons(container).find(button => button.textContent === 'Build Lumber Camp (+2 Prod)')?.click();
 
     expect(clicked).toBe('lumber_camp');
   });
@@ -593,14 +593,25 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     expect(buttons).not.toContain('drain_swamp');
   });
 
-  it('grassland tile with silk shows plantation button', () => {
+  it('grassland tile with known silk shows plantation button', () => {
     const state = makeWorkerState({ terrain: 'grassland', resource: 'silk' });
+    (state.civilizations.player.techState.completed as string[]) = ['irrigation'];
     const container = new MockElement('div');
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
       onWorkerAction: vi.fn(),
     });
     const buttons = findButtons(container).map(b => b.textContent ?? '');
     expect(buttons.some(l => l.toLowerCase().includes('plantation'))).toBe(true);
+  });
+
+  it('grassland tile with hidden silk does not show plantation button', () => {
+    const state = makeWorkerState({ terrain: 'grassland', resource: 'silk' });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    expect(buttons.every(l => !l.toLowerCase().includes('plantation'))).toBe(true);
   });
 
   it('grassland tile without resource does not show plantation button', () => {
@@ -908,6 +919,30 @@ describe('renderSelectedUnitInfo - fortify button', () => {
     expect(btns).not.toContain('Fortify');
   });
 
+  it('hides Fortify button when unit has already moved this turn', () => {
+    const state = makeWarriorState({ hasMoved: true, movementPointsLeft: 0 });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onFortify: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).not.toContain('Fortify');
+  });
+
+  it('hides Rest button when injured unit has already moved this turn', () => {
+    const state = makeWarriorState({ health: 60, hasMoved: true, movementPointsLeft: 0 });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onRest: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).not.toContain('Rest (+15 HP)');
+  });
+
   it('fires onFortify with the unit id when Fortify is clicked', () => {
     const state = makeWarriorState();
     const container = new MockElement('div');
@@ -932,6 +967,122 @@ describe('renderSelectedUnitInfo - fortify button', () => {
 
     findButtons(container).find(b => b.textContent === 'Unfortify')?.click();
     expect(fortifiedId).toBe('warrior-1');
+  });
+});
+
+describe('renderSelectedUnitInfo - transport actions', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeTransportState(options: { loaded?: boolean } = {}): GameState {
+    const loaded = options.loaded ?? false;
+    return {
+      turn: 1,
+      era: 1,
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+      units: {
+        'transport-1': {
+          id: 'transport-1',
+          type: 'transport',
+          owner: 'player',
+          position: { q: 1, r: 0 },
+          health: 100,
+          maxHealth: 100,
+          movementPointsLeft: 3,
+          hasMoved: false,
+          hasActed: false,
+          cargoUnitIds: loaded ? ['warrior-1'] : [],
+        },
+        'warrior-1': {
+          id: 'warrior-1',
+          type: 'warrior',
+          owner: 'player',
+          position: { q: loaded ? 1 : 0, r: 0 },
+          health: 100,
+          maxHealth: 100,
+          movementPointsLeft: 2,
+          hasMoved: false,
+          hasActed: false,
+          ...(loaded ? { transportId: 'transport-1' } : {}),
+        },
+      },
+      cities: {},
+      civilizations: { player: { color: '#fff', techState: { completed: ['galleys'] } } },
+    } as unknown as GameState;
+  }
+
+  it('shows empty cargo status for an empty Transport', () => {
+    const state = makeTransportState();
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'transport-1', {});
+
+    expect(collectAllText(container).join(' ')).toContain('Cargo: Empty');
+  });
+
+  it('shows carried land units on a loaded Transport', () => {
+    const state = makeTransportState({ loaded: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'transport-1', {});
+
+    expect(collectAllText(container).join(' ')).toContain('Cargo: Carrying Warrior');
+  });
+
+  it('renders and fires Load onto Transport for an eligible land unit', () => {
+    const state = makeTransportState();
+    const container = new MockElement('div');
+    let loaded: { unitId: string; transportId: string } | null = null;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      getTransportOptions: () => [{ transportId: 'transport-1', label: 'Load onto Transport' }],
+      onLoadTransport: (unitId, transportId) => { loaded = { unitId, transportId }; },
+    });
+
+    findButtons(container).find(b => b.textContent === 'Load onto Transport')?.click();
+    expect(loaded).toEqual({ unitId: 'warrior-1', transportId: 'transport-1' });
+  });
+
+  it('renders and fires Unload for cargo aboard a Transport', () => {
+    const state = makeTransportState({ loaded: true });
+    const container = new MockElement('div');
+    let unloaded: { transportId: string; cargoUnitId: string; destination: HexCoord } | null = null;
+    const destination = { q: 0, r: 1 };
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'transport-1', {
+      getUnloadOptions: () => [{ cargoUnitId: 'warrior-1', destination, label: 'Unload Warrior' }],
+      onUnloadTransport: (transportId, cargoUnitId, destination) => {
+        unloaded = { transportId, cargoUnitId, destination };
+      },
+    });
+
+    findButtons(container).find(b => b.textContent === 'Unload Warrior')?.click();
+    expect(unloaded).toEqual({ transportId: 'transport-1', cargoUnitId: 'warrior-1', destination });
+  });
+
+  it('does not render land-unit actions for cargo while aboard', () => {
+    const state = makeTransportState({ loaded: true });
+    state.units['warrior-1'].health = 60;
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onRest: () => {},
+      onFortify: () => {},
+      onSkipTurn: () => {},
+      onLoadTransport: () => {},
+      getTransportOptions: () => [{ transportId: 'transport-1', label: 'Load onto Transport' }],
+    });
+
+    const text = collectAllText(container).join(' ');
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(text).toContain('Aboard Transport');
+    expect(buttons).not.toContain('Rest (+15 HP)');
+    expect(buttons).not.toContain('Fortify');
+    expect(buttons).not.toContain('Skip Turn');
+    expect(buttons).not.toContain('Load onto Transport');
   });
 });
 

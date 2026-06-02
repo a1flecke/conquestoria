@@ -73,7 +73,8 @@ export function chooseAutoExploreMove(state: GameState, unitId: string): AutoExp
   }
 
   const occupancy = buildUnitOccupancy(state.units);
-  const best = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId)
+  const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
+  const best = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, undefined, { completedTechs })
     .map(coord => ({ coord, rank: rankCandidate(state, unitId, coord) }))
     .filter((entry): entry is { coord: HexCoord; rank: { score: number; reason: string } } => entry.rank !== null)
     .sort((a, b) => b.rank.score - a.rank.score)[0];
@@ -114,6 +115,9 @@ export function applyAutoExploreOrder(
     civId: unit.owner,
     bus: options.bus,
   });
+  if (!result.ok) {
+    return result;
+  }
   const movedUnit = state.units[unitId];
   if (movedUnit) {
     state.units = {

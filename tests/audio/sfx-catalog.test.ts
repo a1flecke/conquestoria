@@ -63,9 +63,9 @@ describe('sfx-catalog completeness', () => {
   });
 
   it('allSfxEntries returns exactly 64 entries', () => {
-    // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval (2×3)
-    // + 6 siege (2×3) + 9 special-combat (3×3) + 5 non-combat (5×1) + 3 move-step = 64
-    expect(allSfxEntries()).toHaveLength(64);
+    // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
+    // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 3 move-step = 65
+    expect(allSfxEntries()).toHaveLength(65);
   });
 
   it('no two entries share the same ID', () => {
@@ -95,7 +95,7 @@ describe('getLocomotionClass', () => {
   });
 
   it('maps naval units correctly', () => {
-    const navalTypes: UnitType[] = ['galley', 'trireme', 'catapult', 'ballista'];
+    const navalTypes: UnitType[] = ['galley', 'trireme', 'transport', 'catapult', 'ballista'];
     for (const t of navalTypes) {
       expect(getLocomotionClass(t), t).toBe('naval');
     }

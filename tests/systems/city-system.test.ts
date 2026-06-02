@@ -1,6 +1,7 @@
 import {
   foundCity,
   getAvailableBuildings,
+  getTrainableUnitsForCity,
   getTrainableUnitsForCiv,
   getProductionCostForItem,
   processCity,
@@ -198,6 +199,39 @@ describe('getAvailableBuildings', () => {
   });
 });
 
+describe('getTrainableUnitsForCity', () => {
+  function coastalGateMap(): GameMap {
+    return {
+      width: 5,
+      height: 5,
+      wrapsHorizontally: false,
+      rivers: [],
+      tiles: {
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        '1,0': { coord: { q: 1, r: 0 }, terrain: 'coast', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        '3,0': { coord: { q: 3, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+      } as GameMap['tiles'],
+    };
+  }
+
+  it('shows Galley, Trireme, and Transport only in coastal cities', () => {
+    const map = coastalGateMap();
+    const coastalCity = foundCity('p1', { q: 0, r: 0 }, map, mkC());
+    coastalCity.ownedTiles = [{ q: 0, r: 0 }, { q: 1, r: 0 }];
+    const inlandCity = foundCity('p1', { q: 3, r: 0 }, map, mkC());
+    inlandCity.ownedTiles = [{ q: 3, r: 0 }];
+    const techs = ['galleys', 'triremes'];
+
+    const coastalTypes = getTrainableUnitsForCity(coastalCity, techs, map.tiles).map(unit => unit.type);
+    const inlandTypes = getTrainableUnitsForCity(inlandCity, techs, map.tiles).map(unit => unit.type);
+
+    expect(coastalTypes).toEqual(expect.arrayContaining(['galley', 'trireme', 'transport']));
+    expect(inlandTypes).not.toContain('galley');
+    expect(inlandTypes).not.toContain('trireme');
+    expect(inlandTypes).not.toContain('transport');
+  });
+});
+
 describe('processCity', () => {
   it('adds food per turn and grows population', () => {
     const map = generateMap(30, 30, 'city-test');
@@ -237,6 +271,27 @@ describe('processCity', () => {
     expect(result.city.productionQueue).not.toContain('harbor');
     expect(result.city.productionProgress).toBe(0); // production not wasted
     expect(result.city.buildings).not.toContain('harbor');
+  });
+
+  it('processCity drops queued coastal units from inland cities before completion', () => {
+    const map = generateMap(30, 30, 'coastal-unit-drop-test');
+    const inlandTile = Object.values(map.tiles).find(t =>
+      t.terrain === 'grassland' &&
+      !Object.values(map.tiles).some(n =>
+        Math.abs(n.coord.q - t.coord.q) <= 1 &&
+        Math.abs(n.coord.r - t.coord.r) <= 1 &&
+        (n.terrain === 'ocean' || n.terrain === 'coast')
+      )
+    )!;
+    const city = { ...foundCity('p1', inlandTile.coord, map, mkC()), productionQueue: ['transport'], productionProgress: 40 };
+
+    const result = processCity(city, map, 2, 100, undefined, ['galleys']);
+
+    expect(result.droppedUnit).toBe('transport');
+    expect(result.droppedProductionItem).toBe('transport');
+    expect(result.city.productionQueue).not.toContain('transport');
+    expect(result.completedUnit).toBeNull();
+    expect(result.city.productionProgress).toBe(0);
   });
 
   it('processCity completes harbor normally for coastal city', () => {

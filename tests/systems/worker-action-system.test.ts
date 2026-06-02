@@ -3,6 +3,7 @@ import type { City, GameState, HexTile, Unit } from '@/core/types';
 import { recalculateTerritory } from '@/systems/city-territory-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement, getWorkerChargesRemaining } from '@/systems/worker-action-system';
+import { getAvailableWorkerActions } from '@/systems/improvement-system';
 
 function tile(overrides: Partial<HexTile>): HexTile {
   return {
@@ -416,6 +417,43 @@ describe('worker action system', () => {
     const result = applyWorkerAction(s, 'worker-1', 'mine');
     expect(result.ok).toBe(true);
     expect(result.state.map.tiles['0,0'].improvementOwner).toBe('player');
+  });
+
+  it('builds a mine on an owned empty hill without requiring a visible resource', () => {
+    const s = state({
+      map: {
+        width: 5,
+        height: 5,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '0,0': tile({ coord: { q: 0, r: 0 }, terrain: 'hills', resource: null, owner: 'player' }),
+        },
+      },
+    });
+
+    expect(getAvailableWorkerActions(s.map.tiles['0,0'], [], 'player')).toContain('mine');
+
+    const result = applyWorkerAction(s, 'worker-1', 'mine');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.map.tiles['0,0']).toMatchObject({
+      improvement: 'mine',
+      improvementTurnsLeft: 5,
+    });
+  });
+
+  it('does not expose resource-only worker actions for hidden resources', () => {
+    const hiddenSilk = tile({
+      coord: { q: 0, r: 0 },
+      terrain: 'grassland',
+      resource: 'silk',
+      owner: 'player',
+    });
+
+    expect(getAvailableWorkerActions(hiddenSilk, [], 'player')).not.toContain('plantation');
+    expect(getAvailableWorkerActions(hiddenSilk, ['irrigation'], 'player')).toContain('plantation');
   });
 
   it('does not set improvementOwner when the worker drains a swamp (not a buildable improvement)', () => {
