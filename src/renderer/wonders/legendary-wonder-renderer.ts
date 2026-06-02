@@ -1,5 +1,6 @@
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
+import { resolveLegendaryWonderBespokeAsset } from '@/renderer/wonders/legendary-wonder-bespoke-assets';
 import { assignLegendaryWonderSlots } from '@/renderer/wonders/legendary-wonder-slots';
 import {
   LEGENDARY_LANDMARK_AURAS,
@@ -145,6 +146,20 @@ export function drawLegendaryWonderLandmarkGlyph(options: {
     ctx.strokeStyle = metadata.palette.accent;
     ctx.lineWidth = Math.max(1, radius * 0.13);
     ctx.stroke();
+    return;
+  }
+
+  const bespokeAsset = resolveLegendaryWonderBespokeAsset(metadata.assetKey);
+  if (bespokeAsset) {
+    bespokeAsset.draw({
+      ctx,
+      cx,
+      cy,
+      radius: radius * 0.72 * metadata.scale,
+      metadata,
+      reducedMotion,
+      nowMs,
+    });
     return;
   }
 
