@@ -75,6 +75,16 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   const grossGoldByCiv: Record<string, number> = {};
   const previousEconomyStatusByCiv = newState.economyStatusByCiv ?? {};
 
+  // Clean up expired purchased-resource entries (Diplomatic Marketplace / S9)
+  if (newState.marketplace?.purchasedResources?.length) {
+    newState.marketplace = {
+      ...newState.marketplace,
+      purchasedResources: newState.marketplace.purchasedResources.filter(
+        e => e.expiresOnTurn > newState.turn,
+      ),
+    };
+  }
+
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
     const currentCivState = newState.civilizations[civId];
