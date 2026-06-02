@@ -1,6 +1,6 @@
 # Audio Credits
 
-All audio in Conquestoria is licensed under CC0 (public domain dedication) or CC-BY 3.0 or later (attribution required).
+Audio in Conquestoria is licensed under CC0 (public domain dedication), CC-BY 3.0 or later (attribution required), or Soundimage.org free use with attribution — https://soundimage.org/attribution-info/.
 
 ## Music
 

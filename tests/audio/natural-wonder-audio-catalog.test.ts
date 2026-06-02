@@ -7,6 +7,8 @@ import {
   FINAL_NATURAL_WONDER_AUDIO_COVERAGE,
   getCompleteNaturalWonderAudioEntry,
   getNaturalWonderAudioCatalog,
+  MR1_NATURAL_WONDER_AUDIO_IDS,
+  MR2_NATURAL_WONDER_AUDIO_IDS,
   MR3_NATURAL_WONDER_AUDIO_IDS,
 } from '../../src/audio/natural-wonder-audio-catalog';
 import { getNaturalWonderAudioSource } from '../../src/audio/natural-wonder-audio-sources';
@@ -32,10 +34,25 @@ describe('natural wonder audio catalog', () => {
     const catalog = getNaturalWonderAudioCatalog();
     const completeIds = new Set<string>(COMPLETE_NATURAL_WONDER_AUDIO_IDS);
 
+    expect(MR1_NATURAL_WONDER_AUDIO_IDS).toEqual([
+      'great_volcano',
+      'ancient_forest',
+      'coral_reef',
+    ]);
+    expect(MR2_NATURAL_WONDER_AUDIO_IDS).toEqual([
+      'sacred_mountain',
+      'crystal_caverns',
+      'aurora_fields',
+    ]);
     expect(MR3_NATURAL_WONDER_AUDIO_IDS).toEqual([
       'frozen_falls',
       'grand_canyon',
       'dragon_bones',
+    ]);
+    expect(COMPLETE_NATURAL_WONDER_AUDIO_IDS).toEqual([
+      ...MR1_NATURAL_WONDER_AUDIO_IDS,
+      ...MR2_NATURAL_WONDER_AUDIO_IDS,
+      ...MR3_NATURAL_WONDER_AUDIO_IDS,
     ]);
 
     for (const entry of catalog) {
@@ -45,6 +62,14 @@ describe('natural wonder audio catalog', () => {
         expect(entry.status).toBe('pending');
       }
     }
+    expect(catalog.filter(entry => entry.status === 'pending').map(entry => entry.wonderId)).toEqual([
+      'singing_sands',
+      'sunken_ruins',
+      'floating_islands',
+      'bioluminescent_bay',
+      'bottomless_lake',
+      'eternal_storm',
+    ]);
     expect(FINAL_NATURAL_WONDER_AUDIO_COVERAGE).toBe(false);
   });
 
@@ -96,5 +121,13 @@ describe('natural wonder audio catalog', () => {
         expect(credits).toContain(clip.file);
       }
     }
+  });
+
+  it('summarizes the Soundimage attribution license in the credits introduction', () => {
+    const credits = readFileSync(resolve(repoRoot, 'AUDIO-CREDITS.md'), 'utf8');
+    const intro = credits.split('## Music')[0];
+
+    expect(intro).toContain('Soundimage.org free use with attribution');
+    expect(intro).toContain('https://soundimage.org/attribution-info/');
   });
 });
