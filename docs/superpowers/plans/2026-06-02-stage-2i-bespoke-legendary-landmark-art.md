@@ -473,7 +473,15 @@ In `drawLegendaryWonderLandmarkGlyph`, after the under-construction block and be
 ```ts
   const bespokeAsset = resolveLegendaryWonderBespokeAsset(metadata.assetKey);
   if (bespokeAsset) {
-    bespokeAsset.draw({ ctx, cx, cy, radius: radius * (options.reducedMotion ? 0.68 : 0.72) * metadata.scale, metadata, reducedMotion, nowMs });
+    bespokeAsset.draw({
+      ctx,
+      cx,
+      cy,
+      radius: radius * 0.72 * metadata.scale,
+      metadata,
+      reducedMotion,
+      nowMs,
+    });
     return;
   }
 ```
