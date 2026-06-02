@@ -93,6 +93,64 @@ describe('legendary-wonder-renderer', () => {
     }
   });
 
+  it('draws first-slice completed landmarks through bespoke asset renderers', () => {
+    const wonderIds = ['oracle-of-delphi', 'grand-canal', 'sun-spire'];
+
+    for (const wonderId of wonderIds) {
+      const ctx = new MockCanvasContext();
+      const metadata = getLegendaryWonderLandmarkMetadata(wonderId);
+
+      drawLegendaryWonderLandmarkGlyph({
+        ctx: ctx as unknown as CanvasRenderingContext2D,
+        cx: 80,
+        cy: 80,
+        radius: 12,
+        metadata,
+        state: 'completed',
+        reducedMotion: false,
+        nowMs: 1000,
+      });
+
+      expect(ctx.operations, wonderId).toContain(`bespoke:${metadata.assetKey}`);
+    }
+  });
+
+  it('keeps generic silhouette fallback for completed landmarks without bespoke assets', () => {
+    const ctx = new MockCanvasContext();
+
+    drawLegendaryWonderLandmarkGlyph({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      cx: 80,
+      cy: 80,
+      radius: 12,
+      metadata: getLegendaryWonderLandmarkMetadata('world-archive'),
+      state: 'completed',
+      reducedMotion: false,
+      nowMs: 1000,
+    });
+
+    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
+    expect(ctx.operations.some(operation => operation.startsWith('fill:') || operation.startsWith('stroke:'))).toBe(true);
+  });
+
+  it('keeps construction ghosts instead of completed bespoke art for first-slice builds', () => {
+    const ctx = new MockCanvasContext();
+
+    drawLegendaryWonderLandmarkGlyph({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      cx: 80,
+      cy: 80,
+      radius: 12,
+      metadata: getLegendaryWonderLandmarkMetadata('oracle-of-delphi'),
+      state: 'under-construction',
+      reducedMotion: false,
+      nowMs: 1000,
+    });
+
+    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
+    expect(ctx.operations.some(operation => operation.startsWith('stroke:'))).toBe(true);
+  });
+
   it('draws active construction ghosts as scaffold or outline operations', () => {
     const ctx = new MockCanvasContext();
     drawLegendaryWonderLandmarks({
