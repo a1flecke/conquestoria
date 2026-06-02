@@ -71,6 +71,7 @@ export function createMarketplaceState(): MarketplaceState {
     fashionable: null,
     fashionTurnsLeft: 0,
     tradeRoutes: [],
+    purchasedResources: [],
   };
 }
 
