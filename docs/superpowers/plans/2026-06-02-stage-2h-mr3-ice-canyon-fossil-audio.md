@@ -197,13 +197,13 @@ Append these entries before `] as const;` in `src/audio/natural-wonder-audio-sou
     localFiles: ['audio/wonders/frozen-falls-stinger.ogg'],
   },
   {
-    id: 'soundimage-icicles-looping',
-    title: 'Icicles_Looping',
+    id: 'soundimage-icicles',
+    title: 'Icicles',
     creator: 'Eric Matyas',
     site: 'Soundimage.org',
-    sourceUrl: 'http://soundimage.org/wp-content/uploads/2014/02/Icicles_Looping.mp3',
+    sourceUrl: 'http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3',
     license: 'Soundimage.org free use with attribution',
-    creditText: '"Icicles_Looping" by Eric Matyas, Soundimage.org.',
+    creditText: '"Icicles" by Eric Matyas, Soundimage.org.',
     localFiles: ['audio/wonders/frozen-falls-ambient.ogg'],
   },
   {
@@ -217,13 +217,13 @@ Append these entries before `] as const;` in `src/audio/natural-wonder-audio-sou
     localFiles: ['audio/wonders/grand-canyon-stinger.ogg'],
   },
   {
-    id: 'soundimage-river-in-trouble-looping',
-    title: 'River in Trouble_Looping',
+    id: 'soundimage-river-in-trouble',
+    title: 'River in Trouble',
     creator: 'Eric Matyas',
     site: 'Soundimage.org',
-    sourceUrl: 'http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble_Looping.mp3',
+    sourceUrl: 'http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3',
     license: 'Soundimage.org free use with attribution',
-    creditText: '"River in Trouble_Looping" by Eric Matyas, Soundimage.org.',
+    creditText: '"River in Trouble" by Eric Matyas, Soundimage.org.',
     localFiles: ['audio/wonders/grand-canyon-ambient.ogg'],
   },
   {
@@ -319,7 +319,7 @@ Add these entries inside `COMPLETE_ENTRIES` after the `aurora_fields` entry:
     ambientLoop: {
       id: 'frozen-falls-ambient',
       file: 'audio/wonders/frozen-falls-ambient.ogg',
-      sourceId: 'soundimage-icicles-looping',
+      sourceId: 'soundimage-icicles',
       gain: 0.24,
       loop: { loopStart: 0, loopEnd: 69.8 },
       fadeInMs: 700,
@@ -340,7 +340,7 @@ Add these entries inside `COMPLETE_ENTRIES` after the `aurora_fields` entry:
     ambientLoop: {
       id: 'grand-canyon-ambient',
       file: 'audio/wonders/grand-canyon-ambient.ogg',
-      sourceId: 'soundimage-river-in-trouble-looping',
+      sourceId: 'soundimage-river-in-trouble',
       gain: 0.24,
       loop: { loopStart: 0, loopEnd: 85.8 },
       fadeInMs: 700,
@@ -431,18 +431,18 @@ Run:
 ```bash
 mkdir -p /private/tmp/conquestoria-2h-mr3-audio-src public/audio/wonders
 curl -L "http://soundimage.org/wp-content/uploads/2014/02/Arctic-Sunrise.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/frozen-falls-stinger.mp3
-curl -L "http://soundimage.org/wp-content/uploads/2014/02/Icicles_Looping.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/frozen-falls-ambient.mp3
+curl -L "http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/frozen-falls-ambient.mp3
 curl -L "http://soundimage.org/wp-content/uploads/2014/07/Distant-Mountains.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/grand-canyon-stinger.mp3
-curl -L "http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble_Looping.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/grand-canyon-ambient.mp3
+curl -L "http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/grand-canyon-ambient.mp3
 curl -L "https://soundimage.org/wp-content/uploads/2025/05/The-Ancients.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/dragon-bones-stinger.mp3
 curl -L "http://soundimage.org/wp-content/uploads/2015/04/Secret-Catacombs.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/dragon-bones-ambient.mp3
 ```
 
 Expected: all six files are non-empty and `file /private/tmp/conquestoria-2h-mr3-audio-src/*` reports audio data, not HTML.
 
-- [ ] **Step 3: If loop downloads failed, apply exact fallback edits**
+- [ ] **Step 3: Confirm the previously failed loop variants are not used**
 
-If `frozen-falls-ambient.mp3` is HTML or empty, rerun:
+The previously considered `Icicles_Looping.mp3` and `River-in-Trouble_Looping.mp3` URLs returned 404 HTML. Do not use them. If either ambient download is HTML or empty, rerun the exact non-looping URL below.
 
 ```bash
 curl -L "http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3" -o /private/tmp/conquestoria-2h-mr3-audio-src/frozen-falls-ambient.mp3
@@ -451,7 +451,7 @@ curl -L "http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3" -o /priva
 Then update source metadata:
 
 ```ts
-    id: 'soundimage-icicles-looping',
+    id: 'soundimage-icicles',
     title: 'Icicles',
     creator: 'Eric Matyas',
     site: 'Soundimage.org',
@@ -470,7 +470,7 @@ curl -L "http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3" 
 Then update source metadata:
 
 ```ts
-    id: 'soundimage-river-in-trouble-looping',
+    id: 'soundimage-river-in-trouble',
     title: 'River in Trouble',
     creator: 'Eric Matyas',
     site: 'Soundimage.org',
@@ -559,8 +559,8 @@ Append under `## Natural Wonder Audio`, after `aurora-fields-ambient.ogg`:
   Used as: Frozen Falls discovery and replay stinger
   Modified: trimmed to 5 s, converted to OGG Vorbis
 
-- `audio/wonders/frozen-falls-ambient.ogg` — "Icicles_Looping" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2014/02/Icicles_Looping.mp3
+- `audio/wonders/frozen-falls-ambient.ogg` — "Icicles" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2014/02/Icicles.mp3
   Used as: Frozen Falls Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
@@ -569,8 +569,8 @@ Append under `## Natural Wonder Audio`, after `aurora-fields-ambient.ogg`:
   Used as: Grand Canyon discovery and replay stinger
   Modified: trimmed to 5 s, converted to OGG Vorbis
 
-- `audio/wonders/grand-canyon-ambient.ogg` — "River in Trouble_Looping" by Eric Matyas, Soundimage.org.
-  Source: http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble_Looping.mp3
+- `audio/wonders/grand-canyon-ambient.ogg` — "River in Trouble" by Eric Matyas, Soundimage.org.
+  Source: http://soundimage.org/wp-content/uploads/2014/10/River-in-Trouble.mp3
   Used as: Grand Canyon Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
@@ -750,8 +750,8 @@ MR3 introduces no new player-facing controls or UI paths. Existing discovery, Co
 
 ## Audio Sources And Validation
 
-- Frozen Falls: "Arctic Sunrise" and "Icicles_Looping" by Eric Matyas / Soundimage.org.
-- Grand Canyon: "Distant Mountains" and "River in Trouble_Looping" by Eric Matyas / Soundimage.org.
+- Frozen Falls: "Arctic Sunrise" and "Icicles" by Eric Matyas / Soundimage.org.
+- Grand Canyon: "Distant Mountains" and "River in Trouble" by Eric Matyas / Soundimage.org.
 - Dragon Bones: "The Ancients" and "Secret Catacombs" by Eric Matyas / Soundimage.org.
 - OGG files were format-checked, duration-checked, and decode-checked locally.
 - Subjective listening approval remains a human review step unless explicitly performed outside Codex.
