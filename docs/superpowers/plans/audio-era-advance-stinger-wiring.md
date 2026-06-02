@@ -50,32 +50,35 @@ pattern for asserting a stinger plays. Use the same pattern.
 
 - [ ] **Step 2: Write failing test**
 
-Add to `tests/audio/music-director.test.ts` inside the `describe('MusicDirector')` block:
+The music-director test pattern calls `director.handleEraAdvanced()` directly (no bus, no `director.start()`).
+`MusicDirector.handleEraAdvanced` takes `EraAdvancedPayload = { era: number; civType: string }`.
+Use `flushPromises` (already defined in the test file) to drain async stinger loading.
+Import `STINGER` from `'../../src/audio/audio-catalog'` at the top of the file if not already present.
+
+Add inside `describe('MusicDirector')`, after the existing `'plays era-transition stinger when era advances'` test:
 
 ```typescript
-it('handleEraAdvanced plays the eraAdvance stinger for the resolved era', async () => {
-  director.start({}, busHelper.bus);
-  busHelper.emit('music:era-advanced', { era: 3 });
-  await tick();
+it('plays eraAdvance stinger for the resolved era', async () => {
+  director.handleEraAdvanced({ era: 3, civType: 'rome' });
+  await flushPromises();
 
   const stingerPath = STINGER.eraAdvance[3].file;
   expect(loader.get).toHaveBeenCalledWith(stingerPath);
-  expect(mixer.playOneShot).toHaveBeenCalledWith('stinger', loader.bufferFor(stingerPath));
+  expect(mixer.playOneShot).toHaveBeenCalledWith('stinger', fakeBuffer);
 });
 
-it('handleEraAdvanced plays eraAdvance stinger exactly once per era-advance event', async () => {
-  director.start({}, busHelper.bus);
-  busHelper.emit('music:era-advanced', { era: 2 });
-  await tick();
+it('plays eraAdvance stinger exactly once per era-advance call', async () => {
+  vi.mocked(mixer.playOneShot).mockClear();
+  director.handleEraAdvanced({ era: 2, civType: 'rome' });
+  await flushPromises();
 
   const stingerPath = STINGER.eraAdvance[2].file;
-  const stingerCalls = (mixer.playOneShot as ReturnType<typeof vi.fn>).mock.calls
-    .filter(([bus, buf]) => buf === loader.bufferFor(stingerPath));
-  expect(stingerCalls).toHaveLength(1);
+  const stingerCalls = vi.mocked(mixer.playOneShot).mock.calls
+    .filter(([bus]) => bus === 'stinger');
+  expect(stingerCalls).toHaveLength(2); // eraTransitionCue + eraAdvance
+  expect(loader.get).toHaveBeenCalledWith(stingerPath);
 });
 ```
-
-Note: import `STINGER` from `'../../src/audio/audio-catalog'` if not already imported.
 
 - [ ] **Step 3: Run test to verify it fails**
 
