@@ -49,7 +49,7 @@ describe('NaturalWonderAudioDirector', () => {
     expect(failingStinger).toHaveBeenCalledWith('audio/wonders/great-volcano-stinger.ogg');
   });
 
-  it('does nothing for pending entries', async () => {
+  it('does nothing for unknown or uncatalogued wonder IDs', async () => {
     const director = new NaturalWonderAudioDirector(
       mixer as never,
       loader as never,
@@ -57,8 +57,8 @@ describe('NaturalWonderAudioDirector', () => {
       timers,
     );
 
-    await expect(director.playDiscoveryStinger('bioluminescent_bay')).resolves.toBe(false);
-    await expect(director.startCodexAmbient('bioluminescent_bay')).resolves.toBe(false);
+    await expect(director.playDiscoveryStinger('nonexistent_wonder')).resolves.toBe(false);
+    await expect(director.startCodexAmbient('nonexistent_wonder')).resolves.toBe(false);
 
     expect(loader.get).not.toHaveBeenCalled();
     expect(playStingerWithDuck).not.toHaveBeenCalled();

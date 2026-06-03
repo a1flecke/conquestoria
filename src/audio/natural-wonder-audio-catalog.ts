@@ -36,7 +36,7 @@ export interface PendingNaturalWonderAudioEntry {
 
 export type NaturalWonderAudioEntry = CompleteNaturalWonderAudioEntry | PendingNaturalWonderAudioEntry;
 
-export const FINAL_NATURAL_WONDER_AUDIO_COVERAGE = false;
+export const FINAL_NATURAL_WONDER_AUDIO_COVERAGE = true;
 export const MR1_NATURAL_WONDER_AUDIO_IDS = ['great_volcano', 'ancient_forest', 'coral_reef'] as const;
 export const MR2_NATURAL_WONDER_AUDIO_IDS = [
   'sacred_mountain',
@@ -53,11 +53,17 @@ export const MR4_NATURAL_WONDER_AUDIO_IDS = [
   'sunken_ruins',
   'floating_islands',
 ] as const;
+export const MR5_NATURAL_WONDER_AUDIO_IDS = [
+  'bioluminescent_bay',
+  'bottomless_lake',
+  'eternal_storm',
+] as const;
 export const COMPLETE_NATURAL_WONDER_AUDIO_IDS = [
   ...MR1_NATURAL_WONDER_AUDIO_IDS,
   ...MR2_NATURAL_WONDER_AUDIO_IDS,
   ...MR3_NATURAL_WONDER_AUDIO_IDS,
   ...MR4_NATURAL_WONDER_AUDIO_IDS,
+  ...MR5_NATURAL_WONDER_AUDIO_IDS,
 ] as const;
 
 const COMPLETE_ENTRIES: Record<(typeof COMPLETE_NATURAL_WONDER_AUDIO_IDS)[number], CompleteNaturalWonderAudioEntry> = {
@@ -119,6 +125,69 @@ const COMPLETE_ENTRIES: Record<(typeof COMPLETE_NATURAL_WONDER_AUDIO_IDS)[number
       sourceId: 'soundimage-high-altitude-bliss',
       gain: 0.26,
       loop: { loopStart: 0, loopEnd: 156.1 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
+  bioluminescent_bay: {
+    wonderId: 'bioluminescent_bay',
+    status: 'complete',
+    soundMood: 'glowing-bay',
+    stinger: {
+      id: 'bioluminescent-bay-stinger',
+      file: 'audio/wonders/bioluminescent-bay-stinger.ogg',
+      sourceId: 'soundimage-mystical-ocean-puzzle-game',
+      gain: 0.72,
+    },
+    ambientLoop: {
+      id: 'bioluminescent-bay-ambient',
+      file: 'audio/wonders/bioluminescent-bay-ambient.ogg',
+      sourceId: 'soundimage-sun-shower',
+      gain: 0.26,
+      loop: { loopStart: 0, loopEnd: 133.2 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
+  bottomless_lake: {
+    wonderId: 'bottomless_lake',
+    status: 'complete',
+    soundMood: 'deep-lake',
+    stinger: {
+      id: 'bottomless-lake-stinger',
+      file: 'audio/wonders/bottomless-lake-stinger.ogg',
+      sourceId: 'soundimage-the-haunted-deep',
+      gain: 0.70,
+    },
+    ambientLoop: {
+      id: 'bottomless-lake-ambient',
+      file: 'audio/wonders/bottomless-lake-ambient.ogg',
+      sourceId: 'soundimage-mysterious-deep',
+      gain: 0.24,
+      loop: { loopStart: 0, loopEnd: 179.5 },
+      fadeInMs: 700,
+      fadeOutMs: 550,
+      mapFocusTimeoutMs: 12000,
+    },
+  },
+  eternal_storm: {
+    wonderId: 'eternal_storm',
+    status: 'complete',
+    soundMood: 'distant-thunder',
+    stinger: {
+      id: 'eternal-storm-stinger',
+      file: 'audio/wonders/eternal-storm-stinger.ogg',
+      sourceId: 'soundimage-thunder',
+      gain: 0.80,
+    },
+    ambientLoop: {
+      id: 'eternal-storm-ambient',
+      file: 'audio/wonders/eternal-storm-ambient.ogg',
+      sourceId: 'soundimage-cumulonimbus',
+      gain: 0.28,
+      loop: { loopStart: 0, loopEnd: 138.2 },
       fadeInMs: 700,
       fadeOutMs: 550,
       mapFocusTimeoutMs: 12000,
