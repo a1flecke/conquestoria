@@ -1,6 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord, VillageOutcomeType } from '@/core/types';
-import { updateVisibility } from '@/systems/fog-of-war';
+import { getVisibility, updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import {
@@ -238,7 +238,7 @@ export function validateUnitMove(
   state: GameState,
   unitId: string,
   to: HexCoord,
-  _options: ExecuteUnitMoveOptions,
+  options: ExecuteUnitMoveOptions,
 ): UnitMoveValidationResult {
   const unit = state.units[unitId];
   if (!unit) return movementFailure(to, to, [to], 'missing-unit', 'Unit not found');
@@ -268,6 +268,17 @@ export function validateUnitMove(
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
   const path = findPath(from, target, state.map, domain, { unit, completedTechs });
   if (!path) return movementFailure(from, target, [from], 'unreachable', 'No passable route to that tile.');
+
+  const visibility = state.civilizations[options.civId]?.visibility;
+  const isPlayerControlledMove = options.actor !== 'automation' && options.actor !== 'ai';
+  if (
+    isPlayerControlledMove
+    && visibility
+    && path.length > 2
+    && path.slice(1).some(coord => getVisibility(visibility, coord) === 'unexplored')
+  ) {
+    return movementFailure(from, target, path, 'unexplored', 'Move one step at a time into unexplored territory.');
+  }
 
   let cost = 0;
   for (let i = 1; i < path.length; i++) {

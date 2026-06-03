@@ -31,7 +31,11 @@ describe('Unit Movement Regression', () => {
           isHuman: true,
           score: 0,
           gold: 0,
-          visibility: { tiles: {} },
+          visibility: { tiles: {
+            [hexKey(startPos)]: 'visible',
+            [hexKey(intermediatePos)]: 'visible',
+            [hexKey(destPos)]: 'visible',
+          } },
           techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: { military: 'medium', economy: 'medium', science: 'medium', civics: 'medium', exploration: 'medium', agriculture: 'medium', medicine: 'medium', philosophy: 'medium', arts: 'medium', maritime: 'medium', metallurgy: 'medium', construction: 'medium', communication: 'medium', espionage: 'medium', spirituality: 'medium' } },
           diplomacy: { relationships: {}, atWarWith: [], treaties: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 }, events: [] },
         }
@@ -88,7 +92,10 @@ describe('Unit Movement Regression', () => {
           isHuman: true,
           score: 0,
           gold: 0,
-          visibility: { tiles: {} },
+          visibility: { tiles: {
+            [hexKey(startPos)]: 'visible',
+            [hexKey(destPos)]: 'visible',
+          } },
           techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: { military: 'medium', economy: 'medium', science: 'medium', civics: 'medium', exploration: 'medium', agriculture: 'medium', medicine: 'medium', philosophy: 'medium', arts: 'medium', maritime: 'medium', metallurgy: 'medium', construction: 'medium', communication: 'medium', espionage: 'medium', spirituality: 'medium' } },
           diplomacy: { relationships: {}, atWarWith: [], treaties: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 }, events: [] },
         }

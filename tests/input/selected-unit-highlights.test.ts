@@ -143,6 +143,28 @@ describe('selected-unit-highlights', () => {
     expect(result.movementRange.some(c => hexKey(c) === '1,0')).toBe(true);
   });
 
+  it('shows only one-step exploratory movement into unexplored tiles', () => {
+    const state = createNewGame(undefined, 'movement-preview-unexplored-step-limit', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      scout: { ...createUnit('scout', 'player', { q: 0, r: 0 }, mkC()), id: 'scout', movementPointsLeft: 3 },
+    };
+    state.civilizations.player.units = ['scout'];
+    state.civilizations.player.visibility.tiles = {
+      '0,0': 'visible',
+      '1,0': 'unexplored',
+      '2,0': 'unexplored',
+    };
+    state.map.tiles['1,0'] = { coord: { q: 1, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, owner: null, improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    state.map.tiles['2,0'] = { coord: { q: 2, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, owner: null, improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+
+    const result = buildSelectedUnitHighlights(state, 'scout');
+
+    expect(result.movementRange.map(hexKey)).toContain('1,0');
+    expect(result.movementRange.map(hexKey)).not.toContain('2,0');
+    expect(result.highlights.filter(h => h.type === 'move').map(h => hexKey(h.coord))).not.toContain('2,0');
+  });
+
   it('does not add foreign-blocked worker guidance on unexplored plausible terrain', () => {
     const state = createNewGame(undefined, 'worker-guidance-unexplored-no-leak', 'small');
     state.currentPlayer = 'player';
