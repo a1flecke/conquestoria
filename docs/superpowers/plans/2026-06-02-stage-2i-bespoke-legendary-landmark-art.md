@@ -21,7 +21,9 @@ Implement only:
 - tests that authored keys resolve and render through the bespoke path
 - this plan's deferred Stage 2K/C renderer-layer architecture step
 
-Do not implement Stage 2J rival landmark visibility, Stage 2K renderer-layer extraction, bitmap/SVG assets, new UI, gameplay changes, save changes, or all-legendary-wonder bespoke coverage.
+Do not implement Stage 2J rival landmark visibility, Stage 2K renderer-layer extraction, bitmap/SVG assets, new UI, gameplay changes, save changes, audio/SFX changes, or all-legendary-wonder bespoke coverage.
+
+The bespoke landmarks are authored as in-repo Canvas primitives. This MR does not add third-party art, external audio, or sampled SFX, so no new asset attribution is required.
 
 ## File Structure
 
@@ -39,7 +41,7 @@ Do not implement Stage 2J rival landmark visibility, Stage 2K renderer-layer ext
 - Modify: `tests/systems/legendary-wonder-landmark-catalog.test.ts`
   - Add asset key exactness and supported-key coverage.
 - Modify: `tests/renderer/legendary-wonder-renderer.test.ts`
-  - Add renderer path regressions for bespoke, fallback, and construction ghost behavior.
+  - Add renderer path regressions for bespoke, missing-key fallback, unsupported-key fallback, and construction ghost behavior.
 - This file: `docs/superpowers/plans/2026-06-02-stage-2i-bespoke-legendary-landmark-art.md`
   - Include the deferred Stage 2K/C step below.
 
@@ -59,6 +61,7 @@ Do not implement Stage 2J rival landmark visibility, Stage 2K renderer-layer ext
 - Do not imply all legendary wonders have bespoke art; only three get `assetKey` in this MR.
 - Do not render completed bespoke art for under-construction projects.
 - Do not turn unsupported `assetKey` into a silent catalog convention; tests must catch any authored unsupported key.
+- Do not let unsupported `assetKey` values break rendering; renderer tests must prove unsupported keys still fall back to generic silhouettes.
 - Do not change rival visibility. This is art rendering for landmarks already visible by existing rules.
 
 ## Interaction Replay Checklist
@@ -407,7 +410,35 @@ Add this test:
   });
 ```
 
-- [ ] **Step 3: Add construction ghost test**
+- [ ] **Step 3: Add unsupported asset-key fallback test**
+
+Add this test:
+
+```ts
+  it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
+    const ctx = new MockCanvasContext();
+    const metadata = {
+      ...getLegendaryWonderLandmarkMetadata('world-archive'),
+      assetKey: 'unsupported-bespoke-test-key',
+    };
+
+    drawLegendaryWonderLandmarkGlyph({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      cx: 80,
+      cy: 80,
+      radius: 12,
+      metadata,
+      state: 'completed',
+      reducedMotion: false,
+      nowMs: 1000,
+    });
+
+    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
+    expect(ctx.operations.some(operation => operation.startsWith('fill:') || operation.startsWith('stroke:'))).toBe(true);
+  });
+```
+
+- [ ] **Step 4: Add construction ghost test**
 
 Add this test:
 
@@ -431,7 +462,7 @@ Add this test:
   });
 ```
 
-- [ ] **Step 4: Run renderer tests and verify RED**
+- [ ] **Step 5: Run renderer tests and verify RED**
 
 Run:
 
@@ -441,7 +472,7 @@ Run:
 
 Expected: FAIL because completed glyph drawing still uses the generic silhouette path and does not call the bespoke registry.
 
-- [ ] **Step 5: Commit failing renderer tests**
+- [ ] **Step 6: Commit failing renderer tests**
 
 Run:
 

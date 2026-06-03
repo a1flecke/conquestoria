@@ -133,6 +133,28 @@ describe('legendary-wonder-renderer', () => {
     expect(ctx.operations.some(operation => operation.startsWith('fill:') || operation.startsWith('stroke:'))).toBe(true);
   });
 
+  it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
+    const ctx = new MockCanvasContext();
+    const metadata = {
+      ...getLegendaryWonderLandmarkMetadata('world-archive'),
+      assetKey: 'unsupported-bespoke-test-key',
+    };
+
+    drawLegendaryWonderLandmarkGlyph({
+      ctx: ctx as unknown as CanvasRenderingContext2D,
+      cx: 80,
+      cy: 80,
+      radius: 12,
+      metadata,
+      state: 'completed',
+      reducedMotion: false,
+      nowMs: 1000,
+    });
+
+    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
+    expect(ctx.operations.some(operation => operation.startsWith('fill:') || operation.startsWith('stroke:'))).toBe(true);
+  });
+
   it('keeps construction ghosts instead of completed bespoke art for first-slice builds', () => {
     const ctx = new MockCanvasContext();
 
