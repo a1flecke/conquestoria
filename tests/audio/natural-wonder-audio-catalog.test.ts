@@ -11,6 +11,7 @@ import {
   MR2_NATURAL_WONDER_AUDIO_IDS,
   MR3_NATURAL_WONDER_AUDIO_IDS,
   MR4_NATURAL_WONDER_AUDIO_IDS,
+  MR5_NATURAL_WONDER_AUDIO_IDS,
 } from '../../src/audio/natural-wonder-audio-catalog';
 import { getNaturalWonderAudioSource } from '../../src/audio/natural-wonder-audio-sources';
 import { WONDER_DEFINITIONS } from '../../src/systems/wonder-definitions';
@@ -31,7 +32,7 @@ describe('natural wonder audio catalog', () => {
     );
   });
 
-  it('keeps MR1–MR4 wonders complete and all remaining wonders explicit pending entries', () => {
+  it('has all 15 wonders complete with MR1–MR5 coverage and FINAL_NATURAL_WONDER_AUDIO_COVERAGE flipped', () => {
     const catalog = getNaturalWonderAudioCatalog();
     const completeIds = new Set<string>(COMPLETE_NATURAL_WONDER_AUDIO_IDS);
 
@@ -55,11 +56,17 @@ describe('natural wonder audio catalog', () => {
       'sunken_ruins',
       'floating_islands',
     ]);
+    expect(MR5_NATURAL_WONDER_AUDIO_IDS).toEqual([
+      'bioluminescent_bay',
+      'bottomless_lake',
+      'eternal_storm',
+    ]);
     expect(COMPLETE_NATURAL_WONDER_AUDIO_IDS).toEqual([
       ...MR1_NATURAL_WONDER_AUDIO_IDS,
       ...MR2_NATURAL_WONDER_AUDIO_IDS,
       ...MR3_NATURAL_WONDER_AUDIO_IDS,
       ...MR4_NATURAL_WONDER_AUDIO_IDS,
+      ...MR5_NATURAL_WONDER_AUDIO_IDS,
     ]);
 
     for (const entry of catalog) {
@@ -69,12 +76,8 @@ describe('natural wonder audio catalog', () => {
         expect(entry.status).toBe('pending');
       }
     }
-    expect(catalog.filter(entry => entry.status === 'pending').map(entry => entry.wonderId)).toEqual([
-      'bioluminescent_bay',
-      'bottomless_lake',
-      'eternal_storm',
-    ]);
-    expect(FINAL_NATURAL_WONDER_AUDIO_COVERAGE).toBe(false);
+    expect(catalog.filter(entry => entry.status === 'pending').map(entry => entry.wonderId)).toEqual([]);
+    expect(FINAL_NATURAL_WONDER_AUDIO_COVERAGE).toBe(true);
   });
 
   it('aligns complete entry sound moods with spectacle recipes', () => {

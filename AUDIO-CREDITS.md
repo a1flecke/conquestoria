@@ -302,6 +302,36 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
   Used as: Floating Islands Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
+- `audio/wonders/bioluminescent-bay-stinger.ogg` — "Mystical Ocean Puzzle Game" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2025/10/Mystical-Ocean-Puzzle-Game.ogg
+  Used as: Bioluminescent Bay discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/bioluminescent-bay-ambient.ogg` — "Sun Shower" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2018/04/Sun-Shower.mp3
+  Used as: Bioluminescent Bay Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/bottomless-lake-stinger.ogg` — "The Haunted Deep" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2019/10/The-Haunted-Deep.mp3
+  Used as: Bottomless Lake discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/bottomless-lake-ambient.ogg` — "Mysterious Deep" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2018/01/Mysterious-Deep.mp3
+  Used as: Bottomless Lake Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
+- `audio/wonders/eternal-storm-stinger.ogg` — "Thunder_6-13-22" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2022/06/Thunder_6-13-22.mp3
+  Used as: Eternal Storm discovery and replay stinger
+  Modified: trimmed to 5 s, converted to OGG Vorbis
+
+- `audio/wonders/eternal-storm-ambient.ogg` — "Cumulonimbus" by Eric Matyas, Soundimage.org.
+  Source: https://soundimage.org/wp-content/uploads/2018/07/Cumulonimbus.mp3
+  Used as: Eternal Storm Codex and map-focus ambience
+  Modified: converted to OGG Vorbis
+
 ## Sound Effects
 
 *(Existing synthesised SFX via Web Audio oscillators require no attribution.)*
