@@ -31,6 +31,7 @@ The MR must prove the architecture without converting the entire legendary roste
 - Do not implement the Stage 2K renderer-layer architecture pass in this MR.
 - Do not change rival legendary landmark visibility or host/location intel; that remains Stage 2J.
 - Do not add bitmap, SVG, or external art assets.
+- Do not add or change audio/SFX assets or playback behavior.
 - Do not change gameplay rewards, production rules, saves, AI, or visibility gates.
 - Do not add UI controls, labels, or new player actions.
 - Do not require every legendary wonder to have bespoke art yet.
@@ -58,6 +59,8 @@ Add a focused renderer module, for example `src/renderer/wonders/legendary-wonde
 | `sun-spire` | `sun-spire-bespoke` | Radiant spire with sun disk/rays and a vertical tower | Proves luminous/radial ornament while keeping low-zoom readability |
 
 All three drawings should use existing metadata palettes so they stay compatible with Stage 2G medallions, reduced motion, and future palette tuning.
+
+All three drawings are authored as in-repo Canvas primitives. This MR does not import third-party art, external audio, or sampled SFX, so no new asset attribution is required.
 
 ## Rendering Contract
 
