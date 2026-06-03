@@ -2,7 +2,7 @@ import type { GameState, HexCoord, WorkerActionType } from '@/core/types';
 import type { HexHighlight } from '@/renderer/render-loop';
 import { getAttackTargets, type AttackTarget } from '@/systems/attack-targeting';
 import { getVisibility } from '@/systems/fog-of-war';
-import { hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getMovementRange } from '@/systems/unit-system';
@@ -80,6 +80,15 @@ function buildHostileOwners(state: GameState, civId: string): Set<string> {
   return hostile;
 }
 
+function isPreviewableMoveDestination(state: GameState, from: HexCoord, to: HexCoord): boolean {
+  const visibility = state.civilizations[state.currentPlayer]?.visibility;
+  if (!visibility || getVisibility(visibility, to) !== 'unexplored') return true;
+  const distance = state.map.wrapsHorizontally
+    ? wrappedHexDistance(from, to, state.map.width)
+    : hexDistance(from, to);
+  return distance === 1;
+}
+
 export function buildSelectedUnitHighlights(state: GameState, unitId: string): SelectedUnitHighlightResult {
   const unit = state.units[unitId];
   if (!unit || unit.owner !== state.currentPlayer) {
@@ -96,7 +105,7 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
     occupancy.ownersByUnitId,
     hostileOwners,
     { completedTechs },
-  );
+  ).filter(coord => isPreviewableMoveDestination(state, unit.position, coord));
   const attackTargets = getAttackTargets(state, unit, { viewerId: state.currentPlayer })
     .filter(target => target.result.targetType === 'unit');
   const attackKeys = new Set(attackTargets.map(target => hexKey(target.coord)));

@@ -165,6 +165,25 @@ describe('unit-movement-system', () => {
     expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
   });
 
+  it('refuses player movement that paths through unexplored tiles at execution time', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }, 'plains'),
+      tile({ q: 1, r: 0 }, 'plains'),
+      tile({ q: 2, r: 0 }, 'plains'),
+    ]);
+    state.civilizations.player.visibility.tiles['1,0'] = 'unexplored';
+    state.civilizations.player.visibility.tiles['2,0'] = 'unexplored';
+
+    const result = executeUnitMove(state, 'mover', { q: 2, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected unexplored path move to fail');
+    expect(result.reason).toBe('unexplored');
+    expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
+  });
+
   it('gates Transport coast and ocean movement by owner tech', () => {
     const transport = createUnit('transport', 'player', { q: 0, r: 0 }, mkC());
     transport.id = 'transport';
