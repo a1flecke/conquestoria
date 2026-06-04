@@ -51,10 +51,14 @@ describe('legendary wonder landmark catalog', () => {
     })).toEqual([]);
   });
 
-  it('authors first-slice bespoke asset keys only for approved Stage 2I wonders', () => {
+  it('authors approved bespoke asset keys only for completed Stage 2I slices', () => {
     expect(getLegendaryWonderLandmarkMetadata('oracle-of-delphi').assetKey).toBe('oracle-of-delphi-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('grand-canal').assetKey).toBe('grand-canal-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('sun-spire').assetKey).toBe('sun-spire-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('world-archive').assetKey).toBe('world-archive-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('starvault-observatory').assetKey).toBe('starvault-observatory-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('storm-signal-spire').assetKey).toBe('storm-signal-spire-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('internet').assetKey).toBe('internet-bespoke');
 
     const keyed = getLegendaryWonderLandmarkMetadataCatalog()
       .filter(entry => entry.assetKey)
@@ -64,6 +68,10 @@ describe('legendary wonder landmark catalog', () => {
       ['oracle-of-delphi', 'oracle-of-delphi-bespoke'],
       ['grand-canal', 'grand-canal-bespoke'],
       ['sun-spire', 'sun-spire-bespoke'],
+      ['world-archive', 'world-archive-bespoke'],
+      ['starvault-observatory', 'starvault-observatory-bespoke'],
+      ['storm-signal-spire', 'storm-signal-spire-bespoke'],
+      ['internet', 'internet-bespoke'],
     ]);
   });
 
