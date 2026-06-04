@@ -1,6 +1,18 @@
 import { createSavePanel } from '@/ui/save-panel';
 import { createGameButton } from '@/ui/ui-kit';
 
+export interface AudioSettingsSnapshot {
+  masterVolume: number;
+  musicVolume: number;
+  sfxVolume: number;
+  voiceVolume: number;
+  stingerVolume: number;
+  musicEnabled: boolean;
+  soundEnabled: boolean;
+  voiceEnabled: boolean;
+  stingerEnabled: boolean;
+}
+
 export interface PauseMenuCallbacks {
   turn: number;
   civName: string;
@@ -8,6 +20,9 @@ export interface PauseMenuCallbacks {
   onSave: (slotId: string, name: string) => Promise<void>;
   onNewGame: () => void;
   autoSave: () => Promise<void>;
+  // Spec 3: per-channel audio settings (optional for backward compat with existing tests)
+  audioSettings?: AudioSettingsSnapshot;
+  onAudioSettingChange?: (key: keyof AudioSettingsSnapshot, value: number | boolean) => void;
 }
 
 function buildHeader(turn: number, civName: string): HTMLElement {
@@ -29,6 +44,112 @@ function buildHeader(turn: number, civName: string): HTMLElement {
   header.appendChild(subtitle);
 
   return header;
+}
+
+/**
+ * Build the 5-channel audio settings section.
+ * Uses <input type="range"> and <input type="checkbox"> — no bare <button> elements.
+ */
+const DEFAULT_AUDIO_SETTINGS: AudioSettingsSnapshot = {
+  masterVolume: 1.0, musicVolume: 0.5, sfxVolume: 0.7,
+  voiceVolume: 1.0, stingerVolume: 1.0,
+  musicEnabled: true, soundEnabled: true, voiceEnabled: true, stingerEnabled: true,
+};
+
+function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
+  const s = callbacks.audioSettings ?? DEFAULT_AUDIO_SETTINGS;
+
+  const section = document.createElement('div');
+  Object.assign(section.style, {
+    borderTop: '1px solid rgba(255,255,255,0.1)',
+    paddingTop: '12px',
+    marginTop: '12px',
+  });
+
+  const heading = document.createElement('p');
+  heading.textContent = 'Audio';
+  Object.assign(heading.style, {
+    margin: '0 0 8px',
+    fontSize: '11px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    opacity: '0.5',
+    color: '#fff',
+  });
+  section.appendChild(heading);
+
+  type AudioRow = {
+    label: string;
+    volumeKey: keyof AudioSettingsSnapshot & string;
+    enabledKey: (keyof AudioSettingsSnapshot & string) | '';
+  };
+
+  const rows: AudioRow[] = [
+    { label: 'Master',  volumeKey: 'masterVolume',  enabledKey: '' },
+    { label: 'Music',   volumeKey: 'musicVolume',   enabledKey: 'musicEnabled' },
+    { label: 'SFX',     volumeKey: 'sfxVolume',     enabledKey: 'soundEnabled' },
+    { label: 'Voice',   volumeKey: 'voiceVolume',   enabledKey: 'voiceEnabled' },
+    { label: 'Stinger', volumeKey: 'stingerVolume', enabledKey: 'stingerEnabled' },
+  ];
+
+  for (const row of rows) {
+    const rowEl = document.createElement('div');
+    Object.assign(rowEl.style, {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      marginBottom: '6px',
+    });
+
+    const label = document.createElement('span');
+    label.textContent = row.label;
+    Object.assign(label.style, {
+      fontSize: '12px',
+      color: '#ccc',
+      width: '52px',
+      flexShrink: '0',
+    });
+    rowEl.appendChild(label);
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '1';
+    slider.step = '0.05';
+    slider.value = String(s[row.volumeKey] as number ?? 1);
+    Object.assign(slider.style, {
+      flex: '1',
+      minHeight: '44px',
+      cursor: 'pointer',
+      accentColor: '#e8c170',
+    });
+    slider.addEventListener('input', () => {
+      callbacks.onAudioSettingChange?.(row.volumeKey, Number(slider.value));
+    });
+    rowEl.appendChild(slider);
+
+    if (row.enabledKey) {
+      const enabledKey = row.enabledKey;
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.checked = Boolean(s[enabledKey] ?? true);
+      Object.assign(toggle.style, {
+        width: '20px',
+        height: '20px',
+        minHeight: '44px',
+        cursor: 'pointer',
+        accentColor: '#e8c170',
+      });
+      toggle.addEventListener('change', () => {
+        callbacks.onAudioSettingChange?.(enabledKey, toggle.checked);
+      });
+      rowEl.appendChild(toggle);
+    }
+
+    section.appendChild(rowEl);
+  }
+
+  return section;
 }
 
 function buildMainView(
@@ -68,6 +189,9 @@ function buildMainView(
   newGameBtn.style.width = '100%';
   newGameBtn.addEventListener('click', () => buildConfirmView(panel, body, container, callbacks));
   body.appendChild(newGameBtn);
+
+  // Spec 3: per-channel audio settings at bottom of pause menu
+  body.appendChild(buildAudioSettings(callbacks));
 }
 
 function buildConfirmView(

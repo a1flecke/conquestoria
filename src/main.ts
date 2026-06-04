@@ -314,6 +314,34 @@ function createUI(): void {
         },
         onNewGame: () => showGameModeSelection(),
         autoSave: () => autoSave(gameState),
+        // Spec 3: per-channel audio settings
+        audioSettings: {
+          masterVolume:   1.0,   // master has no persisted field — starts at 1.0
+          musicVolume:    gameState.settings.musicVolume,
+          sfxVolume:      gameState.settings.sfxVolume,
+          voiceVolume:    gameState.settings.voiceVolume    ?? 1.0,
+          stingerVolume:  gameState.settings.stingerVolume  ?? 1.0,
+          musicEnabled:   gameState.settings.musicEnabled,
+          soundEnabled:   gameState.settings.soundEnabled,
+          voiceEnabled:   gameState.settings.voiceEnabled   ?? true,
+          stingerEnabled: gameState.settings.stingerEnabled ?? true,
+        },
+        onAudioSettingChange: (key, value) => {
+          // Persist to game state (saved on next auto-save / manual save)
+          (gameState.settings as unknown as Record<string, number | boolean>)[key] = value;
+          // Apply to audio system immediately — no restart needed
+          switch (key) {
+            case 'masterVolume':   audio.setMasterVolume(value as number);  break;
+            case 'musicVolume':    audio.setMusicVolume(value as number);   break;
+            case 'sfxVolume':      audio.setSfxVolume(value as number);     break;
+            case 'voiceVolume':    audio.setVoiceVolume(value as number);   break;
+            case 'stingerVolume':  audio.setStingerVolume(value as number); break;
+            case 'musicEnabled':   audio.setMusicEnabled(value as boolean); break;
+            case 'soundEnabled':   audio.setSfxEnabled(value as boolean);   break;
+            case 'voiceEnabled':   audio.setVoiceEnabled(value as boolean); break;
+            case 'stingerEnabled': audio.setStingerEnabled(value as boolean); break;
+          }
+        },
       });
     },
   });
