@@ -265,3 +265,115 @@ describe('wonder-codex-page — legendary UI redesign', () => {
     expect(onAction).toHaveBeenCalledWith(cityAction);
   });
 });
+
+describe('wonder-codex-page — rival intel journal section', () => {
+  it('renders the rival intel section with summary and event rows when rivalIntel is present', () => {
+    const root = createWonderCodexPage(legendaryPage({
+      stateLabel: 'Spotted rival project',
+      rivalIntel: {
+        wonderId: 'oracle-of-delphi',
+        activityCount: 1,
+        badgeLabel: 'Known rival activity',
+        stateLabel: 'Spotted rival project',
+        summaryLine: 'Last known: under construction. Rival began Oracle of Delphi in Rival Harbor on turn 41.',
+        events: [{
+          id: 'started:oracle-of-delphi:ai-1:rival-city:41',
+          kind: 'started',
+          civId: 'ai-1',
+          civName: 'Rival',
+          turn: 41,
+          title: 'Spotted rival project',
+          text: 'Rival began Oracle of Delphi in Rival Harbor on turn 41.',
+        }],
+      },
+    }), { onAction: vi.fn(), onSelectRelated: vi.fn() });
+
+    const section = root.querySelector('[data-rival-intel-section]');
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain('Known rival activity');
+    expect(section?.textContent).toContain('Last known: under construction');
+
+    const events = section?.querySelectorAll('[data-rival-intel-event]');
+    expect(events).toHaveLength(1);
+    expect(events?.[0]?.getAttribute('data-rival-intel-event')).toBe('started');
+    expect(events?.[0]?.textContent).toContain('Rival began Oracle of Delphi in Rival Harbor on turn 41');
+  });
+
+  it('renders multiple rival intel events in order', () => {
+    const root = createWonderCodexPage(legendaryPage({
+      stateLabel: 'Known rival completed',
+      rivalIntel: {
+        wonderId: 'oracle-of-delphi',
+        activityCount: 2,
+        badgeLabel: '2 rival records',
+        stateLabel: 'Known rival completed',
+        summaryLine: 'Known rival completed: Rival completed Oracle of Delphi on turn 58.',
+        events: [
+          {
+            id: 'started:oracle-of-delphi:ai-1:41',
+            kind: 'started',
+            civId: 'ai-1',
+            civName: 'Rival',
+            turn: 41,
+            title: 'Spotted rival project',
+            text: 'Rival began Oracle of Delphi in Rival Harbor on turn 41.',
+          },
+          {
+            id: 'completed:oracle-of-delphi:ai-1:58',
+            kind: 'completed',
+            civId: 'ai-1',
+            civName: 'Rival',
+            turn: 58,
+            title: 'Known rival completed',
+            text: 'Rival completed Oracle of Delphi on turn 58.',
+          },
+        ],
+      },
+    }), { onAction: vi.fn(), onSelectRelated: vi.fn() });
+
+    const events = root.querySelectorAll('[data-rival-intel-event]');
+    expect(events).toHaveLength(2);
+    expect(events[0]?.getAttribute('data-rival-intel-event')).toBe('started');
+    expect(events[1]?.getAttribute('data-rival-intel-event')).toBe('completed');
+  });
+
+  it('renders no rival action buttons in the rival intel section', () => {
+    const root = createWonderCodexPage(legendaryPage({
+      stateLabel: 'Known rival completed',
+      actions: [],
+      rivalIntel: {
+        wonderId: 'oracle-of-delphi',
+        activityCount: 1,
+        badgeLabel: 'Known rival activity',
+        stateLabel: 'Known rival completed',
+        summaryLine: 'Known rival completed: Rival completed Oracle of Delphi on turn 58.',
+        events: [{
+          id: 'completed:oracle-of-delphi:ai-1:58',
+          kind: 'completed',
+          civId: 'ai-1',
+          civName: 'Rival',
+          turn: 58,
+          title: 'Known rival completed',
+          text: 'Rival completed Oracle of Delphi on turn 58.',
+        }],
+      },
+    }), { onAction: vi.fn(), onSelectRelated: vi.fn() });
+
+    const section = root.querySelector('[data-rival-intel-section]');
+    expect(section).not.toBeNull();
+    expect(section?.querySelector('button')).toBeNull();
+    expect(section?.querySelector('[data-codex-action]')).toBeNull();
+    expect(root.textContent).not.toContain('Reward:');
+    expect(root.textContent).not.toContain('Open City');
+    expect(root.textContent).not.toContain('View on Map');
+  });
+
+  it('does not render the rival intel section when rivalIntel is absent', () => {
+    const root = createWonderCodexPage(legendaryPage({ stateLabel: 'Quest in progress' }), {
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+
+    expect(root.querySelector('[data-rival-intel-section]')).toBeNull();
+  });
+});
