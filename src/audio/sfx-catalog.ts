@@ -21,7 +21,6 @@ export const MOVEMENT_SFX: Record<LocomotionClass, TrackEntry> = {
 };
 
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
-// Spy types have placeholder OGG stubs; real curation is deferred.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
   // === Foot Melee (attack-swing, attack-impact, death) ===
@@ -138,7 +137,7 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
 
   // === Spy Types (death only — spies are dispatched, never attack directly) ===
   spy_scout:     { death: real('sfx-spy_scout-death',     'audio/sfx/spy_scout-death.ogg',     0.600, 'death') },
-  spy_informant: { death: real('sfx-spy_informant-death', 'audio/sfx/spy_informant-death.ogg', 0.400, 'death') },
+  spy_informant: { death: real('sfx-spy_informant-death', 'audio/sfx/spy_informant-death.ogg', 0.572, 'death') },
   spy_agent:     { death: real('sfx-spy_agent-death',     'audio/sfx/spy_agent-death.ogg',     0.569, 'death') },
   spy_operative: { death: real('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg', 0.530, 'death') },
   spy_hacker:    { death: real('sfx-spy_hacker-death',    'audio/sfx/spy_hacker-death.ogg',    0.183, 'death') },
