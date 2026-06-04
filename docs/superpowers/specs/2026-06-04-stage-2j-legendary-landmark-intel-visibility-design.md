@@ -9,12 +9,12 @@
 
 Stage 2J lets the player see rival legendary landmarks only when the player has explicitly earned host/location intel. Earlier stages deliberately kept rival legendary completions as safe journal knowledge: the player could know that a rival completed a wonder without knowing where it was built. This stage adds the missing middle tier without weakening those privacy promises.
 
-The selected design is conservative for map and preview visibility. Existing `started` intel may continue to show a rival host city name as plain text because that snapshot already exists. Existing `completed` intel remains completion-only. Neither existing tier can create a rival map landmark, host-city action, or landmark preview. A new explicit `host-location-known` intel tier is required before known-rival landmarks can render on map, inspection, or Codex preview surfaces.
+The selected design is conservative for map and preview visibility. Existing `started` intel may continue to show a rival host city name as plain text because that snapshot already exists. Existing `completed` intel remains completion-only. Neither existing tier can create a rival map landmark, host-city action, or landmark preview by itself. A new explicit `host-location-known` intel tier is required before known-rival landmark surfaces can know where a rival wonder belongs, but completed landmark preview/map rendering also requires completed rival intel for the same wonder and rival. This avoids the misleading and less fun outcome where spying on a started rival project immediately paints it as a finished landmark.
 
 ## Goals
 
 - Add a new viewer-scoped `host-location-known` legendary wonder intel tier.
-- Render known-rival legendary landmarks only from `host-location-known` records.
+- Render known-rival legendary landmarks only from paired `host-location-known` and `completed` rival records.
 - Keep existing `started` intel as text-only host-name knowledge.
 - Keep existing `completed` intel from revealing host city, map coordinate, landmark preview, reward, progress, or action targets.
 - Preserve hot-seat privacy by reading only `state.legendaryWonderIntel[viewerId]`.
@@ -40,7 +40,7 @@ The player experience has three clear knowledge levels.
 
 `started` rival intel says a rival project was spotted. The Codex may show the stored rival city name as text, for example `Rival began Oracle of Delphi in Rival Harbor on turn 41`. This remains a historical spy snapshot. It does not become a map target or landmark preview.
 
-`host-location-known` rival intel says the viewer has explicitly learned the host city/location for a rival legendary wonder. This tier may show a compact known-rival landmark preview in the Codex and may create a known-rival map landmark entry if the stored coordinate is currently visible or fogged as an already-known map area for the viewer. The map marker is informational and decorative. It does not add an action target beyond existing tile/city inspection behavior.
+`host-location-known` rival intel says the viewer has explicitly learned the host city/location for a rival legendary wonder. By itself, this tier is host/location knowledge, not completion knowledge. The Codex may show a passive known-host line or event copy, but a compact known-rival landmark preview and known-rival map landmark entry appear only when a completed rival intel record also exists for the same viewer, wonder, and rival. The map marker is informational and decorative. It does not add an action target beyond existing tile/city inspection behavior.
 
 ## Player Truth Table
 
@@ -48,7 +48,7 @@ The player experience has three clear knowledge levels.
 |---|---|---|
 | Viewer has completed rival intel only | Codex shows known-rival completion text | No host city, map marker, landmark preview, reward, progress, or city action |
 | Viewer has started rival intel only | Codex event row may name the stored host city as text | No map marker, map action, preview, live city lookup, or coordinate |
-| Viewer has host-location-known intel only | Codex can show known host/location and compact landmark preview | No reward, progress, active ghost, quest text, production, or rival city action |
+| Viewer has host-location-known intel only | Codex can show known host/location as intel text | No landmark preview, map marker, reward, progress, active ghost, quest text, production, or rival city action |
 | Viewer has completed plus host-location-known intel | Summary prefers completed status and adds host/location preview as earned location knowledge | Do not infer missing fields from completion record |
 | Viewer has own state and rival location intel for same wonder | Owned label and owned actions remain primary; rival location appears as secondary intel | Do not replace owned status or owned city preview |
 | Hot-seat current player changes | Rival location marker/preview swaps to new viewer's records only | Do not retain previous viewer's DOM rows or map entries |
@@ -106,11 +106,11 @@ Add or extend system presentation helpers rather than duplicating privacy logic 
 
 `src/systems/legendary-wonder-intel-presentation.ts` owns rival intel summaries. It may expose a safe location view containing `wonderId`, `civName`, `cityName`, `coord`, `learnedTurn`, and copy labels. It must not expose rival `cityId` in page actions.
 
-`src/systems/legendary-wonder-landmark-presentation.ts` should add a known-rival helper that converts host-location intel into `LegendaryWonderLandmarkView` or a sibling safe view. It must draw from intel records and static landmark metadata only.
+`src/systems/legendary-wonder-landmark-presentation.ts` should add a known-rival helper that converts paired completion-plus-host-location intel into `LegendaryWonderLandmarkView` or a sibling safe view. It must draw from intel records and static landmark metadata only.
 
-`src/systems/legendary-wonder-map-presentation.ts` should add known-rival map entries by reading explicit host-location records, not live rival city data. Known-rival map entries should use `relationship: 'known-rival'`, the stored coordinate, the stored city name for labels, and completed landmark metadata. They must not produce under-construction ghosts.
+`src/systems/legendary-wonder-map-presentation.ts` should add known-rival map entries by reading explicit host-location records paired with completed rival records, not live rival city data. Known-rival map entries should use `relationship: 'known-rival'`, the stored coordinate, the stored city name for labels, and completed landmark metadata. They must not produce under-construction ghosts.
 
-`src/systems/wonder-codex/presentation.ts` should add known-rival landmark preview data only when the selected page has host-location intel. Owned previews stay primary and unchanged.
+`src/systems/wonder-codex/presentation.ts` should add known-rival landmark preview data only when the selected page has paired completion-plus-host-location intel. Owned previews stay primary and unchanged.
 
 UI modules render the resulting view models. They should not inspect raw rival projects, completed city IDs, or rival city objects.
 
@@ -119,12 +119,13 @@ UI modules render the resulting view models. They should not inspect raw rival p
 Map placement requires an explicit stored coordinate and viewer map knowledge of that coordinate. A known-rival landmark may render when:
 
 - the viewer has a `host-location-known` record for that wonder/rival/city
+- the viewer also has a `completed` rival intel record for the same wonder and rival
 - the coordinate in the record is at least known to the viewer as `visible` or `fog`
 - the coordinate is within the camera's visible screen area
 
 The map renderer must still be passive. It consumes safe entries from `getLegendaryWonderMapEntries(state, viewerId)` and draws the existing landmark medallion path. It must not decide whether the player earned intel.
 
-If a coordinate is currently `unexplored` for the viewer, no map marker renders even if a malformed record exists. If the coordinate is fogged, the marker may render as remembered intel because the record itself is location knowledge, but it must not read live rival city state.
+If a coordinate is currently `unexplored` for the viewer, no map marker renders even if a malformed record exists. If the coordinate is fogged, the marker may render as remembered intel because paired completion-plus-location records are already earned knowledge, but it must not read live rival city state.
 
 ## UI And UX
 
@@ -134,17 +135,19 @@ Codex pages should show:
 
 - owned state and owned landmark preview first, when present
 - rival summary and event log next
-- a compact `Known rival landmark` preview only when host-location intel exists
+- a passive known-host line when host-location intel exists before completion
+- a compact `Known rival landmark` preview only when paired completion-plus-host-location intel exists
 - copy such as `Known host: Rival Harbor` and `Location learned on turn 62`
 
 Codex pages must not show rival `Open City`, `View on Map`, or reward actions in this slice. Any separate design that adds a rival map action must define an explicit action contract with tests.
 
-Territory or tile inspection may list a known-rival legendary landmark when the inspected coordinate matches a host-location intel record for the current viewer. It should render as informational text and compact preview only.
+Territory or tile inspection may list a known-rival legendary landmark when the inspected coordinate matches paired completion-plus-host-location intel for the current viewer. It should render as informational text and compact preview only.
 
 ## Privacy And Failure Modes
 
 - Completed intel alone is insufficient.
 - Started intel alone is insufficient for map/preview surfaces.
+- Host-location intel alone is insufficient for completed landmark preview/map surfaces.
 - Hidden live rival city data is never used to fill missing intel fields.
 - Viewer A's host-location record never appears for viewer B.
 - Malformed records with unknown wonder IDs, missing city names, invalid coordinates, or self-rival civ IDs are sanitized away.
@@ -165,8 +168,9 @@ Presentation tests:
 
 - completed-only rival intel does not produce host/location landmark preview or map entries.
 - started-only rival intel may render city name text but does not produce preview or map entries.
-- host-location-known intel produces safe Codex preview data without rival city action targets.
-- host-location-known intel produces known-rival map entries only from stored coordinates.
+- host-location-known intel alone produces safe known-host text without rival city action targets.
+- paired host-location-known plus completed intel produces safe Codex preview data without rival city action targets.
+- paired host-location-known plus completed intel produces known-rival map entries only from stored coordinates.
 - hidden `completedLegendaryWonders` and rival city objects do not enrich missing host-location records.
 - hot-seat viewer switching swaps known-rival previews and map entries by viewer.
 - serialized view models do not contain rival `cityId` action targets, progress, quest steps, reward summaries, production, or live project fields.

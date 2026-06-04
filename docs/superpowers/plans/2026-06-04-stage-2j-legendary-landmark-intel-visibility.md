@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. For this repo and user, execute inline with `superpowers:executing-plans`; do not dispatch subagents unless the user explicitly authorizes them.
 
-**Goal:** Add explicit host/location rival intel for legendary landmarks so known-rival landmark previews and map markers render only from earned viewer-scoped records.
+**Goal:** Add explicit host/location rival intel so known-rival landmark previews and map markers render only from paired viewer-scoped location and completion records.
 
-**Architecture:** Keep privacy rules in system and presentation helpers. Add one new discriminated intel union member, mint it only in the canonical stationed-spy start-build path, then route safe views through Codex, inspection, map presentation, and the existing city landmark renderer. The UI and renderer consume safe view models and never inspect hidden rival projects, hidden completions, or rival city objects to enrich missing intel.
+**Architecture:** Keep privacy rules in system and presentation helpers. Add one new discriminated intel union member, mint it only in the canonical stationed-spy start-build path, then pair it with existing completed intel before producing finished landmark previews or map entries. The UI and renderer consume safe view models and never inspect hidden rival projects, hidden completions, or rival city objects to enrich missing intel.
 
 **Tech Stack:** TypeScript, Vitest, Canvas 2D city render passes, DOM UI helpers, existing legendary wonder metadata/rendering catalog, repo verification scripts.
 
@@ -39,18 +39,18 @@
 - Modify: `src/systems/legendary-wonder-intel-presentation.ts`
   - Add safe host-location event and summary support without city action IDs.
 - Modify: `src/systems/legendary-wonder-landmark-presentation.ts`
-  - Add known-rival landmark preview views sourced from host-location records and static metadata.
+  - Add known-rival landmark preview views sourced from paired host-location plus completed records and static metadata.
 - Modify: `src/systems/wonder-codex/presentation.ts`
   - Add `knownRivalLandmarkPreview` to legendary Codex pages.
   - Keep owned `landmarkPreview` primary.
 - Modify: `tests/systems/wonder-codex/presentation.test.ts`
-  - Cover completed-only, started-only, host-location, hot-seat, and no hidden live enrichment cases.
+  - Cover completed-only, started-only, host-location-only, paired host-location plus completed, hot-seat, and no hidden live enrichment cases.
 - Modify: `src/ui/wonder-codex-page.ts`
   - Render compact `Known rival landmark` preview from the new page view model only.
 - Modify: `tests/ui/wonder-codex-page.test.ts`
   - Cover visible copy and absence of rival actions.
 - Modify: `src/systems/legendary-wonder-map-presentation.ts`
-  - Add known-rival map entries from explicit stored coordinates and viewer visibility.
+  - Add known-rival map entries from paired completed-plus-location intel, explicit stored coordinates, and viewer visibility.
 - Modify: `tests/systems/legendary-wonder-map-presentation.test.ts`
   - Cover host-location, fog, unexplored, and partial intel negatives.
 - Modify: `src/renderer/city-renderer.ts`
@@ -62,7 +62,7 @@
 - Modify: `src/ui/territory-inspection-panel.ts`
   - Render known-rival landmark copy for the inspected coordinate from safe presentation data only.
 - Modify: `tests/ui/territory-inspection-panel.test.ts`
-  - Cover matching coordinate, viewer scoping, and started/completed-only negatives.
+  - Cover matching coordinate, viewer scoping, and started/completed/host-location-only negatives.
 
 ## Player Truth Table
 
@@ -70,23 +70,26 @@
 |---|---|---|---|---|
 | Codex shows completed rival intel only | Open legendary page | `completed` intel record only | `Known rival completed` text row | host city, coordinate, map marker, preview, reward, progress, city action |
 | Codex shows started rival intel only | Open legendary page | `started` intel record only | event row names stored city as historical text | coordinate, preview, map marker, live city lookup, city action |
-| Codex has host-location rival intel | Open legendary page | `host-location-known` record and metadata catalog | `Known rival landmark` preview with stored city name and learned turn | reward, quest steps, production, progress, rival `cityId` action target |
-| Map has host-location rival intel at visible coordinate | Pan camera over coordinate | map entry from stored coordinate | medallion landmark glyph renders below labels/badges | active construction ghost, live production badge, hidden rival project data |
-| Map has host-location rival intel at fog coordinate | Pan camera over coordinate | stored coordinate and viewer fog knowledge | landmark glyph renders as remembered location intel | live rival city population, current production, current status |
+| Codex has host-location rival intel only | Open legendary page | `host-location-known` record and metadata catalog | known-host event/copy with stored city name and learned turn | landmark preview, reward, quest steps, production, progress, rival `cityId` action target |
+| Codex has host-location plus completed rival intel | Open legendary page | paired `host-location-known` and `completed` records | `Known rival landmark` preview with stored city name and learned turn | reward, quest steps, production, progress, rival `cityId` action target |
+| Map has paired completed-plus-location intel at visible coordinate | Pan camera over coordinate | map entry from paired records and stored coordinate | medallion landmark glyph renders below labels/badges | active construction ghost, live production badge, hidden rival project data |
+| Map has paired completed-plus-location intel at fog coordinate | Pan camera over coordinate | stored coordinate and viewer fog knowledge | landmark glyph renders as remembered completed landmark intel | live rival city population, current production, current status |
 | Map has host-location rival intel at unexplored coordinate | Pan camera over coordinate | sanitized intel plus viewer visibility | no marker | all host/location visual output |
 | Hot-seat viewer changes | Open Codex or render map as another player | `state.legendaryWonderIntel[viewerId]` only | previous viewer's rows and markers disappear | previous viewer's host city and map marker |
 
 ## Misleading UI Risks
 
-- `Known rival landmark` must mean a `host-location-known` record exists for the current viewer.
+- `Known rival landmark` must mean both `host-location-known` and `completed` records exist for the same viewer, wonder, and rival.
+- Host-location-only intel must remain known-host text, not a finished landmark promise.
 - `Spotted rival project` must not imply map location; only the event text may name the stored city.
 - `Known rival completed` must not imply host city or reward visibility.
 - Owned preview and owned actions must remain primary when owned state and rival location intel coexist.
-- Negative tests must prove completed-only and started-only records cannot produce `knownRivalLandmarkPreview` or known-rival map entries.
+- Negative tests must prove completed-only, started-only, and host-location-only records cannot produce `knownRivalLandmarkPreview` or known-rival map entries.
 
 ## Interaction Replay Checklist
 
-- Open a Codex page with started-only rival intel, then reopen it with host-location intel and verify the preview appears from the new view model.
+- Open a Codex page with started-plus-location rival intel and verify only known-host copy appears.
+- Reopen the page after adding completed intel and verify the completed landmark preview appears from the new view model.
 - Open a Codex page with host-location intel as viewer A, then rerender as viewer B and verify host/location copy disappears.
 - Inspect a tile with matching host-location intel, then inspect a neighboring tile and verify the known-rival line disappears.
 - Render the city pass with known-rival map entries twice and verify landmark operations are stable and do not create production or status badge operations.
@@ -607,7 +610,7 @@ git commit -m "feat(wonders): record legendary host location intel"
 Add these tests to `tests/systems/wonder-codex/presentation.test.ts`:
 
 ```ts
-  it('adds known-rival landmark preview only from host-location intel', () => {
+  it('keeps host-location-only rival intel as known-host text without landmark preview', () => {
     const state = makeState();
     state.legendaryWonderIntel = {
       player: [{
@@ -627,7 +630,46 @@ Add these tests to `tests/systems/wonder-codex/presentation.test.ts`:
     const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
     const serialized = JSON.stringify(model.selectedPage);
 
-    expect(model.selectedPage?.stateLabel).toBe('Known rival landmark');
+    expect(model.selectedPage?.stateLabel).toBe('Known rival host');
+    expect(model.selectedPage?.knownRivalLandmarkPreview).toBeUndefined();
+    expect(model.selectedPage?.rivalIntel?.summaryLine).toContain('Known host: Rival Harbor');
+    expect(serialized).not.toContain('"cityId":"rival-city"');
+    expect(serialized).not.toContain('Reward:');
+    expect(model.selectedPage?.actions).toEqual([]);
+  });
+
+  it('adds known-rival landmark preview only from paired host-location and completed intel', () => {
+    const state = makeState();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          coord: { q: 4, r: 2 },
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    const serialized = JSON.stringify(model.selectedPage);
+
+    expect(model.selectedPage?.stateLabel).toBe('Known rival completed');
     expect(model.selectedPage?.knownRivalLandmarkPreview).toMatchObject({
       cityName: 'Rival Harbor',
       learnedTurn: 62,
@@ -698,7 +740,8 @@ Add these tests to `tests/systems/wonder-codex/presentation.test.ts`:
     const viewerA = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
     const viewerB = getWonderCodexViewModel(state, 'player-2', { initialWonderId: 'oracle-of-delphi' });
 
-    expect(viewerA.selectedPage?.knownRivalLandmarkPreview?.cityName).toBe('Rival Harbor');
+    expect(viewerA.selectedPage?.rivalIntel?.summaryLine).toContain('Known host: Rival Harbor');
+    expect(viewerA.selectedPage?.knownRivalLandmarkPreview).toBeUndefined();
     expect(viewerB.catalogEntries.some(entry => entry.id === 'oracle-of-delphi')).toBe(false);
     expect(viewerB.selectedPage).toBeNull();
   });
@@ -712,7 +755,7 @@ Run:
 ./scripts/run-with-mise.sh yarn test --run tests/systems/wonder-codex/presentation.test.ts
 ```
 
-Expected: FAIL because `knownRivalLandmarkPreview` and `Known rival landmark` do not exist.
+Expected: FAIL because host-location presentation and `knownRivalLandmarkPreview` do not exist.
 
 - [ ] **Step 3: Add safe host-location presentation types**
 
@@ -722,7 +765,7 @@ In `src/systems/legendary-wonder-intel-presentation.ts`, update the label and ev
 export type LegendaryWonderRivalIntelStateLabel =
   | 'Known rival completed'
   | 'Spotted rival project'
-  | 'Known rival landmark';
+  | 'Known rival host';
 
 export interface LegendaryWonderRivalIntelEventView {
   id: string;
@@ -745,7 +788,7 @@ export interface LegendaryWonderRivalHostLocationView {
 }
 ```
 
-Import `HexCoord` from `@/core/types`. Update `eventView`, `bestState`, and `summaryLine` so a host-location record renders:
+Import `HexCoord` from `@/core/types`. Update `eventView`, `bestState`, and `summaryLine` so a host-location record renders without implying completion:
 
 ```ts
   if (entry.kind === 'host-location-known') {
@@ -755,8 +798,8 @@ Import `HexCoord` from `@/core/types`. Update `eventView`, `bestState`, and `sum
       civId: entry.civId,
       civName: entry.civName,
       turn: entry.learnedTurn,
-      title: 'Known rival landmark',
-      text: `${entry.civName} hosts ${name} in ${entry.cityName}. Location learned on turn ${entry.learnedTurn}.`,
+      title: 'Known rival host',
+      text: `${entry.civName} location for ${name}: ${entry.cityName}. Location learned on turn ${entry.learnedTurn}.`,
     };
   }
 ```
@@ -766,9 +809,32 @@ Use this priority:
 ```ts
 function bestState(events: LegendaryWonderRivalIntelEventView[]): LegendaryWonderRivalIntelStateLabel {
   if (events.some(event => event.kind === 'completed')) return 'Known rival completed';
-  if (events.some(event => event.kind === 'host-location-known')) return 'Known rival landmark';
+  if (events.some(event => event.kind === 'started')) return 'Spotted rival project';
+  if (events.some(event => event.kind === 'host-location-known')) return 'Known rival host';
   return 'Spotted rival project';
 }
+```
+
+Update `summaryLine` so completed status remains primary, started status remains a construction clue, and host-only intel is useful but not celebratory:
+
+```ts
+  const location = [...events].reverse().find(event => event.kind === 'host-location-known');
+  if (completed) {
+    return location
+      ? `Known rival completed: ${completed.text} Known host: ${location.text}`
+      : `Known rival completed: ${completed.text}`;
+  }
+
+  const started = [...events].reverse().find(event => event.kind === 'started');
+  if (started) {
+    return location
+      ? `Last known: under construction. ${started.text} Known host: ${location.text}`
+      : `Last known: under construction. ${started.text}`;
+  }
+
+  if (location) {
+    return `Known host: ${location.text}`;
+  }
 ```
 
 Add a safe location selector:
@@ -802,6 +868,7 @@ In `src/systems/legendary-wonder-landmark-presentation.ts`, add:
 
 ```ts
 import { getLegendaryWonderHostLocationIntelForViewer } from '@/systems/legendary-wonder-intel-presentation';
+import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 ```
 
 Add these interfaces and function:
@@ -823,7 +890,11 @@ export function getKnownRivalLegendaryLandmarkPreviewForWonder(
   viewerId: string,
   wonderId: string,
 ): KnownRivalLegendaryLandmarkPreviewView | null {
-  const [location] = getLegendaryWonderHostLocationIntelForViewer(state, viewerId, wonderId);
+  const completion = getLegendaryWonderIntelForViewer(state, viewerId)
+    .find(entry => entry.kind === 'completed' && entry.wonderId === wonderId);
+  if (!completion) return null;
+  const [location] = getLegendaryWonderHostLocationIntelForViewer(state, viewerId, wonderId)
+    .filter(candidate => candidate.civId === completion.civId);
   if (!location) return null;
   return {
     cityName: location.cityName,
@@ -938,23 +1009,34 @@ Add this test to `tests/ui/wonder-codex-page.test.ts`:
 Add these tests to `tests/ui/territory-inspection-panel.test.ts`:
 
 ```ts
-  it('mentions known-rival legendary landmarks only on the matching known coordinate', () => {
+  it('mentions known-rival legendary landmarks only on the matching completed known coordinate', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     const rivalCoord = state.cities['city-rival'].position;
     state.civilizations.player.visibility.tiles[hexKey(rivalCoord)] = 'visible';
     state.legendaryWonderIntel = {
-      player: [{
-        kind: 'host-location-known',
-        eventId: 'location:oracle-of-delphi:rival:city-rival:62',
-        wonderId: 'oracle-of-delphi',
-        civId: 'rival',
-        civName: 'Rival',
-        cityId: 'city-rival',
-        cityName: 'Rival Harbor',
-        coord: rivalCoord,
-        learnedTurn: 62,
-        source: 'spy-location',
-      }],
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          coord: rivalCoord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:rival:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
     };
 
     const matching = createTerritoryInspectionPanel(state, rivalCoord, 'player');
@@ -966,7 +1048,7 @@ Add these tests to `tests/ui/territory-inspection-panel.test.ts`:
     expect(nearby.textContent).not.toContain('Known rival legendary landmark');
   });
 
-  it('does not mention known-rival landmarks from started or completed intel alone', () => {
+  it('does not mention known-rival landmarks from started, completed, or host-location intel alone', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     const rivalCoord = state.cities['city-rival'].position;
     state.civilizations.player.visibility.tiles[hexKey(rivalCoord)] = 'visible';
@@ -982,6 +1064,18 @@ Add these tests to `tests/ui/territory-inspection-panel.test.ts`:
           cityId: 'city-rival',
           cityName: 'Rival Harbor',
           revealedTurn: 41,
+        },
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          coord: rivalCoord,
+          learnedTurn: 62,
+          source: 'spy-location',
         },
         {
           kind: 'completed',
@@ -1046,13 +1140,20 @@ In `src/ui/territory-inspection-panel.ts`, import:
 
 ```ts
 import { getLegendaryWonderHostLocationIntelForViewer } from '@/systems/legendary-wonder-intel-presentation';
+import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 ```
 
 After the owned completed legendary wonder line, add:
 
 ```ts
+  const completedRivalKeys = new Set(
+    getLegendaryWonderIntelForViewer(state, viewerId)
+      .filter(entry => entry.kind === 'completed')
+      .map(entry => `${entry.wonderId}:${entry.civId}`),
+  );
   const knownRivalAtCoord = getLegendaryWonderHostLocationIntelForViewer(state, viewerId)
+    .filter(entry => completedRivalKeys.has(`${entry.wonderId}:${entry.civId}`))
     .filter(entry => hexKey(entry.coord) === key)
     .map(entry => {
       const definition = getLegendaryWonderDefinition(entry.wonderId);
@@ -1126,23 +1227,34 @@ git commit -m "feat(wonders): show known rival landmark previews"
 Add these tests to `tests/systems/legendary-wonder-map-presentation.test.ts`:
 
 ```ts
-  it('returns known-rival map entries from host-location intel at visible or fog coordinates', () => {
+  it('returns known-rival map entries from paired completed and host-location intel at visible or fog coordinates', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     const coord = state.cities['city-rival'].position;
     state.civilizations.player.visibility.tiles[hexKey(coord)] = 'visible';
     state.legendaryWonderIntel = {
-      player: [{
-        kind: 'host-location-known',
-        eventId: 'location:oracle-of-delphi:rival:city-rival:62',
-        wonderId: 'oracle-of-delphi',
-        civId: 'rival',
-        civName: 'Rival',
-        cityId: 'city-rival',
-        cityName: 'Rival Harbor',
-        coord,
-        learnedTurn: 62,
-        source: 'spy-location',
-      }],
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          coord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:rival:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
     };
 
     expect(getLegendaryWonderMapEntries(state, 'player')).toContainEqual(expect.objectContaining({
@@ -1162,10 +1274,10 @@ Add these tests to `tests/systems/legendary-wonder-map-presentation.test.ts`:
     }));
   });
 
-  it('does not return known-rival map entries for unexplored or partial rival intel', () => {
+  it('does not return known-rival map entries for unexplored, host-location-only, or completed-only intel', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     const coord = state.cities['city-rival'].position;
-    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'unexplored';
+    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'visible';
     state.legendaryWonderIntel = {
       player: [
         {
@@ -1181,8 +1293,8 @@ Add these tests to `tests/systems/legendary-wonder-map-presentation.test.ts`:
         },
         {
           kind: 'host-location-known',
-          eventId: 'location:grand-canal:rival:city-rival:62',
-          wonderId: 'grand-canal',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
           civId: 'rival',
           civName: 'Rival',
           cityId: 'city-rival',
@@ -1191,9 +1303,30 @@ Add these tests to `tests/systems/legendary-wonder-map-presentation.test.ts`:
           learnedTurn: 62,
           source: 'spy-location',
         },
+        {
+          kind: 'completed',
+          eventId: 'completed:grand-canal:rival:70',
+          wonderId: 'grand-canal',
+          civId: 'rival',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
       ],
     };
 
+    expect(getLegendaryWonderMapEntries(state, 'player').some(entry => entry.relationship === 'known-rival')).toBe(false);
+
+    state.legendaryWonderIntel.player.push({
+      kind: 'completed',
+      eventId: 'completed:oracle-of-delphi:rival:70',
+      wonderId: 'oracle-of-delphi',
+      civId: 'rival',
+      civName: 'Rival',
+      completionTurn: 70,
+      learnedTurn: 70,
+    });
+    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'unexplored';
     expect(getLegendaryWonderMapEntries(state, 'player').some(entry => entry.relationship === 'known-rival')).toBe(false);
   });
 ```
@@ -1203,23 +1336,34 @@ Add these tests to `tests/systems/legendary-wonder-map-presentation.test.ts`:
 Add these tests to `tests/renderer/city-renderer.test.ts` near the rival intel renderer tests:
 
 ```ts
-  it('draws known-rival landmark entries from host-location intel without live rival badges', () => {
+  it('draws known-rival landmark entries from paired intel without live rival labels or badges', () => {
     const state = createNewGame(undefined, 'known-rival-landmark-render', 'small');
     const coord = { q: 4, r: 2 };
     state.civilizations.player.visibility.tiles[hexKey(coord)] = 'fog';
     state.legendaryWonderIntel = {
-      player: [{
-        kind: 'host-location-known',
-        eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
-        wonderId: 'oracle-of-delphi',
-        civId: 'ai-1',
-        civName: 'Rival',
-        cityId: 'rival-city',
-        cityName: 'Rival Harbor',
-        coord,
-        learnedTurn: 62,
-        source: 'spy-location',
-      }],
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          coord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
     };
 
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
@@ -1227,8 +1371,10 @@ Add these tests to `tests/renderer/city-renderer.test.ts` near the rival intel r
 
     expect((ctx as unknown as MockCanvasContext).operations).toContain('legendary-landmarks:start');
     expect((ctx as unknown as MockCanvasContext).operations).toContain('city-pass:landmarks');
-    expect((ctx as unknown as MockCanvasContext).operations).not.toContain('city-pass:production');
-    expect((ctx as unknown as MockCanvasContext).operations).not.toContain('city-pass:status');
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(texts).not.toContain('Rival Harbor (0)');
+    expect(texts).not.toContain('🏗️');
+    expect(texts).not.toContain('⚡');
   });
 
   it('does not draw construction ghosts for known-rival location intel', () => {
@@ -1236,18 +1382,29 @@ Add these tests to `tests/renderer/city-renderer.test.ts` near the rival intel r
     const coord = { q: 4, r: 2 };
     state.civilizations.player.visibility.tiles[hexKey(coord)] = 'visible';
     state.legendaryWonderIntel = {
-      player: [{
-        kind: 'host-location-known',
-        eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
-        wonderId: 'oracle-of-delphi',
-        civId: 'ai-1',
-        civName: 'Rival',
-        cityId: 'rival-city',
-        cityName: 'Rival Harbor',
-        coord,
-        learnedTurn: 62,
-        source: 'spy-location',
-      }],
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          coord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
     };
 
     const entries = getLegendaryWonderMapEntries(state, 'player');
@@ -1278,6 +1435,7 @@ In `src/systems/legendary-wonder-map-presentation.ts`:
 import { hexKey } from '@/systems/hex-utils';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderHostLocationIntelForViewer } from '@/systems/legendary-wonder-intel-presentation';
+import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 ```
 
 Update `LegendaryWonderMapEntry`:
@@ -1299,11 +1457,17 @@ export interface LegendaryWonderMapEntry {
 }
 ```
 
-After owned city scanning, append known-rival entries:
+After owned city scanning, append known-rival entries only for paired completed-plus-location records:
 
 ```ts
+  const completedRivalKeys = new Set(
+    getLegendaryWonderIntelForViewer(state, viewerId)
+      .filter(entry => entry.kind === 'completed')
+      .map(entry => `${entry.wonderId}:${entry.civId}`),
+  );
   const seenKnownRival = new Set<string>();
   for (const location of getLegendaryWonderHostLocationIntelForViewer(state, viewerId)) {
+    if (!completedRivalKeys.has(`${location.wonderId}:${location.civId}`)) continue;
     const tileVisibility = getVisibility(visibility, location.coord);
     if (tileVisibility === 'unexplored') continue;
     const key = `${location.wonderId}:${location.civId}:${hexKey(location.coord)}`;
@@ -1571,7 +1735,7 @@ Run:
 ```bash
 gh pr create --draft --base main --head codex/stage-2j-legendary-landmark-intel --title "Stage 2J legendary landmark intel visibility" --body "## Summary
 - add explicit host/location legendary wonder intel records
-- show known-rival landmark previews and map markers only from earned location intel
+- show known-rival landmark previews and map markers only from paired location and completion intel
 - preserve started/completed rival privacy and hot-seat viewer scoping
 
 ## Tests
