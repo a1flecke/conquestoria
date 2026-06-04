@@ -158,3 +158,80 @@ describe('wonder-codex-panel', () => {
     container.remove();
   });
 });
+
+describe('wonder-codex-panel — rival intel catalog badge', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  function stateWithStartedIntelFor(viewerId: string): GameState {
+    const state = makeLegendaryWonderFixture();
+    state.currentPlayer = viewerId;
+    state.legendaryWonderIntel = {
+      [viewerId]: [{
+        kind: 'started',
+        eventId: 'started:oracle-of-delphi:ai-1:rival-city:12',
+        projectKey: 'oracle-of-delphi:ai-1:rival-city',
+        wonderId: 'oracle-of-delphi',
+        civId: 'ai-1',
+        civName: 'Rome',
+        cityId: 'rival-city',
+        cityName: 'Rome City',
+        revealedTurn: 12,
+      }],
+    };
+    return state;
+  }
+
+  it('shows rival intel badge on the catalog entry for the current viewer when they have intel', () => {
+    const state = stateWithStartedIntelFor('player');
+    const panel = createWonderCodexPanel(document.body, state, {
+      onViewOnMap: vi.fn(),
+      onOpenCity: vi.fn(),
+      onClose: vi.fn(),
+    });
+
+    const entryBtn = panel.querySelector('[data-codex-entry-id="oracle-of-delphi"]');
+    expect(entryBtn).not.toBeNull();
+    expect(entryBtn?.querySelector('[data-rival-intel-badge]')).not.toBeNull();
+    expect(entryBtn?.querySelector('[data-rival-intel-badge]')?.textContent).toContain('Known rival activity');
+  });
+
+  it('does not show rival intel badge when the current viewer has no intel for that wonder', () => {
+    const state = makeLegendaryWonderFixture();
+    state.currentPlayer = 'player';
+    // no legendaryWonderIntel set
+
+    const panel = createWonderCodexPanel(document.body, state, {
+      onViewOnMap: vi.fn(),
+      onOpenCity: vi.fn(),
+      onClose: vi.fn(),
+    });
+
+    const entryBtn = panel.querySelector('[data-codex-entry-id="oracle-of-delphi"]');
+    expect(entryBtn?.querySelector('[data-rival-intel-badge]')).toBeNull();
+  });
+
+  it('rival intel badge is keyed to currentPlayer — player-2 sees no badge when only player has intel', () => {
+    const playerState = stateWithStartedIntelFor('player');
+
+    // Same game state but now rendered for player-2 (who has no intel)
+    const player2State = { ...playerState, currentPlayer: 'player-2' };
+
+    const panel = createWonderCodexPanel(document.body, player2State, {
+      onViewOnMap: vi.fn(),
+      onOpenCity: vi.fn(),
+      onClose: vi.fn(),
+    });
+
+    // oracle-of-delphi is not visible to player-2 (they have no project and no intel)
+    // so the entry shouldn't appear in their catalog at all
+    const entryBtn = panel.querySelector('[data-codex-entry-id="oracle-of-delphi"]');
+    if (entryBtn) {
+      // If somehow visible, the badge must not show player's intel
+      expect(entryBtn.querySelector('[data-rival-intel-badge]')).toBeNull();
+    }
+    // Confirm player-2's catalog does not bleed player's intel into any entry
+    expect(panel.querySelectorAll('[data-rival-intel-badge]')).toHaveLength(0);
+  });
+});
