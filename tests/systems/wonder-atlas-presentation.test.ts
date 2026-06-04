@@ -222,4 +222,38 @@ describe('wonder-atlas-presentation', () => {
       rivalIntelCount: 0,
     });
   });
+
+  it('surfaces host-location rival intel without exposing map targeting data', () => {
+    const state = makeAtlasState();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          coord: { q: 4, r: 2 },
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+      ],
+    };
+
+    const oracle = getWonderAtlasEntries(state, 'player')
+      .find(entry => entry.kind === 'legendary' && entry.wonderId === 'oracle-of-delphi');
+
+    expect(oracle).toMatchObject({
+      kind: 'legendary',
+      stateLabel: 'Known rival host',
+      rivalIntelCount: 1,
+      rivalIntelBadgeLabel: 'Known rival activity',
+      canViewOnMap: false,
+    });
+    expect(JSON.stringify(oracle)).not.toContain('rival-city');
+    expect(JSON.stringify(oracle)).not.toContain('Rival Harbor');
+    expect(JSON.stringify(oracle)).not.toContain('"q":4');
+  });
 });

@@ -139,7 +139,7 @@ export interface LegendaryWonderHistory {
   discoveredSites: LegendaryWonderDiscoveredSiteRecord[];
 }
 
-export type LegendaryWonderIntelKind = 'started' | 'completed';
+export type LegendaryWonderIntelKind = 'started' | 'completed' | 'host-location-known';
 
 export interface LegacyLegendaryWonderStartedIntelEntry {
   projectKey: string;
@@ -177,14 +177,29 @@ export interface LegendaryWonderCompletedIntelEntry {
   learnedTurn: number;
 }
 
+export interface LegendaryWonderHostLocationIntelEntry {
+  kind: 'host-location-known';
+  eventId: string;
+  wonderId: string;
+  civId: string;
+  civName: string;
+  cityId: string;
+  cityName: string;
+  coord: HexCoord;
+  learnedTurn: number;
+  source: 'spy-location' | 'map-intel' | 'debug-grant';
+}
+
 export type LegendaryWonderIntelEntry =
   | LegacyLegendaryWonderStartedIntelEntry
   | LegendaryWonderStartedIntelEntry
-  | LegendaryWonderCompletedIntelEntry;
+  | LegendaryWonderCompletedIntelEntry
+  | LegendaryWonderHostLocationIntelEntry;
 
 export type NormalizedLegendaryWonderIntelEntry =
   | LegendaryWonderStartedIntelEntry
-  | LegendaryWonderCompletedIntelEntry;
+  | LegendaryWonderCompletedIntelEntry
+  | LegendaryWonderHostLocationIntelEntry;
 
 // --- Tribal Villages ---
 

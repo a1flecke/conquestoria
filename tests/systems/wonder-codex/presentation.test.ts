@@ -189,6 +189,110 @@ describe('wonder-codex presentation', () => {
     expect(model.selectedPage?.actions).toEqual([]);
   });
 
+  it('keeps host-location-only rival intel as known-host text without landmark preview', () => {
+    const state = makeState();
+    state.legendaryWonderIntel = {
+      player: [{
+        kind: 'host-location-known',
+        eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+        wonderId: 'oracle-of-delphi',
+        civId: 'ai-1',
+        civName: 'Rival',
+        cityId: 'rival-city',
+        cityName: 'Rival Harbor',
+        coord: { q: 4, r: 2 },
+        learnedTurn: 62,
+        source: 'spy-location',
+      }],
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    const serialized = JSON.stringify(model.selectedPage);
+
+    expect(model.selectedPage?.stateLabel).toBe('Known rival host');
+    expect(model.selectedPage?.knownRivalLandmarkPreview).toBeUndefined();
+    expect(model.selectedPage?.rivalIntel?.summaryLine).toContain('Known host: Rival Harbor');
+    expect(serialized).not.toContain('"cityId":"rival-city"');
+    expect(serialized).not.toContain('Reward:');
+    expect(model.selectedPage?.actions).toEqual([]);
+  });
+
+  it('adds known-rival landmark preview only from paired host-location and completed intel', () => {
+    const state = makeState();
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          coord: { q: 4, r: 2 },
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    const serialized = JSON.stringify(model.selectedPage);
+
+    expect(model.selectedPage?.stateLabel).toBe('Known rival completed');
+    expect(model.selectedPage?.knownRivalLandmarkPreview).toMatchObject({
+      cityName: 'Rival Harbor',
+      learnedTurn: 62,
+      items: [{ wonderId: 'oracle-of-delphi', label: 'Oracle of Delphi', state: 'completed' }],
+    });
+    expect(serialized).not.toContain('"cityId":"rival-city"');
+    expect(serialized).not.toContain('Reward:');
+    expect(model.selectedPage?.actions).toEqual([]);
+  });
+
+  it('keeps host-location intel scoped to the current hot-seat viewer', () => {
+    const state = makeState();
+    state.civilizations['player-2'] = {
+      ...state.civilizations.player,
+      id: 'player-2',
+      name: 'Second Player',
+      isHuman: true,
+      cities: [],
+      units: [],
+    };
+    state.legendaryWonderIntel = {
+      player: [{
+        kind: 'host-location-known',
+        eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+        wonderId: 'oracle-of-delphi',
+        civId: 'ai-1',
+        civName: 'Rival',
+        cityId: 'rival-city',
+        cityName: 'Rival Harbor',
+        coord: { q: 4, r: 2 },
+        learnedTurn: 62,
+        source: 'spy-location',
+      }],
+    };
+
+    const viewerA = getWonderCodexViewModel(state, 'player', { initialWonderId: 'oracle-of-delphi' });
+    const viewerB = getWonderCodexViewModel(state, 'player-2', { initialWonderId: 'oracle-of-delphi' });
+
+    expect(viewerA.selectedPage?.rivalIntel?.summaryLine).toContain('Known host: Rival Harbor');
+    expect(viewerA.selectedPage?.knownRivalLandmarkPreview).toBeUndefined();
+    expect(viewerB.catalogEntries.some(entry => entry.id === 'oracle-of-delphi')).toBe(false);
+    expect(viewerB.selectedPage).toBeNull();
+  });
+
   it('keeps owned state primary when owned state and rival intel both exist', () => {
     const state = makeState();
     state.legendaryWonderProjects = {

@@ -5,6 +5,7 @@ import { getTechById } from '@/systems/tech-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { routeMatchesLegendaryWonderRequirement } from '@/systems/trade-route-classification';
 import {
+  createHostLocationLegendaryWonderIntelEntry,
   createStartedLegendaryWonderIntelEntry,
   recordKnownHumanLegendaryWonderCompletionIntel,
   recordLegendaryWonderIntel,
@@ -655,6 +656,26 @@ export function startLegendaryWonderBuild(
         revealedTurn: state.turn,
       }),
     );
+    if (city) {
+      legendaryWonderIntel = recordLegendaryWonderIntel(
+        {
+          ...seededState,
+          legendaryWonderIntel,
+        },
+        observerId,
+        createHostLocationLegendaryWonderIntelEntry({
+          projectKey,
+          wonderId: project.wonderId,
+          civId,
+          civName: civilization?.name ?? civId,
+          cityId,
+          cityName: city.name,
+          coord: city.position,
+          learnedTurn: state.turn,
+          source: 'spy-location',
+        }),
+      );
+    }
     bus?.emit('wonder:legendary-race-revealed', {
       observerId,
       civId,

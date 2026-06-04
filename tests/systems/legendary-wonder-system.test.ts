@@ -559,10 +559,62 @@ describe('legendary-wonder-system', () => {
         cityId: 'city-river',
         intelLevel: 'started',
       }),
+      expect.objectContaining({
+        kind: 'host-location-known',
+        wonderId: 'oracle-of-delphi',
+        civId: 'player',
+        cityId: 'city-river',
+        cityName: state.cities['city-river'].name,
+        coord: state.cities['city-river'].position,
+        learnedTurn: state.turn,
+        source: 'spy-location',
+      }),
     ]));
     expect(revealedEvents).toEqual([
       { observerId: 'observer', civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi' },
     ]);
+  });
+
+  it('does not record host-location intel for the builder or when the host city is missing', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+    state.turn = 41;
+    state.legendaryWonderProjects = {
+      'oracle-of-delphi:rival:missing-city': {
+        wonderId: 'oracle-of-delphi',
+        ownerId: 'rival',
+        cityId: 'missing-city',
+        phase: 'ready_to_build',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+    state.espionage = {
+      rival: {
+        spies: {
+          selfSpy: {
+            id: 'selfSpy',
+            name: 'Self',
+            owner: 'rival',
+            unitType: 'spy_scout',
+            status: 'stationed',
+            targetCivId: 'rival',
+            targetCityId: 'missing-city',
+            position: { q: 0, r: 0 },
+            experience: 0,
+            currentMission: null,
+            cooldownTurns: 0,
+            promotionAvailable: false,
+          },
+        },
+        maxSpies: 1,
+        counterIntelligence: {},
+      },
+    };
+
+    const result = startLegendaryWonderBuild(state, 'rival', 'missing-city', 'oracle-of-delphi');
+
+    expect(result.legendaryWonderIntel?.rival).toBeUndefined();
   });
 
   it('preserves every queued city item when a legendary wonder starts, even from a full queue', () => {

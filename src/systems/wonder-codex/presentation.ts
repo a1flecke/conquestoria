@@ -14,7 +14,9 @@ import {
   type LegendaryWonderRivalIntelSummary,
 } from '@/systems/legendary-wonder-intel-presentation';
 import {
+  getKnownRivalLegendaryLandmarkPreviewForWonder,
   getLegendaryLandmarkPreviewViewForCity,
+  type KnownRivalLegendaryLandmarkPreviewView,
   type LegendaryWonderLandmarkPreviewView,
 } from '@/systems/legendary-wonder-landmark-presentation';
 
@@ -52,6 +54,7 @@ export interface WonderCodexPageViewModel extends WonderCodexCatalogEntry {
   statusLines: string[];
   rivalIntel?: LegendaryWonderRivalIntelSummary;
   landmarkPreview?: LegendaryWonderLandmarkPreviewView;
+  knownRivalLandmarkPreview?: KnownRivalLegendaryLandmarkPreviewView;
   canStartBuild?: boolean;
   questSteps?: Array<{ id: string; description: string; completed: boolean }>;
   sections: WonderCodexSection[];
@@ -189,6 +192,7 @@ function buildLegendaryStatus(
   const statusLines = [`Status: ${label}`];
   const ownsKnownState = label !== 'Legendary wonder'
     && label !== 'Known rival completed'
+    && label !== 'Known rival host'
     && label !== 'Spotted rival project';
   if (definition && ownsKnownState) statusLines.push(`Reward: ${definition.reward.summary}`);
 
@@ -233,6 +237,9 @@ function buildPage(
   const landmarkPreview = cityIdForPreview
     ? getLegendaryLandmarkPreviewViewForCity(state, viewerId, cityIdForPreview)
     : null;
+  const knownRivalLandmarkPreview = entry.kind === 'legendary'
+    ? getKnownRivalLegendaryLandmarkPreviewForWonder(state, viewerId, entry.id)
+    : null;
 
   return {
     ...entry,
@@ -248,6 +255,7 @@ function buildPage(
     statusLines: status.statusLines,
     ...(rivalIntel ? { rivalIntel } : {}),
     ...(landmarkPreview ? { landmarkPreview } : {}),
+    ...(knownRivalLandmarkPreview ? { knownRivalLandmarkPreview } : {}),
     canStartBuild: status.canStartBuild,
     ...(status.questSteps ? { questSteps: status.questSteps } : {}),
     sections: content.sections.map(section => ({ ...section })),

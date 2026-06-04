@@ -4,6 +4,7 @@ import { drawCities, getCityRenderData, getProductionBadgeIcon } from '@/rendere
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
+import { getLegendaryWonderMapEntries } from '@/systems/legendary-wonder-map-presentation';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -514,6 +515,86 @@ describe('drawCities — explicit city render pass contract', () => {
     drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
 
     expect((ctx as unknown as MockCanvasContext).operations).not.toContain('legendary-landmarks:start');
+  });
+
+  it('draws known-rival landmark entries from paired intel without live rival labels or badges', () => {
+    const state = createNewGame(undefined, 'known-rival-landmark-render', 'small');
+    const coord = { q: 4, r: 2 };
+    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'fog';
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          coord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    expect((ctx as unknown as MockCanvasContext).operations).toContain('legendary-landmarks:start');
+    expect((ctx as unknown as MockCanvasContext).operations).toContain('city-pass:landmarks');
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(texts).not.toContain('Rival Harbor (0)');
+    expect(texts).not.toContain('🏗️');
+    expect(texts).not.toContain('⚡');
+  });
+
+  it('does not draw construction ghosts for known-rival location intel', () => {
+    const state = createNewGame(undefined, 'known-rival-no-ghost', 'small');
+    const coord = { q: 4, r: 2 };
+    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'visible';
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:ai-1:rival-city:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          cityId: 'rival-city',
+          cityName: 'Rival Harbor',
+          coord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:ai-1:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'ai-1',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
+    };
+
+    const entries = getLegendaryWonderMapEntries(state, 'player');
+
+    expect(entries).toContainEqual(expect.objectContaining({
+      relationship: 'known-rival',
+      state: 'completed',
+      progressRatio: undefined,
+    }));
   });
 });
 

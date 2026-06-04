@@ -14,6 +14,7 @@ export interface CityRenderProjection {
   owner: string;
   isLive: boolean;
   liveCityId?: string;
+  renderMode?: 'city' | 'landmark-only';
 }
 
 export interface CityRenderItem {
@@ -67,6 +68,7 @@ function markPass(ctx: CanvasRenderingContext2D, passName: CityRenderPassName): 
 }
 
 export function drawCityBasePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'base');
   ctx.beginPath();
   ctx.arc(item.screen.x, item.screen.y, item.size * 0.45, 0, Math.PI * 2);
@@ -78,6 +80,7 @@ export function drawCityBasePass(ctx: CanvasRenderingContext2D, item: CityRender
 }
 
 export function drawCityIconPass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'icon');
   ctx.font = `${item.size * 0.45}px system-ui`;
   ctx.textAlign = 'center';
@@ -106,6 +109,7 @@ export function drawCityLandmarkPass(ctx: CanvasRenderingContext2D, item: CityRe
 }
 
 export function drawCityLabelPass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'label');
   ctx.font = `bold ${Math.max(9, item.size * 0.22)}px system-ui`;
   ctx.fillStyle = '#fff';
@@ -119,6 +123,7 @@ export function drawCityLabelPass(ctx: CanvasRenderingContext2D, item: CityRende
 }
 
 export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'status');
   if (!item.projection.isLive || !item.city) return;
 
@@ -139,6 +144,7 @@ export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: Cit
 }
 
 export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'production');
   if (!item.projection.isLive || !item.city || item.city.owner !== item.playerCivId) return;
 
@@ -165,6 +171,7 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
 }
 
 export function drawCityIdleBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'idle');
   if (
     !item.projection.isLive ||
