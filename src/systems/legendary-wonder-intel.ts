@@ -1,6 +1,8 @@
 import type {
   GameState,
+  HexCoord,
   LegendaryWonderCompletedIntelEntry,
+  LegendaryWonderHostLocationIntelEntry,
   LegendaryWonderIntelEntry,
   LegendaryWonderStartedIntelEntry,
   NormalizedLegendaryWonderIntelEntry,
@@ -14,6 +16,14 @@ function startedEventId(projectKey: string, revealedTurn: number): string {
 
 function completedEventId(wonderId: string, civId: string, completionTurn: number): string {
   return `completed:${wonderId}:${civId}:${completionTurn}`;
+}
+
+function hostLocationEventId(projectKey: string, learnedTurn: number): string {
+  return `location:${projectKey}:${learnedTurn}`;
+}
+
+function isValidCoord(coord: HexCoord | undefined): coord is HexCoord {
+  return !!coord && Number.isFinite(coord.q) && Number.isFinite(coord.r);
 }
 
 export function normalizeLegendaryWonderIntelEntry(
@@ -32,6 +42,17 @@ export function normalizeLegendaryWonderIntelEntry(
       ...entry,
       eventId: entry.eventId || startedEventId(entry.projectKey, entry.revealedTurn),
       intelLevel: entry.intelLevel,
+    };
+  }
+
+  if (entry.kind === 'host-location-known') {
+    if (!getLegendaryWonderDefinition(entry.wonderId)) return null;
+    if (!entry.eventId || !entry.civId || !entry.civName || !entry.cityId || !entry.cityName) return null;
+    if (!isValidCoord(entry.coord)) return null;
+    if (entry.source !== 'spy-location' && entry.source !== 'map-intel' && entry.source !== 'debug-grant') return null;
+    return {
+      ...entry,
+      coord: { ...entry.coord },
     };
   }
 
@@ -64,7 +85,7 @@ export function sanitizeLegendaryWonderIntel(
         const seen = new Set<string>();
         for (const entry of entries) {
           const safeEntry = normalizeLegendaryWonderIntelEntry(entry);
-          if (!safeEntry || seen.has(safeEntry.eventId)) continue;
+          if (!safeEntry || safeEntry.civId === viewerId || seen.has(safeEntry.eventId)) continue;
           seen.add(safeEntry.eventId);
           normalized.push(safeEntry);
         }
@@ -132,6 +153,31 @@ export function createCompletedLegendaryWonderIntelEntry(input: {
     kind: 'completed',
     eventId: completedEventId(input.wonderId, input.civId, input.completionTurn),
     ...input,
+  };
+}
+
+export function createHostLocationLegendaryWonderIntelEntry(input: {
+  projectKey: string;
+  wonderId: string;
+  civId: string;
+  civName: string;
+  cityId: string;
+  cityName: string;
+  coord: HexCoord;
+  learnedTurn: number;
+  source: LegendaryWonderHostLocationIntelEntry['source'];
+}): LegendaryWonderHostLocationIntelEntry {
+  return {
+    kind: 'host-location-known',
+    eventId: hostLocationEventId(input.projectKey, input.learnedTurn),
+    wonderId: input.wonderId,
+    civId: input.civId,
+    civName: input.civName,
+    cityId: input.cityId,
+    cityName: input.cityName,
+    coord: { ...input.coord },
+    learnedTurn: input.learnedTurn,
+    source: input.source,
   };
 }
 

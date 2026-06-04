@@ -211,6 +211,29 @@ export function createWonderCodexPage(
     root.appendChild(preview);
   }
 
+  if (page.knownRivalLandmarkPreview) {
+    const preview = document.createElement('section');
+    preview.dataset.section = 'known-rival-landmark-preview';
+    preview.style.cssText = 'border:1px solid rgba(232,193,112,0.24);border-radius:8px;padding:10px;background:rgba(232,193,112,0.07);display:grid;gap:6px;';
+    appendText(preview, 'h4', 'Known rival landmark', 'margin:0;font-size:13px;color:#f4d188;');
+    appendText(
+      preview,
+      'p',
+      `${page.knownRivalLandmarkPreview.civName} host: ${page.knownRivalLandmarkPreview.cityName}. Location learned on turn ${page.knownRivalLandmarkPreview.learnedTurn}.`,
+      'margin:0;font-size:12px;color:rgba(248,241,223,0.74);',
+    );
+    const list = document.createElement('ul');
+    list.style.cssText = 'margin:0;padding-left:18px;display:grid;gap:4px;font-size:12px;color:rgba(248,241,223,0.74);';
+    for (const item of page.knownRivalLandmarkPreview.items) {
+      const li = document.createElement('li');
+      li.dataset.knownRivalLandmarkPreview = item.wonderId;
+      li.textContent = `${item.label} - Completed`;
+      list.appendChild(li);
+    }
+    preview.appendChild(list);
+    root.appendChild(preview);
+  }
+
   if (page.rivalIntel) {
     const rivalIntel = document.createElement('section');
     rivalIntel.dataset.rivalIntelSection = 'true';

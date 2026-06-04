@@ -1,12 +1,15 @@
-import type { GameState, NormalizedLegendaryWonderIntelEntry } from '@/core/types';
+import type { GameState, HexCoord, NormalizedLegendaryWonderIntelEntry } from '@/core/types';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 
-export type LegendaryWonderRivalIntelStateLabel = 'Known rival completed' | 'Spotted rival project';
+export type LegendaryWonderRivalIntelStateLabel =
+  | 'Known rival completed'
+  | 'Spotted rival project'
+  | 'Known rival host';
 
 export interface LegendaryWonderRivalIntelEventView {
   id: string;
-  kind: 'started' | 'completed';
+  kind: 'started' | 'completed' | 'host-location-known';
   civId: string;
   civName: string;
   turn: number;
@@ -21,6 +24,16 @@ export interface LegendaryWonderRivalIntelSummary {
   stateLabel: LegendaryWonderRivalIntelStateLabel;
   summaryLine: string;
   events: LegendaryWonderRivalIntelEventView[];
+}
+
+export interface LegendaryWonderRivalHostLocationView {
+  id: string;
+  wonderId: string;
+  civId: string;
+  civName: string;
+  cityName: string;
+  coord: HexCoord;
+  learnedTurn: number;
 }
 
 function wonderName(wonderId: string): string {
@@ -41,6 +54,18 @@ function eventView(entry: NormalizedLegendaryWonderIntelEntry): LegendaryWonderR
     };
   }
 
+  if (entry.kind === 'host-location-known') {
+    return {
+      id: entry.eventId,
+      kind: 'host-location-known',
+      civId: entry.civId,
+      civName: entry.civName,
+      turn: entry.learnedTurn,
+      title: 'Known rival host',
+      text: `${entry.cityName} for ${name}. Location learned on turn ${entry.learnedTurn}.`,
+    };
+  }
+
   return {
     id: entry.eventId,
     kind: 'started',
@@ -53,20 +78,30 @@ function eventView(entry: NormalizedLegendaryWonderIntelEntry): LegendaryWonderR
 }
 
 function bestState(events: LegendaryWonderRivalIntelEventView[]): LegendaryWonderRivalIntelStateLabel {
-  return events.some(event => event.kind === 'completed')
-    ? 'Known rival completed'
-    : 'Spotted rival project';
+  if (events.some(event => event.kind === 'completed')) return 'Known rival completed';
+  if (events.some(event => event.kind === 'started')) return 'Spotted rival project';
+  if (events.some(event => event.kind === 'host-location-known')) return 'Known rival host';
+  return 'Spotted rival project';
 }
 
 function summaryLine(wonderId: string, events: LegendaryWonderRivalIntelEventView[]): string {
   const completed = [...events].reverse().find(event => event.kind === 'completed');
+  const location = [...events].reverse().find(event => event.kind === 'host-location-known');
   if (completed) {
-    return `Known rival completed: ${completed.text}`;
+    return location
+      ? `Known rival completed: ${completed.text} Known host: ${location.text}`
+      : `Known rival completed: ${completed.text}`;
   }
 
   const started = [...events].reverse().find(event => event.kind === 'started');
   if (started) {
-    return `Last known: under construction. ${started.text}`;
+    return location
+      ? `Last known: under construction. ${started.text} Known host: ${location.text}`
+      : `Last known: under construction. ${started.text}`;
+  }
+
+  if (location) {
+    return `Known host: ${location.text}`;
   }
 
   return `No known rival activity for ${wonderName(wonderId)}.`;
@@ -114,4 +149,25 @@ export function isLegendaryWonderVisibleToPlayer(
   if (owned && owned.phase !== 'locked') return true;
   const summaries = precomputedRivalIntel ?? getLegendaryWonderRivalIntelSummariesForViewer(state, viewerId);
   return summaries.has(wonderId);
+}
+
+export function getLegendaryWonderHostLocationIntelForViewer(
+  state: GameState,
+  viewerId: string,
+  wonderId?: string,
+): LegendaryWonderRivalHostLocationView[] {
+  return getLegendaryWonderIntelForViewer(state, viewerId)
+    .filter((entry): entry is Extract<NormalizedLegendaryWonderIntelEntry, { kind: 'host-location-known' }> =>
+      entry.kind === 'host-location-known' && (!wonderId || entry.wonderId === wonderId),
+    )
+    .map(entry => ({
+      id: entry.eventId,
+      wonderId: entry.wonderId,
+      civId: entry.civId,
+      civName: entry.civName,
+      cityName: entry.cityName,
+      coord: { ...entry.coord },
+      learnedTurn: entry.learnedTurn,
+    }))
+    .sort((a, b) => b.learnedTurn - a.learnedTurn || a.civName.localeCompare(b.civName) || a.id.localeCompare(b.id));
 }

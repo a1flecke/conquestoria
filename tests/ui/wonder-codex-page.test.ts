@@ -150,6 +150,35 @@ describe('wonder-codex-page', () => {
     expect(root.querySelector('[data-codex-action="open-city"]')).toBeNull();
   });
 
+  it('renders known-rival landmark preview without rival actions', () => {
+    const root = createWonderCodexPage(page({
+      id: 'oracle-of-delphi',
+      kind: 'legendary',
+      title: 'Oracle of Delphi',
+      subtitle: 'A sanctuary of prophecy.',
+      stateLabel: 'Known rival completed',
+      visual: getWonderVisualDefinition('oracle-of-delphi'),
+      actions: [],
+      landmarkPreview: undefined,
+      knownRivalLandmarkPreview: {
+        cityName: 'Rival Harbor',
+        civName: 'Rival',
+        learnedTurn: 62,
+        items: [{
+          wonderId: 'oracle-of-delphi',
+          label: 'Oracle of Delphi',
+          state: 'completed',
+        }],
+      },
+    }), { onAction: vi.fn(), onSelectRelated: vi.fn() });
+
+    expect(root.querySelector('[data-section="known-rival-landmark-preview"]')?.textContent).toContain('Known rival landmark');
+    expect(root.textContent).toContain('Rival Harbor');
+    expect(root.textContent).toContain('Location learned on turn 62');
+    expect(root.querySelector('[data-codex-action="open-city"]')).toBeNull();
+    expect(root.querySelector('[data-codex-action="view-map"]')).toBeNull();
+  });
+
   it('keeps reduced-motion Codex spectacle static', () => {
     const onReplayNaturalWonder = vi.fn();
     const root = createWonderCodexPage(page(), {

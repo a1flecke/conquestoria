@@ -1,5 +1,10 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
+import { hexKey } from '@/systems/hex-utils';
+import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
+import { getLegendaryWonderHostLocationIntelForViewer } from '@/systems/legendary-wonder-intel-presentation';
+import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import {
   getActiveLegendaryConstructionGhostForCity,
   getCompletedLegendaryLandmarksForCity,
@@ -9,7 +14,8 @@ import { getWonderVisualDefinition, type WonderVisualDefinition } from '@/system
 
 export interface LegendaryWonderMapEntry {
   wonderId: string;
-  cityId: string;
+  cityId?: string;
+  cityName?: string;
   coord: HexCoord;
   ownerId: string;
   relationship: 'owned' | 'known-rival';
@@ -59,6 +65,34 @@ export function getLegendaryWonderMapEntries(state: GameState, viewerId: string)
         progressRatio: ghost.progressRatio,
       });
     }
+  }
+
+  const completedRivalKeys = new Set(
+    getLegendaryWonderIntelForViewer(state, viewerId)
+      .filter(entry => entry.kind === 'completed')
+      .map(entry => `${entry.wonderId}:${entry.civId}`),
+  );
+  const seenKnownRival = new Set<string>();
+  for (const location of getLegendaryWonderHostLocationIntelForViewer(state, viewerId)) {
+    if (!completedRivalKeys.has(`${location.wonderId}:${location.civId}`)) continue;
+    const tileVisibility = getVisibility(visibility, location.coord);
+    if (tileVisibility === 'unexplored') continue;
+    const key = `${location.wonderId}:${location.civId}:${hexKey(location.coord)}`;
+    if (seenKnownRival.has(key)) continue;
+    seenKnownRival.add(key);
+    entries.push({
+      wonderId: location.wonderId,
+      cityName: location.cityName,
+      coord: { ...location.coord },
+      ownerId: location.civId,
+      relationship: 'known-rival',
+      state: 'completed',
+      turnCompleted: location.learnedTurn,
+      label: getLegendaryWonderDefinition(location.wonderId)?.name ?? 'Legendary wonder',
+      visual: getWonderVisualDefinition(location.wonderId),
+      metadata: getLegendaryWonderLandmarkMetadata(location.wonderId),
+      progressRatio: undefined,
+    });
   }
   return entries;
 }

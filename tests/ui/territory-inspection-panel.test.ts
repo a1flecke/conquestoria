@@ -204,6 +204,129 @@ describe('createTerritoryInspectionPanel', () => {
     expect(panel.textContent).toContain('Grand Canal');
     expect(panel.textContent).toContain('Tidecaller Bastion');
   });
+
+  it('mentions known-rival legendary landmarks only on the matching completed known coordinate', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    const rivalCoord = state.cities['city-rival'].position;
+    state.civilizations.player.visibility.tiles[hexKey(rivalCoord)] = 'visible';
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          coord: rivalCoord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:rival:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
+    };
+
+    const matching = createTerritoryInspectionPanel(state, rivalCoord, 'player');
+    const nearby = createTerritoryInspectionPanel(state, { q: rivalCoord.q + 1, r: rivalCoord.r }, 'player');
+
+    expect(matching.textContent).toContain('Known rival legendary landmark');
+    expect(matching.textContent).toContain('Oracle of Delphi');
+    expect(matching.textContent).toContain('Rival Harbor');
+    expect(nearby.textContent).not.toContain('Known rival legendary landmark');
+  });
+
+  it('mentions remembered known-rival legendary landmarks on fogged matching coordinates', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    const rivalCoord = state.cities['city-rival'].position;
+    state.civilizations.player.visibility.tiles[hexKey(rivalCoord)] = 'fog';
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          coord: rivalCoord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:rival:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
+    };
+
+    const panel = createTerritoryInspectionPanel(state, rivalCoord, 'player');
+
+    expect(panel.textContent).toContain('Known rival legendary landmark');
+    expect(panel.textContent).toContain('Oracle of Delphi');
+    expect(panel.textContent).toContain('Rival Harbor');
+    expect(panel.textContent).toContain('Last seen information only');
+  });
+
+  it('does not mention known-rival landmarks from started, completed, or host-location intel alone', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    const rivalCoord = state.cities['city-rival'].position;
+    state.civilizations.player.visibility.tiles[hexKey(rivalCoord)] = 'visible';
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'started',
+          eventId: 'started:oracle-of-delphi:rival:city-rival:41',
+          projectKey: 'oracle-of-delphi:rival:city-rival',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+        },
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          coord: rivalCoord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:grand-canal:rival:58',
+          wonderId: 'grand-canal',
+          civId: 'rival',
+          civName: 'Rival',
+          completionTurn: 58,
+          learnedTurn: 58,
+        },
+      ],
+    };
+
+    const panel = createTerritoryInspectionPanel(state, rivalCoord, 'player');
+
+    expect(panel.textContent).not.toContain('Known rival legendary landmark');
+  });
 });
 
 describe('createTerritoryInspectionPanel — S2b acquisition status', () => {

@@ -126,4 +126,107 @@ describe('legendary-wonder-map-presentation', () => {
 
     expect(getLegendaryWonderMapEntries(state, 'player')).toEqual([]);
   });
+
+  it('returns known-rival map entries from paired completed and host-location intel at visible or fog coordinates', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    const coord = state.cities['city-rival'].position;
+    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'visible';
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          coord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:oracle-of-delphi:rival:70',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
+    };
+
+    expect(getLegendaryWonderMapEntries(state, 'player')).toContainEqual(expect.objectContaining({
+      wonderId: 'oracle-of-delphi',
+      relationship: 'known-rival',
+      state: 'completed',
+      coord,
+      label: 'Oracle of Delphi',
+      progressRatio: undefined,
+    }));
+
+    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'fog';
+    expect(getLegendaryWonderMapEntries(state, 'player')).toContainEqual(expect.objectContaining({
+      wonderId: 'oracle-of-delphi',
+      relationship: 'known-rival',
+      coord,
+    }));
+  });
+
+  it('does not return known-rival map entries for unexplored, host-location-only, or completed-only intel', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    const coord = state.cities['city-rival'].position;
+    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'visible';
+    state.legendaryWonderIntel = {
+      player: [
+        {
+          kind: 'started',
+          eventId: 'started:oracle-of-delphi:rival:city-rival:41',
+          projectKey: 'oracle-of-delphi:rival:city-rival',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          revealedTurn: 41,
+        },
+        {
+          kind: 'host-location-known',
+          eventId: 'location:oracle-of-delphi:rival:city-rival:62',
+          wonderId: 'oracle-of-delphi',
+          civId: 'rival',
+          civName: 'Rival',
+          cityId: 'city-rival',
+          cityName: 'Rival Harbor',
+          coord,
+          learnedTurn: 62,
+          source: 'spy-location',
+        },
+        {
+          kind: 'completed',
+          eventId: 'completed:grand-canal:rival:70',
+          wonderId: 'grand-canal',
+          civId: 'rival',
+          civName: 'Rival',
+          completionTurn: 70,
+          learnedTurn: 70,
+        },
+      ],
+    };
+
+    expect(getLegendaryWonderMapEntries(state, 'player').some(entry => entry.relationship === 'known-rival')).toBe(false);
+
+    state.legendaryWonderIntel.player.push({
+      kind: 'completed',
+      eventId: 'completed:oracle-of-delphi:rival:70',
+      wonderId: 'oracle-of-delphi',
+      civId: 'rival',
+      civName: 'Rival',
+      completionTurn: 70,
+      learnedTurn: 70,
+    });
+    state.civilizations.player.visibility.tiles[hexKey(coord)] = 'unexplored';
+    expect(getLegendaryWonderMapEntries(state, 'player').some(entry => entry.relationship === 'known-rival')).toBe(false);
+  });
 });

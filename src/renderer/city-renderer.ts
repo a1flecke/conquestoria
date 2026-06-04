@@ -80,13 +80,16 @@ function createCityRenderItems(
   const vis = state.civilizations[playerCivId]?.visibility;
   if (!vis) return [];
 
-  const landmarksByCity = new Map<string, LegendaryWonderMapEntry[]>();
+  const landmarksByCoord = new Map<string, LegendaryWonderMapEntry[]>();
   for (const entry of getLegendaryWonderMapEntries(state, playerCivId)) {
-    landmarksByCity.set(entry.cityId, [...(landmarksByCity.get(entry.cityId) ?? []), entry]);
+    const key = `${entry.coord.q},${entry.coord.r}`;
+    landmarksByCoord.set(key, [...(landmarksByCoord.get(key) ?? []), entry]);
   }
 
   const items: CityRenderItem[] = [];
-  for (const projection of getCityRenderProjection(state, playerCivId)) {
+  const projections = getCityRenderProjection(state, playerCivId);
+  const projectedKeys = new Set(projections.map(projection => `${projection.position.q},${projection.position.r}`));
+  for (const projection of projections) {
     const city = projection.liveCityId ? state.cities[projection.liveCityId] : undefined;
     const mcState = projection.isLive && projection.owner.startsWith('mc-') ? state.minorCivs?.[projection.owner] : null;
     const mcDef = mcState ? MINOR_CIV_DEFINITIONS.find(definition => definition.id === mcState.definitionId) : null;
@@ -111,9 +114,7 @@ function createCityRenderItems(
       const pixel = hexToPixel(renderCoord, camera.hexSize);
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const size = camera.hexSize * camera.zoom;
-      const landmarkEntries = projection.liveCityId
-        ? landmarksByCity.get(projection.liveCityId) ?? []
-        : [];
+      const landmarkEntries = landmarksByCoord.get(`${projection.position.q},${projection.position.r}`) ?? [];
 
       items.push({
         projection,
@@ -125,6 +126,44 @@ function createCityRenderItems(
         isMinorCiv: projection.isLive && projection.owner.startsWith('mc-'),
         minorCivIcon,
         breakaway: breakaway ? { status: breakaway.status } : undefined,
+        landmarkEntries,
+        lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
+        reducedMotion,
+        nowMs,
+        turn: state.turn,
+      });
+    }
+  }
+
+  for (const [coordKey, landmarkEntries] of landmarksByCoord.entries()) {
+    if (projectedKeys.has(coordKey)) continue;
+    const [q, r] = coordKey.split(',').map(Number);
+    const coord = { q, r };
+    const renderCoords = state.map.wrapsHorizontally
+      ? getHorizontalWrapRenderCoords(coord, state.map.width, camera)
+      : [coord];
+    for (const renderCoord of renderCoords) {
+      if (!camera.isHexVisible(renderCoord)) continue;
+      const pixel = hexToPixel(renderCoord, camera.hexSize);
+      const screen = camera.worldToScreen(pixel.x, pixel.y);
+      const size = camera.hexSize * camera.zoom;
+      const firstEntry = landmarkEntries[0];
+      items.push({
+        projection: {
+          name: firstEntry.cityName ?? firstEntry.label,
+          position: coord,
+          population: 0,
+          owner: firstEntry.ownerId,
+          isLive: false,
+          renderMode: 'landmark-only',
+        },
+        screen,
+        size,
+        ownerColor: state.civilizations[firstEntry.ownerId]?.color
+          ?? OWNER_COLORS[firstEntry.ownerId]
+          ?? '#888',
+        playerCivId,
+        isMinorCiv: false,
         landmarkEntries,
         lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         reducedMotion,

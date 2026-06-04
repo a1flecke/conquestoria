@@ -4,7 +4,10 @@ import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { TERRITORY_PRESSURE_BALANCE } from '@/systems/city-territory-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
+import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 import { getCompletedLegendaryLandmarksForCity } from '@/systems/legendary-wonder-landmark-presentation';
+import { getLegendaryWonderHostLocationIntelForViewer } from '@/systems/legendary-wonder-intel-presentation';
 import { renderTerritoryFrontierInfo } from '@/ui/territory-frontier-info';
 import { createGameButton } from '@/ui/ui-kit';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
@@ -31,6 +34,22 @@ function addLine(parent: HTMLElement, label: string, value: string): void {
   line.appendChild(labelNode);
   line.appendChild(valueNode);
   parent.appendChild(line);
+}
+
+function getKnownRivalLegendaryLandmarkLines(state: GameState, coord: HexCoord, viewerId: string): string[] {
+  const key = hexKey(coord);
+  const completedRivalKeys = new Set(
+    getLegendaryWonderIntelForViewer(state, viewerId)
+      .filter(entry => entry.kind === 'completed')
+      .map(entry => `${entry.wonderId}:${entry.civId}`),
+  );
+  return getLegendaryWonderHostLocationIntelForViewer(state, viewerId)
+    .filter(entry => completedRivalKeys.has(`${entry.wonderId}:${entry.civId}`))
+    .filter(entry => hexKey(entry.coord) === key)
+    .map(entry => {
+      const definition = getLegendaryWonderDefinition(entry.wonderId);
+      return `${definition?.name ?? entry.wonderId} in ${entry.cityName}`;
+    });
 }
 
 export function createTerritoryInspectionPanel(
@@ -134,6 +153,11 @@ export function createTerritoryInspectionPanel(
   if (tile.wonder) addLine(panel, 'Wonder', getWonderDefinition(tile.wonder)?.name ?? tile.wonder);
 
   if (visibility === 'fog') {
+    const knownRivalAtCoord = getKnownRivalLegendaryLandmarkLines(state, coord, viewerId);
+    if (knownRivalAtCoord.length > 0) {
+      addLine(panel, 'Known rival legendary landmark', knownRivalAtCoord.join(', '));
+    }
+
     const fogNotice = document.createElement('p');
     fogNotice.style.cssText = 'margin:12px 0 0;color:rgba(244,241,232,0.7);font-size:13px;line-height:1.35;';
     fogNotice.textContent = 'Last seen information only. Current border pressure is unknown.';
@@ -150,6 +174,11 @@ export function createTerritoryInspectionPanel(
     : [];
   if (completedInCity.length > 0) {
     addLine(panel, 'Completed legendary wonders', completedInCity.join(', '));
+  }
+
+  const knownRivalAtCoord = getKnownRivalLegendaryLandmarkLines(state, coord, viewerId);
+  if (knownRivalAtCoord.length > 0) {
+    addLine(panel, 'Known rival legendary landmark', knownRivalAtCoord.join(', '));
   }
 
   const frontier = state.territoryFrontiers?.[key];

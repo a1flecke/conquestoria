@@ -1,6 +1,8 @@
 import type { City, GameState } from '@/core/types';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
+import { getLegendaryWonderHostLocationIntelForViewer } from '@/systems/legendary-wonder-intel-presentation';
 import type { LegendaryWonderLandmarkView } from '@/systems/legendary-wonder-landmark-types';
 
 export const LEGENDARY_CONSTRUCTION_GHOST_MAP_THRESHOLD = 0.6;
@@ -89,4 +91,38 @@ export function getLegendaryLandmarkPreviewViewForCity(
     .map(item => ({ wonderId: item.wonderId, label: item.label, state: item.state }));
   if (items.length === 0) return null;
   return { cityId, cityName: city.name, items };
+}
+
+export interface KnownRivalLegendaryLandmarkPreviewView {
+  cityName: string;
+  civName: string;
+  learnedTurn: number;
+  items: Array<{
+    wonderId: string;
+    label: string;
+    state: 'completed';
+  }>;
+}
+
+export function getKnownRivalLegendaryLandmarkPreviewForWonder(
+  state: GameState,
+  viewerId: string,
+  wonderId: string,
+): KnownRivalLegendaryLandmarkPreviewView | null {
+  const completion = getLegendaryWonderIntelForViewer(state, viewerId)
+    .find(entry => entry.kind === 'completed' && entry.wonderId === wonderId);
+  if (!completion) return null;
+  const [location] = getLegendaryWonderHostLocationIntelForViewer(state, viewerId, wonderId)
+    .filter(candidate => candidate.civId === completion.civId);
+  if (!location) return null;
+  return {
+    cityName: location.cityName,
+    civName: location.civName,
+    learnedTurn: location.learnedTurn,
+    items: [{
+      wonderId,
+      label: getLegendaryWonderDefinition(wonderId)?.name ?? 'Legendary wonder',
+      state: 'completed',
+    }],
+  };
 }

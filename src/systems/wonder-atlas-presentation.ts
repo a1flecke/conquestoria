@@ -31,7 +31,7 @@ export interface LegendaryWonderAtlasEntry {
   visibility: 'masked';
   name: string;
   maskedLabel: string;
-  stateLabel: 'Available' | 'Under construction' | 'Completed' | 'Recovered' | 'Known rival completed' | 'Spotted rival project' | 'Legendary wonder';
+  stateLabel: 'Available' | 'Under construction' | 'Completed' | 'Recovered' | 'Known rival completed' | 'Known rival host' | 'Spotted rival project' | 'Legendary wonder';
   canViewOnMap: false;
   visual: WonderVisualDefinition;
   rivalIntelCount: number;
