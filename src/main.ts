@@ -1818,6 +1818,15 @@ function foundCityAction(): void {
   const foundedCity = gameState.cities[city.id] ?? city;
   bus.emit('city:founded', { city: foundedCity, founderId: gameState.currentPlayer });
   showNotification(`${foundedCity.name} has been founded!`, 'success');
+  // Spec 3: founding a city can lift near-defeat if founder now has > 1 city
+  const founderCiv = gameState.civilizations[gameState.currentPlayer];
+  if (founderCiv?.nearDefeat) {
+    const founderCityCount = Object.values(gameState.cities).filter(c => c.owner === gameState.currentPlayer).length;
+    if (founderCityCount > 1) {
+      founderCiv.nearDefeat = false;
+      bus.emit('civ:recovered-from-near-defeat', { civId: gameState.currentPlayer });
+    }
+  }
   SFX.foundCity();
 
   // Update visibility
@@ -1901,6 +1910,30 @@ function finalizePendingCityCaptureChoice(
     }
     showNotification(`We have captured ${cityName}!`, 'success');
     bus.emit('city:captured', { cityId: pending.cityId, newOwner: gameState.currentPlayer, previousOwner });
+
+    // Spec 3: emit near-defeat / eliminated / recovered events based on city counts post-capture
+    const prevCiv = gameState.civilizations[previousOwner];
+    if (prevCiv) {
+      const prevCivCityCount = Object.values(gameState.cities).filter(c => c.owner === previousOwner).length;
+      if (prevCivCityCount === 0) {
+        // Civ eliminated
+        prevCiv.nearDefeat = false;
+        bus.emit('civ:eliminated', { civId: previousOwner, eliminatedBy: gameState.currentPlayer });
+      } else if (prevCivCityCount === 1 && !prevCiv.nearDefeat) {
+        // Just entered near-defeat (was above 1, now at 1)
+        prevCiv.nearDefeat = true;
+        bus.emit('civ:near-defeat', { civId: previousOwner });
+      }
+    }
+    // If the capturing civ was near-defeat and just gained a city back above 1
+    const capturingCiv2 = gameState.civilizations[gameState.currentPlayer];
+    if (capturingCiv2?.nearDefeat) {
+      const capturingCityCount = Object.values(gameState.cities).filter(c => c.owner === gameState.currentPlayer).length;
+      if (capturingCityCount > 1) {
+        capturingCiv2.nearDefeat = false;
+        bus.emit('civ:recovered-from-near-defeat', { civId: gameState.currentPlayer });
+      }
+    }
   } else {
     showNotification(`${cityName} was razed! +${result.goldAwarded} gold`, 'success');
   }
