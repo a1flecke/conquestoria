@@ -75,6 +75,11 @@ export class AudioSystem {
     // Spec 3: set current voice pack and preload its clips
     this.voiceDirector.setVoicePack(this.currentCivType);
     void this.preloadVoicePack(this.currentCivType);
+    // Always preload generic pack — used as fallback for partial hero packs
+    // and for all 19 non-hero civs. 10 clips ≈ 350 KB, negligible cost.
+    if (this.currentCivType !== 'generic') {
+      void this.preloadVoicePack('generic');
+    }
 
     // Restore correct snapshot state machine when resuming a saved game mid-era.
     // Guard on era only, not musicEnabled — director state must be correct even when muted.
@@ -224,7 +229,12 @@ export class AudioSystem {
       }),
 
       // ── Spec 3: voice line subscriptions ─────────────────────────────────
-      // era:advanced — global, no player filter needed
+      // Each event has its own explicit bus.on() rather than a dynamic table
+      // because bus.on() is strongly typed per GameEvents key — a generic
+      // Record<string, handler> loop cannot satisfy the overload signature.
+
+      // era:advanced — second subscription (first handles music era-advance).
+      // Multiple subscribers to the same event are intentional here.
       bus.on('era:advanced', async () => {
         await this.director.currentStingerPromise; // era stinger plays first
         void this.voiceDirector.playLine('era-advance');
