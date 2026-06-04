@@ -195,7 +195,12 @@ export const CITY_RENDER_PASSES: CityRenderPass[] = [
 ];
 
 export function drawCityRenderItem(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
-  for (const pass of CITY_RENDER_PASSES) {
-    pass.draw(ctx, item);
+  ctx.save();
+  try {
+    for (const pass of CITY_RENDER_PASSES) {
+      pass.draw(ctx, item);
+    }
+  } finally {
+    ctx.restore();
   }
 }

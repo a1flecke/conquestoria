@@ -267,7 +267,10 @@ describe('city renderer', () => {
     city.productionQueue = ['granary'];
     state.cities[city.id] = city;
     state.civilizations.player.cities.push(city.id);
-    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+    state.civilizations.player.visibility = {
+      tiles: { [hexKey(city.position)]: 'visible' },
+      lastSeen: {},
+    };
     state.completedLegendaryWonders = {
       'oracle-of-delphi': { ownerId: 'player', cityId: city.id, turnCompleted: 20 },
     };
@@ -339,6 +342,33 @@ describe('drawCities — explicit city render pass contract', () => {
     expectOperationBefore(ctx, 'city-pass:landmarks', `text:${city.name} (${city.population})`);
     expectOperationBefore(ctx, 'city-pass:landmarks', `text:${getProductionBadgeIcon(city)}`);
     expectOperationBefore(ctx, 'city-pass:landmarks', 'text:⚡');
+  });
+
+  it('restores canvas state around each explicit city render item', () => {
+    const state = createNewGame(undefined, 'city-pass-state-hygiene', 'small');
+    const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
+    city.productionQueue = ['granary'];
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    const ops = (ctx as unknown as MockCanvasContext).operations;
+    const saveIndex = ops.findIndex(operation => operation === 'save');
+    const restoreIndex = ops.findIndex(operation => operation === 'restore');
+    expect(saveIndex).toBeGreaterThanOrEqual(0);
+    expect(restoreIndex).toBeGreaterThanOrEqual(0);
+    expect(saveIndex).toBeLessThan(operationIndex(ctx, 'city-pass:base'));
+    expect(restoreIndex).toBeGreaterThan(operationIndex(ctx, 'city-pass:idle'));
+    expect(ops.filter(operation => operation === 'save')).toHaveLength(
+      ops.filter(operation => operation === 'city-pass:base').length,
+    );
+    expect(ops.filter(operation => operation === 'restore')).toHaveLength(
+      ops.filter(operation => operation === 'city-pass:base').length,
+    );
   });
 
   it('draws idle badge after legendary landmarks and labels', () => {
