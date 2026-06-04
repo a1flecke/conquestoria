@@ -30,6 +30,7 @@ This is a behavior-preserving architecture pass. It may fix objective layering b
 - Do not implement Stage 2J known-rival landmark visibility.
 - Do not add or change audio/SFX assets, audio triggers, or attribution.
 - Do not add new UI controls or player actions.
+- Do not change PWA, service worker, Vite, Tauri, storage, or platform capability code.
 - Do not redesign city visuals, icon art, badge art, typography, or badge positions for subjective polish.
 - Do not refactor unit rendering, tile rendering, selection overlays, hover overlays, or debug overlays unless the existing city-renderer call boundary already owns them.
 - Do not change the public call shape of `drawCities(...)` unless a later implementation review proves it is necessary and all live callers are updated in the same MR.
@@ -49,6 +50,8 @@ Recommended pass order:
 7. Idle-production badge.
 
 The pass helpers should draw only. They should not query broad game state or re-run visibility logic. If a pass needs data, the prepared render item should carry that data explicitly. This keeps each helper small, understandable, and independently testable without forcing every pass to know the entire `GameState` shape.
+
+Each pass must leave the canvas context in a predictable state for the next pass. The implementation may either set every style it depends on before drawing or wrap pass groups in `ctx.save()` / `ctx.restore()` when shared state could leak. Tests should use operation sentinels or visible text assertions for ordering, not brittle checks for every low-level Canvas style mutation.
 
 ## Data Flow
 
@@ -77,6 +80,18 @@ Suggested item fields:
 - `lowZoom`, `reducedMotion`, and `nowMs`
 
 If this item builder becomes nontrivial, it should be exported for focused tests. If it stays small, tests may exercise it through `drawCities(...)` only.
+
+## Performance And Distribution
+
+City rendering runs every frame. The pass split must avoid work that scales worse than the current renderer for ordinary maps:
+
+- call `getLegendaryWonderMapEntries(state, playerCivId)` once per `drawCities(...)` call
+- group landmark entries by city once per call
+- compute minor-civ definitions and owner color once per render item, not once per pass
+- do not add per-frame asset loading, network requests, DOM reads, localStorage/IndexedDB access, or platform/Tauri capability calls
+- do not introduce persistent mutable caches unless a later performance profile proves they are necessary
+
+Because this is Canvas-only renderer architecture work, the MR must remain distribution-neutral. Web/PWA and Tauri builds should continue to use the same shared renderer path.
 
 ## Bug Fix Policy
 
@@ -114,6 +129,7 @@ The implementation must preserve these ordering and visibility rules:
 - idle badges render only for live player-owned cities with an empty queue and `idleProduction` set to `gold` or `science`
 - fogged last-seen cities render their last-seen label only and do not leak live city badges or landmarks
 - horizontal wrap copies receive the same pass sequence as primary visible coordinates
+- pass helpers must not mutate `GameState`, city objects, visibility snapshots, or landmark entry arrays
 
 ## Testing Requirements
 
@@ -128,6 +144,7 @@ Required tests:
 - fogged last-seen city coverage proves live production, idle, unrest, occupation, breakaway, and landmark passes do not run
 - wrapped city coverage proves the visible mirrored coordinate still receives the city pass sequence
 - privacy coverage proves rival completed intel alone still does not create map landmarks
+- canvas-state coverage or operation-order coverage proves style/text state from one pass does not prevent later labels and badges from rendering
 - regression coverage for any objective layering bug fixed during extraction
 
 Existing tests in `tests/renderer/city-renderer.test.ts` should remain the first target. If the pass helpers become a separate module such as `src/renderer/city-render-passes.ts`, add `tests/renderer/city-render-passes.test.ts` only for helper-specific branching that is awkward to prove through `drawCities(...)`.
@@ -152,5 +169,7 @@ The implementation plan should avoid a broad renderer rewrite. It should move on
 - Fogged last-seen city privacy behavior is preserved.
 - Horizontal wrap city rendering remains intact.
 - No new gameplay, save, UI action, audio/SFX, or rival intel behavior is introduced.
+- No PWA, service worker, Vite, Tauri, storage, or platform capability behavior is changed.
+- No per-frame network, DOM, storage, or platform work is introduced.
 - Any layering bug fixed during the pass split has focused regression coverage.
 - Targeted renderer tests, source-rule checks for changed `src/` files, wonder regressions, build, and full tests pass before PR.
