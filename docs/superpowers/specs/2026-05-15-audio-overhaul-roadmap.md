@@ -76,20 +76,28 @@ Each spec is one brainstorm → plan → MR cycle. Ship in order.
 
    **Out of scope (Spec 2):** Music changes, voice lines, ambient looping audio (forest birds, ocean waves), UI-button sound redesign beyond what already exists.
 
-3. **Spec 3 — Adaptive Music + Voice Lines** *(later)* — `2026-05-15-audio-overhaul-spec-3-adaptive-voice.md`
+3. **Spec 3 — Adaptive Music + Voice Lines** *(brainstormed 2026-06-03)* — `2026-05-15-audio-overhaul-spec-3-adaptive-voice.md`
 
    **Goal:** Full A3 adaptive music + E3 voice lines + remaining stingers + per-channel mixer UI.
 
-   **Scope:**
-   - **Adaptive state expansion**: new snapshots `unrest` (low-happiness in any city), `golden-age` (civ is in a golden age), `brink-of-defeat` (current player has ≤ 1 city remaining). Each is a per-era tension layer crossfaded into the Adaptive bus.
-   - **State observers**: `MusicDirector` extended with handlers for `civ:happiness-low`, `civ:happiness-recovered`, `civ:golden-age-started`, `civ:golden-age-ended`, `civ:near-defeat`, `civ:recovered-from-near-defeat`.
-   - **Voice-line system**: short voiced advisor lines (~1–3s each) per major civ for key events. ~8–12 civs × ~10 events ≈ 80–120 clips. New mixer bus: `voice`. New AudioFamily-style mapping: `CIV_TO_VOICE_PACK`.
-   - **Full stinger set (E2 completion)**: wonder-built, tech-researched (major), peace-signed, civ-defeated, victory, defeat. Added to `STINGER` catalog.
-   - **Mixer UI**: per-channel volume sliders (master / music / sfx / voice / stinger). Replaces Spec 1's master-only UI.
-   - **Voice + stinger ducking**: voice line plays → ducks music + stinger buses but not SFX. Stinger plays → ducks all but voice.
-   - **Asset budget**: ~15–20 MB total (adaptive layers + voice + remaining stingers).
+   **Spec 3 locked decisions (2026-06-03):**
+   - **V1** — Voice source: Piper TTS (MIT-licensed, pre-trained voices). Synthesis runs locally via a generated manifest + shell script (`scripts/gen-voice-manifest.ts` + `scripts/synthesise-voice.sh`). Output is CC-free; curation follows the same user-in-the-loop PR workflow as music.
+   - **V2** — 10 hero civs get unique voice packs (China, Egypt, Rome, England, France, Viking, Zulu, Aztec, Mongolia, Gondor); 19 others use `generic` fallback. `CIV_TO_VOICE_PACK` in `src/audio/civ-voice-family.ts`.
+   - **A1** — Golden age state dropped entirely (no game mechanic; Spec 4 candidate).
+   - **A2** — Adaptive states: `unrest` (triggered by `faction:unrest-started/resolved`) and `brink-of-defeat` (triggered by new `civ:near-defeat` event when `cities.length ≤ 1`).
+   - **A3** — State priority: `brink-of-defeat > at-war > unrest > peace`. Single `resolveSnapshot()` method on `MusicDirector`.
+   - **A4** — Hot-seat drift fix: extend `currentPlayer:changed-after-handoff` payload with `{ atWar, unrestCityCount, nearDefeat }`.
+   - **S1** — Tech stinger fires on every `tech:completed` (~3–5 turns cadence is acceptable).
+   - **S2** — `game:over` stinger-first (Approach A): play victory/defeat stinger, then fade to silence. Post-stinger restore deliberately calls `setSnapshot('silent')`, not `resolveSnapshot()`.
+   - **S3** — New stingers: wonder-built, tech-researched, peace-signed, civ-defeated, victory, defeat. All single generic clips (per-era variants = Spec 4 candidate).
+   - **S4** — New event: `civ:eliminated { civId, eliminatedBy }` for civ-defeated stinger trigger.
+   - **U1** — Mixer UI: 5-channel sliders (master / music / sfx / voice / stinger). Voice has its own `voiceMasterGain` node routing directly to `destination` (bypasses `musicMasterGain`; "mute music" does not silence advisor lines).
+   - **U2** — Voice architecture is fully data-driven: `VoiceEventId` union + `VoicePackId` union + `VOICE_CATALOG` (Partial per pack) + `EVENT_TO_VOICE` table. Adding a civ or event = catalog edits only, no new handler methods.
+   - **U3** — `VoiceDirector` accepts `getSnapshot: () => SnapshotId` callback injected by `AudioSystem`. `MusicDirector.resolveSnapshot()` becomes `public`.
+   - **U4** — Ducking: stinger duck sets `voice` snapshot gain to 0.2 (stinger wins); voice duck sets `stinger` to 0.6. `stinger-duck` overwrites `voice-duck` on simultaneous fire.
+   - **Asset budget**: ~5.5–6.5 MB (within 25 MB total cap).
 
-   **Out of scope (Spec 3):** Per-era × per-family accents (that is Spec 4 Ac2); voice-line localization to non-English; bar-locked musical transitions.
+   **Out of scope (Spec 3):** Per-era × per-family accents (Spec 4 Ac2); voice-line localization; golden-age state; per-era victory/defeat stingers; bar-locked transitions; ambient looping audio.
 
 4. **Spec 4 — Audio Polish** *(candidate; create only if Spec 3 fills up)* — `2026-05-15-audio-overhaul-spec-4-polish.md`
    Reserved bucket for items pushed out of Specs 1–3.
