@@ -96,7 +96,11 @@ export class MusicDirector {
 
     if (entry) {
       const captured = entry;
+      const snapshotAtDispatch = snapshot;
       void this.loader.get(captured.file).then(buf => {
+        // Stale-check: if the snapshot changed while the load was in flight, skip the source swap.
+        // This prevents the wrong adaptive layer from being set after a rapid state transition.
+        if (this.resolveSnapshot() !== snapshotAtDispatch) return;
         this.mixer.setBusSource('adaptive', buf, true, captured.loop, ADAPTIVE_CROSSFADE_MS);
       });
     } else {
@@ -127,7 +131,10 @@ export class MusicDirector {
   handlePeaceSigned(p: PeaceSignedPayload): void {
     if (p.remainingWars > 0) return;
     this.atWar = false;
-    this.applySnapshot(CROSSFADE_MS);
+    // Do NOT call applySnapshot() here — playStingerWithDuck() calls setSnapshot('stinger-duck')
+    // immediately, then restores to resolveSnapshot() (now 'peace') after the stinger.
+    // Calling applySnapshot() before the stinger would start a peace crossfade that immediately
+    // conflicts with the stinger-duck, causing an audible glitch.
     this.currentStingerPromise = this.playStingerWithDuck(STINGER.peaceSigned.file);
   }
 

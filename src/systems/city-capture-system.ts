@@ -159,11 +159,16 @@ export function resolveMajorCityCapture(
           [previousOwnerId]: {
             ...previousOwner,
             cities: previousOwner.cities.filter(id => id !== cityId),
+            // nearDefeat flag: true when previous owner now has ≤ 1 city
+            // Used by audio system and handoff payload computation
+            nearDefeat: previousOwner.cities.filter(id => id !== cityId).length <= 1,
           },
         } : {}),
         [newOwnerId]: {
           ...capturingCiv,
           cities: capturingCiv.cities.includes(cityId) ? capturingCiv.cities : [...capturingCiv.cities, cityId],
+          // Clear nearDefeat flag when gaining a city
+          nearDefeat: capturingCiv.cities.includes(cityId) ? capturingCiv.nearDefeat : false,
         },
       },
       legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
@@ -188,6 +193,8 @@ export function resolveMajorCityCapture(
         ...previousOwner,
         cities: previousOwner.cities.filter(id => id !== cityId),
         diplomacy: modifyRelationship(previousOwner.diplomacy, newOwnerId, -40),
+        // nearDefeat flag: true when previous owner now has ≤ 1 city (raze path)
+        nearDefeat: previousOwner.cities.filter(id => id !== cityId).length <= 1,
       },
     } : {}),
     [newOwnerId]: {

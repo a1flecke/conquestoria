@@ -118,8 +118,11 @@ describe('MusicDirector', () => {
     director.handlePeaceSigned({ remainingWars: 0 });
     await flushPromises();
     const snapshots = vi.mocked(mixer.setSnapshot).mock.calls.map(c => c[0]);
-    expect(snapshots).toContain('peace');
-    // Final restore after stinger must be peace, not at-war
+    // stinger-duck must come BEFORE the peace restore (no premature peace crossfade)
+    const firstDuckIdx  = snapshots.indexOf('stinger-duck');
+    const lastPeaceIdx  = snapshots.lastIndexOf('peace');
+    expect(firstDuckIdx).toBeGreaterThanOrEqual(0);
+    expect(lastPeaceIdx).toBeGreaterThan(firstDuckIdx);
     expect(snapshots.at(-1)).toBe('peace');
   });
 

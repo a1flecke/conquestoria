@@ -408,6 +408,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         movementPointsLeft: 0,
         hasMoved: true,
       };
+      const prevOwnerIdForCapture = exposedEnemyCity.owner;
       const captureResult = resolveMajorCityCapture(
         newState,
         exposedEnemyCity.id,
@@ -418,6 +419,16 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       newState = captureResult.state;
       for (const event of captureResult.territoryEvents) {
         bus.emit('territory:tile-flipped', event);
+      }
+      // Spec 3: emit near-defeat / eliminated events (matches main.ts logic for AI path)
+      const prevOwnerPostCapture = newState.civilizations[prevOwnerIdForCapture];
+      if (prevOwnerPostCapture) {
+        const prevCityCount = prevOwnerPostCapture.cities.length;
+        if (prevCityCount === 0) {
+          bus.emit('civ:eliminated', { civId: prevOwnerIdForCapture, eliminatedBy: civId });
+        } else if (prevOwnerPostCapture.nearDefeat) {
+          bus.emit('civ:near-defeat', { civId: prevOwnerIdForCapture });
+        }
       }
       civ = newState.civilizations[civId];
       continue;
