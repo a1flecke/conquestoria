@@ -128,6 +128,8 @@ export function getVoicePackForCiv(civType: string): VoicePackId {
 
 **`EVENT_TO_VOICE` config table in `src/audio/audio-system.ts`**
 
+`game:over` is NOT in this table — victory/defeat voice lines are handled separately (see §1.6).
+
 ```typescript
 const EVENT_TO_VOICE: Partial<Record<keyof GameEvents, VoiceEventId>> = {
   'era:advanced':               'era-advance',
@@ -139,18 +141,18 @@ const EVENT_TO_VOICE: Partial<Record<keyof GameEvents, VoiceEventId>> = {
   'city:captured':              'city-lost',   // filter: previousOwner === currentPlayer
   'civ:near-defeat':            'near-defeat',
   'diplomacy:peace-made':       'peace-signed',
-  // game:over → handled separately by MusicDirector (victory/defeat split)
 };
 // AudioSystem.start() iterates this table once to register all subscriptions
 ```
 
 **`src/audio/voice-director.ts`**
 
-`VoiceDirector` does not own the adaptive state flags — those live on `MusicDirector`. To restore the correct snapshot after a voice line, `VoiceDirector` accepts a `getSnapshot` callback injected by `AudioSystem`:
+`VoiceDirector` does not own the adaptive state flags — those live on `MusicDirector`. To restore the correct snapshot after a voice line, `VoiceDirector` accepts a `getSnapshot` callback injected by `AudioSystem`. It also exposes `stop()` for handoff privacy and game-over interruption:
 
 ```typescript
 export class VoiceDirector {
   private currentPack: VoicePackId = 'generic';
+  private playingSource: AudioBufferSourceNode | null = null;
 
   constructor(
     private readonly mixer: AudioMixer,
@@ -162,19 +164,92 @@ export class VoiceDirector {
     this.currentPack = getVoicePackForCiv(civType);
   }
 
+  /** Interrupt any in-progress voice line immediately (handoff, game-over). */
+  stop(): void {
+    try { this.playingSource?.stop(); } catch { /* already stopped */ }
+    this.playingSource = null;
+    this.mixer.setSnapshot(this.getSnapshot(), VOICE_RESTORE_MS);
+  }
+
   async playLine(eventId: VoiceEventId): Promise<void> {
     const entry = VOICE_CATALOG[this.currentPack]?.[eventId]
                ?? VOICE_CATALOG['generic'][eventId];
     if (!entry) return; // graceful no-op — missing entries never throw
     const buffer = await this.loader.get(entry.file);
     this.mixer.setSnapshot('voice-duck', VOICE_DUCK_FADE_MS);
-    await this.mixer.playOneShot('voice', buffer);
+    // playOneShot returns a Promise; also stash the source for stop()
+    await this.mixer.playOneShotTracked('voice', buffer, src => { this.playingSource = src; });
+    this.playingSource = null;
     this.mixer.setSnapshot(this.getSnapshot(), VOICE_RESTORE_MS);
   }
 }
 ```
 
-`AudioSystem` passes `() => musicDirector.resolveSnapshot()` as the callback. `MusicDirector.resolveSnapshot()` becomes `public`.
+`AudioSystem` passes `() => musicDirector.resolveSnapshot()` as the callback. `MusicDirector.resolveSnapshot()` becomes `public`. `AudioMixer.playOneShotTracked()` is a variant of `playOneShot` that calls the provided callback with the `AudioBufferSourceNode` before starting it — needed so `VoiceDirector.stop()` can halt the node. Alternatively, `AudioMixer` can expose `stopBus(bus)` as a simpler API; the choice is left to the implementer as long as `stop()` works.
+
+### 1.6 Victory Voice Line Triggering
+
+`game:over` is not in `EVENT_TO_VOICE` because victory and defeat require different handling and must be sequenced AFTER the stinger. `AudioSystem` subscribes to `game:over` separately:
+
+```typescript
+eventBus.on('game:over', async (p) => {
+  // MusicDirector plays stinger first (handleGameEnded)
+  await musicDirector.handleGameEnded({ outcome: p.winnerId === state.currentPlayer ? 'victory' : 'defeat' });
+  // After stinger, play the victory voice line (defeat has no voice line — stinger is sufficient)
+  if (p.winnerId === state.currentPlayer) {
+    await voiceDirector.playLine('victory');
+  }
+  // Voice restore after victory line goes to 'silent' (game over — no resume)
+  mixer.setSnapshot('silent', VOICE_RESTORE_MS);
+});
+```
+
+`GameEndedPayload.outcome` is computed by `AudioSystem` from `winnerId` vs `state.currentPlayer` — it is never derived from the raw event alone. This also resolves the type mismatch: the real `game:over` event has `winnerId: string`, not `outcome`.
+
+### 1.7 Stinger + Voice Sequencing (co-fire rule)
+
+Several events trigger BOTH a stinger (via `MusicDirector`) AND a voice line (via the `EVENT_TO_VOICE` subscription). Without coordination, the stinger's `stinger-duck` snapshot (voice gain = 0.2) makes the simultaneously-started voice line nearly inaudible.
+
+**Rule:** for events in `EVENTS_WITH_STINGER` (below), the voice line is queued and played only after the stinger completes. For all other events, the voice line plays immediately.
+
+```typescript
+// Events that trigger a stinger — voice must wait for stinger to finish
+const EVENTS_WITH_STINGER = new Set<keyof GameEvents>([
+  'era:advanced',
+  'city:founded',
+  'diplomacy:war-declared',
+  'tech:completed',
+  'wonder:legendary-completed',
+  'diplomacy:peace-made',
+]);
+```
+
+`AudioSystem` wires these events as chained calls:
+
+```typescript
+for (const [busEvent, voiceEventId] of Object.entries(EVENT_TO_VOICE)) {
+  eventBus.on(busEvent as keyof GameEvents, async (payload) => {
+    if (!isCurrentPlayerEvent(payload, state.currentPlayer)) return;
+    if (EVENTS_WITH_STINGER.has(busEvent as keyof GameEvents)) {
+      // Wait for MusicDirector to finish its stinger, then play voice
+      await musicDirector.currentStingerPromise;
+    }
+    void voiceDirector.playLine(voiceEventId);
+  });
+}
+```
+
+`MusicDirector` exposes `currentStingerPromise: Promise<void>` — a public property that resolves when the current stinger (if any) finishes. It is replaced each time `playStingerWithDuck()` runs and resolves to `undefined` immediately when no stinger is active. This keeps sequencing in `AudioSystem` without coupling the two directors.
+
+### 1.8 Voice Preloading Strategy (PWA / performance)
+
+110 voice clips × 35 KB = ~3.8 MB. Loading all at game start wastes decode time and memory. Strategy:
+
+- **On `AudioSystem.start()`**: preload only the current player's voice pack (10 clips ≈ 350 KB) via `loader.prefetch(voicePackFiles)`. The generic pack is NOT pre-loaded — it lazy-loads on first use (Service Worker caches after first fetch).
+- **On `currentPlayer:changed-after-handoff`**: call `loader.prefetch()` for the new player's pack. The outgoing player's clips remain in the Service Worker cache but are evicted from the in-memory AudioBuffer cache on the next LRU pass.
+- **Cache budget**: voice clips are small per-file; they're covered by Spec 1's SW 25 MB total cap. No new cache eviction logic needed.
+
+`AudioLoader` already supports `prefetch(files: string[]): Promise<void>` (decodes into the in-memory buffer cache). If it doesn't yet, add it in MR3 as part of the voice system work.
 
 ### 1.5 Synthesis Workflow
 
@@ -274,7 +349,8 @@ private resolveSnapshot(): SnapshotId {
 | Event | Handler logic |
 |---|---|
 | `faction:unrest-started { owner }` | if `owner === currentCivId`: `unrestCityCount++`, `inUnrest = true`, apply snapshot |
-| `faction:unrest-resolved { owner }` | if `owner === currentCivId`: `unrestCityCount = Math.max(0, unrestCityCount - 1)`, `inUnrest = (unrestCityCount > 0)`, apply snapshot |
+| `faction:revolt-started { owner }` | **same as unrest-started** — revolt is an escalation; also increments `unrestCityCount` so the counter stays accurate if a city goes directly to revolt without a prior unrest-started event |
+| `faction:unrest-resolved { owner }` | if `owner === currentCivId`: `unrestCityCount = Math.max(0, unrestCityCount - 1)`, `inUnrest = (unrestCityCount > 0)`, apply snapshot. Handles resolution from both unrest and revolt states. |
 | `civ:near-defeat { civId }` | if `civId === currentCivId`: `nearDefeat = true`, apply snapshot |
 | `civ:recovered-from-near-defeat { civId }` | if `civId === currentCivId`: `nearDefeat = false`, apply snapshot |
 | `diplomacy:war-declared` | (existing) sets `atWar = true` |
@@ -309,8 +385,12 @@ The handoff emitter (turn manager / handoff modal) computes these from game stat
 'civ:eliminated':                { civId: string; eliminatedBy: string }
 ```
 
-`civ:near-defeat` — emitted by city-capture logic when `civilizations[previousOwner].cities.length <= 1` after capture, filtered to current player.  
-`civ:recovered-from-near-defeat` — emitted when that civ recaptures or founds a city and is back above 1.  
+`civ:near-defeat` — emitted by city-capture logic when `civilizations[previousOwner].cities.length <= 1` after capture.
+
+`civ:recovered-from-near-defeat` — emitted from **two** places:
+  1. `city:captured` handler when `civilizations[newOwner].cities.length > 1` and the civ was previously in near-defeat (recaptured a city).
+  2. `city:founded` handler when `civilizations[founderId].cities.length > 1` and the civ was previously in near-defeat (founded a city while having only 1 remaining). Both paths must check a "was near-defeat" flag in game state or derive it from the prior city count. A `boolean nearDefeat` flag on `Civilization` in `types.ts` is the simplest approach — set to `true` when `cities.length <= 1`, cleared and the event emitted when it goes back above 1.
+
 `civ:eliminated` — emitted when `civilizations[previousOwner].cities.length === 0` after capture.
 
 ---
@@ -355,33 +435,71 @@ Tone targets:
 `handleGameEnded` is revised:
 
 ```typescript
-handleGameEnded(p: GameEndedPayload): void {
-  const isVictory = p.outcome === 'victory';
-  const stingerFile = isVictory ? STINGER.victory.file : STINGER.defeat.file;
+// GameEndedPayload is an AudioSystem-internal type; outcome is computed by AudioSystem
+// from the raw game:over event's winnerId vs state.currentPlayer (see §1.6).
+handleGameEnded(p: GameEndedPayload): Promise<void> {
+  const stingerFile = p.outcome === 'victory' ? STINGER.victory.file : STINGER.defeat.file;
   this.mixer.setSnapshot('stinger-duck', STINGER_DUCK_FADE_MS);
-  void this.loader.get(stingerFile)
+  // Store promise so AudioSystem can chain the victory voice line after it (§1.7)
+  this.currentStingerPromise = this.loader.get(stingerFile)
     .then(buffer => this.mixer.playOneShot('stinger', buffer))
-    .then(() => this.mixer.setSnapshot('silent', GAME_END_FADE_MS));
+    .then(() => { this.mixer.setSnapshot('silent', GAME_END_FADE_MS); });
     // Deliberately does NOT call resolveSnapshot() after stinger —
     // the game is over; the music loop must not resume.
+  return this.currentStingerPromise;
 }
 ```
+
+`handleGameEnded` returns its `Promise<void>` so `AudioSystem` can await it before playing the victory voice line (§1.6).
 
 ---
 
 ## 4. Mixer UI — Per-Channel Sliders
 
-Five sliders replacing the current master-only UI. All use the existing square-law curve (`gain = v * v`).
+Five sliders + per-channel enable toggles. All sliders use the existing square-law curve (`gain = v * v`).
 
-| Slider | Controls | Persisted in settings |
-|---|---|---|
-| Master | `setMasterMusicVolume` + SFX master | Yes |
-| Music | `setMusicVolume` (era + accent + adaptive buses) | Yes |
-| SFX | `setSfxVolume` | Yes |
-| Voice | `setVoiceVolume` (new method) | Yes |
-| Stinger | `setStingerVolume` — controls a `stingerMasterGain` node inserted between the stinger `snapshotGain` and `musicMasterGain` | Yes |
+### 4.1 Mixer Topology Revision
 
-Location: same panel as existing music/sfx toggles (pause menu or settings panel — per roadmap UI-1 deferral resolution). Toggles become checkboxes alongside their respective sliders.
+The current `musicMasterGain` routes ALL music buses to `destination`. Adding independent stinger and voice volume controls requires splitting the topology. New graph:
+
+```
+era bus ─────────────┐
+accent bus ──────────┤→ musicLayerGain → masterGain → destination
+adaptive bus ────────┘
+stinger bus → stingerMasterGain ──────→ masterGain → destination
+voice bus → voiceMasterGain ──────────────────────→ destination
+sfx bus ─────────────────────────────────────────→ destination
+```
+
+- `musicLayerGain` replaces the portion of `musicMasterGain` that routed era/accent/adaptive. Controlled by `setMusicVolume()`.
+- `stingerMasterGain` is a new node sitting between the stinger bus and `masterGain`. Controlled by `setStingerVolume()`.
+- `masterGain` is the true master, covering music + stinger. Controlled by `setMasterVolume()`.
+- `voiceMasterGain` routes directly to `destination` (bypasses master — "mute all music" still lets advisor speak). Controlled by `setVoiceVolume()`.
+- `sfxBus` continues routing directly to `destination` unchanged.
+
+The existing `setMusicEnabled(false)` sets `musicLayerGain` to 0 — does NOT affect stinger or voice. New `setStingerEnabled()` and `setVoiceEnabled()` methods added to `AudioMixer`.
+
+**Breaking change from Spec 1:** `setMasterMusicVolume()` becomes `setMasterVolume()` (covers music + stinger but not voice or SFX). Rename the method and update callers in `audio-system.ts` and the existing settings panel.
+
+### 4.2 Slider Table
+
+| Slider | `AudioMixer` method | Gain node | Persisted key |
+|---|---|---|---|
+| Master | `setMasterVolume(v)` | `masterGain` | `settings.masterVolume` |
+| Music | `setMusicVolume(v)` | `musicLayerGain` | `settings.musicVolume` |
+| SFX | `setSfxVolume(v)` | `sfxBus.snapshotGain` | `settings.sfxVolume` |
+| Voice | `setVoiceVolume(v)` | `voiceMasterGain` | `settings.voiceVolume` |
+| Stinger | `setStingerVolume(v)` | `stingerMasterGain` | `settings.stingerVolume` |
+
+Each slider has a paired enable toggle (checkbox) mapping to `setMusicEnabled`, `setSfxEnabled`, `setVoiceEnabled`, `setStingerEnabled`.
+
+### 4.3 Hot-Seat Voice Privacy
+
+On `currentPlayer:changed-after-handoff`, `AudioSystem` calls `voiceDirector.stop()` before updating the voice pack. This prevents the outgoing player's in-progress voice line from leaking through the handoff screen.
+
+### 4.4 UI Location
+
+Same panel as existing music/sfx toggles. Locate the existing toggle/slider DOM in `src/ui/` (pause menu or settings panel), extend the section with three new rows (voice, stinger, master reordering). Use `createGameButton()` pattern for any new button in the panel per `.claude/skills/button-styling.md`.
 
 ---
 
@@ -410,14 +528,74 @@ Location: same panel as existing music/sfx toggles (pause menu or settings panel
 
 ---
 
-## 7. Implementation Decomposition (for writing-plans)
+## 7. Testing Targets
+
+All tests live in `tests/audio/` mirroring `src/audio/`. Use the mock `AudioContext` pattern established in Spec 1.
+
+### 7.1 `MusicDirector` — priority chain
+
+- All 4 flag combinations that resolve to `brink-of-defeat`: nearDefeat alone, nearDefeat+atWar, nearDefeat+inUnrest, nearDefeat+atWar+inUnrest
+- `atWar=true, nearDefeat=false` → `at-war`
+- `inUnrest=true, atWar=false` → `unrest`
+- All flags false → `peace`
+
+### 7.2 `MusicDirector` — unrest counter
+
+- Two cities enter unrest: `unrestCityCount = 2`, `inUnrest = true`
+- One resolves: `unrestCityCount = 1`, `inUnrest = true` (still unrest)
+- Both resolve: `unrestCityCount = 0`, `inUnrest = false`
+- `faction:revolt-started` increments the same counter
+- Events from a DIFFERENT civ (owner ≠ currentCivId) do NOT change the counter
+
+### 7.3 `MusicDirector` — hot-seat reset
+
+- `handlePlayerChanged({ civId: 'rome', atWar: false, unrestCityCount: 0, nearDefeat: false })` resets all flags; `resolveSnapshot()` → `peace`
+- `handlePlayerChanged({ ..., atWar: true, unrestCityCount: 2, nearDefeat: false })` → `at-war`
+- `handlePlayerChanged({ ..., nearDefeat: true })` → `brink-of-defeat` regardless of other flags
+
+### 7.4 `VoiceDirector` — pack selection and graceful no-op
+
+- Starred civ (e.g. `china`) → uses `china` pack
+- Unknown civ → uses `generic` pack
+- `VOICE_CATALOG['generic']` has all 10 `VoiceEventId` entries (catalog integrity assertion)
+- `playLine('some-event')` with no entry in current pack and no entry in generic → resolves without throwing and without calling `mixer.setSnapshot`
+- `stop()` cancels an in-progress line and restores snapshot
+
+### 7.5 `VoiceDirector` — stinger sequencing
+
+- `currentStingerPromise` on `MusicDirector` resolves before voice playback begins for co-fire events
+- Events not in `EVENTS_WITH_STINGER` play voice line immediately (no await)
+
+### 7.6 Catalog integrity
+
+- Every entry in `UNREST_LAYER`, `DEFEAT_LAYER`, and the 6 new `STINGER` entries has a matching placeholder OGG file under `public/audio/adaptive/` and `public/audio/stinger/` respectively
+- Every entry in `VOICE_CATALOG` (all packs, all events) has a matching placeholder OGG under `public/audio/voice/<pack>/<event>.ogg`
+- `generic` pack: all 10 `VoiceEventId` keys present
+- Extend the existing catalog-integrity test file from Spec 1
+
+### 7.7 `game:over` stinger-first contract
+
+- On `game:over` with `winnerId === currentPlayer`: verify `setSnapshot('silent')` is NOT called before stinger completes
+- Verify stinger Promise resolves before `setSnapshot('silent', GAME_END_FADE_MS)` is called
+- Verify victory voice line plays after stinger (and not before)
+- Verify no music snapshot restore (`resolveSnapshot()`) is called after game-over stinger
+
+### 7.8 Mixer topology
+
+- `setMusicEnabled(false)` sets `musicLayerGain` to 0; stinger bus gain unaffected; voice bus gain unaffected
+- `setMasterVolume(0.5)` scales `masterGain`; voice bus and SFX bus are unaffected
+- `setStingerVolume(0)` silences stinger bus; music and voice unaffected
+
+---
+
+## 8. Implementation Decomposition (for writing-plans)
 
 Suggested MR breakdown:
 
-| MR | Scope | Deliverable |
-|---|---|---|
-| MR1 | New events + state machine | `civ:near-defeat`, `civ:eliminated`, `civ:recovered-from-near-defeat` in `types.ts`; extended handoff payload; `MusicDirector` flag-based resolver; `UNREST_LAYER` + `DEFEAT_LAYER` catalog entries (placeholders); `voice` added to `MusicBusId`; new snapshots; catalog integrity tests |
-| MR2 | Stinger wiring | 6 new stinger slots (placeholders); wiring in `MusicDirector` for wonder-built, tech-researched, peace-signed, civ-defeated; revised `handleGameEnded` |
-| MR3 | Voice system | `voice-catalog.ts`, `civ-voice-family.ts`, `VoiceDirector`, `EVENT_TO_VOICE` table, `gen-voice-manifest.ts` script; placeholder OGG stubs; voice bus integration in `AudioMixer`; tests |
-| MR4 | Mixer UI | 5-channel sliders + toggles; `setVoiceVolume`, `setStingerVolume` on mixer; persistence in settings |
-| MR5+ | Curation | Adaptive layers, stingers, voice lines — user-paced, parallel-safe after MR3 |
+| MR | Scope | Key files touched | Gate |
+|---|---|---|---|
+| MR1 | Mixer topology + new snapshots | `audio-mixer.ts` (new gain graph), `audio-catalog.ts` (UNREST/DEFEAT placeholders + 6 stingers), `types.ts` (3 new events + extended handoff payload) | All subsequent MRs depend on this |
+| MR2 | State machine + stinger wiring | `music-director.ts` (flag-based resolver, revolt handler, new stinger wiring, handleGameEnded), `turn-manager.ts` or city-capture logic (emit new events), tests §7.1–7.3 + §7.6 stingers | Depends on MR1 |
+| MR3 | Voice system | `voice-catalog.ts`, `civ-voice-family.ts`, `voice-director.ts`, `audio-system.ts` (EVENT_TO_VOICE, EVENTS_WITH_STINGER, game:over wiring, prefetch), `audio-loader.ts` (prefetch method if missing), placeholder OGGs, tests §7.4–7.7 | Depends on MR1 |
+| MR4 | Mixer UI | Settings panel in `src/ui/` (locate existing toggles, add 3 new rows), `audio-system.ts` (settings persistence), tests §7.8 | Depends on MR1 |
+| MR5+ | Curation | `public/audio/adaptive/`, `public/audio/stinger/`, `public/audio/voice/` — real assets replace placeholders; `AUDIO-CREDITS.md` updates | Parallel-safe after MR1 |
