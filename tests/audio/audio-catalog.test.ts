@@ -7,6 +7,9 @@ import {
   resolveEra, type EraId,
 } from '../../src/audio/audio-catalog';
 import { CIV_TO_AUDIO_FAMILY, MINOR_CIV_TO_AUDIO_FAMILY } from '../../src/audio/civ-audio-family';
+import {
+  VOICE_CATALOG, ALL_VOICE_PACK_IDS, ALL_VOICE_EVENT_IDS,
+} from '../../src/audio/voice-catalog';
 
 // Resolve relative to this test file so disk checks work in both the main worktree
 // and git worktrees (where process.cwd() points to the main root, not the worktree).
@@ -116,5 +119,47 @@ describe('on-disk OGG integrity', () => {
       const head = fs.readFileSync(diskPath).slice(0, 4);
       expect(head.toString('ascii')).toBe('OggS');
     });
+  }
+});
+
+// ─── Voice catalog integrity ────────────────────────────────────────────────
+
+describe('voice catalog integrity (Spec 3)', () => {
+  it('generic pack defines all 10 VoiceEventIds', () => {
+    for (const eventId of ALL_VOICE_EVENT_IDS) {
+      expect(VOICE_CATALOG['generic'][eventId], `generic missing: ${eventId}`).toBeDefined();
+    }
+  });
+
+  it('all VoicePackIds are present in VOICE_CATALOG', () => {
+    for (const packId of ALL_VOICE_PACK_IDS) {
+      expect(VOICE_CATALOG[packId], `VOICE_CATALOG missing pack: ${packId}`).toBeDefined();
+    }
+  });
+
+  it('no two voice entries share the same id', () => {
+    const ids: string[] = [];
+    for (const pack of ALL_VOICE_PACK_IDS) {
+      for (const event of ALL_VOICE_EVENT_IDS) {
+        const entry = VOICE_CATALOG[pack]?.[event];
+        if (entry) ids.push(entry.id);
+      }
+    }
+    expect(new Set(ids).size, 'duplicate voice entry ids found').toBe(ids.length);
+  });
+});
+
+describe('voice on-disk OGG integrity (Spec 3)', () => {
+  for (const pack of ALL_VOICE_PACK_IDS) {
+    for (const event of ALL_VOICE_EVENT_IDS) {
+      const entry = VOICE_CATALOG[pack]?.[event];
+      if (!entry) continue;
+      it(`${entry.id}: file exists at public/${entry.file} with OGG magic bytes`, () => {
+        const diskPath = path.join(PROJECT_ROOT, 'public', entry.file);
+        expect(fs.existsSync(diskPath), `missing: ${diskPath}`).toBe(true);
+        const head = fs.readFileSync(diskPath).slice(0, 4);
+        expect(head.toString('ascii')).toBe('OggS');
+      });
+    }
   }
 });
