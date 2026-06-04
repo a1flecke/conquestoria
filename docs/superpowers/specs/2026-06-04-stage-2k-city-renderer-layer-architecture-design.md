@@ -141,7 +141,7 @@ Required tests:
 - operation order proves legendary landmarks render before idle badges
 - operation order proves legendary landmarks render before breakaway, occupation, and unrest badges
 - badge-priority coverage proves breakaway wins over occupation/unrest, and occupation wins over ordinary unrest
-- fogged last-seen city coverage proves live production, idle, unrest, occupation, breakaway, and landmark passes do not run
+- fogged last-seen city coverage proves live production, idle, unrest, occupation, breakaway, and landmark data does not draw or leak
 - wrapped city coverage proves the visible mirrored coordinate still receives the city pass sequence
 - privacy coverage proves rival completed intel alone still does not create map landmarks
 - canvas-state coverage or operation-order coverage proves style/text state from one pass does not prevent later labels and badges from rendering
