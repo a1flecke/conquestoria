@@ -32,6 +32,9 @@ class MockCanvasContext {
     this.fillTextCalls.push({ text, x, y });
     this.operations.push(`text:${text}`);
   }
+  drawImage(): void {
+    this.operations.push('drawImage');
+  }
 }
 
 describe('city renderer', () => {
@@ -292,6 +295,197 @@ function makeCamera(): Camera {
     worldToScreen: (x: number, y: number) => ({ x, y }),
   } as unknown as Camera;
 }
+
+function operationIndex(ctx: CanvasRenderingContext2D, operation: string): number {
+  return (ctx as unknown as MockCanvasContext).operations.findIndex(entry => entry === operation);
+}
+
+function expectOperationBefore(ctx: CanvasRenderingContext2D, before: string, after: string): void {
+  const beforeIndex = operationIndex(ctx, before);
+  const afterIndex = operationIndex(ctx, after);
+  expect(beforeIndex, before).toBeGreaterThanOrEqual(0);
+  expect(afterIndex, after).toBeGreaterThanOrEqual(0);
+  expect(beforeIndex, `${before} before ${after}`).toBeLessThan(afterIndex);
+}
+
+function addVisiblePlayerCityWithWonder(state = createNewGame(undefined, 'city-pass-order', 'small')) {
+  const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler')!;
+  const city = foundCity('player', settler.position, state.map, state.idCounters);
+  city.id = 'city-pass-order-city';
+  state.cities[city.id] = city;
+  state.civilizations.player.cities.push(city.id);
+  state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+  state.completedLegendaryWonders = {
+    'oracle-of-delphi': { ownerId: 'player', cityId: city.id, turnCompleted: 20 },
+  };
+  return { state, city };
+}
+
+describe('drawCities — explicit city render pass contract', () => {
+  it('draws explicit city passes in order for landmarks, labels, status, and production badges', () => {
+    const { state, city } = addVisiblePlayerCityWithWonder();
+    city.productionQueue = ['granary'];
+    city.unrestLevel = 1;
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    expectOperationBefore(ctx, 'city-pass:base', 'city-pass:icon');
+    expectOperationBefore(ctx, 'city-pass:icon', 'city-pass:landmarks');
+    expectOperationBefore(ctx, 'city-pass:landmarks', 'city-pass:label');
+    expectOperationBefore(ctx, 'city-pass:label', 'city-pass:status');
+    expectOperationBefore(ctx, 'city-pass:status', 'city-pass:production');
+    expectOperationBefore(ctx, 'city-pass:production', 'city-pass:idle');
+    expectOperationBefore(ctx, 'city-pass:landmarks', `text:${city.name} (${city.population})`);
+    expectOperationBefore(ctx, 'city-pass:landmarks', `text:${getProductionBadgeIcon(city)}`);
+    expectOperationBefore(ctx, 'city-pass:landmarks', 'text:⚡');
+  });
+
+  it('draws idle badge after legendary landmarks and labels', () => {
+    const { state, city } = addVisiblePlayerCityWithWonder(createNewGame(undefined, 'city-pass-idle', 'small'));
+    city.productionQueue = [];
+    city.idleProduction = 'gold';
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    expectOperationBefore(ctx, 'city-pass:landmarks', 'city-pass:idle');
+    expectOperationBefore(ctx, `text:${city.name} (${city.population})`, 'text:💰');
+  });
+
+  it('preserves status badge priority: breakaway over occupation and unrest', () => {
+    const { state, city } = addVisiblePlayerCityWithWonder(createNewGame(undefined, 'city-pass-breakaway-priority', 'small'));
+    city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 8 };
+    city.unrestLevel = 2;
+    state.civilizations.player.breakaway = {
+      originOwnerId: 'ai-1',
+      originCityId: city.id,
+      status: 'secession',
+      startedTurn: 10,
+      establishesOnTurn: 60,
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(texts).toContain('⛓');
+    expect(texts).not.toContain('☹');
+    expect(texts).not.toContain('🔥');
+  });
+
+  it('preserves status badge priority: occupation over ordinary unrest', () => {
+    const { state, city } = addVisiblePlayerCityWithWonder(createNewGame(undefined, 'city-pass-occupation-priority', 'small'));
+    city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 8 };
+    city.unrestLevel = 2;
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(texts).toContain('☹');
+    expect(texts).not.toContain('🔥');
+  });
+
+  it('does not leak live production idle status or landmark data for fogged last-seen cities', () => {
+    const state = createNewGame(undefined, 'city-pass-fogged-privacy', 'small');
+    const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
+    city.id = 'fogged-live-city';
+    city.name = 'Live Secret';
+    city.productionQueue = ['warrior'];
+    city.idleProduction = 'gold';
+    city.occupation = { originalOwnerId: 'ai-1', turnsRemaining: 9 };
+    city.unrestLevel = 2;
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'player', cityId: city.id, turnCompleted: 20 },
+    };
+    state.civilizations.player.visibility = {
+      tiles: { [hexKey(city.position)]: 'fog' },
+      lastSeen: {
+        [hexKey(city.position)]: {
+          coord: { ...city.position },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          improvementTurnsLeft: 0,
+          owner: 'player',
+          hasRiver: false,
+          wonder: null,
+          city: { id: city.id, name: 'Old Public', owner: 'player', population: 2 },
+        },
+      },
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
+    expect(texts).toContain('Old Public (2)');
+    expect(texts).not.toContain('Live Secret (1)');
+    expect(texts).not.toContain('⚔️');
+    expect(texts).not.toContain('💰');
+    expect(texts).not.toContain('☹');
+    expect(texts).not.toContain('🔥');
+    expect((ctx as unknown as MockCanvasContext).operations).not.toContain('legendary-landmarks:start');
+  });
+
+  it('draws the full city pass sequence for horizontally wrapped visible copies', () => {
+    const { state, city } = addVisiblePlayerCityWithWonder(createNewGame(undefined, 'city-pass-wrap', 'small'));
+    state.map.wrapsHorizontally = true;
+    state.map.width = 5;
+    city.position = { q: 0, r: 0 };
+    city.productionQueue = ['granary'];
+    state.civilizations.player.visibility.tiles = { '0,0': 'visible' };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const camera = {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: (coord: { q: number; r: number }) => coord.q === 5,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    drawCities(ctx, state, camera, 'player', { nowMs: 1000 });
+
+    expect((ctx as unknown as MockCanvasContext).operations).toContain('city-pass:base');
+    expect((ctx as unknown as MockCanvasContext).operations).toContain('city-pass:landmarks');
+    expect((ctx as unknown as MockCanvasContext).operations).toContain(`text:${city.name} (${city.population})`);
+    expect((ctx as unknown as MockCanvasContext).operations).toContain(`text:${getProductionBadgeIcon(city)}`);
+  });
+
+  it('does not draw rival map landmarks from completed rival intel alone', () => {
+    const state = createNewGame(undefined, 'city-pass-rival-intel', 'small');
+    const aiSettler = Object.values(state.units).find(unit => unit.owner === 'ai-1' && unit.type === 'settler')!;
+    const rivalCity = foundCity('ai-1', aiSettler.position, state.map, state.idCounters);
+    rivalCity.id = 'rival-legendary-city';
+    state.cities[rivalCity.id] = rivalCity;
+    state.civilizations['ai-1'].cities.push(rivalCity.id);
+    state.civilizations.player.visibility.tiles[hexKey(rivalCity.position)] = 'visible';
+    state.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'ai-1', cityId: rivalCity.id, turnCompleted: 20 },
+    };
+    state.legendaryWonderIntel = {
+      player: [{
+        kind: 'completed',
+        eventId: 'completed:oracle-of-delphi:ai-1:20',
+        wonderId: 'oracle-of-delphi',
+        civId: 'ai-1',
+        civName: 'Rival',
+        completionTurn: 20,
+        learnedTurn: 20,
+      }],
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    expect((ctx as unknown as MockCanvasContext).operations).not.toContain('legendary-landmarks:start');
+  });
+});
 
 describe('drawCities — bottom-right build badge', () => {
   it('draws the production icon for a player-owned city with a non-empty queue', () => {
