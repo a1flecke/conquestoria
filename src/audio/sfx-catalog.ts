@@ -9,11 +9,6 @@ export type SfxClass =
 // Mirrors UnitMotionStyle in src/renderer/sprites/sprite-catalog.ts — keep in sync.
 export type LocomotionClass = 'humanoid' | 'animal' | 'naval';
 
-// Spy-type death entries are still placeholder OGGs pending real curation.
-function ph(id: string, file: string): TrackEntry {
-  return { id, file, bpm: 0, key: 'placeholder', loop: { loopStart: 0, loopEnd: 1.5 } };
-}
-
 function real(id: string, file: string, loopEnd: number, key = 'impact'): TrackEntry {
   return { id, file, bpm: 0, key, loop: { loopStart: 0, loopEnd } };
 }
@@ -142,11 +137,11 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   transport:  { death: real('sfx-transport-death',  'audio/sfx/transport-death.ogg',  0.266, 'death') },
 
   // === Spy Types (death only — spies are dispatched, never attack directly) ===
-  spy_scout:     { death: ph('sfx-spy_scout-death',     'audio/sfx/spy_scout-death.ogg') },
-  spy_informant: { death: ph('sfx-spy_informant-death', 'audio/sfx/spy_informant-death.ogg') },
-  spy_agent:     { death: ph('sfx-spy_agent-death',     'audio/sfx/spy_agent-death.ogg') },
-  spy_operative: { death: ph('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg') },
-  spy_hacker:    { death: ph('sfx-spy_hacker-death',    'audio/sfx/spy_hacker-death.ogg') },
+  spy_scout:     { death: real('sfx-spy_scout-death',     'audio/sfx/spy_scout-death.ogg',     0.600, 'death') },
+  spy_informant: { death: real('sfx-spy_informant-death', 'audio/sfx/spy_informant-death.ogg', 0.400, 'death') },
+  spy_agent:     { death: real('sfx-spy_agent-death',     'audio/sfx/spy_agent-death.ogg',     0.569, 'death') },
+  spy_operative: { death: real('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg', 0.530, 'death') },
+  spy_hacker:    { death: real('sfx-spy_hacker-death',    'audio/sfx/spy_hacker-death.ogg',    0.183, 'death') },
 };
 
 // Mirrors UNIT_MOTION_STYLES in src/renderer/sprites/sprite-catalog.ts — keep in sync.
