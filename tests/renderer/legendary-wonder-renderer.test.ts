@@ -21,14 +21,54 @@ class MockCanvasContext {
   save(): void { this.operations.push('save'); }
   restore(): void { this.operations.push('restore'); }
   beginPath(): void { this.operations.push('beginPath'); }
-  arc(): void { this.operations.push('arc'); }
-  rect(): void { this.operations.push('rect'); }
-  moveTo(): void { this.operations.push('moveTo'); }
-  lineTo(): void { this.operations.push('lineTo'); }
+  arc(x = 0, y = 0, radius = 0): void { this.operations.push(`arc:${x.toFixed(2)}:${y.toFixed(2)}:${radius.toFixed(2)}`); }
+  rect(x = 0, y = 0, width = 0, height = 0): void { this.operations.push(`rect:${x.toFixed(2)}:${y.toFixed(2)}:${width.toFixed(2)}:${height.toFixed(2)}`); }
+  moveTo(x = 0, y = 0): void { this.operations.push(`moveTo:${x.toFixed(2)}:${y.toFixed(2)}`); }
+  lineTo(x = 0, y = 0): void { this.operations.push(`lineTo:${x.toFixed(2)}:${y.toFixed(2)}`); }
   closePath(): void { this.operations.push('closePath'); }
   fill(): void { this.operations.push(`fill:${this.fillStyle}`); }
   stroke(): void { this.operations.push(`stroke:${this.strokeStyle}`); }
   fillText(text: string): void { this.operations.push(`text:${text}`); }
+}
+
+function drawCompletedGlyphForWonder(wonderId: string, options: { reducedMotion?: boolean } = {}): MockCanvasContext {
+  const ctx = new MockCanvasContext();
+  drawLegendaryWonderLandmarkGlyph({
+    ctx: ctx as unknown as CanvasRenderingContext2D,
+    cx: 80,
+    cy: 80,
+    radius: 12,
+    metadata: getLegendaryWonderLandmarkMetadata(wonderId),
+    state: 'completed',
+    reducedMotion: options.reducedMotion === true,
+    nowMs: 1000,
+  });
+  return ctx;
+}
+
+function expectNonblankCanvasGlyph(ctx: MockCanvasContext, label: string): void {
+  expect(ctx.operations.length, label).toBeGreaterThan(4);
+  expect(
+    ctx.operations.some(operation =>
+      operation.startsWith('fill:')
+      || operation.startsWith('stroke:')
+      || operation.startsWith('arc:')
+      || operation.startsWith('rect:')
+      || operation.startsWith('lineTo:'),
+    ),
+    label,
+  ).toBe(true);
+}
+
+function getGlyphGeometryProfile(ctx: MockCanvasContext): string {
+  return ctx.operations
+    .filter(operation =>
+      operation.startsWith('arc:')
+      || operation.startsWith('rect:')
+      || operation.startsWith('moveTo:')
+      || operation.startsWith('lineTo:'),
+    )
+    .join('|');
 }
 
 describe('legendary-wonder-renderer', () => {
@@ -115,6 +155,37 @@ describe('legendary-wonder-renderer', () => {
     }
   });
 
+  it('draws knowledge-and-signal completed landmarks through bespoke asset renderers', () => {
+    const expected = [
+      ['world-archive', 'world-archive-bespoke'],
+      ['starvault-observatory', 'starvault-observatory-bespoke'],
+      ['storm-signal-spire', 'storm-signal-spire-bespoke'],
+      ['internet', 'internet-bespoke'],
+    ] as const;
+
+    for (const [wonderId, assetKey] of expected) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+
+      expect(ctx.operations, wonderId).toContain(`bespoke:${assetKey}`);
+      expectNonblankCanvasGlyph(ctx, wonderId);
+    }
+  });
+
+  it('draws distinct knowledge-and-signal bespoke glyph geometry', () => {
+    const wonderIds = ['world-archive', 'starvault-observatory', 'storm-signal-spire', 'internet'];
+    const profiles = new Set<string>();
+
+    for (const wonderId of wonderIds) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+      const profile = getGlyphGeometryProfile(ctx);
+
+      expect(profile.length, wonderId).toBeGreaterThan(0);
+      profiles.add(profile);
+    }
+
+    expect(profiles.size).toBe(wonderIds.length);
+  });
+
   it('keeps generic silhouette fallback for completed landmarks without bespoke assets', () => {
     const ctx = new MockCanvasContext();
 
@@ -123,7 +194,7 @@ describe('legendary-wonder-renderer', () => {
       cx: 80,
       cy: 80,
       radius: 12,
-      metadata: getLegendaryWonderLandmarkMetadata('world-archive'),
+      metadata: getLegendaryWonderLandmarkMetadata('moonwell-gardens'),
       state: 'completed',
       reducedMotion: false,
       nowMs: 1000,
@@ -136,7 +207,7 @@ describe('legendary-wonder-renderer', () => {
   it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
     const ctx = new MockCanvasContext();
     const metadata = {
-      ...getLegendaryWonderLandmarkMetadata('world-archive'),
+      ...getLegendaryWonderLandmarkMetadata('moonwell-gardens'),
       assetKey: 'unsupported-bespoke-test-key',
     };
 
@@ -171,6 +242,39 @@ describe('legendary-wonder-renderer', () => {
 
     expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
     expect(ctx.operations.some(operation => operation.startsWith('stroke:'))).toBe(true);
+  });
+
+  it('keeps construction ghosts instead of completed bespoke art for knowledge-and-signal builds', () => {
+    const wonderIds = ['world-archive', 'starvault-observatory', 'storm-signal-spire', 'internet'];
+
+    for (const wonderId of wonderIds) {
+      const ctx = new MockCanvasContext();
+
+      drawLegendaryWonderLandmarkGlyph({
+        ctx: ctx as unknown as CanvasRenderingContext2D,
+        cx: 80,
+        cy: 80,
+        radius: 12,
+        metadata: getLegendaryWonderLandmarkMetadata(wonderId),
+        state: 'under-construction',
+        reducedMotion: false,
+        nowMs: 1000,
+      });
+
+      expect(ctx.operations.some(operation => operation.startsWith('bespoke:')), wonderId).toBe(false);
+      expect(ctx.operations.some(operation => operation.startsWith('stroke:')), wonderId).toBe(true);
+    }
+  });
+
+  it('draws nonblank knowledge-and-signal bespoke glyphs with reduced motion', () => {
+    const wonderIds = ['world-archive', 'starvault-observatory', 'storm-signal-spire', 'internet'];
+
+    for (const wonderId of wonderIds) {
+      const ctx = drawCompletedGlyphForWonder(wonderId, { reducedMotion: true });
+
+      expect(ctx.operations.some(operation => operation.startsWith('bespoke:')), wonderId).toBe(true);
+      expectNonblankCanvasGlyph(ctx, wonderId);
+    }
   });
 
   it('draws active construction ghosts as scaffold or outline operations', () => {
