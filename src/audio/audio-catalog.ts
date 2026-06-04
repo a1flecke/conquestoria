@@ -48,22 +48,24 @@ export const WAR_LAYER: Record<EraId, TrackEntry> = {
 // enters the fade-out tail, eliminating the periodic 12 s silence dip on every loop.
 // The fade tail (loopEnd → file-end) remains in the buffer but is unreachable during
 // normal playback; it would only sound if the bus is stopped without a crossfade.
-// Spec 3: dissonant/restless tension layers — curated in MR5+
+// "Darkness Approaches" by Eric Matyas (soundimage.org) — free use with attribution
+// Atonal ambient loop; same source file used for all eras
 export const UNREST_LAYER: Record<EraId, TrackEntry> = {
-  1: ph('era1-unrest', 'audio/adaptive/era1-unrest.ogg'),
-  2: ph('era2-unrest', 'audio/adaptive/era2-unrest.ogg'),
-  3: ph('era3-unrest', 'audio/adaptive/era3-unrest.ogg'),
-  4: ph('era4-unrest', 'audio/adaptive/era4-unrest.ogg'),
-  5: ph('era5-unrest', 'audio/adaptive/era5-unrest.ogg'),
+  1: { id: 'era1-unrest', file: 'audio/adaptive/era1-unrest.ogg', bpm: 0, key: 'atonal', loop: { loopStart: 0, loopEnd: 104.757 } },
+  2: { id: 'era2-unrest', file: 'audio/adaptive/era2-unrest.ogg', bpm: 0, key: 'atonal', loop: { loopStart: 0, loopEnd: 104.757 } },
+  3: { id: 'era3-unrest', file: 'audio/adaptive/era3-unrest.ogg', bpm: 0, key: 'atonal', loop: { loopStart: 0, loopEnd: 104.757 } },
+  4: { id: 'era4-unrest', file: 'audio/adaptive/era4-unrest.ogg', bpm: 0, key: 'atonal', loop: { loopStart: 0, loopEnd: 104.757 } },
+  5: { id: 'era5-unrest', file: 'audio/adaptive/era5-unrest.ogg', bpm: 0, key: 'atonal', loop: { loopStart: 0, loopEnd: 104.757 } },
 };
 
-// Spec 3: desperate/sparse/dire tension layers — curated in MR5+
+// "Anguish" by Kevin MacLeod (incompetech.com) — CC-BY 3.0
+// Loop region 0–226.958 s; coda section (227–239 s) excluded from loop
 export const DEFEAT_LAYER: Record<EraId, TrackEntry> = {
-  1: ph('era1-defeat', 'audio/adaptive/era1-defeat.ogg'),
-  2: ph('era2-defeat', 'audio/adaptive/era2-defeat.ogg'),
-  3: ph('era3-defeat', 'audio/adaptive/era3-defeat.ogg'),
-  4: ph('era4-defeat', 'audio/adaptive/era4-defeat.ogg'),
-  5: ph('era5-defeat', 'audio/adaptive/era5-defeat.ogg'),
+  1: { id: 'era1-defeat', file: 'audio/adaptive/era1-defeat.ogg', bpm: 0, key: 'unknown', loop: { loopStart: 0, loopEnd: 226.958 } },
+  2: { id: 'era2-defeat', file: 'audio/adaptive/era2-defeat.ogg', bpm: 0, key: 'unknown', loop: { loopStart: 0, loopEnd: 226.958 } },
+  3: { id: 'era3-defeat', file: 'audio/adaptive/era3-defeat.ogg', bpm: 0, key: 'unknown', loop: { loopStart: 0, loopEnd: 226.958 } },
+  4: { id: 'era4-defeat', file: 'audio/adaptive/era4-defeat.ogg', bpm: 0, key: 'unknown', loop: { loopStart: 0, loopEnd: 226.958 } },
+  5: { id: 'era5-defeat', file: 'audio/adaptive/era5-defeat.ogg', bpm: 0, key: 'unknown', loop: { loopStart: 0, loopEnd: 226.958 } },
 };
 
 export const ACCENT: Record<AudioFamily, TrackEntry> = {
