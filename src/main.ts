@@ -1895,6 +1895,8 @@ function finalizePendingCityCaptureChoice(
   const cityBeforeResolution = gameState.cities[pending.cityId];
   const previousOwner = cityBeforeResolution?.owner ?? '';
   const cityName = cityBeforeResolution?.name ?? pending.cityId;
+  // Capture pre-capture nearDefeat for recovery detection (Spec 3)
+  const capturingCivWasNearDefeat = gameState.civilizations[gameState.currentPlayer]?.nearDefeat ?? false;
   const result = finalizePlayerCityAssaultChoice(gameState, pending, disposition, gameState.turn);
 
   pendingCityCaptureChoice = null;
@@ -1911,26 +1913,23 @@ function finalizePendingCityCaptureChoice(
     showNotification(`We have captured ${cityName}!`, 'success');
     bus.emit('city:captured', { cityId: pending.cityId, newOwner: gameState.currentPlayer, previousOwner });
 
-    // Spec 3: emit near-defeat / eliminated / recovered events based on city counts post-capture
-    const prevCiv = gameState.civilizations[previousOwner];
-    if (prevCiv) {
-      const prevCivCityCount = Object.values(gameState.cities).filter(c => c.owner === previousOwner).length;
-      if (prevCivCityCount === 0) {
-        // Civ eliminated
-        prevCiv.nearDefeat = false;
+    // Spec 3: emit near-defeat / eliminated / recovered events.
+    // The nearDefeat flag is set on civilizations by resolveMajorCityCapture
+    // (in city-capture-system.ts), so we can read it directly here.
+    const prevCivAfterCapture = gameState.civilizations[previousOwner];
+    if (prevCivAfterCapture) {
+      const prevCityCount = prevCivAfterCapture.cities.length;
+      if (prevCityCount === 0) {
         bus.emit('civ:eliminated', { civId: previousOwner, eliminatedBy: gameState.currentPlayer });
-      } else if (prevCivCityCount === 1 && !prevCiv.nearDefeat) {
-        // Just entered near-defeat (was above 1, now at 1)
-        prevCiv.nearDefeat = true;
+      } else if (prevCivAfterCapture.nearDefeat) {
+        // nearDefeat was just set to true by resolveMajorCityCapture (just entered near-defeat)
         bus.emit('civ:near-defeat', { civId: previousOwner });
       }
     }
-    // If the capturing civ was near-defeat and just gained a city back above 1
-    const capturingCiv2 = gameState.civilizations[gameState.currentPlayer];
-    if (capturingCiv2?.nearDefeat) {
-      const capturingCityCount = Object.values(gameState.cities).filter(c => c.owner === gameState.currentPlayer).length;
-      if (capturingCityCount > 1) {
-        capturingCiv2.nearDefeat = false;
+    // If the capturing civ was near-defeat before this capture and now has > 1 city, emit recovery
+    if (capturingCivWasNearDefeat) {
+      const capturingCivAfter = gameState.civilizations[gameState.currentPlayer];
+      if (capturingCivAfter && capturingCivAfter.cities.length > 1) {
         bus.emit('civ:recovered-from-near-defeat', { civId: gameState.currentPlayer });
       }
     }
@@ -2663,9 +2662,9 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
           const nextCivCities = Object.values(gameState.cities).filter(c => c.owner === nextSlotId);
           bus.emit('currentPlayer:changed-after-handoff', {
             civId: nextSlotId,
-            atWar: (nextCiv?.diplomacy?.atWarWith?.length ?? 0) > 0,
+            atWarCount: nextCiv?.diplomacy?.atWarWith?.length ?? 0,
             unrestCityCount: nextCivCities.filter(c => c.unrestLevel > 0).length,
-            nearDefeat: nextCivCities.length <= 1,
+            nearDefeat: nextCiv?.nearDefeat ?? nextCivCities.length <= 1,
           });
         },
       });

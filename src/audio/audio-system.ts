@@ -182,12 +182,12 @@ export class AudioSystem {
       bus.on('currentPlayer:changed-after-handoff', p => {
         this.currentPlayerId = p.civId;
         this.currentCivType = this.civTypeById[p.civId] ?? p.civId;
-        // warCount stays in sync with atWar flag — reset to match new player's state
-        this.warCount = p.atWar ? 1 : 0;
+        // Reset warCount to exact count from payload so remainingWars stays precise
+        this.warCount = p.atWarCount;
         this.naturalWonderDirector.stopAmbient('player-changed');
         this.director.handlePlayerChanged({
           civType: this.currentCivType,
-          atWar: p.atWar,
+          atWar: p.atWarCount > 0,
           unrestCityCount: p.unrestCityCount,
           nearDefeat: p.nearDefeat,
         });

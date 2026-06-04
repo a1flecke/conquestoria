@@ -1196,7 +1196,7 @@ export interface GameEvents {
   'era:advanced': { era: number };
   'currentPlayer:changed-after-handoff': {
     civId: string;
-    atWar: boolean;
+    atWarCount: number;    // exact war count so AudioSystem can track remainingWars precisely
     unrestCityCount: number;
     nearDefeat: boolean;
   };
