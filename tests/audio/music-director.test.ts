@@ -113,10 +113,14 @@ describe('MusicDirector', () => {
 
   // --- handlePeaceSigned ---
 
-  it('transitions to peace when last war ends', () => {
+  it('transitions to peace when last war ends (after peace stinger completes)', async () => {
     director.handleWarDeclared({ aggressor: 'player', defender: 'enemy', opponentKind: 'major' });
     director.handlePeaceSigned({ remainingWars: 0 });
-    expect(mixer.setSnapshot).toHaveBeenLastCalledWith('peace', expect.any(Number));
+    await flushPromises();
+    const snapshots = vi.mocked(mixer.setSnapshot).mock.calls.map(c => c[0]);
+    expect(snapshots).toContain('peace');
+    // Final restore after stinger must be peace, not at-war
+    expect(snapshots.at(-1)).toBe('peace');
   });
 
   it('stays at-war when peace signed but other wars remain', () => {
@@ -151,17 +155,32 @@ describe('MusicDirector', () => {
   it('reloads current music context without changing snapshot', () => {
     director.handleEraAdvanced({ era: 1, civType: 'rome' });
     vi.mocked(mixer.setSnapshot).mockClear();
-    director.handlePlayerChanged({ civType: 'egypt' });
+    director.handlePlayerChanged({ civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false });
     // Snapshot re-applied to reload the correct accent track for the new civ
     expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', expect.any(Number));
   });
 
   // --- handleGameEnded ---
 
-  it('transitions to silent on game end', () => {
+  it('transitions to silent on game end after stinger', async () => {
     director.handleEraAdvanced({ era: 1, civType: 'rome' });
-    director.handleGameEnded({ outcome: 'victory' });
-    expect(mixer.setSnapshot).toHaveBeenLastCalledWith('silent', expect.any(Number));
+    await director.handleGameEnded({ outcome: 'victory' });
+    const snapshotCalls = vi.mocked(mixer.setSnapshot).mock.calls.map(c => c[0]);
+    expect(snapshotCalls).toContain('silent');
+    // stinger-duck must come before silent
+    const duckIdx = snapshotCalls.lastIndexOf('stinger-duck');
+    const silentIdx = snapshotCalls.lastIndexOf('silent');
+    expect(duckIdx).toBeLessThan(silentIdx);
+  });
+
+  it('does NOT restore to peace/at-war after game-over stinger', async () => {
+    director.initPeaceSnapshot();
+    vi.mocked(mixer.setSnapshot).mockClear();
+    await director.handleGameEnded({ outcome: 'defeat' });
+    const snapshots = vi.mocked(mixer.setSnapshot).mock.calls.map(c => c[0]);
+    expect(snapshots).not.toContain('peace');
+    expect(snapshots).not.toContain('at-war');
+    expect(snapshots).toContain('silent');
   });
 
   // --- transition-event regressions ---
@@ -197,12 +216,13 @@ describe('MusicDirector', () => {
     expect(lastSnapshot).toBe('peace');
   });
 
-  it('handleCityFounded without initPeaceSnapshot restores to silent (regression guard — confirms bug existed)', async () => {
-    // Default intendedSnapshot is 'silent'. This test proves the pre-fix behavior.
+  it('handleCityFounded without initPeaceSnapshot restores to peace (flag-based resolver default is peace)', async () => {
+    // Spec 3: resolveSnapshot() returns 'peace' when no flags are set — so stinger
+    // always restores to 'peace' even before initPeaceSnapshot is explicitly called.
     director.handleCityFounded({ civType: 'rome' });
     await flushPromises();
     const lastSnapshot = vi.mocked(mixer.setSnapshot).mock.calls.at(-1)![0];
-    expect(lastSnapshot).toBe('silent');
+    expect(lastSnapshot).toBe('peace');
   });
 
   it('initPeaceSnapshot calls mixer.setSnapshot("peace", 0) immediately', () => {
@@ -219,5 +239,169 @@ describe('MusicDirector', () => {
     expect(mixer.setSnapshot).toHaveBeenCalledWith('stinger-duck', expect.any(Number));
     expect(mixer.playOneShot).toHaveBeenCalledWith('stinger', fakeBuffer);
     expect(mixer.setSnapshot).toHaveBeenLastCalledWith('peace', expect.any(Number));
+  });
+});
+
+// ─── Spec 3 additions ──────────────────────────────────────────────────────
+
+import {
+  type UnrestChangedPayload,
+  type CivNearDefeatPayload,
+} from '../../src/audio/music-director';
+
+function makeDirectorWithPlayer(civId: string, atWar = false, unrestCityCount = 0, nearDefeat = false): MusicDirector {
+  const d = new MusicDirector(makeMixer(), makeLoader());
+  d.handlePlayerChanged({ civType: civId, atWar, unrestCityCount, nearDefeat });
+  return d;
+}
+
+describe('resolveSnapshot — priority chain (Spec 3)', () => {
+  it('nearDefeat alone → brink-of-defeat', () => {
+    expect(makeDirectorWithPlayer('rome', false, 0, true).resolveSnapshot()).toBe('brink-of-defeat');
+  });
+  it('nearDefeat + atWar → brink-of-defeat (nearDefeat wins)', () => {
+    expect(makeDirectorWithPlayer('rome', true, 0, true).resolveSnapshot()).toBe('brink-of-defeat');
+  });
+  it('nearDefeat + inUnrest → brink-of-defeat (nearDefeat wins)', () => {
+    expect(makeDirectorWithPlayer('rome', false, 2, true).resolveSnapshot()).toBe('brink-of-defeat');
+  });
+  it('nearDefeat + atWar + inUnrest → brink-of-defeat', () => {
+    expect(makeDirectorWithPlayer('rome', true, 2, true).resolveSnapshot()).toBe('brink-of-defeat');
+  });
+  it('atWar alone → at-war', () => {
+    expect(makeDirectorWithPlayer('rome', true, 0, false).resolveSnapshot()).toBe('at-war');
+  });
+  it('atWar + inUnrest → at-war (atWar wins over unrest)', () => {
+    expect(makeDirectorWithPlayer('rome', true, 2, false).resolveSnapshot()).toBe('at-war');
+  });
+  it('inUnrest alone → unrest', () => {
+    expect(makeDirectorWithPlayer('rome', false, 1, false).resolveSnapshot()).toBe('unrest');
+  });
+  it('all flags false → peace', () => {
+    expect(makeDirectorWithPlayer('rome').resolveSnapshot()).toBe('peace');
+  });
+});
+
+describe('unrest counter (Spec 3)', () => {
+  let director: MusicDirector;
+  beforeEach(() => {
+    director = makeDirectorWithPlayer('rome');
+  });
+
+  it('two unrest-started → inUnrest=true', () => {
+    director.handleUnrestStarted({ owner: 'rome' });
+    director.handleUnrestStarted({ owner: 'rome' });
+    expect(director.resolveSnapshot()).toBe('unrest');
+  });
+
+  it('two started, one resolved → still unrest (count=1)', () => {
+    director.handleUnrestStarted({ owner: 'rome' });
+    director.handleUnrestStarted({ owner: 'rome' });
+    director.handleUnrestResolved({ owner: 'rome' });
+    expect(director.resolveSnapshot()).toBe('unrest');
+  });
+
+  it('two started, two resolved → peace (count=0)', () => {
+    director.handleUnrestStarted({ owner: 'rome' });
+    director.handleUnrestStarted({ owner: 'rome' });
+    director.handleUnrestResolved({ owner: 'rome' });
+    director.handleUnrestResolved({ owner: 'rome' });
+    expect(director.resolveSnapshot()).toBe('peace');
+  });
+
+  it('revolt-started increments the same counter', () => {
+    director.handleRevoltStarted({ owner: 'rome' });
+    expect(director.resolveSnapshot()).toBe('unrest');
+  });
+
+  it('unrest events from a different civ are ignored', () => {
+    director.handleUnrestStarted({ owner: 'egypt' }); // not currentCivId
+    expect(director.resolveSnapshot()).toBe('peace');
+  });
+
+  it('counter never goes below 0 (extra resolves are idempotent)', () => {
+    director.handleUnrestResolved({ owner: 'rome' }); // no prior started
+    director.handleUnrestResolved({ owner: 'rome' });
+    expect(director.resolveSnapshot()).toBe('peace');
+  });
+});
+
+describe('handlePlayerChanged — hot-seat drift reset (Spec 3)', () => {
+  let director: MusicDirector;
+  beforeEach(() => {
+    director = makeDirectorWithPlayer('rome');
+  });
+
+  it('handoff with atWar:true resets to at-war', () => {
+    director.handlePlayerChanged({ civType: 'egypt', atWar: true, unrestCityCount: 0, nearDefeat: false });
+    expect(director.resolveSnapshot()).toBe('at-war');
+  });
+
+  it('handoff with nearDefeat:true resets to brink-of-defeat', () => {
+    director.handlePlayerChanged({ civType: 'viking', atWar: false, unrestCityCount: 0, nearDefeat: true });
+    expect(director.resolveSnapshot()).toBe('brink-of-defeat');
+  });
+
+  it('handoff clears prior unrest for incoming player at peace', () => {
+    director.handleUnrestStarted({ owner: 'rome' });
+    director.handleUnrestStarted({ owner: 'rome' });
+    director.handlePlayerChanged({ civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false });
+    expect(director.resolveSnapshot()).toBe('peace');
+  });
+
+  it('handoff with unrestCityCount:2 resolves to unrest', () => {
+    director.handlePlayerChanged({ civType: 'aztec', atWar: false, unrestCityCount: 2, nearDefeat: false });
+    expect(director.resolveSnapshot()).toBe('unrest');
+  });
+});
+
+describe('near-defeat handlers (Spec 3)', () => {
+  it('handleNearDefeat for current civ sets brink-of-defeat', () => {
+    const d = makeDirectorWithPlayer('rome');
+    d.handleNearDefeat({ civId: 'rome' });
+    expect(d.resolveSnapshot()).toBe('brink-of-defeat');
+  });
+
+  it('handleNearDefeat for different civ is ignored', () => {
+    const d = makeDirectorWithPlayer('rome');
+    d.handleNearDefeat({ civId: 'egypt' });
+    expect(d.resolveSnapshot()).toBe('peace');
+  });
+
+  it('handleRecoveredFromNearDefeat clears near-defeat', () => {
+    const d = makeDirectorWithPlayer('rome', false, 0, true);
+    d.handleRecoveredFromNearDefeat({ civId: 'rome' });
+    expect(d.resolveSnapshot()).toBe('peace');
+  });
+});
+
+describe('currentStingerPromise — sequencing contract (Spec 3)', () => {
+  it('resolves immediately when no stinger is active', async () => {
+    const d = new MusicDirector(makeMixer(), makeLoader());
+    let resolved = false;
+    void d.currentStingerPromise.then(() => { resolved = true; });
+    await flushPromises();
+    expect(resolved).toBe(true);
+  });
+
+  it('resolves after playStingerWithDuck completes', async () => {
+    const mixer = makeMixer();
+    let resolveOneShot!: () => void;
+    vi.mocked(mixer.playOneShot).mockReturnValue(
+      new Promise<void>(r => { resolveOneShot = r; }),
+    );
+    const d = new MusicDirector(mixer, makeLoader());
+    d.initPeaceSnapshot();
+    d.handleCityFounded({ civType: 'rome' });
+
+    let stingerDone = false;
+    void d.currentStingerPromise.then(() => { stingerDone = true; });
+
+    await flushPromises();
+    expect(stingerDone).toBe(false); // stinger still in flight
+
+    resolveOneShot();
+    await flushPromises();
+    expect(stingerDone).toBe(true);  // stinger completed
   });
 });

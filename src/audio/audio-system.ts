@@ -182,9 +182,15 @@ export class AudioSystem {
       bus.on('currentPlayer:changed-after-handoff', p => {
         this.currentPlayerId = p.civId;
         this.currentCivType = this.civTypeById[p.civId] ?? p.civId;
-        this.warCount = 0;
+        // warCount stays in sync with atWar flag — reset to match new player's state
+        this.warCount = p.atWar ? 1 : 0;
         this.naturalWonderDirector.stopAmbient('player-changed');
-        this.director.handlePlayerChanged({ civType: this.currentCivType });
+        this.director.handlePlayerChanged({
+          civType: this.currentCivType,
+          atWar: p.atWar,
+          unrestCityCount: p.unrestCityCount,
+          nearDefeat: p.nearDefeat,
+        });
         // Swap in the new civ's accent track; era + adaptive buses keep their current sources
         void this.reloadAccent(this.currentCivType);
       }),
@@ -192,7 +198,45 @@ export class AudioSystem {
       bus.on('game:over', p => {
         const outcome = p.winnerId === this.currentPlayerId ? 'victory' : 'defeat';
         this.naturalWonderDirector.stopAmbient('game-ended');
-        this.director.handleGameEnded({ outcome });
+        // handleGameEnded returns a Promise; MR3 will chain the victory voice line after it
+        void this.director.handleGameEnded({ outcome });
+      }),
+
+      // Spec 3: new stinger events
+      bus.on('wonder:legendary-completed', p => {
+        if (p.civId !== this.currentPlayerId) return;
+        this.director.handleWonderBuilt();
+      }),
+
+      bus.on('tech:completed', p => {
+        if (p.civId !== this.currentPlayerId) return;
+        this.director.handleTechResearched();
+      }),
+
+      bus.on('civ:eliminated', p => {
+        if (p.eliminatedBy !== this.currentPlayerId) return;
+        this.director.handleCivDefeated();
+      }),
+
+      // Spec 3: adaptive state events
+      bus.on('faction:unrest-started', p => {
+        this.director.handleUnrestStarted({ owner: p.owner });
+      }),
+
+      bus.on('faction:revolt-started', p => {
+        this.director.handleRevoltStarted({ owner: p.owner });
+      }),
+
+      bus.on('faction:unrest-resolved', p => {
+        this.director.handleUnrestResolved({ owner: p.owner });
+      }),
+
+      bus.on('civ:near-defeat', p => {
+        this.director.handleNearDefeat({ civId: p.civId });
+      }),
+
+      bus.on('civ:recovered-from-near-defeat', p => {
+        this.director.handleRecoveredFromNearDefeat({ civId: p.civId });
       }),
     );
   }
