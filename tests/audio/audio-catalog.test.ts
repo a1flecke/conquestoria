@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ERA_BASE, WAR_LAYER, ACCENT, STINGER, resolveEra, type EraId } from '../../src/audio/audio-catalog';
+import {
+  ERA_BASE, WAR_LAYER, ACCENT, STINGER,
+  UNREST_LAYER, DEFEAT_LAYER,
+  resolveEra, type EraId,
+} from '../../src/audio/audio-catalog';
 import { CIV_TO_AUDIO_FAMILY, MINOR_CIV_TO_AUDIO_FAMILY } from '../../src/audio/civ-audio-family';
 
 // Resolve relative to this test file so disk checks work in both the main worktree
@@ -13,11 +17,19 @@ const ERAS: EraId[] = [1, 2, 3, 4, 5];
 const ALL_ENTRIES = [
   ...Object.values(ERA_BASE),
   ...Object.values(WAR_LAYER),
+  ...Object.values(UNREST_LAYER),
+  ...Object.values(DEFEAT_LAYER),
   ...Object.values(ACCENT),
   ...Object.values(STINGER.eraAdvance),
   ...Object.values(STINGER.eraTransitionCue),
   STINGER.cityFounded,
   STINGER.warDeclared,
+  STINGER.wonderBuilt,
+  STINGER.techResearched,
+  STINGER.peaceSigned,
+  STINGER.civDefeated,
+  STINGER.victory,
+  STINGER.defeat,
 ];
 
 describe('resolveEra (Er2)', () => {
@@ -47,6 +59,27 @@ describe('catalog completeness', () => {
   it('STINGER.cityFounded and STINGER.warDeclared exist', () => {
     expect(STINGER.cityFounded).toBeDefined();
     expect(STINGER.warDeclared).toBeDefined();
+  });
+
+  it('every era has UNREST_LAYER and DEFEAT_LAYER entries (Spec 3)', () => {
+    for (const e of ERAS) {
+      expect(UNREST_LAYER[e], `UNREST_LAYER[${e}]`).toBeDefined();
+      expect(DEFEAT_LAYER[e], `DEFEAT_LAYER[${e}]`).toBeDefined();
+    }
+  });
+
+  it('all 6 Spec 3 stinger slots exist', () => {
+    expect(STINGER.wonderBuilt,    'wonderBuilt').toBeDefined();
+    expect(STINGER.techResearched, 'techResearched').toBeDefined();
+    expect(STINGER.peaceSigned,    'peaceSigned').toBeDefined();
+    expect(STINGER.civDefeated,    'civDefeated').toBeDefined();
+    expect(STINGER.victory,        'victory').toBeDefined();
+    expect(STINGER.defeat,         'defeat').toBeDefined();
+  });
+
+  it('no two catalog entries share the same id', () => {
+    const ids = ALL_ENTRIES.map(e => e.id);
+    expect(new Set(ids).size, 'duplicate ids found').toBe(ids.length);
   });
 
   it('every AudioFamily used by any civ has an ACCENT entry', () => {

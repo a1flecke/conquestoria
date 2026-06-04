@@ -48,6 +48,24 @@ export const WAR_LAYER: Record<EraId, TrackEntry> = {
 // enters the fade-out tail, eliminating the periodic 12 s silence dip on every loop.
 // The fade tail (loopEnd → file-end) remains in the buffer but is unreachable during
 // normal playback; it would only sound if the bus is stopped without a crossfade.
+// Spec 3: dissonant/restless tension layers — curated in MR5+
+export const UNREST_LAYER: Record<EraId, TrackEntry> = {
+  1: ph('era1-unrest', 'audio/adaptive/era1-unrest.ogg'),
+  2: ph('era2-unrest', 'audio/adaptive/era2-unrest.ogg'),
+  3: ph('era3-unrest', 'audio/adaptive/era3-unrest.ogg'),
+  4: ph('era4-unrest', 'audio/adaptive/era4-unrest.ogg'),
+  5: ph('era5-unrest', 'audio/adaptive/era5-unrest.ogg'),
+};
+
+// Spec 3: desperate/sparse/dire tension layers — curated in MR5+
+export const DEFEAT_LAYER: Record<EraId, TrackEntry> = {
+  1: ph('era1-defeat', 'audio/adaptive/era1-defeat.ogg'),
+  2: ph('era2-defeat', 'audio/adaptive/era2-defeat.ogg'),
+  3: ph('era3-defeat', 'audio/adaptive/era3-defeat.ogg'),
+  4: ph('era4-defeat', 'audio/adaptive/era4-defeat.ogg'),
+  5: ph('era5-defeat', 'audio/adaptive/era5-defeat.ogg'),
+};
+
 export const ACCENT: Record<AudioFamily, TrackEntry> = {
   // Kevin MacLeod (incompetech.com) — CC-BY 3.0
   'east-asian':              { id: 'accent-east-asian',              file: 'audio/accent/east-asian.ogg',              bpm: 0, key: 'pentatonic',    loop: { loopStart: 0, loopEnd: 108.000 } },
@@ -95,6 +113,19 @@ export const STINGER = {
   cityFounded: { id: 'stinger-city-founded', file: 'audio/stinger/city-founded.ogg', bpm: 0, key: 'uplifting',   loop: { loopStart: 0, loopEnd: 3.000 } },
   // "Danse Macabre - Low Strings Finale" by Kevin MacLeod — CC-BY 3.0, trimmed to 3 s
   warDeclared:  { id: 'stinger-war-declared',  file: 'audio/stinger/war-declared.ogg',  bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 3.000 } },
+  // Spec 3 stingers — placeholders; curated in MR5+
+  // tone: grand, awe — 4 s target
+  wonderBuilt:    ph('stinger-wonder-built',    'audio/stinger/wonder-built.ogg',    4.0),
+  // tone: bright, discovery — 2.5 s target
+  techResearched: ph('stinger-tech-researched', 'audio/stinger/tech-researched.ogg', 2.5),
+  // tone: relief, resolution — 3.5 s target
+  peaceSigned:    ph('stinger-peace-signed',    'audio/stinger/peace-signed.ogg',    3.5),
+  // tone: triumphant, martial — 3.5 s target
+  civDefeated:    ph('stinger-civ-defeated',    'audio/stinger/civ-defeated.ogg',    3.5),
+  // tone: grand extended fanfare — 9 s target
+  victory:        ph('stinger-victory',         'audio/stinger/victory.ogg',         9.0),
+  // tone: somber, spare, finality — 7 s target
+  defeat:         ph('stinger-defeat',          'audio/stinger/defeat.ogg',          7.0),
 };
 
 // Er2: clamps era > 5 to 5; no per-civ era tracking in Spec 1

@@ -757,6 +757,7 @@ export interface Civilization {
   researchPenaltyMultiplier?: number;
   satelliteSurveillanceTargets?: Record<string, number>;
   breakaway?: BreakawayMetadata;
+  nearDefeat?: boolean;   // true when cities.length <= 1; used by audio system
 }
 
 export interface BreakawayMetadata {
@@ -1125,6 +1126,10 @@ export interface GameSettings {
   musicEnabled: boolean;
   musicVolume: number;       // 0-1
   sfxVolume: number;         // 0-1
+  voiceVolume?: number;      // 0-1; default 1.0
+  voiceEnabled?: boolean;    // default true
+  stingerVolume?: number;    // 0-1; default 1.0
+  stingerEnabled?: boolean;  // default true
   tutorialEnabled: boolean;
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
@@ -1189,7 +1194,12 @@ export interface GameEvents {
   'diplomacy:peace-requested': { fromCivId: string; toCivId: string };
   'diplomacy:peace-made': { civA: string; civB: string };
   'era:advanced': { era: number };
-  'currentPlayer:changed-after-handoff': { civId: string };
+  'currentPlayer:changed-after-handoff': {
+    civId: string;
+    atWar: boolean;
+    unrestCityCount: number;
+    nearDefeat: boolean;
+  };
   'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
   'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
@@ -1246,4 +1256,8 @@ export interface GameEvents {
   'unit:obsolete': { civId: string; unitId: string; unitType: UnitType };
   'espionage:spy-expired': { civId: string; spyId: string; spyName: string; unitType: UnitType };
   'unit:journey-blocked': { unitId: string; position: HexCoord };
+  // Spec 3 — adaptive music events
+  'civ:near-defeat':                { civId: string };
+  'civ:recovered-from-near-defeat': { civId: string };
+  'civ:eliminated':                 { civId: string; eliminatedBy: string };
 }

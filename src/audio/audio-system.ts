@@ -52,6 +52,10 @@ export class AudioSystem {
     this.mixer.setSfxEnabled(settings.soundEnabled);
     this.mixer.setMusicVolume(settings.musicVolume);
     this.mixer.setSfxVolume(settings.sfxVolume);
+    this.mixer.setVoiceEnabled(settings.voiceEnabled ?? true);
+    this.mixer.setVoiceVolume(settings.voiceVolume ?? 1.0);
+    this.mixer.setStingerEnabled(settings.stingerEnabled ?? true);
+    this.mixer.setStingerVolume(settings.stingerVolume ?? 1.0);
 
     this.wireEvents(bus);
     this.sfxDirector.start(state.units, bus);
@@ -85,6 +89,26 @@ export class AudioSystem {
 
   setSfxVolume(volume: number): void {
     this.mixer.setSfxVolume(volume);
+  }
+
+  setMasterVolume(volume: number): void {
+    this.mixer.setMasterVolume(volume);
+  }
+
+  setVoiceVolume(volume: number): void {
+    this.mixer.setVoiceVolume(volume);
+  }
+
+  setVoiceEnabled(enabled: boolean): void {
+    this.mixer.setVoiceEnabled(enabled);
+  }
+
+  setStingerVolume(volume: number): void {
+    this.mixer.setStingerVolume(volume);
+  }
+
+  setStingerEnabled(enabled: boolean): void {
+    this.mixer.setStingerEnabled(enabled);
   }
 
   getSfxRoutingNode(): AudioNode {

@@ -1239,6 +1239,10 @@ function getPersistedSettingsOverrides(): Partial<GameState['settings']> {
     musicEnabled: persistedSettings.musicEnabled,
     musicVolume: persistedSettings.musicVolume,
     sfxVolume: persistedSettings.sfxVolume,
+    voiceVolume:    persistedSettings.voiceVolume    ?? 1.0,
+    voiceEnabled:   persistedSettings.voiceEnabled   ?? true,
+    stingerVolume:  persistedSettings.stingerVolume  ?? 1.0,
+    stingerEnabled: persistedSettings.stingerEnabled ?? true,
     tutorialEnabled: persistedSettings.tutorialEnabled,
     advisorsEnabled: persistedSettings.advisorsEnabled,
     councilTalkLevel: persistedSettings.councilTalkLevel,
@@ -2621,7 +2625,15 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
           centerOnCurrentPlayer();
           renderLoop.setGameState(gameState);
           updateHUD();
-          bus.emit('currentPlayer:changed-after-handoff', { civId: nextSlotId });
+          // Compute audio-state snapshot for the incoming player (Spec 3 hot-seat drift fix)
+          const nextCiv = gameState.civilizations[nextSlotId];
+          const nextCivCities = Object.values(gameState.cities).filter(c => c.owner === nextSlotId);
+          bus.emit('currentPlayer:changed-after-handoff', {
+            civId: nextSlotId,
+            atWar: (nextCiv?.diplomacy?.atWarWith?.length ?? 0) > 0,
+            unrestCityCount: nextCivCities.filter(c => c.unrestLevel > 0).length,
+            nearDefeat: nextCivCities.length <= 1,
+          });
         },
       });
     } else {
