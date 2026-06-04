@@ -206,6 +206,9 @@ function currentCivDef() {
 const bus = new EventBus();
 const audioCtx = new AudioContext();
 const audio = new AudioSystem(audioCtx);
+// Master volume is not persisted (no GameSettings field) — tracked in memory only
+// so the pause menu slider shows the correct current value on re-open.
+let currentMasterVolume = 1.0;
 const advisorSystem = new AdvisorSystem(bus);
 const uiInteractions = createUiInteractionState();
 
@@ -316,7 +319,7 @@ function createUI(): void {
         autoSave: () => autoSave(gameState),
         // Spec 3: per-channel audio settings
         audioSettings: {
-          masterVolume:   1.0,   // master has no persisted field — starts at 1.0
+          masterVolume:   currentMasterVolume,   // tracked in memory across menu reopens
           musicVolume:    gameState.settings.musicVolume,
           sfxVolume:      gameState.settings.sfxVolume,
           voiceVolume:    gameState.settings.voiceVolume    ?? 1.0,
@@ -327,11 +330,12 @@ function createUI(): void {
           stingerEnabled: gameState.settings.stingerEnabled ?? true,
         },
         onAudioSettingChange: (key, value) => {
-          // Persist to game state (saved on next auto-save / manual save)
-          (gameState.settings as unknown as Record<string, number | boolean>)[key] = value;
           // Apply to audio system immediately — no restart needed
           switch (key) {
-            case 'masterVolume':   audio.setMasterVolume(value as number);  break;
+            case 'masterVolume':
+              currentMasterVolume = value as number;
+              audio.setMasterVolume(value as number);
+              return; // master not in GameSettings — skip the settings write below
             case 'musicVolume':    audio.setMusicVolume(value as number);   break;
             case 'sfxVolume':      audio.setSfxVolume(value as number);     break;
             case 'voiceVolume':    audio.setVoiceVolume(value as number);   break;
@@ -341,6 +345,8 @@ function createUI(): void {
             case 'voiceEnabled':   audio.setVoiceEnabled(value as boolean); break;
             case 'stingerEnabled': audio.setStingerEnabled(value as boolean); break;
           }
+          // Persist all non-master settings to GameSettings (saved on next save)
+          (gameState.settings as unknown as Record<string, number | boolean>)[key] = value;
         },
       });
     },

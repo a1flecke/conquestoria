@@ -20,9 +20,9 @@ export interface PauseMenuCallbacks {
   onSave: (slotId: string, name: string) => Promise<void>;
   onNewGame: () => void;
   autoSave: () => Promise<void>;
-  // Spec 3: per-channel audio settings (optional for backward compat with existing tests)
-  audioSettings?: AudioSettingsSnapshot;
-  onAudioSettingChange?: (key: keyof AudioSettingsSnapshot, value: number | boolean) => void;
+  // Spec 3: per-channel audio settings
+  audioSettings: AudioSettingsSnapshot;
+  onAudioSettingChange: (key: keyof AudioSettingsSnapshot, value: number | boolean) => void;
 }
 
 function buildHeader(turn: number, civName: string): HTMLElement {
@@ -57,7 +57,7 @@ const DEFAULT_AUDIO_SETTINGS: AudioSettingsSnapshot = {
 };
 
 function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
-  const s = callbacks.audioSettings ?? DEFAULT_AUDIO_SETTINGS;
+  const s = callbacks.audioSettings;
 
   const section = document.createElement('div');
   Object.assign(section.style, {
@@ -104,7 +104,7 @@ function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
     const label = document.createElement('span');
     label.textContent = row.label;
     Object.assign(label.style, {
-      fontSize: '12px',
+      fontSize: '13px',
       color: '#ccc',
       width: '52px',
       flexShrink: '0',
@@ -123,8 +123,9 @@ function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
       cursor: 'pointer',
       accentColor: '#e8c170',
     });
+    slider.setAttribute('aria-label', `${row.label} volume`);
     slider.addEventListener('input', () => {
-      callbacks.onAudioSettingChange?.(row.volumeKey, Number(slider.value));
+      callbacks.onAudioSettingChange(row.volumeKey, Number(slider.value));
     });
     rowEl.appendChild(slider);
 
@@ -133,15 +134,15 @@ function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
       const toggle = document.createElement('input');
       toggle.type = 'checkbox';
       toggle.checked = Boolean(s[enabledKey] ?? true);
+      toggle.setAttribute('aria-label', `${row.label} enabled`);
       Object.assign(toggle.style, {
         width: '20px',
-        height: '20px',
-        minHeight: '44px',
+        minHeight: '44px',   // height intentionally omitted — minHeight ensures tap target
         cursor: 'pointer',
         accentColor: '#e8c170',
       });
       toggle.addEventListener('change', () => {
-        callbacks.onAudioSettingChange?.(enabledKey, toggle.checked);
+        callbacks.onAudioSettingChange(enabledKey, toggle.checked);
       });
       rowEl.appendChild(toggle);
     }
