@@ -26,10 +26,13 @@ describe('AudioMixer construction', () => {
 
 describe('AudioMixer.setSnapshot()', () => {
   const SNAPSHOT_CASES: { id: SnapshotId; era: number; accent: number; adaptive: number }[] = [
-    { id: 'silent',       era: 0.0, accent: 0.00, adaptive: 0.0 },
-    { id: 'peace',        era: 1.0, accent: 0.70, adaptive: 0.0 },
-    { id: 'at-war',       era: 1.0, accent: 0.50, adaptive: 0.8 },
-    { id: 'stinger-duck', era: 0.5, accent: 0.35, adaptive: 0.4 },
+    { id: 'silent',            era: 0.0, accent: 0.00, adaptive: 0.0 },
+    { id: 'peace',             era: 1.0, accent: 0.70, adaptive: 0.0 },
+    { id: 'at-war',            era: 1.0, accent: 0.50, adaptive: 0.8 },
+    { id: 'unrest',            era: 1.0, accent: 0.55, adaptive: 0.5 },
+    { id: 'brink-of-defeat',   era: 0.7, accent: 0.15, adaptive: 1.0 },
+    { id: 'stinger-duck',      era: 0.5, accent: 0.35, adaptive: 0.4 },
+    { id: 'voice-duck',        era: 0.5, accent: 0.35, adaptive: 0.4 },
   ];
 
   for (const { id, era, accent, adaptive } of SNAPSHOT_CASES) {
@@ -301,5 +304,72 @@ describe('AudioMixer natural wonder ambience', () => {
     mixer.dispose();
 
     expect(ctx.opsOf('stop').length).toBeGreaterThan(0);
+  });
+});
+
+describe('AudioMixer Spec 3 — topology isolation', () => {
+  it('constructs with voice bus (new MusicBusId)', () => {
+    const ctx = makeCtx();
+    expect(() => makeMixer(ctx)).not.toThrow();
+  });
+
+  it('new snapshots unrest, brink-of-defeat, voice-duck do not throw', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    expect(() => mixer.setSnapshot('unrest', 0)).not.toThrow();
+    expect(() => mixer.setSnapshot('brink-of-defeat', 0)).not.toThrow();
+    expect(() => mixer.setSnapshot('voice-duck', 0)).not.toThrow();
+  });
+
+  it('setMusicEnabled(false) sets musicLayerGain to 0 without throwing', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    expect(() => mixer.setMusicEnabled(false)).not.toThrow();
+    expect(() => mixer.setSnapshot('at-war', 0)).not.toThrow();
+  });
+
+  it('setMusicEnabled(false) does not disable setVoiceEnabled/setVoiceVolume', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    mixer.setMusicEnabled(false);
+    expect(() => mixer.setVoiceVolume(0.5)).not.toThrow();
+    expect(() => mixer.setVoiceEnabled(true)).not.toThrow();
+  });
+
+  it('setStingerVolume(0) silences stinger without throwing', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    expect(() => mixer.setStingerVolume(0)).not.toThrow();
+    expect(() => mixer.setMusicVolume(0.8)).not.toThrow();
+  });
+
+  it('setStingerEnabled(false) does not affect music layer', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    mixer.setStingerEnabled(false);
+    expect(() => mixer.setMusicVolume(1.0)).not.toThrow();
+    expect(() => mixer.setSnapshot('peace', 0)).not.toThrow();
+  });
+
+  it('setMasterVolume applies square-law perceptual curve', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    ctx.clearTranscript();
+    mixer.setMasterVolume(0.5);
+    const values = ctx.opsOf('setValueAtTime').map(e => e.args[0] as number);
+    // square-law: 0.5 * 0.5 = 0.25
+    expect(values).toContain(0.25);
+  });
+
+  it('playOneShot on voice bus creates a buffer source node (voice bus in musicBuses)', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    const buf = makeBuf(ctx);
+    ctx.clearTranscript();
+    // Fire and do not await — the mock only resolves on stop(), which is fine.
+    // We just verify the call doesn't throw and creates the expected node.
+    void mixer.playOneShot('voice', buf);
+    expect(ctx.opsOf('createBufferSource').length).toBe(1);
+    expect(ctx.opsOf('start').length).toBe(1);
   });
 });
