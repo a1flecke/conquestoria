@@ -16,9 +16,11 @@ type MusicBusId = 'era' | 'accent' | 'adaptive' | 'stinger' | 'voice';
 export type { LoopPoints };
 
 // Gain values per snapshot per music bus.
-// voice bus routes directly to destination (bypasses masterGain) — its values
-// here control ducking only; absolute voice volume is set via voiceMasterGain.
-// stinger bus routes through stingerMasterGain → masterGain.
+// voice bus routes through voiceMasterGain directly to destination (bypasses
+//   masterGain) — its values here control ducking only; absolute voice volume
+//   is set via setVoiceVolume() on voiceMasterGain.
+// stinger bus routes through stingerMasterGain → masterGain — its values here
+//   control ducking; absolute stinger volume is set via setStingerVolume().
 const SNAPSHOTS: Record<SnapshotId, Record<MusicBusId, number>> = {
   silent:            { era: 0.0, accent: 0.00, adaptive: 0.0, stinger: 0.0, voice: 0.0 },
   peace:             { era: 1.0, accent: 0.70, adaptive: 0.0, stinger: 1.0, voice: 1.0 },
@@ -292,6 +294,8 @@ export class AudioMixer {
   setStingerEnabled(enabled: boolean): void {
     this.stingerEnabled = enabled;
     const now = this.ctx.currentTime;
+    // Cancel any in-flight ramp before overriding (mirrors setMusicEnabled M-2 contract)
+    this.stingerMasterGain.gain.cancelScheduledValues(now);
     if (enabled) {
       const perceptual = this.currentStingerVolume * this.currentStingerVolume;
       this.stingerMasterGain.gain.setValueAtTime(perceptual, now);
@@ -312,6 +316,8 @@ export class AudioMixer {
   setVoiceEnabled(enabled: boolean): void {
     this.voiceEnabled = enabled;
     const now = this.ctx.currentTime;
+    // Cancel any in-flight ramp before overriding (mirrors setMusicEnabled M-2 contract)
+    this.voiceMasterGain.gain.cancelScheduledValues(now);
     if (enabled) {
       const perceptual = this.currentVoiceVolume * this.currentVoiceVolume;
       this.voiceMasterGain.gain.setValueAtTime(perceptual, now);
