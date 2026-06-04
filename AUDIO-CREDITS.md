@@ -348,7 +348,8 @@ Author: Kenney (kenney.nl)
 
 Files used: impactMetal_*, impactPunch_*, impactWood_*, impactSoft_*,
             impactPlate_*, impactPlank_*, impactMining_*, impactGeneric_*,
-            footstep_grass_*, footstep_wood_*, chop.ogg, knifeSlice.ogg
+            footstep_grass_*, footstep_wood_*, chop.ogg,
+            knifeSlice.ogg, knifeSlice2.ogg, drawKnife1.ogg
 
 Used for: all unit attack-swing, attack-impact, ranged-loose, ranged-impact,
           siege-fire, siege-impact, and death sounds; humanoid/animal/naval
