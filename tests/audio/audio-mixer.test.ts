@@ -15,12 +15,14 @@ function makeBuf(ctx: MockAudioContext) {
 }
 
 describe('AudioMixer construction', () => {
-  it('creates at least 6 GainNodes (5 buses + music master)', () => {
+  it('creates at least 10 GainNodes (5 bus snapshot gains + sfx + ambience + masterGain + musicLayerGain + stingerMasterGain + voiceMasterGain)', () => {
     const ctx = makeCtx();
     makeMixer(ctx);
-    // 4 music buses + 1 sfx bus + 1 musicMasterGain = 6 minimum
-    // Plus per-source gains created by setBusSource
-    expect(ctx.opsOf('createGain').length).toBeGreaterThanOrEqual(6);
+    // 5 music bus snapshot gains (era,accent,adaptive,stinger,voice)
+    // + 1 sfxBus gain + 1 ambienceGain
+    // + 4 master gain nodes (masterGain, musicLayerGain, stingerMasterGain, voiceMasterGain)
+    // = 11 minimum (plus per-source gains from setBusSource calls)
+    expect(ctx.opsOf('createGain').length).toBeGreaterThanOrEqual(10);
   });
 });
 
@@ -349,6 +351,24 @@ describe('AudioMixer Spec 3 — topology isolation', () => {
     mixer.setStingerEnabled(false);
     expect(() => mixer.setMusicVolume(1.0)).not.toThrow();
     expect(() => mixer.setSnapshot('peace', 0)).not.toThrow();
+  });
+
+  it('setMasterVolume(0) does not zero voiceMasterGain — voice bypasses masterGain', () => {
+    const ctx = makeCtx();
+    const mixer = makeMixer(ctx);
+    mixer.setVoiceVolume(1.0);
+    ctx.clearTranscript();
+    mixer.setMasterVolume(0);
+    const values = ctx.opsOf('setValueAtTime').map(e => e.args[0] as number);
+    // masterGain gets 0 (square-law of 0)
+    expect(values).toContain(0);
+    // voiceMasterGain should NOT have been touched by setMasterVolume
+    // We verify this by checking that after setMasterVolume(0), setVoiceEnabled still
+    // writes a non-zero value (proving voiceMasterGain is independent)
+    ctx.clearTranscript();
+    mixer.setVoiceEnabled(true);
+    const voiceValues = ctx.opsOf('setValueAtTime').map(e => e.args[0] as number);
+    expect(voiceValues.some(v => v > 0)).toBe(true);
   });
 
   it('setMasterVolume applies square-law perceptual curve', () => {

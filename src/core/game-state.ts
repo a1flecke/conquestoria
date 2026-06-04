@@ -45,6 +45,10 @@ export function createDefaultSettings(
     musicEnabled: true,
     musicVolume: 0.5,
     sfxVolume: 0.7,
+    voiceVolume: 1.0,
+    voiceEnabled: true,
+    stingerVolume: 1.0,
+    stingerEnabled: true,
     tutorialEnabled: true,
     advisorsEnabled: {
       builder: true,
