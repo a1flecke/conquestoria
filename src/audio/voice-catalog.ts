@@ -52,7 +52,8 @@ function vph(pack: VoicePackId, event: VoiceEventId): TrackEntry {
     file: `audio/voice/${pack}/${event}.ogg`,
     bpm: 0,
     key: 'speech',
-    // loop points are ignored for one-shot voice playback; 3 s is a reasonable placeholder
+    // loop points are dummy values — voice lines are played via playOneShot()
+    // (loop: false), so these fields are never read by the audio system.
     loop: { loopStart: 0, loopEnd: 3 },
   };
 }
