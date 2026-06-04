@@ -332,6 +332,20 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
   Used as: Eternal Storm Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
+## Adaptive Layers
+
+- "Darkness Approaches" by Eric Matyas (soundimage.org)
+  Licensed under free use with attribution — https://soundimage.org/attribution-info/
+  Source: https://soundimage.org/dark-ominous/
+  Used as: era 1–5 unrest layer (all eras share the same source file)
+  Modified: re-encoded to OGG Vorbis -q:a 2
+
+- "Anguish" by Kevin MacLeod (incompetech.com)
+  Licensed under CC-BY 3.0 — https://creativecommons.org/licenses/by/3.0/
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400047
+  Used as: era 1–5 defeat layer (all eras share the same source file); loop region 0–226.958 s
+  Modified: converted to OGG Vorbis -q:a 2; loop end set to 226.958 s to omit final coda section
+
 ## Sound Effects
 
 *(Existing synthesised SFX via Web Audio oscillators require no attribution.)*
