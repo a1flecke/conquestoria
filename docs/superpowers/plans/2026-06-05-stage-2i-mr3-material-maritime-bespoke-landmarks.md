@@ -103,13 +103,16 @@ In `tests/systems/legendary-wonder-landmark-catalog.test.ts`, extend the test na
     expect(getLegendaryWonderLandmarkMetadata('leviathan-drydock').assetKey).toBe('leviathan-drydock-bespoke');
 ```
 
-Also extend the expected `keyed` array with:
+Also extend the expected `keyed` array in the same order returned by `getLegendaryWonderLandmarkMetadataCatalog()`. The four new rows should be interleaved with the existing entries according to the authored metadata order:
 
 ```ts
       ['moonwell-gardens', 'moonwell-gardens-bespoke'],
       ['ironroot-foundry', 'ironroot-foundry-bespoke'],
       ['tidecaller-bastion', 'tidecaller-bastion-bespoke'],
+      ['starvault-observatory', 'starvault-observatory-bespoke'],
       ['leviathan-drydock', 'leviathan-drydock-bespoke'],
+      ['storm-signal-spire', 'storm-signal-spire-bespoke'],
+      ['internet', 'internet-bespoke'],
 ```
 
 - [ ] **Step 2: Run the catalog test to verify RED**
