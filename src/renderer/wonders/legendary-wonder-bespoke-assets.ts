@@ -4,6 +4,10 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'oracle-of-delphi-bespoke',
   'grand-canal-bespoke',
   'sun-spire-bespoke',
+  'world-archive-bespoke',
+  'starvault-observatory-bespoke',
+  'storm-signal-spire-bespoke',
+  'internet-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -27,6 +31,10 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'oracle-of-delphi-bespoke': { key: 'oracle-of-delphi-bespoke', draw: drawOracleOfDelphi },
   'grand-canal-bespoke': { key: 'grand-canal-bespoke', draw: drawGrandCanal },
   'sun-spire-bespoke': { key: 'sun-spire-bespoke', draw: drawSunSpire },
+  'world-archive-bespoke': { key: 'world-archive-bespoke', draw: drawWorldArchive },
+  'starvault-observatory-bespoke': { key: 'starvault-observatory-bespoke', draw: drawStarvaultObservatory },
+  'storm-signal-spire-bespoke': { key: 'storm-signal-spire-bespoke', draw: drawStormSignalSpire },
+  'internet-bespoke': { key: 'internet-bespoke', draw: drawInternet },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -122,4 +130,133 @@ function drawSunSpire(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fillStyle = metadata.palette.accent;
   ctx.fill();
   ctx.stroke();
+}
+
+function drawWorldArchive(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'world-archive-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.64, cy - radius * 0.56, radius * 1.28, radius * 1.08);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  for (let index = 0; index < 4; index += 1) {
+    const x = cx - radius * 0.48 + index * radius * 0.32;
+    ctx.moveTo(x, cy - radius * 0.46);
+    ctx.lineTo(x, cy + radius * 0.46);
+  }
+  ctx.moveTo(cx - radius * 0.52, cy - radius * 0.12);
+  ctx.lineTo(cx + radius * 0.52, cy - radius * 0.12);
+  ctx.moveTo(cx - radius * 0.52, cy + radius * 0.2);
+  ctx.lineTo(cx + radius * 0.52, cy + radius * 0.2);
+  ctx.strokeStyle = metadata.palette.base;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.16, cy - radius * 0.24, radius * 0.32, radius * 0.48);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+function drawStarvaultObservatory(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'starvault-observatory-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy + radius * 0.28, radius * 0.62, Math.PI, Math.PI * 2);
+  ctx.lineTo(cx + radius * 0.62, cy + radius * 0.48);
+  ctx.lineTo(cx - radius * 0.62, cy + radius * 0.48);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy - radius * 0.08, radius * 0.22, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.42, cy - radius * 0.58);
+  ctx.lineTo(cx - radius * 0.32, cy - radius * 0.46);
+  ctx.moveTo(cx + radius * 0.42, cy - radius * 0.54);
+  ctx.lineTo(cx + radius * 0.52, cy - radius * 0.42);
+  ctx.moveTo(cx, cy - radius * 0.74);
+  ctx.lineTo(cx, cy - radius * 0.56);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+}
+
+function drawStormSignalSpire(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'storm-signal-spire-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius * 0.72);
+  ctx.lineTo(cx + radius * 0.24, cy + radius * 0.62);
+  ctx.lineTo(cx, cy + radius * 0.42);
+  ctx.lineTo(cx - radius * 0.24, cy + radius * 0.62);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.5, cy - radius * 0.36);
+  ctx.lineTo(cx - radius * 0.28, cy - radius * 0.24);
+  ctx.lineTo(cx - radius * 0.5, cy - radius * 0.12);
+  ctx.moveTo(cx + radius * 0.5, cy - radius * 0.36);
+  ctx.lineTo(cx + radius * 0.28, cy - radius * 0.24);
+  ctx.lineTo(cx + radius * 0.5, cy - radius * 0.12);
+  ctx.moveTo(cx - radius * 0.68, cy + radius * 0.06);
+  ctx.lineTo(cx - radius * 0.36, cy + radius * 0.18);
+  ctx.moveTo(cx + radius * 0.68, cy + radius * 0.06);
+  ctx.lineTo(cx + radius * 0.36, cy + radius * 0.18);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+}
+
+function drawInternet(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'internet-bespoke');
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.06);
+
+  const nodes = [
+    { x: cx, y: cy - radius * 0.5 },
+    { x: cx + radius * 0.52, y: cy - radius * 0.16 },
+    { x: cx + radius * 0.32, y: cy + radius * 0.48 },
+    { x: cx - radius * 0.32, y: cy + radius * 0.48 },
+    { x: cx - radius * 0.52, y: cy - radius * 0.16 },
+    { x: cx, y: cy },
+  ];
+
+  ctx.beginPath();
+  for (let index = 0; index < nodes.length - 1; index += 1) {
+    const node = nodes[index];
+    const next = nodes[(index + 1) % (nodes.length - 1)];
+    ctx.moveTo(node.x, node.y);
+    ctx.lineTo(next.x, next.y);
+    ctx.moveTo(node.x, node.y);
+    ctx.lineTo(nodes[5].x, nodes[5].y);
+  }
+  ctx.stroke();
+
+  for (const node of nodes) {
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius * 0.13, 0, Math.PI * 2);
+    ctx.fillStyle = node === nodes[5] ? metadata.palette.glow : metadata.palette.accent;
+    ctx.fill();
+    ctx.strokeStyle = metadata.palette.glow;
+    ctx.stroke();
+  }
 }
