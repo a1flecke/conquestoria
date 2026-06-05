@@ -206,7 +206,12 @@ describe('legendary-wonder-renderer', () => {
     const comparedWonderIds = [
       'grand-canal',
       'sun-spire',
+      'world-archive',
+      'starvault-observatory',
+      'storm-signal-spire',
+      'internet',
       'moonwell-gardens',
+      'ironroot-foundry',
       'tidecaller-bastion',
       'leviathan-drydock',
     ];

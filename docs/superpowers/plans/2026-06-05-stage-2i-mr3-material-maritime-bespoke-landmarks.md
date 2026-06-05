@@ -193,7 +193,12 @@ Add this test after the MR3 visual distinctness test:
     const comparedWonderIds = [
       'grand-canal',
       'sun-spire',
+      'world-archive',
+      'starvault-observatory',
+      'storm-signal-spire',
+      'internet',
       'moonwell-gardens',
+      'ironroot-foundry',
       'tidecaller-bastion',
       'leviathan-drydock',
     ];
