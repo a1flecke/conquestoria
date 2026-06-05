@@ -171,6 +171,58 @@ describe('legendary-wonder-renderer', () => {
     }
   });
 
+  it('draws material-and-maritime completed landmarks through bespoke asset renderers', () => {
+    const expected = [
+      ['moonwell-gardens', 'moonwell-gardens-bespoke'],
+      ['ironroot-foundry', 'ironroot-foundry-bespoke'],
+      ['tidecaller-bastion', 'tidecaller-bastion-bespoke'],
+      ['leviathan-drydock', 'leviathan-drydock-bespoke'],
+    ] as const;
+
+    for (const [wonderId, assetKey] of expected) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+
+      expect(ctx.operations, wonderId).toContain(`bespoke:${assetKey}`);
+      expectNonblankCanvasGlyph(ctx, wonderId);
+    }
+  });
+
+  it('draws distinct material-and-maritime bespoke glyph geometry', () => {
+    const wonderIds = ['moonwell-gardens', 'ironroot-foundry', 'tidecaller-bastion', 'leviathan-drydock'];
+    const profiles = new Set<string>();
+
+    for (const wonderId of wonderIds) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+      const profile = getGlyphGeometryProfile(ctx);
+
+      expect(profile.length, wonderId).toBeGreaterThan(0);
+      profiles.add(profile);
+    }
+
+    expect(profiles.size).toBe(wonderIds.length);
+  });
+
+  it('keeps material-and-maritime glyph geometry distinct from close existing bespoke landmarks', () => {
+    const comparedWonderIds = [
+      'grand-canal',
+      'sun-spire',
+      'moonwell-gardens',
+      'tidecaller-bastion',
+      'leviathan-drydock',
+    ];
+    const profiles = new Set<string>();
+
+    for (const wonderId of comparedWonderIds) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+      const profile = getGlyphGeometryProfile(ctx);
+
+      expect(profile.length, wonderId).toBeGreaterThan(0);
+      profiles.add(profile);
+    }
+
+    expect(profiles.size).toBe(comparedWonderIds.length);
+  });
+
   it('draws distinct knowledge-and-signal bespoke glyph geometry', () => {
     const wonderIds = ['world-archive', 'starvault-observatory', 'storm-signal-spire', 'internet'];
     const profiles = new Set<string>();
@@ -194,7 +246,7 @@ describe('legendary-wonder-renderer', () => {
       cx: 80,
       cy: 80,
       radius: 12,
-      metadata: getLegendaryWonderLandmarkMetadata('moonwell-gardens'),
+      metadata: getLegendaryWonderLandmarkMetadata('whispering-exchange'),
       state: 'completed',
       reducedMotion: false,
       nowMs: 1000,
@@ -207,7 +259,7 @@ describe('legendary-wonder-renderer', () => {
   it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
     const ctx = new MockCanvasContext();
     const metadata = {
-      ...getLegendaryWonderLandmarkMetadata('moonwell-gardens'),
+      ...getLegendaryWonderLandmarkMetadata('whispering-exchange'),
       assetKey: 'unsupported-bespoke-test-key',
     };
 
@@ -263,6 +315,39 @@ describe('legendary-wonder-renderer', () => {
 
       expect(ctx.operations.some(operation => operation.startsWith('bespoke:')), wonderId).toBe(false);
       expect(ctx.operations.some(operation => operation.startsWith('stroke:')), wonderId).toBe(true);
+    }
+  });
+
+  it('keeps construction ghosts instead of completed bespoke art for material-and-maritime builds', () => {
+    const wonderIds = ['moonwell-gardens', 'ironroot-foundry', 'tidecaller-bastion', 'leviathan-drydock'];
+
+    for (const wonderId of wonderIds) {
+      const ctx = new MockCanvasContext();
+
+      drawLegendaryWonderLandmarkGlyph({
+        ctx: ctx as unknown as CanvasRenderingContext2D,
+        cx: 80,
+        cy: 80,
+        radius: 12,
+        metadata: getLegendaryWonderLandmarkMetadata(wonderId),
+        state: 'under-construction',
+        reducedMotion: false,
+        nowMs: 1000,
+      });
+
+      expect(ctx.operations.some(operation => operation.startsWith('bespoke:')), wonderId).toBe(false);
+      expect(ctx.operations.some(operation => operation.startsWith('stroke:')), wonderId).toBe(true);
+    }
+  });
+
+  it('draws nonblank material-and-maritime bespoke glyphs with reduced motion', () => {
+    const wonderIds = ['moonwell-gardens', 'ironroot-foundry', 'tidecaller-bastion', 'leviathan-drydock'];
+
+    for (const wonderId of wonderIds) {
+      const ctx = drawCompletedGlyphForWonder(wonderId, { reducedMotion: true });
+
+      expect(ctx.operations.some(operation => operation.startsWith('bespoke:')), wonderId).toBe(true);
+      expectNonblankCanvasGlyph(ctx, wonderId);
     }
   });
 
