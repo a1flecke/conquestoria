@@ -115,19 +115,18 @@ export const STINGER = {
   cityFounded: { id: 'stinger-city-founded', file: 'audio/stinger/city-founded.ogg', bpm: 0, key: 'uplifting',   loop: { loopStart: 0, loopEnd: 3.000 } },
   // "Danse Macabre - Low Strings Finale" by Kevin MacLeod — CC-BY 3.0, trimmed to 3 s
   warDeclared:  { id: 'stinger-war-declared',  file: 'audio/stinger/war-declared.ogg',  bpm: 0, key: 'orchestral', loop: { loopStart: 0, loopEnd: 3.000 } },
-  // Spec 3 stingers — placeholders; curated in MR5+
-  // tone: grand, awe — 4 s target
-  wonderBuilt:    ph('stinger-wonder-built',    'audio/stinger/wonder-built.ogg',    4.0),
-  // tone: bright, discovery — 2.5 s target
-  techResearched: ph('stinger-tech-researched', 'audio/stinger/tech-researched.ogg', 2.5),
-  // tone: relief, resolution — 3.5 s target
-  peaceSigned:    ph('stinger-peace-signed',    'audio/stinger/peace-signed.ogg',    3.5),
-  // tone: triumphant, martial — 3.5 s target
-  civDefeated:    ph('stinger-civ-defeated',    'audio/stinger/civ-defeated.ogg',    3.5),
-  // tone: grand extended fanfare — 9 s target
-  victory:        ph('stinger-victory',         'audio/stinger/victory.ogg',         9.0),
-  // tone: somber, spare, finality — 7 s target
-  defeat:         ph('stinger-defeat',          'audio/stinger/defeat.ogg',          7.0),
+  // "Majestic Hills" by Kevin MacLeod — CC-BY 3.0, trimmed to 4 s
+  wonderBuilt:    { id: 'stinger-wonder-built',    file: 'audio/stinger/wonder-built.ogg',    bpm: 0,   key: 'orchestral', loop: { loopStart: 0, loopEnd: 4.000 } },
+  // "Flutey Sting" by Kevin MacLeod — CC-BY 3.0, trimmed to 2.5 s
+  techResearched: { id: 'stinger-tech-researched', file: 'audio/stinger/tech-researched.ogg', bpm: 0,   key: 'bright',     loop: { loopStart: 0, loopEnd: 2.500 } },
+  // "Lasting Hope" by Kevin MacLeod — CC-BY 3.0, trimmed to 3.5 s
+  peaceSigned:    { id: 'stinger-peace-signed',    file: 'audio/stinger/peace-signed.ogg',    bpm: 0,   key: 'orchestral', loop: { loopStart: 0, loopEnd: 3.500 } },
+  // "Heroic Age" by Kevin MacLeod — CC-BY 3.0, 129 BPM, trimmed to 3.5 s
+  civDefeated:    { id: 'stinger-civ-defeated',    file: 'audio/stinger/civ-defeated.ogg',    bpm: 129, key: 'orchestral', loop: { loopStart: 0, loopEnd: 3.500 } },
+  // "Ouroboros" by Kevin MacLeod — CC-BY 3.0, 130 BPM, trimmed to 9 s
+  victory:        { id: 'stinger-victory',         file: 'audio/stinger/victory.ogg',         bpm: 130, key: 'orchestral', loop: { loopStart: 0, loopEnd: 9.000 } },
+  // "Funeral March for Brass" by Kevin MacLeod — CC-BY 3.0, trimmed to 7 s
+  defeat:         { id: 'stinger-defeat',          file: 'audio/stinger/defeat.ogg',          bpm: 0,   key: 'brass',      loop: { loopStart: 0, loopEnd: 7.000 } },
 };
 
 // Er2: clamps era > 5 to 5; no per-civ era tracking in Spec 1

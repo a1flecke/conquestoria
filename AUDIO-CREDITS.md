@@ -332,6 +332,40 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
   Used as: Eternal Storm Codex and map-focus ambience
   Modified: converted to OGG Vorbis
 
+## Spec 3 Stingers
+
+All Spec 3 stingers below are Kevin MacLeod (incompetech.com), CC-BY 3.0 — https://creativecommons.org/licenses/by/3.0/
+
+- "Majestic Hills" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100423
+  Used as: wonderBuilt stinger (trimmed to 4 s)
+  Modified: trimmed to 4 s, converted to OGG Vorbis
+
+- "Flutey Sting" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100435
+  Used as: techResearched stinger (trimmed to 2.5 s)
+  Modified: trimmed to 2.5 s, converted to OGG Vorbis
+
+- "Lasting Hope" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100178
+  Used as: peaceSigned stinger (trimmed to 3.5 s)
+  Modified: trimmed to 3.5 s, converted to OGG Vorbis
+
+- "Heroic Age" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100848
+  Used as: civDefeated stinger (trimmed to 3.5 s)
+  Modified: trimmed to 3.5 s, converted to OGG Vorbis
+
+- "Ouroboros" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400007
+  Used as: victory stinger (trimmed to 9 s)
+  Modified: trimmed to 9 s, converted to OGG Vorbis
+
+- "Funeral March for Brass" by Kevin MacLeod (incompetech.com)
+  Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100797
+  Used as: defeat stinger (trimmed to 7 s)
+  Modified: trimmed to 7 s, converted to OGG Vorbis
+
 ## Adaptive Layers
 
 - "Darkness Approaches" by Eric Matyas (soundimage.org)
