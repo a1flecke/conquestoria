@@ -73,13 +73,13 @@ describe('legendary wonder landmark catalog', () => {
       ['grand-canal', 'grand-canal-bespoke'],
       ['sun-spire', 'sun-spire-bespoke'],
       ['world-archive', 'world-archive-bespoke'],
-      ['starvault-observatory', 'starvault-observatory-bespoke'],
-      ['storm-signal-spire', 'storm-signal-spire-bespoke'],
-      ['internet', 'internet-bespoke'],
       ['moonwell-gardens', 'moonwell-gardens-bespoke'],
       ['ironroot-foundry', 'ironroot-foundry-bespoke'],
       ['tidecaller-bastion', 'tidecaller-bastion-bespoke'],
+      ['starvault-observatory', 'starvault-observatory-bespoke'],
       ['leviathan-drydock', 'leviathan-drydock-bespoke'],
+      ['storm-signal-spire', 'storm-signal-spire-bespoke'],
+      ['internet', 'internet-bespoke'],
     ]);
   });
 

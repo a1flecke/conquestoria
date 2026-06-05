@@ -8,6 +8,10 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'starvault-observatory-bespoke',
   'storm-signal-spire-bespoke',
   'internet-bespoke',
+  'moonwell-gardens-bespoke',
+  'ironroot-foundry-bespoke',
+  'tidecaller-bastion-bespoke',
+  'leviathan-drydock-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -35,6 +39,10 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'starvault-observatory-bespoke': { key: 'starvault-observatory-bespoke', draw: drawStarvaultObservatory },
   'storm-signal-spire-bespoke': { key: 'storm-signal-spire-bespoke', draw: drawStormSignalSpire },
   'internet-bespoke': { key: 'internet-bespoke', draw: drawInternet },
+  'moonwell-gardens-bespoke': { key: 'moonwell-gardens-bespoke', draw: drawMoonwellGardens },
+  'ironroot-foundry-bespoke': { key: 'ironroot-foundry-bespoke', draw: drawIronrootFoundry },
+  'tidecaller-bastion-bespoke': { key: 'tidecaller-bastion-bespoke', draw: drawTidecallerBastion },
+  'leviathan-drydock-bespoke': { key: 'leviathan-drydock-bespoke', draw: drawLeviathanDrydock },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -259,4 +267,140 @@ function drawInternet(options: LegendaryWonderBespokeDrawOptions): void {
     ctx.strokeStyle = metadata.palette.glow;
     ctx.stroke();
   }
+}
+
+function drawMoonwellGardens(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'moonwell-gardens-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy + radius * 0.2, radius * 0.52, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx - radius * 0.08, cy - radius * 0.42, radius * 0.28, Math.PI * 0.2, Math.PI * 1.6);
+  ctx.arc(cx + radius * 0.04, cy - radius * 0.42, radius * 0.22, Math.PI * 1.55, Math.PI * 0.25, true);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.56, cy + radius * 0.36);
+  ctx.lineTo(cx - radius * 0.24, cy + radius * 0.18);
+  ctx.lineTo(cx - radius * 0.08, cy + radius * 0.44);
+  ctx.moveTo(cx + radius * 0.56, cy + radius * 0.36);
+  ctx.lineTo(cx + radius * 0.24, cy + radius * 0.18);
+  ctx.lineTo(cx + radius * 0.08, cy + radius * 0.44);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+}
+
+function drawIronrootFoundry(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'ironroot-foundry-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.36, cy + radius * 0.58);
+  ctx.lineTo(cx - radius * 0.22, cy - radius * 0.48);
+  ctx.lineTo(cx + radius * 0.22, cy - radius * 0.48);
+  ctx.lineTo(cx + radius * 0.36, cy + radius * 0.58);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.14, cy - radius * 0.18, radius * 0.28, radius * 0.42);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.56, cy + radius * 0.58);
+  ctx.lineTo(cx - radius * 0.24, cy + radius * 0.34);
+  ctx.lineTo(cx - radius * 0.5, cy + radius * 0.08);
+  ctx.moveTo(cx + radius * 0.56, cy + radius * 0.58);
+  ctx.lineTo(cx + radius * 0.24, cy + radius * 0.34);
+  ctx.lineTo(cx + radius * 0.5, cy + radius * 0.08);
+  ctx.moveTo(cx - radius * 0.28, cy - radius * 0.02);
+  ctx.lineTo(cx + radius * 0.28, cy - radius * 0.02);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+}
+
+function drawTidecallerBastion(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'tidecaller-bastion-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.58, cy + radius * 0.32);
+  ctx.lineTo(cx - radius * 0.58, cy - radius * 0.28);
+  ctx.lineTo(cx - radius * 0.38, cy - radius * 0.28);
+  ctx.lineTo(cx - radius * 0.38, cy - radius * 0.48);
+  ctx.lineTo(cx - radius * 0.16, cy - radius * 0.48);
+  ctx.lineTo(cx - radius * 0.16, cy - radius * 0.28);
+  ctx.lineTo(cx + radius * 0.16, cy - radius * 0.28);
+  ctx.lineTo(cx + radius * 0.16, cy - radius * 0.48);
+  ctx.lineTo(cx + radius * 0.38, cy - radius * 0.48);
+  ctx.lineTo(cx + radius * 0.38, cy - radius * 0.28);
+  ctx.lineTo(cx + radius * 0.58, cy - radius * 0.28);
+  ctx.lineTo(cx + radius * 0.58, cy + radius * 0.32);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy + radius * 0.42, radius * 0.52, Math.PI, Math.PI * 2);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.52, cy + radius * 0.52);
+  ctx.lineTo(cx - radius * 0.18, cy + radius * 0.42);
+  ctx.lineTo(cx + radius * 0.18, cy + radius * 0.52);
+  ctx.lineTo(cx + radius * 0.52, cy + radius * 0.42);
+  ctx.stroke();
+}
+
+function drawLeviathanDrydock(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'leviathan-drydock-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.62, cy + radius * 0.24);
+  ctx.lineTo(cx - radius * 0.36, cy + radius * 0.52);
+  ctx.lineTo(cx + radius * 0.36, cy + radius * 0.52);
+  ctx.lineTo(cx + radius * 0.62, cy + radius * 0.24);
+  ctx.lineTo(cx + radius * 0.34, cy - radius * 0.12);
+  ctx.lineTo(cx - radius * 0.34, cy - radius * 0.12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  for (let index = 0; index < 4; index += 1) {
+    const x = cx - radius * 0.36 + index * radius * 0.24;
+    ctx.moveTo(x, cy + radius * 0.5);
+    ctx.lineTo(cx, cy - radius * 0.44 + index * radius * 0.05);
+  }
+  ctx.moveTo(cx - radius * 0.46, cy + radius * 0.04);
+  ctx.lineTo(cx + radius * 0.46, cy + radius * 0.04);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.5, cy - radius * 0.58, radius * 0.16, radius * 0.36);
+  ctx.rect(cx + radius * 0.34, cy - radius * 0.58, radius * 0.16, radius * 0.36);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
 }
