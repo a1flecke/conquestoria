@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-04
 **Issue:** #312
-**Status:** Approved (v3)
+**Status:** Approved (v4)
 
 ## Context
 
@@ -21,6 +21,8 @@ Add one new tech to `tech-definitions.ts` in the maritime track:
   cost: 175, prerequisites: ['caravels', 'naval-warfare'],
   unlocks: ['Troop Transport'], era: 5 }
 ```
+
+> **Implementation note:** Verify that `'naval-warfare'` exists as a tech ID in `tech-definitions.ts` before shipping. If the ID differs, the prerequisites array will silently produce a tech that never unlocks (no build-time error — a runtime logic bug). Grep: `grep "'naval-warfare'" src/systems/tech-definitions.ts`.
 
 ---
 
@@ -80,11 +82,13 @@ All four new types → `'naval'`. **Note:** `LOCOMOTION_CLASS` is a `Record<Unit
 ### UNIT_DESCRIPTIONS
 
 ```ts
-carrack:         'Era 2 transport. Carries up to 3 land units across coasts and oceans.',
-galleon:         'Era 3 transport. Carries up to 4 land units. Stronger hull, wider range.',
-steamship:       'Era 4 transport. Steam-powered. Carries up to 5 land units reliably.',
-troop_transport: 'Era 5 transport. Military-grade vessel. Carries up to 6 land units.',
+carrack:         'Successor to the Transport. Carries up to 3 land units across coasts and oceans.',
+galleon:         'Successor to the Carrack. Broader hull, carries up to 4 land units.',
+steamship:       'Steam-powered successor to the Galleon. Carries up to 5 land units reliably.',
+troop_transport: 'Military-grade vessel. Carries up to 6 land units across any ocean.',
 ```
+
+> Descriptions avoid hardcoded "Era N" labels — if the tech tree is rebalanced, these strings stay accurate.
 
 ---
 
@@ -98,7 +102,9 @@ Visual direction — an evolutionary series, silhouette complexity and hull size
 - **steamship**: iron hull, single funnel amidships, paddlewheel or screw propeller visible at stern
 - **troop_transport**: modern military transport, flat open deck, drab paint, visible cargo crane
 
-All four sprites registered in the unit renderer using the same mechanism as spy unit sprites.
+All four sprites registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/v2/unit-sprite-catalog.ts`, using the same pattern as spy unit sprites.
+
+**Fallback rendering during development:** Until a sprite SVG is created for a given type, the renderer falls back to the emoji from `PRODUCTION_ICONS` rendered in a coloured circle (the existing missing-sprite fallback path). The feature is playable without sprites; sprites can be added and merged separately.
 
 ---
 
@@ -137,16 +143,36 @@ Remove the `[0]` hardcode; use the provided `cargoUnitId` instead. Each cargo un
 
 Add `amphibious-warfare` as described in §1.
 
+### `src/ui/transport-ui-state.ts` (new file)
+
+Extract `pendingUnload` and `unloadRange` into a dedicated module so they are testable without DOM:
+
+```ts
+export type PendingUnload = { transportId: string; cargoUnitId: string };
+let _pendingUnload: PendingUnload | null = null;
+let _unloadRange: HexCoord[] = [];
+
+export function getPendingUnload(): PendingUnload | null { return _pendingUnload; }
+export function getUnloadRange(): HexCoord[] { return _unloadRange; }
+export function setPendingUnload(p: PendingUnload, range: HexCoord[]): void {
+  _pendingUnload = p; _unloadRange = range;
+}
+export function clearPendingUnload(): void { _pendingUnload = null; _unloadRange = []; }
+```
+
+Both `main.ts` and the new regression test import from this module.
+
 ### `main.ts`
 
-- Add module-level state: `let unloadRange: HexCoord[] = [];` and `let pendingUnload: { transportId: string; cargoUnitId: string } | null = null;`
-- Clear both in every location where `movementRange` and `attackRange` are cleared (currently 4+ sites)
+- Remove any module-level `pendingUnload` / `unloadRange` variables; delegate to `transport-ui-state.ts`
+- Call `clearPendingUnload()` in every location where `movementRange` and `attackRange` are cleared (currently 4+ sites)
 - Replace `getUnloadOptions` callback with `getCargoBoardInfo` that returns the cargo unit list
-- Add `onSelectCargoToUnload(transportId, cargoUnitId)` callback that sets pendingUnload + computes unloadRange
+- Add `onSelectCargoToUnload(transportId, cargoUnitId)` callback that calls `setPendingUnload(...)` + passes `getUnloadRange()` to the renderer
 - Update `onLoadTransport` label construction (see §5)
-- Update `onUnloadTransport` notification (see §5)
+- Update `onUnloadTransport` notification (see §9)
 - Update hex-tap priority handling (see §7)
 - Update `getUnloadOptions` → `getUnloadDestinations(gameState, transportId, cargoUnit.id)` for the specific unit
+- Call `routeSfxComponents(mixer, loader)` during audio initialization, immediately after `sfxDirector.start()`, so OGG-backed load/unload sounds are available before the first transport action fires (see §6)
 
 ---
 
@@ -157,13 +183,13 @@ When a land unit is selected and a friendly transport is nearby, show:
 - If loading would fill it: **"Load onto Galleon — last slot"**
 - If the unit's `cargoSize` exceeds remaining capacity: show option **greyed-out** with reason: **"Needs 3 slots — 1 remaining"** (do not hide it silently)
 
-Label construction in `getTransportOptions` callback:
+Label construction in `getTransportOptions` callback (`selectedUnitId` is the currently selected land unit):
 
 ```ts
 const used   = getTransportCargoUsed(gameState, candidate.id);
 const cap    = getTransportCapacity(candidate);
 const free   = cap - used;
-const needs  = getUnitCargoSize(gameState.units[uid]);
+const needs  = getUnitCargoSize(gameState.units[selectedUnitId]);
 const fits   = needs <= free;
 const suffix = !fits
   ? ` — needs ${needs} slots, ${free} remaining`
@@ -172,9 +198,14 @@ const suffix = !fits
     : ` — ${free} of ${cap} slots free`;
 label: `Load onto ${UNIT_DEFINITIONS[candidate.type].name}${suffix}`,
 disabled: !fits,
+tooltip: !fits ? `${UNIT_DEFINITIONS[gameState.units[selectedUnitId]?.type]?.name ?? 'This unit'} requires ${needs} cargo slots. A ${free === 0 ? 'larger' : 'Galleon or larger'} transport is needed.` : undefined,
 ```
 
-The panel must render disabled options greyed-out, not hidden.
+**Panel callback type update:** The return shape of `getTransportOptions` must be updated to include `disabled?: boolean` and `tooltip?: string`. Update the TypeScript type wherever this callback is declared (likely the transport panel component props interface).
+
+**Siege unit gap:** A catapult (3 slots) cannot board a base Transport (cap 2). The greyed-out option with `tooltip` makes this discoverable without a separate error — the player sees "requires 3 cargo slots. A Galleon or larger transport is needed." This is intentional design: siege logistics require mid-era investment.
+
+The panel must render disabled options greyed-out (not hidden), with the tooltip/title attribute set so it appears on hover/long-press.
 
 ---
 
@@ -191,6 +222,9 @@ let _loader: AudioLoader | null = null;
 export function routeSfxComponents(mixer: AudioMixer, loader: AudioLoader): void {
   _mixer = mixer; _loader = loader;
 }
+// Call site: main.ts, during audio initialization, immediately after sfxDirector.start().
+// This ensures OGG buffers are available before any transport action can fire.
+// If called later, the first transport load/unload falls back to oscillator tone — acceptable but suboptimal.
 
 transportLoad: () => {
   if (_loader && _mixer)
@@ -224,6 +258,8 @@ export const TRANSPORT_SFX = {
 };
 ```
 
+> **loopEnd estimates:** The `0.600` values above are placeholder estimates. Update to actual file durations (measured via `ffprobe`) when the OGGs are sourced and encoded.
+
 Add `...Object.values(TRANSPORT_SFX)` to `allSfxEntries()` return value so the on-disk integrity test covers them.
 
 ### Per-class ship death SFX
@@ -248,7 +284,9 @@ steamship:       { death: real('sfx-steamship-death',       'audio/sfx/steamship
 troop_transport: { death: real('sfx-troop_transport-death', 'audio/sfx/troop_transport-death.ogg', 0.800, 'death') },
 ```
 
-The `"allSfxEntries returns exactly 70 entries"` test must be updated to the new count after all additions.
+> **loopEnd estimates:** The four duration values above (0.800, 0.900, 0.750, 0.800) are estimates. Update each to the actual file duration via `ffprobe` when files are sourced.
+
+The `"allSfxEntries returns exactly N entries"` test must be updated to the new count. **Net new entries: +4 death SFX (carrack, galleon, steamship, troop_transport) + 2 TRANSPORT_SFX (load, unload) = +6 total.** Before writing the test, grep the current assertion to find the existing N, then use N + 6.
 
 ---
 
@@ -263,45 +301,54 @@ Unit panel shows a **Cargo** section: each loaded unit as a row with name + slot
 Tapping **Unload** for a specific cargo unit:
 1. Calls `getUnloadDestinations(state, transportId, cargoUnitId)` → `unloadRange`
 2. Passes `unloadRange` to renderer (same highlight layer as `movementRange`)
-3. Sets `pendingUnload = { transportId, cargoUnitId }`
-4. Panel updates to show: **"Select a tile to unload [Unit Name]"** + a **Cancel** button
+3. Calls `setPendingUnload({ transportId, cargoUnitId }, unloadRange)` (see `transport-ui-state.ts` in §4)
+4. Panel switches to **Stage 2 render mode**: shows **"Select a tile to unload [Unit Name]"** (compact single line) + a full-width **Cancel** button styled as a secondary/ghost button (per `createGameButton` secondary style)
+
+**Panel state transition:** The transport panel component needs a second render mode driven by whether `getPendingUnload()` is non-null. The Stage 2 mode replaces the cargo list with the instruction + Cancel button. On mobile the panel is compact; the instruction text must fit on one line.
 
 ### Completing the unload
 
 Tapping a **highlighted hex**:
 - Calls `onUnloadTransport(transportId, cargoUnitId, destination)`
-- Clears `pendingUnload` and `unloadRange`
+- Calls `clearPendingUnload()`
 - Plays `SFX.transportUnload()`
 - Shows: *"[Unit name] unloaded from [Transport name]."*
 - Triggers disembark animation (see §8)
-- Transport stays selected, panel refreshes with remaining cargo
+- Transport stays selected, panel returns to Stage 1 render mode with remaining cargo
 
 ### Blocking accidental cancellation
 
-When `pendingUnload` is active, **any tap on a non-highlighted hex is blocked** and consumed:
+When `pendingUnload` is active, **any tap on a non-highlighted hex is blocked** and consumed. The **first** blocked tap in a given unload session:
 - Plays `SFX.error()`
 - Shows notification: *"Tap a highlighted tile — or use Cancel in the panel."*
-- `pendingUnload` and `unloadRange` remain set; the highlighted tiles stay visible
 
-This prevents accidental cancellation from a mis-tap. The **only** exit paths are:
+**Subsequent blocked taps** in the same unload session are silently consumed (no sound, no new notification) — this prevents a rapid mis-tap sequence from spamming error sounds and stacking notifications.
+
+`pendingUnload` and `unloadRange` remain set; the highlighted tiles stay visible. The **only** exit paths are:
 - Tap a valid destination hex (completes the unload)
-- Tap the explicit **Cancel** button in the panel (clears pendingUnload + unloadRange, returns to Stage 1)
+- Tap the explicit **Cancel** button in the panel (calls `clearPendingUnload()`, returns to Stage 1)
+
+A boolean `_mistapNotified` flag (local to the tap handler, reset when `clearPendingUnload()` is called) tracks whether the first notification has fired.
 
 ### Clearing `pendingUnload` on structural events
 
-Clear `pendingUnload` (and `unloadRange`) wherever `movementRange` and `attackRange` are currently cleared. This includes: unit deselection, End Turn, hot-seat handoff, panel close, and any other context that wipes selection state.
+Call `clearPendingUnload()` wherever `movementRange` and `attackRange` are currently cleared. This includes: unit deselection, End Turn, hot-seat handoff, panel close, and any other context that wipes selection state.
 
 ---
 
 ## 8. Animations
 
 ### Boarding animation
-When `loadUnitOntoTransport` succeeds, animate the cargo unit sliding toward the transport hex (0.25 s ease-in) before its sprite disappears into the transport. Use the existing unit movement animation infrastructure.
+When `loadUnitOntoTransport` succeeds, animate the cargo unit sliding toward the transport hex (0.25 s ease-in) before its sprite disappears into the transport.
+
+The existing path-based movement animation (`animateUnitMovement`) moves a unit along a `HexCoord[]` path. A single-step path `[unit.position, transport.position]` can reuse this infrastructure directly. If the movement animation API doesn't accept a one-step path cleanly, add a thin wrapper: `animateUnitSlide(unitId, fromHex, toHex, durationMs)` that constructs the two-element path and calls the existing animator.
 
 ### Disembark animation
-When `unloadUnitFromTransport` succeeds, animate the unit appearing at the destination hex with a brief fade-in (0.2 s) from the transport's tile direction. The unit appears before any subsequent input is accepted.
+When `unloadUnitFromTransport` succeeds, animate the unit appearing at the destination hex with a brief fade-in (0.2 s) from the transport's tile direction.
 
-Both animations are cosmetic and non-blocking — game state is mutated immediately; animation plays concurrently.
+This is **not** a path animation — the unit appears at a fixed hex and fades in. The existing movement animation infrastructure does not cover this case. Add a new renderer helper: `animateUnitAppear(unitId, atHex, fromDirectionHex, durationMs)` that renders the unit at `atHex` at 0% opacity and ramps to 100% over `durationMs`. `fromDirectionHex` is used only if the renderer draws a direction-dependent entrance effect; otherwise it can be ignored.
+
+Both animations are cosmetic and non-blocking — game state is mutated immediately; animations play concurrently. The disembark animation plays while the transport panel refreshes; this is correct because the panel update is driven by game state (already mutated), not the animation.
 
 ---
 
@@ -324,7 +371,7 @@ showNotification(`${cName} unloaded from ${tName}.`, 'info');
 
 ## 10. Save Compatibility
 
-`cargoCapacity` and `cargoSize` already exist on `UnitDefinition`. Existing saves with a capacity-1 transport remain valid — `cargoCapacity: 2` applies only to newly trained units. No migration required.
+`cargoCapacity` and `cargoSize` already exist on `UnitDefinition`. Changing `transport.cargoCapacity` from 1 → 2 in `UNIT_DEFINITIONS` is a **global change** — all existing transport units in all saves pick up the new capacity immediately, because `getTransportCapacity` reads from the definition at runtime, not from the unit instance. This is an intentional buff to existing transports; no data migration is required and no unit instances need to be rewritten. The four new unit types (carrack, galleon, steamship, troop_transport) are new build options only and have no impact on existing saves.
 
 ---
 
@@ -348,7 +395,9 @@ showNotification(`${cName} unloaded from ${tName}.`, 'info');
 ### `unit-upgrade-system.test.ts`
 - Transport in friendly coastal city with `navigation` researched → `canUpgradeUnit` returns `{ canUpgrade: true, targetType: 'carrack', cost: 33 }` (⌈65 × 0.5⌉)
 - Transport with insufficient gold → `canUpgrade: false`
-- `applyUpgrade(transport, 'carrack')` → type changes, `cargoUnitIds` preserved, health reset to 100
+- `applyUpgrade(transport, 'carrack')` → type changes, `cargoUnitIds` preserved
+
+> **Note on health reset:** Verify whether `applyUpgrade` resets health to 100 before asserting it. Check `unit-upgrade-system.ts` at implementation time — if health reset is not current behaviour, do not add it here (that would be a new feature outside this spec's scope).
 
 ### `tech-definitions.test.ts`
 - `amphibious-warfare` has prerequisites `['caravels', 'naval-warfare']` and era 5
@@ -359,9 +408,35 @@ showNotification(`${cName} unloaded from ${tName}.`, 'info');
 - Update `"allSfxEntries returns exactly N entries"` to the new count
 - `carrack-death.ogg`, `galleon-death.ogg`, `steamship-death.ogg`, `troop_transport-death.ogg` exist on disk with OGG magic bytes
 
-### Regression — `pendingUnload` always cleared on handoff
+### `transport-ui-state.test.ts` (new)
 
-Add a test to `main.ts`-level integration tests (or a new `transport-ui-state.test.ts`) verifying that after End Turn or `currentPlayer` change, neither `pendingUnload` nor `unloadRange` retain values from the previous player's turn. This prevents the hot-seat ghost-highlight bug.
+Because `pendingUnload` and `unloadRange` live in `src/ui/transport-ui-state.ts` (see §4), they are testable as a pure module without DOM:
+
+- `setPendingUnload` → `getPendingUnload()` returns the set value and `getUnloadRange()` returns the range
+- `clearPendingUnload()` → both return null / empty after clear
+- **Regression — hot-seat ghost-highlight:** Simulate End Turn by calling `clearPendingUnload()` (the same call `main.ts` makes on handoff) and assert `getPendingUnload() === null` and `getUnloadRange().length === 0`. This prevents the hot-seat bug where player 2 inherits player 1's active unload highlights.
+
+### Transport panel UI tests (`// @vitest-environment jsdom`)
+
+Add to `tests/ui/transport-panel.test.ts` (or alongside existing transport panel tests):
+
+- **Greyed-out over-capacity option:** Build a transport panel with a cargo unit that has `cargoSize: 3` and a transport with 1 slot free. Assert that the load button renders with a `disabled` attribute and `title` attribute containing "requires 3 cargo slots".
+- **Stage 2 instruction text:** After calling `onSelectCargoToUnload(transportId, cargoUnitId)`, assert the panel shows "Select a tile to unload [Unit Name]" and the Cancel button is present.
+- **Cancel button returns to Stage 1:** After entering Stage 2 and clicking Cancel, assert the cargo rows are visible again and the Stage 2 instruction is gone.
+
+### Notification string tests
+
+Add to transport-system or main-integration tests:
+- After `loadUnitOntoTransport` for a carrack, `showNotification` is called with text containing "Carrack" not "Transport".
+- After `unloadUnitFromTransport` for a galleon, `showNotification` text contains both the cargo unit name and "Galleon".
+
+### Animation trigger tests
+
+Add lightweight tests verifying animations are triggered (not their visual output):
+- After `loadUnitOntoTransport` succeeds, `animateUnitSlide` (or equivalent boarding animation function) is called with the correct `fromHex` and `toHex`.
+- After `unloadUnitFromTransport` succeeds, `animateUnitAppear` is called with the correct `atHex`.
+
+Use `vi.spyOn` on the animation module exports.
 
 ---
 
