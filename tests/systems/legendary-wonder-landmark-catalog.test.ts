@@ -59,6 +59,10 @@ describe('legendary wonder landmark catalog', () => {
     expect(getLegendaryWonderLandmarkMetadata('starvault-observatory').assetKey).toBe('starvault-observatory-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('storm-signal-spire').assetKey).toBe('storm-signal-spire-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('internet').assetKey).toBe('internet-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('moonwell-gardens').assetKey).toBe('moonwell-gardens-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('ironroot-foundry').assetKey).toBe('ironroot-foundry-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('tidecaller-bastion').assetKey).toBe('tidecaller-bastion-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('leviathan-drydock').assetKey).toBe('leviathan-drydock-bespoke');
 
     const keyed = getLegendaryWonderLandmarkMetadataCatalog()
       .filter(entry => entry.assetKey)
@@ -72,6 +76,10 @@ describe('legendary wonder landmark catalog', () => {
       ['starvault-observatory', 'starvault-observatory-bespoke'],
       ['storm-signal-spire', 'storm-signal-spire-bespoke'],
       ['internet', 'internet-bespoke'],
+      ['moonwell-gardens', 'moonwell-gardens-bespoke'],
+      ['ironroot-foundry', 'ironroot-foundry-bespoke'],
+      ['tidecaller-bastion', 'tidecaller-bastion-bespoke'],
+      ['leviathan-drydock', 'leviathan-drydock-bespoke'],
     ]);
   });
 
