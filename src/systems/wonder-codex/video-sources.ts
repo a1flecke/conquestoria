@@ -57,5 +57,7 @@ export function getWonderCodexVideoSourceForWonder(
   wonderId: string,
   surface: WonderCodexVideoSurface,
 ): WonderCodexVideoSource | undefined {
-  return WONDER_CODEX_VIDEO_SOURCES.find(source => source.wonderId === wonderId && source.surfaces.includes(surface));
+  return WONDER_CODEX_VIDEO_SOURCES.find(source =>
+    source.wonderId === wonderId && (source.surfaces as readonly WonderCodexVideoSurface[]).includes(surface),
+  );
 }
