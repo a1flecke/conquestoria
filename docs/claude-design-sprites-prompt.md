@@ -2,11 +2,13 @@
 
 ## Developer Instructions (do not copy this section into Claude)
 
-This prompt has **two independent sections** — send them in separate conversations for best results:
+This prompt has **three independent sections** — send them in separate conversations for best results:
 
 **Part A (Unit/Building sprites):** Paste from `<role>` through the end of `<style_checklist>`. Output = TypeScript export functions to insert into existing sprite files.
 
-**Part B (Terrain tiles):** Paste from the `=== TERRAIN TILES PROMPT ===` heading through the end of the file. Output = a new `src/renderer/terrain/terrain-tiles.ts` file + a new `src/renderer/terrain/terrain-tile-loader.ts`.
+**Part B (Terrain tiles):** Paste from the `=== TERRAIN TILES PROMPT ===` heading through `</style_checklist_terrain>`. Output = a new `src/renderer/terrain/terrain-tiles.ts` file + a new `src/renderer/terrain/terrain-tile-loader.ts`.
+
+**Part C (Naval transport unit sprites):** Paste from the `=== NAVAL TRANSPORT SPRITES PROMPT ===` heading through the end of the file. Output = 4 TypeScript export functions (CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite) to insert into `src/renderer/sprites/units.tsx`.
 
 If the repository is **private**, the GitHub raw URLs will return 403 — attach these files as uploads instead:
 - Part A: `src/renderer/sprites/sprite-system.tsx`, `units.tsx`, `buildings.tsx`, `src/assets/sprite-animations-v2.css`
@@ -655,18 +657,18 @@ Before finalizing, verify each SVG tile:
 
 ---
 
-## 2026-06-06 — Naval Transport Progression (4 Unit Sprites)
+# === NAVAL TRANSPORT SPRITES PROMPT (Part C — send in a separate conversation) ===
 
-**Developer instructions — do not copy into Claude Design:**
+**Developer instructions — do not copy into Claude:**
 
-These 4 sprites replace `TransportSprite` placeholders for the `carrack`, `galleon`, `steamship`, and `troop_transport` unit types added in PR #332. Insert each export function into `src/renderer/sprites/units.tsx` directly after `TransportSprite`. Then update `src/renderer/sprites/sprite-catalog.ts` lines 118–121 to reference the real sprite instead of `TransportSprite`.
+These 4 sprites replace `TransportSprite` placeholders for the `carrack`, `galleon`, `steamship`, and `troop_transport` unit types. Insert each export function into `src/renderer/sprites/units.tsx` directly after `TransportSprite`. Then update `src/renderer/sprites/sprite-catalog.ts` lines 118–121 to reference the real sprite instead of `TransportSprite`.
 
 Send **one conversation** for all 4 — they share the same naval style family. Ask for them one at a time (one sprite → confirm → next) to keep each output focused.
 
 After each sprite is confirmed, update the asset inventory table in `docs/sprite-design-system.md` to mark the unit as `✅ sprite`.
 
 ---
-```
+
 <role>
 You are a senior SVG sprite artist and TypeScript developer specialising in hand-crafted game graphics. You write clean, geometric SVG — no photorealism, no gradient meshes, no blur filters. Your work integrates directly into a production TypeScript/Vite codebase.
 </role>
@@ -855,4 +857,3 @@ Before finalising each sprite, verify:
 - [ ] Children can recognise what each ship is at 32 px (distinctive silhouette per tier)
 - [ ] Each sprite is visually distinct from the others — escalating size/complexity
 </style_checklist>
-```
