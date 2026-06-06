@@ -11,6 +11,7 @@ import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra } from './audio-catalog';
 import { VOICE_CATALOG, ALL_VOICE_EVENT_IDS, type VoicePackId } from './voice-catalog';
 import { allSfxEntries } from './sfx-catalog';
 import { SfxDirector } from './sfx-director';
+import { routeSfxComponents } from './sfx';
 
 export class AudioSystem {
   private loader: AudioLoader;
@@ -68,6 +69,7 @@ export class AudioSystem {
 
     this.wireEvents(bus);
     this.sfxDirector.start(state.units, bus);
+    routeSfxComponents(this.mixer, this.loader);
     this.armIosResume();
 
     void this.preloadForEra(state.era, this.currentCivType);

@@ -133,7 +133,11 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   caravan:    { death: real('sfx-caravan-death',    'audio/sfx/caravan-death.ogg',    0.135, 'death') },
   scout:      { death: real('sfx-scout-death',      'audio/sfx/scout-death.ogg',      0.140, 'death') },
   expedition: { death: real('sfx-expedition-death', 'audio/sfx/expedition-death.ogg', 0.147, 'death') },
-  transport:  { death: real('sfx-transport-death',  'audio/sfx/transport-death.ogg',  0.266, 'death') },
+  transport:       { death: real('sfx-transport-death',       'audio/sfx/transport-death.ogg',       0.266, 'death') },
+  carrack:         { death: real('sfx-carrack-death',         'audio/sfx/carrack-death.ogg',         0.800, 'death') },
+  galleon:         { death: real('sfx-galleon-death',         'audio/sfx/galleon-death.ogg',         0.900, 'death') },
+  steamship:       { death: real('sfx-steamship-death',       'audio/sfx/steamship-death.ogg',       0.750, 'death') },
+  troop_transport: { death: real('sfx-troop_transport-death', 'audio/sfx/troop_transport-death.ogg', 0.800, 'death') },
 
   // === Spy Types (death only — spies are dispatched, never attack directly) ===
   spy_scout:     { death: real('sfx-spy_scout-death',     'audio/sfx/spy_scout-death.ogg',     0.600, 'death') },
@@ -159,7 +163,11 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   musketeer:     'humanoid',
   galley:        'naval',
   trireme:       'naval',
-  transport:     'naval',
+  transport:       'naval',
+  carrack:         'naval',
+  galleon:         'naval',
+  steamship:       'naval',
+  troop_transport: 'naval',
   spy_scout:     'humanoid',
   spy_informant: 'humanoid',
   spy_agent:     'humanoid',
@@ -181,6 +189,13 @@ export function getLocomotionClass(unitType: UnitType): LocomotionClass {
   return LOCOMOTION_CLASS[unitType];
 }
 
+// Load/unload SFX for transport operations. loopEnd values are estimates;
+// update to actual file durations (via ffprobe) when OGGs are sourced.
+export const TRANSPORT_SFX = {
+  load:   real('sfx-transport-load',   'audio/sfx/transport-load.ogg',   0.600, 'movement'),
+  unload: real('sfx-transport-unload', 'audio/sfx/transport-unload.ogg', 0.600, 'movement'),
+};
+
 // Flat list of all catalog entries — used for preloading and catalog integrity tests.
 export function allSfxEntries(): TrackEntry[] {
   const entries: TrackEntry[] = [];
@@ -190,5 +205,5 @@ export function allSfxEntries(): TrackEntry[] {
       if (entry) entries.push(entry);
     }
   }
-  return [...entries, ...Object.values(MOVEMENT_SFX)];
+  return [...entries, ...Object.values(MOVEMENT_SFX), ...Object.values(TRANSPORT_SFX)];
 }

@@ -94,6 +94,27 @@ export class RenderLoop {
     });
   }
 
+  /**
+   * Slide a unit from its current position to `destination` in one step.
+   * Used for boarding animations: the unit has already been removed from
+   * game state (loaded onto the transport), so only the animation renders it.
+   */
+  animateUnitSlide(unit: Unit, destination: HexCoord): void {
+    this.animateUnitMove(unit, [unit.position, destination]);
+  }
+
+  /**
+   * Flash a teal expanding ring at `position` to signal a unit disembarking.
+   * Skipped when the user prefers reduced motion.
+   */
+  animateUnitAppear(position: HexCoord): void {
+    if (prefersReducedMotion()) return;
+    const pixel = hexToPixel(position, this.camera.hexSize);
+    const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+    const size = this.camera.hexSize * this.camera.zoom;
+    this.animations.add('disembark-flash', 500, { x: screen.x, y: screen.y, size });
+  }
+
   hasMovingUnit(unitId: string): boolean {
     return this.unitMovementAnimations.some(animation => animation.unit.id === unitId);
   }

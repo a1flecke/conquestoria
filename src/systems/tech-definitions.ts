@@ -102,6 +102,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'harbor-building', name: 'Harbor Building', track: 'maritime', cost: 80, prerequisites: ['galleys'], unlocks: ['Harbor'], era: 3 },
   { id: 'caravels', name: 'Caravels', track: 'maritime', cost: 125, prerequisites: ['triremes', 'harbor-building'], unlocks: ['Caravel'], era: 4 },
   { id: 'naval-warfare', name: 'Naval Warfare', track: 'maritime', cost: 130, prerequisites: ['triremes'], unlocks: ['Warship'], era: 4 },
+  { id: 'amphibious-warfare', name: 'Amphibious Warfare', track: 'maritime', cost: 175, prerequisites: ['caravels', 'naval-warfare'], unlocks: ['Troop Transport'], era: 5, countsForEraAdvancement: false },
 
   // === METALLURGY TRACK (8 techs, new) ===
   { id: 'copper-working', name: 'Copper Working', track: 'metallurgy', cost: 5, prerequisites: [], unlocks: ['Copper tools'], era: 1 },

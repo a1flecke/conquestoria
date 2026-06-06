@@ -1,9 +1,24 @@
+import type { AudioMixer } from './audio-mixer';
+import type { AudioLoader } from './audio-loader';
+import { TRANSPORT_SFX } from './sfx-catalog';
+
 let audioContext: AudioContext | null = null;
 let sfxDestination: AudioNode | null = null;
+let _mixer: AudioMixer | null = null;
+let _loader: AudioLoader | null = null;
 
 export function routeSfxThrough(node: AudioNode): void {
   sfxDestination = node;
   audioContext = node.context as AudioContext;
+}
+
+/**
+ * Wire OGG-backed load/unload sounds. Call from AudioSystem.start() after
+ * the mixer and loader are initialised so real files play instead of oscillator fallbacks.
+ */
+export function routeSfxComponents(mixer: AudioMixer, loader: AudioLoader): void {
+  _mixer = mixer;
+  _loader = loader;
 }
 
 function getContext(): AudioContext {
@@ -59,11 +74,21 @@ export const SFX = {
   notification: () => playTone(700, 0.1, 0.1, 'triangle'),
   error: () => playTone(200, 0.2, 0.15, 'square'),
   transportLoad: () => {
-    playTone(330, 0.08, 0.12, 'triangle');
-    setTimeout(() => playTone(440, 0.1, 0.12, 'triangle'), 80);
+    if (_loader && _mixer) {
+      void _loader.get(TRANSPORT_SFX.load.file)
+        .then(buf => _mixer!.playOneShot('sfx', buf));
+    } else {
+      playTone(330, 0.08, 0.12, 'triangle');
+      setTimeout(() => playTone(440, 0.1, 0.12, 'triangle'), 80);
+    }
   },
   transportUnload: () => {
-    playTone(440, 0.08, 0.12, 'triangle');
-    setTimeout(() => playTone(330, 0.1, 0.12, 'triangle'), 80);
+    if (_loader && _mixer) {
+      void _loader.get(TRANSPORT_SFX.unload.file)
+        .then(buf => _mixer!.playOneShot('sfx', buf));
+    } else {
+      playTone(440, 0.08, 0.12, 'triangle');
+      setTimeout(() => playTone(330, 0.1, 0.12, 'triangle'), 80);
+    }
   },
 };

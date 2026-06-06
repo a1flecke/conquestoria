@@ -1048,21 +1048,52 @@ describe('renderSelectedUnitInfo - transport actions', () => {
     expect(loaded).toEqual({ unitId: 'warrior-1', transportId: 'transport-1' });
   });
 
-  it('renders and fires Unload for cargo aboard a Transport', () => {
+  it('renders Stage 1 cargo list and calls onSelectCargoToUnload when Unload clicked', () => {
     const state = makeTransportState({ loaded: true });
+    // Give warrior a move left so it can unload
+    state.units['warrior-1'] = { ...state.units['warrior-1'], hasActed: false, movementPointsLeft: 2 };
     const container = new MockElement('div');
-    let unloaded: { transportId: string; cargoUnitId: string; destination: HexCoord } | null = null;
-    const destination = { q: 0, r: 1 };
+    let selected: { transportId: string; cargoUnitId: string } | null = null;
 
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'transport-1', {
-      getUnloadOptions: () => [{ cargoUnitId: 'warrior-1', destination, label: 'Unload Warrior' }],
-      onUnloadTransport: (transportId, cargoUnitId, destination) => {
-        unloaded = { transportId, cargoUnitId, destination };
+      getCargoBoardInfo: () => [{
+        cargoUnitId: 'warrior-1',
+        label: 'Warrior',
+        slotCost: 1,
+        canUnload: true,
+      }],
+      onSelectCargoToUnload: (transportId, cargoUnitId) => {
+        selected = { transportId, cargoUnitId };
       },
+      onCancelUnload: () => {},
     });
 
-    findButtons(container).find(b => b.textContent === 'Unload Warrior')?.click();
-    expect(unloaded).toEqual({ transportId: 'transport-1', cargoUnitId: 'warrior-1', destination });
+    const unloadBtn = findButtons(container).find(b => b.textContent === 'Unload');
+    expect(unloadBtn).toBeDefined();
+    unloadBtn?.click();
+    expect(selected).toEqual({ transportId: 'transport-1', cargoUnitId: 'warrior-1' });
+  });
+
+  it('renders Stage 2 instruction banner with Cancel when pendingUnloadUnitName is set', () => {
+    const state = makeTransportState({ loaded: true });
+    const container = new MockElement('div');
+    let cancelled = false;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'transport-1', {
+      getCargoBoardInfo: () => [],
+      onSelectCargoToUnload: () => {},
+      onCancelUnload: () => { cancelled = true; },
+      pendingUnloadUnitName: 'Warrior',
+    });
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Warrior');
+    expect(text).toContain('disembark');
+
+    const cancelBtn = findButtons(container).find(b => b.textContent === 'Cancel Unload');
+    expect(cancelBtn).toBeDefined();
+    cancelBtn?.click();
+    expect(cancelled).toBe(true);
   });
 
   it('does not render land-unit actions for cargo while aboard', () => {
