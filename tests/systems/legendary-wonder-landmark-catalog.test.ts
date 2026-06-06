@@ -51,7 +51,7 @@ describe('legendary wonder landmark catalog', () => {
     })).toEqual([]);
   });
 
-  it('authors approved bespoke asset keys only for completed Stage 2I slices', () => {
+  it('authors supported bespoke asset keys for every current legendary wonder', () => {
     expect(getLegendaryWonderLandmarkMetadata('oracle-of-delphi').assetKey).toBe('oracle-of-delphi-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('grand-canal').assetKey).toBe('grand-canal-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('sun-spire').assetKey).toBe('sun-spire-bespoke');
@@ -63,6 +63,18 @@ describe('legendary wonder landmark catalog', () => {
     expect(getLegendaryWonderLandmarkMetadata('ironroot-foundry').assetKey).toBe('ironroot-foundry-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('tidecaller-bastion').assetKey).toBe('tidecaller-bastion-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('leviathan-drydock').assetKey).toBe('leviathan-drydock-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('whispering-exchange').assetKey).toBe('whispering-exchange-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('hall-of-champions').assetKey).toBe('hall-of-champions-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('gate-of-the-world').assetKey).toBe('gate-of-the-world-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('manhattan-project').assetKey).toBe('manhattan-project-bespoke');
+
+    const definitionIds = getLegendaryWonderDefinitions().map(definition => definition.id).sort();
+    const keyedWonderIds = getLegendaryWonderLandmarkMetadataCatalog()
+      .filter(entry => entry.assetKey)
+      .map(entry => entry.wonderId)
+      .sort();
+
+    expect(keyedWonderIds).toEqual(definitionIds);
 
     const keyed = getLegendaryWonderLandmarkMetadataCatalog()
       .filter(entry => entry.assetKey)
@@ -77,8 +89,12 @@ describe('legendary wonder landmark catalog', () => {
       ['ironroot-foundry', 'ironroot-foundry-bespoke'],
       ['tidecaller-bastion', 'tidecaller-bastion-bespoke'],
       ['starvault-observatory', 'starvault-observatory-bespoke'],
+      ['whispering-exchange', 'whispering-exchange-bespoke'],
+      ['hall-of-champions', 'hall-of-champions-bespoke'],
+      ['gate-of-the-world', 'gate-of-the-world-bespoke'],
       ['leviathan-drydock', 'leviathan-drydock-bespoke'],
       ['storm-signal-spire', 'storm-signal-spire-bespoke'],
+      ['manhattan-project', 'manhattan-project-bespoke'],
       ['internet', 'internet-bespoke'],
     ]);
   });
