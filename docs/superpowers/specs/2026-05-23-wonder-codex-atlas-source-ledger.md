@@ -86,6 +86,13 @@ These sources are approved starting points. Implementation may add more sources,
 | `image-manhattan` | https://commons.wikimedia.org/wiki/File:Calutron_operators.jpg | `/images/wonders/codex/manhattan.jpg` | public domain | U.S. Department of Energy / public domain |
 | `image-internet` | https://commons.wikimedia.org/wiki/File:Internet_map_1024.jpg | `/images/wonders/codex/internet.jpg` | CC BY 2.5 | The Opte Project / CC BY 2.5 |
 
+## Stage 3 Video Sources
+
+| Video source ID | Wonder | Source URL | Creator | License | Local asset | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `video-great-volcano-tonga-eruption` | `great_volcano` | https://commons.wikimedia.org/wiki/File:Tonga_Volcano_Eruption_2022-01-15_0320Z_to_0610Z_Himawari-8_visible.webm | Japan Meteorological Agency / Digital Typhoon | CC BY 4.0 compatible public data terms | `/videos/wonders/great-volcano-tonga-eruption.mp4` | Trimmed to 4 seconds, scaled to 640px width, muted, and re-encoded as MP4/H.264 with OpenH264. Attribution: Japan Meteorological Agency / Digital Typhoon - CC BY 4.0 compatible public data terms. |
+| `video-starvault-paranal-observatory` | `starvault-observatory` | https://commons.wikimedia.org/wiki/File:Morning_observations_time-lapse_at_Paranal.webm | ESO/J. Colosimo | CC BY 4.0 | `/videos/wonders/starvault-paranal-observatory.mp4` | Trimmed to 4 seconds, scaled to 640px width, muted, and re-encoded as MP4/H.264 with OpenH264. Attribution: ESO/J. Colosimo - CC BY 4.0. |
+
 ## Per-Entry Ledger Requirement
 
 During implementation, add a row for every codex entry using this shape:

@@ -116,3 +116,25 @@ export interface WonderCodexImageSource {
   attribution: string;
   localPath: string;
 }
+
+export type WonderCodexVideoSurface = 'codex' | 'natural-reveal' | 'legendary-completion';
+
+export interface WonderCodexVideoSource {
+  id: string;
+  wonderId: string;
+  title: string;
+  surfaces: WonderCodexVideoSurface[];
+  sourceUrl: string;
+  creator: string;
+  license: string;
+  attribution: string;
+  localPath: string;
+  fallbackImageSourceId: string;
+  durationSeconds: number;
+  sizeBytes: number;
+  format: string;
+  mimeType: string;
+  loopNote: string;
+  audio: 'silent';
+  sfxCueId?: string;
+}
