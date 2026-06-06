@@ -187,6 +187,63 @@ describe('legendary-wonder-renderer', () => {
     }
   });
 
+  it('draws civic-and-endgame completed landmarks through bespoke asset renderers', () => {
+    const expected = [
+      ['whispering-exchange', 'whispering-exchange-bespoke'],
+      ['hall-of-champions', 'hall-of-champions-bespoke'],
+      ['gate-of-the-world', 'gate-of-the-world-bespoke'],
+      ['manhattan-project', 'manhattan-project-bespoke'],
+    ] as const;
+
+    for (const [wonderId, assetKey] of expected) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+
+      expect(ctx.operations, wonderId).toContain(`bespoke:${assetKey}`);
+      expectNonblankCanvasGlyph(ctx, wonderId);
+    }
+  });
+
+  it('draws distinct civic-and-endgame bespoke glyph geometry', () => {
+    const wonderIds = ['whispering-exchange', 'hall-of-champions', 'gate-of-the-world', 'manhattan-project'];
+    const profiles = new Set<string>();
+
+    for (const wonderId of wonderIds) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+      const profile = getGlyphGeometryProfile(ctx);
+
+      expect(profile.length, wonderId).toBeGreaterThan(0);
+      profiles.add(profile);
+    }
+
+    expect(profiles.size).toBe(wonderIds.length);
+  });
+
+  it('keeps civic-and-endgame glyph geometry distinct from close existing bespoke landmarks', () => {
+    const comparedWonderIds = [
+      'oracle-of-delphi',
+      'grand-canal',
+      'world-archive',
+      'starvault-observatory',
+      'internet',
+      'tidecaller-bastion',
+      'whispering-exchange',
+      'hall-of-champions',
+      'gate-of-the-world',
+      'manhattan-project',
+    ];
+    const profiles = new Set<string>();
+
+    for (const wonderId of comparedWonderIds) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+      const profile = getGlyphGeometryProfile(ctx);
+
+      expect(profile.length, wonderId).toBeGreaterThan(0);
+      profiles.add(profile);
+    }
+
+    expect(profiles.size).toBe(comparedWonderIds.length);
+  });
+
   it('draws distinct material-and-maritime bespoke glyph geometry', () => {
     const wonderIds = ['moonwell-gardens', 'ironroot-foundry', 'tidecaller-bastion', 'leviathan-drydock'];
     const profiles = new Set<string>();
@@ -251,7 +308,7 @@ describe('legendary-wonder-renderer', () => {
       cx: 80,
       cy: 80,
       radius: 12,
-      metadata: getLegendaryWonderLandmarkMetadata('whispering-exchange'),
+      metadata: getLegendaryWonderLandmarkMetadata('future-bespoke-fallback-test'),
       state: 'completed',
       reducedMotion: false,
       nowMs: 1000,
@@ -264,7 +321,7 @@ describe('legendary-wonder-renderer', () => {
   it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
     const ctx = new MockCanvasContext();
     const metadata = {
-      ...getLegendaryWonderLandmarkMetadata('whispering-exchange'),
+      ...getLegendaryWonderLandmarkMetadata('future-bespoke-fallback-test'),
       assetKey: 'unsupported-bespoke-test-key',
     };
 
@@ -342,6 +399,39 @@ describe('legendary-wonder-renderer', () => {
 
       expect(ctx.operations.some(operation => operation.startsWith('bespoke:')), wonderId).toBe(false);
       expect(ctx.operations.some(operation => operation.startsWith('stroke:')), wonderId).toBe(true);
+    }
+  });
+
+  it('keeps construction ghosts instead of completed bespoke art for civic-and-endgame builds', () => {
+    const wonderIds = ['whispering-exchange', 'hall-of-champions', 'gate-of-the-world', 'manhattan-project'];
+
+    for (const wonderId of wonderIds) {
+      const ctx = new MockCanvasContext();
+
+      drawLegendaryWonderLandmarkGlyph({
+        ctx: ctx as unknown as CanvasRenderingContext2D,
+        cx: 80,
+        cy: 80,
+        radius: 12,
+        metadata: getLegendaryWonderLandmarkMetadata(wonderId),
+        state: 'under-construction',
+        reducedMotion: false,
+        nowMs: 1000,
+      });
+
+      expect(ctx.operations.some(operation => operation.startsWith('bespoke:')), wonderId).toBe(false);
+      expect(ctx.operations.some(operation => operation.startsWith('stroke:')), wonderId).toBe(true);
+    }
+  });
+
+  it('draws nonblank civic-and-endgame bespoke glyphs with reduced motion', () => {
+    const wonderIds = ['whispering-exchange', 'hall-of-champions', 'gate-of-the-world', 'manhattan-project'];
+
+    for (const wonderId of wonderIds) {
+      const ctx = drawCompletedGlyphForWonder(wonderId, { reducedMotion: true });
+
+      expect(ctx.operations.some(operation => operation.startsWith('bespoke:')), wonderId).toBe(true);
+      expectNonblankCanvasGlyph(ctx, wonderId);
     }
   });
 
