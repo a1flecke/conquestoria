@@ -12,6 +12,10 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'ironroot-foundry-bespoke',
   'tidecaller-bastion-bespoke',
   'leviathan-drydock-bespoke',
+  'whispering-exchange-bespoke',
+  'hall-of-champions-bespoke',
+  'gate-of-the-world-bespoke',
+  'manhattan-project-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -43,6 +47,10 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'ironroot-foundry-bespoke': { key: 'ironroot-foundry-bespoke', draw: drawIronrootFoundry },
   'tidecaller-bastion-bespoke': { key: 'tidecaller-bastion-bespoke', draw: drawTidecallerBastion },
   'leviathan-drydock-bespoke': { key: 'leviathan-drydock-bespoke', draw: drawLeviathanDrydock },
+  'whispering-exchange-bespoke': { key: 'whispering-exchange-bespoke', draw: drawWhisperingExchange },
+  'hall-of-champions-bespoke': { key: 'hall-of-champions-bespoke', draw: drawHallOfChampions },
+  'gate-of-the-world-bespoke': { key: 'gate-of-the-world-bespoke', draw: drawGateOfTheWorld },
+  'manhattan-project-bespoke': { key: 'manhattan-project-bespoke', draw: drawManhattanProject },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -401,6 +409,128 @@ function drawLeviathanDrydock(options: LegendaryWonderBespokeDrawOptions): void 
   ctx.beginPath();
   ctx.rect(cx - radius * 0.5, cy - radius * 0.58, radius * 0.16, radius * 0.36);
   ctx.rect(cx + radius * 0.34, cy - radius * 0.58, radius * 0.16, radius * 0.36);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+function drawWhisperingExchange(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'whispering-exchange-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.52, cy - radius * 0.28, radius * 1.04, radius * 0.56);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx - radius * 0.22, cy + radius * 0.08, radius * 0.14, 0, Math.PI * 2);
+  ctx.arc(cx + radius * 0.22, cy + radius * 0.08, radius * 0.14, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.64, cy - radius * 0.48);
+  ctx.lineTo(cx - radius * 0.28, cy - radius * 0.62);
+  ctx.lineTo(cx + radius * 0.08, cy - radius * 0.48);
+  ctx.moveTo(cx + radius * 0.64, cy - radius * 0.48);
+  ctx.lineTo(cx + radius * 0.28, cy - radius * 0.62);
+  ctx.lineTo(cx - radius * 0.08, cy - radius * 0.48);
+  ctx.moveTo(cx - radius * 0.38, cy + radius * 0.38);
+  ctx.lineTo(cx + radius * 0.38, cy + radius * 0.38);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+}
+
+function drawHallOfChampions(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'hall-of-champions-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.58, cy - radius * 0.22);
+  ctx.lineTo(cx, cy - radius * 0.58);
+  ctx.lineTo(cx + radius * 0.58, cy - radius * 0.22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  for (let index = 0; index < 3; index += 1) {
+    const x = cx - radius * 0.32 + index * radius * 0.32;
+    ctx.rect(x - radius * 0.06, cy - radius * 0.18, radius * 0.12, radius * 0.58);
+  }
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx - radius * 0.18, cy + radius * 0.04, radius * 0.28, Math.PI * 0.55, Math.PI * 1.35);
+  ctx.arc(cx + radius * 0.18, cy + radius * 0.04, radius * 0.28, Math.PI * 1.65, Math.PI * 0.45, true);
+  ctx.moveTo(cx - radius * 0.48, cy + radius * 0.5);
+  ctx.lineTo(cx + radius * 0.48, cy + radius * 0.5);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+}
+
+function drawGateOfTheWorld(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'gate-of-the-world-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.54, cy + radius * 0.56);
+  ctx.lineTo(cx - radius * 0.54, cy - radius * 0.08);
+  ctx.arc(cx, cy - radius * 0.08, radius * 0.54, Math.PI, Math.PI * 2);
+  ctx.lineTo(cx + radius * 0.54, cy + radius * 0.56);
+  ctx.lineTo(cx + radius * 0.28, cy + radius * 0.56);
+  ctx.lineTo(cx + radius * 0.28, cy - radius * 0.02);
+  ctx.arc(cx, cy - radius * 0.02, radius * 0.28, 0, Math.PI, true);
+  ctx.lineTo(cx - radius * 0.28, cy + radius * 0.56);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.66, cy + radius * 0.2);
+  ctx.lineTo(cx - radius * 0.26, cy + radius * 0.08);
+  ctx.lineTo(cx + radius * 0.1, cy + radius * 0.2);
+  ctx.lineTo(cx + radius * 0.66, cy + radius * 0.04);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+}
+
+function drawManhattanProject(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'manhattan-project-bespoke');
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.06);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.5, 0, Math.PI * 2);
+  ctx.moveTo(cx - radius * 0.62, cy);
+  ctx.lineTo(cx + radius * 0.62, cy);
+  ctx.moveTo(cx - radius * 0.34, cy - radius * 0.5);
+  ctx.lineTo(cx + radius * 0.34, cy + radius * 0.5);
+  ctx.moveTo(cx + radius * 0.34, cy - radius * 0.5);
+  ctx.lineTo(cx - radius * 0.34, cy + radius * 0.5);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.16, cy - radius * 0.16, radius * 0.32, radius * 0.32);
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fill();
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.1, 0, Math.PI * 2);
   ctx.fillStyle = metadata.palette.glow;
   ctx.fill();
 }

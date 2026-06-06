@@ -18,12 +18,12 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'ironroot-foundry': landmark('ironroot-foundry', 'foundry', 'compact', 'forge', '#3a2b26', '#e08b52', '#ffd2a0', 1.04, 'foundationPulse', 'pulse', 'scaffold', 'ironroot-foundry-bespoke'),
   'tidecaller-bastion': landmark('tidecaller-bastion', 'bastion', 'wide', 'tide', '#18364b', '#7ec7e8', '#cff5ff', 1.03, 'civicAura', 'glint', 'outline', 'tidecaller-bastion-bespoke'),
   'starvault-observatory': landmark('starvault-observatory', 'observatory', 'tall', 'stars', '#252d4d', '#a8b9ff', '#f1f4ff', 1.06, 'dedicationGlow', 'spark', 'scaffold', 'starvault-observatory-bespoke'),
-  'whispering-exchange': landmark('whispering-exchange', 'exchange', 'wide', 'trade', '#342c3f', '#e0bc72', '#fff0c4', 0.98, 'civicAura', 'glint', 'foundation'),
-  'hall-of-champions': landmark('hall-of-champions', 'hall', 'wide', 'victory', '#3a2931', '#e4aa62', '#ffe0a8', 1.03, 'dedicationGlow', 'pulse', 'outline'),
-  'gate-of-the-world': landmark('gate-of-the-world', 'gateway', 'wide', 'horizon', '#24364a', '#9fd3e8', '#e0f8ff', 1.06, 'civicAura', 'glint', 'scaffold'),
+  'whispering-exchange': landmark('whispering-exchange', 'exchange', 'wide', 'trade', '#342c3f', '#e0bc72', '#fff0c4', 0.98, 'civicAura', 'glint', 'foundation', 'whispering-exchange-bespoke'),
+  'hall-of-champions': landmark('hall-of-champions', 'hall', 'wide', 'victory', '#3a2931', '#e4aa62', '#ffe0a8', 1.03, 'dedicationGlow', 'pulse', 'outline', 'hall-of-champions-bespoke'),
+  'gate-of-the-world': landmark('gate-of-the-world', 'gateway', 'wide', 'horizon', '#24364a', '#9fd3e8', '#e0f8ff', 1.06, 'civicAura', 'glint', 'scaffold', 'gate-of-the-world-bespoke'),
   'leviathan-drydock': landmark('leviathan-drydock', 'drydock', 'wide', 'shipwright', '#23384d', '#80bfe2', '#c8eeff', 1.06, 'foundationPulse', 'pulse', 'foundation', 'leviathan-drydock-bespoke'),
   'storm-signal-spire': landmark('storm-signal-spire', 'signal', 'tall', 'signal', '#202943', '#b7c7ff', '#f1f5ff', 1.08, 'dedicationGlow', 'spark', 'scaffold', 'storm-signal-spire-bespoke'),
-  'manhattan-project': landmark('manhattan-project', 'laboratory', 'compact', 'atom', '#31313c', '#d2d8e8', '#ffffff', 1, 'foundationPulse', 'pulse', 'outline'),
+  'manhattan-project': landmark('manhattan-project', 'laboratory', 'compact', 'atom', '#31313c', '#d2d8e8', '#ffffff', 1, 'foundationPulse', 'pulse', 'outline', 'manhattan-project-bespoke'),
   internet: landmark('internet', 'network', 'wide', 'network', '#202c3d', '#80d8ff', '#d9f8ff', 0.98, 'civicAura', 'spark', 'foundation', 'internet-bespoke'),
 };
 
