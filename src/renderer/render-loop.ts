@@ -17,6 +17,38 @@ import { spriteCache } from './sprites/sprite-loader';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { SpriteOverlay } from './sprite-overlay';
+import type { SpriteEntity } from './sprite-overlay';
+
+const KNOWN_FACTIONS = new Set([
+  'imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate',
+]);
+
+export function buildUnitEntities(
+  state: GameState,
+  viewerId: string,
+  viewerVisibility: VisibilityMap,
+  movingUnitIds: ReadonlySet<string>,
+): SpriteEntity[] {
+  const visibleRecord = getVisibleUnitsForPlayer(state.units, state, viewerId);
+  return Object.values(visibleRecord)
+    .filter(u => {
+      if (movingUnitIds.has(u.id)) return false;
+      return getVisibility(viewerVisibility, u.position) === 'visible';
+    })
+    .map(u => {
+      // Use the UNIT OWNER'S civType (not the viewer's) — enemy units use their owner's faction colors
+      const civType = state.civilizations[u.owner]?.civType ?? 'generic';
+      const faction = KNOWN_FACTIONS.has(civType) ? civType : 'imperials';
+      return {
+        id: u.id,
+        kind: 'unit' as const,
+        subtype: u.type,
+        coord: u.position,
+        state: 'idle' as const, // walk state set per-frame during movement (future)
+        faction,
+      };
+    });
+}
 
 export interface HexHighlight {
   coord: HexCoord;
@@ -279,7 +311,7 @@ export class RenderLoop {
       const visibleUnits = getVisibleUnitsForPlayer(this.state.units, this.state, viewerId);
       drawUnits(this.ctx, visibleUnits, this.camera, viewerVisibility, this.state, viewerId, colorLookup, {
         hiddenUnitIds: getMovingUnitIds(this.unitMovementAnimations),
-      });
+      }, this.spriteOverlay?.getActiveIds() ?? new Set());
       this.drawUnitMovementAnimations(performance.now(), colorLookup, viewerVisibility);
     }
 
@@ -298,10 +330,18 @@ export class RenderLoop {
     // Draw animations
     this.animations.update(this.ctx, performance.now());
 
-    // Sprite overlay — entity lists populated in MR 2+ (units) and MR 3+ (buildings)
+    // Sprite overlay — unit entities (buildings added in MR 3)
+    const unitEntities = viewerVisibility
+      ? buildUnitEntities(
+          this.state,
+          viewerId,
+          viewerVisibility,
+          new Set(getMovingUnitIds(this.unitMovementAnimations)),
+        )
+      : [];
     this.spriteOverlay?.sync(
       this.camera,
-      [], // populated in MR 2
+      unitEntities,
       {
         width: this.state.map.width,
         wrapsHorizontally: this.state.map.wrapsHorizontally,

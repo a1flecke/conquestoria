@@ -144,6 +144,7 @@ export function drawUnits(
   currentPlayer: string,
   colorLookup?: Record<string, string>,
   options: { hiddenUnitIds?: Set<string> } = {},
+  activeOverlayIds: ReadonlySet<string> = new Set(),
 ): void {
   const visibleUnits = Object.values(units).filter(unit =>
     !options.hiddenUnitIds?.has(unit.id)
@@ -152,6 +153,8 @@ export function drawUnits(
   );
 
   for (const stack of Object.values(groupUnitsByHex(visibleUnits))) {
+    // Skip entire stack if all units are handled by the DOM sprite overlay
+    if (stack.every(u => activeOverlayIds.has(u.id))) continue;
     const anchor = stack[0].position;
     const renderCoords = state.map.wrapsHorizontally
       ? getHorizontalWrapRenderCoords(anchor, state.map.width, camera)
