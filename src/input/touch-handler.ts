@@ -17,6 +17,8 @@ export class TouchHandler {
   private touchStartPos = { x: 0, y: 0 };
   private longPressTimer: number | null = null;
   private isPanning = false;
+  private _isPinching = false;
+  get isPinching(): boolean { return this._isPinching; }
 
   constructor(canvas: HTMLCanvasElement, camera: Camera, callbacks: InputCallbacks) {
     this.canvas = canvas;
@@ -56,6 +58,7 @@ export class TouchHandler {
     }
 
     if (e.touches.length === 2) {
+      this._isPinching = true;
       this.clearLongPress();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -114,6 +117,7 @@ export class TouchHandler {
   private onTouchEnd = (e: TouchEvent): void => {
     e.preventDefault();
     this.clearLongPress();
+    this._isPinching = e.touches.length >= 2;
 
     if (e.changedTouches.length === 1 && !this.isPanning) {
       const elapsed = Date.now() - this.touchStartTime;
