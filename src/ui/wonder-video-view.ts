@@ -138,7 +138,10 @@ export function createWonderVideoView(options: WonderVideoViewOptions): HTMLElem
     setPlaying();
     const result = video.play();
     if (result && typeof result.catch === 'function') {
-      result.catch(() => setPaused());
+      result.catch(() => {
+        observer?.disconnect();
+        renderFallback(root, preview);
+      });
     }
   };
 

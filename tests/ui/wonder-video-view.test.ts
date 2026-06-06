@@ -97,4 +97,17 @@ describe('createWonderVideoView', () => {
     expect(element.querySelector('video')).toBeNull();
     expect(element.querySelector('img')).toBeTruthy();
   });
+
+  it('falls back to the sourced still image when playback is blocked', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('blocked'));
+
+    const element = createWonderVideoView({ preview: preview(), autoplay: 'immediate' });
+    await Promise.resolve();
+
+    expect(element.dataset.wonderVideoState).toBe('fallback');
+    expect(element.querySelector('video')).toBeNull();
+    expect(element.querySelector('img')?.getAttribute('src')).toBe('/conquestoria/images/wonders/codex/volcano.jpg');
+
+    play.mockRestore();
+  });
 });
