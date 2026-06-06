@@ -6,6 +6,20 @@ const PRECACHE_URLS = [
   '/conquestoria/manifest.json',
   // era-1 war layer pre-cached so war music is always available offline
   '/conquestoria/audio/war/era1-war.ogg',
+  // era-1 adaptive layers — unrest/defeat music available offline from turn 1
+  '/conquestoria/audio/adaptive/era1-unrest.ogg',
+  '/conquestoria/audio/adaptive/era1-defeat.ogg',
+  // stingers — small (16–116 KB each), needed for core game events
+  '/conquestoria/audio/stinger/city-founded.ogg',
+  '/conquestoria/audio/stinger/war-declared.ogg',
+  '/conquestoria/audio/stinger/peace-signed.ogg',
+  '/conquestoria/audio/stinger/wonder-built.ogg',
+  '/conquestoria/audio/stinger/tech-researched.ogg',
+  '/conquestoria/audio/stinger/civ-defeated.ogg',
+  '/conquestoria/audio/stinger/victory.ogg',
+  '/conquestoria/audio/stinger/defeat.ogg',
+  '/conquestoria/audio/stinger/era1-transition-cue.ogg',
+  '/conquestoria/audio/stinger/era1-advance.ogg',
 ];
 
 self.addEventListener('install', (event) => {

@@ -2806,7 +2806,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
             civId: nextSlotId,
             atWarCount: nextCiv?.diplomacy?.atWarWith?.length ?? 0,
             unrestCityCount: nextCivCities.filter(c => c.unrestLevel > 0).length,
-            nearDefeat: nextCiv?.nearDefeat ?? nextCivCities.length <= 1,
+            nearDefeat: nextCiv?.nearDefeat ?? false,
           });
         },
       });

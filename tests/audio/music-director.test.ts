@@ -158,7 +158,7 @@ describe('MusicDirector', () => {
   it('reloads current music context without changing snapshot', () => {
     director.handleEraAdvanced({ era: 1, civType: 'rome' });
     vi.mocked(mixer.setSnapshot).mockClear();
-    director.handlePlayerChanged({ civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false });
     // Snapshot re-applied to reload the correct accent track for the new civ
     expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', expect.any(Number));
   });
@@ -252,11 +252,16 @@ import {
   type CivNearDefeatPayload,
 } from '../../src/audio/music-director';
 
-function makeDirectorWithPlayer(civId: string, atWar = false, unrestCityCount = 0, nearDefeat = false): MusicDirector {
+// civId ('civ-rome') and civType ('rome') are intentionally distinct so tests
+// catch comparisons that accidentally use one where the other is required.
+function makeDirectorWithPlayer(civType: string, atWar = false, unrestCityCount = 0, nearDefeat = false): MusicDirector {
   const d = new MusicDirector(makeMixer(), makeLoader());
-  d.handlePlayerChanged({ civType: civId, atWar, unrestCityCount, nearDefeat });
+  d.handlePlayerChanged({ civId: `civ-${civType}`, civType, atWar, unrestCityCount, nearDefeat });
   return d;
 }
+
+// Helper: return the civId that makeDirectorWithPlayer registers for a given civType.
+function civId(civType: string): string { return `civ-${civType}`; }
 
 describe('resolveSnapshot — priority chain (Spec 3)', () => {
   it('nearDefeat alone → brink-of-defeat', () => {
@@ -292,39 +297,39 @@ describe('unrest counter (Spec 3)', () => {
   });
 
   it('two unrest-started → inUnrest=true', () => {
-    director.handleUnrestStarted({ owner: 'rome' });
-    director.handleUnrestStarted({ owner: 'rome' });
+    director.handleUnrestStarted({ owner: civId('rome') });
+    director.handleUnrestStarted({ owner: civId('rome') });
     expect(director.resolveSnapshot()).toBe('unrest');
   });
 
   it('two started, one resolved → still unrest (count=1)', () => {
-    director.handleUnrestStarted({ owner: 'rome' });
-    director.handleUnrestStarted({ owner: 'rome' });
-    director.handleUnrestResolved({ owner: 'rome' });
+    director.handleUnrestStarted({ owner: civId('rome') });
+    director.handleUnrestStarted({ owner: civId('rome') });
+    director.handleUnrestResolved({ owner: civId('rome') });
     expect(director.resolveSnapshot()).toBe('unrest');
   });
 
   it('two started, two resolved → peace (count=0)', () => {
-    director.handleUnrestStarted({ owner: 'rome' });
-    director.handleUnrestStarted({ owner: 'rome' });
-    director.handleUnrestResolved({ owner: 'rome' });
-    director.handleUnrestResolved({ owner: 'rome' });
+    director.handleUnrestStarted({ owner: civId('rome') });
+    director.handleUnrestStarted({ owner: civId('rome') });
+    director.handleUnrestResolved({ owner: civId('rome') });
+    director.handleUnrestResolved({ owner: civId('rome') });
     expect(director.resolveSnapshot()).toBe('peace');
   });
 
   it('revolt-started increments the same counter', () => {
-    director.handleRevoltStarted({ owner: 'rome' });
+    director.handleRevoltStarted({ owner: civId('rome') });
     expect(director.resolveSnapshot()).toBe('unrest');
   });
 
   it('unrest events from a different civ are ignored', () => {
-    director.handleUnrestStarted({ owner: 'egypt' }); // not currentCivId
+    director.handleUnrestStarted({ owner: civId('egypt') }); // not currentCivId
     expect(director.resolveSnapshot()).toBe('peace');
   });
 
   it('counter never goes below 0 (extra resolves are idempotent)', () => {
-    director.handleUnrestResolved({ owner: 'rome' }); // no prior started
-    director.handleUnrestResolved({ owner: 'rome' });
+    director.handleUnrestResolved({ owner: civId('rome') }); // no prior started
+    director.handleUnrestResolved({ owner: civId('rome') });
     expect(director.resolveSnapshot()).toBe('peace');
   });
 });
@@ -336,24 +341,24 @@ describe('handlePlayerChanged — hot-seat drift reset (Spec 3)', () => {
   });
 
   it('handoff with atWar:true resets to at-war', () => {
-    director.handlePlayerChanged({ civType: 'egypt', atWar: true, unrestCityCount: 0, nearDefeat: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: true, unrestCityCount: 0, nearDefeat: false });
     expect(director.resolveSnapshot()).toBe('at-war');
   });
 
   it('handoff with nearDefeat:true resets to brink-of-defeat', () => {
-    director.handlePlayerChanged({ civType: 'viking', atWar: false, unrestCityCount: 0, nearDefeat: true });
+    director.handlePlayerChanged({ civId: civId('viking'), civType: 'viking', atWar: false, unrestCityCount: 0, nearDefeat: true });
     expect(director.resolveSnapshot()).toBe('brink-of-defeat');
   });
 
   it('handoff clears prior unrest for incoming player at peace', () => {
-    director.handleUnrestStarted({ owner: 'rome' });
-    director.handleUnrestStarted({ owner: 'rome' });
-    director.handlePlayerChanged({ civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false });
+    director.handleUnrestStarted({ owner: civId('rome') });
+    director.handleUnrestStarted({ owner: civId('rome') });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false });
     expect(director.resolveSnapshot()).toBe('peace');
   });
 
   it('handoff with unrestCityCount:2 resolves to unrest', () => {
-    director.handlePlayerChanged({ civType: 'aztec', atWar: false, unrestCityCount: 2, nearDefeat: false });
+    director.handlePlayerChanged({ civId: civId('aztec'), civType: 'aztec', atWar: false, unrestCityCount: 2, nearDefeat: false });
     expect(director.resolveSnapshot()).toBe('unrest');
   });
 });
@@ -361,19 +366,19 @@ describe('handlePlayerChanged — hot-seat drift reset (Spec 3)', () => {
 describe('near-defeat handlers (Spec 3)', () => {
   it('handleNearDefeat for current civ sets brink-of-defeat', () => {
     const d = makeDirectorWithPlayer('rome');
-    d.handleNearDefeat({ civId: 'rome' });
+    d.handleNearDefeat({ civId: civId('rome') });
     expect(d.resolveSnapshot()).toBe('brink-of-defeat');
   });
 
   it('handleNearDefeat for different civ is ignored', () => {
     const d = makeDirectorWithPlayer('rome');
-    d.handleNearDefeat({ civId: 'egypt' });
+    d.handleNearDefeat({ civId: civId('egypt') });
     expect(d.resolveSnapshot()).toBe('peace');
   });
 
   it('handleRecoveredFromNearDefeat clears near-defeat', () => {
     const d = makeDirectorWithPlayer('rome', false, 0, true);
-    d.handleRecoveredFromNearDefeat({ civId: 'rome' });
+    d.handleRecoveredFromNearDefeat({ civId: civId('rome') });
     expect(d.resolveSnapshot()).toBe('peace');
   });
 });

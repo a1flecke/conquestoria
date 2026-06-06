@@ -23,7 +23,8 @@ export interface CityFoundedPayload {
 
 // Extended for Spec 3 — includes authoritative hot-seat audio state
 export interface PlayerChangedPayload {
-  civType: string;
+  civId: string;   // civ ID (e.g. 'player', 'cpu-1') — used to filter mid-game events
+  civType: string; // civ type (e.g. 'rome') — used for accent/era track selection
   atWar: boolean;
   unrestCityCount: number;
   nearDefeat: boolean;
@@ -187,7 +188,7 @@ export class MusicDirector {
   }
 
   handlePlayerChanged(p: PlayerChangedPayload): void {
-    this.currentCivId = p.civType;
+    this.currentCivId = p.civId;
     // Reset all flags from the authoritative payload — prevents hot-seat drift
     this.atWar = p.atWar;
     this.unrestCityCount = p.unrestCityCount;
