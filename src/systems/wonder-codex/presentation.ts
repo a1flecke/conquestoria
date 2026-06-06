@@ -9,6 +9,10 @@ import { getRelatedWonderCodexEntries, type RelatedWonderCodexEntry } from '@/sy
 import { getImageSource } from '@/systems/wonder-codex/sources';
 import type { WonderCodexContent, WonderCodexSection } from '@/systems/wonder-codex/types';
 import {
+  getWonderVideoPreviewForSurface,
+  type WonderVideoPreviewView,
+} from '@/systems/wonder-codex/video-presentation';
+import {
   getLegendaryWonderRivalIntelSummariesForViewer,
   isLegendaryWonderVisibleToPlayer,
   type LegendaryWonderRivalIntelSummary,
@@ -55,6 +59,7 @@ export interface WonderCodexPageViewModel extends WonderCodexCatalogEntry {
   rivalIntel?: LegendaryWonderRivalIntelSummary;
   landmarkPreview?: LegendaryWonderLandmarkPreviewView;
   knownRivalLandmarkPreview?: KnownRivalLegendaryLandmarkPreviewView;
+  videoPreview?: WonderVideoPreviewView;
   canStartBuild?: boolean;
   questSteps?: Array<{ id: string; description: string; completed: boolean }>;
   sections: WonderCodexSection[];
@@ -240,6 +245,7 @@ function buildPage(
   const knownRivalLandmarkPreview = entry.kind === 'legendary'
     ? getKnownRivalLegendaryLandmarkPreviewForWonder(state, viewerId, entry.id)
     : null;
+  const videoPreview = getWonderVideoPreviewForSurface(entry.id, 'codex', entry.title);
 
   return {
     ...entry,
@@ -256,6 +262,7 @@ function buildPage(
     ...(rivalIntel ? { rivalIntel } : {}),
     ...(landmarkPreview ? { landmarkPreview } : {}),
     ...(knownRivalLandmarkPreview ? { knownRivalLandmarkPreview } : {}),
+    ...(videoPreview ? { videoPreview } : {}),
     canStartBuild: status.canStartBuild,
     ...(status.questSteps ? { questSteps: status.questSteps } : {}),
     sections: content.sections.map(section => ({ ...section })),

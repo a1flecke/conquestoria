@@ -2,6 +2,10 @@ import type { GameEvents, GameState, HexCoord } from '@/core/types';
 import { formatNaturalWonderEffectSummary, formatWonderDiscoveryRewardSummary } from '@/systems/wonder-presentation-formatting';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { getWonderVisualDefinition, type WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
+import {
+  getWonderVideoPreviewForSurface,
+  type WonderVideoPreviewView,
+} from '@/systems/wonder-codex/video-presentation';
 
 export interface WonderDiscoveryRevealItem {
   wonderId: string;
@@ -14,6 +18,7 @@ export interface WonderDiscoveryRevealItem {
   rewardSummary: string;
   visual: WonderVisualDefinition;
   motionAssetId: string | null;
+  videoPreview?: WonderVideoPreviewView;
 }
 
 function validCoord(coord: HexCoord): boolean {
@@ -33,6 +38,7 @@ export function buildWonderDiscoveryRevealItem(
 
   const definition = getWonderDefinition(event.wonderId);
   if (!definition) return null;
+  const videoPreview = getWonderVideoPreviewForSurface(event.wonderId, 'natural-reveal', definition.name);
 
   return {
     wonderId: event.wonderId,
@@ -45,5 +51,6 @@ export function buildWonderDiscoveryRevealItem(
     rewardSummary: formatWonderDiscoveryRewardSummary(event.wonderId),
     visual: getWonderVisualDefinition(event.wonderId),
     motionAssetId: null,
+    ...(videoPreview ? { videoPreview } : {}),
   };
 }
