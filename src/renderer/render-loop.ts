@@ -23,6 +23,30 @@ const KNOWN_FACTIONS = new Set([
   'imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate',
 ]);
 
+export function buildBuildingEntities(
+  state: GameState,
+  viewerVisibility: VisibilityMap,
+): SpriteEntity[] {
+  const entities: SpriteEntity[] = [];
+  for (const city of Object.values(state.cities)) {
+    if (getVisibility(viewerVisibility, city.position) !== 'visible') continue;
+    // Use the CITY OWNER's civType — enemy cities use their owner's faction colors
+    const ownerCivType = state.civilizations[city.owner]?.civType ?? 'generic';
+    const faction = KNOWN_FACTIONS.has(ownerCivType) ? ownerCivType : 'imperials';
+    for (const buildingId of city.buildings) {
+      entities.push({
+        id: `${city.id}:${buildingId}`,
+        kind: 'building',
+        subtype: buildingId,
+        coord: city.position,
+        state: 'idle',
+        faction,
+      });
+    }
+  }
+  return entities;
+}
+
 export function buildUnitEntities(
   state: GameState,
   viewerId: string,
@@ -330,7 +354,7 @@ export class RenderLoop {
     // Draw animations
     this.animations.update(this.ctx, performance.now());
 
-    // Sprite overlay — unit entities (buildings added in MR 3)
+    // Sprite overlay — unit + building entities
     const unitEntities = viewerVisibility
       ? buildUnitEntities(
           this.state,
@@ -339,9 +363,12 @@ export class RenderLoop {
           new Set(getMovingUnitIds(this.unitMovementAnimations)),
         )
       : [];
+    const buildingEntities = viewerVisibility
+      ? buildBuildingEntities(this.state, viewerVisibility)
+      : [];
     this.spriteOverlay?.sync(
       this.camera,
-      unitEntities,
+      [...unitEntities, ...buildingEntities],
       {
         width: this.state.map.width,
         wrapsHorizontally: this.state.map.wrapsHorizontally,
