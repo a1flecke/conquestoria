@@ -26,7 +26,7 @@ describe('TECH_TREE', () => {
       const techs = TECH_TREE.filter(t => t.track === track);
       const expectedCount = track === 'espionage'
         ? 10
-        : ['economy', 'science', 'communication'].includes(track)
+        : ['economy', 'science', 'communication', 'maritime'].includes(track)
           ? 9
           : 8;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
@@ -35,8 +35,8 @@ describe('TECH_TREE', () => {
 });
 
 describe('expanded tech tree', () => {
-  it('has 125 techs total after adding Slice 3 late-era foundations', () => {
-    expect(TECH_TREE.length).toBe(125);
+  it('has 126 techs total after adding Slice 3 late-era foundations and amphibious-warfare', () => {
+    expect(TECH_TREE.length).toBe(126);
   });
 
   it('supports cross-track prerequisites', () => {

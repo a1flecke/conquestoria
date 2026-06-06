@@ -20,17 +20,30 @@ import { hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-system';
 import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
-import { getTransportCargo } from '@/systems/transport-system';
+import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';
 
 export interface TransportLoadOption {
   transportId: string;
   label: string;
+  disabled?: boolean;
+  tooltip?: string;
 }
 
 export interface TransportUnloadOption {
   cargoUnitId: string;
   destination: HexCoord;
   label: string;
+}
+
+/** One entry in the cargo manifest shown in Stage 1 of the unload UX. */
+export interface CargoBoardItem {
+  cargoUnitId: string;
+  /** Display name of the cargo unit. */
+  label: string;
+  /** Number of cargo slots this unit occupies. */
+  slotCost: number;
+  /** Whether this unit can be unloaded this turn. */
+  canUnload: boolean;
 }
 
 export interface SelectedUnitInfoCallbacks {
@@ -52,9 +65,21 @@ export interface SelectedUnitInfoCallbacks {
   onEstablishOutpost?: (unitId: string) => void;
   onReplaceImprovement?: (action: BuildableImprovementType) => void;
   getTransportOptions?: (unitId: string) => TransportLoadOption[];
+  /** @deprecated Use getCargoBoardInfo + onSelectCargoToUnload instead. */
   getUnloadOptions?: (transportId: string) => TransportUnloadOption[];
   onLoadTransport?: (unitId: string, transportId: string) => void;
   onUnloadTransport?: (transportId: string, cargoUnitId: string, destination: HexCoord) => void;
+  /** Returns the cargo manifest for a transport unit (Stage 1 unload UX). */
+  getCargoBoardInfo?: (transportId: string) => CargoBoardItem[];
+  /** Called when the player clicks Unload for a specific cargo unit (enters Stage 2). */
+  onSelectCargoToUnload?: (transportId: string, cargoUnitId: string) => void;
+  /** Called when the player cancels an in-progress unload (Stage 2 → deselect). */
+  onCancelUnload?: () => void;
+  /**
+   * When set, the panel renders Stage 2: an instruction banner with the named
+   * unit and a Cancel button, instead of the normal cargo list.
+   */
+  pendingUnloadUnitName?: string;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -66,6 +91,11 @@ function makeButton(label: string, color: string, onClick?: () => void): HTMLBut
     button.addEventListener('click', onClick);
   }
   return button;
+}
+
+/** True for all 5 naval transport unit types. */
+function isNavalTransport(unitType: string): boolean {
+  return ['transport', 'carrack', 'galleon', 'steamship', 'troop_transport'].includes(unitType);
 }
 
 function nextTierLabel(currentLabel: string): string | null {
@@ -208,7 +238,7 @@ export function renderSelectedUnitInfo(
     return;
   }
 
-  if (unit.type === 'transport') {
+  if (isNavalTransport(unit.type)) {
     const cargo = getTransportCargo(state, unitId);
     const cargoDiv = document.createElement('div');
     cargoDiv.style.cssText = 'margin-top:8px;font-size:12px;color:#bfdbfe;';
@@ -324,21 +354,83 @@ export function renderSelectedUnitInfo(
     }
   }
 
-  if (!unit.transportId && unit.type !== 'transport' && callbacks.getTransportOptions && callbacks.onLoadTransport) {
+  // ── Load onto transport ───────────────────────────────────────────────────
+  // Show for any unit that is not already aboard a transport and is not itself
+  // a naval transport (transports cannot board other transports).
+  if (!unit.transportId && !isNavalTransport(unit.type) && callbacks.getTransportOptions && callbacks.onLoadTransport) {
     const transportOptions = callbacks.getTransportOptions(unitId);
     for (const option of transportOptions) {
-      actionsDiv.appendChild(makeButton(option.label, '#2563eb', () => callbacks.onLoadTransport!(unitId, option.transportId)));
+      const btn = makeButton(option.label, option.disabled ? '#374151' : '#2563eb',
+        option.disabled ? undefined : () => callbacks.onLoadTransport!(unitId, option.transportId));
+      if (option.disabled) {
+        btn.disabled = true;
+        btn.style.opacity = '0.55';
+        btn.style.cursor = 'not-allowed';
+      }
+      if (option.tooltip) {
+        btn.title = option.tooltip;
+      }
+      actionsDiv.appendChild(btn);
     }
   }
 
-  if (unit.type === 'transport' && callbacks.getUnloadOptions && callbacks.onUnloadTransport) {
-    const unloadOptions = callbacks.getUnloadOptions(unitId);
-    for (const option of unloadOptions) {
-      actionsDiv.appendChild(makeButton(option.label, '#0f766e', () => callbacks.onUnloadTransport!(
-        unitId,
-        option.cargoUnitId,
-        option.destination,
-      )));
+  // ── Naval transport cargo panel ───────────────────────────────────────────
+  if (isNavalTransport(unit.type) && callbacks.getCargoBoardInfo && callbacks.onSelectCargoToUnload) {
+    const cargoItems = callbacks.getCargoBoardInfo(unitId);
+    const capacity = getTransportCapacity(state.units[unitId]!);
+    const used = getTransportCargoUsed(state, unitId);
+
+    // Slot bar header
+    const cargoHeader = document.createElement('div');
+    cargoHeader.style.cssText = 'margin-top:8px;font-size:11px;opacity:0.7;';
+    cargoHeader.textContent = `Cargo: ${used}/${capacity} slots`;
+    actionsDiv.appendChild(cargoHeader);
+
+    if (callbacks.pendingUnloadUnitName) {
+      // ── Stage 2: unload destination picking ──────────────────────────────
+      const banner = document.createElement('div');
+      banner.style.cssText = 'margin-top:6px;padding:8px 10px;background:rgba(15,118,110,0.25);border-radius:8px;border:1px solid rgba(15,118,110,0.5);font-size:12px;';
+      banner.textContent = `Tap a highlighted hex to disembark ${callbacks.pendingUnloadUnitName}.`;
+      actionsDiv.appendChild(banner);
+      if (callbacks.onCancelUnload) {
+        const cancelBtn = makeButton('Cancel Unload', '#374151', () => callbacks.onCancelUnload!());
+        cancelBtn.style.cssText += ';margin-top:6px;width:100%;border:1px solid rgba(255,255,255,0.2);';
+        actionsDiv.appendChild(cancelBtn);
+      }
+    } else if (cargoItems.length === 0) {
+      // ── Empty hold ───────────────────────────────────────────────────────
+      const emptyMsg = document.createElement('div');
+      emptyMsg.style.cssText = 'margin-top:4px;font-size:11px;opacity:0.5;font-style:italic;';
+      emptyMsg.textContent = 'Hold is empty.';
+      actionsDiv.appendChild(emptyMsg);
+    } else {
+      // ── Stage 1: cargo manifest with per-unit Unload buttons ─────────────
+      for (const item of cargoItems) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:6px;';
+
+        const slotBadge = document.createElement('span');
+        slotBadge.style.cssText = 'font-size:10px;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 5px;flex-shrink:0;';
+        slotBadge.textContent = `${item.slotCost}⚓`;
+        row.appendChild(slotBadge);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.style.cssText = 'font-size:12px;flex:1;';
+        nameSpan.textContent = item.label;
+        row.appendChild(nameSpan);
+
+        const unloadBtn = makeButton('Unload', item.canUnload ? '#0f766e' : '#374151',
+          item.canUnload ? () => callbacks.onSelectCargoToUnload!(unitId, item.cargoUnitId) : undefined);
+        unloadBtn.style.cssText += ';padding:4px 10px;min-height:36px;font-size:11px;';
+        if (!item.canUnload) {
+          unloadBtn.disabled = true;
+          unloadBtn.style.opacity = '0.45';
+          unloadBtn.style.cursor = 'not-allowed';
+          unloadBtn.title = 'Unit has already acted this turn.';
+        }
+        row.appendChild(unloadBtn);
+        actionsDiv.appendChild(row);
+      }
     }
   }
 

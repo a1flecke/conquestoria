@@ -173,14 +173,25 @@ describe('transport system', () => {
   });
 
   it('rejects cargo that would exceed transport capacity', () => {
-    const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
-    expect(loaded.ok).toBe(true);
-    if (!loaded.ok) return;
+    // Transport now has capacity=2 (2 infantry slots). Fill both, then a third fails.
+    const start = state();
+    // Add a second adjacent land unit so we can fill the hold
+    const scout = { ...start.units['worker-1'], id: 'scout-1', type: 'scout' as const };
+    start.units['scout-1'] = scout;
 
-    const result = canLoadUnitOntoTransport(loaded.state, 'worker-1', 'transport-1');
+    const step1 = loadUnitOntoTransport(start, 'warrior-1', 'transport-1');
+    expect(step1.ok).toBe(true);
+    if (!step1.ok) return;
+    expect(getTransportCargoUsed(step1.state, 'transport-1')).toBe(1);
 
+    const step2 = loadUnitOntoTransport(step1.state, 'worker-1', 'transport-1');
+    expect(step2.ok).toBe(true);
+    if (!step2.ok) return;
+    expect(getTransportCargoUsed(step2.state, 'transport-1')).toBe(2);
+
+    // Hold is now full (2/2); third unit must be rejected
+    const result = canLoadUnitOntoTransport(step2.state, 'scout-1', 'transport-1');
     expect(result).toEqual({ ok: false, reason: 'no-capacity', message: 'No room on this Transport' });
-    expect(getTransportCargoUsed(loaded.state, 'transport-1')).toBe(1);
   });
 
   it('rejects loading a land unit that has no action left', () => {
@@ -212,7 +223,7 @@ describe('transport system', () => {
         },
       },
     };
-    const destinations = getUnloadDestinations(readyState, 'transport-1').map(hexKey);
+    const destinations = getUnloadDestinations(readyState, 'transport-1', 'warrior-1').map(hexKey);
     expect(destinations).toContain('0,1');
 
     const result = unloadUnitFromTransport(readyState, 'transport-1', 'warrior-1', { q: 0, r: 1 });
@@ -235,7 +246,7 @@ describe('transport system', () => {
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) return;
 
-    expect(getUnloadDestinations(loaded.state, 'transport-1')).toEqual([]);
+    expect(getUnloadDestinations(loaded.state, 'transport-1', 'warrior-1')).toEqual([]);
     expect(unloadUnitFromTransport(loaded.state, 'transport-1', 'warrior-1', { q: 0, r: 1 })).toMatchObject({
       ok: false,
       reason: 'no-action',
@@ -303,7 +314,7 @@ describe('transport system', () => {
       },
     };
 
-    expect(getUnloadDestinations(readyState, 'transport-1').map(hexKey)).toContain('0,0');
+    expect(getUnloadDestinations(readyState, 'transport-1', 'warrior-1').map(hexKey)).toContain('0,0');
     const result = unloadUnitFromTransport(readyState, 'transport-1', 'warrior-1', { q: 0, r: 0 });
 
     expect(result.ok).toBe(true);

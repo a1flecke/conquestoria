@@ -124,10 +124,14 @@ import { executeUnitMove, isWorkerBusy, type ExecuteUnitMoveResult } from '@/sys
 import {
   canLoadUnitOntoTransport,
   getTransportCargo,
+  getTransportCapacity,
+  getTransportCargoUsed,
+  getUnitCargoSize,
   getUnloadDestinations,
   loadUnitOntoTransport,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
+import { getPendingUnload, getUnloadRange, setPendingUnload, clearPendingUnload } from '@/ui/transport-ui-state';
 import type { GameEvents, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
@@ -174,6 +178,9 @@ let gameState: GameState;
 let selectedUnitId: string | null = null;
 let movementRange: HexCoord[] = [];
 let attackRange: HexCoord[] = [];
+// Tracks whether the "tap a highlighted tile or cancel" notification has been shown
+// for the current pendingUnload session — resets when clearUnloadState() is called.
+let _mistapNotified = false;
 let currentCityIndex = 0;
 let inputInitialized = false;
 let councilPanelOpen = false;
@@ -182,6 +189,12 @@ let pacingDebugOpen = false;
 let pendingCityCaptureChoice: PendingCityCaptureChoice | null = null;
 let pendingJourneyUnitId: string | null = null;
 let deferWonderDiscoveryRevealUntilMoveSettles = false;
+
+/** Clears pendingUnload state and resets the mis-tap notification guard. */
+function clearUnloadState(): void {
+  clearPendingUnload();
+  _mistapNotified = false;
+}
 
 function mergePersistedSettings(loadedSettings?: GameState['settings']): GameState['settings'] {
   const baseSettings = loadedSettings ?? persistedSettings ?? createDefaultSettings('small');
@@ -1305,7 +1318,7 @@ function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
   }, { selectedUnitId });
 }
 
-function selectUnit(unitId: string): void {
+function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): void {
   if (renderLoop.hasMovingUnit(unitId)) {
     showNotification('Unit is moving.', 'info');
     return;
@@ -1319,6 +1332,7 @@ function selectUnit(unitId: string): void {
     // Committed caravans cannot move or attack — keep highlights empty
     movementRange = [];
     attackRange = [];
+    clearUnloadState();
   } else {
     movementRange = highlightResult.movementRange;
     attackRange = highlightResult.attackTargets.map(target => target.coord);
@@ -1367,20 +1381,58 @@ function selectUnit(unitId: string): void {
           onOpenStackPicker: openUnitStackPicker,
         });
       },
-      getTransportOptions: uid => Object.values(gameState.units)
-        .filter(candidate => canLoadUnitOntoTransport(gameState, uid, candidate.id).ok)
-        .map(candidate => ({
-          transportId: candidate.id,
-          label: `Load onto Transport (${candidate.position.q}, ${candidate.position.r})`,
-        })),
-      getUnloadOptions: transportId => getTransportCargo(gameState, transportId).flatMap(cargoUnit =>
-        getUnloadDestinations(gameState, transportId).map(destination => ({
-          cargoUnitId: cargoUnit.id,
-          destination,
-          label: `Unload ${UNIT_DEFINITIONS[cargoUnit.type]?.name ?? cargoUnit.type} (${destination.q}, ${destination.r})`,
-        })),
-      ),
+      getTransportOptions: uid => {
+        const selectedUnit = gameState.units[uid];
+        const needs = selectedUnit ? getUnitCargoSize(selectedUnit) : 1;
+        return Object.values(gameState.units)
+          .filter(candidate => {
+            const def = UNIT_DEFINITIONS[candidate.type];
+            return (def?.domain ?? 'land') === 'naval' && def?.cargoCapacity !== undefined
+              && candidate.owner === gameState.currentPlayer;
+          })
+          .map(candidate => {
+            const used  = getTransportCargoUsed(gameState, candidate.id);
+            const cap   = getTransportCapacity(candidate);
+            const free  = cap - used;
+            const fits  = needs <= free;
+            const suffix = !fits
+              ? ` — needs ${needs} slots, ${free} remaining`
+              : free - needs === 0
+                ? ' — last slot'
+                : ` — ${free} of ${cap} slots free`;
+            return {
+              transportId: candidate.id,
+              label: `Load onto ${UNIT_DEFINITIONS[candidate.type]?.name ?? 'Transport'}${suffix}`,
+              disabled: !fits,
+              tooltip: !fits
+                ? `${UNIT_DEFINITIONS[selectedUnit?.type ?? 'warrior']?.name ?? 'This unit'} requires ${needs} cargo slots. A Galleon or larger transport is needed.`
+                : undefined,
+            };
+          })
+          .filter(o => canLoadUnitOntoTransport(gameState, uid, o.transportId).ok || o.disabled);
+      },
+      getCargoBoardInfo: transportId => getTransportCargo(gameState, transportId).map(cargoUnit => ({
+        cargoUnitId: cargoUnit.id,
+        label: UNIT_DEFINITIONS[cargoUnit.type]?.name ?? cargoUnit.type,
+        slotCost: getUnitCargoSize(cargoUnit),
+        canUnload: !cargoUnit.hasActed && cargoUnit.movementPointsLeft > 0,
+      })),
+      onSelectCargoToUnload: (transportId, cargoUnitId) => {
+        const range = getUnloadDestinations(gameState, transportId, cargoUnitId);
+        setPendingUnload({ transportId, cargoUnitId }, range);
+        renderLoop.setHighlights(range.map(coord => ({ coord, type: 'move' as const })));
+        const cargoUnit = gameState.units[cargoUnitId];
+        const unitName = UNIT_DEFINITIONS[cargoUnit?.type ?? 'warrior']?.name ?? 'Unit';
+        selectUnit(transportId, { pendingUnloadUnitName: unitName });
+      },
+      onCancelUnload: () => {
+        clearUnloadState();
+        renderLoop.clearHighlights();
+        if (selectedUnitId) selectUnit(selectedUnitId);
+      },
+      pendingUnloadUnitName: opts?.pendingUnloadUnitName,
       onLoadTransport: (uid, transportId) => {
+        const prevPos = gameState.units[uid]?.position;
         const result = loadUnitOntoTransport(gameState, uid, transportId);
         if (!result.ok) {
           showNotification(result.message, 'warning');
@@ -1390,8 +1442,17 @@ function selectUnit(unitId: string): void {
         gameState = result.state;
         renderLoop.setGameState(gameState);
         updateHUD();
+        // Boarding animation: slide cargo unit to transport hex before it disappears
+        const transportUnit = gameState.units[transportId];
+        if (prevPos && transportUnit) {
+          renderLoop.animateUnitSlide(
+            { ...result.state.units[uid] ?? { id: uid } as Unit, position: prevPos },
+            transportUnit.position,
+          );
+        }
         selectUnit(transportId);
-        showNotification('Unit loaded onto Transport.', 'info');
+        const tName = UNIT_DEFINITIONS[gameState.units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
+        showNotification(`Unit loaded onto ${tName}.`, 'info');
         SFX.transportLoad();
       },
       onUnloadTransport: (transportId, cargoUnitId, destination) => {
@@ -1401,11 +1462,16 @@ function selectUnit(unitId: string): void {
           SFX.error();
           return;
         }
+        const tName = UNIT_DEFINITIONS[gameState.units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
+        const cName = UNIT_DEFINITIONS[gameState.units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
+        clearUnloadState();
         gameState = result.state;
         renderLoop.setGameState(gameState);
         updateHUD();
-        selectUnit(cargoUnitId);
-        showNotification('Unit unloaded from Transport.', 'info');
+        renderLoop.animateUnitAppear(destination);
+        // Stay on the transport so the player can unload remaining cargo
+        selectUnit(transportId);
+        showNotification(`${cName} disembarked from ${tName}.`, 'info');
         SFX.transportUnload();
       },
       onSetDisguise: (uid, disguise) => {
@@ -1608,6 +1674,7 @@ function deselectUnit(): void {
   selectedUnitId = null;
   movementRange = [];
   attackRange = [];
+  clearUnloadState();
   pendingJourneyUnitId = null;
   renderLoop.clearHighlights();
   renderLoop.setJourneyPath(null);
@@ -1627,6 +1694,7 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
   if (!movedUnit || path.length < 2) return;
   movementRange = [];
   attackRange = [];
+  clearUnloadState();
   renderLoop.clearHighlights();
   renderLoop.animateUnitMove({ ...movedUnit, position: path[0]! }, path, () => {
     renderLoop.setGameState(gameState);
@@ -2175,6 +2243,46 @@ function handleHexTap(rawCoord: HexCoord): void {
 
   if (isUnitAnimationLocked(selectedUnitId)) {
     showNotification('Unit is moving.', 'info');
+    return;
+  }
+
+  // ── Pending-unload mode: consume the tap before any normal movement logic ──
+  const pendingUnload = getPendingUnload();
+  if (pendingUnload) {
+    const unloadRange = getUnloadRange();
+    const inRange = unloadRange.some(h => hexKey(h) === key);
+    if (inRange) {
+      // Delegate to onUnloadTransport which handles state, animation, and notification
+      const panel = document.getElementById('info-panel');
+      if (panel) {
+        // Re-invoke via the callback registered in selectUnit's renderSelectedUnitInfo block
+        // by triggering the transport system directly here (callbacks are not stored).
+        const { transportId, cargoUnitId } = pendingUnload;
+        const result = unloadUnitFromTransport(gameState, transportId, cargoUnitId, coord);
+        if (!result.ok) {
+          showNotification(result.message, 'warning');
+          SFX.error();
+        } else {
+          const tName = UNIT_DEFINITIONS[gameState.units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
+          const cName = UNIT_DEFINITIONS[gameState.units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
+          clearUnloadState();
+          gameState = result.state;
+          renderLoop.setGameState(gameState);
+          updateHUD();
+          renderLoop.animateUnitAppear(coord);
+          selectUnit(transportId);
+          showNotification(`${cName} disembarked from ${tName}.`, 'info');
+          SFX.transportUnload();
+        }
+      }
+    } else {
+      // Mis-tap: block the tap; first occurrence shows an error notification
+      if (!_mistapNotified) {
+        showNotification('Tap a highlighted hex to disembark, or Cancel in the panel.', 'warning');
+        SFX.error();
+        _mistapNotified = true;
+      }
+    }
     return;
   }
 

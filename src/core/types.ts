@@ -290,7 +290,8 @@ export type UnitType =
   | 'scout_hound' | 'shadow_warden' | 'war_hound'
   | 'caravan'
   | 'expedition'
-  | 'transport';
+  | 'transport'
+  | 'carrack' | 'galleon' | 'steamship' | 'troop_transport';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';

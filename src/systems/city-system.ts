@@ -220,9 +220,13 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'swordsman',    name: 'Swordsman',    cost: 50,  techRequired: 'bronze-working',   resourceRequired: ['iron'],           pacing: { band: 'power-spike', role: 'melee-breakpoint',       impact: 1.2,  scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'pikeman',      name: 'Pikeman',      cost: 70,  techRequired: 'fortification',                                          pacing: { band: 'power-spike', role: 'anti-cavalry-breakpoint', impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
   { type: 'musketeer',    name: 'Musketeer',    cost: 90,  techRequired: 'tactics' },
-  { type: 'galley',       name: 'Galley',       cost: 40,  techRequired: 'galleys', coastalRequired: true },
-  { type: 'transport',    name: 'Transport',    cost: 45,  techRequired: 'galleys', coastalRequired: true },
-  { type: 'trireme',      name: 'Trireme',      cost: 70,  techRequired: 'triremes', coastalRequired: true,                       pacing: { band: 'power-spike', role: 'naval-breakpoint',       impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'galley',          name: 'Galley',          cost: 40,  techRequired: 'galleys',            coastalRequired: true },
+  { type: 'transport',       name: 'Transport',       cost: 45,  techRequired: 'galleys',            coastalRequired: true, obsoletedByTech: 'navigation' },
+  { type: 'carrack',         name: 'Carrack',         cost: 48,  techRequired: 'navigation',         coastalRequired: true, obsoletedByTech: 'triremes' },
+  { type: 'galleon',         name: 'Galleon',         cost: 80,  techRequired: 'triremes',           coastalRequired: true, obsoletedByTech: 'caravels' },
+  { type: 'steamship',       name: 'Steamship',       cost: 100, techRequired: 'caravels',           coastalRequired: true, obsoletedByTech: 'amphibious-warfare' },
+  { type: 'troop_transport', name: 'Troop Transport', cost: 120, techRequired: 'amphibious-warfare', coastalRequired: true },
+  { type: 'trireme',         name: 'Trireme',         cost: 70,  techRequired: 'triremes',           coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
   // S4b — melee
   { type: 'axeman',       name: 'Axeman',       cost: 22,  techRequired: 'stone-weapons',    resourceRequired: ['copper'],         obsoletedByTech: 'fortification', pacing: { band: 'power-spike', role: 'early-copper-melee',    impact: 1.1,  scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'spearman',     name: 'Spearman',     cost: 32,  techRequired: 'bronze-working',                                        obsoletedByTech: 'fortification', pacing: { band: 'power-spike', role: 'ungated-era2-melee',    impact: 1.05, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
@@ -367,7 +371,11 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   musketeer: '🔫',
   galley: '⛵',
   trireme: '🚢',
-  transport: '⛴️',
+  transport:        '⛴️',
+  carrack:          '🚢',
+  galleon:          '⛵',
+  steamship:        '🛳️',
+  troop_transport:  '🛥️',
   spy_scout: '👁️',
   spy_informant: '📡',
   spy_agent: '🕵️',
@@ -798,7 +806,7 @@ export function applyProductionBonus(
   }
 
   if (bonusEffect.type === 'coastal_science') {
-    const isNaval = ['galley', 'trireme'].includes(itemId);
+    const isNaval = (['galley', 'trireme', 'transport', 'carrack', 'galleon', 'steamship', 'troop_transport'] as string[]).includes(itemId);
     if (isNaval) return 1 - bonusEffect.navalProductionBonus;
   }
 

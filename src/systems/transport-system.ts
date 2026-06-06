@@ -32,7 +32,9 @@ function failure(reason: TransportFailureReason, message: string): TransportChec
 }
 
 function isTransport(unit: Unit | undefined): unit is Unit {
-  return Boolean(unit && unit.type === 'transport' && UNIT_DEFINITIONS[unit.type].cargoCapacity !== undefined);
+  if (!unit) return false;
+  const def = UNIT_DEFINITIONS[unit.type];
+  return Boolean(def && (def.domain ?? 'land') === 'naval' && def.cargoCapacity !== undefined);
 }
 
 function normalizeDestination(state: GameState, coord: HexCoord): HexCoord {
@@ -176,11 +178,11 @@ export function loadUnitOntoTransport(
   };
 }
 
-export function getUnloadDestinations(state: GameState, transportId: string): HexCoord[] {
+export function getUnloadDestinations(state: GameState, transportId: string, cargoUnitId: string): HexCoord[] {
   const transport = state.units[transportId];
   if (!isTransport(transport) || getTransportCargo(state, transportId).length === 0) return [];
-  const cargo = getTransportCargo(state, transportId)[0];
-  if (!cargo) return [];
+  const cargo = state.units[cargoUnitId];
+  if (!cargo || cargo.transportId !== transportId) return [];
   if (!canCargoSpendUnloadAction(cargo)) return [];
 
   return transportNeighbors(state, transport.position).filter(destination =>

@@ -99,6 +99,19 @@ export class AnimationSystem {
         ctx.restore();
         break;
       }
+      case 'disembark-flash': {
+        // Expanding teal ring — signals a unit has disembarked at this hex.
+        const { x, y, size } = anim.data;
+        const alpha = 1 - progress;
+        ctx.save();
+        ctx.strokeStyle = `rgba(74, 200, 217, ${alpha * 0.7})`;
+        ctx.lineWidth = Math.max(1, size * 0.04);
+        ctx.beginPath();
+        ctx.arc(x, y, size * (0.3 + progress * 0.4), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        break;
+      }
     }
   }
 }

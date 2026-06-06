@@ -8,11 +8,11 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
-  it('has exactly 125 techs after adding late-era Slice 3 scaffolding', () => {
-    expect(TECH_TREE.length).toBe(125);
+  it('has exactly 126 techs after adding amphibious-warfare (naval transport era-5)', () => {
+    expect(TECH_TREE.length).toBe(126);
   });
 
-  it('keeps 15 tracks while expanding economy, science, and communication into era 5', () => {
+  it('keeps 15 tracks while expanding economy, science, communication, and maritime into era 5', () => {
     const tracks = new Map<string, number>();
     for (const tech of TECH_TREE) {
       tracks.set(tech.track, (tracks.get(tech.track) ?? 0) + 1);
@@ -21,7 +21,7 @@ describe('tech definitions', () => {
     for (const [track, count] of tracks) {
       const expected = track === 'espionage'
         ? 10
-        : ['economy', 'science', 'communication'].includes(track)
+        : ['economy', 'science', 'communication', 'maritime'].includes(track)
           ? 9
           : 8;
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
