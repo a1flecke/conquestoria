@@ -64,11 +64,21 @@ Both outputs must be 3-5 seconds, silent, local, and under the 5 MB hard thresho
 Add imports:
 
 ```ts
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   HARD_VIDEO_ASSET_REVIEW_BYTES,
   getWonderCodexVideoSources,
 } from '@/systems/wonder-codex/video-sources';
 ```
+
+Replace the existing `process.cwd()`-based source fixture root with:
+
+```ts
+const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
+```
+
+This is required because `./scripts/run-with-mise.sh` runs Yarn from the main worktree and passes Vitest a worktree root; `process.cwd()` may point at the main checkout during worktree test runs.
 
 Add this test after `has complete source metadata and existing local image files`:
 
@@ -100,7 +110,7 @@ Add this test after `has complete source metadata and existing local image files
       expect(source.mimeType).toBe('video/mp4');
       expect(source.fallbackImageSourceId).toMatch(/^image-/);
       expect(getImageSource(source.fallbackImageSourceId)).toBeTruthy();
-      expect(existsSync(path.join(process.cwd(), 'public', source.localPath))).toBe(true);
+      expect(existsSync(resolve(repoRoot, 'public', source.localPath.replace(/^\/+/, '')))).toBe(true);
     }
   });
 ```
@@ -180,7 +190,7 @@ export const WONDER_CODEX_VIDEO_SOURCES = [
     fallbackImageSourceId: 'image-volcano',
     durationSeconds: 4,
     sizeBytes: 0,
-    format: 'MP4/H.264 derivative from WebM source',
+    format: 'MP4/H.264 derivative from WebM source using OpenH264',
     mimeType: 'video/mp4',
     loopNote: 'Satellite eruption sequence trimmed to a short loop for spike evaluation.',
     audio: 'silent',
@@ -198,7 +208,7 @@ export const WONDER_CODEX_VIDEO_SOURCES = [
     fallbackImageSourceId: 'image-observatory',
     durationSeconds: 4,
     sizeBytes: 0,
-    format: 'MP4/H.264 derivative from WebM source',
+    format: 'MP4/H.264 derivative from WebM source using OpenH264',
     mimeType: 'video/mp4',
     loopNote: 'Observatory time-lapse trimmed to a short loop for spike evaluation.',
     audio: 'silent',
@@ -220,7 +230,9 @@ export function getWonderCodexVideoSourceForWonder(
   wonderId: string,
   surface: WonderCodexVideoSurface,
 ): WonderCodexVideoSource | undefined {
-  return WONDER_CODEX_VIDEO_SOURCES.find(source => source.wonderId === wonderId && source.surfaces.includes(surface));
+  return WONDER_CODEX_VIDEO_SOURCES.find(source =>
+    source.wonderId === wonderId && (source.surfaces as readonly WonderCodexVideoSurface[]).includes(surface),
+  );
 }
 ```
 
@@ -232,8 +244,8 @@ Download the two original files into `/private/tmp/conquestoria-video-sources/` 
 mkdir -p /private/tmp/conquestoria-video-sources public/videos/wonders
 curl -L "https://commons.wikimedia.org/wiki/Special:Redirect/file/Tonga%20Volcano%20Eruption%202022-01-15%200320Z%20to%200610Z%20Himawari-8%20visible.webm" -o /private/tmp/conquestoria-video-sources/tonga.webm
 curl -L "https://commons.wikimedia.org/wiki/Special:Redirect/file/Morning%20observations%20time-lapse%20at%20Paranal.webm" -o /private/tmp/conquestoria-video-sources/paranal.webm
-ffmpeg -y -i /private/tmp/conquestoria-video-sources/tonga.webm -t 4 -an -vf "scale=640:-2" -c:v libx264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/great-volcano-tonga-eruption.mp4
-ffmpeg -y -i /private/tmp/conquestoria-video-sources/paranal.webm -t 4 -an -vf "scale=640:-2" -c:v libx264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/starvault-paranal-observatory.mp4
+ffmpeg -y -i /private/tmp/conquestoria-video-sources/tonga.webm -t 4 -an -vf "scale=640:-2" -c:v libopenh264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/great-volcano-tonga-eruption.mp4
+ffmpeg -y -i /private/tmp/conquestoria-video-sources/paranal.webm -t 4 -an -vf "scale=640:-2" -c:v libopenh264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/starvault-paranal-observatory.mp4
 ffprobe -v error -show_entries stream=codec_type -of csv=p=0 public/videos/wonders/great-volcano-tonga-eruption.mp4
 ffprobe -v error -show_entries stream=codec_type -of csv=p=0 public/videos/wonders/starvault-paranal-observatory.mp4
 stat -f "%z %N" public/videos/wonders/*.mp4
@@ -242,6 +254,7 @@ stat -f "%z %N" public/videos/wonders/*.mp4
 Expected:
 - each `ffprobe` output is `video` only.
 - each size is below `5242880`.
+- the `format` fields and ledger notes say `MP4/H.264 derivative from WebM source using OpenH264`.
 
 - [ ] **Step 6: Update manifest sizes and ledger rows**
 
@@ -252,8 +265,8 @@ In `docs/superpowers/specs/2026-05-23-wonder-codex-atlas-source-ledger.md`, add 
 ```md
 | Video source ID | Wonder | Source URL | Creator | License | Local asset | Notes |
 |---|---|---|---|---|---|---|
-| `video-great-volcano-tonga-eruption` | `great_volcano` | https://commons.wikimedia.org/wiki/File:Tonga_Volcano_Eruption_2022-01-15_0320Z_to_0610Z_Himawari-8_visible.webm | Japan Meteorological Agency / Digital Typhoon | CC BY 4.0 compatible public data terms | `/videos/wonders/great-volcano-tonga-eruption.mp4` | Trimmed to 4 seconds, scaled to 640px width, re-encoded as silent MP4/H.264. Attribution: Japan Meteorological Agency / Digital Typhoon - CC BY 4.0 compatible public data terms. |
-| `video-starvault-paranal-observatory` | `starvault-observatory` | https://commons.wikimedia.org/wiki/File:Morning_observations_time-lapse_at_Paranal.webm | ESO/J. Colosimo | CC BY 4.0 | `/videos/wonders/starvault-paranal-observatory.mp4` | Trimmed to 4 seconds, scaled to 640px width, re-encoded as silent MP4/H.264. Attribution: ESO/J. Colosimo - CC BY 4.0. |
+| `video-great-volcano-tonga-eruption` | `great_volcano` | https://commons.wikimedia.org/wiki/File:Tonga_Volcano_Eruption_2022-01-15_0320Z_to_0610Z_Himawari-8_visible.webm | Japan Meteorological Agency / Digital Typhoon | CC BY 4.0 compatible public data terms | `/videos/wonders/great-volcano-tonga-eruption.mp4` | Trimmed to 4 seconds, scaled to 640px width, muted, and re-encoded as MP4/H.264 with OpenH264. Attribution: Japan Meteorological Agency / Digital Typhoon - CC BY 4.0 compatible public data terms. |
+| `video-starvault-paranal-observatory` | `starvault-observatory` | https://commons.wikimedia.org/wiki/File:Morning_observations_time-lapse_at_Paranal.webm | ESO/J. Colosimo | CC BY 4.0 | `/videos/wonders/starvault-paranal-observatory.mp4` | Trimmed to 4 seconds, scaled to 640px width, muted, and re-encoded as MP4/H.264 with OpenH264. Attribution: ESO/J. Colosimo - CC BY 4.0. |
 ```
 
 - [ ] **Step 7: Run source tests GREEN and commit**
