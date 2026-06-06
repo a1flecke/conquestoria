@@ -78,8 +78,11 @@ describe('wonder-atlas-panel', () => {
 
     expect(panel.querySelector('[data-codex-reader]')?.textContent).toContain('Great Volcano');
     expect(panel.querySelector('[data-codex-reader]')?.textContent).toContain('Q0, R0');
+    expect(panel.querySelector('[data-wonder-video-view]')).toBeTruthy();
+    expect(panel.querySelector('video source')?.getAttribute('src')).toBe('/videos/wonders/great-volcano-tonga-eruption.mp4');
+    panel.querySelector('video')?.dispatchEvent(new Event('error'));
     expect(panel.querySelector('[data-codex-reader]')?.textContent).toContain('USGS / public domain');
-    expect(panel.querySelector('img')?.getAttribute('src')).toBe('/images/wonders/codex/volcano.jpg');
+    expect(panel.querySelector('[data-wonder-video-view] img')?.getAttribute('src')).toBe('/images/wonders/codex/volcano.jpg');
   });
 
   it('calls View on map for a discovered wonder with a coordinate', () => {

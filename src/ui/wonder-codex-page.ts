@@ -2,6 +2,7 @@ import type { WonderCodexAction, WonderCodexPageViewModel, WonderCodexResponsive
 import { getWonderSpectacleRenderMode } from '@/systems/wonder-spectacle/presentation';
 import type { WonderSpectacleRenderMode } from '@/systems/wonder-spectacle/types';
 import { createGameButton } from '@/ui/ui-kit';
+import { createWonderVideoView } from '@/ui/wonder-video-view';
 import { createWonderSpectacleVignette } from '@/ui/wonder-spectacle-vignette';
 import { createWonderVisualVignette } from '@/ui/wonder-vignette';
 
@@ -84,24 +85,33 @@ export function createWonderCodexPage(
   root.dataset.codexPage = page.id;
   root.style.cssText = 'min-width:0;display:flex;flex-direction:column;gap:14px;color:#f8f1df;';
 
-  const figure = document.createElement('figure');
-  figure.style.cssText = 'margin:0;display:grid;gap:6px;';
-  const image = document.createElement('img');
-  image.src = page.image.src;
-  image.alt = page.image.alt;
-  image.style.cssText = 'width:100%;max-height:280px;object-fit:cover;border-radius:8px;border:1px solid rgba(232,193,112,0.26);background:#0b0f16;';
-  figure.appendChild(image);
-  const caption = document.createElement('figcaption');
-  caption.style.cssText = 'font-size:11px;line-height:1.35;color:rgba(248,241,223,0.62);';
-  const credit = document.createElement('a');
-  credit.href = page.image.sourceUrl;
-  credit.target = '_blank';
-  credit.rel = 'noopener noreferrer';
-  credit.textContent = `${page.image.attribution} - ${page.image.license}`;
-  credit.style.cssText = 'color:inherit;text-decoration:underline;text-decoration-color:rgba(232,193,112,0.45);';
-  caption.appendChild(credit);
-  figure.appendChild(caption);
-  root.appendChild(figure);
+  if (page.videoPreview) {
+    const video = createWonderVideoView({
+      preview: page.videoPreview,
+      reducedMotion,
+      autoplay: 'in-view',
+    });
+    root.appendChild(video);
+  } else {
+    const figure = document.createElement('figure');
+    figure.style.cssText = 'margin:0;display:grid;gap:6px;';
+    const image = document.createElement('img');
+    image.src = page.image.src;
+    image.alt = page.image.alt;
+    image.style.cssText = 'width:100%;max-height:280px;object-fit:cover;border-radius:8px;border:1px solid rgba(232,193,112,0.26);background:#0b0f16;';
+    figure.appendChild(image);
+    const caption = document.createElement('figcaption');
+    caption.style.cssText = 'font-size:11px;line-height:1.35;color:rgba(248,241,223,0.62);';
+    const credit = document.createElement('a');
+    credit.href = page.image.sourceUrl;
+    credit.target = '_blank';
+    credit.rel = 'noopener noreferrer';
+    credit.textContent = `${page.image.attribution} - ${page.image.license}`;
+    credit.style.cssText = 'color:inherit;text-decoration:underline;text-decoration-color:rgba(232,193,112,0.45);';
+    caption.appendChild(credit);
+    figure.appendChild(caption);
+    root.appendChild(figure);
+  }
 
   const hero = document.createElement('div');
   hero.style.cssText = 'display:flex;gap:14px;align-items:center;flex-wrap:wrap;';

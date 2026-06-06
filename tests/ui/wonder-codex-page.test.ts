@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import type { WonderCodexPageViewModel } from '@/systems/wonder-codex/presentation';
+import type { WonderVideoPreviewView } from '@/systems/wonder-codex/video-presentation';
 import { createWonderCodexPage } from '@/ui/wonder-codex-page';
 
 function page(overrides: Partial<WonderCodexPageViewModel> = {}): WonderCodexPageViewModel {
@@ -33,6 +34,28 @@ function page(overrides: Partial<WonderCodexPageViewModel> = {}): WonderCodexPag
   };
 }
 
+function videoPreview(surface: WonderVideoPreviewView['surface'] = 'codex'): WonderVideoPreviewView {
+  return {
+    id: 'video-great-volcano-tonga-eruption',
+    wonderId: 'great_volcano',
+    surface,
+    src: '/videos/wonders/great-volcano-tonga-eruption.mp4',
+    mimeType: 'video/mp4',
+    label: 'Great Volcano',
+    attribution: 'Japan Meteorological Agency / Digital Typhoon - CC BY 4.0 compatible public data terms',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Tonga_Volcano_Eruption_2022-01-15_0320Z_to_0610Z_Himawari-8_visible.webm',
+    license: 'CC BY 4.0 compatible public data terms',
+    audio: 'silent',
+    fallbackImage: {
+      src: '/images/wonders/codex/volcano.jpg',
+      alt: 'Great Volcano source image',
+      attribution: 'USGS / public domain',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Kilauea_Volcano,_Hawaii_(ASTER).jpg',
+      license: 'public domain',
+    },
+  };
+}
+
 describe('wonder-codex-page', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -57,6 +80,45 @@ describe('wonder-codex-page', () => {
     expect(root.textContent).toContain('Volcanic landscapes can be fertile and dangerous.');
     expect(root.textContent).toContain('Known location: Q0, R0');
     expect(root.textContent).toContain('Living Stone');
+  });
+
+  it('renders supported Codex video previews without hiding actions', () => {
+    const root = createWonderCodexPage(page({ videoPreview: videoPreview('codex') }), {
+      mode: 'desktop',
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+
+    expect(root.querySelector('[data-wonder-video-view]')).toBeTruthy();
+    expect(root.querySelector('video')).toBeTruthy();
+    expect(root.querySelector('[data-codex-action="view-map"]')).toBeTruthy();
+    expect(root.textContent).toContain('View on Map');
+  });
+
+  it('renders a still fallback instead of video on reduced-motion Codex pages', () => {
+    const root = createWonderCodexPage(page({ videoPreview: videoPreview('codex') }), {
+      mode: 'desktop',
+      reducedMotion: true,
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+
+    expect(root.querySelector('[data-wonder-video-view]')).toBeTruthy();
+    expect(root.querySelector('video')).toBeNull();
+    expect(root.querySelector('[data-wonder-video-view] img')?.getAttribute('src')).toBe('/images/wonders/codex/volcano.jpg');
+  });
+
+  it('keeps Codex actions reachable after video fallback', () => {
+    const root = createWonderCodexPage(page({ videoPreview: videoPreview('codex') }), {
+      mode: 'desktop',
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+
+    root.querySelector('video')?.dispatchEvent(new Event('error'));
+
+    expect(root.querySelector('video')).toBeNull();
+    expect(root.querySelector('[data-codex-action="view-map"]')).toBeTruthy();
   });
 
   it('emits actions and related selection callbacks', () => {
