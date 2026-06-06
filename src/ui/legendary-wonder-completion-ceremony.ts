@@ -1,5 +1,6 @@
 import type { LegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createGameButton } from '@/ui/ui-kit';
+import { createWonderVideoView } from '@/ui/wonder-video-view';
 import { createWonderVisualVignette } from '@/ui/wonder-vignette';
 
 export type LegendaryWonderCompletionCeremonyAction = 'continue' | 'skip' | 'open-city' | 'open-journal';
@@ -67,10 +68,12 @@ export function createLegendaryWonderCompletionCeremony(
   skip.dataset.legendaryCompletionAction = 'skip';
   skipRow.appendChild(skip);
 
-  const vignette = createWonderVisualVignette(item.name, item.visual, { reducedMotion, kind: 'legendary' });
-  vignette.style.width = '148px';
-  vignette.style.height = '148px';
-  vignette.style.flexBasis = '148px';
+  const visual = item.videoPreview && !reducedMotion
+    ? createWonderVideoView({ preview: item.videoPreview, autoplay: 'immediate' })
+    : createWonderVisualVignette(item.name, item.visual, { reducedMotion, kind: 'legendary' });
+  visual.style.width = item.videoPreview && !reducedMotion ? 'min(360px, 100%)' : '148px';
+  visual.style.height = item.videoPreview && !reducedMotion ? 'auto' : '148px';
+  visual.style.flexBasis = item.videoPreview && !reducedMotion ? 'auto' : '148px';
 
   const facts = document.createElement('div');
   facts.style.cssText = 'display:grid;grid-template-columns:1fr;gap:8px;width:100%;text-align:left;';
@@ -102,7 +105,7 @@ export function createLegendaryWonderCompletionCeremony(
     if (event.key === 'Escape') resolve('skip');
   });
 
-  panel.append(skipRow, vignette);
+  panel.append(skipRow, visual);
   appendText(panel, 'p', item.title, 'margin:0;color:#e8c170;font-size:12px;letter-spacing:0;text-transform:uppercase;font-weight:700;');
   appendText(panel, 'h2', item.name, 'margin:0;font-size:32px;line-height:1.05;letter-spacing:0;');
   appendText(panel, 'p', item.cityName, 'margin:0;color:#f0d897;font-size:14px;line-height:1.35;');

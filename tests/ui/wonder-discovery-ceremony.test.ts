@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
+import type { WonderVideoPreviewView } from '@/systems/wonder-codex/video-presentation';
 import { createWonderDiscoveryCeremony } from '@/ui/wonder-discovery-ceremony';
 
 function item(overrides: Partial<WonderDiscoveryRevealItem> = {}): WonderDiscoveryRevealItem {
@@ -18,6 +19,28 @@ function item(overrides: Partial<WonderDiscoveryRevealItem> = {}): WonderDiscove
     visual: getWonderVisualDefinition('great_volcano'),
     motionAssetId: null,
     ...overrides,
+  };
+}
+
+function videoPreview(surface: WonderVideoPreviewView['surface'] = 'natural-reveal'): WonderVideoPreviewView {
+  return {
+    id: 'video-great-volcano-tonga-eruption',
+    wonderId: 'great_volcano',
+    surface,
+    src: '/videos/wonders/great-volcano-tonga-eruption.mp4',
+    mimeType: 'video/mp4',
+    label: 'Great Volcano',
+    attribution: 'Japan Meteorological Agency / Digital Typhoon - CC BY 4.0 compatible public data terms',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Tonga_Volcano_Eruption_2022-01-15_0320Z_to_0610Z_Himawari-8_visible.webm',
+    license: 'CC BY 4.0 compatible public data terms',
+    audio: 'silent',
+    fallbackImage: {
+      src: '/images/wonders/codex/volcano.jpg',
+      alt: 'Great Volcano source image',
+      attribution: 'USGS / public domain',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Kilauea_Volcano,_Hawaii_(ASTER).jpg',
+      license: 'public domain',
+    },
   };
 }
 
@@ -52,6 +75,35 @@ describe('wonder-discovery-ceremony', () => {
 
     expect(document.querySelector('[data-wonder-spectacle-mode="reveal-amplified"]')).toBeTruthy();
     expect(document.querySelector('[data-wonder-spectacle-variant="amplified"]')).toBeTruthy();
+  });
+
+  it('uses the video view for supported natural discoveries while keeping actions clickable', () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const onResolve = vi.fn();
+    createWonderDiscoveryCeremony(
+      document.body,
+      item({ videoPreview: videoPreview('natural-reveal') }),
+      { onResolve },
+      { reducedMotion: false },
+    );
+
+    expect(document.querySelector('[data-wonder-video-view]')).toBeTruthy();
+    click('[data-wonder-discovery-action="skip"]');
+    expect(onResolve).toHaveBeenCalledWith('skip');
+
+    play.mockRestore();
+  });
+
+  it('keeps the static ceremony visual in reduced motion when a video preview exists', () => {
+    createWonderDiscoveryCeremony(
+      document.body,
+      item({ videoPreview: videoPreview('natural-reveal') }),
+      { onResolve: () => {} },
+      { reducedMotion: true },
+    );
+
+    expect(document.querySelector('[data-wonder-video-view]')).toBeNull();
+    expect(document.querySelector('[data-wonder-spectacle-mode="reveal-static"]')).toBeTruthy();
   });
 
   it('uses static spectacle for reduced-motion reveal', () => {

@@ -1,6 +1,7 @@
 import type { WonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getWonderSpectacleRenderMode } from '@/systems/wonder-spectacle/presentation';
 import { createGameButton } from '@/ui/ui-kit';
+import { createWonderVideoView } from '@/ui/wonder-video-view';
 import { createWonderSpectacleVignette } from '@/ui/wonder-spectacle-vignette';
 
 export type WonderDiscoveryCeremonyAction = 'continue' | 'skip' | 'open-atlas';
@@ -75,15 +76,17 @@ export function createWonderDiscoveryCeremony(
     discovered: true,
     reducedMotion,
   });
-  const vignette = createWonderSpectacleVignette({
+  const visual = item.videoPreview && !reducedMotion
+    ? createWonderVideoView({ preview: item.videoPreview, autoplay: 'immediate' })
+    : createWonderSpectacleVignette({
     wonderId: item.wonderId,
     name: item.name,
     mode: spectacleMode === 'reveal-amplified' ? 'reveal-amplified' : 'reveal-static',
     reducedMotion,
   });
-  vignette.style.width = '148px';
-  vignette.style.height = '148px';
-  vignette.style.flexBasis = '148px';
+  visual.style.width = item.videoPreview && !reducedMotion ? 'min(360px, 100%)' : '148px';
+  visual.style.height = item.videoPreview && !reducedMotion ? 'auto' : '148px';
+  visual.style.flexBasis = item.videoPreview && !reducedMotion ? 'auto' : '148px';
 
   const facts = document.createElement('div');
   facts.style.cssText = 'display:grid;grid-template-columns:1fr;gap:8px;width:100%;text-align:left;';
@@ -112,7 +115,7 @@ export function createWonderDiscoveryCeremony(
     if (event.key === 'Escape') resolve('skip');
   });
 
-  panel.append(skipRow, vignette);
+  panel.append(skipRow, visual);
   appendText(panel, 'p', item.title, 'margin:0;color:#e8c170;font-size:12px;letter-spacing:0;text-transform:uppercase;font-weight:700;');
   appendText(panel, 'h2', item.name, 'margin:0;font-size:32px;line-height:1.05;letter-spacing:0;');
   appendText(panel, 'p', item.revealLine, 'margin:0;font-size:15px;line-height:1.45;max-width:46ch;');

@@ -2,9 +2,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import type { LegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
+import type { WonderVideoPreviewView } from '@/systems/wonder-codex/video-presentation';
 import { createLegendaryWonderCompletionCeremony } from '@/ui/legendary-wonder-completion-ceremony';
 
-function item(): LegendaryWonderCompletionCeremonyItem {
+function videoPreview(surface: WonderVideoPreviewView['surface'] = 'legendary-completion'): WonderVideoPreviewView {
+  return {
+    id: 'video-starvault-paranal-observatory',
+    wonderId: 'starvault-observatory',
+    surface,
+    src: '/videos/wonders/starvault-paranal-observatory.mp4',
+    mimeType: 'video/mp4',
+    label: 'Starvault Observatory',
+    attribution: 'ESO/J. Colosimo - CC BY 4.0',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Morning_observations_time-lapse_at_Paranal.webm',
+    license: 'CC BY 4.0',
+    audio: 'silent',
+    fallbackImage: {
+      src: '/images/wonders/codex/observatory.jpg',
+      alt: 'Starvault Observatory source image',
+      attribution: 'ESO and G. Hudepohl / CC BY 4.0',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Paranal_and_the_Pacific_at_sunset_(dsc4088,_retouched,_cropped).jpg',
+      license: 'CC BY 4.0',
+    },
+  };
+}
+
+function item(overrides: Partial<LegendaryWonderCompletionCeremonyItem> = {}): LegendaryWonderCompletionCeremonyItem {
   return {
     title: 'Legendary Wonder Completed',
     civId: 'player',
@@ -17,6 +40,7 @@ function item(): LegendaryWonderCompletionCeremonyItem {
     rewardSummary: '+20% science in this city',
     rewardActiveLabel: 'Reward active',
     visual: getWonderVisualDefinition('oracle-of-delphi'),
+    ...overrides,
   };
 }
 
@@ -50,5 +74,34 @@ describe('legendary-wonder-completion-ceremony', () => {
     expect(onResolve).toHaveBeenCalledTimes(1);
     expect(onResolve).toHaveBeenCalledWith('continue');
     expect(document.querySelector('#legendary-wonder-completion-ceremony')).toBeNull();
+  });
+
+  it('uses the video view for supported legendary completions while keeping actions clickable', () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const onResolve = vi.fn();
+    createLegendaryWonderCompletionCeremony(
+      document.body,
+      item({ videoPreview: videoPreview('legendary-completion') }),
+      { onResolve },
+      { reducedMotion: false },
+    );
+
+    expect(document.querySelector('[data-wonder-video-view]')).toBeTruthy();
+    document.querySelector<HTMLButtonElement>('[data-legendary-completion-action="continue"]')?.click();
+    expect(onResolve).toHaveBeenCalledWith('continue');
+
+    play.mockRestore();
+  });
+
+  it('keeps the static legendary ceremony visual in reduced motion', () => {
+    createLegendaryWonderCompletionCeremony(
+      document.body,
+      item({ videoPreview: videoPreview('legendary-completion') }),
+      { onResolve: () => {} },
+      { reducedMotion: true },
+    );
+
+    expect(document.querySelector('[data-wonder-video-view]')).toBeNull();
+    expect(document.querySelector('[data-vignette-motion="static"]')).toBeTruthy();
   });
 });
