@@ -75,9 +75,9 @@ In `onTouchStart` (the handler for `touchstart`), the existing code checks `e.to
 
 In `onTouchEnd` (handles `touchend` and `touchcancel`), add at the top: `this._isPinching = e.touches.length >= 2;`
 
-- [ ] **Step 2: Add `#sprite-overlay` to index.html**
+- [ ] **Step 2: Add `#sprite-overlay` CSS to index.html**
 
-Open `index.html`. In the `<style>` block, add:
+Open `index.html`. In the `<style>` block, add the CSS rule only — **do NOT add an HTML element**. The `SpriteOverlay` constructor creates and inserts the div dynamically. Adding the element in HTML *and* the constructor would produce two `#sprite-overlay` elements.
 
 ```css
 #sprite-overlay {
@@ -94,13 +94,33 @@ Open `index.html`. In the `<style>` block, add:
 }
 ```
 
-In the `<body>`, after `<canvas id="game-canvas">` and before `<div id="ui-layer">`, add:
+- [ ] **Step 3: Add a smoke test for isPinching getter**
 
-```html
-<div id="sprite-overlay"></div>
+Check if `tests/input/touch-handler.test.ts` exists:
+
+```bash
+ls tests/input/touch-handler.test.ts 2>/dev/null || echo "no existing test"
 ```
 
-- [ ] **Step 3: Build to verify no TypeScript errors**
+If no existing test file, create `tests/input/touch-handler.test.ts`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { TouchHandler } from '@/input/touch-handler';
+
+describe('TouchHandler.isPinching', () => {
+  it('starts false', () => {
+    const canvas = document.createElement('canvas');
+    // TouchHandler attaches listeners; callbacks are no-ops for this test
+    const th = new TouchHandler(canvas, {} as any, {} as any);
+    expect(th.isPinching).toBe(false);
+  });
+});
+```
+
+If an existing test file is present, add the `isPinching` test to it instead.
+
+- [ ] **Step 4: Build to verify no TypeScript errors**
 
 ```bash
 bash scripts/run-with-mise.sh yarn build 2>&1 | tail -5
@@ -108,11 +128,11 @@ bash scripts/run-with-mise.sh yarn build 2>&1 | tail -5
 
 Expected: exit 0.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/input/touch-handler.ts index.html
-git commit -m "feat(overlay-mr1): isPinching getter + #sprite-overlay HTML"
+git add src/input/touch-handler.ts index.html tests/input/
+git commit -m "feat(overlay-mr1): isPinching getter + #sprite-overlay CSS"
 ```
 
 ---
@@ -381,13 +401,13 @@ describe('sync() LOD gate', () => {
   it('hides container below LOD threshold', () => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam({ zoom: LOD_SPRITE_ZOOM_THRESHOLD - 0.01 }), [], MAP, OPTS);
-    expect(mount.querySelector('#sprite-overlay')!.getAttribute('style')).toContain('display: none');
+    expect((mount.querySelector('#sprite-overlay') as HTMLElement).style.display).toBe('none');
   });
 
   it('hides container when reducedMotion', () => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam({ zoom: 1 }), [], MAP, { ...OPTS, reducedMotion: true });
-    expect(mount.querySelector('#sprite-overlay')!.getAttribute('style')).toContain('display: none');
+    expect((mount.querySelector('#sprite-overlay') as HTMLElement).style.display).toBe('none');
   });
 
   it('shows container above threshold', () => {
@@ -524,8 +544,8 @@ export class SpriteOverlay {
     this.container.style.cssText =
       'position:absolute;top:0;left:0;width:0;height:0;overflow:visible;' +
       'pointer-events:none;transform-origin:top left;will-change:transform';
-    // contain: layout style — NOT paint (paint would clip the 0×0 box)
-    (this.container.style as unknown as Record<string, string>).contain = 'layout style';
+    // contain: layout style — NOT paint (paint clips the 0×0 box making sprites invisible)
+    this.container.style.setProperty('contain', 'layout style');
 
     const unit = makeLayer('unit-sprites');
     const building = makeLayer('building-sprites');
@@ -902,7 +922,7 @@ git commit -m "feat(overlay-mr2): wire all 29 unit types in v2/index.ts"
 Create `tests/renderer/unit-renderer-overlay.test.ts`:
 
 ```typescript
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildUnitEntities } from '@/renderer/render-loop';
 import type { GameState, Unit, VisibilityMap } from '@/core/types';
 
@@ -965,14 +985,18 @@ describe('buildUnitEntities', () => {
     expect(entities[0]?.faction).toBe('imperials');
   });
 
-  it('falls back to imperials for generic civType', () => {
-    const u = makeUnit({ position: { q: 0, r: 0 }, owner: 'barbarian' });
-    const state = makeState([u], visMap([{ q: 0, r: 0 }], 'visible'));
-    // barbarian has civType 'generic'
+  it('falls back to imperials for unknown civType', () => {
+    // Create a player civ with an unrecognised civType
+    const u = makeUnit({ position: { q: 2, r: 3 }, owner: 'player2' });
+    const state = makeState([u], visMap([{ q: 2, r: 3 }], 'visible'));
+    // Add player2 with unknown civType
+    (state.civilizations as any)['player2'] = {
+      id: 'player2', civType: 'unknown_faction', visibility: {},
+    };
     const entities = buildUnitEntities(state, 'player1', state.civilizations['player1'].visibility, new Set());
-    // barbarians are filtered by getVisibleUnitsForPlayer so won't appear; but faction logic should still default
-    // This test validates the fallback path indirectly via a player-owned unit with unknown civType
-    expect(true).toBe(true); // covered by mapping logic
+    const p2Entity = entities.find(e => e.id === u.id);
+    expect(p2Entity).toBeDefined();
+    expect(p2Entity!.faction).toBe('imperials'); // fallback
   });
 });
 ```
@@ -1042,25 +1066,39 @@ entities: viewerVisibility
 
 - [ ] **Step 5: Skip drawImage in unit-renderer.ts for overlay-managed units**
 
-In `src/renderer/unit-renderer.ts`, `drawUnitGlyph` is called for each unit. Add a parameter to accept the active IDs set:
-
-Find the `export function drawUnits(...)` signature and add `activeOverlayIds: ReadonlySet<string>` as a parameter after the existing params.
-
-Inside the loop that calls `drawUnitGlyph` for each unit, wrap it:
+In `src/renderer/unit-renderer.ts`, add `activeOverlayIds` with a **default value** to the `drawUnits` signature so existing callers are not broken:
 
 ```typescript
-if (activeOverlayIds.has(unit.id)) continue; // overlay renders this unit
+export function drawUnits(
+  ctx: CanvasRenderingContext2D,
+  units: Record<string, Unit>,
+  camera: Camera,
+  playerVisibility: VisibilityMap,
+  state: GameState,
+  currentPlayer: string,
+  colorLookup?: Record<string, string>,
+  options: { hiddenUnitIds?: Set<string> } = {},
+  activeOverlayIds: ReadonlySet<string> = new Set(), // new — defaults to empty
+): void {
 ```
 
-Then in `render-loop.ts`, pass `this.spriteOverlay.getActiveIds()` to `drawUnits`:
+Inside the existing loop where units are drawn (after filtering `visibleUnits`), add the skip check at the top of the per-stack loop:
+
+```typescript
+for (const stack of Object.values(groupUnitsByHex(visibleUnits))) {
+  // Skip entire stack if the top unit is overlay-managed
+  // (overlay renders the animated sprite; canvas only draws glyph fallback if overlay can't)
+  if (stack.every(u => activeOverlayIds.has(u.id))) continue;
+  // ... rest of existing draw logic
+```
+
+Then in `render-loop.ts`, pass the active IDs:
 
 ```typescript
 drawUnits(this.ctx, visibleUnits, this.camera, viewerVisibility, this.state, viewerId, colorLookup, {
   hiddenUnitIds: getMovingUnitIds(this.unitMovementAnimations),
-}, this.spriteOverlay.getActiveIds()); // add this
+}, this.spriteOverlay.getActiveIds());
 ```
-
-Update the `drawUnits` function signature accordingly.
 
 - [ ] **Step 6: Run all tests**
 
@@ -1182,18 +1220,20 @@ describe('buildBuildingEntities', () => {
 
 - [ ] **Step 4: Export buildBuildingEntities from render-loop.ts**
 
+Note: faction must use the **city owner's** civType, not the viewer's. Enemy cities must show their owner's faction colors.
+
 ```typescript
 export function buildBuildingEntities(
   state: GameState,
-  viewerId: string,
   viewerVisibility: VisibilityMap,
 ): SpriteEntity[] {
-  const civType = state.civilizations[viewerId]?.civType ?? 'generic';
-  const faction = KNOWN_FACTIONS.has(civType) ? civType : 'imperials';
   const entities: SpriteEntity[] = [];
 
   for (const city of Object.values(state.cities)) {
     if (getVisibility(viewerVisibility, city.position) !== 'visible') continue;
+    // Use the CITY OWNER's civType, not the viewer's
+    const ownerCivType = state.civilizations[city.owner]?.civType ?? 'generic';
+    const faction = KNOWN_FACTIONS.has(ownerCivType) ? ownerCivType : 'imperials';
     for (const buildingId of city.buildings) {
       entities.push({
         id: `${city.id}:${buildingId}`,
@@ -1212,8 +1252,9 @@ export function buildBuildingEntities(
 Wire into `spriteOverlay.sync()` by combining unit and building entities:
 
 ```typescript
-const unitEntities = viewerVisibility ? buildUnitEntities(...) : [];
-const buildingEntities = viewerVisibility ? buildBuildingEntities(this.state, viewerId, viewerVisibility) : [];
+const unitEntities = viewerVisibility ? buildUnitEntities(this.state, viewerId, viewerVisibility,
+    new Set(getMovingUnitIds(this.unitMovementAnimations))) : [];
+const buildingEntities = viewerVisibility ? buildBuildingEntities(this.state, viewerVisibility) : [];
 this.spriteOverlay.sync(this.camera, [...unitEntities, ...buildingEntities], ...);
 ```
 
@@ -1244,180 +1285,215 @@ git commit -m "feat(overlay-mr3): building sprites wired — fog gate, canvas sk
 
 ## Phase 4 (MR 4) — Improvement Markers
 
-### Task 10: Create 8 SVG improvement marker files
+> **Architecture note:** Improvement markers have **no animation**, so they do NOT go through the DOM overlay. The `sprites.md` rule is explicit: *"No animation — improvement markers are drawn on Canvas 2D directly."* Follow the `resource-outpost-marker.ts` pattern: SVG string → blob → `HTMLImageElement` → `ctx.drawImage`. The `getImprovementSpriteV2` function in `v2/index.ts` remains `null`-returning — it is unused for improvements.
+
+### Task 10: Create 8 SVG improvement marker files + preload helpers
 
 **Files:** `src/renderer/improvements/{farm,mine,lumber-camp,watermill,plantation,pasture,camp,quarry}-marker.ts`
 
-Each marker follows the `resource-outpost-marker.ts` pattern: `viewBox="0 0 48 48"`, no faction color, no animation, earthy palette (`#5e3f24`, `#8a6a3a`, `#d4a13c`, `#7ea860`), `stroke-linecap="round"`.
+Each marker: `viewBox="0 0 48 48"`, no faction color, no animation, earthy palette (`#5e3f24`, `#8a6a3a`, `#d4a13c`, `#7ea860`), `stroke-linecap="round"`. Follows the `resource-outpost-marker.ts` pattern exactly (SVG string → cached HTMLImageElement).
 
-Use the `generate-sprite-prompt` skill (`.claude/skills/generate-sprite-prompt.md`) to create Claude Design prompts for each if you want visual assistance.
-
-- [ ] **Step 1: Read the existing marker pattern**
+- [ ] **Step 1: Read the existing pattern**
 
 ```bash
 cat src/renderer/improvements/resource-outpost-marker.ts
 ```
 
-Note the structure: exports a `const FOO_IMPROVEMENT_SVG: string` with an SVG string literal.
+Note: exports `preloadOutpostMarker()` and `getOutpostMarkerImage()`. Each new marker file must export `preload<Name>Marker()` and `get<Name>MarkerImage()`.
 
 - [ ] **Step 2: Create farm-marker.ts**
 
 ```typescript
 // src/renderer/improvements/farm-marker.ts
-export const FARM_IMPROVEMENT_SVG: string = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round">
+const SVG = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round">
   <rect x="4" y="28" width="40" height="14" rx="2" fill="#7ea860" stroke="#3a5a28" stroke-width="1.2"/>
   <line x1="12" y1="28" x2="12" y2="42" stroke="#5a8040" stroke-width="1"/>
   <line x1="24" y1="28" x2="24" y2="42" stroke="#5a8040" stroke-width="1"/>
   <line x1="36" y1="28" x2="36" y2="42" stroke="#5a8040" stroke-width="1"/>
-  <path d="M8,28 Q12,18 16,20 Q20,14 24,16 Q28,10 32,14 Q36,10 40,18 L40,28 Z" fill="#a0c86a" stroke="#5a8040" stroke-width="1.2"/>
-  <line x1="24" y1="16" x2="24" y2="28" stroke="#5a8040" stroke-width="0.8"/>
+  <path d="M8,28 Q12,18 16,20 Q20,14 24,16 Q28,10 32,14 Q36,10 40,18 L40,28 Z"
+        fill="#a0c86a" stroke="#5a8040" stroke-width="1.2"/>
 </svg>`;
+
+let cached: HTMLImageElement | null = null;
+
+export async function preloadFarmMarker(): Promise<void> {
+  const blob = new Blob([SVG], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  await new Promise<void>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); cached = img; resolve(); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
+    img.src = url;
+  });
+}
+
+export function getFarmMarkerImage(): HTMLImageElement | null { return cached; }
 ```
 
 - [ ] **Step 3: Create the remaining 7 markers**
 
-Create one file per improvement type with a distinct recognisable SVG icon (48×48 viewBox, earthy palette). Follow the same export pattern: `export const MINE_IMPROVEMENT_SVG`, `export const LUMBER_CAMP_IMPROVEMENT_SVG`, etc.
+Create one file per improvement type (earthy palette, 48×48). Each exports `preload<Name>Marker()` and `get<Name>MarkerImage()`:
 
-Suggested visual shapes:
-- `mine`: pickaxe silhouette + rock shape  
-- `lumber_camp`: stacked logs + axe  
-- `watermill`: wheel shape + water line  
-- `plantation`: tree row silhouette  
-- `pasture`: fence posts + animal outline  
-- `camp`: tent triangle + fire dot  
-- `quarry`: stepped stone blocks  
+- `mine-marker.ts` — pickaxe silhouette + rock
+- `lumber-camp-marker.ts` — stacked logs + axe
+- `watermill-marker.ts` — wheel + water line
+- `plantation-marker.ts` — tree row silhouette
+- `pasture-marker.ts` — fence posts + animal outline
+- `camp-marker.ts` — tent triangle + fire dot
+- `quarry-marker.ts` — stepped stone blocks
 
-- [ ] **Step 4: Commit marker files**
+- [ ] **Step 4: Wire preload calls into game init**
+
+In `src/main.ts`, find where `preloadOutpostMarker()` is called (or `initSprites()`). Add calls to all 8 new `preload*Marker()` functions in the same block:
+
+```typescript
+await Promise.all([
+  preloadOutpostMarker(),
+  preloadFarmMarker(),
+  preloadMineMarker(),
+  preloadLumberCampMarker(),
+  preloadWatermillMarker(),
+  preloadPlantationMarker(),
+  preloadPastureMarker(),
+  preloadCampMarker(),
+  preloadQuarryMarker(),
+]);
+```
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/renderer/improvements/
-git commit -m "feat(overlay-mr4): create 8 SVG improvement marker files"
+git add src/renderer/improvements/ src/main.ts
+git commit -m "feat(overlay-mr4): create 8 SVG improvement marker files with preload helpers"
 ```
 
 ---
 
-### Task 11: Wire improvements into v2/index.ts + RenderLoop
+### Task 11: Replace emoji with ctx.drawImage in hex-renderer
 
-**Files:** `src/renderer/sprites/v2/index.ts`, `src/renderer/render-loop.ts`, `src/renderer/hex-renderer.ts`, `tests/renderer/improvements/improvement-overlay.test.ts`
+**Files:** `src/renderer/hex-renderer.ts`, `tests/renderer/improvements/improvement-markers.test.ts`
 
-- [ ] **Step 1: Add improvement imports to v2/index.ts**
+- [ ] **Step 1: Write a test confirming SVGs are valid and preload correctly**
 
-```typescript
-import { FARM_IMPROVEMENT_SVG }         from '../improvements/farm-marker';
-import { MINE_IMPROVEMENT_SVG }         from '../improvements/mine-marker';
-import { LUMBER_CAMP_IMPROVEMENT_SVG }  from '../improvements/lumber-camp-marker';
-import { WATERMILL_IMPROVEMENT_SVG }    from '../improvements/watermill-marker';
-import { PLANTATION_IMPROVEMENT_SVG }   from '../improvements/plantation-marker';
-import { PASTURE_IMPROVEMENT_SVG }      from '../improvements/pasture-marker';
-import { CAMP_IMPROVEMENT_SVG }         from '../improvements/camp-marker';
-import { QUARRY_IMPROVEMENT_SVG }       from '../improvements/quarry-marker';
-import { RESOURCE_OUTPOST_IMPROVEMENT_SVG } from '../improvements/resource-outpost-marker';
-```
-
-Replace the empty `IMPROVEMENT_SPRITES` object with:
-
-```typescript
-const IMPROVEMENT_SPRITES: Record<string, string> = {
-  farm:              FARM_IMPROVEMENT_SVG,
-  mine:              MINE_IMPROVEMENT_SVG,
-  lumber_camp:       LUMBER_CAMP_IMPROVEMENT_SVG,
-  watermill:         WATERMILL_IMPROVEMENT_SVG,
-  plantation:        PLANTATION_IMPROVEMENT_SVG,
-  pasture:           PASTURE_IMPROVEMENT_SVG,
-  camp:              CAMP_IMPROVEMENT_SVG,
-  quarry:            QUARRY_IMPROVEMENT_SVG,
-  resource_outpost:  RESOURCE_OUTPOST_IMPROVEMENT_SVG,
-};
-```
-
-- [ ] **Step 2: Write improvement overlay tests**
-
-Create `tests/renderer/improvements/improvement-overlay.test.ts`:
+Create `tests/renderer/improvements/improvement-markers.test.ts`:
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { getImprovementSpriteV2 } from '@/renderer/sprites/v2/index';
 
-const ALL_IMPROVEMENT_TYPES = [
-  'farm', 'mine', 'lumber_camp', 'watermill', 'plantation',
-  'pasture', 'camp', 'quarry', 'resource_outpost',
+// Test the SVG string shapes (preload requires browser Image API not available in vitest)
+// Integration: verify that each marker module exports the required functions
+
+const markerModules = [
+  '@/renderer/improvements/farm-marker',
+  '@/renderer/improvements/mine-marker',
+  '@/renderer/improvements/lumber-camp-marker',
+  '@/renderer/improvements/watermill-marker',
+  '@/renderer/improvements/plantation-marker',
+  '@/renderer/improvements/pasture-marker',
+  '@/renderer/improvements/camp-marker',
+  '@/renderer/improvements/quarry-marker',
 ];
 
-describe('getImprovementSpriteV2', () => {
-  it('returns a non-null SVG string for every improvement type', () => {
-    for (const type of ALL_IMPROVEMENT_TYPES) {
-      const r = getImprovementSpriteV2(type);
-      expect(r, `missing improvement SVG for: ${type}`).not.toBeNull();
-      expect(r!).toContain('viewBox');
+describe('improvement marker modules', () => {
+  it('each module exports preload and getImage functions', async () => {
+    for (const path of markerModules) {
+      const mod = await import(path);
+      const keys = Object.keys(mod);
+      const hasPreload = keys.some(k => k.startsWith('preload'));
+      const hasGet = keys.some(k => k.startsWith('get') && k.endsWith('Image'));
+      expect(hasPreload, `${path} missing preload function`).toBe(true);
+      expect(hasGet, `${path} missing get*Image function`).toBe(true);
     }
-  });
-
-  it('returns null for unknown type', () => {
-    expect(getImprovementSpriteV2('unknown_improvement')).toBeNull();
   });
 });
 ```
 
-- [ ] **Step 3: Run tests**
+- [ ] **Step 2: Run tests**
 
 ```bash
-bash scripts/run-with-mise.sh yarn test -- tests/renderer/improvements/improvement-overlay.test.ts 2>&1 | tail -10
+bash scripts/run-with-mise.sh yarn test -- tests/renderer/improvements/improvement-markers.test.ts 2>&1 | tail -10
 ```
 
 Expected: all PASS.
 
-- [ ] **Step 4: Export buildImprovementEntities from render-loop.ts**
+- [ ] **Step 3: Replace emoji in hex-renderer.ts**
+
+In `src/renderer/hex-renderer.ts`, add imports at the top:
 
 ```typescript
-export function buildImprovementEntities(
-  state: GameState,
-  viewerVisibility: VisibilityMap,
-): SpriteEntity[] {
-  const entities: SpriteEntity[] = [];
-  for (const tile of Object.values(state.map?.tiles ?? {})) {
-    if (!tile.improvement) continue;
-    if (getVisibility(viewerVisibility, tile.coord) !== 'visible') continue;
-    entities.push({
-      id: `${tile.coord.q},${tile.coord.r}:${tile.improvement}`,
-      kind: 'improvement',
-      subtype: tile.improvement,
-      coord: tile.coord,
-      state: 'idle',
-      faction: 'neutral',
-    });
-  }
-  return entities;
+import { getFarmMarkerImage } from './improvements/farm-marker';
+import { getMineMarkerImage } from './improvements/mine-marker';
+import { getLumberCampMarkerImage } from './improvements/lumber-camp-marker';
+import { getWatermillMarkerImage } from './improvements/watermill-marker';
+import { getPlantationMarkerImage } from './improvements/plantation-marker';
+import { getPastureMarkerImage } from './improvements/pasture-marker';
+import { getCampMarkerImage } from './improvements/camp-marker';
+import { getQuarryMarkerImage } from './improvements/quarry-marker';
+```
+
+Add a lookup map alongside `IMPROVEMENT_ICONS`:
+
+```typescript
+const IMPROVEMENT_MARKER_GETTERS: Record<string, () => HTMLImageElement | null> = {
+  farm:        getFarmMarkerImage,
+  mine:        getMineMarkerImage,
+  lumber_camp: getLumberCampMarkerImage,
+  watermill:   getWatermillMarkerImage,
+  plantation:  getPlantationMarkerImage,
+  pasture:     getPastureMarkerImage,
+  camp:        getCampMarkerImage,
+  quarry:      getQuarryMarkerImage,
+};
+```
+
+In `drawHexTile`, find the `else` branch (line ~301) that draws the emoji fallback:
+
+```typescript
+} else {
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = `${size * 0.5}px system-ui`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const icon = IMPROVEMENT_ICONS[tile.improvement] ?? '◆';
+  ctx.fillText(icon, cx, cy);
 }
 ```
 
-Add `buildImprovementEntities(...)` to the combined entity array in `spriteOverlay.sync()`.
-
-- [ ] **Step 5: Skip emoji in hex-renderer.ts**
-
-In `src/renderer/hex-renderer.ts`, find the `IMPROVEMENT_ICONS` usage where emoji glyphs are drawn to canvas. Add `activeOverlayIds: ReadonlySet<string>` to the render function signature. Skip emoji draw when:
+Replace with:
 
 ```typescript
-const improvementEntityId = `${tile.coord.q},${tile.coord.r}:${tile.improvement}`;
-if (activeOverlayIds.has(improvementEntityId)) continue; // overlay renders this
+} else {
+  const getter = IMPROVEMENT_MARKER_GETTERS[tile.improvement];
+  const img = getter ? getter() : null;
+  if (img) {
+    const s = size * 0.6;
+    ctx.drawImage(img, cx - s / 2, cy - s * 0.7, s, s);
+  } else {
+    // Fallback to emoji while marker loads or for unknown improvement types
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.font = `${size * 0.5}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const icon = IMPROVEMENT_ICONS[tile.improvement] ?? '◆';
+    ctx.fillText(icon, cx, cy);
+  }
+}
 ```
 
-Pass `this.spriteOverlay.getActiveIds()` from `RenderLoop.render()` through `drawHexMap` to the improvement-drawing code path.
-
-- [ ] **Step 6: Run full test suite and build**
+- [ ] **Step 4: Build and run full test suite**
 
 ```bash
-bash scripts/run-with-mise.sh yarn test 2>&1 | tail -20
 bash scripts/run-with-mise.sh yarn build 2>&1 | tail -5
+bash scripts/run-with-mise.sh yarn test 2>&1 | tail -20
 ```
 
-Expected: all PASS, build exits 0.
+Expected: build exits 0, all tests PASS.
 
-- [ ] **Step 7: Commit — MR 4 complete**
+- [ ] **Step 5: Commit — MR 4 complete**
 
 ```bash
-git add src/renderer/sprites/v2/index.ts src/renderer/render-loop.ts \
-  src/renderer/hex-renderer.ts tests/renderer/improvements/improvement-overlay.test.ts
-git commit -m "feat(overlay-mr4): improvement markers wired — emoji replaced with SVG overlay — MR 4 complete"
+git add src/renderer/hex-renderer.ts tests/renderer/improvements/improvement-markers.test.ts
+git commit -m "feat(overlay-mr4): replace improvement emoji with SVG canvas drawImage — MR 4 complete"
 ```
 
 ---
