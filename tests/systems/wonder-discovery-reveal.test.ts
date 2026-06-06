@@ -43,6 +43,12 @@ describe('wonder-discovery-reveal', () => {
     expect(item?.effectSummary).toContain('Yields');
     expect(item?.rewardSummary).toBe('+30 Science discovery reward');
     expect(item?.visual.mapLandmark).toBe('volcano');
+    expect(item?.videoPreview).toMatchObject({
+      id: 'video-great-volcano-tonga-eruption',
+      wonderId: 'great_volcano',
+      surface: 'natural-reveal',
+      audio: 'silent',
+    });
   });
 
   it('does not require first-ever world discovery for a human civ reveal', () => {
@@ -58,6 +64,21 @@ describe('wonder-discovery-reveal', () => {
 
     expect(buildWonderDiscoveryRevealItem(state, 'ai-1', event({ civId: 'ai-1' }))).toBeNull();
     expect(buildWonderDiscoveryRevealItem(state, 'player-2', event({ civId: 'player' }))).toBeNull();
+  });
+
+  it('does not invent video previews for unsupported natural reveal wonders', () => {
+    const state = makeState();
+    state.map.tiles[hexKey({ q: 1, r: 0 })].wonder = 'coral_reef';
+    state.wonderDiscoverers.coral_reef = ['player'];
+
+    const item = buildWonderDiscoveryRevealItem(
+      state,
+      'player',
+      event({ wonderId: 'coral_reef', position: { q: 1, r: 0 } }),
+    );
+
+    expect(item?.wonderId).toBe('coral_reef');
+    expect(item?.videoPreview).toBeUndefined();
   });
 
   it('allows separate human civs to receive their own reveal on their own turn', () => {

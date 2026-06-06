@@ -1,6 +1,10 @@
 import type { GameEvents, GameState } from '@/core/types';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getWonderVisualDefinition, type WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
+import {
+  getWonderVideoPreviewForSurface,
+  type WonderVideoPreviewView,
+} from '@/systems/wonder-codex/video-presentation';
 
 export interface LegendaryWonderCompletionCeremonyItem {
   title: 'Legendary Wonder Completed';
@@ -14,6 +18,7 @@ export interface LegendaryWonderCompletionCeremonyItem {
   rewardSummary: string;
   rewardActiveLabel: 'Reward active';
   visual: WonderVisualDefinition;
+  videoPreview?: WonderVideoPreviewView;
 }
 
 export function buildLegendaryWonderCompletionCeremonyItem(
@@ -24,6 +29,7 @@ export function buildLegendaryWonderCompletionCeremonyItem(
   const definition = getLegendaryWonderDefinition(event.wonderId);
   const city = state.cities[event.cityId];
   if (!definition || !city || city.owner !== event.civId) return null;
+  const videoPreview = getWonderVideoPreviewForSurface(event.wonderId, 'legendary-completion', definition.name);
 
   return {
     title: 'Legendary Wonder Completed',
@@ -37,5 +43,6 @@ export function buildLegendaryWonderCompletionCeremonyItem(
     rewardSummary: definition.reward.summary,
     rewardActiveLabel: 'Reward active',
     visual: getWonderVisualDefinition(event.wonderId),
+    ...(videoPreview ? { videoPreview } : {}),
   };
 }

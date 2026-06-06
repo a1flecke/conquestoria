@@ -33,6 +33,15 @@ describe('wonder-codex presentation', () => {
     expect(model.selectedPage?.title).toBe('Great Volcano');
     expect(model.selectedPage?.image.src).toBe('/images/wonders/codex/volcano.jpg');
     expect(model.selectedPage?.image.sourceUrl).toMatch(/^https:\/\//);
+    expect(model.selectedPage?.videoPreview).toMatchObject({
+      id: 'video-great-volcano-tonga-eruption',
+      wonderId: 'great_volcano',
+      surface: 'codex',
+      mimeType: 'video/mp4',
+      audio: 'silent',
+    });
+    expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/great-volcano-tonga-eruption.mp4');
+    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/volcano.jpg');
     expect(model.selectedPage?.statusLines.join(' ')).toContain('Q0, R0');
     expect(model.selectedPage?.actions).toContainEqual({
       type: 'view-map',
@@ -49,6 +58,18 @@ describe('wonder-codex presentation', () => {
 
     expect(model.selectedPage?.id).not.toBe('great_volcano');
     expect(model.selectedPage).toBeNull();
+  });
+
+  it('does not invent video previews for visible unsupported Codex pages', () => {
+    const state = makeState();
+    state.map.tiles[hexKey({ q: 1, r: 0 })].wonder = 'coral_reef';
+    state.discoveredWonders.coral_reef = 'player';
+    state.wonderDiscoverers.coral_reef = ['player'];
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'coral_reef' });
+
+    expect(model.selectedPage?.id).toBe('coral_reef');
+    expect(model.selectedPage?.videoPreview).toBeUndefined();
   });
 
   it('rival-owned project and completion do not appear in player catalog and no private data leaks', () => {

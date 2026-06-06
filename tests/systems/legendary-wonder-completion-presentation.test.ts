@@ -26,6 +26,39 @@ describe('legendary-wonder-completion-presentation', () => {
     });
   });
 
+  it('includes a silent supported legendary completion video preview for the owner', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.currentPlayer = 'player';
+
+    const item = buildLegendaryWonderCompletionCeremonyItem(state, {
+      civId: 'player',
+      cityId: 'city-river',
+      wonderId: 'starvault-observatory',
+      turnCompleted: 42,
+    });
+
+    expect(item?.videoPreview).toMatchObject({
+      id: 'video-starvault-paranal-observatory',
+      wonderId: 'starvault-observatory',
+      surface: 'legendary-completion',
+      audio: 'silent',
+    });
+  });
+
+  it('does not invent video previews for unsupported legendary completions', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.currentPlayer = 'player';
+
+    const item = buildLegendaryWonderCompletionCeremonyItem(state, {
+      civId: 'player',
+      cityId: 'city-river',
+      wonderId: 'oracle-of-delphi',
+      turnCompleted: 42,
+    });
+
+    expect(item?.videoPreview).toBeUndefined();
+  });
+
   it('returns null for wrong-viewer and unknown-wonder events', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     state.currentPlayer = 'ai-1';
