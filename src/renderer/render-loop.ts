@@ -16,6 +16,7 @@ import { drawUnitGlyph } from './unit-renderer';
 import { spriteCache } from './sprites/sprite-loader';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
+import { SpriteOverlay } from './sprite-overlay';
 
 export interface HexHighlight {
   coord: HexCoord;
@@ -47,6 +48,12 @@ export class RenderLoop {
   private highlights: HexHighlight[] = [];
   private journeyPath: HexCoord[] | null = null;
   private unitMovementAnimations: Array<UnitMovementAnimation & { startTime: number; onComplete?: () => void }> = [];
+  private spriteOverlay: SpriteOverlay | null = null;
+  private touchHandlerRef: { isPinching: boolean } | null = null;
+
+  setTouchHandler(th: { isPinching: boolean }): void {
+    this.touchHandlerRef = th;
+  }
 
   setHighlights(highlights: HexHighlight[]): void {
     this.highlights = highlights;
@@ -125,6 +132,11 @@ export class RenderLoop {
     this.camera = new Camera();
     this.animations = new AnimationSystem();
     this.resizeCanvas();
+    // Mount the sprite overlay — guarded for test environments without DOM
+    if (typeof document !== 'undefined') {
+      const mountPoint = canvas.parentElement ?? document.body;
+      this.spriteOverlay = new SpriteOverlay(mountPoint);
+    }
   }
 
   resizeCanvas(): void {
@@ -285,6 +297,20 @@ export class RenderLoop {
 
     // Draw animations
     this.animations.update(this.ctx, performance.now());
+
+    // Sprite overlay — entity lists populated in MR 2+ (units) and MR 3+ (buildings)
+    this.spriteOverlay?.sync(
+      this.camera,
+      [], // populated in MR 2
+      {
+        width: this.state.map.width,
+        wrapsHorizontally: this.state.map.wrapsHorizontally,
+      },
+      {
+        isPinching: this.touchHandlerRef?.isPinching ?? false,
+        reducedMotion: prefersReducedMotion(),
+      },
+    );
   }
 
   private drawUnitMovementAnimations(

@@ -3605,7 +3605,8 @@ function startGame(): void {
       onHexTap: handleHexTap,
       onHexLongPress: handleHexLongPress,
     };
-    new TouchHandler(canvas, renderLoop.camera, callbacks);
+    const touchHandler = new TouchHandler(canvas, renderLoop.camera, callbacks);
+    renderLoop.setTouchHandler(touchHandler);
     new MouseHandler(canvas, renderLoop.camera, callbacks, {
       canInteract: () => !uiInteractions.isInteractionBlocked(),
     });
