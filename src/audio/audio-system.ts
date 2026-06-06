@@ -206,6 +206,7 @@ export class AudioSystem {
         this.warCount = p.atWarCount;
         this.naturalWonderDirector.stopAmbient('player-changed');
         this.director.handlePlayerChanged({
+          civId: this.currentPlayerId,
           civType: this.currentCivType,
           atWar: p.atWarCount > 0,
           unrestCityCount: p.unrestCityCount,
@@ -254,10 +255,23 @@ export class AudioSystem {
         void this.voiceDirector.playLine('war-declared');
       }),
 
+      // Stinger subs registered BEFORE voice subs for the same event so that
+      // when the event fires the stinger handler updates currentStingerPromise
+      // first, and the voice handler then awaits the correct (new) promise.
+      bus.on('tech:completed', p => {
+        if (p.civId !== this.currentPlayerId) return;
+        this.director.handleTechResearched();
+      }),
+
       bus.on('tech:completed', async p => {
         if (p.civId !== this.currentPlayerId) return;
         await this.director.currentStingerPromise;
         void this.voiceDirector.playLine('tech-completed');
+      }),
+
+      bus.on('wonder:legendary-completed', p => {
+        if (p.civId !== this.currentPlayerId) return;
+        this.director.handleWonderBuilt();
       }),
 
       bus.on('wonder:legendary-completed', async p => {
@@ -291,16 +305,6 @@ export class AudioSystem {
       }),
 
       // Spec 3: new stinger events
-      bus.on('wonder:legendary-completed', p => {
-        if (p.civId !== this.currentPlayerId) return;
-        this.director.handleWonderBuilt();
-      }),
-
-      bus.on('tech:completed', p => {
-        if (p.civId !== this.currentPlayerId) return;
-        this.director.handleTechResearched();
-      }),
-
       bus.on('civ:eliminated', p => {
         if (p.eliminatedBy !== this.currentPlayerId) return;
         this.director.handleCivDefeated();

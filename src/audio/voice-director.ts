@@ -16,6 +16,13 @@ export class VoiceDirector {
    * the voice-duck/restore snapshot sequence.
    */
   private playingPromise: Promise<void> | null = null;
+  /**
+   * Monotonically-increasing token assigned before the first await in playLine().
+   * A call that resumes from await checks whether a newer call has since claimed
+   * the slot; if so it silently exits. This closes the race where two rapid
+   * calls both see playingPromise===null before either sets it.
+   */
+  private playToken = 0;
 
   constructor(
     private readonly mixer: AudioMixer,
@@ -38,8 +45,7 @@ export class VoiceDirector {
    */
   stop(): void {
     this.playingPromise = null;
-    // Restore snapshot to lift any in-flight voice-duck immediately.
-    // The voice bus playOneShot will resolve naturally after its source ends.
+    this.playToken++;  // cancels any in-flight loader.get() call
     this.mixer.setSnapshot(this.getSnapshot(), VOICE_RESTORE_MS);
   }
 
@@ -63,7 +69,14 @@ export class VoiceDirector {
       this.stop(); // restores snapshot immediately
     }
 
+    // Claim the slot before the first await so a second rapid call sees a
+    // non-null token and knows this call is superseded.
+    const token = ++this.playToken;
+
     const buffer = await this.loader.get(entry.file);
+
+    // A newer playLine() call incremented playToken while we were loading.
+    if (token !== this.playToken) return;
     this.mixer.setSnapshot('voice-duck', VOICE_DUCK_FADE_MS);
     const p = this.mixer.playOneShot('voice', buffer)
       .then(() => { this.mixer.setSnapshot(this.getSnapshot(), VOICE_RESTORE_MS); })
