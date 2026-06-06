@@ -1,6 +1,14 @@
 import type { GameMap, HexCoord, HexTile, TerrainType, VisibilityMap } from '@/core/types';
 import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY } from '@/systems/hex-utils';
 import { Camera } from './camera';
+import { getFarmMarkerImage }        from './improvements/farm-marker';
+import { getMineMarkerImage }        from './improvements/mine-marker';
+import { getLumberCampMarkerImage }  from './improvements/lumber-camp-marker';
+import { getWatermillMarkerImage }   from './improvements/watermill-marker';
+import { getPlantationMarkerImage }  from './improvements/plantation-marker';
+import { getPastureMarkerImage }     from './improvements/pasture-marker';
+import { getCampMarkerImage }        from './improvements/camp-marker';
+import { getQuarryMarkerImage }      from './improvements/quarry-marker';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
 import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
@@ -10,8 +18,20 @@ import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
 import { getOutpostMarkerImage } from './improvements/resource-outpost-marker';
 import { getTerrainTileImage } from './terrain/terrain-tile-loader';
 
-// --- Improvement icons ---
+// --- Improvement icons and SVG markers ---
 
+const IMPROVEMENT_MARKER_GETTERS: Record<string, () => HTMLImageElement | null> = {
+  farm:        getFarmMarkerImage,
+  mine:        getMineMarkerImage,
+  lumber_camp: getLumberCampMarkerImage,
+  watermill:   getWatermillMarkerImage,
+  plantation:  getPlantationMarkerImage,
+  pasture:     getPastureMarkerImage,
+  camp:        getCampMarkerImage,
+  quarry:      getQuarryMarkerImage,
+};
+
+// Emoji fallbacks — used when SVG marker hasn't loaded yet or for unknown types
 export const IMPROVEMENT_ICONS: Record<string, string> = {
   farm: '🌾',
   mine: '⛏️',
@@ -299,12 +319,20 @@ function drawHex(
         ctx.fillText('🚩', cx, cy);
       }
     } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.font = `${size * 0.5}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const icon = IMPROVEMENT_ICONS[tile.improvement] ?? '◆';
-      ctx.fillText(icon, cx, cy);
+      // Try SVG marker first; fall back to emoji if not yet loaded or unknown type
+      const getter = IMPROVEMENT_MARKER_GETTERS[tile.improvement];
+      const markerImg = getter ? getter() : null;
+      if (markerImg) {
+        const s = size * 0.6;
+        ctx.drawImage(markerImg, cx - s / 2, cy - s * 0.7, s, s);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.font = `${size * 0.5}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const icon = IMPROVEMENT_ICONS[tile.improvement] ?? '◆';
+        ctx.fillText(icon, cx, cy);
+      }
     }
   }
 
