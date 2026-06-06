@@ -10,6 +10,7 @@ import {
   AxemanSprite, SpearmanSprite, HorsemanSprite, CavalrySprite, KnightSprite,
   CrossbowmanSprite, CatapultSprite, BallistaSprite,
   CaravanSprite, ExpeditionSprite,
+  CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -114,11 +115,10 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   galley:         withMotion('galley', GalleySprite),
   trireme:        withMotion('trireme', TriremeSprite),
   transport:       withMotion('transport', TransportSprite),
-  // Bespoke sprites pending Claude Design prompts — using TransportSprite as placeholder
-  carrack:         withMotion('carrack', TransportSprite),
-  galleon:         withMotion('galleon', TransportSprite),
-  steamship:       withMotion('steamship', TransportSprite),
-  troop_transport: withMotion('troop_transport', TransportSprite),
+  carrack:         withMotion('carrack', CarrackSprite),
+  galleon:         withMotion('galleon', GalleonSprite),
+  steamship:       withMotion('steamship', SteamshipSprite),
+  troop_transport: withMotion('troop_transport', TroopTransportSprite),
   spy_scout:      withMotion('spy_scout', SpyScoutSprite),
   spy_informant:  withMotion('spy_informant', SpyInformantSprite),
   spy_agent:      withMotion('spy_agent', SpyAgentSprite),

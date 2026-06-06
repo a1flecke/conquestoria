@@ -24,6 +24,10 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 | musketeer | ✅ sprite | ranged |
 | galley | ✅ sprite | naval |
 | trireme | ✅ sprite | naval |
+| carrack | ✅ sprite | naval |
+| galleon | ✅ sprite | naval |
+| steamship | ✅ sprite | naval |
+| troop_transport | ✅ sprite | naval |
 | axeman | ✅ sprite | melee |
 | spearman | ✅ sprite | melee |
 | horseman | ✅ sprite | animal |
