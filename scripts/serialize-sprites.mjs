@@ -100,6 +100,18 @@ const UNIT_SPRITES = [
   ['spy_agent',     'SpyAgentV2Sprite'],
   ['spy_operative', 'SpyOperativeV2Sprite'],
   ['spy_hacker',    'SpyHackerV2Sprite'],
+  // MR 2
+  ['axeman',        'AxemanV2Sprite'],
+  ['spearman',      'SpearmanV2Sprite'],
+  ['horseman',      'HorsemanV2Sprite'],
+  ['cavalry',       'CavalryV2Sprite'],
+  ['knight',        'KnightV2Sprite'],
+  ['crossbowman',   'CrossbowmanV2Sprite'],
+  ['catapult',      'CatapultV2Sprite'],
+  ['ballista',      'BallistaV2Sprite'],
+  ['caravan',       'CaravanV2Sprite'],
+  ['expedition',    'ExpeditionV2Sprite'],
+  ['transport',     'TransportV2Sprite'],
 ];
 
 const BUILDING_SPRITES = [
@@ -126,6 +138,19 @@ const BUILDING_SPRITES = [
   ['safehouse',           'SafehouseV2Sprite'],
   ['intelligence-agency', 'IntelAgencyV2Sprite'],
   ['security-bureau',     'SecurityBureauV2Sprite'],
+  // MR 3
+  ['dock',              'DockV2Sprite'],
+  ['bronze-workshop',   'BronzeWorkshopV2Sprite'],
+  ['armory',            'ArmoryV2Sprite'],
+  ['ranch',             'RanchV2Sprite'],
+  ['cavalry-academy',   'CavalryAcademyV2Sprite'],
+  ['iron-foundry',      'IronFoundryV2Sprite'],
+  ['war-academy',       'WarAcademyV2Sprite'],
+  ['masonry-works',     'MasonryWorksV2Sprite'],
+  ['siege-workshop',    'SiegeWorkshopV2Sprite'],
+  ['caravanserai',      'CaravanseraiV2Sprite'],
+  ['bank',              'BankV2Sprite'],
+  ['stock_exchange',    'StockExchangeV2Sprite'],
 ];
 
 let written = 0;

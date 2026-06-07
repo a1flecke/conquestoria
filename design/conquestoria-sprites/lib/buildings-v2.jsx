@@ -90,6 +90,45 @@ function SecurityBureauV2Sprite({ faction = 'imperials', state = 'idle' }) {
   return <BuildingFrameV2 state={state}><SecurityBureauSprite faction={faction} state={state} /></BuildingFrameV2>;
 }
 
+/* === MR 3: 12 new building wrappers === */
+
+function DockV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><DockSprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function BronzeWorkshopV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><BronzeWorkshopSprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function ArmoryV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><ArmorySprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function RanchV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><RanchSprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function CavalryAcademyV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><CavalryAcademySprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function IronFoundryV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><IronFoundrySprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function WarAcademyV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><WarAcademySprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function MasonryWorksV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><MasonryWorksSprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function SiegeWorkshopV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><SiegeWorkshopSprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function CaravanseraiV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><CaravanseraiSprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function BankV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><BankSprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+function StockExchangeV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <BuildingFrameV2 state={state}><StockExchangeSprite faction={faction} state={state} /></BuildingFrameV2>;
+}
+
 Object.assign(window, {
   BuildingFrameV2,
   GranaryV2Sprite, HerbalistV2Sprite, AqueductV2Sprite,
@@ -99,4 +138,7 @@ Object.assign(window, {
   BarracksV2Sprite, WallsV2Sprite, StableV2Sprite,
   TempleV2Sprite, MonumentV2Sprite, AmphitheaterV2Sprite, ShrineV2Sprite, ForumV2Sprite,
   SafehouseV2Sprite, IntelAgencyV2Sprite, SecurityBureauV2Sprite,
+  DockV2Sprite, BronzeWorkshopV2Sprite, ArmoryV2Sprite, RanchV2Sprite,
+  CavalryAcademyV2Sprite, IronFoundryV2Sprite, WarAcademyV2Sprite, MasonryWorksV2Sprite,
+  SiegeWorkshopV2Sprite, CaravanseraiV2Sprite, BankV2Sprite, StockExchangeV2Sprite,
 });

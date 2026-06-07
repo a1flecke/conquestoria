@@ -20,6 +20,22 @@ import { svg as triremeSvg }       from './trireme.svg';
 import { svg as warHoundSvg }      from './war_hound.svg';
 import { svg as warriorSvg }       from './warrior.svg';
 import { svg as workerSvg }        from './worker.svg';
+// MR 2 — ground melee
+import { svg as axemanSvg }        from './axeman.svg';
+import { svg as spearmanSvg }      from './spearman.svg';
+// MR 2 — mounted
+import { svg as horsemanSvg }      from './horseman.svg';
+import { svg as cavalrySvg }       from './cavalry.svg';
+import { svg as knightSvg }        from './knight.svg';
+// MR 2 — ranged
+import { svg as crossbowmanSvg }   from './crossbowman.svg';
+// MR 2 — siege
+import { svg as catapultSvg }      from './catapult.svg';
+import { svg as ballistaSvg }      from './ballista.svg';
+// MR 2 — civilian / naval
+import { svg as caravanSvg }       from './caravan.svg';
+import { svg as expeditionSvg }    from './expedition.svg';
+import { svg as transportSvg }     from './transport.svg';
 
 import { svg as amphitheaterSvg }      from './amphitheater.svg';
 import { svg as aqueductSvg }          from './aqueduct.svg';
@@ -44,6 +60,19 @@ import { svg as stableSvg }            from './stable.svg';
 import { svg as templeSvg }            from './temple.svg';
 import { svg as wallsSvg }             from './walls.svg';
 import { svg as workshopSvg }          from './workshop.svg';
+// MR 3 — remaining buildings
+import { svg as dockSvg }              from './dock.svg';
+import { svg as bronzeWorkshopSvg }    from './bronze-workshop.svg';
+import { svg as armorySvg }            from './armory.svg';
+import { svg as ranchSvg }             from './ranch.svg';
+import { svg as cavalryAcademySvg }    from './cavalry-academy.svg';
+import { svg as ironFoundrySvg }       from './iron-foundry.svg';
+import { svg as warAcademySvg }        from './war-academy.svg';
+import { svg as masonryWorksSvg }      from './masonry-works.svg';
+import { svg as siegeWorkshopSvg }     from './siege-workshop.svg';
+import { svg as caravanseraiSvg }      from './caravanserai.svg';
+import { svg as bankSvg }              from './bank.svg';
+import { svg as stockExchangeSvg }     from './stock_exchange.svg';
 
 // ── Unit sprites ─────────────────────────────────────────────────────────────
 
@@ -66,8 +95,18 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   war_hound:     warHoundSvg,
   warrior:       warriorSvg,
   worker:        workerSvg,
-  // MR 2 adds: axeman, spearman, horseman, cavalry, knight,
-  //            crossbowman, catapult, ballista, caravan, expedition, transport
+  // MR 2
+  axeman:        axemanSvg,
+  spearman:      spearmanSvg,
+  horseman:      horsemanSvg,
+  cavalry:       cavalrySvg,
+  knight:        knightSvg,
+  crossbowman:   crossbowmanSvg,
+  catapult:      catapultSvg,
+  ballista:      ballistaSvg,
+  caravan:       caravanSvg,
+  expedition:    expeditionSvg,
+  transport:     transportSvg,
 };
 
 export function getUnitSpriteV2(unitType: string, faction: string): string | null {
@@ -100,9 +139,19 @@ const BUILDING_SPRITES: Record<string, Record<string, string>> = {
   temple:                templeSvg,
   walls:                 wallsSvg,
   workshop:              workshopSvg,
-  // MR 3 adds remaining buildings (dock, bronze-workshop, armory, ranch,
-  //   cavalry-academy, iron-foundry, war-academy, masonry-works,
-  //   siege-workshop, caravanserai, bank, stock_exchange)
+  // MR 3
+  dock:                  dockSvg,
+  'bronze-workshop':     bronzeWorkshopSvg,
+  armory:                armorySvg,
+  ranch:                 ranchSvg,
+  'cavalry-academy':     cavalryAcademySvg,
+  'iron-foundry':        ironFoundrySvg,
+  'war-academy':         warAcademySvg,
+  'masonry-works':       masonryWorksSvg,
+  'siege-workshop':      siegeWorkshopSvg,
+  caravanserai:          caravanseraiSvg,
+  bank:                  bankSvg,
+  stock_exchange:        stockExchangeSvg,
 };
 
 export function getBuildingSpriteV2(buildingType: string, faction: string): string | null {
