@@ -374,3 +374,117 @@ describe('transport system', () => {
     expect(next.espionage?.player.spies['spy-1']).toBeUndefined();
   });
 });
+
+describe('higher-tier transport ships (carrack / galleon / steamship / troop_transport)', () => {
+  function stateWithShip(shipType: 'carrack' | 'galleon' | 'steamship' | 'troop_transport'): ReturnType<typeof state> {
+    const s = state();
+    s.units['transport-1'] = {
+      ...s.units['transport-1'],
+      type: shipType,
+      cargoUnitIds: [],
+    };
+    return s;
+  }
+
+  it.each(['carrack', 'galleon', 'steamship', 'troop_transport'] as const)(
+    '%s is recognised as a transport and accepts cargo',
+    (shipType) => {
+      const result = loadUnitOntoTransport(stateWithShip(shipType), 'warrior-1', 'transport-1');
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.state.units['warrior-1'].transportId).toBe('transport-1');
+    },
+  );
+
+  it('load / unload messages use the actual ship name', () => {
+    const loaded = loadUnitOntoTransport(stateWithShip('galleon'), 'warrior-1', 'transport-1');
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    expect(loaded.message).toContain('Galleon');
+
+    const readyState = {
+      ...loaded.state,
+      units: {
+        ...loaded.state.units,
+        'warrior-1': { ...loaded.state.units['warrior-1'], hasMoved: false, hasActed: false, movementPointsLeft: 2 },
+      },
+    };
+    const unloaded = unloadUnitFromTransport(readyState, 'transport-1', 'warrior-1', { q: 0, r: 1 });
+    expect(unloaded.ok).toBe(true);
+    if (!unloaded.ok) return;
+    expect(unloaded.message).toContain('Galleon');
+  });
+});
+
+describe('multi-slot cargo (horseman=2, catapult=3)', () => {
+  function stateWithHorseman(): ReturnType<typeof state> {
+    const s = state();
+    // replace warrior-1 with a horseman
+    s.units['warrior-1'] = { ...s.units['warrior-1'], type: 'horseman' };
+    return s;
+  }
+
+  function stateWithCatapult(): ReturnType<typeof state> {
+    const s = state();
+    s.units['warrior-1'] = { ...s.units['warrior-1'], type: 'catapult' };
+    return s;
+  }
+
+  function galleonState(): ReturnType<typeof state> {
+    const s = state();
+    s.units['transport-1'] = { ...s.units['transport-1'], type: 'galleon', cargoUnitIds: [] };
+    return s;
+  }
+
+  it('horseman (2 slots) fills a Transport (cap 2) completely', () => {
+    const result = loadUnitOntoTransport(stateWithHorseman(), 'warrior-1', 'transport-1');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(getTransportCargoUsed(result.state, 'transport-1')).toBe(2);
+  });
+
+  it('catapult (3 slots) is rejected by a Transport (cap 2)', () => {
+    const result = canLoadUnitOntoTransport(stateWithCatapult(), 'warrior-1', 'transport-1');
+    expect(result).toMatchObject({ ok: false, reason: 'no-capacity' });
+  });
+
+  it('catapult (3 slots) is rejected by a Carrack (cap 3) that already has one warrior aboard', () => {
+    const s = state();
+    s.units['transport-1'] = { ...s.units['transport-1'], type: 'carrack', cargoUnitIds: [] };
+    s.units['warrior-1'] = { ...s.units['warrior-1'], type: 'catapult' };
+    // first load a regular warrior (worker-1) to use 1 slot
+    const step1 = loadUnitOntoTransport(s, 'worker-1', 'transport-1');
+    expect(step1.ok).toBe(true);
+    if (!step1.ok) return;
+    expect(getTransportCargoUsed(step1.state, 'transport-1')).toBe(1);
+    // now catapult needs 3 slots but only 2 remain — must reject
+    const result = canLoadUnitOntoTransport(step1.state, 'warrior-1', 'transport-1');
+    expect(result).toMatchObject({ ok: false, reason: 'no-capacity' });
+  });
+
+  it('catapult (3 slots) fits into an empty Galleon (cap 4)', () => {
+    const s = galleonState();
+    s.units['warrior-1'] = { ...s.units['warrior-1'], type: 'catapult' };
+    const result = loadUnitOntoTransport(s, 'warrior-1', 'transport-1');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(getTransportCargoUsed(result.state, 'transport-1')).toBe(3);
+  });
+
+  it('two horsemen (2+2=4 slots) fill a Galleon (cap 4) completely', () => {
+    const s = galleonState();
+    s.units['warrior-1'] = { ...s.units['warrior-1'], type: 'horseman' };
+    s.units['worker-1'] = { ...s.units['worker-1'], type: 'horseman' };
+    const step1 = loadUnitOntoTransport(s, 'warrior-1', 'transport-1');
+    expect(step1.ok).toBe(true);
+    if (!step1.ok) return;
+    const step2 = loadUnitOntoTransport(step1.state, 'worker-1', 'transport-1');
+    expect(step2.ok).toBe(true);
+    if (!step2.ok) return;
+    expect(getTransportCargoUsed(step2.state, 'transport-1')).toBe(4);
+    // a third horseman has nowhere to go
+    const extra = unit({ id: 'horseman-3', type: 'horseman', position: { q: 0, r: 0 } });
+    step2.state.units['horseman-3'] = extra;
+    expect(canLoadUnitOntoTransport(step2.state, 'horseman-3', 'transport-1')).toMatchObject({ ok: false, reason: 'no-capacity' });
+  });
+});

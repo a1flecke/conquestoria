@@ -1413,7 +1413,7 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
               label: `Load onto ${UNIT_DEFINITIONS[candidate.type]?.name ?? 'Transport'}${suffix}`,
               disabled: !fits,
               tooltip: !fits
-                ? `${UNIT_DEFINITIONS[selectedUnit?.type ?? 'warrior']?.name ?? 'This unit'} requires ${needs} cargo slots. A Galleon or larger transport is needed.`
+                ? `${UNIT_DEFINITIONS[selectedUnit?.type ?? 'warrior']?.name ?? 'This unit'} requires ${needs} cargo ${needs === 1 ? 'slot' : 'slots'} — find a transport with ${needs} free ${needs === 1 ? 'slot' : 'slots'}.`
                 : undefined,
             };
           })

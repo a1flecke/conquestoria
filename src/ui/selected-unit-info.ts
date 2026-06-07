@@ -238,7 +238,8 @@ export function renderSelectedUnitInfo(
     return;
   }
 
-  if (isNavalTransport(unit.type)) {
+  if (isNavalTransport(unit.type) && !callbacks.getCargoBoardInfo) {
+    // Simple summary — only shown when the full cargo board (getCargoBoardInfo) is not wired.
     const cargo = getTransportCargo(state, unitId);
     const cargoDiv = document.createElement('div');
     cargoDiv.style.cssText = 'margin-top:8px;font-size:12px;color:#bfdbfe;';
@@ -411,7 +412,7 @@ export function renderSelectedUnitInfo(
 
         const slotBadge = document.createElement('span');
         slotBadge.style.cssText = 'font-size:10px;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 5px;flex-shrink:0;';
-        slotBadge.textContent = `${item.slotCost}⚓`;
+        slotBadge.textContent = `${item.slotCost} slot${item.slotCost === 1 ? '' : 's'}`;
         row.appendChild(slotBadge);
 
         const nameSpan = document.createElement('span');

@@ -1117,6 +1117,42 @@ describe('renderSelectedUnitInfo - transport actions', () => {
     expect(buttons).not.toContain('Skip Turn');
     expect(buttons).not.toContain('Load onto Transport');
   });
+
+  it.each(['carrack', 'galleon', 'steamship', 'troop_transport'] as const)(
+    '%s (higher-tier) shows cargo panel same as base Transport',
+    (shipType) => {
+      const state: ReturnType<typeof makeTransportState> = {
+        turn: 1,
+        era: 1,
+        currentPlayer: 'player',
+        gameOver: false,
+        winner: null,
+        map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+        units: {
+          'transport-1': {
+            id: 'transport-1',
+            type: shipType,
+            owner: 'player',
+            position: { q: 1, r: 0 },
+            health: 100,
+            maxHealth: 100,
+            movementPointsLeft: 3,
+            hasMoved: false,
+            hasActed: false,
+            cargoUnitIds: [],
+          },
+        },
+        cities: {},
+        civilizations: { player: { color: '#fff', techState: { completed: ['galleys'] } } },
+      } as unknown as ReturnType<typeof makeTransportState>;
+
+      const container = new MockElement('div');
+      renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'transport-1', {});
+
+      // Higher-tier ships must show the same cargo section as the base Transport
+      expect(collectAllText(container).join(' ')).toContain('Cargo: Empty');
+    },
+  );
 });
 
 describe('Expedition — Establish Outpost action', () => {

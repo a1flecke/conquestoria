@@ -174,7 +174,7 @@ export function loadUnitOntoTransport(
         },
       },
     },
-    message: `${UNIT_DEFINITIONS[unit.type].name} loaded onto Transport`,
+    message: `${UNIT_DEFINITIONS[unit.type].name} loaded onto ${UNIT_DEFINITIONS[transport.type]?.name ?? 'Transport'}`,
   };
 }
 
@@ -249,7 +249,7 @@ export function unloadUnitFromTransport(
         },
       },
     },
-    message: `${UNIT_DEFINITIONS[cargo.type].name} unloaded from Transport`,
+    message: `${UNIT_DEFINITIONS[cargo.type].name} unloaded from ${UNIT_DEFINITIONS[transport.type]?.name ?? 'Transport'}`,
   };
 }
 

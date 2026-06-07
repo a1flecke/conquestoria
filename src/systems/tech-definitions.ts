@@ -97,10 +97,10 @@ export const TECH_TREE: Tech[] = [
   { id: 'rafts', name: 'Rafts', track: 'maritime', cost: 5, prerequisites: [], unlocks: ['Raft'], era: 1 },
   { id: 'fishing', name: 'Fishing', track: 'maritime', cost: 10, prerequisites: ['rafts'], unlocks: ['Fishing boat'], era: 1 },
   { id: 'galleys', name: 'Galleys', track: 'maritime', cost: 45, prerequisites: ['fishing', 'sailing'], unlocks: ['Galley'], era: 2 },
-  { id: 'navigation', name: 'Navigation', track: 'maritime', cost: 50, prerequisites: ['galleys'], unlocks: ['Navigator'], era: 2 },
-  { id: 'triremes', name: 'Triremes', track: 'maritime', cost: 85, prerequisites: ['navigation'], unlocks: ['Trireme'], era: 3 },
+  { id: 'navigation', name: 'Navigation', track: 'maritime', cost: 50, prerequisites: ['galleys'], unlocks: ['Navigator', 'Carrack transport (3 cargo slots)'], era: 2 },
+  { id: 'triremes', name: 'Triremes', track: 'maritime', cost: 85, prerequisites: ['navigation'], unlocks: ['Trireme', 'Galleon transport (4 cargo slots)'], era: 3 },
   { id: 'harbor-building', name: 'Harbor Building', track: 'maritime', cost: 80, prerequisites: ['galleys'], unlocks: ['Harbor'], era: 3 },
-  { id: 'caravels', name: 'Caravels', track: 'maritime', cost: 125, prerequisites: ['triremes', 'harbor-building'], unlocks: ['Caravel'], era: 4 },
+  { id: 'caravels', name: 'Caravels', track: 'maritime', cost: 125, prerequisites: ['triremes', 'harbor-building'], unlocks: ['Caravel', 'Steamship transport (5 cargo slots)'], era: 4 },
   { id: 'naval-warfare', name: 'Naval Warfare', track: 'maritime', cost: 130, prerequisites: ['triremes'], unlocks: ['Warship'], era: 4 },
   { id: 'amphibious-warfare', name: 'Amphibious Warfare', track: 'maritime', cost: 175, prerequisites: ['caravels', 'naval-warfare'], unlocks: ['Troop Transport'], era: 5, countsForEraAdvancement: false },
 
