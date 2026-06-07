@@ -764,6 +764,384 @@ function SecurityBureauSprite({ faction = 'imperials', state = 'idle' }) {
   );
 }
 
+/* === MR 3 BUILDINGS === */
+
+function DockSprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Dock" sub="Economy" category="economy">
+      <BuildingPlinth w={160} color={P.stone.dark} />
+      {/* water surface */}
+      <rect x="20" y="128" width="152" height="20" fill={P.ground.water} stroke={P.ink.line} strokeWidth="0.6" />
+      <path d="M20,132 Q60,128 100,132 Q140,136 172,132" fill="none" stroke="#fff" strokeWidth="0.6" opacity="0.4" />
+      {/* pier planks */}
+      <rect x="58" y="88" width="76" height="42" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      {[0,1,2,3,4,5].map(i => (
+        <line key={i} x1="58" y1={90 + i * 7} x2="134" y2={90 + i * 7} stroke={P.wood.dark} strokeWidth="0.5" />
+      ))}
+      {/* pilings */}
+      <rect x="64" y="106" width="6" height="24" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="88" y="106" width="6" height="24" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="112" y="106" width="6" height="24" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* bollards */}
+      <rect x="130" y="100" width="6" height="12" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="56" y="100" width="6" height="12" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* rope */}
+      <path d="M56,106 Q96,100 136,106" fill="none" stroke={P.cloth.linen} strokeWidth="1.2" strokeLinecap="round" />
+      {/* dock house */}
+      <rect x="36" y="72" width="50" height="40" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <ThatchRoof d="M30,76 L92,76 L78,50 L44,50 Z" />
+      <rect x="54" y="88" width="14" height="24" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="38" y="78" width="10" height="8" fill={P.ink.line} opacity="0.4" />
+      <Banner x={96} y={50} faction={faction} scale={0.9} />
+    </BuildingFrame>
+  );
+}
+
+function BronzeWorkshopSprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Bronze Workshop" sub="Production" category="production">
+      <BuildingPlinth w={150} />
+      <rect x="34" y="78" width="124" height="62" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="34" y="78" width="124" height="62" fill="url(#stoneTexture)" opacity="0.5" />
+      <TileRoof d="M26,82 L166,82 L144,48 L48,48 Z" color="#7a4a20" />
+      {/* chimney with glow */}
+      <rect x="110" y="36" width="14" height="46" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <ellipse cx="117" cy="36" rx="7" ry="3" fill={P.stone.dark} />
+      <g className="cq-smoke">
+        <ellipse cx="117" cy="28" rx="5" ry="4" fill="#9a9a9a" opacity="0.6" />
+        <ellipse cx="120" cy="18" rx="4" ry="3" fill="#8a8a8a" opacity="0.5" />
+      </g>
+      {/* forge glow */}
+      <g className="cq-fire">
+        <ellipse cx="64" cy="128" rx="12" ry="6" fill="#e07020" opacity="0.9" />
+        <ellipse cx="64" cy="128" rx="6" ry="3" fill="#ffd966" opacity="0.8" />
+      </g>
+      {/* anvil */}
+      <rect x="50" y="122" width="28" height="8" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="54" y="118" width="20" height="6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* bronze tools on rack */}
+      <line x1="120" y1="88" x2="116" y2="104" stroke={P.metal.bronze} strokeWidth="2" />
+      <line x1="128" y1="88" x2="132" y2="104" stroke={P.metal.bronze} strokeWidth="2" />
+      <line x1="138" y1="90" x2="136" y2="104" stroke={P.metal.bronze} strokeWidth="2" />
+      {/* door */}
+      <rect x="80" y="102" width="24" height="38" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="92" y1="102" x2="92" y2="140" stroke={P.ink.line} strokeWidth="0.5" />
+      <Banner x={96} y={48} faction={faction} scale={0.9} />
+    </BuildingFrame>
+  );
+}
+
+function ArmorySprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Armory" sub="Military" category="military">
+      <BuildingPlinth w={155} color={P.stone.dark} />
+      <rect x="32" y="76" width="128" height="64" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="32" y="76" width="128" height="64" fill="url(#stoneTexture)" opacity="0.6" />
+      <TileRoof d="M24,80 L168,80 L148,44 L44,44 Z" color={P.metal.iron} />
+      {/* crenellations */}
+      {Array.from({length:7}).map((_,i) => (
+        <rect key={i} x={24 + i*22} y="68" width="10" height="14" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      ))}
+      {/* weapon racks */}
+      {/* sword rack */}
+      <line x1="52" y1="82" x2="52" y2="104" stroke={P.wood.dark} strokeWidth="1.5" />
+      <line x1="44" y1="86" x2="60" y2="86" stroke={P.wood.dark} strokeWidth="1" />
+      <line x1="46" y1="78" x2="44" y2="90" stroke={P.metal.steel} strokeWidth="1.4" />
+      <line x1="50" y1="76" x2="48" y2="90" stroke={P.metal.steel} strokeWidth="1.4" />
+      <line x1="54" y1="76" x2="56" y2="90" stroke={P.metal.steel} strokeWidth="1.4" />
+      <line x1="58" y1="78" x2="60" y2="90" stroke={P.metal.steel} strokeWidth="1.4" />
+      {/* shield wall */}
+      <path d="M110,82 L126,82 L128,96 Q118,106 108,96 Z" fill={f.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M130,82 L146,82 L148,96 Q138,106 128,96 Z" fill={f.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="118" cy="92" r="2" fill={P.metal.gold} />
+      <circle cx="138" cy="92" r="2" fill={P.metal.gold} />
+      {/* entrance */}
+      <path d="M82,140 L82,114 Q96,104 110,114 L110,140 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="88" cy="126" r="2" fill={P.metal.gold} />
+      <Banner x={96} y={44} faction={faction} scale={1} />
+    </BuildingFrame>
+  );
+}
+
+function RanchSprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Ranch" sub="Food" category="food">
+      <BuildingPlinth w={160} color={P.ground.grass} />
+      {/* pasture ground */}
+      <ellipse cx="96" cy="150" rx="76" ry="16" fill="#5a8a3a" opacity="0.35" />
+      {/* fence enclosure */}
+      {[0,1,2,3,4,5,6,7].map(i => (
+        <rect key={i} x={22 + i*20} y="96" width="4" height="44" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      ))}
+      <rect x="22" y="96" width="136" height="5" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="22" y="114" width="136" height="5" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="22" y="132" width="136" height="5" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* gate */}
+      <rect x="84" y="94" width="24" height="44" fill="none" stroke={P.wood.dark} strokeWidth="1" />
+      <line x1="84" y1="94" x2="108" y2="138" stroke={P.wood.dark} strokeWidth="0.7" />
+      <line x1="108" y1="94" x2="84" y2="138" stroke={P.wood.dark} strokeWidth="0.7" />
+      {/* barn */}
+      <rect x="38" y="60" width="80" height="42" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M34,64 L118,64 L96,30 L56,30 Z" fill="#8a3a20" stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="74" y="76" width="16" height="26" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* hay bale */}
+      <ellipse cx="145" cy="126" rx="12" ry="14" fill={P.thatch.straw} stroke={P.ink.line} strokeWidth="0.7" />
+      <ellipse cx="145" cy="126" rx="8" ry="10" fill={P.thatch.shadow} opacity="0.3" />
+      <Banner x={96} y={30} faction={faction} scale={0.9} />
+    </BuildingFrame>
+  );
+}
+
+function CavalryAcademySprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Cavalry Academy" sub="Military" category="military">
+      <BuildingPlinth w={160} />
+      <rect x="30" y="74" width="132" height="56" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M30,80 H162 M30,100 H162 M30,120 H162" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.5" />
+      <ThatchRoof d="M22,78 L170,78 L140,40 L52,40 Z" />
+      {/* horseshoe arch over entrance */}
+      <path d="M80,68 Q96,54 112,68 L108,78 L84,78 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M80,68 Q96,56 112,68" fill="none" stroke={P.metal.gold} strokeWidth="1.5" />
+      {/* stall doors */}
+      <rect x="40" y="100" width="24" height="30" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.7" />
+      <line x1="40" y1="114" x2="64" y2="114" stroke={P.wood.mid} strokeWidth="0.5" />
+      <rect x="128" y="100" width="24" height="30" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.7" />
+      <line x1="128" y1="114" x2="152" y2="114" stroke={P.wood.mid} strokeWidth="0.5" />
+      {/* pennant track/jump bar */}
+      <line x1="36" y1="72" x2="156" y2="72" stroke={P.wood.mid} strokeWidth="1.5" />
+      <line x1="36" y1="62" x2="36" y2="74" stroke={P.wood.dark} strokeWidth="2" />
+      <line x1="156" y1="62" x2="156" y2="74" stroke={P.wood.dark} strokeWidth="2" />
+      {/* main door */}
+      <rect x="82" y="92" width="28" height="38" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.7" />
+      <Banner x={96} y={40} faction={faction} scale={1} />
+    </BuildingFrame>
+  );
+}
+
+function IronFoundrySprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Iron Foundry" sub="Production" category="production">
+      <BuildingPlinth w={158} color={P.stone.dark} />
+      <rect x="34" y="80" width="124" height="60" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="34" y="80" width="124" height="60" fill="url(#stoneTexture)" opacity="0.7" />
+      <TileRoof d="M26,84 L166,84 L144,50 L48,50 Z" color={P.metal.iron} />
+      {/* two chimneys */}
+      <rect x="52" y="30" width="16" height="54" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <ellipse cx="60" cy="30" rx="8" ry="3.5" fill="#1a1a1a" />
+      <rect x="120" y="38" width="14" height="46" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <ellipse cx="127" cy="38" rx="7" ry="3" fill="#1a1a1a" />
+      {/* smoke */}
+      <g className="cq-smoke">
+        <ellipse cx="60" cy="20" rx="7" ry="5" fill="#5a5a5a" opacity="0.7" />
+        <ellipse cx="55" cy="10" rx="5" ry="4" fill="#6a6a6a" opacity="0.5" />
+        <ellipse cx="127" cy="28" rx="6" ry="4" fill="#5a5a5a" opacity="0.6" />
+      </g>
+      {/* molten glow in furnace mouth */}
+      <g className="cq-fire">
+        <ellipse cx="96" cy="134" rx="20" ry="8" fill="#e05010" opacity="0.95" />
+        <ellipse cx="96" cy="134" rx="12" ry="5" fill="#ffa020" opacity="0.85" />
+        <ellipse cx="96" cy="134" rx="6" ry="3" fill="#ffd966" opacity="0.9" />
+      </g>
+      {/* furnace mouth arch */}
+      <path d="M70,140 L70,118 Q96,104 122,118 L122,140 Z" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* iron bars stacked */}
+      <rect x="36" y="106" width="24" height="6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="36" y="114" width="24" height="6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="36" y="122" width="24" height="6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      <Banner x={96} y={50} faction={faction} scale={1} />
+    </BuildingFrame>
+  );
+}
+
+function WarAcademySprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="War Academy" sub="Military" category="military">
+      <BuildingPlinth w={162} color={P.stone.mid} />
+      <rect x="30" y="70" width="132" height="70" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="30" y="70" width="132" height="70" fill="url(#stoneTexture)" opacity="0.5" />
+      <TileRoof d="M22,74 L170,74 L148,34 L44,34 Z" color="#4a2a10" />
+      {/* columns */}
+      {[52, 76, 100, 124, 148].map(x => (
+        <g key={x}>
+          <rect x={x - 4} y="66" width="8" height="74" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+          <ellipse cx={x} cy="66" rx="6" ry="3" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.4" />
+        </g>
+      ))}
+      {/* pediment */}
+      <path d="M22,74 L170,74 L170,68 L22,68 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* training ground inside — crossed swords emblem */}
+      <line x1="84" y1="96" x2="108" y2="120" stroke={P.metal.steel} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="108" y1="96" x2="84" y2="120" stroke={P.metal.steel} strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="96" cy="108" r="6" fill={f.mid} stroke={f.dark} strokeWidth="1" />
+      {/* main door */}
+      <rect x="80" y="108" width="32" height="32" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M80,108 L96,96 L112,108 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={96} y={34} faction={faction} scale={1} />
+    </BuildingFrame>
+  );
+}
+
+function MasonryWorksSprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Masonry Works" sub="Production" category="production">
+      <BuildingPlinth w={158} color={P.stone.mid} />
+      {/* stone blocks yard */}
+      <rect x="32" y="106" width="40" height="20" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
+      <rect x="32" y="96" width="40" height="12" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.7" />
+      <rect x="32" y="106" width="40" height="20" fill="url(#stoneTexture)" opacity="0.6" />
+      <rect x="36" y="88" width="28" height="10" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* scattered blocks */}
+      <rect x="130" y="110" width="22" height="16" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="130" y="110" width="22" height="16" fill="url(#stoneTexture)" opacity="0.6" />
+      <rect x="132" y="100" width="18" height="12" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* workshop building */}
+      <rect x="52" y="68" width="88" height="56" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <TileRoof d="M44,72 L148,72 L132,38 L60,38 Z" color="#6a5030" />
+      {/* chisel and mallet tools hanging */}
+      <line x1="68" y1="74" x2="60" y2="96" stroke={P.metal.steel} strokeWidth="2" />
+      <rect x="56" y="74" width="8" height="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      <line x1="84" y1="74" x2="80" y2="92" stroke={P.wood.dark} strokeWidth="3" strokeLinecap="round" />
+      <ellipse cx="80" cy="73" rx="6" ry="4" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* door */}
+      <rect x="86" y="94" width="20" height="30" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      <Banner x={96} y={38} faction={faction} scale={0.9} />
+    </BuildingFrame>
+  );
+}
+
+function SiegeWorkshopSprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Siege Workshop" sub="Military" category="military">
+      <BuildingPlinth w={166} />
+      <rect x="26" y="72" width="140" height="68" fill={P.wood.light} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M26,78 H166 M26,100 H166 M26,122 H166" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.5" />
+      <ThatchRoof d="M18,76 L174,76 L150,34 L42,34 Z" color="#5a3a10" shadow="#2a1808" />
+      {/* large main door — wide for siege engine access */}
+      <rect x="68" y="100" width="56" height="40" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.9" />
+      <line x1="96" y1="100" x2="96" y2="140" stroke={P.ink.line} strokeWidth="0.6" />
+      <path d="M68,100 L96,88 L124,100 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* catapult wheel visible inside */}
+      <circle cx="82" cy="124" r="10" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="82" y1="114" x2="82" y2="134" stroke={P.wood.dark} strokeWidth="1" />
+      <line x1="72" y1="124" x2="92" y2="124" stroke={P.wood.dark} strokeWidth="1" />
+      <circle cx="110" cy="124" r="10" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="110" y1="114" x2="110" y2="134" stroke={P.wood.dark} strokeWidth="1" />
+      <line x1="100" y1="124" x2="120" y2="124" stroke={P.wood.dark} strokeWidth="1" />
+      {/* rope spool on wall */}
+      <circle cx="38" cy="100" rx="10" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />
+      <circle cx="38" cy="100" r="4" fill={P.wood.dark} />
+      {/* lumber stack */}
+      {[0,1,2].map(i => (
+        <rect key={i} x={142} y={106 + i*8} width="20" height="6" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.4" />
+      ))}
+      <Banner x={96} y={34} faction={faction} scale={1} />
+    </BuildingFrame>
+  );
+}
+
+function CaravanseraiSprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Caravanserai" sub="Economy" category="economy">
+      <BuildingPlinth w={160} color="#c8a870" />
+      {/* courtyard walls */}
+      <rect x="28" y="62" width="136" height="80" fill="#e8c890" stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="28" y="62" width="136" height="80" fill="url(#stoneTexture)" opacity="0.35" />
+      {/* inner courtyard */}
+      <rect x="52" y="80" width="88" height="48" fill="#d4b070" opacity="0.7" />
+      {/* arched gate (center) */}
+      <path d="M80,142 L80,112 Q96,96 112,112 L112,142 Z" fill="#8a6830" stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M80,112 Q96,98 112,112" fill="none" stroke="#c8a028" strokeWidth="1.5" />
+      {/* corner towers */}
+      <rect x="28" y="56" width="24" height="30" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.7" />
+      <rect x="140" y="56" width="24" height="30" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.7" />
+      {/* crenellations on towers */}
+      {[0,1].map(i => <rect key={i} x={32 + i*10} y="48" width="8" height="10" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.5" />)}
+      {[0,1].map(i => <rect key={i} x={144 + i*10} y="48" width="8" height="10" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.5" />)}
+      {/* well in courtyard */}
+      <circle cx="96" cy="100" r="8" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.7" />
+      <circle cx="96" cy="100" r="5" fill={P.ground.water} />
+      <rect x="92" y="88" width="8" height="4" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.4" />
+      {/* merchant sacks */}
+      <ellipse cx="60" cy="130" rx="8" ry="6" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.5" />
+      <ellipse cx="74" cy="132" rx="6" ry="5" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.5" />
+      <Banner x={96} y={48} faction={faction} scale={0.9} />
+    </BuildingFrame>
+  );
+}
+
+function BankSprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Bank" sub="Economy" category="economy">
+      <BuildingPlinth w={158} color={P.stone.dark} />
+      <rect x="32" y="72" width="128" height="68" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="32" y="72" width="128" height="68" fill="url(#stoneTexture)" opacity="0.4" />
+      {/* classical pediment */}
+      <rect x="24" y="66" width="144" height="10" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
+      <path d="M24,66 L96,30 L168,66 Z" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M24,66 L96,30 L168,66 Z" fill="url(#stoneTexture)" opacity="0.4" />
+      {/* columns */}
+      {[52, 78, 104, 130].map(x => (
+        <g key={x}>
+          <rect x={x - 5} y="66" width="10" height="74" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+          <ellipse cx={x} cy="66" rx="7" ry="3.5" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.4" />
+          <rect x={x - 7} y="138" width="14" height="4" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.3" />
+        </g>
+      ))}
+      {/* heavy vault door */}
+      <path d="M78,140 L78,112 Q96,98 114,112 L114,140 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="96" cy="122" r="6" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.6" />
+      <circle cx="96" cy="122" r="3" fill={P.metal.shine} />
+      {/* gold coins on steps */}
+      <ellipse cx="60" cy="142" rx="7" ry="3" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+      <ellipse cx="132" cy="142" rx="7" ry="3" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* gold emblem in pediment */}
+      <circle cx="96" cy="50" r="8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.6" />
+      <text x="96" y="54" textAnchor="middle" fontSize="10" fill={P.ink.line} fontWeight="bold">$</text>
+    </BuildingFrame>
+  );
+}
+
+function StockExchangeSprite({ faction = 'imperials', state = 'idle' }) {
+  const f = factionAccent(faction);
+  return (
+    <BuildingFrame state={state} label="Stock Exchange" sub="Economy" category="economy">
+      <BuildingPlinth w={164} color={P.stone.dark} />
+      <rect x="28" y="66" width="136" height="74" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="28" y="66" width="136" height="74" fill="url(#stoneTexture)" opacity="0.35" />
+      {/* domed roof */}
+      <ellipse cx="96" cy="46" rx="52" ry="26" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <ellipse cx="96" cy="46" rx="46" ry="20" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="96" cy="32" r="6" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* columns flanking entrance */}
+      {[44, 64, 116, 136].map(x => (
+        <rect key={x} x={x - 4} y="62" width="8" height="78" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.4" />
+      ))}
+      {/* trading floor window grid */}
+      {[0,1,2].map(c => [0,1].map(r => (
+        <rect key={`${c}${r}`} x={50 + c*22} y={82 + r*20} width="16" height="14" fill={P.ink.line} opacity="0.35" stroke={P.stone.mid} strokeWidth="0.4" />
+      )))}
+      {/* ticker board on facade */}
+      <rect x="60" y="108" width="72" height="18" fill="#1a2a1a" stroke={P.metal.gold} strokeWidth="0.8" />
+      <text x="96" y="121" textAnchor="middle" fontSize="8" fill="#5aff5a">↑ 12.4%</text>
+      {/* entrance */}
+      <path d="M80,140 L80,116 Q96,104 112,116 L112,140 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* faction banner */}
+      <Banner x={96} y={32} faction={faction} scale={0.8} />
+    </BuildingFrame>
+  );
+}
+
 Object.assign(window, {
   GranarySprite, HerbalistSprite, AqueductSprite,
   WorkshopSprite, ForgeSprite, LumbermillSprite, QuarrySprite,
@@ -772,4 +1150,7 @@ Object.assign(window, {
   BarracksSprite, WallsSprite, StableSprite,
   TempleSprite, MonumentSprite, AmphitheaterSprite, ShrineSprite, ForumSprite,
   SafehouseSprite, IntelAgencySprite, SecurityBureauSprite,
+  DockSprite, BronzeWorkshopSprite, ArmorySprite, RanchSprite,
+  CavalryAcademySprite, IronFoundrySprite, WarAcademySprite, MasonryWorksSprite,
+  SiegeWorkshopSprite, CaravanseraiSprite, BankSprite, StockExchangeSprite,
 });

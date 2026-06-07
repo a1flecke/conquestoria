@@ -924,6 +924,469 @@ function TriremeV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
   );
 }
 
+/* ─────────────────────────── Axeman (melee, free arms, bronze axe) ─────────────────────────── */
+function AxemanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="melee" phase={phase}>
+      <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
+      <HumanoidV2
+        cx={64} cy={70}
+        cloth={f.mid} pants={_P2.cloth.wool}
+        accent={f.dark} hair="#3a2a1a"
+        arms="free"
+        hat={<rect x="-8" y="-40" width="16" height="5" rx="1" fill={_P2.metal.bronze} stroke={_P2.ink.line} strokeWidth="0.6" />}
+      />
+      {/* BRONZE AXE — pivot at right shoulder (77, 68) */}
+      <g className="cq-weapon" style={{ '--pivot-x': '77px', '--pivot-y': '68px' }}>
+        <g transform="translate(77 68) rotate(20)">
+          <rect x="-1.2" y="0" width="2.4" height="34" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="0.5" />
+          {/* axe head — wide crescent blade */}
+          <path d="M-3,-8 L-3,4 Q-14,-2 -3,-8 Z" fill={_P2.metal.bronze} stroke={_P2.ink.line} strokeWidth="0.8" />
+          <path d="M3,-8 L3,4 Q14,-2 3,-8 Z" fill={_P2.metal.bronze} stroke={_P2.ink.line} strokeWidth="0.8" />
+          <path d="M-3,-8 L-3,4 Q-10,0 -3,-8 Z" fill={_P2.metal.shine} opacity="0.4" />
+        </g>
+        <g transform="translate(82 56)">
+          <g className="cq-hit-spark">
+            <path d="M0,-9 L2.5,-2.5 L9,0 L2.5,2.5 L0,9 L-2.5,2.5 L-9,0 L-2.5,-2.5 Z" fill="#fff5cc" />
+            <circle r="2" fill="#ffffff" />
+          </g>
+        </g>
+      </g>
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Spearman (melee, locked arms, spear) ─────────────────────────── */
+function SpearmanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="melee" phase={phase}>
+      <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
+      <HumanoidV2
+        cx={64} cy={70}
+        cloth={f.mid} pants={_P2.cloth.wool}
+        accent={f.dark} hair="#5a4a2a"
+        arms="locked"
+        hat={<path d="M-9,-33 Q-8,-42 0,-42 Q8,-42 9,-33 L9,-28 L-9,-28 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.7" />}
+        armLContent={(
+          <g transform="translate(-2 8)">
+            <circle r="10" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="0.7" />
+            <circle r="10" fill={f.mid} opacity="0.7" />
+            <circle r="2.5" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.4" />
+          </g>
+        )}
+      />
+      {/* SPEAR — long shaft, pivot near grip center (58, 56) */}
+      <g className="cq-weapon" style={{ '--pivot-x': '58px', '--pivot-y': '56px' }}>
+        <g transform="translate(56 28) rotate(-6)">
+          <rect x="-1" y="0" width="2" height="76" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="0.5" />
+          <path d="M-2.5,0 L2.5,0 L1.5,-10 L0,-16 L-1.5,-10 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.7" />
+        </g>
+      </g>
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Horseman (light mounted, horse + rider) ─────────────────────────── */
+function HorsemanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="melee" phase={phase}>
+      <ellipse className="cq-shadow" cx="64" cy="96" rx="30" ry="7" fill="#000" opacity="0.30" />
+      {/* HORSE BODY */}
+      <g transform="translate(62 74)">
+        <path d="M20,-4 Q30,-10 26,-20" stroke="#8a6040" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+        <ellipse cx="4" cy="0" rx="24" ry="12" fill="#a07848" stroke={_P2.ink.line} strokeWidth="1" />
+        <ellipse cx="4" cy="-3" rx="22" ry="8" fill="#c09858" />
+        <g transform="translate(-12 7)"><g className="cq-leg-fl"><rect x="-3" y="0" width="6" height="16" fill="#7a5830" stroke={_P2.ink.line} strokeWidth="0.7" /></g></g>
+        <g transform="translate(-2 7)"><g className="cq-leg-fr"><rect x="-3" y="0" width="6" height="16" fill="#7a5830" stroke={_P2.ink.line} strokeWidth="0.7" /></g></g>
+        <g transform="translate(14 7)"><g className="cq-leg-bl"><rect x="-3" y="0" width="6" height="16" fill="#7a5830" stroke={_P2.ink.line} strokeWidth="0.7" /></g></g>
+        <g transform="translate(20 7)"><g className="cq-leg-br"><rect x="-3" y="0" width="6" height="16" fill="#7a5830" stroke={_P2.ink.line} strokeWidth="0.7" /></g></g>
+        {/* neck + head */}
+        <ellipse cx="-20" cy="-4" rx="11" ry="9" fill="#a07848" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-28,-3 L-34,4 L-26,5 Z" fill="#a07848" stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M-16,-12 L-12,-18 L-9,-10 Z" fill="#7a5830" stroke={_P2.ink.line} strokeWidth="0.6" />
+        <circle cx="-24" cy="-4" r="1" fill={_P2.ink.line} />
+        {/* saddle + reins */}
+        <rect x="-4" y="-13" width="14" height="4" rx="2" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <line x1="-28" y1="-2" x2="-4" y2="-11" stroke={_P2.cloth.linen} strokeWidth="0.8" />
+      </g>
+      {/* RIDER — simplified figure on horse */}
+      <g transform="translate(58 48)">
+        <rect x="-7" y="-10" width="14" height="16" rx="2" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.7" />
+        <circle cx="0" cy="-16" r="7" fill={_P2.skin.warm} stroke={_P2.ink.line} strokeWidth="0.7" />
+        <path d="M-8,-20 Q-7,-28 0,-28 Q7,-28 8,-20 L8,-15 L-8,-15 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <ellipse cx="-9" cy="-2" rx="3.5" ry="7" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <ellipse cx="9" cy="-2" rx="3.5" ry="7" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.6" />
+      </g>
+      {/* JAVELIN */}
+      <g className="cq-weapon" style={{ '--pivot-x': '67px', '--pivot-y': '45px' }}>
+        <g transform="translate(67 45) rotate(-38)">
+          <rect x="-1" y="-28" width="2" height="48" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="0.5" />
+          <path d="M-2,-28 L2,-28 L0,-38 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.5" />
+        </g>
+      </g>
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Cavalry (heavy mounted, armored horse + rider) ─────────────────────────── */
+function CavalryV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="melee" phase={phase}>
+      <ellipse className="cq-shadow" cx="64" cy="96" rx="32" ry="7" fill="#000" opacity="0.32" />
+      {/* HORSE BODY — armored barding */}
+      <g transform="translate(62 74)">
+        <path d="M20,-4 Q30,-8 26,-18" stroke="#3a2a1a" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <ellipse cx="4" cy="0" rx="24" ry="13" fill="#4a3828" stroke={_P2.ink.line} strokeWidth="1" />
+        <ellipse cx="4" cy="-3" rx="22" ry="9" fill="#6a4838" />
+        {/* barding plates */}
+        <rect x="-6" y="-10" width="20" height="6" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.6" opacity="0.9" />
+        <g transform="translate(-12 7)"><g className="cq-leg-fl"><rect x="-3" y="0" width="6" height="15" fill="#3a2a1a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(-2 7)"><g className="cq-leg-fr"><rect x="-3" y="0" width="6" height="15" fill="#3a2a1a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(14 7)"><g className="cq-leg-bl"><rect x="-3" y="0" width="6" height="15" fill="#3a2a1a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(20 7)"><g className="cq-leg-br"><rect x="-3" y="0" width="6" height="15" fill="#3a2a1a" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <ellipse cx="-20" cy="-4" rx="12" ry="10" fill="#4a3828" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-28,-3 L-35,4 L-26,5 Z" fill="#4a3828" stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M-16,-14 L-12,-20 L-9,-12 Z" fill="#3a2a1a" stroke={_P2.ink.line} strokeWidth="0.6" />
+        <circle cx="-24" cy="-4" r="1.1" fill={_P2.ink.line} />
+        {/* chamfron (face armor) */}
+        <rect x="-35" y="-8" width="8" height="6" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.5" />
+        <rect x="-4" y="-13" width="14" height="4" rx="2" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
+      </g>
+      {/* HEAVY RIDER */}
+      <g transform="translate(58 47)">
+        <path d="M0,-22 C12,-20 14,-4 10,8 L-10,8 C-14,-4 -12,-20 0,-22 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M-8,-10 L8,-10 L9,8 L-9,8 Z" fill={f.mid} stroke={f.dark} strokeWidth="0.6" />
+        <circle cx="0" cy="-26" r="7" fill={_P2.skin.warm} stroke={_P2.ink.line} strokeWidth="0.7" />
+        <path d="M-9,-28 Q-8,-38 0,-38 Q8,-38 9,-28 L9,-24 L-9,-24 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.7" />
+        <rect x="-9" y="-25" width="18" height="3" fill={_P2.ink.line} />
+        <ellipse cx="-12" cy="-8" rx="4" ry="8" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <ellipse cx="12" cy="-8" rx="4" ry="8" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.6" />
+      </g>
+      {/* SWORD — pivot at shoulder */}
+      <g className="cq-weapon" style={{ '--pivot-x': '70px', '--pivot-y': '42px' }}>
+        <g transform="translate(70 42) rotate(25)">
+          <rect x="-1.5" y="-30" width="3" height="44" fill={_P2.metal.shine} stroke={_P2.ink.line} strokeWidth="0.6" />
+          <rect x="-6" y="10" width="12" height="2.4" fill={_P2.metal.gold} stroke={_P2.ink.line} strokeWidth="0.4" />
+          <path d="M-1.5,-30 L1.5,-30 L0,-36 Z" fill={_P2.metal.shine} />
+        </g>
+      </g>
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Knight (fully armored mounted, lance) ─────────────────────────── */
+function KnightV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="melee" phase={phase}>
+      <ellipse className="cq-shadow" cx="64" cy="96" rx="34" ry="7" fill="#000" opacity="0.35" />
+      {/* WARHORSE — fully barded */}
+      <g transform="translate(62 74)">
+        <path d="M20,-4 Q30,-6 24,-16" stroke="#2a1a0a" strokeWidth="4.5" fill="none" strokeLinecap="round" />
+        <ellipse cx="4" cy="0" rx="25" ry="14" fill="#2a2018" stroke={_P2.ink.line} strokeWidth="1.2" />
+        <ellipse cx="4" cy="-3" rx="23" ry="10" fill="#3a2a20" />
+        {/* full barding */}
+        <rect x="-8" y="-12" width="22" height="8" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M-8,-12 L14,-12 L14,-8 L-8,-8 Z" fill={_P2.metal.shine} opacity="0.35" />
+        <rect x="-8" y="-4" width="22" height="4" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <g transform="translate(-12 7)"><g className="cq-leg-fl"><rect x="-3.5" y="0" width="7" height="16" fill="#2a1a0a" stroke={_P2.ink.line} strokeWidth="0.7" /></g></g>
+        <g transform="translate(-2 7)"><g className="cq-leg-fr"><rect x="-3.5" y="0" width="7" height="16" fill="#2a1a0a" stroke={_P2.ink.line} strokeWidth="0.7" /></g></g>
+        <g transform="translate(14 7)"><g className="cq-leg-bl"><rect x="-3.5" y="0" width="7" height="16" fill="#2a1a0a" stroke={_P2.ink.line} strokeWidth="0.7" /></g></g>
+        <g transform="translate(22 7)"><g className="cq-leg-br"><rect x="-3.5" y="0" width="7" height="16" fill="#2a1a0a" stroke={_P2.ink.line} strokeWidth="0.7" /></g></g>
+        <ellipse cx="-21" cy="-4" rx="12" ry="10" fill="#2a2018" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-30,-2 L-36,5 L-26,6 Z" fill="#2a2018" stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M-16,-14 L-12,-20 L-9,-12 Z" fill="#2a1a0a" stroke={_P2.ink.line} strokeWidth="0.6" />
+        {/* full chamfron */}
+        <rect x="-38" y="-8" width="10" height="8" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <rect x="-38" y="-8" width="10" height="3" fill={_P2.metal.shine} opacity="0.35" />
+        <circle cx="-22" cy="-4" r="1.2" fill={_P2.ink.line} />
+        <rect x="-4" y="-14" width="14" height="5" rx="2" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
+      </g>
+      {/* ARMORED KNIGHT */}
+      <g transform="translate(58 46)">
+        <path d="M0,-22 C14,-20 16,-2 12,10 L-12,10 C-16,-2 -14,-20 0,-22 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.9" />
+        <path d="M0,-22 C8,-18 9,-4 7,8 L-7,8 C-9,-4 -8,-18 0,-22 Z" fill={_P2.metal.shine} opacity="0.4" />
+        <path d="M-6,-10 L6,-10 L8,10 L-8,10 Z" fill={f.mid} stroke={f.dark} strokeWidth="0.7" />
+        <circle cx="0" cy="0" r="3" fill={f.trim} />
+        <ellipse cx="-14" cy="-10" rx="5" ry="6" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.7" />
+        <ellipse cx="14" cy="-10" rx="5" ry="6" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.7" />
+        <circle cx="0" cy="-27" r="7" fill={_P2.skin.warm} stroke={_P2.ink.line} strokeWidth="0.7" />
+        {/* great helm */}
+        <path d="M-9,-28 Q-8,-40 0,-40 Q8,-40 9,-28 L9,-22 L-9,-22 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <rect x="-9" y="-26" width="18" height="3" fill={_P2.ink.line} />
+        <rect x="-2" y="-26" width="4" height="3" fill={_P2.metal.shine} opacity="0.4" />
+        <g className="cq-plume">
+          <path d="M0,-40 Q-5,-50 0,-56 Q5,-50 0,-40 Z" fill={f.bright} stroke={f.dark} strokeWidth="0.6" />
+        </g>
+      </g>
+      {/* LANCE — long weapon, pivot at right shoulder */}
+      <g className="cq-weapon" style={{ '--pivot-x': '72px', '--pivot-y': '42px' }}>
+        <g transform="translate(72 42) rotate(-20)">
+          <rect x="-1.5" y="-48" width="3" height="80" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
+          <path d="M-2.5,-48 L2.5,-48 L1,-58 L0,-62 L-1,-58 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.7" />
+          <rect x="-4" y="12" width="8" height="3" fill={f.mid} />
+          <g transform="translate(0 -62)">
+            <g className="cq-hit-spark">
+              <path d="M0,-10 L3,-3 L10,0 L3,3 L0,10 L-3,3 L-10,0 L-3,-3 Z" fill="#fff5cc" />
+              <circle r="2" fill="#ffffff" />
+            </g>
+          </g>
+        </g>
+      </g>
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Crossbowman (ranged, crossbow) ─────────────────────────── */
+function CrossbowmanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="ranged" phase={phase}>
+      <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
+      <HumanoidV2
+        cx={64} cy={70}
+        cloth={f.dark} pants={_P2.cloth.wool}
+        accent={f.mid} hair="#3a2a1a"
+        arms="locked"
+        hat={<path d="M-10,-36 Q0,-46 10,-36 L8,-30 L-8,-30 Z" fill="#2a3a18" stroke={_P2.ink.line} strokeWidth="0.7" />}
+      />
+      {/* BOLT CASE on back */}
+      <g transform="translate(48 60)">
+        <rect x="-3" y="-12" width="6" height="20" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="0.5" />
+        <line x1="-2" y1="-14" x2="-2" y2="-8" stroke={_P2.metal.steel} strokeWidth="1.2" />
+        <line x1="0" y1="-14" x2="0" y2="-8" stroke={_P2.metal.steel} strokeWidth="1.2" />
+        <line x1="2" y1="-14" x2="2" y2="-8" stroke={_P2.metal.steel} strokeWidth="1.2" />
+      </g>
+      {/* CROSSBOW — T-shaped, pivot at grip (78, 58) */}
+      <g className="cq-weapon" style={{ '--pivot-x': '78px', '--pivot-y': '58px' }}>
+        {/* stock */}
+        <g transform="translate(78 58) rotate(10)">
+          <rect x="-1" y="-8" width="2" height="40" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="0.5" />
+          <rect x="-1" y="-8" width="2" height="8" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.4" />
+          {/* horizontal bow limbs (crossbow arms) */}
+          <path d="M0,-6 Q-22,-2 -24,6" fill="none" stroke={_P2.wood.dark} strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M0,-6 Q22,-2 24,6" fill="none" stroke={_P2.wood.dark} strokeWidth="2.2" strokeLinecap="round" />
+          {/* string */}
+          <line x1="-24" y1="6" x2="0" y2="-4" stroke={_P2.cloth.linen} strokeWidth="0.7" />
+          <line x1="24" y1="6" x2="0" y2="-4" stroke={_P2.cloth.linen} strokeWidth="0.7" />
+          {/* bolt loaded */}
+          <line x1="-1" y1="-4" x2="-1" y2="-20" stroke={_P2.metal.steel} strokeWidth="1.4" />
+          <path d="M-2,-20 L0,-20 L-1,-26 Z" fill={_P2.metal.iron} />
+        </g>
+        {/* muzzle flash on bolt tip */}
+        <g transform="translate(75 30)">
+          <g className="cq-muzzle-flash">
+            <circle r="5" fill="#ffd966" /><circle r="2.5" fill="#fff" />
+          </g>
+        </g>
+      </g>
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Catapult (siege machine, melee bombardment) ─────────────────────────── */
+function CatapultV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="melee" phase={phase}>
+      <ellipse className="cq-shadow" cx="64" cy="97" rx="44" ry="6" fill="#000" opacity="0.30" />
+      {/* WHEELS */}
+      <circle cx="34" cy="86" r="16" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1.2" />
+      <line x1="34" y1="70" x2="34" y2="102" stroke={_P2.wood.dark} strokeWidth="1.2" />
+      <line x1="18" y1="86" x2="50" y2="86" stroke={_P2.wood.dark} strokeWidth="1.2" />
+      <circle cx="34" cy="86" r="3.5" fill={_P2.metal.iron} />
+      <circle cx="94" cy="86" r="16" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1.2" />
+      <line x1="94" y1="70" x2="94" y2="102" stroke={_P2.wood.dark} strokeWidth="1.2" />
+      <line x1="78" y1="86" x2="110" y2="86" stroke={_P2.wood.dark} strokeWidth="1.2" />
+      <circle cx="94" cy="86" r="3.5" fill={_P2.metal.iron} />
+      {/* AXLE + FRAME */}
+      <rect x="34" y="82" width="60" height="8" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="1" />
+      <rect x="52" y="62" width="24" height="22" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1" />
+      <line x1="52" y1="62" x2="76" y2="84" stroke={_P2.wood.dark} strokeWidth="0.8" />
+      <line x1="76" y1="62" x2="52" y2="84" stroke={_P2.wood.dark} strokeWidth="0.8" />
+      {/* faction mark */}
+      <circle cx="64" cy="72" r="3" fill={f.trim} stroke={f.dark} strokeWidth="0.5" />
+      {/* THROWING ARM — cq-weapon pivots it */}
+      <g className="cq-weapon" style={{ '--pivot-x': '64px', '--pivot-y': '74px' }}>
+        <g transform="translate(64 74) rotate(-48)">
+          <rect x="-2" y="-32" width="4" height="52" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="0.8" />
+          {/* counterweight at bottom */}
+          <rect x="-7" y="16" width="14" height="12" fill={_P2.stone.mid} stroke={_P2.ink.line} strokeWidth="0.8" />
+          {/* sling at top */}
+          <line x1="0" y1="-32" x2="-4" y2="-42" stroke={_P2.cloth.wool} strokeWidth="1" />
+          <line x1="0" y1="-32" x2="4" y2="-42" stroke={_P2.cloth.wool} strokeWidth="1" />
+          <circle cx="0" cy="-46" r="5" fill={_P2.stone.light} stroke={_P2.ink.line} strokeWidth="0.7" />
+          {/* hit spark at boulder */}
+          <g transform="translate(0 -46)">
+            <g className="cq-hit-spark">
+              <path d="M0,-10 L3,-3 L10,0 L3,3 L0,10 L-3,3 L-10,0 L-3,-3 Z" fill="#fff5cc" />
+              <circle r="2" fill="#ffffff" />
+            </g>
+          </g>
+        </g>
+      </g>
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Ballista (ranged siege, bolt-thrower) ─────────────────────────── */
+function BallistaV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="ranged" phase={phase}>
+      <ellipse className="cq-shadow" cx="64" cy="97" rx="40" ry="6" fill="#000" opacity="0.30" />
+      {/* WHEELS */}
+      <circle cx="36" cy="88" r="14" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1.2" />
+      <line x1="36" y1="74" x2="36" y2="102" stroke={_P2.wood.dark} strokeWidth="1.2" />
+      <line x1="22" y1="88" x2="50" y2="88" stroke={_P2.wood.dark} strokeWidth="1.2" />
+      <circle cx="36" cy="88" r="3" fill={_P2.metal.iron} />
+      <circle cx="92" cy="88" r="14" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1.2" />
+      <line x1="92" y1="74" x2="92" y2="102" stroke={_P2.wood.dark} strokeWidth="1.2" />
+      <line x1="78" y1="88" x2="106" y2="88" stroke={_P2.wood.dark} strokeWidth="1.2" />
+      <circle cx="92" cy="88" r="3" fill={_P2.metal.iron} />
+      {/* AXLE */}
+      <rect x="36" y="84" width="56" height="8" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="1" />
+      {/* TRESTLE FRAME */}
+      <rect x="48" y="64" width="28" height="22" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1" />
+      <line x1="48" y1="64" x2="76" y2="86" stroke={_P2.wood.dark} strokeWidth="0.8" />
+      <line x1="76" y1="64" x2="48" y2="86" stroke={_P2.wood.dark} strokeWidth="0.8" />
+      {/* BOW ARMS — torsion horizontal bow */}
+      <g className="cq-weapon" style={{ '--pivot-x': '62px', '--pivot-y': '68px' }}>
+        <path d="M62,52 Q38,56 36,72" fill="none" stroke={_P2.wood.dark} strokeWidth="3" strokeLinecap="round" />
+        <path d="M62,52 Q86,56 88,72" fill="none" stroke={_P2.wood.dark} strokeWidth="3" strokeLinecap="round" />
+        {/* bowstring */}
+        <line x1="36" y1="72" x2="60" y2="62" stroke={_P2.cloth.linen} strokeWidth="1" />
+        <line x1="88" y1="72" x2="64" y2="62" stroke={_P2.cloth.linen} strokeWidth="1" />
+        {/* BOLT in channel */}
+        <rect x="30" y="66" width="40" height="3" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.5" />
+        <path d="M30,66 L30,69 L22,67.5 Z" fill={_P2.metal.iron} />
+        {/* muzzle flash at bolt tip */}
+        <g transform="translate(22 67)">
+          <g className="cq-muzzle-flash">
+            <circle r="6" fill="#ffd966" /><circle r="3" fill="#fff" />
+          </g>
+        </g>
+      </g>
+      {/* faction accent on frame */}
+      <circle cx="62" cy="73" r="2.5" fill={f.trim} stroke={f.dark} strokeWidth="0.4" />
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Caravan (civilian trade, merchant with pack) ─────────────────────────── */
+function CaravanV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="civilian" phase={phase}>
+      <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <ellipse className="cq-shadow" cx="64" cy="92" rx="22" ry="5" fill="#000" opacity="0.35" />
+      {/* CART / WAGON behind figure */}
+      <g transform="translate(40 78)">
+        <rect x="-14" y="-14" width="28" height="16" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <rect x="-12" y="-12" width="24" height="12" fill={f.mid} opacity="0.5" />
+        <circle cx="-10" cy="2" r="6" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <line x1="-10" y1="-4" x2="-10" y2="8" stroke={_P2.wood.light} strokeWidth="1" />
+        <line x1="-16" y1="2" x2="-4" y2="2" stroke={_P2.wood.light} strokeWidth="1" />
+        <circle cx="10" cy="2" r="6" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <line x1="10" y1="-4" x2="10" y2="8" stroke={_P2.wood.light} strokeWidth="1" />
+        <line x1="4" y1="2" x2="16" y2="2" stroke={_P2.wood.light} strokeWidth="1" />
+      </g>
+      <HumanoidV2
+        cx={70} cy={70}
+        cloth={_P2.cloth.tunic} pants={_P2.cloth.wool}
+        accent={f.mid} hair="#5a4030"
+        arms="free"
+        hat={<ellipse cx="0" cy="-40" rx="14" ry="3.5" fill={_P2.thatch.straw} stroke={_P2.ink.line} strokeWidth="0.6" />}
+        armRContent={(
+          <g transform="translate(0 6)">
+            {/* coin purse */}
+            <ellipse cx="0" cy="0" rx="5" ry="6" fill={_P2.metal.gold} stroke={_P2.ink.line} strokeWidth="0.6" />
+            <line x1="-3" y1="-4" x2="3" y2="-4" stroke={_P2.ink.line} strokeWidth="0.5" />
+          </g>
+        )}
+      />
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Expedition (civilian explorer, backpack + rope) ─────────────────────────── */
+function ExpeditionV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="civilian" phase={phase}>
+      <g transform="translate(58 91)"><ellipse className="cq-step-dust" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <g transform="translate(70 91)"><ellipse className="cq-step-dust cq-step-dust--b" rx="3" ry="1.3" fill={_P2.stone.light} /></g>
+      <ellipse className="cq-shadow" cx="64" cy="92" rx="18" ry="5" fill="#000" opacity="0.35" />
+      {/* BACKPACK — behind figure, body-anchored */}
+      <g transform="translate(72 52)">
+        <rect x="-10" y="-12" width="20" height="22" rx="3" fill="#6a4a2a" stroke={_P2.ink.line} strokeWidth="0.8" />
+        <rect x="-8" y="-10" width="16" height="18" fill="#8a6a3a" opacity="0.6" />
+        {/* loops */}
+        <rect x="-10" y="-10" width="4" height="16" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="0.4" />
+        <rect x="6" y="-10" width="4" height="16" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="0.4" />
+        {/* coiled rope on top */}
+        <ellipse cx="0" cy="-16" rx="8" ry="5" fill="none" stroke={_P2.cloth.linen} strokeWidth="2" />
+        <ellipse cx="0" cy="-16" rx="5" ry="3" fill="none" stroke={_P2.cloth.wool} strokeWidth="1.4" />
+      </g>
+      <HumanoidV2
+        cx={64} cy={70}
+        cloth="#5a6e4a" pants="#4a3a2a"
+        accent={f.mid} hair="#3a2a1a"
+        arms="free"
+        hat={<path d="M-10,-36 Q0,-44 10,-36 L8,-30 L-8,-30 Z" fill="#4a3a18" stroke={_P2.ink.line} strokeWidth="0.7" />}
+        armRContent={(
+          <g transform="translate(0 8) rotate(-20)">
+            {/* walking staff / ice axe */}
+            <line x1="0" y1="-28" x2="0" y2="14" stroke={_P2.wood.mid} strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M-4,-26 L4,-26 L2,-30 L-2,-30 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.5" />
+          </g>
+        )}
+      />
+    </SpriteFrameV2>
+  );
+}
+
+/* ─────────────────────────── Transport (naval, cargo ship) ─────────────────────────── */
+function TransportV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="naval" hexTint={_P2.ground.water} phase={phase}>
+      <ellipse className="cq-shadow" cx="64" cy="98" rx="50" ry="7" fill="#000" opacity="0.25" />
+      {/* WIDE FLAT HULL */}
+      <path d="M8,88 Q64,78 120,88 Q112,104 64,106 Q16,104 8,88 Z" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1.2" />
+      <path d="M14,82 Q64,72 114,82 Q106,92 64,94 Q22,92 14,82 Z" fill={_P2.wood.light} />
+      {/* cargo boxes on deck */}
+      <rect x="30" y="78" width="20" height="10" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="0.6" />
+      <rect x="38" y="76" width="12" height="4" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="0.4" />
+      <rect x="76" y="78" width="20" height="10" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
+      <line x1="30" y1="83" x2="50" y2="83" stroke={_P2.ink.soft} strokeWidth="0.5" />
+      <line x1="76" y1="83" x2="96" y2="83" stroke={_P2.ink.soft} strokeWidth="0.5" />
+      {/* MAST */}
+      <line x1="64" y1="78" x2="64" y2="24" stroke={_P2.wood.dark} strokeWidth="2.2" />
+      {/* SAIL */}
+      <g className="cq-sail">
+        <path d="M64,28 L92,42 L92,68 L64,74 Z" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M64,28 L44,42 L44,68 L64,74 Z" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <rect x="64" y="38" width="28" height="8" fill={f.mid} opacity="0.75" />
+        <rect x="44" y="38" width="20" height="8" fill={f.mid} opacity="0.75" />
+      </g>
+      {/* stern oar */}
+      <line x1="8" y1="88" x2="-4" y2="96" stroke={_P2.wood.dark} strokeWidth="2" />
+    </SpriteFrameV2>
+  );
+}
+
 Object.assign(window, {
   SpriteFrameV2, HumanoidV2,
   SwordsmanV2Sprite, WorkerV2Sprite, ArcherV2Sprite, SpyOperativeV2Sprite,
@@ -933,4 +1396,9 @@ Object.assign(window, {
   SpyScoutV2Sprite, SpyInformantV2Sprite, SpyAgentV2Sprite, SpyHackerV2Sprite, ShadowWardenV2Sprite,
   ScoutHoundV2Sprite, WarHoundV2Sprite,
   GalleyV2Sprite, TriremeV2Sprite,
+  AxemanV2Sprite, SpearmanV2Sprite,
+  HorsemanV2Sprite, CavalryV2Sprite, KnightV2Sprite,
+  CrossbowmanV2Sprite,
+  CatapultV2Sprite, BallistaV2Sprite,
+  CaravanV2Sprite, ExpeditionV2Sprite, TransportV2Sprite,
 });
