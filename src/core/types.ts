@@ -465,7 +465,9 @@ export interface Tech {
   track: TechTrack;
   cost: number;
   prerequisites: string[];   // tech IDs
-  unlocks: string[];         // what this tech enables (descriptions)
+  unlocks: string[];         // effect text only — no unit or building names
+  unlocksUnits?: UnitType[];      // trainable unit types gated by this tech
+  unlocksBuildings?: string[];    // building IDs (keys of BUILDINGS) gated by this tech
   era: number;               // 1-3 for milestone 1
   countsForEraAdvancement?: boolean;
   countsForCityMaturity?: boolean;
