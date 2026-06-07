@@ -1,4 +1,5 @@
 import type { GameState, Tech, TechTrack } from '@/core/types';
+import { BUILDINGS } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import {
@@ -8,6 +9,24 @@ import {
   type TechTreeZoom,
 } from '@/systems/tech-progression';
 import { TECH_TREE } from '@/systems/tech-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+
+function getUnlockLines(tech: Tech): string[] {
+  const lines = [...tech.unlocks];
+  for (const unitType of tech.unlocksUnits ?? []) {
+    const def = UNIT_DEFINITIONS[unitType];
+    if (def) lines.push(def.name);
+  }
+  for (const buildingId of tech.unlocksBuildings ?? []) {
+    const building = BUILDINGS[buildingId];
+    if (building) lines.push(building.name);
+  }
+  return lines;
+}
+
+function getFirstUnlockHint(tech: Tech): string {
+  return getUnlockLines(tech)[0] ?? 'New options for your empire';
+}
 
 export interface TechPanelCallbacks {
   onQueueResearch: (techId: string) => void;
@@ -84,13 +103,13 @@ function buildCurrentResearchSummary(currentTech: Tech | undefined, progress: nu
 
   const summary = document.createElement('div');
   summary.textContent = turnsRemaining === null
-    ? `${titleCase(currentTech.track)} · ${currentTech.unlocks[0] ?? 'New options for your empire'}`
+    ? `${titleCase(currentTech.track)} · ${getFirstUnlockHint(currentTech)}`
     : `${titleCase(currentTech.track)} · Turns remaining: ${turnsRemaining}`;
   summary.style.cssText = 'font-size:12px;opacity:0.7;';
   wrapper.appendChild(summary);
 
   const why = document.createElement('div');
-  why.textContent = `Why next: ${currentTech.unlocks[0] ?? 'Keeps your current plan moving.'}`;
+  why.textContent = `Why next: ${getFirstUnlockHint(currentTech)}`;
   why.style.cssText = 'font-size:11px;opacity:0.8;margin-top:6px;';
   wrapper.appendChild(why);
 
@@ -210,7 +229,7 @@ function createTechNode(
   detail.style.cssText = 'font-size:11px;opacity:0.72;line-height:1.3;margin-top:5px;';
   const etaText = formatTechNodeEta(node);
   const etaSegment = etaText ? ` · ${etaText}` : '';
-  detail.textContent = `${node.tech.unlocks[0] ?? 'New options'}${etaSegment} · Cost: ${node.tech.cost}`;
+  detail.textContent = `${getFirstUnlockHint(node.tech)}${etaSegment} · Cost: ${node.tech.cost}`;
   item.appendChild(detail);
 
   item.addEventListener('click', () => {
@@ -255,7 +274,7 @@ function renderInspector(
   inspector.appendChild(meta);
 
   const unlocks = document.createElement('div');
-  unlocks.textContent = selectedNode.tech.unlocks.join(', ') || 'New options for your empire';
+  unlocks.textContent = getUnlockLines(selectedNode.tech).join(', ') || 'New options for your empire';
   unlocks.style.cssText = 'font-size:12px;line-height:1.35;margin-bottom:10px;';
   inspector.appendChild(unlocks);
 
