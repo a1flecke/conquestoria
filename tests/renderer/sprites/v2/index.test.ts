@@ -70,6 +70,7 @@ describe('full unit coverage — every type returns a cq-sprite-wrap for imperia
     const r = getUnitSpriteV2(type, 'imperials');
     expect(r).not.toBeNull();
     expect(r!).toContain('cq-sprite-wrap');
+    expect(r!).toContain('cq-v2');
   });
 });
 
@@ -78,5 +79,6 @@ describe('full building coverage — every type returns a cq-sprite-wrap for imp
     const r = getBuildingSpriteV2(type, 'imperials');
     expect(r).not.toBeNull();
     expect(r!).toContain('cq-sprite-wrap');
+    expect(r!).toContain('cq-v2');
   });
 });
