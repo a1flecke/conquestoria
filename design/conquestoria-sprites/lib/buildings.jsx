@@ -1037,7 +1037,7 @@ function SiegeWorkshopSprite({ faction = 'imperials', state = 'idle' }) {
       <line x1="110" y1="114" x2="110" y2="134" stroke={P.wood.dark} strokeWidth="1" />
       <line x1="100" y1="124" x2="120" y2="124" stroke={P.wood.dark} strokeWidth="1" />
       {/* rope spool on wall */}
-      <circle cx="38" cy="100" rx="10" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />
+      <circle cx="38" cy="100" r="10" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />
       <circle cx="38" cy="100" r="4" fill={P.wood.dark} />
       {/* lumber stack */}
       {[0,1,2].map(i => (
@@ -1065,8 +1065,8 @@ function CaravanseraiSprite({ faction = 'imperials', state = 'idle' }) {
       <rect x="28" y="56" width="24" height="30" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.7" />
       <rect x="140" y="56" width="24" height="30" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.7" />
       {/* crenellations on towers */}
-      {[0,1].map(i => <rect key={i} x={32 + i*10} y="48" width="8" height="10" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.5" />)}
-      {[0,1].map(i => <rect key={i} x={144 + i*10} y="48" width="8" height="10" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.5" />)}
+      {[0,1].map(i => <rect key={`left-${i}`} x={32 + i*10} y="48" width="8" height="10" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.5" />)}
+      {[0,1].map(i => <rect key={`right-${i}`} x={144 + i*10} y="48" width="8" height="10" fill="#d4b080" stroke={P.ink.line} strokeWidth="0.5" />)}
       {/* well in courtyard */}
       <circle cx="96" cy="100" r="8" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.7" />
       <circle cx="96" cy="100" r="5" fill={P.ground.water} />
@@ -1105,9 +1105,10 @@ function BankSprite({ faction = 'imperials', state = 'idle' }) {
       {/* gold coins on steps */}
       <ellipse cx="60" cy="142" rx="7" ry="3" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
       <ellipse cx="132" cy="142" rx="7" ry="3" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
-      {/* gold emblem in pediment */}
+      {/* gold emblem in pediment — two horizontal bars suggest a currency symbol */}
       <circle cx="96" cy="50" r="8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.6" />
-      <text x="96" y="54" textAnchor="middle" fontSize="10" fill={P.ink.line} fontWeight="bold">$</text>
+      <line x1="92" y1="48" x2="100" y2="48" stroke={P.ink.line} strokeWidth="1.5" />
+      <line x1="92" y1="52" x2="100" y2="52" stroke={P.ink.line} strokeWidth="1.5" />
     </BuildingFrame>
   );
 }
@@ -1128,12 +1129,12 @@ function StockExchangeSprite({ faction = 'imperials', state = 'idle' }) {
         <rect key={x} x={x - 4} y="62" width="8" height="78" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.4" />
       ))}
       {/* trading floor window grid */}
-      {[0,1,2].map(c => [0,1].map(r => (
+      {[0,1,2].flatMap(c => [0,1].map(r => (
         <rect key={`${c}${r}`} x={50 + c*22} y={82 + r*20} width="16" height="14" fill={P.ink.line} opacity="0.35" stroke={P.stone.mid} strokeWidth="0.4" />
       )))}
-      {/* ticker board on facade */}
+      {/* ticker board on facade — rising trend line instead of text */}
       <rect x="60" y="108" width="72" height="18" fill="#1a2a1a" stroke={P.metal.gold} strokeWidth="0.8" />
-      <text x="96" y="121" textAnchor="middle" fontSize="8" fill="#5aff5a">↑ 12.4%</text>
+      <path d="M66,120 L78,115 L90,117 L102,110 L116,105 L126,108" stroke="#5aff5a" strokeWidth="1.5" fill="none" />
       {/* entrance */}
       <path d="M80,140 L80,116 Q96,104 112,116 L112,140 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
       {/* faction banner */}
