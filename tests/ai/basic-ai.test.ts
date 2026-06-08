@@ -1707,6 +1707,127 @@ describe('Expedition AI parity', () => {
   });
 });
 
+describe('AI transport load/unload', () => {
+  const baseDiplomacy = (atWarWith: string[] = []) => ({
+    relationships: {} as Record<string, number>,
+    treaties: [] as any[],
+    events: [] as any[],
+    atWarWith,
+    treacheryScore: 0,
+    vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 1 },
+  });
+
+  function makeTransportLoadState(): GameState {
+    const transport = createUnit('transport', 'ai-1', { q: 1, r: 0 }, mkC());
+    transport.id = 'transport-1';
+    transport.cargoUnitIds = [];
+
+    const warrior = createUnit('warrior', 'ai-1', { q: 0, r: 0 }, mkC());
+    warrior.id = 'warrior-1';
+
+    return {
+      turn: 1, era: 1, currentPlayer: 'ai-1', gameOver: false, winner: null,
+      map: {
+        width: 6, height: 6, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '1,0': { coord: { q: 1, r: 0 }, terrain: 'coast', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: { [transport.id]: transport, [warrior.id]: warrior },
+      cities: {},
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1', name: 'AI', color: '#d94a4a', isHuman: false, civType: 'generic',
+          cities: [], units: [transport.id, warrior.id],
+          techState: { completed: ['galleys'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0, visibility: { tiles: { '0,0': 'visible', '1,0': 'visible' } },
+          score: 0, knownCivilizations: [],
+          diplomacy: baseDiplomacy(),
+        },
+      },
+      barbarianCamps: {}, minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
+      embargoes: [], defensiveLeagues: [],
+      idCounters: { nextUnitId: 3, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+      pendingDiplomacyRequests: [], legendaryWonderIntel: {},
+      legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+    } as GameState;
+  }
+
+  function makeTransportUnloadState(): GameState {
+    const warrior = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC());
+    warrior.id = 'warrior-1';
+    warrior.transportId = 'transport-1';
+    warrior.hasMoved = false;
+    warrior.hasActed = false;
+    warrior.movementPointsLeft = 2;
+
+    const transport = createUnit('transport', 'ai-1', { q: 1, r: 0 }, mkC());
+    transport.id = 'transport-1';
+    transport.cargoUnitIds = ['warrior-1'];
+
+    return {
+      turn: 1, era: 1, currentPlayer: 'ai-1', gameOver: false, winner: null,
+      map: {
+        width: 6, height: 6, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '1,0': { coord: { q: 1, r: 0 }, terrain: 'coast', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: { [transport.id]: transport, [warrior.id]: warrior },
+      cities: {},
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1', name: 'AI', color: '#d94a4a', isHuman: false, civType: 'generic',
+          cities: [], units: [transport.id, warrior.id],
+          techState: { completed: ['galleys'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0, visibility: { tiles: { '0,0': 'visible', '1,0': 'visible' } },
+          score: 0, knownCivilizations: ['player'],
+          diplomacy: baseDiplomacy(['player']),
+        },
+        player: {
+          id: 'player', name: 'Player', color: '#4a90d9', isHuman: true, civType: 'generic',
+          cities: [], units: [],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0, visibility: { tiles: {} }, score: 0, knownCivilizations: ['ai-1'],
+          diplomacy: baseDiplomacy(['ai-1']),
+        },
+      },
+      barbarianCamps: {}, minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
+      embargoes: [], defensiveLeagues: [],
+      idCounters: { nextUnitId: 3, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+      pendingDiplomacyRequests: [], legendaryWonderIntel: {},
+      legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+    } as GameState;
+  }
+
+  it('transport loads an adjacent idle land unit', () => {
+    const state = makeTransportLoadState();
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.units['warrior-1']?.transportId).toBe('transport-1');
+  });
+
+  it('transport unloads cargo onto an adjacent enemy-owned tile', () => {
+    const state = makeTransportUnloadState();
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    expect(result.units['warrior-1']?.transportId).toBeUndefined();
+    expect(result.units['warrior-1']?.position).toEqual({ q: 0, r: 0 });
+  });
+});
+
 describe('AI naval warship movement', () => {
   function makeNavalWarshipState(): GameState {
     function coastTile(q: number, r: number) {
