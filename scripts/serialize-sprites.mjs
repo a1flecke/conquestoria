@@ -112,6 +112,11 @@ const UNIT_SPRITES = [
   ['caravan',       'CaravanV2Sprite'],
   ['expedition',    'ExpeditionV2Sprite'],
   ['transport',     'TransportV2Sprite'],
+  // MR 4 — late-era naval
+  ['carrack',       'CarrackV2Sprite'],
+  ['galleon',       'GalleonV2Sprite'],
+  ['steamship',     'SteamshipV2Sprite'],
+  ['troop_transport', 'TroopTransportV2Sprite'],
 ];
 
 const BUILDING_SPRITES = [

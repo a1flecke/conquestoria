@@ -5,7 +5,7 @@ import {
   getImprovementSpriteV2,
 } from '@/renderer/sprites/v2/index';
 
-// All unit types that must have a v2 serialization (MR 1 + MR 2).
+// All unit types that must have a v2 serialization (MR 1 + MR 2 + MR 4).
 const ALL_SPRITE_UNIT_TYPES = [
   // MR 1 — already serialized
   'archer', 'galley', 'musketeer', 'pikeman', 'scout', 'scout_hound', 'settler',
@@ -15,6 +15,8 @@ const ALL_SPRITE_UNIT_TYPES = [
   'axeman', 'spearman', 'horseman', 'cavalry', 'knight',
   'crossbowman', 'catapult', 'ballista',
   'caravan', 'expedition', 'transport',
+  // MR 4 — late-era naval
+  'carrack', 'galleon', 'steamship', 'troop_transport',
 ];
 
 // All building types that must have a v2 serialization (MR 1 + MR 3).
