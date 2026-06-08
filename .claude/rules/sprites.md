@@ -65,6 +65,16 @@ See `docs/sprite-design-system.md` for the full asset inventory, placeholder lis
 - **No animation** — improvement markers are drawn on Canvas 2D directly.
 - **Use the game's earthy palette** (`#5e3f24`, `#8a6a3a`, `#d4a13c`, etc.) — not arbitrary colors.
 
+**Sprite overlay sizing:**
+- **NEVER hardcode a pixel size** for the DOM sprite wrapper in `sprite-overlay.ts`. Wrapper size MUST be derived from `camera.hexSize × SPRITE_OVERLAY_WORLD_SIZE_FACTOR`.
+- The container applies `scale(camera.zoom)`, so children are in world-space units. At `zoom = 2`, unit sprites (128px native) render at their design size; at `zoom = 3`, building sprites (192px native) render at their design size.
+- The `check-src-edit` hook blocks any literal `width:NNNpx` or `height:NNNpx` in `sprite-overlay.ts`.
+
+**Faction ↔ civType contract:**
+- `CIVTYPE_TO_FACTION` in `render-loop.ts` MUST use real `CivDefinition.id` values as keys (`rome`, `egypt`, `england`, etc.) — never internal sprite palette names (`imperials`, `vikings`, etc.) as keys.
+- When adding a new `CivDefinition` to `civ-definitions.ts`, also add a corresponding entry to `CIVTYPE_TO_FACTION` in `render-loop.ts`.
+- Tests that exercise faction resolution MUST use real civType IDs, not internal palette names. The test `every CivDefinition.id has an explicit entry in CIVTYPE_TO_FACTION` must stay passing — never weaken it.
+
 ---
 
 ## Catalog Test Contract
