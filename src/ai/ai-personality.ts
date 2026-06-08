@@ -21,6 +21,8 @@ export function weightTechChoice(personality: PersonalityTraits, tech: Tech): nu
 const MILITARY_ITEMS = ['warrior', 'scout', 'barracks', 'walls', 'stable', 'forge'];
 const ECONOMY_ITEMS = ['marketplace', 'harbor', 'lumbermill', 'quarry-building'];
 const SETTLER_ITEMS = ['settler'];
+const NAVAL_WARSHIP_ITEMS = ['galley', 'trireme'];
+const NAVAL_TRANSPORT_ITEMS = ['transport', 'carrack', 'galleon', 'steamship', 'troop_transport'];
 
 export function weightProductionChoice(
   personality: PersonalityTraits,
@@ -36,6 +38,10 @@ export function weightProductionChoice(
     weight *= 1 + (1 - personality.warLikelihood);
   } else if (SETTLER_ITEMS.includes(itemId)) {
     weight *= 1 + personality.expansionDrive;
+  } else if (NAVAL_WARSHIP_ITEMS.includes(itemId)) {
+    weight *= 1 + personality.warLikelihood * 0.5;
+  } else if (NAVAL_TRANSPORT_ITEMS.includes(itemId)) {
+    weight *= 1 + personality.expansionDrive * 0.4;
   }
 
   return weight;
