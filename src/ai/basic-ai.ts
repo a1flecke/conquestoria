@@ -5,6 +5,15 @@ import { foundCity, getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import {
+  canLoadUnitOntoTransport,
+  loadUnitOntoTransport,
+  getTransportCargo,
+  getTransportCargoUsed,
+  getTransportCapacity,
+  getUnloadDestinations,
+  unloadUnitFromTransport,
+} from '@/systems/transport-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { getAttackTargets } from '@/systems/attack-targeting';
@@ -342,6 +351,63 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       civ.units = civ.units.filter(id => id !== settler.id);
       bus.emit('city:founded', { city, founderId: civId });
       city.productionQueue = ['warrior'];
+    }
+  }
+
+  // --- Handle transports: unload onto enemy coast, then load idle land units ---
+  const transportHostileOwners = new Set<string>(['barbarian', ...(civ.diplomacy?.atWarWith ?? [])]);
+  for (const [mcId, mc] of Object.entries(newState.minorCivs)) {
+    if (mc.diplomacy?.atWarWith?.includes(civId)) transportHostileOwners.add(mcId);
+  }
+
+  const idleTransports = civ.units
+    .map(id => newState.units[id])
+    .filter((u): u is Unit => !!u && (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'naval' && UNIT_DEFINITIONS[u.type]?.cargoCapacity !== undefined);
+
+  for (const transport of idleTransports) {
+    // 1. Unload cargo adjacent to enemy-owned tiles first
+    const cargo = getTransportCargo(newState, transport.id);
+    let didUnload = false;
+    for (const cargoUnit of cargo) {
+      if (cargoUnit.hasActed || cargoUnit.movementPointsLeft <= 0) continue;
+      const destinations = getUnloadDestinations(newState, transport.id, cargoUnit.id);
+      const enemyDest = destinations.find(dest => {
+        const tile = newState.map.tiles[hexKey(dest)];
+        return tile && tile.owner && transportHostileOwners.has(tile.owner);
+      });
+      if (enemyDest) {
+        const result = unloadUnitFromTransport(newState, transport.id, cargoUnit.id, enemyDest);
+        if (result.ok) {
+          newState = result.state;
+          civ = newState.civilizations[civId];
+          didUnload = true;
+          break;
+        }
+      }
+    }
+    if (didUnload) continue;
+
+    // 2. Load an adjacent idle land unit if hold has space
+    const used = getTransportCargoUsed(newState, transport.id);
+    const cap = getTransportCapacity(newState.units[transport.id]!);
+    if (used < cap) {
+      const loadCandidates = civ.units
+        .map(id => newState.units[id])
+        .filter((u): u is Unit =>
+          !!u && !u.transportId && !u.hasActed && u.movementPointsLeft > 0
+          && (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'land',
+        );
+      for (const candidate of loadCandidates) {
+        const check = canLoadUnitOntoTransport(newState, candidate.id, transport.id);
+        if (check.ok) {
+          const result = loadUnitOntoTransport(newState, candidate.id, transport.id);
+          if (result.ok) {
+            newState = result.state;
+            civ = newState.civilizations[civId];
+            break;
+          }
+        }
+      }
     }
   }
 
