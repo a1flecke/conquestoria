@@ -45,6 +45,12 @@ paths:
 - If the unit is terrain- or city-location-gated (for example a naval unit requiring a coastal city), both the production chooser and city processing/dequeue path must consult the same city-aware eligibility helper.
 - Adding a `UnitType` to `TRAINABLE_UNITS` without all six wirings is "dead computed data" and is a bug.
 
+## Tech unlock arrays must be wired end-to-end
+- When you add a `TRAINABLE_UNIT` with `techRequired`, add its `type` to that tech's `unlocksUnits` array in `src/systems/tech-definitions.ts`.
+- When you add a `BUILDING` with `techRequired`, add its `id` to that tech's `unlocksBuildings` array in `src/systems/tech-definitions.ts`.
+- The completeness tests in `tests/systems/tech-unlocks-consistency.test.ts` will fail if either is omitted — treat a failing completeness test as a required fix, not a warning.
+- Civ-specific unit replacements (`civTypeRequired` set) are excluded from `unlocksUnits` and from the completeness test.
+
 ## Production icons must be wired end-to-end
 - When you add an entry to `BUILDINGS` or `TRAINABLE_UNITS` in `src/systems/city-system.ts`, you MUST also add a matching entry to `PRODUCTION_ICONS` in the same file.
 - The icon-coverage regression tests in `tests/systems/city-system.test.ts` will fail if a building or unit lacks an icon, but the rule catches it before the failed test cycle.
