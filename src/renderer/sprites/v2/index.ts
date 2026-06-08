@@ -36,6 +36,11 @@ import { svg as ballistaSvg }      from './ballista.svg';
 import { svg as caravanSvg }       from './caravan.svg';
 import { svg as expeditionSvg }    from './expedition.svg';
 import { svg as transportSvg }     from './transport.svg';
+// MR 4 — late-era naval
+import { svg as carrackSvg }       from './carrack.svg';
+import { svg as galleonSvg }       from './galleon.svg';
+import { svg as steamshipSvg }     from './steamship.svg';
+import { svg as troopTransportSvg } from './troop_transport.svg';
 
 import { svg as amphitheaterSvg }      from './amphitheater.svg';
 import { svg as aqueductSvg }          from './aqueduct.svg';
@@ -107,6 +112,11 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   caravan:       caravanSvg,
   expedition:    expeditionSvg,
   transport:     transportSvg,
+  // MR 4
+  carrack:        carrackSvg,
+  galleon:        galleonSvg,
+  steamship:      steamshipSvg,
+  troop_transport: troopTransportSvg,
 };
 
 export function getUnitSpriteV2(unitType: string, faction: string): string | null {
