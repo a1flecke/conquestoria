@@ -50,6 +50,7 @@ paths:
 - When you add a `BUILDING` with `techRequired`, add its `id` to that tech's `unlocksBuildings` array in `src/systems/tech-definitions.ts`.
 - The completeness tests in `tests/systems/tech-unlocks-consistency.test.ts` will fail if either is omitted — treat a failing completeness test as a required fix, not a warning.
 - Civ-specific unit replacements (`civTypeRequired` set) are excluded from `unlocksUnits` and from the completeness test.
+- `Tech.unlocks` must contain **effect text only** (e.g. `'Farms yield +1 food'`, `'Reveal Copper resource'`) — never a bare building or unit name. Entity names belong exclusively in `unlocksUnits`/`unlocksBuildings`. A test in `tech-unlocks-consistency.test.ts` enforces this: any string in `unlocks` that exactly matches a building or unit name will fail the suite.
 
 ## Production icons must be wired end-to-end
 - When you add an entry to `BUILDINGS` or `TRAINABLE_UNITS` in `src/systems/city-system.ts`, you MUST also add a matching entry to `PRODUCTION_ICONS` in the same file.

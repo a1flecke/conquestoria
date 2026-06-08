@@ -44,6 +44,25 @@ describe('tech.unlocks copy matches gameplay gating', () => {
   });
 });
 
+describe('tech.unlocks must contain only effect text', () => {
+  it('no tech.unlocks string exactly matches a real building or unit name', () => {
+    const buildingNames = new Set(Object.values(BUILDINGS).map(b => b.name));
+    const unitNames = new Set(TRAINABLE_UNITS.map(u => u.name));
+    const failures: string[] = [];
+    for (const tech of TECH_TREE) {
+      for (const u of tech.unlocks) {
+        if (buildingNames.has(u)) {
+          failures.push(`${tech.id}.unlocks: '${u}' is a building name — move to unlocksBuildings or use effect text`);
+        }
+        if (unitNames.has(u)) {
+          failures.push(`${tech.id}.unlocks: '${u}' is a unit name — move to unlocksUnits or use effect text`);
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+});
+
 describe('tech structured unlock arrays', () => {
   it('every unlocksUnits entry is a trainable unit gated by that tech', () => {
     const failures: string[] = [];
