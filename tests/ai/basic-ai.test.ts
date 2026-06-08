@@ -4,7 +4,7 @@ import { EventBus } from '@/core/event-bus';
 import type { GameEvents, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
 import { createUnit } from '@/systems/unit-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
@@ -1704,5 +1704,157 @@ describe('Expedition AI parity', () => {
     expect(newState.units['ai-exp-1']).toBeUndefined();
     // Tile should have an outpost
     expect(newState.map.tiles[hexKey(pos)].improvement).toBe('resource_outpost');
+  });
+});
+
+describe('AI naval warship movement', () => {
+  function makeNavalWarshipState(): GameState {
+    function coastTile(q: number, r: number) {
+      return {
+        coord: { q, r },
+        terrain: 'coast' as const,
+        elevation: 'lowland' as const,
+        resource: null,
+        improvement: 'none' as const,
+        owner: null,
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+      };
+    }
+
+    const aiGalley = createUnit('galley', 'ai-1', { q: 2, r: 0 }, mkC());
+    aiGalley.id = 'ai-galley';
+
+    const enemyGalley = createUnit('galley', 'player', { q: 4, r: 0 }, mkC());
+    enemyGalley.id = 'enemy-galley';
+
+    return {
+      turn: 1,
+      era: 1,
+      currentPlayer: 'ai-1',
+      gameOver: false,
+      winner: null,
+      map: {
+        width: 8,
+        height: 8,
+        tiles: {
+          '0,0': coastTile(0, 0),
+          '1,0': coastTile(1, 0),
+          '2,0': coastTile(2, 0),
+          '3,0': coastTile(3, 0),
+          '4,0': coastTile(4, 0),
+        },
+        wrapsHorizontally: false,
+        rivers: [],
+      },
+      units: { [aiGalley.id]: aiGalley, [enemyGalley.id]: enemyGalley },
+      cities: {},
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1',
+          name: 'AI',
+          color: '#d94a4a',
+          isHuman: false,
+          civType: 'generic',
+          cities: [],
+          units: [aiGalley.id],
+          techState: {
+            completed: ['galleys'],
+            currentResearch: null,
+            researchProgress: 0,
+            researchQueue: [],
+            trackPriorities: {} as any,
+          },
+          gold: 0,
+          visibility: {
+            tiles: { '2,0': 'visible', '3,0': 'visible', '4,0': 'visible' },
+          },
+          score: 0,
+          knownCivilizations: ['player'],
+          diplomacy: {
+            relationships: { player: -80 },
+            treaties: [],
+            events: [],
+            atWarWith: ['player'],
+            treacheryScore: 0,
+            vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 1 },
+          },
+        },
+        player: {
+          id: 'player',
+          name: 'Player',
+          color: '#4a90d9',
+          isHuman: true,
+          civType: 'generic',
+          cities: [],
+          units: [enemyGalley.id],
+          techState: {
+            completed: ['galleys'],
+            currentResearch: null,
+            researchProgress: 0,
+            researchQueue: [],
+            trackPriorities: {} as any,
+          },
+          gold: 0,
+          visibility: { tiles: {} },
+          score: 0,
+          knownCivilizations: ['ai-1'],
+          diplomacy: {
+            relationships: { 'ai-1': -80 },
+            treaties: [],
+            events: [],
+            atWarWith: ['ai-1'],
+            treacheryScore: 0,
+            vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 1 },
+          },
+        },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: {
+        mapSize: 'small', soundEnabled: false, musicEnabled: false,
+        musicVolume: 0, sfxVolume: 0, tutorialEnabled: false,
+        advisorsEnabled: {} as any, councilTalkLevel: 'normal',
+      },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
+      idCounters: { nextUnitId: 3, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+      pendingDiplomacyRequests: [],
+      legendaryWonderIntel: {},
+      legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+    } as GameState;
+  }
+
+  it('warship moves toward a visible hostile naval unit rather than into unexplored ocean', () => {
+    // Setup: AI galley at (2,0), enemy galley at (4,0).
+    // (0,0) and (1,0) are unexplored — current code would pick those.
+    // (3,0) is explored and closest reachable tile to enemy — fixed code picks it.
+    const state = makeNavalWarshipState();
+    const bus = new EventBus();
+
+    const result = processAITurn(state, 'ai-1', bus);
+
+    const galley = result.units['ai-galley'];
+    const initialDist = hexDistance({ q: 2, r: 0 }, { q: 4, r: 0 }); // 2
+    const finalDist = hexDistance(galley.position, { q: 4, r: 0 });
+    expect(finalDist).toBeLessThan(initialDist);
+  });
+
+  it('warship attacks an adjacent enemy naval unit at war', () => {
+    const state = makeNavalWarshipState();
+    // Move enemy galley adjacent to AI galley
+    state.units['enemy-galley'] = { ...state.units['enemy-galley'], position: { q: 3, r: 0 } };
+    const bus = new EventBus();
+    const combatEvents: unknown[] = [];
+    bus.on('combat:resolved', payload => combatEvents.push(payload));
+
+    processAITurn(state, 'ai-1', bus);
+
+    expect(combatEvents).toHaveLength(1);
   });
 });
