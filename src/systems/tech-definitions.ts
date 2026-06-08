@@ -49,6 +49,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'sailing', name: 'Sailing', track: 'exploration', cost: 10, prerequisites: ['pathfinding'], unlocks: ['Units can embark on coast'], era: 2 },
   { id: 'celestial-navigation', name: 'Celestial Navigation', track: 'exploration', cost: 55, prerequisites: ['sailing', 'fire'], unlocks: ['Units can cross ocean'], era: 2 },
   { id: 'road-building', name: 'Road Building', track: 'exploration', cost: 50, prerequisites: ['wheel', 'pathfinding'], unlocks: ['Workers can build roads'], era: 3 },
+  { id: 'bridge-building', name: 'Bridge Building', track: 'exploration', cost: 60, prerequisites: ['road-building'], unlocks: ['River crossings cost no extra movement'], era: 3 },
   { id: 'harbor-tech', name: 'Harbors', track: 'exploration', cost: 70, prerequisites: ['sailing', 'currency'], unlocks: [], unlocksBuildings: ['harbor'], era: 3 },
   { id: 'exploration-tech', name: 'Exploration', track: 'exploration', cost: 85, prerequisites: ['celestial-navigation'], unlocks: ['All units +1 vision range'], era: 4 },
   { id: 'military-logistics', name: 'Military Logistics', track: 'exploration', cost: 100, prerequisites: ['road-building', 'tactics'], unlocks: ['Units move +1 on roads'], era: 4 },

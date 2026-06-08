@@ -356,3 +356,92 @@ describe('unit-movement-system', () => {
     expect(state.map.tiles['0,1']).toMatchObject({ improvement: 'none', improvementTurnsLeft: 0 });
   });
 });
+
+describe('river crossing movement cost', () => {
+  it('charges +1 MP when crossing a river without bridge-building', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    // warrior has 2 MP by default; plains costs 1 + river costs 1 = 2 total → 0 remaining
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }, 'plains'),
+      tile({ q: 1, r: 0 }, 'plains'),
+    ]);
+    state.map.rivers = [{ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }];
+
+    const result = executeUnitMove(state, 'mover', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected move to succeed');
+    expect(state.units.mover.movementPointsLeft).toBe(0);
+  });
+
+  it('bridge-building saves 1 MP — warrior ends with 1 MP instead of 0 after crossing', () => {
+    // Without bridge-building: plains(1) + river(1) = 2 MP used, 0 remaining
+    // With bridge-building: plains(1) only = 1 MP used, 1 remaining
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }, 'plains'),
+      tile({ q: 1, r: 0 }, 'plains'),
+    ], { completedTechs: ['bridge-building'] });
+    state.map.rivers = [{ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }];
+
+    const result = executeUnitMove(state, 'mover', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected bridge-building to allow crossing');
+    expect(state.units.mover.movementPointsLeft).toBe(1);
+  });
+
+  it('forced march applies: warrior with 1 MP can still cross a river (adjacent, single step)', () => {
+    // Forced march rule: distance === 1 && movementPointsLeft >= 1 && cost > movementPointsLeft
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    mover.movementPointsLeft = 1;
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }, 'plains'),
+      tile({ q: 1, r: 0 }, 'plains'),
+    ]);
+    state.map.rivers = [{ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }];
+
+    const result = executeUnitMove(state, 'mover', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected forced march to allow 1-MP river crossing');
+    expect(state.units.mover.movementPointsLeft).toBe(0);
+  });
+
+  it('naval units pay no river crossing penalty', () => {
+    const galley = createUnit('galley', 'player', { q: 0, r: 0 }, mkC());
+    galley.id = 'galley';
+    // galley has 3 MP; coast costs 1; river edge present but domain === 'naval' → exempt
+    const state = movementState(galley, [
+      tile({ q: 0, r: 0 }, 'coast'),
+      tile({ q: 1, r: 0 }, 'coast'),
+    ]);
+    state.map.rivers = [{ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }];
+
+    const result = executeUnitMove(state, 'galley', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected naval unit to cross without river penalty');
+    expect(state.units.galley.movementPointsLeft).toBe(2); // 3 MP - 1 coast step = 2 remaining
+  });
+
+  it('no crossing cost when no river segment exists between the two tiles', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    mover.movementPointsLeft = 1;
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }, 'plains'),
+      tile({ q: 1, r: 0 }, 'plains'),
+    ]);
+    // state.map.rivers defaults to [] — no segment added
+
+    const result = executeUnitMove(state, 'mover', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected 1-MP plains move to succeed without river');
+    expect(state.units.mover.movementPointsLeft).toBe(0);
+  });
+});

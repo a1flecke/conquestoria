@@ -20,13 +20,13 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the legacy shape while adding the planned era-5 foundation nodes', () => {
+  it('keeps the legacy shape while adding the planned era-5 foundation nodes and bridge-building', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
       const expectedCount = track === 'espionage'
         ? 10
-        : ['economy', 'science', 'communication', 'maritime'].includes(track)
+        : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
           ? 9
           : 8;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
@@ -35,8 +35,8 @@ describe('TECH_TREE', () => {
 });
 
 describe('expanded tech tree', () => {
-  it('has 126 techs total after adding Slice 3 late-era foundations and amphibious-warfare', () => {
-    expect(TECH_TREE.length).toBe(126);
+  it('has 127 techs total after adding bridge-building to the exploration track', () => {
+    expect(TECH_TREE.length).toBe(127);
   });
 
   it('supports cross-track prerequisites', () => {
