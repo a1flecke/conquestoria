@@ -39,6 +39,13 @@ describe('ai-personality', () => {
     });
   });
 
+  const expansionist: PersonalityTraits = {
+    traits: ['expansionist'],
+    warLikelihood: 0.5,
+    diplomacyFocus: 0.3,
+    expansionDrive: 0.9,
+  };
+
   describe('weightProductionChoice', () => {
     it('aggressive personality gives higher weight to military units', () => {
       const milWeight = weightProductionChoice(aggressive, 'warrior', false);
@@ -56,6 +63,40 @@ describe('ai-personality', () => {
       const normalWeight = weightProductionChoice(diplomatic, 'warrior', false);
       const threatWeight = weightProductionChoice(diplomatic, 'warrior', true);
       expect(threatWeight).toBeGreaterThan(normalWeight);
+    });
+
+    it('aggressive personality weights warships above neutral items', () => {
+      const galleyWeight = weightProductionChoice(aggressive, 'galley', false);
+      const neutralWeight = weightProductionChoice(aggressive, 'granary', false);
+      expect(galleyWeight).toBeGreaterThan(neutralWeight);
+    });
+
+    it('warships get less weight than land military so navy stays secondary', () => {
+      const warriorWeight = weightProductionChoice(aggressive, 'warrior', false);
+      const galleyWeight = weightProductionChoice(aggressive, 'galley', false);
+      const triremeWeight = weightProductionChoice(aggressive, 'trireme', false);
+      expect(warriorWeight).toBeGreaterThan(galleyWeight);
+      expect(warriorWeight).toBeGreaterThan(triremeWeight);
+    });
+
+    it('expansionist personality weights transports above a neutral item', () => {
+      const transportWeight = weightProductionChoice(expansionist, 'transport', false);
+      const neutralWeight = weightProductionChoice(expansionist, 'granary', false);
+      expect(transportWeight).toBeGreaterThan(neutralWeight);
+    });
+
+    it('expansionist personality weights transports higher than diplomatic personality', () => {
+      const expandWeight = weightProductionChoice(expansionist, 'transport', false);
+      const dipWeight = weightProductionChoice(diplomatic, 'transport', false);
+      expect(expandWeight).toBeGreaterThan(dipWeight);
+    });
+
+    it('all 5 transport types receive the same naval transport weighting', () => {
+      const types = ['transport', 'carrack', 'galleon', 'steamship', 'troop_transport'];
+      const weights = types.map(t => weightProductionChoice(expansionist, t, false));
+      for (const w of weights) {
+        expect(w).toBe(weights[0]);
+      }
     });
   });
 
