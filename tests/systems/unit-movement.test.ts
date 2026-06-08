@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createUnit, getMovementBlockerReason, getMovementCost, getMovementRange, resetUnitTurn, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { EventBus } from '@/core/event-bus';
+import { createHotSeatGame } from '@/core/game-state';
+import { processTurn } from '@/core/turn-manager';
 import type { GameMap } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -164,14 +167,10 @@ describe('plains movement (#85)', () => {
 });
 
 describe('cross-civ movement bonus isolation (#85)', () => {
-  it('France and Germany warriors each have exactly 2 movement in hot-seat with Rome', async () => {
-    const { createHotSeatGame } = await import('@/core/game-state');
-    const { processTurn } = await import('@/core/turn-manager');
-    const { EventBus } = await import('@/core/event-bus');
-
+  it('France and Germany warriors each have exactly 2 movement in hot-seat with Rome', () => {
     const state = createHotSeatGame({
       playerCount: 4,
-      mapSize: 'medium',
+      mapSize: 'small',
       players: [
         { slotId: 'p1', name: 'Alice', civType: 'france', isHuman: true },
         { slotId: 'p2', name: 'Bob', civType: 'germany', isHuman: true },
