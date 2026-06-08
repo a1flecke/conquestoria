@@ -354,6 +354,169 @@ describe('transport system', () => {
     expect(next.civilizations.player.units).not.toContain('warrior-1');
   });
 
+  // --- Gap 1: capacity tests for the 4 new transport types ---
+
+  describe('capacity limits for all transport types', () => {
+    function shipState(
+      shipType: 'carrack' | 'galleon' | 'steamship' | 'troop_transport',
+      preloadedCount: number,
+    ): GameState {
+      const base = state();
+      const shipId = `${shipType}-1`;
+      const cargoIds: string[] = [];
+      const units: Record<string, Unit> = {};
+
+      for (let i = 0; i < preloadedCount; i++) {
+        const id = `cargo-${i}`;
+        cargoIds.push(id);
+        units[id] = unit({
+          id, type: 'warrior', position: { q: 1, r: 0 },
+          transportId: shipId, hasMoved: true, hasActed: true, movementPointsLeft: 0,
+        });
+      }
+      units[shipId] = unit({ id: shipId, type: shipType, position: { q: 1, r: 0 }, movementPointsLeft: 3, cargoUnitIds: cargoIds });
+      units['fill'] = unit({ id: 'fill', type: 'warrior', position: { q: 0, r: 0 } });
+      units['over'] = unit({ id: 'over', type: 'warrior', position: { q: 0, r: 0 } });
+
+      return {
+        ...base,
+        units,
+        civilizations: {
+          ...base.civilizations,
+          player: { ...base.civilizations.player, units: Object.keys(units) },
+        },
+      };
+    }
+
+    it.each([
+      { shipType: 'carrack' as const, capacity: 3 },
+      { shipType: 'galleon' as const, capacity: 4 },
+      { shipType: 'steamship' as const, capacity: 5 },
+      { shipType: 'troop_transport' as const, capacity: 6 },
+    ])('$shipType accepts up to $capacity warrior slots and rejects one over cap', ({ shipType, capacity }) => {
+      const s = shipState(shipType, capacity - 1);
+      const shipId = `${shipType}-1`;
+
+      expect(canLoadUnitOntoTransport(s, 'fill', shipId)).toEqual({ ok: true });
+
+      const loaded = loadUnitOntoTransport(s, 'fill', shipId);
+      expect(loaded.ok).toBe(true);
+      if (!loaded.ok) return;
+      expect(getTransportCargoUsed(loaded.state, shipId)).toBe(capacity);
+
+      expect(canLoadUnitOntoTransport(loaded.state, 'over', shipId)).toEqual({
+        ok: false,
+        reason: 'no-capacity',
+        message: 'No room on this Transport',
+      });
+    });
+  });
+
+  // --- Gap 2: multi-slot cargo tests ---
+
+  it('cavalry (2 slots) + warrior (1 slot) fills carrack (cap 3); second warrior is rejected', () => {
+    const base = state();
+    const units: Record<string, Unit> = {
+      'cavalry-1': unit({
+        id: 'cavalry-1', type: 'cavalry', position: { q: 1, r: 0 },
+        transportId: 'carrack-1', hasMoved: true, hasActed: true, movementPointsLeft: 0,
+      }),
+      'carrack-1': unit({ id: 'carrack-1', type: 'carrack', position: { q: 1, r: 0 }, movementPointsLeft: 3, cargoUnitIds: ['cavalry-1'] }),
+      'warrior-a': unit({ id: 'warrior-a', type: 'warrior', position: { q: 0, r: 0 } }),
+      'warrior-b': unit({ id: 'warrior-b', type: 'warrior', position: { q: 0, r: 0 } }),
+    };
+    const s = { ...base, units, civilizations: { ...base.civilizations, player: { ...base.civilizations.player, units: Object.keys(units) } } };
+
+    expect(getTransportCargoUsed(s, 'carrack-1')).toBe(2);
+
+    const step1 = loadUnitOntoTransport(s, 'warrior-a', 'carrack-1');
+    expect(step1.ok).toBe(true);
+    if (!step1.ok) return;
+    expect(getTransportCargoUsed(step1.state, 'carrack-1')).toBe(3);
+
+    expect(canLoadUnitOntoTransport(step1.state, 'warrior-b', 'carrack-1')).toEqual({
+      ok: false, reason: 'no-capacity', message: 'No room on this Transport',
+    });
+  });
+
+  it('catapult (3 slots) on galleon (cap 4) uses 3 slots; cavalry (2 slots) is rejected with 1 slot remaining', () => {
+    const base = state();
+    const units: Record<string, Unit> = {
+      'catapult-1': unit({
+        id: 'catapult-1', type: 'catapult', position: { q: 1, r: 0 },
+        transportId: 'galleon-1', hasMoved: true, hasActed: true, movementPointsLeft: 0,
+      }),
+      'galleon-1': unit({ id: 'galleon-1', type: 'galleon', position: { q: 1, r: 0 }, movementPointsLeft: 3, cargoUnitIds: ['catapult-1'] }),
+      'cavalry-1': unit({ id: 'cavalry-1', type: 'cavalry', position: { q: 0, r: 0 } }),
+    };
+    const s = { ...base, units, civilizations: { ...base.civilizations, player: { ...base.civilizations.player, units: Object.keys(units) } } };
+
+    expect(getTransportCargoUsed(s, 'galleon-1')).toBe(3);
+
+    expect(canLoadUnitOntoTransport(s, 'cavalry-1', 'galleon-1')).toEqual({
+      ok: false, reason: 'no-capacity', message: 'No room on this Transport',
+    });
+  });
+
+  it('troop_transport (cap 6) with two cavalry (4 slots total) rejects a catapult (3 slots; would be 7)', () => {
+    const base = state();
+    const units: Record<string, Unit> = {
+      'cavalry-1': unit({
+        id: 'cavalry-1', type: 'cavalry', position: { q: 1, r: 0 },
+        transportId: 'troop_transport-1', hasMoved: true, hasActed: true, movementPointsLeft: 0,
+      }),
+      'cavalry-2': unit({
+        id: 'cavalry-2', type: 'cavalry', position: { q: 1, r: 0 },
+        transportId: 'troop_transport-1', hasMoved: true, hasActed: true, movementPointsLeft: 0,
+      }),
+      'troop_transport-1': unit({
+        id: 'troop_transport-1', type: 'troop_transport', position: { q: 1, r: 0 },
+        movementPointsLeft: 3, cargoUnitIds: ['cavalry-1', 'cavalry-2'],
+      }),
+      'catapult-1': unit({ id: 'catapult-1', type: 'catapult', position: { q: 0, r: 0 } }),
+    };
+    const s = { ...base, units, civilizations: { ...base.civilizations, player: { ...base.civilizations.player, units: Object.keys(units) } } };
+
+    expect(getTransportCargoUsed(s, 'troop_transport-1')).toBe(4);
+
+    expect(canLoadUnitOntoTransport(s, 'catapult-1', 'troop_transport-1')).toEqual({
+      ok: false, reason: 'no-capacity', message: 'No room on this Transport',
+    });
+  });
+
+  it('transport (cap 2) accepts cavalry (2 slots) when empty; rejects cavalry after a warrior is aboard', () => {
+    const base = state();
+
+    const emptyUnits: Record<string, Unit> = {
+      'transport-e': unit({ id: 'transport-e', type: 'transport', position: { q: 1, r: 0 }, movementPointsLeft: 3, cargoUnitIds: [] }),
+      'cavalry-1': unit({ id: 'cavalry-1', type: 'cavalry', position: { q: 0, r: 0 } }),
+    };
+    const emptyState = {
+      ...base,
+      units: emptyUnits,
+      civilizations: { ...base.civilizations, player: { ...base.civilizations.player, units: Object.keys(emptyUnits) } },
+    };
+    expect(canLoadUnitOntoTransport(emptyState, 'cavalry-1', 'transport-e')).toEqual({ ok: true });
+
+    const partialUnits: Record<string, Unit> = {
+      'warrior-aboard': unit({
+        id: 'warrior-aboard', type: 'warrior', position: { q: 1, r: 0 },
+        transportId: 'transport-p', hasMoved: true, hasActed: true, movementPointsLeft: 0,
+      }),
+      'transport-p': unit({ id: 'transport-p', type: 'transport', position: { q: 1, r: 0 }, movementPointsLeft: 3, cargoUnitIds: ['warrior-aboard'] }),
+      'cavalry-1': unit({ id: 'cavalry-1', type: 'cavalry', position: { q: 0, r: 0 } }),
+    };
+    const partialState = {
+      ...base,
+      units: partialUnits,
+      civilizations: { ...base.civilizations, player: { ...base.civilizations.player, units: Object.keys(partialUnits) } },
+    };
+    expect(getTransportCargoUsed(partialState, 'transport-p')).toBe(1);
+    expect(canLoadUnitOntoTransport(partialState, 'cavalry-1', 'transport-p')).toEqual({
+      ok: false, reason: 'no-capacity', message: 'No room on this Transport',
+    });
+  });
+
   it('cleans spy records when a Transport carrying a spy is destroyed', () => {
     const start = state();
     const spy = unit({ id: 'spy-1', type: 'spy_scout', position: { q: 0, r: 0 } });
