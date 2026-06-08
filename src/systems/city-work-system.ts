@@ -42,10 +42,17 @@ export function calculateWorkedTileYield(state: GameState, coord: HexCoord): Res
   const terrain = TERRAIN_YIELDS[tile.terrain] ?? total;
   addYield(total, terrain);
 
+  const completedTechs = tile.owner != null
+    ? (state.civilizations[tile.owner]?.techState.completed ?? [])
+    : [];
+
   if (tile.hasRiver) {
     total.gold += 1;
     if (tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
       total.food += 1;
+      if (completedTechs.includes('irrigation')) {
+        total.production += 1;
+      }
     }
   }
 
