@@ -153,8 +153,6 @@ describe('sync() pool lifecycle', () => {
   });
 });
 
-// ── invalidateFaction ─────────────────────────────────────────────────────────
-
 // ── Wrapper sizing ────────────────────────────────────────────────────────────
 
 describe('sync() wrapper sizing', () => {
