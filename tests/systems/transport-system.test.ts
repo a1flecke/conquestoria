@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameMap, GameState, HexCoord, HexTile, Unit } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
-import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey } from '@/systems/hex-utils';
 import {
   canLoadUnitOntoTransport,
   getTransportCargoUsed,
   getUnloadDestinations,
   loadUnitOntoTransport,
-  removeTransportAndCargo,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
 
@@ -322,38 +320,6 @@ describe('transport system', () => {
     expect(result.state.units['warrior-1']).toMatchObject({ position: { q: 0, r: 0 } });
   });
 
-  it('destroys cargo when the transport is destroyed', () => {
-    const loaded = loadUnitOntoTransport(state(), 'warrior-1', 'transport-1');
-    expect(loaded.ok).toBe(true);
-    if (!loaded.ok) return;
-
-    const next = removeTransportAndCargo(loaded.state, 'transport-1');
-
-    expect(next.units['transport-1']).toBeUndefined();
-    expect(next.units['warrior-1']).toBeUndefined();
-    expect(next.civilizations.player.units).not.toContain('transport-1');
-    expect(next.civilizations.player.units).not.toContain('warrior-1');
-  });
-
-  it('destroys cargo linked by transportId even if the Transport cargo list drifted', () => {
-    const start = state();
-    start.units['warrior-1'] = {
-      ...start.units['warrior-1'],
-      transportId: 'transport-1',
-      position: { ...start.units['transport-1'].position },
-    };
-    start.units['transport-1'] = {
-      ...start.units['transport-1'],
-      cargoUnitIds: [],
-    };
-
-    const next = removeTransportAndCargo(start, 'transport-1');
-
-    expect(next.units['transport-1']).toBeUndefined();
-    expect(next.units['warrior-1']).toBeUndefined();
-    expect(next.civilizations.player.units).not.toContain('warrior-1');
-  });
-
   // --- Gap 1: capacity tests for the 4 new transport types ---
 
   describe('capacity limits for all transport types', () => {
@@ -517,23 +483,4 @@ describe('transport system', () => {
     });
   });
 
-  it('cleans spy records when a Transport carrying a spy is destroyed', () => {
-    const start = state();
-    const spy = unit({ id: 'spy-1', type: 'spy_scout', position: { q: 0, r: 0 } });
-    start.units = {
-      'transport-1': start.units['transport-1'],
-      'spy-1': spy,
-    };
-    start.civilizations.player.units = ['transport-1', 'spy-1'];
-    const spyState = createSpyFromUnit(createEspionageCivState(), 'spy-1', 'player', 'spy_scout', 'spy-cargo-seed').state;
-    start.espionage = { player: spyState };
-    const loaded = loadUnitOntoTransport(start, 'spy-1', 'transport-1');
-    expect(loaded.ok).toBe(true);
-    if (!loaded.ok) return;
-
-    const next = removeTransportAndCargo(loaded.state, 'transport-1');
-
-    expect(next.units['spy-1']).toBeUndefined();
-    expect(next.espionage?.player.spies['spy-1']).toBeUndefined();
-  });
 });

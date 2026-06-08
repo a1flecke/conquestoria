@@ -2,7 +2,6 @@ import type { GameState, HexCoord, Unit } from '@/core/types';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrapHexCoord, wrappedHexDistance } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS, getMovementCostForUnit } from '@/systems/unit-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
-import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 
 export type TransportFailureReason =
   | 'missing-unit'
@@ -83,10 +82,6 @@ function isDestinationOccupied(state: GameState, destination: HexCoord): boolean
   const normalized = normalizeDestination(state, destination);
   const occupancy = buildUnitOccupancy(state.units);
   return getUnitIdsAtCoord(occupancy, normalized).length > 0;
-}
-
-function withoutIds(ids: string[], removed: Set<string>): string[] {
-  return ids.filter(id => !removed.has(id));
 }
 
 function canCargoSpendUnloadAction(cargo: Unit): boolean {
@@ -270,34 +265,3 @@ export function syncTransportCargoPositions(state: GameState, transportId: strin
   return changed ? { ...state, units: nextUnits } : state;
 }
 
-export function removeTransportAndCargo(state: GameState, transportId: string): GameState {
-  const transport = state.units[transportId];
-  if (!transport) return state;
-  const removedIds = new Set([transportId, ...(transport.cargoUnitIds ?? [])]);
-  for (const [unitId, unit] of Object.entries(state.units)) {
-    if (unit.transportId === transportId) removedIds.add(unitId);
-  }
-  let nextEspionage = state.espionage;
-  const nextUnits: GameState['units'] = {};
-  for (const [unitId, unit] of Object.entries(state.units)) {
-    if (removedIds.has(unitId) && nextEspionage) {
-      nextEspionage = cleanupDeadSpyUnit(nextEspionage, unit.owner, unitId);
-    }
-    if (!removedIds.has(unitId)) nextUnits[unitId] = unit;
-  }
-
-  const civilizations = { ...state.civilizations };
-  for (const [civId, civ] of Object.entries(civilizations)) {
-    const units = withoutIds(civ.units, removedIds);
-    if (units.length !== civ.units.length) {
-      civilizations[civId] = { ...civ, units };
-    }
-  }
-
-  return {
-    ...state,
-    units: nextUnits,
-    civilizations,
-    espionage: nextEspionage,
-  };
-}
