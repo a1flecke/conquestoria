@@ -9,7 +9,7 @@
 
 Stage 3B expands the Stage 3 real-video spike with a second small, source-led batch. The first spike proved the architecture for silent local video on Wonder Codex and ceremony surfaces, but two clips are too rare in normal play to teach the project enough about encounter frequency, source availability, asset cost, and player value. Stage 3B adds more real opportunities for players to see the feature without committing to a full-roster media program.
 
-This slice adds exactly six new local video clips: three natural wonders and three legendary wonders. Candidate selection is likelihood-first, then source-quality-driven. The implementation must rank the likely candidates before browsing for media, then choose final clips only from those ranked shortlists after checking source quality, license clarity, visual fit, loop quality, and asset size.
+This slice adds exactly six new local video clips: three natural wonders and three legendary wonders. Candidate selection is likelihood-first, then source-quality-driven. This design records the likelihood shortlists, verified source candidates, final six selections, and explicit alternates so implementation does not invent a different batch.
 
 ## Goals
 
@@ -30,11 +30,11 @@ This slice adds exactly six new local video clips: three natural wonders and thr
 - Do not add audible video tracks, autoplay sound, new SFX playback, or a second audio system.
 - Do not change natural wonder placement, discovery, yields, legendary eligibility, quests, rewards, AI, saves, city rendering, map rendering, PWA registration, or Tauri behavior.
 - Do not change the Codex, discovery ceremony, or legendary completion ceremony layout except where existing video slots naturally render the additional supported entries.
-- Do not choose final clips from outside the top-ten likelihood shortlists unless fewer than three candidates in a category have acceptable sources; in that case, pause for a user decision instead of silently broadening scope.
+- Do not choose final clips from outside the top-ten likelihood shortlists unless every selected source and every listed alternate for that category fails asset preparation; in that case, pause for a user decision instead of silently broadening scope.
 
 ## Selection Contract
 
-The implementation must follow this order:
+The design and implementation must follow this order:
 
 1. Score un-videoed natural wonders by encounter likelihood.
 2. Take the top ten natural candidates.
@@ -46,7 +46,12 @@ The implementation must follow this order:
 8. If a selected candidate fails asset preparation, move to the next source-quality-ranked candidate within the same top-ten shortlist.
 9. If fewer than three viable candidates remain in either category, stop and document the failure instead of weakening license, silence, or asset-size rules.
 
-The design intentionally does not preselect the final six shipped wonders. Final selection depends on real media availability and asset preparation. The implementation plan and PR body must include the ranked candidate table, final selected six, skipped high-likelihood candidates, and the reason each skipped candidate lost.
+The final six selected by this design are:
+
+- natural: `sacred_mountain`, `coral_reef`, `grand_canyon`
+- legendary: `oracle-of-delphi`, `grand-canal`, `moonwell-gardens`
+
+The implementation plan and PR body must include the ranked candidate table, final selected six, skipped high-likelihood candidates, and the reason each skipped candidate lost.
 
 ## Likelihood Scoring
 
@@ -126,6 +131,76 @@ Tie-breakers:
 4. Choose the candidate with a stronger existing fallback image.
 
 Candidates with unclear license terms, missing attribution, audible-only source value, or expected file size over the hard threshold are not viable no matter how likely they are in game.
+
+## Source Review And Final Batch
+
+The following source review was performed after fixing the top-ten likelihood shortlists above. Source pages must be re-opened during implementation to verify nothing has changed before downloading, but implementation should start from this table.
+
+### Source-Quality Ordering Result
+
+The following ordering applies the source-quality score after the likelihood shortlist is fixed. A higher encounter-likelihood rank does not override unclear license terms, missing compact video sources, unsuitable theme fit, or asset-size risk.
+
+Natural source-quality order:
+
+| Source Rank | Likelihood Rank | Wonder ID | Stage 3B Result | Reason |
+|---:|---:|---|---|---|
+| 1 | 4 | `sacred_mountain` | selected | Clear mountain identity, verified Commons source, manageable source duration, and matching `image-mountain` fallback. |
+| 2 | 8 | `coral_reef` | selected | Strong underwater/coral read, institutional public-domain source, and matching `image-coral` fallback. |
+| 3 | 6 | `grand_canyon` | selected | Reliable institutional/public-domain motion source and matching `image-grand-canyon` fallback; selected over scenic imports with unresolved review status. |
+| 4 | 1 | `ancient_forest` | alternate | Best encounter likelihood, but the surfaced video candidate has Commons Flickr review-needed status at design time. |
+| 5 | 2 | `crystal_caverns` | alternate | High encounter likelihood, but available cave videos are long/heavy and need extra source vetting before shipment. |
+| 6 | 10 | `bioluminescent_bay` | alternate | Strong visual potential, but no compact vetted source was confirmed during this design pass. |
+| 7 | 3 | `dragon_bones` | skipped | Strong likelihood, but no direct reusable real-video source fits fossil/bone spectacle at ceremony scale. |
+| 8 | 5 | `floating_islands` | skipped | Likely enough in game, but the theme is fantastical and lacks a direct real-world video match for this source-led batch. |
+| 9 | 7 | `singing_sands` | skipped | Desert encounter likelihood is acceptable, but available media does not clearly communicate the wonder's audio/sand theme in a silent clip. |
+| 10 | 9 | `sunken_ruins` | skipped | Coastal likelihood is acceptable, but the underwater-ruins source fit needs stronger vetting than this small batch allows. |
+
+Legendary source-quality order:
+
+| Source Rank | Likelihood Rank | Wonder ID | Stage 3B Result | Reason |
+|---:|---:|---|---|---|
+| 1 | 5 | `grand-canal` | selected | Direct Grand Canal footage, clear Commons attribution, compact duration, and matching `image-canal` fallback. |
+| 2 | 1 | `oracle-of-delphi` | selected | Highest encounter likelihood and directly named public-domain oracle film; requires careful trim selection for theme clarity. |
+| 3 | 4 | `moonwell-gardens` | selected | Compact growth time-lapse, clear license, strong garden read, and matching `image-garden` fallback. |
+| 4 | 2 | `world-archive` | alternate | Good archive/library mood, but source is large, includes music, and does not align with the existing Library of Congress fallback as cleanly. |
+| 5 | 3 | `whispering-exchange` | alternate | High encounter likelihood, but source search found still-image options rather than a compact reusable trading-floor video. |
+| 6 | 7 | `hall-of-champions` | alternate | Strong theme, but candidate media is less direct or too large for this batch. |
+| 7 | 6 | `sun-spire` | skipped | Good era profile, but source fit is abstract and less direct than the selected records. |
+| 8 | 8 | `ironroot-foundry` | skipped | Encounter likelihood is lower after gates, and compact source options need more industrial/safety vetting. |
+| 9 | 9 | `tidecaller-bastion` | skipped | Coastal gate lowers likelihood, and available source options overlap existing ruins/coastal imagery more than the selected batch. |
+| 10 | 10 | `gate-of-the-world` | skipped | Later/map-dependent discovery profile and less compact source fit for this slice. |
+
+### Final Natural Selections
+
+| Selected Wonder | Source | License / Creator | Why Selected | Local Path |
+|---|---|---|---|---|
+| `sacred_mountain` | `https://commons.wikimedia.org/wiki/File:EVEREST.webm` | Sgascoin, CC BY-SA 4.0 | Strong mountain identity, reusable 30-second WebM, existing `image-mountain` fallback. | `/videos/wonders/sacred-mountain-everest-flyover.mp4` |
+| `coral_reef` | `https://commons.wikimedia.org/wiki/File:Coral_Reef_Art.webm` | VOA Africa, public domain VOA material | Clear underwater/coral conservation theme, compact source, existing `image-coral` fallback. | `/videos/wonders/coral-reef-art-park.mp4` |
+| `grand_canyon` | `https://commons.wikimedia.org/wiki/File:Grand_Canyon_Wildfires_at_Night_(CIRA_2025-07-14_-_nolabels).webm` | CSU/CIRA and NOAA/NESDIS, public domain NOAA material | Grand Canyon-adjacent satellite motion with clear institutional/public-domain source; chosen over unreviewed scenic Flickr/NPS imports. Existing `image-grand-canyon` fallback remains the still identity. | `/videos/wonders/grand-canyon-cira-night-fires.mp4` |
+
+Natural alternates if asset preparation fails:
+
+| Alternate Wonder | Source | Reason Not Selected First |
+|---|---|---|
+| `ancient_forest` | `https://commons.wikimedia.org/wiki/File:-TravelTuesday_with_My_Public_Lands_(23825649569).webm` | Strong encounter likelihood and forest/redwood theme, but Commons currently marks the Flickr import as review-needed despite public-domain BLM metadata. Use only if selected sources fail and review status/source terms are acceptable at implementation time. |
+| `crystal_caverns` | `https://commons.wikimedia.org/wiki/Category:Videos_of_caves` | Encounter likelihood is high, but available cave videos are long/heavy and need extra source vetting. |
+| `bioluminescent_bay` | search within Wikimedia Commons and NOAA sources | Visually promising, but source fit and rights are less certain than the selected three. |
+
+### Final Legendary Selections
+
+| Selected Wonder | Source | License / Creator | Why Selected | Local Path |
+|---|---|---|---|---|
+| `oracle-of-delphi` | `https://commons.wikimedia.org/wiki/File:L%27Oracle_de_Delphes_(1903).webm` | Georges Melies, public domain | Highest encounter likelihood and a directly named public-domain oracle film. The implementation must trim a temple/oracle moment and avoid shots that over-emphasize the film's Egyptian-looking set. | `/videos/wonders/oracle-of-delphi-melies.mp4` |
+| `grand-canal` | `https://commons.wikimedia.org/wiki/File:Grand_Canal_Gongchen_Hangzhou.webm` | Charlie fong, CC BY-SA 4.0 | Direct Grand Canal of China footage, strong visual fit, existing `image-canal` fallback. | `/videos/wonders/grand-canal-gongchen-hangzhou.mp4` |
+| `moonwell-gardens` | `https://commons.wikimedia.org/wiki/File:Time-lapse_of_a_flower_blooming.webm` | Ajith Samuel, CC BY 3.0 | Compact flower time-lapse with strong garden-growth read, existing `image-garden` fallback. | `/videos/wonders/moonwell-gardens-flower-bloom.mp4` |
+
+Legendary alternates if asset preparation fails:
+
+| Alternate Wonder | Source | Reason Not Selected First |
+|---|---|---|
+| `world-archive` | `https://commons.wikimedia.org/wiki/File:Joost_Guntenaar_Rijksmuseum_2010-2013.webm` | Joost Guntenaar, CC BY 3.0 | Good archive/library mood, but the source is very large, includes music, and represents Rijksmuseum rather than the existing Library of Congress fallback. |
+| `whispering-exchange` | `https://commons.wikimedia.org/wiki/Category:New_York_Stock_Exchange_trading_floor` | mixed image sources | High encounter likelihood, but Commons search surfaced still images rather than a compact reusable trading-floor video. |
+| `hall-of-champions` | `https://commons.wikimedia.org/wiki/Category:Ancient_Olympia` | mixed sources | Strong theme, but available video candidates are less direct or too large for this batch. |
 
 ## User Experience
 
