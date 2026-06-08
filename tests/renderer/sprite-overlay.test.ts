@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { SpriteOverlay, hashCode } from '@/renderer/sprite-overlay';
+import { SpriteOverlay, hashCode, SPRITE_OVERLAY_WORLD_SIZE_FACTOR } from '@/renderer/sprite-overlay';
 import type { SpriteEntity } from '@/renderer/sprite-overlay';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
 
@@ -150,6 +150,31 @@ describe('sync() pool lifecycle', () => {
   it('getActiveIds returns empty before sync', () => {
     const { overlay } = mountOverlay();
     expect(overlay.getActiveIds().size).toBe(0);
+  });
+});
+
+// ── invalidateFaction ─────────────────────────────────────────────────────────
+
+// ── Wrapper sizing ────────────────────────────────────────────────────────────
+
+describe('sync() wrapper sizing', () => {
+  it('wrapper width and height are hexSize × SPRITE_OVERLAY_WORLD_SIZE_FACTOR, not hardcoded 128px', () => {
+    const { overlay, mount } = mountOverlay();
+    const hexSize = 32;
+    overlay.sync(cam({ zoom: 1, hexSize }), [entity()], MAP, OPTS);
+    const wrapper = mount.querySelector('.cq-sprite-wrap')?.parentElement as HTMLElement | null;
+    expect(wrapper).not.toBeNull();
+    const expectedPx = `${hexSize * SPRITE_OVERLAY_WORLD_SIZE_FACTOR}px`;
+    expect(wrapper!.style.width).toBe(expectedPx);
+    expect(wrapper!.style.height).toBe(expectedPx);
+  });
+
+  it('wrapper has overflow:hidden to prevent label bleed', () => {
+    const { overlay, mount } = mountOverlay();
+    overlay.sync(cam({ zoom: 1 }), [entity()], MAP, OPTS);
+    const wrapper = mount.querySelector('.cq-sprite-wrap')?.parentElement as HTMLElement | null;
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.style.overflow).toBe('hidden');
   });
 });
 

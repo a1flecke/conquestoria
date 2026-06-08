@@ -9,6 +9,15 @@ import {
 import type { Camera } from './camera';
 import type { HexCoord } from '@/core/types';
 
+/**
+ * Sprite wrappers live in world-space (sizes are in pre-zoom units).
+ * The container applies scale(camera.zoom), so children sized in world units.
+ * At zoom = 2 (= BUILDING_SPRITE_SIZE / (hexSize * SPRITE_OVERLAY_WORLD_SIZE_FACTOR)),
+ * building sprites (192px native) render at their design size.
+ * Unit sprites (128px native) render at their native size at zoom = 2.
+ */
+export const SPRITE_OVERLAY_WORLD_SIZE_FACTOR = 2;
+
 export interface SpriteEntity {
   id:      string;
   kind:    'unit' | 'building' | 'improvement';
@@ -19,7 +28,7 @@ export interface SpriteEntity {
    * RenderLoop translates: 'move-a' | 'move-b' → 'walk'.
    */
   state:   'idle' | 'walk' | 'attack';
-  /** civType from Civilization — 'imperials', 'vikings', etc. Falls back to 'imperials'. */
+  /** Sprite palette name derived from owner's civType via civTypeToFaction() — e.g. 'imperials', 'pharaohs', 'vikings'. */
   faction: string;
 }
 
@@ -120,8 +129,9 @@ export class SpriteOverlay {
           const px = hexToPixel(coord, camera.hexSize);
 
           const wrapper = document.createElement('div');
+          const wrapSizePx = camera.hexSize * SPRITE_OVERLAY_WORLD_SIZE_FACTOR;
           wrapper.style.cssText =
-            `position:absolute;width:128px;height:128px;` +
+            `position:absolute;width:${wrapSizePx}px;height:${wrapSizePx}px;overflow:hidden;` +
             `transform:translate(-50%,-50%);left:${px.x}px;top:${px.y}px`;
 
           // svgHtml is our own serialized content — safe to use innerHTML
