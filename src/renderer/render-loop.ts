@@ -19,9 +19,48 @@ import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { SpriteOverlay } from './sprite-overlay';
 import type { SpriteEntity } from './sprite-overlay';
 
-const KNOWN_FACTIONS = new Set([
-  'imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate',
-]);
+/** Maps real CivDefinition.id values to the sprite palette name used by the v2 sprite system. */
+export const CIVTYPE_TO_FACTION: Record<string, string> = {
+  // Ancient Mediterranean
+  egypt:      'pharaohs',
+  greece:     'hellenes',
+  rome:       'imperials',
+  babylon:    'pharaohs',
+  persia:     'pharaohs',
+  spain:      'imperials',
+  atlantis:   'imperials',
+  // Northern European
+  england:    'vikings',
+  germany:    'imperials',
+  france:     'imperials',
+  russia:     'imperials',
+  viking:     'vikings',
+  // British Isles / Celtic
+  gondor:     'imperials',
+  rohan:      'imperials',
+  shire:      'imperials',
+  prydain:    'imperials',
+  annuvin:    'imperials',
+  avalon:     'imperials',
+  // East / Central Asian
+  mongolia:   'khanate',
+  china:      'khanate',
+  japan:      'shogunate',
+  india:      'khanate',
+  ottoman:    'khanate',
+  // Sub-Saharan / Mesoamerican / Fantasy
+  zulu:       'imperials',
+  aztec:      'imperials',
+  wakanda:    'imperials',
+  // Fantasy / Tolkien
+  lothlorien: 'hellenes',
+  isengard:   'imperials',
+  narnia:     'imperials',
+};
+
+export function civTypeToFaction(civType: string): string {
+  return CIVTYPE_TO_FACTION[civType] ?? 'imperials';
+}
 
 export function buildBuildingEntities(
   state: GameState,
@@ -30,19 +69,22 @@ export function buildBuildingEntities(
   const entities: SpriteEntity[] = [];
   for (const city of Object.values(state.cities)) {
     if (getVisibility(viewerVisibility, city.position) !== 'visible') continue;
+    if (city.buildings.length === 0) continue;
+
     // Use the CITY OWNER's civType — enemy cities use their owner's faction colors
     const ownerCivType = state.civilizations[city.owner]?.civType ?? 'generic';
-    const faction = KNOWN_FACTIONS.has(ownerCivType) ? ownerCivType : 'imperials';
-    for (const buildingId of city.buildings) {
-      entities.push({
-        id: `${city.id}:${buildingId}`,
-        kind: 'building',
-        subtype: buildingId,
-        coord: city.position,
-        state: 'idle',
-        faction,
-      });
-    }
+    const faction = civTypeToFaction(ownerCivType);
+
+    // Show only the most recently completed building — stacking all at city.position is unreadable (#340)
+    const buildingId = city.buildings[city.buildings.length - 1];
+    entities.push({
+      id: `${city.id}:${buildingId}`,
+      kind: 'building',
+      subtype: buildingId,
+      coord: city.position,
+      state: 'idle',
+      faction,
+    });
   }
   return entities;
 }
@@ -62,7 +104,7 @@ export function buildUnitEntities(
     .map(u => {
       // Use the UNIT OWNER'S civType (not the viewer's) — enemy units use their owner's faction colors
       const civType = state.civilizations[u.owner]?.civType ?? 'generic';
-      const faction = KNOWN_FACTIONS.has(civType) ? civType : 'imperials';
+      const faction = civTypeToFaction(civType);
       return {
         id: u.id,
         kind: 'unit' as const,

@@ -22,8 +22,9 @@ function makeState(cityOverrides: Partial<City> = {}): GameState {
     currentPlayer: 'player1',
     cities: { c1: city },
     civilizations: {
-      'player1': { id: 'player1', civType: 'imperials' } as any,
-      'player2': { id: 'player2', civType: 'vikings' } as any,
+      // Use real CivDefinition ids — legacy palette names ('imperials', 'vikings') are not valid civTypes
+      'player1': { id: 'player1', civType: 'rome' } as any,
+      'player2': { id: 'player2', civType: 'england' } as any,
     },
     map: { width: 20, wrapsHorizontally: false } as any,
   } as unknown as GameState;
@@ -60,20 +61,25 @@ describe('buildBuildingEntities', () => {
   });
 
   it('uses city OWNER civType for faction — not hardcoded viewer', () => {
-    // City owned by player2 (vikings) visible to player1 (imperials)
+    // City owned by player2 (england → vikings) visible to player1 (rome → imperials)
     const state = makeState({ owner: 'player2' });
     const vis = makeVisMap(3, 4, 'visible');
     const entities = buildBuildingEntities(state, vis);
     expect(entities[0].faction).toBe('vikings');
   });
 
-  it('produces one entity per building in the city', () => {
+  it('produces exactly 1 entity per city regardless of building count (shows last completed)', () => {
     const state = makeState({ buildings: ['granary', 'library', 'barracks'] });
     const vis = makeVisMap(3, 4, 'visible');
     const entities = buildBuildingEntities(state, vis);
-    expect(entities.length).toBe(3);
-    expect(entities.map(e => e.subtype)).toEqual(
-      expect.arrayContaining(['granary', 'library', 'barracks'])
-    );
+    expect(entities.length).toBe(1);
+    expect(entities[0].subtype).toBe('barracks'); // last completed building
+  });
+
+  it('produces no entity for a city with empty buildings list', () => {
+    const state = makeState({ buildings: [] });
+    const vis = makeVisMap(3, 4, 'visible');
+    const entities = buildBuildingEntities(state, vis);
+    expect(entities.length).toBe(0);
   });
 });
