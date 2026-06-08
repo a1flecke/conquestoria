@@ -59,7 +59,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'crop-rotation', name: 'Crop Rotation', track: 'agriculture', cost: 45, prerequisites: ['domestication', 'irrigation'], unlocks: ['Improved farms'], era: 2 },
   { id: 'granary-design', name: 'Granary Design', track: 'agriculture', cost: 10, prerequisites: ['foraging'], unlocks: ['Granary upgrade'], unlocksBuildings: ['granary'], era: 2 },
   { id: 'fertilization', name: 'Fertilization', track: 'agriculture', cost: 80, prerequisites: ['crop-rotation'], unlocks: ['Fertile fields'], era: 3 },
-  { id: 'livestock-breeding', name: 'Livestock Breeding', track: 'agriculture', cost: 85, prerequisites: ['crop-rotation', 'granary-design'], unlocks: ['Ranch'], era: 3 },
+  { id: 'livestock-breeding', name: 'Livestock Breeding', track: 'agriculture', cost: 85, prerequisites: ['crop-rotation', 'granary-design'], unlocks: ['Improved cattle and livestock management'], era: 3 },
   { id: 'selective-breeding', name: 'Selective Breeding', track: 'agriculture', cost: 120, prerequisites: ['livestock-breeding'], unlocks: ['Hybrid crops'], era: 4 },
   { id: 'agricultural-science', name: 'Agricultural Science', track: 'agriculture', cost: 125, prerequisites: ['fertilization', 'livestock-breeding'], unlocks: ['Agricultural lab'], era: 4 },
 
@@ -75,9 +75,9 @@ export const TECH_TREE: Tech[] = [
 
   // === PHILOSOPHY TRACK (8 techs, new) ===
   { id: 'oral-tradition', name: 'Oral Tradition', track: 'philosophy', cost: 5, prerequisites: [], unlocks: ['Storyteller'], era: 1 },
-  { id: 'mythology', name: 'Mythology', track: 'philosophy', cost: 10, prerequisites: ['oral-tradition'], unlocks: ['Shrine'], era: 1 },
+  { id: 'mythology', name: 'Mythology', track: 'philosophy', cost: 10, prerequisites: ['oral-tradition'], unlocks: ['Early religious practices and myth-making'], era: 1 },
   { id: 'ethics', name: 'Ethics', track: 'philosophy', cost: 45, prerequisites: ['mythology', 'writing'], unlocks: ['Ethical code'], era: 2 },
-  { id: 'rhetoric', name: 'Rhetoric', track: 'philosophy', cost: 10, prerequisites: ['oral-tradition'], unlocks: ['Forum'], era: 2 },
+  { id: 'rhetoric', name: 'Rhetoric', track: 'philosophy', cost: 10, prerequisites: ['oral-tradition'], unlocks: ['Public speaking and civic discourse'], era: 2 },
   { id: 'logic', name: 'Logic', track: 'philosophy', cost: 85, prerequisites: ['ethics', 'rhetoric'], unlocks: ['School of thought'], era: 3 },
   { id: 'metaphysics', name: 'Metaphysics', track: 'philosophy', cost: 80, prerequisites: ['ethics'], unlocks: ['Great thinker'], era: 3 },
   { id: 'humanism', name: 'Humanism', track: 'philosophy', cost: 125, prerequisites: ['logic', 'metaphysics'], unlocks: ['Enlightenment'], era: 4 },
@@ -89,7 +89,7 @@ export const TECH_TREE: Tech[] = [
   { id: 'pottery-arts', name: 'Pottery Arts', track: 'arts', cost: 40, prerequisites: ['storytelling', 'pottery'], unlocks: ['Kiln'], era: 2 },
   { id: 'music', name: 'Music', track: 'arts', cost: 45, prerequisites: ['storytelling'], unlocks: ['Concert hall'], era: 2 },
   { id: 'sculpture', name: 'Sculpture', track: 'arts', cost: 80, prerequisites: ['pottery-arts'], unlocks: ['Statue'], era: 3 },
-  { id: 'drama', name: 'Drama', track: 'arts', cost: 85, prerequisites: ['music', 'pottery-arts'], unlocks: ['Amphitheater'], era: 3 },
+  { id: 'drama', name: 'Drama', track: 'arts', cost: 85, prerequisites: ['music', 'pottery-arts'], unlocks: ['Formal dramatic performance traditions'], era: 3 },
   { id: 'theater', name: 'Theater', track: 'arts', cost: 120, prerequisites: ['drama'], unlocks: ['Opera house'], era: 4 },
   { id: 'architecture-arts', name: 'Architecture Arts', track: 'arts', cost: 130, prerequisites: ['sculpture', 'drama'], unlocks: ['Grand monument'], era: 4 },
 
