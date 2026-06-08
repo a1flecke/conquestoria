@@ -122,4 +122,18 @@ btn.textContent = label;
 EOF
 expect_allow "$tmp/src/ui/ui-kit.ts" "bare button in ui-kit.ts (exempt)"
 
+# --- sprite-overlay.ts: block hardcoded px size ---
+mkdir -p "$tmp/src/renderer"
+cat > "$tmp/src/renderer/sprite-overlay.ts" <<'EOF'
+wrapper.style.cssText = `position:absolute;width:128px;height:128px;`;
+EOF
+expect_block "$tmp/src/renderer/sprite-overlay.ts" "hardcoded 128px in sprite-overlay.ts"
+
+# --- sprite-overlay.ts: allow dynamic size derived from hexSize ---
+cat > "$tmp/src/renderer/sprite-overlay.ts" <<'EOF'
+const wrapSizePx = camera.hexSize * SPRITE_OVERLAY_WORLD_SIZE_FACTOR;
+wrapper.style.cssText = `position:absolute;width:${wrapSizePx}px;height:${wrapSizePx}px;overflow:hidden;`;
+EOF
+expect_allow "$tmp/src/renderer/sprite-overlay.ts" "dynamic hexSize-derived size in sprite-overlay.ts"
+
 exit "$fail"

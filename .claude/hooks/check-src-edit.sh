@@ -101,6 +101,17 @@ if grep -nE ':\s*(0|null|\[\])\s*,\s*//\s*calculated' "$file_path" >/dev/null; t
 $lines"
 fi
 
+# --- hardcoded pixel size in sprite-overlay.ts (must derive from hexSize × SPRITE_OVERLAY_WORLD_SIZE_FACTOR) ---
+case "$file_path" in
+  */src/renderer/sprite-overlay.ts)
+    if grep -nE 'width:[0-9]+px|height:[0-9]+px' "$file_path" | grep -v '//\|SPRITE_OVERLAY_WORLD_SIZE_FACTOR' >/dev/null; then
+      lines="$(grep -nE 'width:[0-9]+px|height:[0-9]+px' "$file_path" | grep -v '//\|SPRITE_OVERLAY_WORLD_SIZE_FACTOR' | head -5)"
+      append "Hardcoded px size in sprite-overlay.ts — wrapper size must derive from camera.hexSize × SPRITE_OVERLAY_WORLD_SIZE_FACTOR (see .claude/rules/sprites.md#sprite-overlay-sizing):
+$lines"
+    fi
+    ;;
+esac
+
 # --- Object.assign(window or React import in sprite files ---
 case "$file_path" in
   */src/renderer/sprites/*.tsx|*/src/renderer/sprites/*.ts)
