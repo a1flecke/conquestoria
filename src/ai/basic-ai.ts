@@ -451,6 +451,28 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       { completedTechs: civ.techState.completed },
     );
     if (range.length > 0) {
+      const unitDef = UNIT_DEFINITIONS[unit.type];
+      const isWarship = (unitDef?.domain ?? 'land') === 'naval' && (unitDef?.strength ?? 0) > 0;
+      if (isWarship) {
+        const enemyNaval = Object.values(newState.units).filter(u => {
+          if (u.owner === civId || !aiHostileOwners.has(u.owner)) return false;
+          return (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'naval';
+        });
+        if (enemyNaval.length > 0) {
+          let bestCoord = range[0];
+          let bestDist = Infinity;
+          for (const coord of range) {
+            const minDist = Math.min(...enemyNaval.map(e => hexDistance(e.position, coord)));
+            if (minDist < bestDist) {
+              bestDist = minDist;
+              bestCoord = coord;
+            }
+          }
+          newState.units[unit.id] = moveUnit(unit, bestCoord, 1);
+          continue;
+        }
+      }
+
       const unexplored = range.filter(
         coord => civ.visibility.tiles[hexKey(coord)] !== 'visible',
       );
