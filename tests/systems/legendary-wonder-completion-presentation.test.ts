@@ -45,7 +45,7 @@ describe('legendary-wonder-completion-presentation', () => {
     });
   });
 
-  it('does not invent video previews for unsupported legendary completions', () => {
+  it('includes a Stage 3B silent legendary completion video preview for the owner', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     state.currentPlayer = 'player';
 
@@ -53,6 +53,25 @@ describe('legendary-wonder-completion-presentation', () => {
       civId: 'player',
       cityId: 'city-river',
       wonderId: 'oracle-of-delphi',
+      turnCompleted: 42,
+    });
+
+    expect(item?.videoPreview).toMatchObject({
+      id: 'video-oracle-of-delphi-melies',
+      wonderId: 'oracle-of-delphi',
+      surface: 'legendary-completion',
+      audio: 'silent',
+    });
+  });
+
+  it('does not invent video previews for unsupported legendary completions', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.currentPlayer = 'player';
+
+    const item = buildLegendaryWonderCompletionCeremonyItem(state, {
+      civId: 'player',
+      cityId: 'city-river',
+      wonderId: 'world-archive',
       turnCompleted: 42,
     });
 
