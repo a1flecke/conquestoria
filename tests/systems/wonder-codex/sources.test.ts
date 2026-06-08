@@ -28,6 +28,10 @@ function assertCleanText(value: string): void {
   }
 }
 
+function readLocalAsset(localPath: string): Buffer {
+  return readFileSync(resolve(repoRoot, 'public', localPath.replace(/^\/+/, '')));
+}
+
 describe('wonder-codex sources', () => {
   it('resolves every content fact and image source', () => {
     for (const entry of getAllWonderCodexContent()) {
@@ -97,6 +101,15 @@ describe('wonder-codex sources', () => {
       expect(source.fallbackImageSourceId).toMatch(/^image-/);
       expect(getImageSource(source.fallbackImageSourceId)).toBeTruthy();
       expect(existsSync(resolve(repoRoot, 'public', source.localPath.replace(/^\/+/, '')))).toBe(true);
+      expect(source.sizeBytes).toBe(readLocalAsset(source.localPath).byteLength);
+    }
+  });
+
+  it('keeps shipped video assets video-only even when source clips contained audio', () => {
+    for (const source of getWonderCodexVideoSources()) {
+      const asset = readLocalAsset(source.localPath);
+      expect(asset.includes(Buffer.from('vide'))).toBe(true);
+      expect(asset.includes(Buffer.from('soun'))).toBe(false);
     }
   });
 

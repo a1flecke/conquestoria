@@ -179,7 +179,7 @@ If shell network is blocked, request approval for the failed command rather than
 
 ```bash
 ffmpeg -y -ss 00:00:04 -i /private/tmp/conquestoria-video-sources-stage3b/everest.webm -t 4 -an -vf "scale=640:-2" -c:v libopenh264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/sacred-mountain-everest-flyover.mp4
-ffmpeg -y -ss 00:00:25 -i /private/tmp/conquestoria-video-sources-stage3b/coral-reef-art.webm -t 4 -an -vf "scale=640:-2" -c:v libopenh264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/coral-reef-art-park.mp4
+ffmpeg -y -ss 00:00:25 -i /private/tmp/conquestoria-video-sources-stage3b/coral-reef-art.webm -t 4 -an -vf "crop=720:360:0:0,scale=640:-2" -c:v libopenh264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/coral-reef-art-park.mp4
 ffmpeg -y -ss 00:00:01 -i /private/tmp/conquestoria-video-sources-stage3b/grand-canyon-cira.webm -t 4 -an -vf "scale=640:-2" -c:v libopenh264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/grand-canyon-cira-night-fires.mp4
 ffmpeg -y -ss 00:00:20 -i /private/tmp/conquestoria-video-sources-stage3b/oracle-delphi.webm -t 4 -an -vf "scale=640:-2" -c:v libopenh264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/oracle-of-delphi-melies.mp4
 ffmpeg -y -ss 00:00:05 -i /private/tmp/conquestoria-video-sources-stage3b/grand-canal.webm -t 4 -an -vf "scale=640:-2" -c:v libopenh264 -pix_fmt yuv420p -movflags +faststart public/videos/wonders/grand-canal-gongchen-hangzhou.mp4
@@ -257,10 +257,10 @@ If a trim is confusing, change only the `-ss` start time, regenerate that deriva
     localPath: '/videos/wonders/coral-reef-art-park.mp4',
     fallbackImageSourceId: 'image-coral',
     durationSeconds: 4,
-    sizeBytes: 989121,
-    format: 'MP4/H.264 derivative from WebM source using OpenH264',
+    sizeBytes: 947759,
+    format: 'MP4/H.264 derivative from cropped WebM source using OpenH264',
     mimeType: 'video/mp4',
-    loopNote: 'Coral conservation footage trimmed to a short silent underwater loop for Stage 3B.',
+    loopNote: 'Coral conservation footage trimmed and cropped to a short silent underwater loop for Stage 3B.',
     audio: 'silent',
     batchId: 'stage-3b-batch-2',
   },
