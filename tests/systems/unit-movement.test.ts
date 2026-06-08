@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUnit, getMovementBlockerReason, getMovementCost, getMovementRange, resetUnitTurn, UNIT_DEFINITIONS } from '@/systems/unit-system';
+// Static imports prevent module compilation from eating into the 5000ms test timeout.
 import { EventBus } from '@/core/event-bus';
 import { createHotSeatGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
