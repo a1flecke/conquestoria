@@ -7,6 +7,7 @@ import {
   wrappedHexDistance,
   wrapHexCoord,
 } from './hex-utils';
+import { isRiverBetween } from './river-system';
 
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   settler: {
@@ -546,7 +547,14 @@ export function getMovementRange(
       const tile = map.tiles[key];
       if (!tile || !isPassableForUnitInContext(unit, tile.terrain, options)) continue;
 
-      const cost = getMovementCostForUnitInContext(unit, tile.terrain, options);
+      const terrainCost = getMovementCostForUnitInContext(unit, tile.terrain, options);
+      const riverPenalty =
+        UNIT_DEFINITIONS[unit.type]?.domain !== 'naval' &&
+        !options.completedTechs?.includes('bridge-building') &&
+        isRiverBetween(map, current.coord, neighbor)
+          ? 1
+          : 0;
+      const cost = terrainCost + riverPenalty;
       const remaining = current.remaining - cost;
 
       // Forced march: if this is a direct neighbor of the start position and the unit
