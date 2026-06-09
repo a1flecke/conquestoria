@@ -127,7 +127,7 @@ export function isRiverBetween(
   from: HexCoord,
   to: HexCoord,
 ): boolean {
-  return map.rivers.some(
+  return (map.rivers ?? []).some(
     r =>
       (hexKey(r.from) === hexKey(from) && hexKey(r.to) === hexKey(to)) ||
       (hexKey(r.from) === hexKey(to) && hexKey(r.to) === hexKey(from)),
