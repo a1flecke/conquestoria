@@ -365,47 +365,48 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     .filter((u): u is Unit => !!u && (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'naval' && UNIT_DEFINITIONS[u.type]?.cargoCapacity !== undefined);
 
   for (const transport of idleTransports) {
-    // 1. Unload cargo adjacent to enemy-owned tiles first
+    // 1. Unload all eligible cargo onto adjacent enemy-owned tiles
     const cargo = getTransportCargo(newState, transport.id);
     let didUnload = false;
     for (const cargoUnit of cargo) {
-      if (cargoUnit.hasActed || cargoUnit.movementPointsLeft <= 0) continue;
-      const destinations = getUnloadDestinations(newState, transport.id, cargoUnit.id);
+      // Refresh from newState: a previous iteration may have updated action state
+      const freshCargo = newState.units[cargoUnit.id];
+      if (!freshCargo || freshCargo.hasActed || freshCargo.movementPointsLeft <= 0) continue;
+      const destinations = getUnloadDestinations(newState, transport.id, freshCargo.id);
       const enemyDest = destinations.find(dest => {
         const tile = newState.map.tiles[hexKey(dest)];
         return tile && tile.owner && transportHostileOwners.has(tile.owner);
       });
       if (enemyDest) {
-        const result = unloadUnitFromTransport(newState, transport.id, cargoUnit.id, enemyDest);
+        const result = unloadUnitFromTransport(newState, transport.id, freshCargo.id, enemyDest);
         if (result.ok) {
           newState = result.state;
           civ = newState.civilizations[civId];
           didUnload = true;
-          break;
+          // Don't break — unload all eligible cargo in one turn
         }
       }
     }
     if (didUnload) continue;
 
-    // 2. Load an adjacent idle land unit if hold has space
-    const used = getTransportCargoUsed(newState, transport.id);
-    const cap = getTransportCapacity(newState.units[transport.id]!);
-    if (used < cap) {
-      const loadCandidates = civ.units
-        .map(id => newState.units[id])
-        .filter((u): u is Unit =>
-          !!u && !u.transportId && !u.hasActed && u.movementPointsLeft > 0
-          && (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'land',
-        );
-      for (const candidate of loadCandidates) {
-        const check = canLoadUnitOntoTransport(newState, candidate.id, transport.id);
-        if (check.ok) {
-          const result = loadUnitOntoTransport(newState, candidate.id, transport.id);
-          if (result.ok) {
-            newState = result.state;
-            civ = newState.civilizations[civId];
-            break;
-          }
+    // 2. Load all adjacent idle land units up to capacity
+    const loadCandidates = civ.units
+      .map(id => newState.units[id])
+      .filter((u): u is Unit =>
+        !!u && !u.transportId && !u.hasActed && u.movementPointsLeft > 0
+        && (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'land',
+      );
+    for (const candidate of loadCandidates) {
+      // Re-check capacity each iteration: multi-slot units (cavalry, catapult) may fill the hold
+      const used = getTransportCargoUsed(newState, transport.id);
+      const cap = getTransportCapacity(newState.units[transport.id]!);
+      if (used >= cap) break;
+      const check = canLoadUnitOntoTransport(newState, candidate.id, transport.id);
+      if (check.ok) {
+        const result = loadUnitOntoTransport(newState, candidate.id, transport.id);
+        if (result.ok) {
+          newState = result.state;
+          civ = newState.civilizations[civId];
         }
       }
     }
@@ -528,7 +529,11 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           let bestCoord = range[0];
           let bestDist = Infinity;
           for (const coord of range) {
-            const minDist = Math.min(...enemyNaval.map(e => hexDistance(e.position, coord)));
+            const minDist = Math.min(...enemyNaval.map(e =>
+              newState.map.wrapsHorizontally
+                ? wrappedHexDistance(e.position, coord, newState.map.width)
+                : hexDistance(e.position, coord),
+            ));
             if (minDist < bestDist) {
               bestDist = minDist;
               bestCoord = coord;
