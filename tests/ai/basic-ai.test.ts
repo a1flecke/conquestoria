@@ -1826,6 +1826,126 @@ describe('AI transport load/unload', () => {
     expect(result.units['warrior-1']?.transportId).toBeUndefined();
     expect(result.units['warrior-1']?.position).toEqual({ q: 0, r: 0 });
   });
+
+  it('transport loads ALL adjacent idle land units up to capacity in one turn', () => {
+    // Two warriors flank the transport: warrior-1 at (0,0), warrior-2 at (2,0).
+    // Transport capacity=2 means both should board in a single AI turn.
+    const transport = createUnit('transport', 'ai-1', { q: 1, r: 0 }, mkC());
+    transport.id = 'transport-1';
+    transport.cargoUnitIds = [];
+
+    const warrior1 = createUnit('warrior', 'ai-1', { q: 0, r: 0 }, mkC());
+    warrior1.id = 'warrior-1';
+    const warrior2 = createUnit('warrior', 'ai-1', { q: 2, r: 0 }, mkC());
+    warrior2.id = 'warrior-2';
+
+    const state: GameState = {
+      turn: 1, era: 1, currentPlayer: 'ai-1', gameOver: false, winner: null,
+      map: {
+        width: 6, height: 6, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '1,0': { coord: { q: 1, r: 0 }, terrain: 'coast',     elevation: 'lowland', resource: null, improvement: 'none', owner: null,   improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '2,0': { coord: { q: 2, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: { [transport.id]: transport, [warrior1.id]: warrior1, [warrior2.id]: warrior2 },
+      cities: {},
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1', name: 'AI', color: '#d94a4a', isHuman: false, civType: 'generic',
+          cities: [], units: [transport.id, warrior1.id, warrior2.id],
+          techState: { completed: ['galleys'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0, visibility: { tiles: { '0,0': 'visible', '1,0': 'visible', '2,0': 'visible' } },
+          score: 0, knownCivilizations: [],
+          diplomacy: baseDiplomacy(),
+        },
+      },
+      barbarianCamps: {}, minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
+      embargoes: [], defensiveLeagues: [],
+      idCounters: { nextUnitId: 4, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+      pendingDiplomacyRequests: [], legendaryWonderIntel: {},
+      legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+    } as GameState;
+
+    const result = processAITurn(state, 'ai-1', new EventBus());
+
+    expect(result.units['warrior-1']?.transportId).toBe('transport-1');
+    expect(result.units['warrior-2']?.transportId).toBe('transport-1');
+  });
+
+  it('transport unloads ALL eligible cargo in one turn when multiple enemy tiles are adjacent', () => {
+    // Two warriors aboard; transport flanked by two enemy-owned grassland tiles.
+    // Both warriors should be unloaded in a single AI turn.
+    const warrior1 = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC());
+    warrior1.id = 'warrior-1';
+    warrior1.transportId = 'transport-1';
+    warrior1.hasMoved = false;
+    warrior1.hasActed = false;
+    warrior1.movementPointsLeft = 2;
+
+    const warrior2 = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC());
+    warrior2.id = 'warrior-2';
+    warrior2.transportId = 'transport-1';
+    warrior2.hasMoved = false;
+    warrior2.hasActed = false;
+    warrior2.movementPointsLeft = 2;
+
+    const transport = createUnit('transport', 'ai-1', { q: 1, r: 0 }, mkC());
+    transport.id = 'transport-1';
+    transport.cargoUnitIds = ['warrior-1', 'warrior-2'];
+
+    const state: GameState = {
+      turn: 1, era: 1, currentPlayer: 'ai-1', gameOver: false, winner: null,
+      map: {
+        width: 6, height: 6, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '1,0': { coord: { q: 1, r: 0 }, terrain: 'coast',     elevation: 'lowland', resource: null, improvement: 'none', owner: null,     improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '2,0': { coord: { q: 2, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: { [transport.id]: transport, [warrior1.id]: warrior1, [warrior2.id]: warrior2 },
+      cities: {},
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1', name: 'AI', color: '#d94a4a', isHuman: false, civType: 'generic',
+          cities: [], units: [transport.id, warrior1.id, warrior2.id],
+          techState: { completed: ['galleys'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0, visibility: { tiles: { '0,0': 'visible', '1,0': 'visible', '2,0': 'visible' } },
+          score: 0, knownCivilizations: ['player'],
+          diplomacy: baseDiplomacy(['player']),
+        },
+        player: {
+          id: 'player', name: 'Player', color: '#4a90d9', isHuman: true, civType: 'generic',
+          cities: [], units: [],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0, visibility: { tiles: {} }, score: 0, knownCivilizations: ['ai-1'],
+          diplomacy: baseDiplomacy(['ai-1']),
+        },
+      },
+      barbarianCamps: {}, minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
+      embargoes: [], defensiveLeagues: [],
+      idCounters: { nextUnitId: 4, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+      pendingDiplomacyRequests: [], legendaryWonderIntel: {},
+      legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+    } as GameState;
+
+    const result = processAITurn(state, 'ai-1', new EventBus());
+
+    expect(result.units['warrior-1']?.transportId).toBeUndefined();
+    expect(result.units['warrior-2']?.transportId).toBeUndefined();
+    // Warriors landed on the two flanking enemy tiles (one each)
+    const positions = [result.units['warrior-1']?.position, result.units['warrior-2']?.position];
+    expect(positions).toContainEqual({ q: 0, r: 0 });
+    expect(positions).toContainEqual({ q: 2, r: 0 });
+  });
 });
 
 describe('AI naval warship movement', () => {
