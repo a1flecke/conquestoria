@@ -1387,6 +1387,21 @@ function TransportV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
   );
 }
 
+/* === MR 4: late-era naval v2 wrappers === */
+
+function CarrackV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <SpriteFrameV2 state={state} kind="naval"><CarrackSprite faction={faction} state={state} /></SpriteFrameV2>;
+}
+function GalleonV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <SpriteFrameV2 state={state} kind="naval"><GalleonSprite faction={faction} state={state} /></SpriteFrameV2>;
+}
+function SteamshipV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <SpriteFrameV2 state={state} kind="naval"><SteamshipSprite faction={faction} state={state} /></SpriteFrameV2>;
+}
+function TroopTransportV2Sprite({ faction = 'imperials', state = 'idle' }) {
+  return <SpriteFrameV2 state={state} kind="naval"><TroopTransportSprite faction={faction} state={state} /></SpriteFrameV2>;
+}
+
 Object.assign(window, {
   SpriteFrameV2, HumanoidV2,
   SwordsmanV2Sprite, WorkerV2Sprite, ArcherV2Sprite, SpyOperativeV2Sprite,
@@ -1401,4 +1416,5 @@ Object.assign(window, {
   CrossbowmanV2Sprite,
   CatapultV2Sprite, BallistaV2Sprite,
   CaravanV2Sprite, ExpeditionV2Sprite, TransportV2Sprite,
+  CarrackV2Sprite, GalleonV2Sprite, SteamshipV2Sprite, TroopTransportV2Sprite,
 });
