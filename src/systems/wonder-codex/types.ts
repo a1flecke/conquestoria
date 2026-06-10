@@ -119,6 +119,8 @@ export interface WonderCodexImageSource {
 
 export type WonderCodexVideoSurface = 'codex' | 'natural-reveal' | 'legendary-completion';
 
+export type WonderCodexVideoBatchId = 'stage-3-spike' | 'stage-3b-batch-2';
+
 export interface WonderCodexVideoSource {
   id: string;
   wonderId: string;
@@ -136,5 +138,6 @@ export interface WonderCodexVideoSource {
   mimeType: string;
   loopNote: string;
   audio: 'silent';
+  batchId: WonderCodexVideoBatchId;
   sfxCueId?: string;
 }

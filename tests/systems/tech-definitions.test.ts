@@ -8,11 +8,11 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
-  it('has exactly 126 techs after adding amphibious-warfare (naval transport era-5)', () => {
-    expect(TECH_TREE.length).toBe(126);
+  it('has exactly 127 techs after adding bridge-building to the exploration track', () => {
+    expect(TECH_TREE.length).toBe(127);
   });
 
-  it('keeps 15 tracks while expanding economy, science, communication, and maritime into era 5', () => {
+  it('keeps 15 tracks while expanding economy, science, communication, maritime, and exploration', () => {
     const tracks = new Map<string, number>();
     for (const tech of TECH_TREE) {
       tracks.set(tech.track, (tracks.get(tech.track) ?? 0) + 1);
@@ -21,14 +21,14 @@ describe('tech definitions', () => {
     for (const [track, count] of tracks) {
       const expected = track === 'espionage'
         ? 10
-        : ['economy', 'science', 'communication', 'maritime'].includes(track)
+        : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
           ? 9
           : 8;
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });
 
-  it('keeps the original 2-tech era rhythm through era 4 and adds only the planned era 5 scaffolding', () => {
+  it('keeps the 2-tech era rhythm through era 4, except exploration-era3 which has bridge-building as a 3rd', () => {
     const trackEra = new Map<string, number>();
     for (const tech of TECH_TREE) {
       const key = `${tech.track}-${tech.era}`;
@@ -38,7 +38,8 @@ describe('tech definitions', () => {
     for (const track of tracks) {
       for (let era = 1; era <= 4; era++) {
         const key = `${track}-${era}`;
-        expect(trackEra.get(key), `${key} should have 2 techs`).toBe(2);
+        const expected = (track === 'exploration' && era === 3) ? 3 : 2;
+        expect(trackEra.get(key), `${key} should have ${expected} techs`).toBe(expected);
       }
     }
     expect(trackEra.get('espionage-5'), 'espionage-5 should have 2 techs').toBe(2);

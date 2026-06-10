@@ -16,12 +16,20 @@ import {
 
 const FORBIDDEN_TEXT = ['TODO', 'TBD', 'lorem', 'placeholder', 'pending implementation'];
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
+const STAGE_3_SPIKE_WONDERS = new Set(['great_volcano', 'starvault-observatory']);
+const STAGE_3B_NATURAL_VIDEO_WONDERS = new Set(['sacred_mountain', 'coral_reef', 'grand_canyon']);
+const STAGE_3B_LEGENDARY_VIDEO_WONDERS = new Set(['oracle-of-delphi', 'grand-canal', 'moonwell-gardens']);
+const STAGE_3B_HARD_BATCH_BYTES = 18 * 1024 * 1024;
 
 function assertCleanText(value: string): void {
   expect(value.trim().length).toBeGreaterThan(0);
   for (const token of FORBIDDEN_TEXT) {
     expect(value.toLowerCase()).not.toContain(token.toLowerCase());
   }
+}
+
+function readLocalAsset(localPath: string): Buffer {
+  return readFileSync(resolve(repoRoot, 'public', localPath.replace(/^\/+/, '')));
 }
 
 describe('wonder-codex sources', () => {
@@ -54,13 +62,24 @@ describe('wonder-codex sources', () => {
     }
   });
 
-  it('has exactly two complete silent local video spike sources under the hard size threshold', () => {
+  it('has complete silent local video sources under the hard size threshold', () => {
     const sources = getWonderCodexVideoSources();
-    expect(sources).toHaveLength(2);
-    expect(new Set(sources.map(source => source.wonderId))).toEqual(new Set(['great_volcano', 'starvault-observatory']));
+    expect(sources).toHaveLength(8);
+
+    const stage3Spike = sources.filter(source => source.batchId === 'stage-3-spike');
+    expect(new Set(stage3Spike.map(source => source.wonderId))).toEqual(STAGE_3_SPIKE_WONDERS);
+
+    const stage3b = sources.filter(source => source.batchId === 'stage-3b-batch-2');
+    expect(stage3b).toHaveLength(6);
+    expect(new Set(stage3b.filter(source => source.surfaces.includes('natural-reveal')).map(source => source.wonderId)))
+      .toEqual(STAGE_3B_NATURAL_VIDEO_WONDERS);
+    expect(new Set(stage3b.filter(source => source.surfaces.includes('legendary-completion')).map(source => source.wonderId)))
+      .toEqual(STAGE_3B_LEGENDARY_VIDEO_WONDERS);
+    expect(stage3b.reduce((total, source) => total + source.sizeBytes, 0)).toBeLessThanOrEqual(STAGE_3B_HARD_BATCH_BYTES);
 
     for (const source of sources) {
       assertCleanText(source.id);
+      assertCleanText(source.batchId);
       assertCleanText(source.wonderId);
       assertCleanText(source.title);
       assertCleanText(source.sourceUrl);
@@ -82,6 +101,22 @@ describe('wonder-codex sources', () => {
       expect(source.fallbackImageSourceId).toMatch(/^image-/);
       expect(getImageSource(source.fallbackImageSourceId)).toBeTruthy();
       expect(existsSync(resolve(repoRoot, 'public', source.localPath.replace(/^\/+/, '')))).toBe(true);
+      expect(source.sizeBytes).toBe(readLocalAsset(source.localPath).byteLength);
+    }
+  });
+
+  it('keeps shipped video assets video-only even when source clips contained audio', () => {
+    for (const source of getWonderCodexVideoSources()) {
+      const asset = readLocalAsset(source.localPath);
+      expect(asset.includes(Buffer.from('vide'))).toBe(true);
+      expect(asset.includes(Buffer.from('soun'))).toBe(false);
+    }
+  });
+
+  it('keeps video batch ids as audit metadata only', () => {
+    for (const source of getWonderCodexVideoSources()) {
+      expect(source.batchId).toMatch(/^stage-3/);
+      expect(source.sfxCueId).toBeUndefined();
     }
   });
 

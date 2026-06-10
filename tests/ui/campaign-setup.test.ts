@@ -5,6 +5,10 @@ import { showCampaignSetup } from '@/ui/campaign-setup';
 import type { CustomCivDefinition } from '@/core/types';
 import { createDefaultSettings } from '@/core/game-state';
 import * as saveManager from '@/storage/save-manager';
+// Static imports prevent module compilation from eating into the 5000ms test timeout.
+// AdvisorSystem (796 lines) would otherwise be compiled inside each of the 3 advisor tests.
+import { AdvisorSystem } from '@/ui/advisor-system';
+import { EventBus } from '@/core/event-bus';
 
 let storedSettings = createDefaultSettings('small');
 
@@ -562,9 +566,7 @@ describe('colonizer start notification', () => {
     } as unknown as import('@/core/types').GameState;
   }
 
-  it('fires advisor message for colonizer civ on new-world map', async () => {
-    const { AdvisorSystem } = await import('@/ui/advisor-system');
-    const { EventBus } = await import('@/core/event-bus');
+  it('fires advisor message for colonizer civ on new-world map', () => {
     const bus = new EventBus();
     const system = new AdvisorSystem(bus);
     const messages: string[] = [];
@@ -574,9 +576,7 @@ describe('colonizer start notification', () => {
     expect(messages.some(m => m.includes('colonial'))).toBe(true);
   });
 
-  it('does NOT fire for Aztec on new-world map (Aztec homeland, not colonizer)', async () => {
-    const { AdvisorSystem } = await import('@/ui/advisor-system');
-    const { EventBus } = await import('@/core/event-bus');
+  it('does NOT fire for Aztec on new-world map (Aztec homeland, not colonizer)', () => {
     const bus = new EventBus();
     const system = new AdvisorSystem(bus);
     const messages: string[] = [];
@@ -586,9 +586,7 @@ describe('colonizer start notification', () => {
     expect(messages.some(m => m.includes('colonial'))).toBe(false);
   });
 
-  it('does NOT fire on non-new-world maps', async () => {
-    const { AdvisorSystem } = await import('@/ui/advisor-system');
-    const { EventBus } = await import('@/core/event-bus');
+  it('does NOT fire on non-new-world maps', () => {
     const bus = new EventBus();
     const system = new AdvisorSystem(bus);
     const messages: string[] = [];

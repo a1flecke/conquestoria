@@ -221,6 +221,47 @@ describe('getMovementRange', () => {
   });
 });
 
+describe('getMovementRange river awareness', () => {
+  it('excludes a tile 2 steps away when a river crossing consumes all remaining MP', () => {
+    // Warrior has 2 MP. Plains-plains path with river between step 0 and step 1:
+    //   {0,0}→{1,0}: terrain 1 + river 1 = 2 MP → 0 remaining
+    // Then {1,0}→{2,0}: needs 1 more MP but none left → {2,0} must NOT be highlighted
+    const map = createWrappedGrasslandMap(5, 5);
+    map.rivers = [{ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }];
+    const warrior = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
+    const range = getMovementRange(warrior, map, {});
+    const keys = range.map(hexKey);
+    expect(keys).toContain('1,0'); // adjacent river step still reachable (uses all 2 MP)
+    expect(keys).not.toContain('2,0'); // 3 MP needed (terrain 1 + river 1 + terrain 1) > 2 available
+  });
+
+  it('includes the 2-step tile when bridge-building removes the river crossing penalty', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    map.rivers = [{ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }];
+    const warrior = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
+    // With bridge-building: step 1 costs 1 (no river penalty) + step 2 costs 1 = 2 total = reachable
+    const range = getMovementRange(warrior, map, {}, undefined, undefined, { completedTechs: ['bridge-building'] });
+    const keys = range.map(hexKey);
+    expect(keys).toContain('2,0');
+  });
+
+  it('naval units are never penalised for river crossings', () => {
+    // Galley is a naval unit — it never pays the +1 river crossing cost
+    const map = createWrappedGrasslandMap(5, 5);
+    // Make all tiles coast so the galley can enter them
+    for (const key of Object.keys(map.tiles)) {
+      map.tiles[key] = { ...map.tiles[key]!, terrain: 'coast' };
+    }
+    map.rivers = [{ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }];
+    const galley = createUnit('galley', 'p1', { q: 0, r: 0 }, mkC());
+    const range = getMovementRange(galley, map, {});
+    const keys = range.map(hexKey);
+    // Galley has multiple MP; regardless, crossing the river edge should not cost extra
+    expect(keys).toContain('1,0');
+    expect(keys).toContain('2,0'); // reachable because no river penalty for naval
+  });
+});
+
 describe('moveUnit', () => {
   it('updates unit position and deducts movement', () => {
     const unit = createUnit('scout', 'p1', { q: 5, r: 5 }, mkC());

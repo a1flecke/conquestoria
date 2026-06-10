@@ -474,3 +474,45 @@ describe('mountain tile workability (issue #280)', () => {
     expect(keys).toContain('16,15');
   });
 });
+
+describe('river production bonus', () => {
+  function riverFarmState(completedTechs: string[]): { state: GameState; coord: HexCoord } {
+    const state = createNewGame(undefined, 'river-prod');
+    const coord: HexCoord = { q: 5, r: 5 };
+    state.map.tiles[hexKey(coord)] = {
+      coord,
+      terrain: 'grassland',
+      elevation: 'lowland',
+      resource: null,
+      improvement: 'farm',
+      improvementTurnsLeft: 0,
+      owner: 'player',
+      hasRiver: true,
+      wonder: null,
+    };
+    state.civilizations['player'].techState.completed = completedTechs;
+    return { state, coord };
+  }
+
+  it('gives no production bonus without irrigation tech', () => {
+    const { state, coord } = riverFarmState([]);
+    expect(calculateWorkedTileYield(state, coord).production).toBe(0);
+  });
+
+  it('gives +1 production on a river farm with irrigation tech', () => {
+    const { state, coord } = riverFarmState(['irrigation']);
+    expect(calculateWorkedTileYield(state, coord).production).toBe(1);
+  });
+
+  it('gives no river production bonus on a non-farm river tile even with irrigation', () => {
+    const { state, coord } = riverFarmState(['irrigation']);
+    state.map.tiles[hexKey(coord)]!.improvement = 'none';
+    expect(calculateWorkedTileYield(state, coord).production).toBe(0);
+  });
+
+  it('gives no production bonus when farm is not yet complete (improvementTurnsLeft > 0)', () => {
+    const { state, coord } = riverFarmState(['irrigation']);
+    state.map.tiles[hexKey(coord)]!.improvementTurnsLeft = 2;
+    expect(calculateWorkedTileYield(state, coord).production).toBe(0);
+  });
+});

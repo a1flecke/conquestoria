@@ -46,6 +46,12 @@ export function calculateWorkedTileYield(state: GameState, coord: HexCoord): Res
     total.gold += 1;
     if (tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
       total.food += 1;
+      const completedTechs = tile.owner != null
+        ? (state.civilizations[tile.owner]?.techState.completed ?? [])
+        : [];
+      if (completedTechs.includes('irrigation')) {
+        total.production += 1;
+      }
     }
   }
 

@@ -62,14 +62,52 @@ describe('wonder-codex presentation', () => {
 
   it('does not invent video previews for visible unsupported Codex pages', () => {
     const state = makeState();
+    state.map.tiles[hexKey({ q: 1, r: 0 })].wonder = 'crystal_caverns';
+    state.discoveredWonders.crystal_caverns = 'player';
+    state.wonderDiscoverers.crystal_caverns = ['player'];
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'crystal_caverns' });
+
+    expect(model.selectedPage?.id).toBe('crystal_caverns');
+    expect(model.selectedPage?.videoPreview).toBeUndefined();
+  });
+
+  it('shows Stage 3B natural videos on discovered Codex pages', () => {
+    const state = makeState();
     state.map.tiles[hexKey({ q: 1, r: 0 })].wonder = 'coral_reef';
     state.discoveredWonders.coral_reef = 'player';
     state.wonderDiscoverers.coral_reef = ['player'];
 
     const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'coral_reef' });
 
-    expect(model.selectedPage?.id).toBe('coral_reef');
-    expect(model.selectedPage?.videoPreview).toBeUndefined();
+    expect(model.selectedPage?.videoPreview).toMatchObject({
+      id: 'video-coral-reef-art-park',
+      wonderId: 'coral_reef',
+      surface: 'codex',
+      audio: 'silent',
+    });
+    expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/coral-reef-art-park.mp4');
+    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/coral.jpg');
+  });
+
+  it('shows Stage 3B legendary videos on safe owned completed Codex pages', () => {
+    const state = makeState();
+    const baseCity = state.cities[Object.keys(state.cities)[0]];
+    state.cities['safe-city'] = { ...baseCity, id: 'safe-city', owner: 'player' };
+    state.completedLegendaryWonders = {
+      'grand-canal': { ownerId: 'player', cityId: 'safe-city', turnCompleted: 58 },
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'grand-canal' });
+
+    expect(model.selectedPage?.videoPreview).toMatchObject({
+      id: 'video-grand-canal-gongchen-hangzhou',
+      wonderId: 'grand-canal',
+      surface: 'codex',
+      audio: 'silent',
+    });
+    expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/grand-canal-gongchen-hangzhou.mp4');
+    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/canal.jpg');
   });
 
   it('rival-owned project and completion do not appear in player catalog and no private data leaks', () => {

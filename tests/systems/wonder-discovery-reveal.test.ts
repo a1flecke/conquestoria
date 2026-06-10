@@ -68,6 +68,21 @@ describe('wonder-discovery-reveal', () => {
 
   it('does not invent video previews for unsupported natural reveal wonders', () => {
     const state = makeState();
+    state.map.tiles[hexKey({ q: 1, r: 0 })].wonder = 'crystal_caverns';
+    state.wonderDiscoverers.crystal_caverns = ['player'];
+
+    const item = buildWonderDiscoveryRevealItem(
+      state,
+      'player',
+      event({ wonderId: 'crystal_caverns', position: { q: 1, r: 0 } }),
+    );
+
+    expect(item?.wonderId).toBe('crystal_caverns');
+    expect(item?.videoPreview).toBeUndefined();
+  });
+
+  it('includes a Stage 3B silent natural reveal video preview', () => {
+    const state = makeState();
     state.map.tiles[hexKey({ q: 1, r: 0 })].wonder = 'coral_reef';
     state.wonderDiscoverers.coral_reef = ['player'];
 
@@ -77,8 +92,12 @@ describe('wonder-discovery-reveal', () => {
       event({ wonderId: 'coral_reef', position: { q: 1, r: 0 } }),
     );
 
-    expect(item?.wonderId).toBe('coral_reef');
-    expect(item?.videoPreview).toBeUndefined();
+    expect(item?.videoPreview).toMatchObject({
+      id: 'video-coral-reef-art-park',
+      wonderId: 'coral_reef',
+      surface: 'natural-reveal',
+      audio: 'silent',
+    });
   });
 
   it('allows separate human civs to receive their own reveal on their own turn', () => {
