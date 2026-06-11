@@ -64,8 +64,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   cavalry: 'animal',
   knight: 'animal',
   crossbowman: 'humanoid',
-  catapult: 'naval',
-  ballista: 'naval',
+  catapult: 'humanoid',
+  ballista: 'humanoid',
   caravan: 'humanoid',
   expedition: 'humanoid',
 };

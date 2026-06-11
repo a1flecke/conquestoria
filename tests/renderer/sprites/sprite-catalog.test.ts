@@ -42,6 +42,21 @@ describe('sprite-catalog coverage', () => {
         expect(movingB, `${unitType} move-b must differ from move-a`).not.toBe(movingA);
       }
     });
+
+    it('siege engines use land motion instead of naval bobbing', () => {
+      const palette = derivePalette('#4a90d9');
+      const siegeTypes: Array<keyof typeof UNIT_SPRITE_CATALOG> = ['catapult', 'ballista'];
+
+      for (const unitType of siegeTypes) {
+        const movingA = UNIT_SPRITE_CATALOG[unitType]({ palette, svgOnly: true, motion: 'move-a' });
+        const movingB = UNIT_SPRITE_CATALOG[unitType]({ palette, svgOnly: true, motion: 'move-b' });
+
+        expect(movingA, `${unitType} move-a should use the land pivot`).toContain('rotate(-2 64 70)');
+        expect(movingB, `${unitType} move-b should use the land pivot`).toContain('rotate(2 64 70)');
+        expect(movingA, `${unitType} move-a should not use the naval pivot`).not.toContain('64 82');
+        expect(movingB, `${unitType} move-b should not use the naval pivot`).not.toContain('64 82');
+      }
+    });
   });
 
   describe('BUILDING_SPRITE_CATALOG', () => {

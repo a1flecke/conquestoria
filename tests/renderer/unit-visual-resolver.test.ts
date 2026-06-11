@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { resolveUnitVisual } from '@/renderer/unit-visual-resolver';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import type { UnitType } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -37,5 +38,15 @@ describe('unit-visual-resolver', () => {
       roleMarker: 'diamond',
       color: '#8a6f2a',
     });
+  });
+
+  it('provides a concrete fallback icon for every defined unit type', () => {
+    const state = createNewGame(undefined, 'fallback-icon-coverage', 'small');
+
+    for (const unitType of Object.keys(UNIT_DEFINITIONS) as UnitType[]) {
+      const unit = { ...createUnit(unitType, 'player', { q: 0, r: 0 }, mkC()), id: unitType };
+
+      expect(resolveUnitVisual(state, unit).fallbackIcon, unitType).not.toBe('?');
+    }
   });
 });
