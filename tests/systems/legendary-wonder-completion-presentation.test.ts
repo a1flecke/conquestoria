@@ -71,11 +71,30 @@ describe('legendary-wonder-completion-presentation', () => {
     const item = buildLegendaryWonderCompletionCeremonyItem(state, {
       civId: 'player',
       cityId: 'city-river',
-      wonderId: 'world-archive',
+      wonderId: 'internet',
       turnCompleted: 42,
     });
 
     expect(item?.videoPreview).toBeUndefined();
+  });
+
+  it('includes a Stage 3C silent legendary completion video preview for the owner', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.currentPlayer = 'player';
+
+    const item = buildLegendaryWonderCompletionCeremonyItem(state, {
+      civId: 'player',
+      cityId: 'city-river',
+      wonderId: 'ironroot-foundry',
+      turnCompleted: 72,
+    });
+
+    expect(item?.videoPreview).toMatchObject({
+      id: 'video-ironroot-foundry-steel-forging',
+      wonderId: 'ironroot-foundry',
+      surface: 'legendary-completion',
+      audio: 'silent',
+    });
   });
 
   it('returns null for wrong-viewer and unknown-wonder events', () => {

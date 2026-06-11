@@ -100,6 +100,25 @@ describe('wonder-discovery-reveal', () => {
     });
   });
 
+  it('includes a Stage 3C silent natural reveal video preview', () => {
+    const state = makeState();
+    state.map.tiles[hexKey({ q: 1, r: 0 })].wonder = 'singing_sands';
+    state.wonderDiscoverers.singing_sands = ['player'];
+
+    const item = buildWonderDiscoveryRevealItem(
+      state,
+      'player',
+      event({ wonderId: 'singing_sands', position: { q: 1, r: 0 } }),
+    );
+
+    expect(item?.videoPreview).toMatchObject({
+      id: 'video-singing-sands-mojave-sunset',
+      wonderId: 'singing_sands',
+      surface: 'natural-reveal',
+      audio: 'silent',
+    });
+  });
+
   it('allows separate human civs to receive their own reveal on their own turn', () => {
     const state = makeState();
     state.civilizations['player-2'] = { ...state.civilizations.player, id: 'player-2', name: 'Second Human', isHuman: true };
