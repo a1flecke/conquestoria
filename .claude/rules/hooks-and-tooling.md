@@ -20,8 +20,10 @@ paths:
 - Source: https://code.claude.com/docs/en/hooks
 
 ## Hook exit codes
-- `0` — allow the tool call (proceed). stdout JSON may control the call further.
-- `2` — block the tool call. stderr is fed back to Claude as the reason.
+- `0` — success; Claude proceeds. stdout JSON may adjust behavior (e.g. `permissionDecision`).
+- `2` — behavior depends on hook event:
+  - **PreToolUse**: blocks the tool call. stderr is returned to Claude as the reason.
+  - **PostToolUse**: non-blocking (the tool already ran). stderr feeds back to Claude as feedback in the same turn — this is the intended pattern for `check-src-edit.sh`.
 - Any other code — non-blocking error; Claude proceeds, stderr surfaces in the transcript.
 
 ## Every new hook script needs a smoke test

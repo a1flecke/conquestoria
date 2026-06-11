@@ -81,4 +81,4 @@ See `docs/sprite-design-system.md` for the full asset inventory, placeholder lis
 
 `tests/renderer/sprites/sprite-catalog.test.ts` asserts that every `UnitType` and every building ID in `BUILDINGS` has a `UNIT_SPRITE_CATALOG` or `BUILDING_SPRITE_CATALOG` entry. This test **will fail** if you add a new type without the catalog line. Fix by adding the catalog line — never by weakening the test.
 
-A parallel test for terrain tiles (`tests/renderer/terrain/terrain-tiles.test.ts`) should assert that every `TerrainType` value has all 4 variants. Add this test when `terrain-tiles.ts` is first created.
+A parallel test for terrain tiles (`tests/renderer/terrain/terrain-tiles.test.ts`) should assert that every `TerrainType` value has all 4 variants. `terrain-tiles.ts` exists but this test directory is currently missing — add it when making terrain changes.
