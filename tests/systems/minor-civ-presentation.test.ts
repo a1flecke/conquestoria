@@ -17,6 +17,22 @@ describe('minor-civ-presentation', () => {
     });
   });
 
+  it('masks city-state color until the viewer has discovered it', () => {
+    const state = createNewGame(undefined, 'mc-present-color-privacy', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const hiddenPresentation = getMinorCivPresentationForPlayer(state, 'player', mcId);
+    const city = state.cities[state.minorCivs[mcId].cityId];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+    const discoveredPresentation = getMinorCivPresentationForPlayer(state, 'player', mcId);
+
+    expect(hiddenPresentation).toMatchObject({
+      known: false,
+      color: '#888',
+    });
+    expect(discoveredPresentation.known).toBe(true);
+    expect(discoveredPresentation.color).not.toBe('#888');
+  });
+
   it('uses the real name after the city tile is discovered', () => {
     const state = createNewGame(undefined, 'mc-present-discovered', 'small');
     const mcId = Object.keys(state.minorCivs)[0]!;

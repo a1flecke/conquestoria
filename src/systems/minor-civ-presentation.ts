@@ -21,7 +21,7 @@ export function getMinorCivPresentationForPlayer(
   return {
     known,
     name: known ? (def?.name ?? unknownName) : unknownName,
-    color: def?.color ?? '#888',
+    color: known ? (def?.color ?? '#888') : '#888',
   };
 }
 

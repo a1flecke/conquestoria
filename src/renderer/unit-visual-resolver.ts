@@ -1,10 +1,10 @@
-import type { GameState, Unit } from '@/core/types';
+import type { GameState, Unit, UnitType } from '@/core/types';
 
 export type UnitOwnerRole = 'major' | 'minor' | 'barbarian';
 export type UnitRoleMarker = 'chevron' | 'diamond' | null;
 export type UnitMotionState = 'idle' | 'move-a' | 'move-b';
 
-const FALLBACK_ICONS: Record<string, string> = {
+const FALLBACK_ICONS: Record<UnitType, string> = {
   settler: '🏕️',
   worker: '👷',
   scout: '🔭',
@@ -24,6 +24,11 @@ const FALLBACK_ICONS: Record<string, string> = {
   ballista: '🎯',
   galley: '⛵',
   trireme: '🚢',
+  transport: '🛶',
+  carrack: '⛵',
+  galleon: '🚢',
+  steamship: '🚢',
+  troop_transport: '🛳️',
   spy_scout: '🕵️',
   spy_informant: '🕵️',
   spy_agent: '🕵️',

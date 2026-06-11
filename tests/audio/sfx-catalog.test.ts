@@ -114,9 +114,15 @@ describe('getLocomotionClass', () => {
   });
 
   it('maps naval units correctly', () => {
-    const navalTypes: UnitType[] = ['galley', 'trireme', 'transport', 'catapult', 'ballista'];
+    const navalTypes: UnitType[] = ['galley', 'trireme', 'transport', 'carrack', 'galleon', 'steamship', 'troop_transport'];
     for (const t of navalTypes) {
       expect(getLocomotionClass(t), t).toBe('naval');
+    }
+  });
+
+  it('maps siege engines to land movement instead of ship movement', () => {
+    for (const t of SIEGE_TYPES) {
+      expect(getLocomotionClass(t), t).toBe('humanoid');
     }
   });
 
