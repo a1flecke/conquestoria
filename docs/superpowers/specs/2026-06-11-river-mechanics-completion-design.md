@@ -62,7 +62,7 @@ Existing river-system and movement-system tests remain unchanged unless they exp
 After implementation, run:
 
 - `scripts/check-src-rule-violations.sh src/systems/combat-system.ts src/systems/city-work-system.ts src/systems/resource-system.ts`
-- `./scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/systems/city-work-system.test.ts tests/systems/resource-system.test.ts tests/systems/river-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai.test.ts`
+- `./scripts/run-with-mise.sh yarn vitest run tests/systems/combat-system.test.ts tests/systems/city-work-system.test.ts tests/systems/resource-system.test.ts tests/systems/river-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai.test.ts`
 - `./scripts/run-with-mise.sh yarn build`
 - `./scripts/run-with-mise.sh yarn test`
 

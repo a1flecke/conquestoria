@@ -3,6 +3,7 @@ import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderCombatBonus } from './wonder-system';
 import { getVeterancyCombatModifier } from './combat-reward-system';
+import { getRiverDefensePenalty, isRiverBetween } from './river-system';
 
 export function getTerrainDefenseBonus(terrain: string): number {
   const bonuses: Record<string, number> = {
@@ -73,6 +74,10 @@ export function resolveCombat(
 
   let atkStrength = atkDef.strength * (attacker.health / 100) * (1 + getVeterancyCombatModifier(attacker));
   let defStrength = defDef.strength * (defender.health / 100) * (1 + getVeterancyCombatModifier(defender));
+
+  atkStrength *= 1 + getRiverDefensePenalty(
+    isRiverBetween(map, attacker.position, defender.position),
+  );
 
   // Terrain defense bonus
   const defTile = map.tiles[hexKey(defender.position)];

@@ -6,6 +6,7 @@ import { getTotalAdjacencyYields } from './adjacency-system';
 import { getWonderYieldBonus } from './wonder-system';
 import { getWonderDefinition } from './wonder-definitions';
 import { canonicalizeCityCoord } from './city-territory-system';
+import { getRiverYieldBonus } from './river-system';
 
 export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   grassland:  { food: 2, production: 0, gold: 0, science: 0 },
@@ -48,9 +49,13 @@ export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivB
     yields.gold += terrainYield.gold;
     yields.science += terrainYield.science;
 
-    // River bonus
+    const riverBonus = getRiverYieldBonus(tile.hasRiver);
+    yields.food += riverBonus.food;
+    yields.production += riverBonus.production;
+    yields.gold += riverBonus.gold;
+    yields.science += riverBonus.science;
+
     if (tile.hasRiver) {
-      yields.gold += 1;
       if (tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
         yields.food += 1;
       }
