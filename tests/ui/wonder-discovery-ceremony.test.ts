@@ -94,6 +94,45 @@ describe('wonder-discovery-ceremony', () => {
     play.mockRestore();
   });
 
+  it('uses the Stage 3C natural video view while keeping discovery actions clickable', () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const onResolve = vi.fn();
+    createWonderDiscoveryCeremony(
+      document.body,
+      item({
+        wonderId: 'singing_sands',
+        name: 'Singing Sands',
+        visual: getWonderVisualDefinition('singing_sands'),
+        videoPreview: {
+          ...videoPreview('natural-reveal'),
+          id: 'video-singing-sands-mojave-sunset',
+          wonderId: 'singing_sands',
+          src: '/videos/wonders/singing-sands-mojave-sunset.mp4',
+          label: 'Singing Sands',
+          attribution: 'Kyle Sullivan / BLM California - public domain U.S. Bureau of Land Management material',
+          sourceUrl: 'https://commons.wikimedia.org/wiki/File:Mojave_Desert_Sunset_(40480403760).webm',
+          license: 'public domain U.S. Bureau of Land Management material',
+          fallbackImage: {
+            src: '/images/wonders/codex/desert.jpg',
+            alt: 'Singing Sands source image',
+            attribution: 'NASA / public domain',
+            sourceUrl: 'https://commons.wikimedia.org/wiki/File:Great_Sand_Dunes_National_Park_and_Preserve.jpg',
+            license: 'public domain',
+          },
+        },
+      }),
+      { onResolve },
+      { reducedMotion: false },
+    );
+
+    expect(document.querySelector('source')?.getAttribute('src')).toBe('/videos/wonders/singing-sands-mojave-sunset.mp4');
+    expect(document.body.textContent).toContain('Kyle Sullivan / BLM California');
+    click('[data-wonder-discovery-action="open-atlas"]');
+    expect(onResolve).toHaveBeenCalledWith('open-atlas');
+
+    play.mockRestore();
+  });
+
   it('keeps the static ceremony visual in reduced motion when a video preview exists', () => {
     createWonderDiscoveryCeremony(
       document.body,

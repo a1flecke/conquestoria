@@ -20,6 +20,9 @@ const STAGE_3_SPIKE_WONDERS = new Set(['great_volcano', 'starvault-observatory']
 const STAGE_3B_NATURAL_VIDEO_WONDERS = new Set(['sacred_mountain', 'coral_reef', 'grand_canyon']);
 const STAGE_3B_LEGENDARY_VIDEO_WONDERS = new Set(['oracle-of-delphi', 'grand-canal', 'moonwell-gardens']);
 const STAGE_3B_HARD_BATCH_BYTES = 18 * 1024 * 1024;
+const STAGE_3C_NATURAL_VIDEO_WONDERS = new Set(['ancient_forest', 'bioluminescent_bay', 'singing_sands']);
+const STAGE_3C_LEGENDARY_VIDEO_WONDERS = new Set(['world-archive', 'ironroot-foundry', 'sun-spire']);
+const STAGE_3C_HARD_BATCH_BYTES = 18 * 1024 * 1024;
 
 function assertCleanText(value: string): void {
   expect(value.trim().length).toBeGreaterThan(0);
@@ -64,7 +67,7 @@ describe('wonder-codex sources', () => {
 
   it('has complete silent local video sources under the hard size threshold', () => {
     const sources = getWonderCodexVideoSources();
-    expect(sources).toHaveLength(8);
+    expect(sources).toHaveLength(14);
 
     const stage3Spike = sources.filter(source => source.batchId === 'stage-3-spike');
     expect(new Set(stage3Spike.map(source => source.wonderId))).toEqual(STAGE_3_SPIKE_WONDERS);
@@ -76,6 +79,14 @@ describe('wonder-codex sources', () => {
     expect(new Set(stage3b.filter(source => source.surfaces.includes('legendary-completion')).map(source => source.wonderId)))
       .toEqual(STAGE_3B_LEGENDARY_VIDEO_WONDERS);
     expect(stage3b.reduce((total, source) => total + source.sizeBytes, 0)).toBeLessThanOrEqual(STAGE_3B_HARD_BATCH_BYTES);
+
+    const stage3c = sources.filter(source => source.batchId === 'stage-3c-batch-3');
+    expect(stage3c).toHaveLength(6);
+    expect(new Set(stage3c.filter(source => source.surfaces.includes('natural-reveal')).map(source => source.wonderId)))
+      .toEqual(STAGE_3C_NATURAL_VIDEO_WONDERS);
+    expect(new Set(stage3c.filter(source => source.surfaces.includes('legendary-completion')).map(source => source.wonderId)))
+      .toEqual(STAGE_3C_LEGENDARY_VIDEO_WONDERS);
+    expect(stage3c.reduce((total, source) => total + source.sizeBytes, 0)).toBeLessThanOrEqual(STAGE_3C_HARD_BATCH_BYTES);
 
     for (const source of sources) {
       assertCleanText(source.id);

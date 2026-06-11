@@ -93,6 +93,45 @@ describe('legendary-wonder-completion-ceremony', () => {
     play.mockRestore();
   });
 
+  it('uses the Stage 3C legendary video view while keeping completion actions clickable', () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const onResolve = vi.fn();
+    createLegendaryWonderCompletionCeremony(
+      document.body,
+      item({
+        wonderId: 'ironroot-foundry',
+        name: 'Ironroot Foundry',
+        visual: getWonderVisualDefinition('ironroot-foundry'),
+        videoPreview: {
+          ...videoPreview('legendary-completion'),
+          id: 'video-ironroot-foundry-steel-forging',
+          wonderId: 'ironroot-foundry',
+          src: '/videos/wonders/ironroot-foundry-steel-forging.mp4',
+          label: 'Ironroot Foundry',
+          attribution: 'Sounds of Changes - CC BY 3.0',
+          sourceUrl: 'https://commons.wikimedia.org/wiki/File:Smithy-_steel_forging_(2).webm',
+          license: 'CC BY 3.0',
+          fallbackImage: {
+            src: '/images/wonders/codex/foundry.jpg',
+            alt: 'Ironroot Foundry source image',
+            attribution: 'Nlynch / CC BY-SA 3.0',
+            sourceUrl: 'https://commons.wikimedia.org/wiki/File:Saugus_Iron_Works_National_Historic_Site.JPG',
+            license: 'CC BY-SA 3.0',
+          },
+        },
+      }),
+      { onResolve },
+      { reducedMotion: false },
+    );
+
+    expect(document.querySelector('source')?.getAttribute('src')).toBe('/videos/wonders/ironroot-foundry-steel-forging.mp4');
+    expect(document.body.textContent).toContain('Sounds of Changes - CC BY 3.0');
+    document.querySelector<HTMLButtonElement>('[data-legendary-completion-action="open-journal"]')?.click();
+    expect(onResolve).toHaveBeenCalledWith('open-journal');
+
+    play.mockRestore();
+  });
+
   it('keeps the static legendary ceremony visual in reduced motion', () => {
     createLegendaryWonderCompletionCeremony(
       document.body,
