@@ -34,7 +34,7 @@ A completed farm on a river tile continues to receive an unconditional `+1 food`
 
 `src/systems/combat-system.ts` will import `isRiverBetween` and `getRiverDefensePenalty`. During strength calculation, it will multiply attacker strength by `1 + penalty`, where the penalty is derived from the two unit positions. Keeping this inside the canonical combat resolver avoids duplicated logic and ensures all actors use the same rule.
 
-`src/systems/city-work-system.ts` will import `getRiverYieldBonus` and add its result through the existing `addYield` helper. Farm-specific food and Irrigation production remain in `city-work-system.ts` because they depend on improvement state and civilization technology rather than river presence alone.
+`src/systems/city-work-system.ts` will import `getRiverYieldBonus` and add its result through the existing `addYield` helper. `src/systems/resource-system.ts`, which supplies live turn yields and projected city totals, will use the same helper instead of maintaining a second inline base-river bonus. Farm-specific food remains local to both callers because it depends on improvement state rather than river presence alone. The existing Irrigation production rule remains in `city-work-system.ts`; expanding its live-economy wiring is outside this issue's approved contract.
 
 No types, save schema, events, UI, renderer, movement logic, or technology definitions change.
 
@@ -45,11 +45,15 @@ No types, save schema, events, UI, renderer, movement logic, or technology defin
 - an otherwise identical river-crossing attack deals less damage to the defender than a non-crossing attack;
 - a river segment elsewhere on the map does not affect combat.
 
+`tests/ai/basic-ai.test.ts` will prove a non-human attack receives the same penalty through the live AI combat path.
+
 `tests/systems/city-work-system.test.ts` will prove the refactor preserves visible game balance:
 
 - a river tile receives the canonical `+1 gold` bonus;
 - a completed riverside farm still receives `+1 food` without Bridge Building or Irrigation;
 - Irrigation still adds only its existing `+1 production` bonus.
+
+`tests/systems/resource-system.test.ts` will characterize the matching live city-yield behavior so refactoring that path to the canonical helper cannot change river gold or completed riverside farm food.
 
 Existing river-system and movement-system tests remain unchanged unless they expose a regression during implementation.
 
@@ -57,8 +61,8 @@ Existing river-system and movement-system tests remain unchanged unless they exp
 
 After implementation, run:
 
-- `scripts/check-src-rule-violations.sh src/systems/combat-system.ts src/systems/city-work-system.ts`
-- `./scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/systems/city-work-system.test.ts tests/systems/river-system.test.ts tests/systems/unit-movement-system.test.ts`
+- `scripts/check-src-rule-violations.sh src/systems/combat-system.ts src/systems/city-work-system.ts src/systems/resource-system.ts`
+- `./scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/systems/city-work-system.test.ts tests/systems/resource-system.test.ts tests/systems/river-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai.test.ts`
 - `./scripts/run-with-mise.sh yarn build`
 - `./scripts/run-with-mise.sh yarn test`
 
