@@ -138,6 +138,31 @@ describe('calculateCityYields', () => {
     expect(yields.production).toBeGreaterThanOrEqual(2);
   });
 
+  it('preserves river gold and completed farm food in live city yields', () => {
+    const map = generateMap(10, 10, 'river-farm-live-yield');
+    const center = { q: 2, r: 2 };
+    const worked = { q: 2, r: 3 };
+    map.tiles['2,2'] = {
+      coord: center, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    map.tiles['2,3'] = {
+      coord: worked, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'farm', owner: 'player', improvementTurnsLeft: 0, hasRiver: true, wonder: null,
+    };
+    const city = foundCity('player', center, map, mkC());
+    city.population = 1;
+    city.workedTiles = [worked];
+
+    const riverYield = calculateCityYields(city, map);
+    map.tiles['2,3'].hasRiver = false;
+    const inlandYield = calculateCityYields(city, map);
+
+    expect(riverYield.gold).toBe(inlandYield.gold + 1);
+    expect(riverYield.food).toBe(inlandYield.food + 1);
+    expect(riverYield.production).toBe(inlandYield.production);
+  });
+
   it('counts a transferred completed farm only for the new owner after reassignment', () => {
     const state = createNewGame(undefined, 'farm-transfer-yield', 'small');
     state.cities = {};

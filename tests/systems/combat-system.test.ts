@@ -5,6 +5,41 @@ import { generateMap } from '@/systems/map-generator';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
+function makeRiverCombatMap(
+  rivers: GameMap['rivers'] = [],
+): GameMap {
+  return {
+    width: 4,
+    height: 4,
+    wrapsHorizontally: false,
+    rivers,
+    tiles: {
+      '0,0': {
+        coord: { q: 0, r: 0 },
+        terrain: 'plains',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        owner: 'p1',
+        improvementTurnsLeft: 0,
+        hasRiver: true,
+        wonder: null,
+      },
+      '1,0': {
+        coord: { q: 1, r: 0 },
+        terrain: 'plains',
+        elevation: 'lowland',
+        resource: null,
+        improvement: 'none',
+        owner: 'p2',
+        improvementTurnsLeft: 0,
+        hasRiver: true,
+        wonder: null,
+      },
+    },
+  };
+}
+
 describe('resolveCombat', () => {
   let map: GameMap;
 
@@ -41,6 +76,29 @@ describe('resolveCombat', () => {
     const veteranResult = resolveCombat(veteran, defender, map, 2);
 
     expect(veteranResult.defenderDamage).toBeGreaterThan(recruitResult.defenderDamage);
+  });
+
+  it('reduces attacker effectiveness when combat crosses a river edge', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 1, r: 0 }, mkC());
+    const openResult = resolveCombat(attacker, defender, makeRiverCombatMap(), 42);
+    const crossingResult = resolveCombat(attacker, defender, makeRiverCombatMap([
+      { from: attacker.position, to: defender.position },
+    ]), 42);
+
+    expect(crossingResult.defenderDamage).toBeLessThan(openResult.defenderDamage);
+    expect(crossingResult.attackerDamage).toBeGreaterThan(openResult.attackerDamage);
+  });
+
+  it('ignores river segments that are not between the combatants', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 1, r: 0 }, mkC());
+    const openResult = resolveCombat(attacker, defender, makeRiverCombatMap(), 42);
+    const unrelatedRiverResult = resolveCombat(attacker, defender, makeRiverCombatMap([
+      { from: { q: 2, r: 2 }, to: { q: 3, r: 2 } },
+    ]), 42);
+
+    expect(unrelatedRiverResult).toEqual(openResult);
   });
 
   it('defender on hills takes less damage than on plains (same seed)', () => {

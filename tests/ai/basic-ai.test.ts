@@ -1281,6 +1281,34 @@ describe('processAITurn', () => {
     expect(newState.units['unit-rebel']).toBeUndefined();
   });
 
+  it('applies the river crossing combat penalty to AI attacks', () => {
+    const openState = makeAiRebelState();
+    const crossingState = makeAiRebelState();
+    openState.units['unit-rebel'].health = 100;
+    crossingState.units['unit-rebel'].health = 100;
+    crossingState.map.rivers = [{
+      from: crossingState.units['unit-ai'].position,
+      to: crossingState.units['unit-rebel'].position,
+    }];
+
+    const resolveAttack = (state: GameState) => {
+      const events: GameEvents['combat:resolved'][] = [];
+      const bus = new EventBus();
+      bus.on('combat:resolved', event => events.push(event));
+
+      processAITurn(state, 'ai-1', bus);
+
+      expect(events).toHaveLength(1);
+      return events[0]!.result;
+    };
+
+    const openResult = resolveAttack(openState);
+    const crossingResult = resolveAttack(crossingState);
+
+    expect(crossingResult.defenderDamage).toBeLessThan(openResult.defenderDamage);
+    expect(crossingResult.attackerDamage).toBeGreaterThan(openResult.attackerDamage);
+  });
+
   it('awards AI units combat rewards when they defeat an adjacent enemy', () => {
     const state = makeAiRebelState();
     state.units['unit-ai'] = { ...state.units['unit-ai'], health: 60 };
