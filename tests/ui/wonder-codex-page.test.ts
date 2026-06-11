@@ -95,6 +95,46 @@ describe('wonder-codex-page', () => {
     expect(root.textContent).toContain('View on Map');
   });
 
+  it('renders Stage 3C Codex video metadata without hiding actions', () => {
+    const root = createWonderCodexPage(page({
+      id: 'bioluminescent_bay',
+      title: 'Bioluminescent Bay',
+      visual: getWonderVisualDefinition('bioluminescent_bay'),
+      image: {
+        src: '/images/wonders/codex/coral.jpg',
+        alt: 'Bioluminescent Bay source image',
+        attribution: 'NOAA / public domain',
+        sourceUrl: 'https://commons.wikimedia.org/wiki/File:Coral_Reef.jpg',
+        license: 'public domain',
+      },
+      videoPreview: {
+        ...videoPreview('codex'),
+        id: 'video-bioluminescent-bay-vieques-kayak',
+        wonderId: 'bioluminescent_bay',
+        src: '/videos/wonders/bioluminescent-bay-vieques-kayak.mp4',
+        label: 'Bioluminescent Bay',
+        attribution: 'Z22 - CC BY-SA 3.0',
+        sourceUrl: 'https://commons.wikimedia.org/wiki/File:Kayaking_in_the_Bioluminescent_Bay_Vieques.webm',
+        license: 'CC BY-SA 3.0',
+        fallbackImage: {
+          src: '/images/wonders/codex/coral.jpg',
+          alt: 'Bioluminescent Bay source image',
+          attribution: 'NOAA / public domain',
+          sourceUrl: 'https://commons.wikimedia.org/wiki/File:Coral_Reef.jpg',
+          license: 'public domain',
+        },
+      },
+    }), {
+      mode: 'desktop',
+      onAction: vi.fn(),
+      onSelectRelated: vi.fn(),
+    });
+
+    expect(root.querySelector('source')?.getAttribute('src')).toBe('/videos/wonders/bioluminescent-bay-vieques-kayak.mp4');
+    expect(root.textContent).toContain('Z22 - CC BY-SA 3.0');
+    expect(root.querySelector('[data-codex-action="view-map"]')).toBeTruthy();
+  });
+
   it('renders a still fallback instead of video on reduced-motion Codex pages', () => {
     const root = createWonderCodexPage(page({ videoPreview: videoPreview('codex') }), {
       mode: 'desktop',

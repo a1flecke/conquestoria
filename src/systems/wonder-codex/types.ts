@@ -119,7 +119,7 @@ export interface WonderCodexImageSource {
 
 export type WonderCodexVideoSurface = 'codex' | 'natural-reveal' | 'legendary-completion';
 
-export type WonderCodexVideoBatchId = 'stage-3-spike' | 'stage-3b-batch-2';
+export type WonderCodexVideoBatchId = 'stage-3-spike' | 'stage-3b-batch-2' | 'stage-3c-batch-3';
 
 export interface WonderCodexVideoSource {
   id: string;

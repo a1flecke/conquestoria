@@ -90,6 +90,24 @@ describe('wonder-codex presentation', () => {
     expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/coral.jpg');
   });
 
+  it('shows Stage 3C natural videos on discovered Codex pages', () => {
+    const state = makeState();
+    state.map.tiles[hexKey({ q: 1, r: 0 })].wonder = 'bioluminescent_bay';
+    state.discoveredWonders.bioluminescent_bay = 'player';
+    state.wonderDiscoverers.bioluminescent_bay = ['player'];
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'bioluminescent_bay' });
+
+    expect(model.selectedPage?.videoPreview).toMatchObject({
+      id: 'video-bioluminescent-bay-vieques-kayak',
+      wonderId: 'bioluminescent_bay',
+      surface: 'codex',
+      audio: 'silent',
+    });
+    expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/bioluminescent-bay-vieques-kayak.mp4');
+    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/coral.jpg');
+  });
+
   it('shows Stage 3B legendary videos on safe owned completed Codex pages', () => {
     const state = makeState();
     const baseCity = state.cities[Object.keys(state.cities)[0]];
@@ -108,6 +126,26 @@ describe('wonder-codex presentation', () => {
     });
     expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/grand-canal-gongchen-hangzhou.mp4');
     expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/canal.jpg');
+  });
+
+  it('shows Stage 3C legendary videos on safe owned completed Codex pages', () => {
+    const state = makeState();
+    const baseCity = state.cities[Object.keys(state.cities)[0]];
+    state.cities['safe-city'] = { ...baseCity, id: 'safe-city', owner: 'player' };
+    state.completedLegendaryWonders = {
+      'world-archive': { ownerId: 'player', cityId: 'safe-city', turnCompleted: 68 },
+    };
+
+    const model = getWonderCodexViewModel(state, 'player', { initialWonderId: 'world-archive' });
+
+    expect(model.selectedPage?.videoPreview).toMatchObject({
+      id: 'video-world-archive-printing-press',
+      wonderId: 'world-archive',
+      surface: 'codex',
+      audio: 'silent',
+    });
+    expect(model.selectedPage?.videoPreview?.src).toBe('/videos/wonders/world-archive-printing-press.mp4');
+    expect(model.selectedPage?.videoPreview?.fallbackImage.src).toBe('/images/wonders/codex/archive.jpg');
   });
 
   it('rival-owned project and completion do not appear in player catalog and no private data leaks', () => {
