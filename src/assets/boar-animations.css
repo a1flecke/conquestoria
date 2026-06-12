@@ -1,0 +1,134 @@
+/* Conquestoria — Giant Boar (legendary beast) animations.
+ * Companion to sprite-animations-v2.css. The boar runs as data-kind="beast" so
+ * none of the generic unit/hound rules fire — every motion below is bespoke.
+ *
+ * State + damage contract for the boar:
+ *   data-state  ∈ idle | walk | attack | hurt | death
+ *   data-damage ∈ 0 (healthy) | 1 (wounded) | 2 (bloodied) | 3 (near death)
+ *
+ * Hooks on the sprite:
+ *   .cq-leg (+ --ff/--bf/--fn/--bn)  four hips that swing on walk
+ *   .cq-boar-head                    head+tusks cluster that gores on attack
+ *   .cq-breath (+ --b/--c)           hot-breath puffs from the snout
+ *   .cq-wound-1 / -2 / -3            progressive battle damage
+ *   .cq-ear-tear                     torn ear, shows at near-death
+ *   .cq-tusk-tip / .cq-tusk-stub     breakable front tusk
+ */
+
+/* ── WALK ─ heavy lumber + four legs trotting in diagonal pairs ───────── */
+@keyframes cq-boar-lumber {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%      { transform: translateY(-1.6px) rotate(0.8deg); }
+  50%      { transform: translateY(0) rotate(0deg); }
+  75%      { transform: translateY(-1.6px) rotate(-0.8deg); }
+}
+[data-state="walk"][data-kind="beast"] .cq-sprite-figure {
+  animation: cq-boar-lumber 0.5s ease-in-out infinite;
+}
+
+@keyframes cq-boar-leg {
+  0%, 100% { transform: rotate(14deg); }
+  50%      { transform: rotate(-14deg); }
+}
+.cq-leg { transform-box: view-box; }
+[data-state="walk"][data-kind="beast"] .cq-leg {
+  animation: cq-boar-leg 0.5s ease-in-out infinite;
+}
+/* per-hip pivot points (top-centre of each leg) + diagonal phase offset */
+.cq-leg--bf { transform-origin: 51px 72px; }
+.cq-leg--ff { transform-origin: 82px 70px; }
+.cq-leg--bn { transform-origin: 57px 78px; }
+.cq-leg--fn { transform-origin: 79px 76px; }
+/* diagonal gait: ff + bn lead, bf + fn are half a cycle behind */
+[data-state="walk"][data-kind="beast"] .cq-leg--bf,
+[data-state="walk"][data-kind="beast"] .cq-leg--fn { animation-delay: -0.25s; }
+
+/* ── ATTACK ─ a committed forward gore, not a wiggle ──────────────────── */
+@keyframes cq-boar-charge {
+  0%   { transform: translateX(0); }
+  18%  { transform: translateX(-3px); }
+  40%  { transform: translateX(8px); }
+  56%  { transform: translateX(8px); }
+  80%  { transform: translateX(0); }
+  100% { transform: translateX(0); }
+}
+[data-state="attack"][data-kind="beast"] .cq-sprite-figure {
+  animation: cq-boar-charge 0.9s ease-out infinite;
+}
+@keyframes cq-boar-gore {
+  0%   { transform: rotate(0deg) translateY(0); }
+  18%  { transform: rotate(-8deg) translateY(-1px); }
+  40%  { transform: rotate(11deg) translateY(2px); }
+  56%  { transform: rotate(11deg) translateY(2px); }
+  80%  { transform: rotate(0deg) translateY(0); }
+  100% { transform: rotate(0deg) translateY(0); }
+}
+.cq-boar-head { transform-box: view-box; transform-origin: 77px 66px; }
+[data-state="attack"][data-kind="beast"] .cq-boar-head {
+  animation: cq-boar-gore 0.9s ease-out infinite;
+}
+
+/* ── HURT ─ recurring pain shudder (red flash + recoil) ───────────────── */
+@keyframes cq-boar-wince {
+  0%, 64%, 100% { transform: translateX(0); filter: brightness(1) saturate(1); }
+  70%  { transform: translateX(-3px); filter: brightness(1.5) saturate(1.5); }
+  78%  { transform: translateX(2px);  filter: brightness(1.4) saturate(1.4); }
+  86%  { transform: translateX(-1px); filter: brightness(1.15); }
+}
+[data-state="hurt"][data-kind="beast"] .cq-sprite-figure {
+  animation: cq-boar-wince 2.4s ease-out infinite;
+}
+/* near-death: the head hangs low and the shudder quickens */
+[data-state="hurt"][data-damage="3"] .cq-sprite-figure { animation-duration: 1.5s; }
+[data-state="hurt"][data-damage="3"] .cq-boar-head { transform: rotate(7deg); }
+
+/* ── IDLE ─ hot breath puffing from the snout ─────────────────────────── */
+@keyframes cq-boar-breath {
+  0%   { opacity: 0;    transform: translate(0, 0) scale(0.35); }
+  22%  { opacity: 0.55; }
+  100% { opacity: 0;    transform: translate(12px, -6px) scale(1.6); }
+}
+.cq-breath { opacity: 0; transform-box: fill-box; transform-origin: center; }
+[data-state="idle"][data-kind="beast"] .cq-breath,
+[data-state="hurt"][data-kind="beast"] .cq-breath {
+  animation: cq-boar-breath 2.4s ease-out infinite;
+}
+.cq-breath--b { animation-delay: 0.8s; }
+.cq-breath--c { animation-delay: 1.6s; }
+/* labour gets heavier (faster) as the beast weakens */
+[data-state="hurt"][data-damage="2"] .cq-breath { animation-duration: 1.6s; }
+[data-state="hurt"][data-damage="3"] .cq-breath { animation-duration: 1.1s; }
+
+/* ── DAMAGE ─ four escalating tiers, driven by data-damage ────────────── */
+.cq-wound-1, .cq-wound-2, .cq-wound-3, .cq-ear-tear, .cq-tusk-stub { opacity: 0; }
+/* tier 1+ : first claw-rake on the flank */
+[data-damage="1"] .cq-wound-1,
+[data-damage="2"] .cq-wound-1,
+[data-damage="3"] .cq-wound-1 { opacity: 1; }
+/* tier 2+ : gash across the shoulder + blood */
+[data-damage="2"] .cq-wound-2,
+[data-damage="3"] .cq-wound-2 { opacity: 1; }
+/* tier 3 : torn ear, snapped front tusk, deep hindquarter wound */
+[data-damage="3"] .cq-wound-3,
+[data-damage="3"] .cq-ear-tear,
+[data-damage="3"] .cq-tusk-stub { opacity: 1; }
+[data-damage="3"] .cq-tusk-tip { opacity: 0; }
+
+/* ── DEATH ─ topple over ──────────────────────────────────────────────── */
+@keyframes cq-boar-fall {
+  0%   { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(7px) rotate(-82deg); opacity: 0; }
+}
+[data-state="death"][data-kind="beast"] .cq-sprite-figure {
+  transform-box: view-box; transform-origin: 64px 86px;
+  animation: cq-boar-fall 1s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-kind="beast"] .cq-sprite-figure,
+  [data-kind="beast"] .cq-leg,
+  [data-kind="beast"] .cq-boar-head,
+  [data-kind="beast"] .cq-breath {
+    animation: none !important;
+  }
+}

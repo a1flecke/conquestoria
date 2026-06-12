@@ -41,6 +41,8 @@ import { svg as carrackSvg }       from './carrack.svg';
 import { svg as galleonSvg }       from './galleon.svg';
 import { svg as steamshipSvg }     from './steamship.svg';
 import { svg as troopTransportSvg } from './troop_transport.svg';
+// Legendary beasts — faction-neutral, keyed under 'beast'
+import { svg as beastBoarSvg }     from './beast_boar.svg';
 
 import { svg as amphitheaterSvg }      from './amphitheater.svg';
 import { svg as aqueductSvg }          from './aqueduct.svg';
@@ -117,10 +119,13 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   galleon:        galleonSvg,
   steamship:      steamshipSvg,
   troop_transport: troopTransportSvg,
+  // Legendary beasts
+  beast_boar:     beastBoarSvg,
 };
 
 export function getUnitSpriteV2(unitType: string, faction: string): string | null {
-  return UNIT_SPRITES[unitType]?.[faction] ?? null;
+  // Faction-neutral sprites (e.g. beasts) are stored under 'beast' and shared across all factions
+  return UNIT_SPRITES[unitType]?.[faction] ?? UNIT_SPRITES[unitType]?.['beast'] ?? null;
 }
 
 // ── Building sprites ──────────────────────────────────────────────────────────
