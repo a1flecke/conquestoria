@@ -42,6 +42,8 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
+import { recordBeastSlain } from '@/systems/beast-system';
+import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
 import { SFX, routeSfxThrough } from '@/audio/sfx';
@@ -2141,6 +2143,12 @@ function executeAttack(attackerId: string, targetKey: string): void {
   if (applied.defenderDefeated) {
     showNotification('Enemy unit destroyed!', 'success');
 
+    const slayResult = recordBeastSlain(gameState, defender, attacker);
+    gameState = slayResult.state;
+    if (slayResult.slain) {
+      bus.emit('beast:slain', slayResult.slain);
+    }
+
     const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
     if (destroyedCamp.campId) {
       gameState = destroyedCamp.state;
@@ -3227,6 +3235,24 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
     appendToCivLog,
     (vis, pos) => isVisible(vis as Parameters<typeof isVisible>[0], pos),
   );
+});
+
+bus.on('beast:awakened', ({ beastId, position }) => {
+  const def = BEAST_DEFINITIONS[beastId];
+  for (const civId of Object.keys(gameState.civilizations)) {
+    appendToCivLog(civId, def.awakeningFlavor, 'warning', { kind: 'map', coord: position, label: `${def.name} lair` });
+  }
+});
+
+bus.on('beast:slain', ({ beastId, slayerCivId, goldAwarded }) => {
+  const def = BEAST_DEFINITIONS[beastId];
+  const slayerName = gameState.civilizations[slayerCivId]?.name ?? slayerCivId;
+  for (const civId of Object.keys(gameState.civilizations)) {
+    const message = civId === slayerCivId
+      ? `Your forces have slain the ${def.name}! Hoard claimed: +${goldAwarded} gold.`
+      : `${slayerName} has slain the ${def.name}!`;
+    appendToCivLog(civId, message, civId === slayerCivId ? 'success' : 'info');
+  }
 });
 
 registerMinorCivNotificationListeners(bus, () => gameState, { appendToCivLog });
