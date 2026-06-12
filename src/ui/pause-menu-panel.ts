@@ -20,6 +20,7 @@ export interface PauseMenuCallbacks {
   onSave: (slotId: string, name: string) => Promise<void>;
   onNewGame: () => void;
   autoSave: () => Promise<void>;
+  onOpenBestiary: () => void;
   // Spec 3: per-channel audio settings
   audioSettings: AudioSettingsSnapshot;
   onAudioSettingChange: (key: keyof AudioSettingsSnapshot, value: number | boolean) => void;
@@ -185,6 +186,15 @@ function buildMainView(
     }, 'save');
   });
   body.appendChild(saveBtn);
+
+  const bestiaryBtn = createGameButton('Bestiary', 'secondary');
+  bestiaryBtn.style.width = '100%';
+  bestiaryBtn.style.marginBottom = '8px';
+  bestiaryBtn.addEventListener('click', () => {
+    panel.remove();
+    callbacks.onOpenBestiary();
+  });
+  body.appendChild(bestiaryBtn);
 
   const newGameBtn = createGameButton('New Game…', 'secondary');
   newGameBtn.style.width = '100%';
