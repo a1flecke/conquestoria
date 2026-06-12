@@ -108,7 +108,7 @@ export function canUnitAttackTarget(
   if (targetUnit) {
     if (targetUnit[1].owner === attacker.owner) return { ok: false, reason: 'friendly-target' };
     if (!canAttackOwner(state, attacker.owner, targetUnit[1].owner)) return { ok: false, reason: 'not-hostile' };
-    const attackerOwnerUnits = Object.values(state.units).filter(u => u.owner === attacker.owner);
+    const attackerOwnerUnits = Object.values(state.units).filter(u => u.owner === attacker.owner && !u.transportId);
     if (isBeastConcealedFrom(targetUnit[1], state.map, attackerOwnerUnits)) return { ok: false, reason: 'not-visible' };
     if (!profile.targets.includes('unit')) return { ok: false, reason: 'unsupported-target' };
     return { ok: true, targetType: 'unit', targetUnitId: targetUnit[0], coord, range };

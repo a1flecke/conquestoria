@@ -2233,7 +2233,7 @@ function restAction(): void {
 }
 
 function visibleUnitEntriesAtKey(key: string): Array<[string, Unit]> {
-  const viewerUnits = Object.values(gameState.units).filter(u => u.owner === gameState.currentPlayer);
+  const viewerUnits = Object.values(gameState.units).filter(u => u.owner === gameState.currentPlayer && !u.transportId);
   return Object.entries(gameState.units).filter(([, unit]) =>
     hexKey(unit.position) === key
     && canInspectUnitForViewer(gameState, gameState.currentPlayer, unit.id)

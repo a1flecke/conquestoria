@@ -135,6 +135,54 @@ describe('getVisibleUnitsForPlayer', () => {
     expect(visible.transport).toBeDefined();
     expect(visible.cargo).toBeUndefined();
   });
+
+  it('hides a concealed basilisk from a viewer civ with no adjacent units', () => {
+    const jungleTile = { coord: { q: 5, r: 3 }, terrain: 'jungle', elevation: 'flat', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    const grassTile  = { coord: { q: 7, r: 3 }, terrain: 'grassland', elevation: 'flat', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    const map = { width: 40, height: 30, tiles: { '5,3': jungleTile, '7,3': grassTile }, wrapsHorizontally: false } as any;
+
+    const basilisk = { id: 'basilisk', type: 'beast_basilisk', owner: 'beasts', position: { q: 5, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
+    const farViewer = { id: 'viewer',  type: 'warrior',        owner: 'player',  position: { q: 7, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
+    const state = { map, units: { basilisk, viewer: farViewer }, espionage: {} } as any;
+
+    const visible = getVisibleUnitsForPlayer(state.units, state, 'player');
+    expect(visible['basilisk']).toBeUndefined();
+    expect(visible['viewer']).toBeDefined();
+  });
+
+  it('reveals a concealed basilisk when the viewer has an adjacent unit', () => {
+    const jungleTile = { coord: { q: 5, r: 3 }, terrain: 'jungle', elevation: 'flat', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    const adjTile    = { coord: { q: 6, r: 3 }, terrain: 'grassland', elevation: 'flat', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    const map = { width: 40, height: 30, tiles: { '5,3': jungleTile, '6,3': adjTile }, wrapsHorizontally: false } as any;
+
+    const basilisk    = { id: 'basilisk', type: 'beast_basilisk', owner: 'beasts', position: { q: 5, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
+    const adjViewer   = { id: 'viewer',  type: 'warrior',        owner: 'player',  position: { q: 6, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
+    const state = { map, units: { basilisk, viewer: adjViewer }, espionage: {} } as any;
+
+    const visible = getVisibleUnitsForPlayer(state.units, state, 'player');
+    expect(visible['basilisk']).toBeDefined();
+  });
+
+  it('does not count transported cargo as an adjacent revealer (only the ship itself counts)', () => {
+    // Cargo is adjacent to the basilisk but its transportId marks it as below-deck.
+    // The ship is far away; only the cargo position is adjacent.
+    // Expectation: basilisk remains concealed because the cargo unit should be excluded.
+    const jungleTile = { coord: { q: 5, r: 3 }, terrain: 'jungle', elevation: 'flat', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    const adjTile    = { coord: { q: 6, r: 3 }, terrain: 'coast',  elevation: 'flat', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    const farTile    = { coord: { q: 9, r: 3 }, terrain: 'ocean',  elevation: 'flat', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+    const map = { width: 40, height: 30, tiles: { '5,3': jungleTile, '6,3': adjTile, '9,3': farTile }, wrapsHorizontally: false } as any;
+
+    const basilisk = { id: 'basilisk', type: 'beast_basilisk', owner: 'beasts',  position: { q: 5, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
+    // Ship is far away (q:9,r:3); cargo position matches ship position in normal gameplay but
+    // we set it adjacent (q:6,r:3) to simulate the transported-position-without-ship scenario
+    // and verify that cargo with transportId is excluded from the revealer list.
+    const ship  = { id: 'ship',  type: 'galley',  owner: 'player', position: { q: 9, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
+    const cargo = { id: 'cargo', type: 'warrior', owner: 'player', position: { q: 6, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false, transportId: 'ship' } as any;
+    const state = { map, units: { basilisk, ship, cargo }, espionage: {} } as any;
+
+    const visible = getVisibleUnitsForPlayer(state.units, state, 'player');
+    expect(visible['basilisk']).toBeUndefined();
+  });
 });
 
 describe('setDisguise', () => {
