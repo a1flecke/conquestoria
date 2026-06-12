@@ -17,6 +17,7 @@ import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createMarketplaceState } from '@/systems/trade-system';
 import { placeWonders } from '@/systems/wonder-system';
 import { placeVillages } from '@/systems/village-system';
+import { placeBeastLairs } from '@/systems/beast-system';
 import { placeMinorCivs } from '@/systems/minor-civ-system';
 import { initializeEspionage } from '@/systems/espionage-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
@@ -50,6 +51,7 @@ export function createDefaultSettings(
     stingerVolume: 1.0,
     stingerEnabled: true,
     tutorialEnabled: true,
+    beastsMode: 'wild',
     advisorsEnabled: {
       builder: true,
       explorer: true,
@@ -179,6 +181,10 @@ export function createNewGame(
   guaranteeStartResources(map, startPositions, createRng(gameSeed + '-resource-guarantee'));
   placeWonders(map, startPositions, actualSize, gameSeed);
   const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
+  const beastsMode = settings.beastsMode ?? 'wild';
+  const beastLairs = beastsMode === 'off'
+    ? {}
+    : placeBeastLairs(map, startPositions, actualSize, gameSeed);
 
   // Create player civilization
   const playerCiv: Civilization = {
@@ -275,6 +281,7 @@ export function createNewGame(
     gameOver: false,
     winner: null,
     tribalVillages,
+    beasts: { mode: beastsMode, lairs: beastLairs, sightingsByCiv: {} },
     discoveredWonders: {},
     wonderDiscoverers: {},
     legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
@@ -350,6 +357,11 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
   guaranteeStartResources(map, startPositions, createRng(gameSeed + '-resource-guarantee'));
   placeWonders(map, startPositions, config.mapSize, gameSeed);
   const tribalVillages = placeVillages(map, startPositions, config.mapSize, gameSeed);
+  const hotSeatSettings = createDefaultSettings(config.mapSize);
+  const beastsModeHotSeat = hotSeatSettings.beastsMode ?? 'wild';
+  const beastLairsHotSeat = beastsModeHotSeat === 'off'
+    ? {}
+    : placeBeastLairs(map, startPositions, config.mapSize, gameSeed);
 
   const allSlotIds = config.players.map(p => p.slotId);
   const settings = createDefaultSettings(config.mapSize, {
@@ -420,6 +432,7 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     hotSeat: config,
     pendingEvents: {},
     tribalVillages,
+    beasts: { mode: beastsModeHotSeat, lairs: beastLairsHotSeat, sightingsByCiv: {} },
     discoveredWonders: {},
     wonderDiscoverers: {},
     legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
