@@ -87,6 +87,14 @@ describe('pause-menu-panel', () => {
     expect(document.body.textContent).not.toContain('Save before leaving?');
   });
 
+  it('"Bestiary" button closes the menu and calls onOpenBestiary', () => {
+    const callbacks = makeCallbacks();
+    showPauseMenu(document.body, callbacks);
+    clickButton('Bestiary');
+    expect(callbacks.onOpenBestiary).toHaveBeenCalledOnce();
+    expect(document.getElementById('pause-menu')).toBeNull();
+  });
+
   it('replaces stale pause panels when reopened', () => {
     showPauseMenu(document.body, makeCallbacks({ turn: 5, civName: 'Rome' }));
     showPauseMenu(document.body, makeCallbacks({ turn: 8, civName: 'Egypt' }));

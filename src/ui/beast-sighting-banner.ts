@@ -1,5 +1,5 @@
 import type { UnitType } from '@/core/types';
-import type { FactionPalette } from '@/renderer/sprites/sprite-system';
+import { NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
 import { createGameButton } from '@/ui/ui-kit';
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 
@@ -11,14 +11,12 @@ export interface BeastSightingBannerOptions {
   onOpenBestiary: () => void;
 }
 
-const NEUTRAL_PALETTE: FactionPalette = { dark: '#555', mid: '#888', bright: '#bbb', trim: '#999' };
-
 export function showBeastSightingBanner(container: HTMLElement, options: BeastSightingBannerOptions): HTMLElement {
   container.querySelector('#beast-sighting-banner')?.remove();
 
   const overlay = document.createElement('div');
   overlay.id = 'beast-sighting-banner';
-  overlay.style.cssText = 'position:absolute;inset:0;background:rgba(8,8,18,0.9);z-index:60;display:flex;align-items:center;justify-content:center;';
+  overlay.style.cssText = 'position:absolute;inset:0;background:rgba(8,8,18,0.9);z-index:65;display:flex;align-items:center;justify-content:center;';
 
   const card = document.createElement('div');
   card.style.cssText = 'max-width:340px;background:#1a1a2e;border:2px solid #e8c170;border-radius:14px;padding:20px;text-align:center;';
@@ -32,7 +30,7 @@ export function showBeastSightingBanner(container: HTMLElement, options: BeastSi
   art.style.cssText = 'width:120px;height:120px;margin:0 auto 8px;';
   const sprite = UNIT_SPRITE_CATALOG[options.unitType];
   // Sprite SVGs are module-authored strings, never game/user input — safe for innerHTML.
-  art.innerHTML = sprite({ palette: NEUTRAL_PALETTE, svgOnly: true });
+  art.innerHTML = sprite({ palette: NEUTRAL_FACTION_PALETTE, svgOnly: true });
   card.appendChild(art);
 
   const nameEl = document.createElement('h2');

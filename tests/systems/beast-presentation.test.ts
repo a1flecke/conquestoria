@@ -65,6 +65,23 @@ describe('getBestiaryEntriesForPlayer', () => {
     const entries = getBestiaryEntriesForPlayer(state, 'player');
     expect(entries.map(e => e.lairId)).toEqual(['lair-giant_boar']);
   });
+
+  it('shows slain status for claimed lairs (hoard already taken)', () => {
+    const state = stateWithLair();
+    state.beasts!.lairs['lair-giant_boar'].status = 'claimed';
+    state.beasts!.lairs['lair-giant_boar'].slainBy = 'player';
+    state.beasts!.lairs['lair-giant_boar'].slainTurn = 5;
+    const entries = getBestiaryEntriesForPlayer(state, 'ai-1');
+    expect(entries[0].status).toBe('slain');
+    expect(entries[0].name).toBe('Giant Boar');
+    expect(entries[0].slainBy).toBe('player');
+  });
+
+  it('returns empty array for legacy saves with no beasts state', () => {
+    const state = stateWithLair();
+    state.beasts = undefined;
+    expect(getBestiaryEntriesForPlayer(state, 'player')).toEqual([]);
+  });
 });
 
 describe('recordBeastSightings', () => {
@@ -83,5 +100,13 @@ describe('recordBeastSightings', () => {
   it('does not sight beasts outside visible tiles', () => {
     const result = recordBeastSightings(stateWithLair(), 'player', new Set(['0,0']));
     expect(result.newSightings).toEqual([]);
+  });
+
+  it('returns unmodified state for legacy saves with no beasts', () => {
+    const state = stateWithLair();
+    state.beasts = undefined;
+    const result = recordBeastSightings(state, 'player', new Set(['10,10']));
+    expect(result.newSightings).toEqual([]);
+    expect(result.state).toBe(state);
   });
 });
