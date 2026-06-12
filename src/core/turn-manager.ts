@@ -8,6 +8,11 @@ import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { processResearch, getTechById } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
+import {
+  processBeasts, recordBeastSlain, BEAST_OWNER,
+  LAIR_GROWTH_INTERVAL_TURNS, LAIR_GROWTH_CAP, LAIR_GROWTH_EXPERIENCE,
+} from '@/systems/beast-system';
+import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { resolveCombat } from '@/systems/combat-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
@@ -493,7 +498,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       newState.units[unitId] = resetUnitTurn(unit);
     }
   }
-  const playerUnits = Object.values(newState.units).filter(u => u.owner !== 'barbarian' && !u.owner.startsWith('mc-'));
+  const playerUnits = Object.values(newState.units).filter(u => u.owner !== 'barbarian' && u.owner !== BEAST_OWNER && !u.owner.startsWith('mc-'));
   const barbarianUnits = Object.values(newState.units).filter(u => u.owner === 'barbarian');
   const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
   const barbResult = processBarbarians(
@@ -572,6 +577,77 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       minorCivId: evolution.newMinorCiv.id,
       position: evolution.newCity.position,
     });
+  }
+
+  // --- Process legendary beasts ---
+  if (newState.beasts && newState.beasts.mode !== 'off') {
+    for (const [unitId, unit] of Object.entries(newState.units)) {
+      if (unit.owner === BEAST_OWNER) {
+        newState.units[unitId] = { ...unit, movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints, hasMoved: false };
+      }
+    }
+    const beastUnits = Object.values(newState.units).filter(u => u.owner === BEAST_OWNER);
+    const intruders = Object.values(newState.units).filter(u => u.owner !== BEAST_OWNER && u.owner !== 'barbarian');
+    const beastResult = processBeasts(
+      Object.values(newState.beasts.lairs),
+      newState.map,
+      intruders,
+      beastUnits,
+      newState.era,
+      newState.beasts.mode,
+      newState.turn * 7919 + 13,
+    );
+    newState.beasts.lairs = {};
+    for (const lair of beastResult.updatedLairs) newState.beasts.lairs[lair.id] = lair;
+
+    for (const spawn of beastResult.spawnOrders) {
+      const def = BEAST_DEFINITIONS[spawn.beastId];
+      const beast = createUnit(def.unitType, BEAST_OWNER, spawn.position, newState.idCounters);
+      newState.units[beast.id] = beast;
+      newState.beasts.lairs[spawn.lairId].unitIds.push(beast.id);
+    }
+    for (const awakening of beastResult.awakenings) {
+      newState.beasts.lairs[awakening.lairId].awakenedTurn = newState.turn;
+      bus.emit('beast:awakened', awakening);
+    }
+    // Growth while ignored: every N turns an awake lair hardens and its beasts gain veterancy
+    if (newState.turn % LAIR_GROWTH_INTERVAL_TURNS === 0) {
+      for (const lair of Object.values(newState.beasts.lairs)) {
+        if (lair.status !== 'awake' || lair.strength >= LAIR_GROWTH_CAP) continue;
+        lair.strength += 1;
+        for (const unitId of lair.unitIds) {
+          const beast = newState.units[unitId];
+          if (beast) beast.experience += LAIR_GROWTH_EXPERIENCE;
+        }
+      }
+    }
+    for (const move of beastResult.moveOrders) {
+      const beast = newState.units[move.unitId];
+      if (beast) {
+        newState.units[move.unitId] = { ...beast, position: { ...move.toCoord }, movementPointsLeft: beast.movementPointsLeft - 1 };
+      }
+    }
+    const beastSeed = newState.turn * 7919 + 13;
+    for (const order of beastResult.attackOrders) {
+      const attacker = newState.units[order.attackerUnitId];
+      const defender = newState.units[order.defenderUnitId];
+      if (!attacker || !defender) continue;
+      const combatSeed = beastSeed ^ order.attackerUnitId.charCodeAt(0);
+      const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
+      const applied = applyCombatOutcomeToState(newState, result, combatSeed);
+      newState = applied.state;
+      // If the beast died on counterattack, record the slay
+      if (applied.attackerDefeated) {
+        const { state: afterSlay, slain } = recordBeastSlain(newState, attacker, defender);
+        newState = afterSlay as typeof newState;
+        if (slain) bus.emit('beast:slain', slain);
+      }
+      // If the intruder died, no hoard — the beast attacked, not the player
+      bus.emit('combat:resolved', { result });
+      for (const reward of applied.rewards) {
+        bus.emit('combat:reward-earned', { reward });
+      }
+    }
   }
 
   // --- Process espionage ---
