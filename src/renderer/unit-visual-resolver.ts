@@ -1,6 +1,6 @@
 import type { GameState, Unit, UnitType } from '@/core/types';
 
-export type UnitOwnerRole = 'major' | 'minor' | 'barbarian';
+export type UnitOwnerRole = 'major' | 'minor' | 'barbarian' | 'beast';
 export type UnitRoleMarker = 'chevron' | 'diamond' | null;
 export type UnitMotionState = 'idle' | 'move-a' | 'move-b';
 
@@ -41,6 +41,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   caravan: '🐪',
   // Resource Accessibility MR 2b
   expedition: '🧭',
+  beast_boar: '🐗',
 };
 
 export interface UnitVisual {
@@ -53,6 +54,7 @@ export interface UnitVisual {
 }
 
 function getRole(unit: Unit): UnitOwnerRole {
+  if (unit.owner === 'beasts') return 'beast';
   if (unit.owner === 'barbarian') return 'barbarian';
   if (unit.owner.startsWith('mc-')) return 'minor';
   return 'major';
@@ -67,7 +69,7 @@ export function resolveUnitVisual(
   const role = getRole(unit);
   const color = colorLookup[unit.owner]
     ?? state.civilizations?.[unit.owner]?.color
-    ?? (role === 'barbarian' ? '#8b4513' : '#888');
+    ?? (role === 'barbarian' ? '#8b4513' : role === 'beast' ? '#7a1f2b' : '#888');
   return {
     role,
     roleMarker: role === 'barbarian' ? 'chevron' : role === 'minor' ? 'diamond' : null,
