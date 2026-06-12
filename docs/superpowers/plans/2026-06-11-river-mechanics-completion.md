@@ -4,7 +4,7 @@
 
 **Goal:** Complete issue 351 by applying the canonical river combat penalty across all combat actors and routing both worked-tile yield paths through the canonical river-yield helper without changing existing farm balance.
 
-**Architecture:** `resolveCombat` derives river crossing directly from `GameMap.rivers`, so player, AI, barbarian, and minor-civilization callers inherit one rule without new parameters. `city-work-system` and `resource-system` delegate only the base river yield to `getRiverYieldBonus`; completed-farm food and existing Irrigation behavior remain caller-owned.
+**Architecture:** `calculateCombatStrengths` derives river crossing directly from `GameMap.rivers`; both `resolveCombat` and the live combat preview consume its breakdown, so every actor and the player-facing forecast share one rule without new caller flags. `city-work-system` and `resource-system` delegate only the base river yield to `getRiverYieldBonus`; completed-farm food and existing Irrigation behavior remain caller-owned.
 
 **Tech Stack:** TypeScript, Vitest, Vite, existing system helpers and seeded combat RNG.
 
@@ -111,7 +111,7 @@ Expected: PASS with exact yield preservation.
 - [x] **Step 1: Run source policy checks**
 
 ```bash
-scripts/check-src-rule-violations.sh src/systems/combat-system.ts src/systems/city-work-system.ts src/systems/resource-system.ts
+scripts/check-src-rule-violations.sh src/systems/combat-system.ts src/systems/city-work-system.ts src/systems/resource-system.ts src/systems/unit-system.ts src/systems/unit-movement-system.ts src/ui/combat-preview.ts src/main.ts
 ```
 
 Expected: exit 0 with no rule violations.
@@ -119,7 +119,7 @@ Expected: exit 0 with no rule violations.
 - [x] **Step 2: Run all targeted regressions together**
 
 ```bash
-./scripts/run-with-mise.sh yarn vitest run tests/systems/combat-system.test.ts tests/systems/city-work-system.test.ts tests/systems/resource-system.test.ts tests/systems/river-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai.test.ts
+./scripts/run-with-mise.sh yarn vitest run tests/systems/combat-system.test.ts tests/systems/city-work-system.test.ts tests/systems/resource-system.test.ts tests/systems/river-system.test.ts tests/systems/unit-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai.test.ts tests/ui/combat-preview.test.ts
 ```
 
 Expected: all selected test files pass.
@@ -150,3 +150,55 @@ Run `git diff --stat origin/main...HEAD`, `git diff --stat`, `git diff origin/ma
 git add docs/superpowers/specs/2026-06-11-river-mechanics-completion-design.md docs/superpowers/plans/2026-06-11-river-mechanics-completion.md src/systems/combat-system.ts src/systems/city-work-system.ts src/systems/resource-system.ts tests/systems/combat-system.test.ts tests/systems/city-work-system.test.ts tests/systems/resource-system.test.ts tests/ai/basic-ai.test.ts
 git commit -m "feat(river): complete combat and yield mechanics"
 ```
+
+### Review Correction: Keep Combat Preview Honest
+
+**Files:**
+- Modify: `src/systems/combat-system.ts`
+- Modify: `src/main.ts`
+- Create: `src/ui/combat-preview.ts`
+- Modify: `tests/systems/combat-system.test.ts`
+- Create: `tests/ui/combat-preview.test.ts`
+
+- [x] **Step 1: Add a failing shared-strength regression**
+
+Prove the strength breakdown exposes `-0.2` for a river crossing, reduces attacker strength by exactly 20 percent, preserves defender strength, and recognizes a river segment stored in reverse direction.
+
+- [x] **Step 2: Share strength calculation between resolution and preview**
+
+Move veterancy, terrain, wonder, fortification, civilization, and river modifiers into `calculateCombatStrengths`. Use its returned strengths in `resolveCombat` and in the live Combat Preview.
+
+- [x] **Step 3: Add and wire a tested player-facing warning**
+
+Use `formatCombatPreviewDetails` to show `-20% river crossing` only when the shared breakdown reports the penalty. Preserve terrain and defender-health details.
+
+- [x] **Step 4: Run focused review regressions**
+
+```bash
+./scripts/run-with-mise.sh yarn vitest run tests/systems/combat-system.test.ts tests/ai/basic-ai.test.ts tests/ui/combat-preview.test.ts
+```
+
+Expected: all focused combat and presentation tests pass.
+
+### Review Correction: Canonicalize Movement Step Cost
+
+**Files:**
+- Modify: `src/systems/unit-system.ts`
+- Modify: `src/systems/unit-movement-system.ts`
+- Modify: `tests/systems/unit-system.test.ts`
+
+- [x] **Step 1: Add failing route and blocker regressions**
+
+Prove pathfinding avoids a two-river shortcut when a cheaper detour exists, Bridge Building restores the shortcut, and blocker messaging reports insufficient movement when river cost is the deciding factor.
+
+- [x] **Step 2: Introduce one movement-step cost helper**
+
+Implement `getMovementStepCost` with terrain, unit domain, naval exemption, Bridge Building, and river-edge handling. Use it from pathfinding, movement range, blocker messaging, and execution.
+
+- [x] **Step 3: Run focused movement regressions**
+
+```bash
+./scripts/run-with-mise.sh yarn vitest run tests/systems/unit-system.test.ts tests/systems/unit-movement-system.test.ts
+```
+
+Expected: all movement routing, highlighting, validation, and execution tests pass.

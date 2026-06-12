@@ -35,7 +35,7 @@ import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
 import { createWorkerReplacementConfirmPanel, createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
-import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
+import { calculateCombatStrengths, resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
@@ -63,6 +63,7 @@ import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-ch
 import { showCampaignSetup } from '@/ui/campaign-setup';
 import { showGameModeSelect } from '@/ui/game-mode-select';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
+import { formatCombatPreviewDetails } from '@/ui/combat-preview';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { canInspectUnitForViewer } from '@/systems/viewer-intel';
 import {
@@ -2425,10 +2426,17 @@ function handleHexTap(rawCoord: HexCoord): void {
       const defender = defenderEntry[1];
       const atkDef = UNIT_DEFINITIONS[unit.type];
       const defDef = UNIT_DEFINITIONS[defender.type];
-      const atkStr = Math.round(atkDef.strength * (unit.health / 100));
-      const defTile = gameState.map.tiles[hexKey(defender.position)];
-      const terrainBonus = defTile ? getTerrainDefenseBonus(defTile.terrain) : 0;
-      const defStr = Math.round(defDef.strength * (defender.health / 100) * (1 + terrainBonus));
+      const attackerBonus = currentCivDef()?.bonusEffect;
+      const defenderBonus = resolveCivDefinition(
+        gameState,
+        gameState.civilizations[defender.owner]?.civType ?? '',
+      )?.bonusEffect;
+      const strengthPreview = calculateCombatStrengths(unit, defender, gameState.map, {
+        attackerBonus,
+        defenderBonus,
+      });
+      const atkStr = Math.round(strengthPreview.attackerStrength);
+      const defStr = Math.round(strengthPreview.defenderStrength);
 
       const isBarbarian = defender.owner === 'barbarian';
       const isMinorCiv = defender.owner.startsWith('mc-');
@@ -2472,7 +2480,7 @@ function handleHexTap(rawCoord: HexCoord): void {
 
         const info = document.createElement('div');
         info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
-        info.textContent = `${ownerName} · HP: ${defender.health}/100${terrainBonus > 0 ? ` · +${Math.round(terrainBonus * 100)}% terrain` : ''}`;
+        info.textContent = formatCombatPreviewDetails(ownerName, defender.health, strengthPreview);
         previewDiv.appendChild(info);
 
         const hostileStackSize = visibleHostileUnitEntriesAtKey(key).length;

@@ -6,6 +6,7 @@ import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import {
   moveUnit,
   getMovementCostForUnitInContext,
+  getMovementStepCost,
   findPath,
   UNIT_DEFINITIONS,
   type UnitMovementBlockerCode,
@@ -17,7 +18,6 @@ import { isAtWar } from '@/systems/diplomacy-system';
 import { removeRouteForUnit } from '@/systems/trade-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
-import { isRiverBetween } from '@/systems/river-system';
 
 export interface ExecuteUnitMoveOptions {
   actor: 'player' | 'automation' | 'ai';
@@ -283,15 +283,7 @@ export function validateUnitMove(
 
   let cost = 0;
   for (let i = 1; i < path.length; i++) {
-    const stepTile = state.map.tiles[hexKey(path[i])];
-    cost += stepTile ? getMovementCostForUnitInContext(unit, stepTile.terrain, { completedTechs }) : Infinity;
-    if (
-      domain !== 'naval' &&
-      !completedTechs.includes('bridge-building') &&
-      isRiverBetween(state.map, path[i - 1]!, path[i]!)
-    ) {
-      cost += 1;
-    }
+    cost += getMovementStepCost(unit, state.map, path[i - 1]!, path[i]!, { completedTechs });
   }
 
   const distance = state.map.wrapsHorizontally

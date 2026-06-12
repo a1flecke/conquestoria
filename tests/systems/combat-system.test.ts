@@ -1,4 +1,9 @@
-import { resolveCombat, getTerrainDefenseBonus, selectDefenderForAttack } from '@/systems/combat-system';
+import {
+  calculateCombatStrengths,
+  getTerrainDefenseBonus,
+  resolveCombat,
+  selectDefenderForAttack,
+} from '@/systems/combat-system';
 import type { GameMap } from '@/core/types';
 import { createUnit } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
@@ -88,6 +93,19 @@ describe('resolveCombat', () => {
 
     expect(crossingResult.defenderDamage).toBeLessThan(openResult.defenderDamage);
     expect(crossingResult.attackerDamage).toBeGreaterThan(openResult.attackerDamage);
+  });
+
+  it('exposes the river penalty through the shared combat preview data', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 1, r: 0 }, mkC());
+    const openPreview = calculateCombatStrengths(attacker, defender, makeRiverCombatMap());
+    const crossingPreview = calculateCombatStrengths(attacker, defender, makeRiverCombatMap([
+      { from: defender.position, to: attacker.position },
+    ]));
+
+    expect(crossingPreview.riverAttackPenalty).toBe(-0.2);
+    expect(crossingPreview.attackerStrength).toBeCloseTo(openPreview.attackerStrength * 0.8);
+    expect(crossingPreview.defenderStrength).toBe(openPreview.defenderStrength);
   });
 
   it('ignores river segments that are not between the combatants', () => {
