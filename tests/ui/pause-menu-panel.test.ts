@@ -17,6 +17,7 @@ function makeCallbacks(overrides: Partial<Parameters<typeof showPauseMenu>[1]> =
     onSave: vi.fn(async () => {}),
     onNewGame: vi.fn(),
     autoSave: vi.fn(async () => {}),
+    onOpenBestiary: vi.fn(),
     audioSettings: { ...DEFAULT_TEST_AUDIO },
     onAudioSettingChange: vi.fn(),
     ...overrides,

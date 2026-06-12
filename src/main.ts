@@ -45,6 +45,9 @@ import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-o
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, placeBeastLairs } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
+import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
+import { showBeastSightingBanner } from '@/ui/beast-sighting-banner';
+import { createBestiaryPanel } from '@/ui/bestiary-panel';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
 import { SFX, routeSfxThrough } from '@/audio/sfx';
@@ -342,6 +345,7 @@ function createUI(): void {
         },
         onNewGame: () => showGameModeSelection(),
         autoSave: () => autoSave(gameState),
+        onOpenBestiary: () => openBestiary(),
         // Spec 3: per-channel audio settings
         audioSettings: {
           masterVolume:   currentMasterVolume,   // tracked in memory across menu reopens
@@ -376,6 +380,26 @@ function createUI(): void {
       });
     },
   });
+}
+
+function openBestiary(): void {
+  createBestiaryPanel(uiLayer, getBestiaryEntriesForPlayer(gameState, gameState.currentPlayer), {
+    onClose: () => {},
+    slayerNameFor: (civId) => gameState.civilizations[civId]?.name ?? civId,
+  });
+}
+
+function scanBeastSightings(): void {
+  const visTiles = currentCiv()?.visibility?.tiles;
+  if (!visTiles) return;
+  const visibleKeys = new Set(
+    Object.entries(visTiles).filter(([, v]) => v === 'visible').map(([k]) => k),
+  );
+  const sightingResult = recordBeastSightings(gameState, gameState.currentPlayer, visibleKeys);
+  gameState = sightingResult.state;
+  for (const beastId of sightingResult.newSightings) {
+    bus.emit('beast:sighted', { beastId, civId: gameState.currentPlayer });
+  }
 }
 
 function openWonderAtlas(initialWonderId?: string): void {
@@ -1874,6 +1898,8 @@ function refreshCurrentPlayerVisibility(): void {
   for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
     bus.emit('civilization:first-contact', contact);
   }
+
+  scanBeastSightings();
 }
 
 function getUnitTurnFlow() {
@@ -2824,6 +2850,8 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
           centerOnCurrentPlayer();
           renderLoop.setGameState(gameState);
           updateHUD();
+          // Scan for beast sightings at turn start (units may have gained vision from prior turns)
+          scanBeastSightings();
           // Compute audio-state snapshot for the incoming player (Spec 3 hot-seat drift fix)
           const nextCiv = gameState.civilizations[nextSlotId];
           const nextCivCities = Object.values(gameState.cities).filter(c => c.owner === nextSlotId);
@@ -3258,6 +3286,20 @@ bus.on('beast:slain', ({ beastId, slayerCivId, goldAwarded }) => {
   // Prominent toast for the current player
   if (slayerCivId === gameState.currentPlayer) {
     showNotification(`🏆 ${def.name} slain! +${goldAwarded} gold`, 'success');
+  }
+});
+
+bus.on('beast:sighted', ({ beastId, civId }) => {
+  const def = BEAST_DEFINITIONS[beastId];
+  appendToCivLog(civId, def.sightingFlavor, 'info');
+  if (civId === gameState.currentPlayer) {
+    showBeastSightingBanner(uiLayer, {
+      name: def.name,
+      flavor: def.sightingFlavor,
+      unitType: def.unitType,
+      onContinue: () => {},
+      onOpenBestiary: () => openBestiary(),
+    });
   }
 });
 
