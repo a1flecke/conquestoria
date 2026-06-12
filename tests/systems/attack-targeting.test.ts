@@ -177,4 +177,39 @@ describe('attack-targeting', () => {
 
     expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toHaveLength(1);
   });
+
+  it('rejects ranged attacks against a basilisk concealed in jungle (no adjacent viewer)', () => {
+    const archer = unit('archer', 'archer', 'player', { q: 0, r: 0 });
+    const basilisk = unit('basilisk', 'beast_basilisk', 'beasts', { q: 2, r: 0 });
+    const state = stateWithUnits({ archer, basilisk }, { '2,0': 'visible' });
+    const tile = state.map.tiles['2,0'];
+    if (tile) state.map.tiles['2,0'] = { ...tile, terrain: 'jungle' };
+
+    expect(canUnitAttackTarget(state, archer, { q: 2, r: 0 }, { viewerId: 'player' })).toEqual({
+      ok: false, reason: 'not-visible',
+    });
+  });
+
+  it('allows ranged attacks against a basilisk in jungle when an adjacent viewer unit reveals it', () => {
+    const archer = unit('archer', 'archer', 'player', { q: 0, r: 0 });
+    const scout = unit('scout', 'scout', 'player', { q: 1, r: 0 });
+    const basilisk = unit('basilisk', 'beast_basilisk', 'beasts', { q: 2, r: 0 });
+    const state = stateWithUnits({ archer, scout, basilisk }, { '2,0': 'visible' });
+    const tile = state.map.tiles['2,0'];
+    if (tile) state.map.tiles['2,0'] = { ...tile, terrain: 'jungle' };
+
+    expect(canUnitAttackTarget(state, archer, { q: 2, r: 0 }, { viewerId: 'player' })).toMatchObject({
+      ok: true, targetUnitId: 'basilisk',
+    });
+  });
+
+  it('allows a concealed basilisk to attack player units (ambush preserved)', () => {
+    const basilisk = unit('basilisk', 'beast_basilisk', 'beasts', { q: 1, r: 0 });
+    const warrior = unit('warrior', 'warrior', 'player', { q: 0, r: 0 });
+    const state = stateWithUnits({ basilisk, warrior }, { '0,0': 'visible' });
+
+    expect(canUnitAttackTarget(state, basilisk, { q: 0, r: 0 }, {})).toMatchObject({
+      ok: true, targetUnitId: 'warrior',
+    });
+  });
 });

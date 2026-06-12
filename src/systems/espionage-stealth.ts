@@ -32,7 +32,7 @@ export function getVisibleUnitsForPlayer(
 ): Record<string, Unit> {
   const result: Record<string, Unit> = {};
 
-  const viewerUnits = Object.values(units).filter(u => u.owner === viewerCivId);
+  const viewerUnits = Object.values(units).filter(u => u.owner === viewerCivId && !u.transportId);
 
   for (const [id, unit] of Object.entries(units)) {
     if (unit.transportId) continue;

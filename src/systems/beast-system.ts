@@ -198,7 +198,7 @@ export function isBeastConcealedFrom(
   const def = getBeastDefinitionByUnitType(beast.type);
   if (!def?.concealedInHabitat) return false;
   const tile = map.tiles[hexKey(beast.position)];
-  if (!tile || !def.habitatTerrains.includes(tile.terrain as any)) return false;
+  if (!tile || !def.habitatTerrains.includes(tile.terrain)) return false;
   return !viewerUnits.some(v => hexDistance(v.position, beast.position) === 1);
 }
 
