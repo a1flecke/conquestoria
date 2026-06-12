@@ -27,6 +27,7 @@ paths:
 ## Unit Types
 - Every `UnitType` in `types.ts` must have a corresponding entry in `TRAINABLE_UNITS`
 - Gate advanced units behind `techRequired` field matching actual tech IDs from `tech-definitions.ts`
+- **Exception — beast units:** `UnitType` values prefixed `beast_` are legendary-beast units spawned exclusively by `beast-system.ts`. They are intentionally NOT in `TRAINABLE_UNITS`, have `productionCost: 0`, and are owned by the `'beasts'` owner constant. Do not add them to city production, AI training, or tech `unlocksUnits`.
 
 ## Production Bonuses
 - `applyProductionBonus()` must be called when processing city production
