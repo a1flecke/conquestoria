@@ -54,8 +54,18 @@ export function placeBeastLairs(
 
 // ---- LCG for per-turn seeded randomness ----
 
+function mixSeed(n: number): number {
+  // MurmurHash3 finalizer — good avalanche for small integers like turn numbers
+  let h = n ^ (n >>> 16);
+  h = Math.imul(h, 0x85ebca6b);
+  h = h ^ (h >>> 13);
+  h = Math.imul(h, 0xc2b2ae35);
+  h = (h ^ (h >>> 16)) >>> 0;
+  return h || 1;
+}
+
 function lcg(seed: number): () => number {
-  let s = seed === 0 ? 1 : seed;
+  let s = mixSeed(seed);
   return () => {
     s = (s * 48271) % 2147483647;
     return s / 2147483647;
@@ -94,7 +104,7 @@ export function processBeasts(
   const empty: BeastProcessResult = { updatedLairs: lairs, spawnOrders: [], moveOrders: [], attackOrders: [], awakenings: [] };
   if (mode === 'off') return empty;
 
-  const rng = lcg(seed ^ 0xbea57);
+  const rng = lcg(seed);
   const updatedLairs: BeastLair[] = [];
   const spawnOrders: BeastSpawnOrder[] = [];
   const awakenings: BeastAwakening[] = [];
