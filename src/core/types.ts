@@ -291,7 +291,8 @@ export type UnitType =
   | 'caravan'
   | 'expedition'
   | 'transport'
-  | 'carrack' | 'galleon' | 'steamship' | 'troop_transport';
+  | 'carrack' | 'galleon' | 'steamship' | 'troop_transport'
+  | 'beast_boar';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
@@ -795,6 +796,32 @@ export interface BarbarianCamp {
   spawnCooldown: number;     // turns until next raider spawns
 }
 
+// --- Legendary Beasts ---
+
+export type BeastId = 'giant_boar';   // union grows one MR at a time — see beasts index plan
+
+export type BeastsMode = 'off' | 'calm' | 'wild';
+
+export type BeastLairStatus = 'dormant' | 'awake' | 'slain' | 'claimed';
+
+export interface BeastLair {
+  id: string;                 // `lair-${beastId}`
+  beastId: BeastId;
+  position: HexCoord;
+  status: BeastLairStatus;
+  strength: number;           // bonus experience fed to beast units while the lair is ignored
+  awakenedTurn?: number;
+  slainBy?: string;           // civ id that landed the killing blow
+  slainTurn?: number;
+  unitIds: string[];          // live beast unit ids leashed to this lair
+}
+
+export interface BeastsState {
+  mode: BeastsMode;
+  lairs: Record<string, BeastLair>;
+  sightingsByCiv: Record<string, BeastId[]>;   // per-civ bestiary sightings (MR2 populates)
+}
+
 // --- Minor Civilizations ---
 
 export type MinorCivArchetype = 'militaristic' | 'mercantile' | 'cultural';
@@ -1123,6 +1150,7 @@ export interface GameState {
   pendingEvents?: Record<string, GameEvent[]>;
   councilMemory?: CouncilMemoryState;
   tribalVillages: Record<string, TribalVillage>;
+  beasts?: BeastsState;       // optional: legacy saves have no beasts
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
@@ -1149,6 +1177,7 @@ export interface GameSettings {
   stingerVolume?: number;    // 0-1; default 1.0
   stingerEnabled?: boolean;  // default true
   tutorialEnabled: boolean;
+  beastsMode?: BeastsMode;    // default 'wild' for new games; undefined on legacy saves
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
   customCivilizations?: CustomCivDefinition[];
@@ -1200,6 +1229,8 @@ export interface GameEvents {
   };
   'civilization:first-contact': { civA: string; civB: string };
   'barbarian:spawned': { campId: string; unitId: string };
+  'beast:awakened': { lairId: string; beastId: BeastId; position: HexCoord };
+  'beast:slain': { lairId: string; beastId: BeastId; slayerCivId: string; slayerUnitId: string; goldAwarded: number };
   'barbarian:camp-destroyed': { campId: string; reward: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
