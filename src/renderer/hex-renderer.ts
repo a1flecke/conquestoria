@@ -102,8 +102,9 @@ function drawTileAtScreen(
   reducedMotion: boolean,
   lowZoom: boolean,
   viewerTechs: ReadonlySet<string> = new Set(),
+  lairGlyph?: string,
 ): void {
-  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, lowZoom, viewerTechs);
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, lowZoom, viewerTechs, lairGlyph);
   if (shouldShowTerrainLabel(zoom)) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -119,6 +120,7 @@ export function drawHexMap(
   map: GameMap,
   camera: Camera,
   villagePositions?: Set<string>,
+  beastLairGlyphs?: Map<string, string>,
   currentPlayer?: string,
   viewerVisibility?: VisibilityMap,
   viewerTechs: ReadonlySet<string> = new Set(),
@@ -134,6 +136,8 @@ export function drawHexMap(
       ? getHorizontalWrapRenderCoords(tile.coord, map.width, camera)
       : [tile.coord];
     const isVillage = villagePositions?.has(`${tile.coord.q},${tile.coord.r}`) ?? false;
+    const tileKey = `${tile.coord.q},${tile.coord.r}`;
+    const rawLairGlyph = beastLairGlyphs?.get(tileKey);
 
     for (const renderCoord of renderCoords) {
       if (!camera.isHexVisible(renderCoord)) continue;
@@ -142,6 +146,7 @@ export function drawHexMap(
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const scaledSize = size * camera.zoom;
       const presentation = resolveTilePresentationForViewer(map, viewerVisibility, renderCoord);
+      const isExplored = presentation.kind === 'live' || presentation.kind === 'last-seen';
       drawTileAtScreen(
         ctx,
         screen,
@@ -156,6 +161,7 @@ export function drawHexMap(
         reducedMotion,
         camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         viewerTechs,
+        isExplored ? rawLairGlyph : undefined,
       );
     }
   }
@@ -272,6 +278,7 @@ function drawHex(
   reducedMotion: boolean = false,
   lowZoom: boolean = false,
   viewerTechs: ReadonlySet<string> = new Set(),
+  lairGlyph?: string,
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -398,6 +405,15 @@ function drawHex(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('🏕️', cx, cy);
+  }
+
+  // Draw beast lair indicator (shown on explored tiles)
+  if (lairGlyph && !tile.wonder && !isVillage) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = `${size * 0.5}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lairGlyph, cx, cy);
   }
 
   // Draw ownership indicator

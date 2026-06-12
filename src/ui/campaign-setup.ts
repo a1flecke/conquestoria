@@ -1,4 +1,4 @@
-import type { CustomCivDefinition, SoloSetupConfig, MapScript } from '@/core/types';
+import type { BeastsMode, CustomCivDefinition, SoloSetupConfig, MapScript } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createCustomCivPanel } from '@/ui/custom-civ-panel';
@@ -326,6 +326,58 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     syncMapSizeCards();
   });
 
+  // Legendary Beasts mode section
+  let beastsModeSelected: BeastsMode = 'wild';
+
+  const beastsSection = createSetupSection({
+    title: 'Legendary Beasts',
+    description: 'Powerful creatures that guard ancient lairs. Slay them to claim their gold hoard.',
+  });
+  hero.appendChild(beastsSection.section);
+
+  const beastsModeCardRow = document.createElement('div');
+  Object.assign(beastsModeCardRow.style, {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: '10px',
+  });
+  beastsSection.content.appendChild(beastsModeCardRow);
+
+  const beastsHelpText = document.createElement('p');
+  Object.assign(beastsHelpText.style, {
+    margin: '8px 0 0',
+    fontSize: '12px',
+    opacity: '0.72',
+    lineHeight: '1.45',
+  });
+  beastsSection.content.appendChild(beastsHelpText);
+
+  const BEASTS_MODE_DESCRIPTIONS: Record<BeastsMode, string> = {
+    wild: 'Legendary beasts roam near their lairs and attack intruders.',
+    calm: 'Beasts appear and can be hunted, but never attack first.',
+    off: 'No legendary beasts this game.',
+  };
+
+  const beastsModeCards = new Map<BeastsMode, HTMLButtonElement>();
+  const syncBeastsModeCards = (): void => {
+    for (const [mode, button] of beastsModeCards.entries()) {
+      syncChoiceButtonState(button, beastsModeSelected === mode);
+    }
+    beastsHelpText.textContent = BEASTS_MODE_DESCRIPTIONS[beastsModeSelected];
+  };
+
+  for (const mode of ['wild', 'calm', 'off'] as const) {
+    const button = createChoiceButton(mode);
+    button.dataset.beastsMode = mode;
+    button.addEventListener('click', () => {
+      beastsModeSelected = mode;
+      syncBeastsModeCards();
+    });
+    beastsModeCards.set(mode, button);
+    beastsModeCardRow.appendChild(button);
+  }
+  syncBeastsModeCards();
+
   let selectedCivId: string | null = null;
   let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
   let civDefinitions = getPlayableCivDefinitions({ customCivilizations });
@@ -427,6 +479,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       gameTitle,
       customCivilizations,
       mapScript: mapScriptSelect.value as MapScript,
+      settingsOverrides: { beastsMode: beastsModeSelected },
     });
   });
   buttonRow.appendChild(startButton);

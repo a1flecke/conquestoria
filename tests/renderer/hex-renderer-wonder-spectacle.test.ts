@@ -80,7 +80,7 @@ describe('hex renderer wonder spectacle integration', () => {
     const camera = { ...makeCamera(), zoom: 0.35 };
     const visibility: VisibilityMap = { tiles: { '0,0': 'visible', '1,0': 'visible' } };
 
-    drawHexMap(ctx, map, camera as Camera, undefined, 'player', visibility);
+    drawHexMap(ctx, map, camera as Camera, undefined, undefined, 'player', visibility);
 
     expect(drawNaturalWonderLandmark).toHaveBeenCalledWith(expect.objectContaining({
       wonderId: 'great_volcano',

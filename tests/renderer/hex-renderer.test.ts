@@ -79,7 +79,7 @@ describe('hex renderer privacy', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const visibility: VisibilityMap = { tiles: { '0,0': 'visible', '1,0': 'visible' } };
 
-    drawHexMap(ctx, makeMap(), makeCamera(), undefined, 'player', visibility);
+    drawHexMap(ctx, makeMap(), makeCamera(), undefined, undefined, 'player', visibility);
 
     expect((ctx as unknown as MockCanvasContext).strokeCalls).toContain('rgba(217,74,74,0.5)');
   });
@@ -88,7 +88,7 @@ describe('hex renderer privacy', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const visibility: VisibilityMap = { tiles: { '0,0': 'visible', '1,0': 'fog' } };
 
-    drawHexMap(ctx, makeMap(), makeCamera(), undefined, 'player', visibility);
+    drawHexMap(ctx, makeMap(), makeCamera(), undefined, undefined, 'player', visibility);
 
     expect((ctx as unknown as MockCanvasContext).strokeCalls).not.toContain('rgba(217,74,74,0.5)');
   });
@@ -112,7 +112,7 @@ describe('hex renderer privacy', () => {
       },
     };
 
-    drawHexMap(ctx, makeMap(), makeCamera(), undefined, 'player', visibility);
+    drawHexMap(ctx, makeMap(), makeCamera(), undefined, undefined, 'player', visibility);
 
     expect((ctx as unknown as MockCanvasContext).strokeCalls).toContain('rgba(74,144,217,0.5)');
   });
@@ -123,7 +123,7 @@ describe('hex renderer privacy', () => {
     map.tiles['0,0'].wonder = 'great_volcano';
     const visibility: VisibilityMap = { tiles: { '0,0': 'visible', '1,0': 'visible' } };
 
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibility);
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', visibility);
 
     expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('✦');
   });
@@ -191,7 +191,7 @@ describe('resource icon rendering', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const map = makeResourceMap({ resource: 'stone' });
 
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set(['gathering']));
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', visibleAll, new Set(['gathering']));
 
     expect((ctx as unknown as MockCanvasContext).textCalls).toContain('🪨');
   });
@@ -200,7 +200,7 @@ describe('resource icon rendering', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const map = makeResourceMap({ resource: 'stone' });
 
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set());
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', visibleAll, new Set());
 
     expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
   });
@@ -209,7 +209,7 @@ describe('resource icon rendering', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const map = makeResourceMap({ resource: 'stone', improvement: 'mine', improvementTurnsLeft: 0 });
 
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set(['gathering']));
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', visibleAll, new Set(['gathering']));
 
     // For tile at q=0,r=0: hexToPixel gives {x:0,y:0}; worldToScreen is identity.
     // scaledSize = hexSize(48) * zoom(1) = 48.
@@ -226,7 +226,7 @@ describe('resource icon rendering', () => {
     // improvementTurnsLeft > 0 means construction in progress — improvement icon is NOT shown
     const map = makeResourceMap({ resource: 'stone', improvement: 'mine', improvementTurnsLeft: 2 });
 
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set(['gathering']));
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', visibleAll, new Set(['gathering']));
 
     // No completed improvement visible → resource draws centered at cx=0, cy=0
     const mockCtx = ctx as unknown as MockCanvasContext;
@@ -242,7 +242,7 @@ describe('resource icon rendering', () => {
     const unexplored: VisibilityMap = { tiles: { '0,0': 'unexplored' } };
 
     // viewerTechs has 'gathering' — but the presentation tile has resource:null from unknownTile()
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', unexplored, new Set(['gathering']));
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', unexplored, new Set(['gathering']));
 
     expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
   });
@@ -267,7 +267,7 @@ describe('resource icon rendering', () => {
       },
     };
 
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', fog, new Set(['gathering']));
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', fog, new Set(['gathering']));
 
     // Player remembers what they last saw — resource shows if they have the tech
     expect((ctx as unknown as MockCanvasContext).textCalls).toContain('🪨');
@@ -278,7 +278,7 @@ describe('resource icon rendering', () => {
     const map = makeResourceMap({ resource: 'stone' });
     map.tiles['0,0'].wonder = 'great_volcano';
 
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', visibleAll, new Set(['gathering']));
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', visibleAll, new Set(['gathering']));
 
     expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
   });
@@ -289,7 +289,7 @@ describe('resource icon rendering', () => {
     // Pass coord as a village position — the village glyph would occupy the center
     const villagePositions = new Set(['0,0']);
 
-    drawHexMap(ctx, map, makeCamera(), villagePositions, 'player', visibleAll, new Set(['gathering']));
+    drawHexMap(ctx, map, makeCamera(), villagePositions, undefined, 'player', visibleAll, new Set(['gathering']));
 
     // Village causes corner layout: cx - size*0.3 = 0 - 14.4 = -14.4
     const mockCtx = ctx as unknown as MockCanvasContext;
@@ -319,7 +319,7 @@ describe('resource icon rendering', () => {
       },
     };
 
-    drawHexMap(ctx, map, makeCamera(), undefined, 'player', fog, new Set());
+    drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', fog, new Set());
 
     expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
   });
