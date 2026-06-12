@@ -1,5 +1,5 @@
 import type { BestiaryEntry } from '@/systems/beast-presentation';
-import type { FactionPalette } from '@/renderer/sprites/sprite-system';
+import { NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
 import { createGameButton } from '@/ui/ui-kit';
 import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
 
@@ -7,8 +7,6 @@ export interface BestiaryPanelCallbacks {
   onClose: () => void;
   slayerNameFor: (civId: string) => string;
 }
-
-const NEUTRAL_PALETTE: FactionPalette = { dark: '#555', mid: '#888', bright: '#bbb', trim: '#999' };
 
 const TIER_LABELS: Record<number, string> = {
   1: 'Dangerous', 2: 'Fearsome', 3: 'Terrifying', 4: 'Legendary',
@@ -58,7 +56,7 @@ export function createBestiaryPanel(
       const holder = document.createElement('div');
       holder.style.cssText = 'width:72px;height:72px;';
       // Sprite SVGs are module-authored strings, never game/user input — safe for innerHTML.
-      holder.innerHTML = sprite({ palette: NEUTRAL_PALETTE, svgOnly: true });
+      holder.innerHTML = sprite({ palette: NEUTRAL_FACTION_PALETTE, svgOnly: true });
       art.appendChild(holder);
     }
     card.appendChild(art);

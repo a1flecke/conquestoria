@@ -1,5 +1,7 @@
 export type FactionPalette = { dark: string; mid: string; bright: string; trim: string };
 
+export const NEUTRAL_FACTION_PALETTE: FactionPalette = { dark: '#555', mid: '#888', bright: '#bbb', trim: '#999' };
+
 export const LOD_SPRITE_ZOOM_THRESHOLD = 0.4;
 
 // --- HSL helpers ---

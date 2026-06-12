@@ -3291,7 +3291,9 @@ bus.on('beast:slain', ({ beastId, slayerCivId, goldAwarded }) => {
 
 bus.on('beast:sighted', ({ beastId, civId }) => {
   const def = BEAST_DEFINITIONS[beastId];
-  appendToCivLog(civId, def.sightingFlavor, 'info');
+  const lair = gameState.beasts ? Object.values(gameState.beasts.lairs).find(l => l.beastId === beastId) : undefined;
+  const target = lair ? { kind: 'map' as const, coord: lair.position, label: def.name } : undefined;
+  appendToCivLog(civId, def.sightingFlavor, 'info', target);
   if (civId === gameState.currentPlayer) {
     showBeastSightingBanner(uiLayer, {
       name: def.name,
