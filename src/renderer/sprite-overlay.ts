@@ -30,6 +30,12 @@ export interface SpriteEntity {
   state:   'idle' | 'walk' | 'attack';
   /** Sprite palette name derived from owner's civType via civTypeToFaction() — e.g. 'imperials', 'pharaohs', 'vikings'. */
   faction: string;
+  /**
+   * Damage tier 0–3 driven by unit health. Controls cq-wound visibility via data-damage CSS selectors.
+   * 0 = healthy (76–100 HP), 1 = wounded (51–75), 2 = bloodied (26–50), 3 = near-death (0–25).
+   * Always 0 for non-combat units (strength === 0). Defaults to 0 when absent.
+   */
+  damage?: number;
 }
 
 interface PoolEntry {
@@ -113,6 +119,7 @@ export class SpriteOverlay {
         if (existing) {
           // Pool hit — update state via setAttribute (no node replacement!)
           existing.spriteWrapEl.setAttribute('data-state', entity.state);
+          existing.spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
           // Update world position if unit moved hex after movement animation completed
           if (existing.coord.q !== coord.q || existing.coord.r !== coord.r) {
             const px = hexToPixel(coord, camera.hexSize);
@@ -144,6 +151,7 @@ export class SpriteOverlay {
           // Override the baked style="--phase:0" — setProperty on same element wins
           spriteWrapEl.style.setProperty('--phase', String(phase));
           spriteWrapEl.setAttribute('data-state', entity.state);
+          spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
 
           this.layers[entity.kind].appendChild(wrapper);
           this.pool.set(key, { el: wrapper, spriteWrapEl, phase, faction: entity.faction, coord });

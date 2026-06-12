@@ -5,7 +5,7 @@ import {
   getImprovementSpriteV2,
 } from '@/renderer/sprites/v2/index';
 
-// All unit types that must have a v2 serialization (MR 1 + MR 2 + MR 4).
+// All unit types that must have a v2 serialization (MR 1 + MR 2 + MR 4 + MR 6).
 const ALL_SPRITE_UNIT_TYPES = [
   // MR 1 — already serialized
   'archer', 'galley', 'musketeer', 'pikeman', 'scout', 'scout_hound', 'settler',
@@ -17,6 +17,8 @@ const ALL_SPRITE_UNIT_TYPES = [
   'caravan', 'expedition', 'transport',
   // MR 4 — late-era naval
   'carrack', 'galleon', 'steamship', 'troop_transport',
+  // MR 6 — legendary beasts
+  'beast_boar',
 ];
 
 // All building types that must have a v2 serialization (MR 1 + MR 3).
@@ -64,6 +66,57 @@ describe('getImprovementSpriteV2', () => {
   it('returns null (improvement markers use Canvas 2D, not DOM overlay)', () => {
     expect(getImprovementSpriteV2('farm')).toBeNull();
     expect(getImprovementSpriteV2('mine')).toBeNull();
+  });
+});
+
+describe('beast_boar v2 sprite', () => {
+  it('resolves for any faction via beast fallback key', () => {
+    // Beast sprites are faction-neutral — they resolve regardless of faction string
+    const result = getUnitSpriteV2('beast_boar', 'imperials');
+    expect(result).not.toBeNull();
+    expect(result!).toContain('cq-sprite-wrap');
+    expect(result!).toContain('cq-v2');
+  });
+
+  it('has data-kind="beast" for bespoke animation selectors', () => {
+    const result = getUnitSpriteV2('beast_boar', 'imperials');
+    expect(result!).toContain('data-kind="beast"');
+  });
+
+  it('has data-damage="0" baked in as a safe default', () => {
+    const result = getUnitSpriteV2('beast_boar', 'imperials');
+    expect(result!).toContain('data-damage="0"');
+  });
+
+  it('contains all wound group classes for 4 damage tiers', () => {
+    const result = getUnitSpriteV2('beast_boar', 'imperials');
+    expect(result!).toContain('cq-wound-1');
+    expect(result!).toContain('cq-wound-2');
+    expect(result!).toContain('cq-wound-3');
+  });
+
+  it('contains breath puff classes for idle animation', () => {
+    const result = getUnitSpriteV2('beast_boar', 'imperials');
+    expect(result!).toContain('cq-breath');
+  });
+
+  it('contains all four leg hook classes for walk animation', () => {
+    const result = getUnitSpriteV2('beast_boar', 'imperials');
+    expect(result!).toContain('cq-leg--bf');
+    expect(result!).toContain('cq-leg--ff');
+    expect(result!).toContain('cq-leg--bn');
+    expect(result!).toContain('cq-leg--fn');
+  });
+
+  it('contains head cluster for gore animation', () => {
+    const result = getUnitSpriteV2('beast_boar', 'imperials');
+    expect(result!).toContain('cq-boar-head');
+  });
+
+  it('contains tusk-tip and tusk-stub for near-death breakage', () => {
+    const result = getUnitSpriteV2('beast_boar', 'imperials');
+    expect(result!).toContain('cq-tusk-tip');
+    expect(result!).toContain('cq-tusk-stub');
   });
 });
 

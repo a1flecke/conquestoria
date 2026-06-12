@@ -1,4 +1,5 @@
 import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { Camera } from './camera';
 import { drawHexMap, drawRivers, drawMinorCivTerritory, drawHexHighlight } from './hex-renderer';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
@@ -105,6 +106,12 @@ export function buildUnitEntities(
       // Use the UNIT OWNER'S civType (not the viewer's) — enemy units use their owner's faction colors
       const civType = state.civilizations[u.owner]?.civType ?? 'generic';
       const faction = civTypeToFaction(civType);
+      // Non-combat units (strength 0) always show tier 0; combat units scale with health
+      const strength = UNIT_DEFINITIONS[u.type]?.strength ?? 0;
+      const damage = strength === 0 ? 0
+        : u.health >= 76 ? 0
+        : u.health >= 51 ? 1
+        : u.health >= 26 ? 2 : 3;
       return {
         id: u.id,
         kind: 'unit' as const,
@@ -112,6 +119,7 @@ export function buildUnitEntities(
         coord: u.position,
         state: 'idle' as const, // walk state set per-frame during movement (future)
         faction,
+        damage,
       };
     });
 }
