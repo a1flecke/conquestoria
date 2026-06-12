@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold } from '@/systems/beast-system';
+import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { generateMap } from '@/systems/map-generator';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
@@ -58,6 +58,15 @@ function makeUnit(overrides: Partial<Unit> = {}): Unit {
     movementPointsLeft: 2, health: 100, experience: 0,
     hasMoved: false, hasActed: false, isResting: false, ...overrides,
   } as Unit;
+}
+
+function tinyMap(terrainAt: Record<string, string>) {
+  const tiles: Record<string, any> = {};
+  for (const [key, terrain] of Object.entries(terrainAt)) {
+    const [q, r] = key.split(',').map(Number);
+    tiles[key] = { coord: { q, r }, terrain, elevation: 'flat', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null };
+  }
+  return { width: 40, height: 30, tiles, wrapsHorizontally: false } as any;
 }
 
 const behaviorMap = generateMap(40, 30, 'beast-test-seed');
@@ -158,5 +167,32 @@ describe('recordBeastSlain', () => {
     const def = BEAST_DEFINITIONS.giant_boar;
     expect(getBeastHoardGold(def, 1)).toBe(40);
     expect(getBeastHoardGold(def, 3)).toBeGreaterThan(getBeastHoardGold(def, 1));
+  });
+});
+
+describe('isBeastConcealedFrom', () => {
+  const jungleMap = tinyMap({ '5,5': 'jungle', '6,5': 'grassland', '7,5': 'grassland' });
+  const basilisk = makeUnit({ id: 'beast-bas', type: 'beast_basilisk', owner: 'beasts', position: { q: 5, r: 5 } });
+
+  it('conceals a basilisk on jungle when no viewer unit is adjacent', () => {
+    const farViewer = makeUnit({ id: 'v1', position: { q: 7, r: 5 } });
+    expect(isBeastConcealedFrom(basilisk, jungleMap, [farViewer])).toBe(true);
+  });
+
+  it('reveals a basilisk when a viewer unit is adjacent', () => {
+    const nearViewer = makeUnit({ id: 'v1', position: { q: 6, r: 5 } });
+    expect(isBeastConcealedFrom(basilisk, jungleMap, [nearViewer])).toBe(false);
+  });
+
+  it('never conceals a basilisk off its habitat terrain', () => {
+    const offHabitat = { ...basilisk, position: { q: 6, r: 5 } };
+    expect(isBeastConcealedFrom(offHabitat, jungleMap, [])).toBe(false);
+  });
+
+  it('never conceals non-stealth beasts (boar) or non-beasts', () => {
+    const boar = makeUnit({ id: 'beast-boar', type: 'beast_boar', owner: 'beasts', position: { q: 5, r: 5 } });
+    expect(isBeastConcealedFrom(boar, jungleMap, [])).toBe(false);
+    const warrior = makeUnit({ id: 'w1', position: { q: 5, r: 5 } });
+    expect(isBeastConcealedFrom(warrior, jungleMap, [])).toBe(false);
   });
 });
