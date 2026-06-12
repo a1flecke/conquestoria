@@ -184,6 +184,24 @@ export function isBeastUnit(unit: Pick<Unit, 'owner'>): boolean {
   return unit.owner === BEAST_OWNER;
 }
 
+/**
+ * Habitat concealment: a beast with concealedInHabitat is invisible to a viewer civ
+ * while it stands on its habitat terrain and none of that civ's units are adjacent.
+ * Mirrors isForestConcealedUnit (fog-of-war.ts) — keep the two consistent if either changes.
+ */
+export function isBeastConcealedFrom(
+  beast: Unit,
+  map: GameMap,
+  viewerUnits: Array<Pick<Unit, 'position'>>,
+): boolean {
+  if (beast.owner !== BEAST_OWNER) return false;
+  const def = getBeastDefinitionByUnitType(beast.type);
+  if (!def?.concealedInHabitat) return false;
+  const tile = map.tiles[hexKey(beast.position)];
+  if (!tile || !def.habitatTerrains.includes(tile.terrain as any)) return false;
+  return !viewerUnits.some(v => hexDistance(v.position, beast.position) === 1);
+}
+
 export function getBeastHoardGold(def: BeastDefinition, era: number): number {
   // Tier base, +50% per era past the awaken era — late kills stay worthwhile
   const eraBonus = Math.max(0, era - def.awakenEra);
