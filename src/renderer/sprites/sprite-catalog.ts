@@ -27,6 +27,7 @@ import {
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
 } from './wonders';
+import { GiantBoarSprite } from './beasts';
 
 export type UnitSpriteComponent = (props: UnitSpriteProps) => string;
 export type BuildingSpriteComponent = (props: BuildingSpriteProps) => string;
@@ -68,6 +69,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   ballista: 'humanoid',
   caravan: 'humanoid',
   expedition: 'humanoid',
+  beast_boar: 'animal',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
@@ -134,6 +136,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   ballista:       withMotion('ballista', BallistaSprite),
   caravan:        withMotion('caravan', CaravanSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
+  beast_boar:     withMotion('beast_boar', GiantBoarSprite),
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {
