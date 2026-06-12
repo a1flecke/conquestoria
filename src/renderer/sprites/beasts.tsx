@@ -1,5 +1,4 @@
 import {
-  type FactionPalette,
   MATERIAL_PALETTE as P,
   Shadow,
   SpriteFrame,

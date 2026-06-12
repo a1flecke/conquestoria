@@ -72,7 +72,7 @@ function lcg(seed: number): () => number {
   };
 }
 
-const AWAKEN_CHANCE_PER_TURN = 0.25;
+const AWAKEN_CHANCE_PER_TURN = 0.10;
 export const LAIR_GROWTH_INTERVAL_TURNS = 10;
 export const LAIR_GROWTH_CAP = 5;
 export const LAIR_GROWTH_EXPERIENCE = 16;

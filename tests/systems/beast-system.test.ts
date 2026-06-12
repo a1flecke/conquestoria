@@ -65,12 +65,13 @@ const behaviorMap = generateMap(40, 30, 'beast-test-seed');
 describe('processBeasts', () => {
   it('awakens a dormant lair once the era requirement is met (seeded chance)', () => {
     let awakened = 0;
-    for (let seed = 1; seed <= 40; seed++) {
+    // 10% chance per turn — run 200 seeds to guarantee at least one awakening
+    for (let seed = 1; seed <= 200; seed++) {
       const result = processBeasts([makeLair()], behaviorMap, [], [], 1, 'wild', seed);
       if (result.awakenings.length > 0) awakened++;
     }
     expect(awakened).toBeGreaterThan(0);
-    expect(awakened).toBeLessThan(40);
+    expect(awakened).toBeLessThan(200);
   });
 
   it('never awakens before the awaken era', () => {
