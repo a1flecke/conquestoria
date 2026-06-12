@@ -42,6 +42,8 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   // Resource Accessibility MR 2b
   expedition: '🧭',
   beast_boar: '🐗',
+  beast_wolf: '🐺',
+  beast_basilisk: '🦎',
 };
 
 export interface UnitVisual {

@@ -70,6 +70,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   caravan: 'humanoid',
   expedition: 'humanoid',
   beast_boar: 'animal',
+  beast_wolf: 'animal',
+  beast_basilisk: 'animal',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
