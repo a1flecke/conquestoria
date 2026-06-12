@@ -27,7 +27,7 @@ The design is definition-driven, immutable, actor-attributed, viewer-scoped, era
 - Exclusive alliances. Multiple major civilizations may independently earn an alliance with the same minor civilization.
 - New ally-bonus categories. Chain completion activates the issuing minor civilization's existing `allyBonus` definition.
 - Consuming luxury resources during a festival. The festival checks access only.
-- New AI strategy for deliberately pursuing chains. AI actions still receive progress when they satisfy the same canonical rules.
+- Broad new AI diplomacy strategy. AI receives a narrow chain-aware policy: it may pay an affordable assigned gift or festival, prioritize an assigned route destination, and otherwise earns military progress only from its ordinary legal actions.
 - A generic workflow engine beyond minor-civilization quests.
 
 ## Core Invariants
@@ -218,7 +218,7 @@ export interface MinorCivState {
 }
 ```
 
-`pending` means a specific next step is earned but no valid preferred or fallback objective can currently be created. `pendingStepIndex` is required only for `pending`, is zero-based, and is retried each turn. Pending state suppresses normal quest generation and has no expiry penalty. Active chain steps are represented only by `activeQuests[majorCivId]`. `allied` and `broken` cannot coexist with an active chain quest.
+`pending` means a specific next step is earned but no valid preferred or fallback objective can currently be created. `pendingStepIndex` and `pendingExpiresOnTurn` are required only for `pending`; the step is retried each turn for ten inclusive turns. Pending state suppresses normal quest generation and has no relationship penalty. If the retry window ends, pending state is removed and the standard cooldown begins so the pair cannot deadlock indefinitely. Active chain steps are represented only by `activeQuests[majorCivId]`. `allied` and `broken` cannot coexist with an active chain quest.
 
 The typed cooldown and last-notified maps replace the existing `_cooldown_<civId>` and `_prevStatus` dynamic properties.
 
@@ -263,15 +263,15 @@ A route objective is preferred only when the assigned civilization can realistic
 - the civilizations are not at war and route diplomacy permits the destination
 - at least one owned origin city has available route capacity
 - a land path exists for the existing caravan route implementation
-- an uncommitted caravan exists or can currently be trained by an owned city
+- an uncommitted caravan exists, or an owned city can finish one after its existing queue within the objective's remaining turns
 
-This check is shared by normal quest generation, chain generation, AI guidance, and UI wording. Before those conditions hold, the chain uses its same-theme patronage fallback.
+Production feasibility uses the same production-per-turn calculation as the city UI, includes queued work ahead of the caravan, and rejects a route objective when the projected completion plus route establishment cannot fit inside the deadline. This check is shared by normal quest generation, chain generation, AI guidance, and UI wording. Before those conditions hold, the chain uses its same-theme patronage fallback.
 
 ### Target changes
 
 - If a specific camp disappears because the assigned player destroyed it, the source action completes that objective before reconciliation.
-- If another actor destroys the camp, the assigned quest retargets to another eligible known camp, then to the step's same-theme fallback. If neither exists, it is cancelled without penalty.
-- For `defeat_units`, the remaining required count is bounded to `progress + currently eligible known units`. It never falls below current progress. If no eligible units remain, the step retargets to its fallback or cancels without penalty.
+- If another actor destroys the camp while its tile is currently visible to the assignee, the assigned quest retargets to another eligible known camp, then to the step's same-theme fallback. If the tile is hidden, the assignment remains based on remembered intel until the assignee can observe that it is stale; hidden world changes do not leak through quest state.
+- For `defeat_units`, the issued count is fixed. Visibility loss alone never rewrites an active objective. Actor-attributed defeats advance every independently valid issuer assignment whose stored radius and hostility rules match that defeat; this intentional shared credit is covered by a balance regression.
 - A trade objective created under valid conditions remains active while it is reasonably recoverable. War with the issuer clears it through the war transition. Destruction of the issuer cancels it without penalty.
 - A Grand Festival remains valid while the player has any accessible luxury. If all luxury access disappears, the step changes to its Festival Preparations fallback. If that fallback cannot be created, the chain is cancelled without penalty.
 - Retargeting or fallback replacement emits one owner-targeted notification and updates the open panel immediately.
@@ -304,9 +304,11 @@ An existing route never retroactively completes a step. Step 3 route feasibility
 
 | Step | Title | Preferred objective | Ordered fallback |
 |---|---|---|---|
-| 1 | Patronize Local Arts | Contribute `1.0x` base gold when the shared gold projection can reach it | Enter pending until the contribution is feasible |
-| 2 | Exchange Delegations | Establish a new route to the issuing city after the step is issued | Fund traveling artists for `1.25x` base gold |
-| 3 | Sponsor the Grand Festival | Pay the era's Grand Festival amount while currently having access to any luxury | Fund Festival Preparations for `1.5x` base gold if luxury access or the larger festival contribution is not feasible |
+| 1 | Era 1: Honor the Storytellers; Era 2: Patronize Local Arts; Era 3: Convene Philosophers; Era 4: Commission the Great Stage | Contribute `1.0x` base gold with era-specific cultural prose | Enter pending until patronage is feasible |
+| 2 | Era 1: Host a Seasonal Fair; Era 2: Exchange Artisans; Era 3: Welcome a Cultural Delegation; Era 4: Open an Exchange Route | Sponsor an era-scaled festival when luxury access exists; in Era 4 prefer a new route to the issuer | Fund the corresponding cultural delegation for `1.25x` base gold |
+| 3 | Era 1: Feast of First Songs; Era 2: Festival of Crafts; Era 3: Festival of Ideas; Era 4: Grand Festival | Pay the era's festival amount while currently having access to any luxury | Fund named festival preparations for `1.5x` base gold if luxury access or the larger contribution is not feasible |
+
+The chain definition stores all four era variants explicitly. Tests assert titles and preferred objectives for every era, so adding an era or changing an era boundary cannot silently collapse cultural play back into generic research or commerce wording.
 
 The Grand Festival is a new `sponsor_festival` objective. It is an atomic action: validation occurs first, then gold is deducted, then the quest completes. Luxury access is checked but not consumed. The fallback remains cultural patronage and does not masquerade as a Grand Festival.
 
@@ -373,6 +375,8 @@ Declaring war through `setMinorCivWarState` is bilateral and atomic.
 
 Making peace is also bilateral. It does not restore an alliance. Normal quests resume after the standard cooldown. Once a normal quest completion leaves the relationship at `30+`, the chain restarts at Step 1, replacing `broken` with the new active or pending chain.
 
+All hostile entry paths use this lifecycle. Attacking a minor-civilization unit or assaulting its city first establishes bilateral war through the canonical helper. Neutral or allied minor-civilization units are not legal combat targets until that transition succeeds, and declaring war breaks an earned alliance before combat or conquest resolves.
+
 ### Minor civilization destruction
 
 Destroying the issuer clears all of its quests and chain statuses, disables its ally bonuses, and sends independently redacted destruction notifications. Active chains are cancelled without penalty because completion is no longer possible.
@@ -432,6 +436,8 @@ Raw relationship `>= 60` alone no longer grants `allied`. This prevents Step 1 o
 
 `applyAllyBonuses` uses this helper instead of `relationship >= 60`. It copies every mutated civilization, city, unit roster, counter, or research state rather than writing through the input state.
 
+Every consumer that describes or reacts to a minor-civilization ally uses the same helper, including diplomacy rows, advisor triggers, council cards, notifications, and bonus application. No UI or guidance path may infer alliance from raw relationship.
+
 ## Action Attribution
 
 `QuestAction` is a discriminated union carrying explicit facts:
@@ -451,6 +457,7 @@ Credit rules:
 - A camp counts only when the canonical camp-destruction helper credits the assigned major and the camp ID matches.
 - A gift or festival validates the supplied actor and issuer, current treasury, active assignment, and objective requirements before mutation.
 - `state.currentPlayer` is never consulted in system code.
+- One defeat or camp destruction may advance more than one issuer only when every assignment independently matches the same actor, visibility or remembered-intel rule, hostility, target, and radius. No reward is shared merely because quest types match.
 
 An invalidation reconciliation pass may inspect other assignments affected by a removed target, but it may only retarget or cancel them. It cannot award progress.
 
@@ -556,7 +563,8 @@ New-game and evolved-camp creation initializes the three new `MinorCivState` map
 
 `normalizeLoadedState` performs these legacy-safe defaults:
 
-- missing `chainStatusByCiv`, `questCooldownUntilByCiv`, or `lastNotifiedStatusByCiv` -> empty object
+- missing `chainStatusByCiv` or `questCooldownUntilByCiv` -> empty object
+- missing `lastNotifiedStatusByCiv` -> initialize each known major to its current effective non-transitioning status, preventing migration-time notification bursts
 - quests without `chainId` and `stepIndex` -> normal quests
 - legacy `chainNext` and `minorCivId` fields -> ignored
 - a quest with unknown chain ID, out-of-range step index, or mismatched objective type -> cancel without penalty and apply the standard cooldown
@@ -578,7 +586,7 @@ Existing quest events remain, with chain metadata available through the quest sn
 
 `minor-civ:allied` is emitted only when a chain's final step earns the durable alliance, not when raw relationship happens to cross `60`.
 
-Every event is emitted from the explicit transition returned by the mutating helper. Repeated turn processing, rendering, loading, or steady-state scans must not emit the same one-time transition again.
+Every event is emitted from the explicit transition returned by the mutating helper. Pure gameplay helpers never emit before their returned state is installed. The live caller assigns the new state first and only then passes transitions to the notification adapter, so listeners and hot-seat queues always observe and mutate the authoritative object. Repeated turn processing, rendering, loading, or steady-state scans must not emit the same one-time transition again.
 
 ## Testing Strategy
 

@@ -14,6 +14,20 @@
 
 This is one gameplay feature with ordered dependencies, not a set of independently releasable user features. The tasks below keep every intermediate commit compiling and tested, but player-visible chain controls do not ship until the canonical systems, privacy boundary, persistence, and transition logic are all present.
 
+## Binding Review Corrections
+
+These corrections supersede narrower examples later in the plan:
+
+- Gameplay helpers return state plus transitions and never emit internally. Every live caller assigns the returned state before calling `emitMinorCivQuestTransitions`, because notification listeners read and mutate the authoritative state through `getState()`.
+- Attacking a minor-civilization unit or assaulting its city must first call the canonical bilateral war helper. Combat legality treats a neutral or allied minor civilization as non-hostile until that transition succeeds.
+- `advisor-system.ts` and its tests are in scope. Advisor quest lookup is viewer-scoped, and every alliance trigger uses `isMinorCivAllianceActive` rather than raw relationship.
+- Route feasibility includes queued production and production ETA. A trainable caravan qualifies only if it can finish and establish the route within the objective's remaining turns.
+- Cultural chain definitions contain explicit era variants. Eras 1-3 use culturally named patronage and festival/delegation objectives; Era 4 may prefer exchange routes. Tests cover the title and preferred objective for every era.
+- Chain quest metadata and chain status are discriminated unions. Partial `chainId`/`stepIndex`, pending without an expiry/index, and allied/broken records with pending fields are invalid save data.
+- Shared military credit is intentional: one canonical defeat or camp action may advance multiple issuer assignments only when each independently matches the actor, target, hostility, visibility/remembered-intel rule, and radius. Add a regression and balance assertion.
+- Pending retry lasts ten inclusive turns. On timeout it clears without relationship penalty, installs the standard cooldown, and allows normal quests to resume. AI receives minimal assigned gift/festival pursuit and assigned-route prioritization so its chains do not become inert.
+- Legacy normalization seeds `lastNotifiedStatusByCiv` from current effective status rather than `{}`, preventing first-turn notification bursts.
+
 Implementation work stays in the existing isolated worktree:
 
 ```text
@@ -124,7 +138,7 @@ export type QuestTarget =
   | { type: 'trade_route'; minorCivId: string }
   | { type: 'sponsor_festival'; amount: number; requiresLuxury: true };
 
-export interface Quest {
+export type Quest = {
   id: string;
   type: QuestType;
   description: string;
@@ -135,17 +149,15 @@ export interface Quest {
   status: 'active' | 'completed' | 'expired';
   turnIssued: number;
   expiresOnTurn: number | null;
-  chainId?: string;
-  stepIndex?: number;
-}
+} & (
+  | { chainId?: never; stepIndex?: never }
+  | { chainId: string; stepIndex: 0 | 1 | 2 }
+);
 
-export interface MinorCivChainStatus {
-  chainId: string;
-  status: 'pending' | 'allied' | 'broken';
-  statusTurn: number;
-  pendingStepIndex?: number;
-  earnedTurn?: number;
-}
+export type MinorCivChainStatus =
+  | { chainId: string; status: 'pending'; statusTurn: number; pendingStepIndex: 0 | 1 | 2; pendingExpiresOnTurn: number }
+  | { chainId: string; status: 'allied'; statusTurn: number; earnedTurn: number }
+  | { chainId: string; status: 'broken'; statusTurn: number; earnedTurn: number };
 
 export type MinorCivRelationshipStatus = 'at-war' | 'hostile' | 'neutral' | 'friendly' | 'allied';
 ```
@@ -347,9 +359,9 @@ export const FESTIVALS_AND_EXCHANGE_CHAIN: QuestChainDefinition = {
   id: 'festivals-and-exchange', name: 'Festivals And Exchange',
   theme: 'Deepen cultural ties through patronage, exchange, and celebration.', priority: 10,
   steps: [
-    { title: 'Patronize Local Arts', duration: 20, reward: rewards[0], preferred: { type: 'gift_gold', goldMultiplier: 1, description: 'Patronize local artists' }, fallbacks: [] },
-    { title: 'Exchange Delegations', duration: 20, reward: rewards[1], preferred: { type: 'trade_route', description: 'Establish an exchange route to this city-state' }, fallbacks: [{ type: 'gift_gold', goldMultiplier: 1.25, description: 'Fund traveling artists' }] },
-    { title: 'Sponsor the Grand Festival', duration: 20, reward: rewards[2], preferred: { type: 'sponsor_festival', description: 'Sponsor a Grand Festival using an accessible luxury' }, fallbacks: [{ type: 'gift_gold', goldMultiplier: 1.5, description: 'Fund Festival Preparations' }] },
+    eraVariantStep(1, culturalEraVariants),
+    eraVariantStep(2, culturalEraVariants),
+    eraVariantStep(3, culturalEraVariants),
   ],
 };
 ```
@@ -492,7 +504,7 @@ export function canPursueMinorCivTradeRoute(state: GameState, majorCivId: string
 export function canReachGoldRequirement(state: GameState, majorCivId: string, requiredGold: number, duration: number): boolean;
 ```
 
-Implement `canPursueMinorCivTradeRoute` using all six spec predicates. Use `getRouteCapacity` minus routes whose `fromCityId` matches the origin, `getTrainableUnitsForCity(...).some(unit => unit.type === 'caravan')`, `getCivAvailableResources`, discovery state, completed `trade-routes`, and `canEstablishRoute` for each existing uncommitted caravan. For a trainable future caravan, verify at least one capacity-bearing origin city has a land path to the issuer city and valid diplomacy. Export the helper so normal quests, chains, AI guidance, and presentation share one truth.
+Implement `canPursueMinorCivTradeRoute` using all route predicates. Use `getRouteCapacity` minus routes whose `fromCityId` matches the origin, `getTrainableUnitsForCity(...).some(unit => unit.type === 'caravan')`, `getCivAvailableResources`, discovery state, completed `trade-routes`, and `canEstablishRoute` for each existing uncommitted caravan. For a trainable future caravan, verify at least one capacity-bearing origin city has a land path to the issuer city, valid diplomacy, and a queue-aware production ETA that leaves time to establish the route before expiry. Export the helper so normal quests, chains, AI guidance, and presentation share one truth.
 
 Use `getVisibility(civ.visibility, coord) === 'visible'` and shared combat-legality helpers for camps and units. Sort candidate targets by distance then stable ID before choosing one.
 
@@ -689,10 +701,11 @@ it('floors final relationship at 60 and emits alliance once', () => {
   expect(second.transitions.filter(t => t.type === 'allied')).toHaveLength(0);
 });
 
-it('keeps pending state indefinitely without an expiry penalty', () => {
+it('clears pending after ten retry turns without a relationship penalty', () => {
   const state = pendingStepState({ statusTurn: 10, pendingStepIndex: 1 });
-  const result = reconcileMinorCivQuestTurn(state, 'mc-sparta', 'player', 100);
-  expect(result.state.minorCivs['mc-sparta'].chainStatusByCiv.player.pendingStepIndex).toBe(1);
+  const result = reconcileMinorCivQuestTurn(state, 'mc-sparta', 'player', 21);
+  expect(result.state.minorCivs['mc-sparta'].chainStatusByCiv.player).toBeUndefined();
+  expect(result.state.minorCivs['mc-sparta'].questCooldownUntilByCiv.player).toBeGreaterThan(21);
   expect(result.state.minorCivs['mc-sparta'].diplomacy.relationships.player).toBe(
     state.minorCivs['mc-sparta'].diplomacy.relationships.player,
   );
@@ -942,7 +955,7 @@ export interface MinorCivActionResult {
 }
 ```
 
-Both actions accept an optional `EventBus` and call `applyQuestGameplayAction`, which owns requirement validation, atomic quest costs, reward, and chain advancement. They then call `emitMinorCivQuestTransitions` after obtaining the new state.
+Both actions call `applyQuestGameplayAction`, which owns requirement validation, atomic quest costs, reward, and chain advancement. They return transitions without emitting. The live caller assigns `gameState = result.state` and only then calls `emitMinorCivQuestTransitions(bus, result.transitions)`.
 
 `performMinorCivGift` preserves the existing non-quest gift behavior: when the pair has no active `gift_gold` objective, a valid gift costs `25` gold and applies the existing `+10` relationship change without fabricating quest progress. When a gift objective is active, its stored amount replaces the normal amount and the objective handler owns the deduction.
 
@@ -1004,17 +1017,17 @@ Expected: FAIL on quest progress assertions.
 
 - [ ] **Step 3: Wire route facts before the notification event**
 
-After installing the route and caravan state, call `applyQuestGameplayAction` with origin owner, exact city IDs, route ID, and turn. Assign its returned state, call `emitMinorCivQuestTransitions(bus, result.transitions)`, then emit `trade:route-created`.
+After installing the route and caravan state, call `applyQuestGameplayAction` with origin owner, exact city IDs, route ID, and turn. Return its transitions alongside the new state. The player or AI caller installs the state, emits the quest transitions, and then emits `trade:route-created`.
 
 - [ ] **Step 4: Wire unit-defeat facts inside combat application**
 
-Add `bus?: EventBus` to `applyCombatOutcomeToState`. Capture `attackerBefore`, `defenderBefore`, and result positions before removal. If defender dies, credit attacker owner. If attacker dies from counterattack, credit defender owner. Call `applyQuestGameplayAction` for each actual defeat after the base combat state is built, emit returned transitions through the shared adapter, and then return. Update player, AI, barbarian-turn, and beast-turn callers to pass their existing bus.
+Capture `attackerBefore`, `defenderBefore`, and result positions before removal. If defender dies, credit attacker owner. If attacker dies from counterattack, credit defender owner. Call `applyQuestGameplayAction` for each actual defeat after the base combat state is built and return the accumulated quest transitions. Update player, AI, barbarian-turn, and beast-turn callers to assign the state before emitting those transitions through their existing bus.
 
 This single location covers player combat, AI combat, barbarian attacks, beast attacks, and turn-manager callers without UI duplication.
 
 - [ ] **Step 5: Wire camp facts before deletion reconciliation**
 
-Add `bus?: EventBus` to `applyCampDestruction` and `applyCampDestructionAtTarget`. Create the `camp_destroyed` fact from the existing camp object, then delete the camp and apply `applyQuestGameplayAction` to the copied state. Emit returned transitions through the shared adapter. The actor's exact matching assignment completes first; a second reconciliation pass may retarget or cancel other players' assignments. Update player and AI callers to pass their existing bus.
+Create the `camp_destroyed` fact from the existing camp object, then delete the camp and apply `applyQuestGameplayAction` to the copied state. Return quest transitions to the caller instead of emitting. The actor's exact matching assignment completes first; a second reconciliation pass may retarget visible stale assignments without revealing hidden world changes. Player and AI callers assign the returned state before emitting.
 
 - [ ] **Step 6: Add negative attribution checks**
 
@@ -1046,6 +1059,8 @@ git commit -m "feat(quests): wire canonical objective progress"
 - Modify: `src/systems/minor-civ-actions.ts`
 - Modify: `src/systems/minor-civ-system.ts:335-380`
 - Modify: `src/main.ts:662-681`
+- Modify: `src/systems/attack-targeting.ts`
+- Modify: `src/input/selected-unit-tap-intent.ts`
 - Modify: `tests/systems/minor-civ-actions.test.ts`
 - Modify: `tests/systems/minor-civ-system.test.ts`
 
@@ -1080,6 +1095,14 @@ it('restarts a broken alliance from step one after a qualifying post-peace norma
   expect(result.state.minorCivs['mc-sparta'].chainStatusByCiv.player).toBeUndefined();
   expect(result.state.minorCivs['mc-sparta'].activeQuests.player).toMatchObject({ stepIndex: 0 });
 });
+
+it('requires canonical war before a neutral or allied minor-civ unit is attackable', () => {
+  const before = canUnitAttackTarget(alliedMinorUnitState(), playerUnit(), minorUnitPosition());
+  expect(before).toMatchObject({ ok: false, reason: 'not-hostile' });
+  const war = setMinorCivWarState(alliedMinorUnitState(), 'player', 'mc-sparta', true);
+  expect(canUnitAttackTarget(war.state, war.state.units.playerUnit, minorUnitPosition()).ok).toBe(true);
+  expect(war.transitions).toContainEqual(expect.objectContaining({ type: 'alliance-broken' }));
+});
 ```
 
 - [ ] **Step 2: Run and verify failure**
@@ -1099,6 +1122,8 @@ Return the existing `alliance-broken` `ChainTransition` only when the prior stat
 - [ ] **Step 4: Delegate `main.ts` and refresh the panel**
 
 `handleMinorCivWarPeace` must call `setMinorCivWarState(..., bus)`, assign the returned state, update renderer/HUD, and call `openDiplomacyPanel()` so the visible status changes immediately.
+
+Unit attacks and city assault intents against a minor civilization must route through the same helper before combat or conquest. Do not retain the current `startsWith('mc-') && isHuman` combat exception. Add input and attack-targeting regressions for neutral, allied, already-at-war, and repeated-declaration paths.
 
 - [ ] **Step 5: Clear chain state on conquest**
 
@@ -1243,10 +1268,12 @@ git commit -m "fix(quests): normalize chain saves and quest ids"
 - Modify: `src/systems/quest-presentation.ts:1-95`
 - Modify: `src/systems/quest-system.ts:150-176`
 - Modify: `src/systems/council-system.ts:140-160`
+- Modify: `src/ui/advisor-system.ts`
 - Modify: `src/ui/minor-civ-notifications.ts`
 - Modify: `src/ui/minor-civ-notification-listeners.ts`
 - Modify: `tests/systems/quest-system.test.ts:280-450`
 - Modify: `tests/systems/council-system.test.ts`
+- Modify: `tests/ui/advisor-system.test.ts`
 - Modify: `tests/ui/minor-civ-notifications.test.ts`
 - Modify: `tests/ui/minor-civ-notification-listeners.test.ts`
 
@@ -1307,6 +1334,8 @@ export function getMinorCivQuestPresentationForPlayer(
 ```
 
 Keep internal description helpers private or require an explicit assignment context. Remove `isQuestVisibleToPlayer(state, quest, viewer)` and other public naked-quest APIs. Update council and diplomacy consumers.
+
+Update advisor triggers in the same task. Quest advice reads only `activeQuests[state.currentPlayer]`; mercantile and cultural ally advice calls `isMinorCivAllianceActive`. Add a hot-seat regression proving another player's active quest cannot trigger the current viewer's advisor.
 
 - [ ] **Step 4: Add chain-state presentation**
 
