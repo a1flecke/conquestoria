@@ -196,3 +196,22 @@ describe('isBeastConcealedFrom', () => {
     expect(isBeastConcealedFrom(warrior, jungleMap, [])).toBe(false);
   });
 });
+
+describe('pack spawning', () => {
+  it('spawns up to packSize wolves on awakening, never stacking', () => {
+    const map = generateMap(40, 30, 'beast-test-seed');
+    const tundraTile = Object.values(map.tiles).find(t => t.terrain === 'tundra');
+    if (!tundraTile) return;
+    const lair = makeLair({ id: 'lair-dire_wolf', beastId: 'dire_wolf', position: tundraTile.coord });
+    for (let seed = 1; seed <= 60; seed++) {
+      const result = processBeasts([lair], map, [], [], 1, 'wild', seed);
+      if (result.awakenings.length === 0) continue;
+      expect(result.spawnOrders.length).toBeGreaterThanOrEqual(1);
+      expect(result.spawnOrders.length).toBeLessThanOrEqual(3);
+      const keys = result.spawnOrders.map(o => `${o.position.q},${o.position.r}`);
+      expect(new Set(keys).size).toBe(keys.length);
+      return;
+    }
+    throw new Error('no seed awakened the wolf lair in 60 tries');
+  });
+});
