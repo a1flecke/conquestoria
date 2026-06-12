@@ -588,6 +588,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     }
     const beastUnits = Object.values(newState.units).filter(u => u.owner === BEAST_OWNER);
     const intruders = Object.values(newState.units).filter(u => u.owner !== BEAST_OWNER && u.owner !== 'barbarian');
+    const beastSeed = newState.turn * 7919 + 13;
     const beastResult = processBeasts(
       Object.values(newState.beasts.lairs),
       newState.map,
@@ -595,7 +596,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       beastUnits,
       newState.era,
       newState.beasts.mode,
-      newState.turn * 7919 + 13,
+      beastSeed,
     );
     // Rebuild lairs map from updated results (immutable)
     let updatedLairs: Record<string, import('./types').BeastLair> = {};
@@ -640,7 +641,6 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         newState = { ...newState, units: { ...newState.units, [move.unitId]: { ...beast, position: { ...move.toCoord }, movementPointsLeft: beast.movementPointsLeft - 1 } } };
       }
     }
-    const beastSeed = newState.turn * 7919 + 13;
     for (const order of beastResult.attackOrders) {
       const attacker = newState.units[order.attackerUnitId];
       const defender = newState.units[order.defenderUnitId];

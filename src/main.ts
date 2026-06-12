@@ -3240,7 +3240,8 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
 
 bus.on('beast:awakened', ({ beastId, position }) => {
   const def = BEAST_DEFINITIONS[beastId];
-  for (const civId of Object.keys(gameState.civilizations)) {
+  for (const [civId, civ] of Object.entries(gameState.civilizations)) {
+    if (!civ.visibility || getVisibility(civ.visibility, position) === 'unexplored') continue;
     appendToCivLog(civId, def.awakeningFlavor, 'warning', { kind: 'map', coord: position, label: `${def.name} lair` });
   }
 });
