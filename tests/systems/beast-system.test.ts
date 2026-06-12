@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS } from '@/systems/beast-system';
+import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { generateMap } from '@/systems/map-generator';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { createNewGame } from '@/core/game-state';
+import type { BeastLair, Unit } from '@/core/types';
 
 describe('placeBeastLairs', () => {
   const map = generateMap(40, 30, 'beast-test-seed');
@@ -37,5 +39,123 @@ describe('placeBeastLairs', () => {
 
   it('exports the beasts owner constant', () => {
     expect(BEAST_OWNER).toBe('beasts');
+  });
+});
+
+// ---- Helpers shared across behavior + slay tests ----
+
+function makeLair(overrides: Partial<BeastLair> = {}): BeastLair {
+  return {
+    id: 'lair-giant_boar', beastId: 'giant_boar',
+    position: { q: 10, r: 10 }, status: 'dormant',
+    strength: 0, unitIds: [], ...overrides,
+  };
+}
+
+function makeUnit(overrides: Partial<Unit> = {}): Unit {
+  return {
+    id: 'u1', type: 'warrior', owner: 'player', position: { q: 12, r: 10 },
+    movementPointsLeft: 2, health: 100, experience: 0,
+    hasMoved: false, hasActed: false, isResting: false, ...overrides,
+  } as Unit;
+}
+
+const behaviorMap = generateMap(40, 30, 'beast-test-seed');
+
+describe('processBeasts', () => {
+  it('awakens a dormant lair once the era requirement is met (seeded chance)', () => {
+    let awakened = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const result = processBeasts([makeLair()], behaviorMap, [], [], 1, 'wild', seed);
+      if (result.awakenings.length > 0) awakened++;
+    }
+    expect(awakened).toBeGreaterThan(0);
+    expect(awakened).toBeLessThan(40);
+  });
+
+  it('never awakens before the awaken era', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const result = processBeasts([makeLair()], behaviorMap, [], [], 0, 'wild', seed);
+      expect(result.awakenings).toEqual([]);
+    }
+  });
+
+  it('does nothing in off mode', () => {
+    const result = processBeasts([makeLair()], behaviorMap, [], [], 3, 'off', 7);
+    expect(result.awakenings).toEqual([]);
+    expect(result.spawnOrders).toEqual([]);
+  });
+
+  it('orders an attack when an intruder is adjacent, in wild mode only', () => {
+    const lair = makeLair({ status: 'awake', unitIds: ['beast-1'] });
+    const beast = makeUnit({ id: 'beast-1', type: 'beast_boar', owner: 'beasts', position: { q: 10, r: 10 } });
+    const intruder = makeUnit({ id: 'u1', position: { q: 11, r: 10 } });
+    const wild = processBeasts([lair], behaviorMap, [intruder], [beast], 1, 'wild', 7);
+    expect(wild.attackOrders).toEqual([{ attackerUnitId: 'beast-1', defenderUnitId: 'u1' }]);
+    const calm = processBeasts([lair], behaviorMap, [intruder], [beast], 1, 'calm', 7);
+    expect(calm.attackOrders).toEqual([]);
+  });
+
+  it('never moves a beast beyond its leash radius', () => {
+    // leashRadius = 3; beast at edge (q:13,r:10 is distance 3 from lair at q:10,r:10)
+    const lair = makeLair({ status: 'awake', unitIds: ['beast-1'] });
+    const beast = makeUnit({ id: 'beast-1', type: 'beast_boar', owner: 'beasts', position: { q: 13, r: 10 } });
+    const farIntruder = makeUnit({ id: 'u1', position: { q: 17, r: 10 } });
+    const result = processBeasts([lair], behaviorMap, [farIntruder], [beast], 1, 'wild', 7);
+    for (const order of result.moveOrders) {
+      expect(hexDistance(order.toCoord, lair.position)).toBeLessThanOrEqual(3);
+    }
+  });
+});
+
+// ---- Task 6: slay reward tests ----
+
+describe('recordBeastSlain', () => {
+  function stateWithSlainBoar() {
+    const state = createNewGame('rome', 'beast-test-seed', 'small', 'Beast Test');
+    const beast: Unit = makeUnit({ id: 'beast-1', type: 'beast_boar', owner: 'beasts', position: { q: 10, r: 10 } });
+    const victor: Unit = makeUnit({ id: 'hero-1', owner: state.currentPlayer, health: 40, position: { q: 11, r: 10 } });
+    state.units[beast.id] = beast;
+    state.units[victor.id] = victor;
+    state.beasts = {
+      mode: 'wild',
+      lairs: { 'lair-giant_boar': makeLair({ status: 'awake', unitIds: ['beast-1'] }) },
+      sightingsByCiv: {},
+    };
+    return { state, beast, victor };
+  }
+
+  it('marks the lair slain, awards hoard gold, and fully heals the victor', () => {
+    const { state, beast, victor } = stateWithSlainBoar();
+    const goldBefore = state.civilizations[victor.owner].gold;
+    const { state: next, slain } = recordBeastSlain(state, beast, victor);
+    expect(slain).toBeDefined();
+    expect(next.beasts!.lairs['lair-giant_boar'].status).toBe('slain');
+    expect(next.beasts!.lairs['lair-giant_boar'].slainBy).toBe(victor.owner);
+    expect(next.civilizations[victor.owner].gold).toBe(goldBefore + slain!.goldAwarded);
+    expect(next.units['hero-1'].health).toBe(100);
+    // immutability: input state untouched
+    expect(state.beasts!.lairs['lair-giant_boar'].status).toBe('awake');
+  });
+
+  it('returns no slain payload for non-beast defenders', () => {
+    const { state, victor } = stateWithSlainBoar();
+    const barb = makeUnit({ id: 'barb-1', owner: 'barbarian' });
+    expect(recordBeastSlain(state, barb, victor).slain).toBeUndefined();
+  });
+
+  it('only marks the lair slain when its last unit dies', () => {
+    const { state, beast, victor } = stateWithSlainBoar();
+    state.beasts!.lairs['lair-giant_boar'].unitIds = ['beast-1', 'beast-2'];
+    const { state: next, slain } = recordBeastSlain(state, beast, victor);
+    expect(slain).toBeUndefined();
+    expect(next.beasts!.lairs['lair-giant_boar'].status).toBe('awake');
+    expect(next.beasts!.lairs['lair-giant_boar'].unitIds).toEqual(['beast-2']);
+  });
+
+  it('scales hoard gold with era', () => {
+    const def = BEAST_DEFINITIONS.giant_boar;
+    expect(getBeastHoardGold(def, 1)).toBe(40);
+    expect(getBeastHoardGold(def, 3)).toBeGreaterThan(getBeastHoardGold(def, 1));
   });
 });
