@@ -4,6 +4,7 @@ import { getImprovementYieldBonus } from './improvement-system';
 import { calculateCityYields, TERRAIN_YIELDS } from './resource-system';
 import { getWonderDefinition } from './wonder-definitions';
 import { getWonderYieldBonus } from './wonder-system';
+import { getRiverYieldBonus } from './river-system';
 import {
   buildCityWorkClaimIndex,
   canonicalizeCityCoord,
@@ -42,16 +43,14 @@ export function calculateWorkedTileYield(state: GameState, coord: HexCoord): Res
   const terrain = TERRAIN_YIELDS[tile.terrain] ?? total;
   addYield(total, terrain);
 
-  if (tile.hasRiver) {
-    total.gold += 1;
-    if (tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
-      total.food += 1;
-      const completedTechs = tile.owner != null
-        ? (state.civilizations[tile.owner]?.techState.completed ?? [])
-        : [];
-      if (completedTechs.includes('irrigation')) {
-        total.production += 1;
-      }
+  addYield(total, getRiverYieldBonus(tile.hasRiver));
+  if (tile.hasRiver && tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
+    total.food += 1;
+    const completedTechs = tile.owner != null
+      ? (state.civilizations[tile.owner]?.techState.completed ?? [])
+      : [];
+    if (completedTechs.includes('irrigation')) {
+      total.production += 1;
     }
   }
 

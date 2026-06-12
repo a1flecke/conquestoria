@@ -3,6 +3,7 @@ import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderCombatBonus } from './wonder-system';
 import { getVeterancyCombatModifier } from './combat-reward-system';
+import { getRiverDefensePenalty, isRiverBetween } from './river-system';
 
 export function getTerrainDefenseBonus(terrain: string): number {
   const bonuses: Record<string, number> = {
@@ -46,6 +47,66 @@ export interface CombatContext {
   defenderInFortifiedCity?: boolean;
 }
 
+export interface CombatStrengthBreakdown {
+  attackerStrength: number;
+  defenderStrength: number;
+  terrainDefenseBonus: number;
+  riverAttackPenalty: number;
+}
+
+export function calculateCombatStrengths(
+  attacker: Unit,
+  defender: Unit,
+  map: GameMap,
+  context?: CombatContext,
+): CombatStrengthBreakdown {
+  const attackerDefinition = UNIT_DEFINITIONS[attacker.type];
+  const defenderDefinition = UNIT_DEFINITIONS[defender.type];
+  const riverAttackPenalty = getRiverDefensePenalty(
+    isRiverBetween(map, attacker.position, defender.position),
+  );
+  let attackerStrength = attackerDefinition.strength
+    * (attacker.health / 100)
+    * (1 + getVeterancyCombatModifier(attacker))
+    * (1 + riverAttackPenalty);
+  let defenderStrength = defenderDefinition.strength
+    * (defender.health / 100)
+    * (1 + getVeterancyCombatModifier(defender));
+  const defenderTile = map.tiles[hexKey(defender.position)];
+  const terrainDefenseBonus = defenderTile ? getTerrainDefenseBonus(defenderTile.terrain) : 0;
+
+  if (defenderTile) {
+    defenderStrength *= 1 + terrainDefenseBonus;
+    if (defenderTile.wonder) {
+      defenderStrength *= 1 + getWonderCombatBonus(defenderTile.wonder);
+    }
+    if (context?.defenderBonus?.type === 'homeland_defense' && defenderTile.owner === defender.owner) {
+      defenderStrength *= 1 + context.defenderBonus.defenseBonus;
+    }
+    if (context?.defenderBonus?.type === 'forest_guardians' && defenderTile.terrain === 'forest') {
+      defenderStrength *= 1 + context.defenderBonus.defenseBonus;
+    }
+  }
+
+  if (defender.isFortified) {
+    defenderStrength *= 1.25;
+  }
+
+  if (
+    context?.attackerBonus?.type === 'coastal_science'
+    && (attacker.type === 'galley' || attacker.type === 'trireme')
+  ) {
+    attackerStrength *= 1 + context.attackerBonus.navalCombatBonus;
+  }
+
+  return {
+    attackerStrength,
+    defenderStrength,
+    terrainDefenseBonus,
+    riverAttackPenalty,
+  };
+}
+
 function canCounterAttackAtDistance(defender: Unit, distance: number): boolean {
   const definition = UNIT_DEFINITIONS[defender.type];
   const profile = definition.attackProfile;
@@ -68,38 +129,9 @@ export function resolveCombat(
     rngState = (rngState * 48271) % 2147483647;
     return rngState / 2147483647;
   };
-  const atkDef = UNIT_DEFINITIONS[attacker.type];
-  const defDef = UNIT_DEFINITIONS[defender.type];
-
-  let atkStrength = atkDef.strength * (attacker.health / 100) * (1 + getVeterancyCombatModifier(attacker));
-  let defStrength = defDef.strength * (defender.health / 100) * (1 + getVeterancyCombatModifier(defender));
-
-  // Terrain defense bonus
-  const defTile = map.tiles[hexKey(defender.position)];
-  if (defTile) {
-    defStrength *= (1 + getTerrainDefenseBonus(defTile.terrain));
-    // Wonder defense bonus
-    if (defTile.wonder) {
-      defStrength *= (1 + getWonderCombatBonus(defTile.wonder));
-    }
-    if (context?.defenderBonus?.type === 'homeland_defense' && defTile.owner === defender.owner) {
-      defStrength *= (1 + context.defenderBonus.defenseBonus);
-    }
-    if (context?.defenderBonus?.type === 'forest_guardians' && defTile.terrain === 'forest') {
-      defStrength *= (1 + context.defenderBonus.defenseBonus);
-    }
-  }
-
-  if (defender.isFortified) {
-    defStrength *= 1.25;
-  }
-
-  if (
-    context?.attackerBonus?.type === 'coastal_science'
-    && (attacker.type === 'galley' || attacker.type === 'trireme')
-  ) {
-    atkStrength *= (1 + context.attackerBonus.navalCombatBonus);
-  }
+  const strengths = calculateCombatStrengths(attacker, defender, map, context);
+  const atkStrength = strengths.attackerStrength;
+  const defStrength = strengths.defenderStrength;
 
   // Non-combat units auto-lose
   if (defStrength === 0) {

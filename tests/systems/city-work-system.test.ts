@@ -494,6 +494,17 @@ describe('river production bonus', () => {
     return { state, coord };
   }
 
+  it('preserves the base river gold and completed farm food bonuses without tech', () => {
+    const { state, coord } = riverFarmState([]);
+    const riverYield = calculateWorkedTileYield(state, coord);
+    state.map.tiles[hexKey(coord)]!.hasRiver = false;
+    const inlandYield = calculateWorkedTileYield(state, coord);
+
+    expect(riverYield.gold).toBe(inlandYield.gold + 1);
+    expect(riverYield.food).toBe(inlandYield.food + 1);
+    expect(riverYield.production).toBe(inlandYield.production);
+  });
+
   it('gives no production bonus without irrigation tech', () => {
     const { state, coord } = riverFarmState([]);
     expect(calculateWorkedTileYield(state, coord).production).toBe(0);

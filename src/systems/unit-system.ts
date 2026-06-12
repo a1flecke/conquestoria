@@ -429,6 +429,26 @@ export function getMovementCostForUnitInContext(
   return getMovementCost(terrain);
 }
 
+export function getMovementStepCost(
+  unit: Unit,
+  map: GameMap,
+  from: HexCoord,
+  to: HexCoord,
+  context: UnitMovementContext = {},
+): number {
+  const tile = map.tiles[hexKey(to)];
+  if (!tile) return Infinity;
+
+  const terrainCost = getMovementCostForUnitInContext(unit, tile.terrain, context);
+  if (terrainCost === Infinity) return Infinity;
+
+  const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+  const crossesUnbridgedRiver = domain !== 'naval'
+    && !context.completedTechs?.includes('bridge-building')
+    && isRiverBetween(map, from, to);
+  return terrainCost + (crossesUnbridgedRiver ? 1 : 0);
+}
+
 function isPassableForUnit(
   terrain: string,
   domain: 'land' | 'naval',
@@ -497,10 +517,16 @@ export function getMovementBlockerReason(
     return { code: 'unreachable', message: 'No passable route to that tile.' };
   }
 
-  const pathCost = path.slice(1).reduce((total, coord) => {
-    const stepTile = map.tiles[hexKey(coord)];
-    return total + (stepTile ? getMovementCostForUnitInContext(unit, stepTile.terrain, { completedTechs: options.completedTechs }) : Infinity);
-  }, 0);
+  const pathCost = path.slice(1).reduce(
+    (total, coord, index) => total + getMovementStepCost(
+      unit,
+      map,
+      path[index]!,
+      coord,
+      { completedTechs: options.completedTechs },
+    ),
+    0,
+  );
 
   // Forced march: a unit can always move to an adjacent passable tile with ≥1 move remaining.
   const isAdjacentMove = path.length === 2;
@@ -547,14 +573,7 @@ export function getMovementRange(
       const tile = map.tiles[key];
       if (!tile || !isPassableForUnitInContext(unit, tile.terrain, options)) continue;
 
-      const terrainCost = getMovementCostForUnitInContext(unit, tile.terrain, options);
-      const riverPenalty =
-        UNIT_DEFINITIONS[unit.type]?.domain !== 'naval' &&
-        !options.completedTechs?.includes('bridge-building') &&
-        isRiverBetween(map, current.coord, neighbor)
-          ? 1
-          : 0;
-      const cost = terrainCost + riverPenalty;
+      const cost = getMovementStepCost(unit, map, current.coord, neighbor, options);
       const remaining = current.remaining - cost;
 
       // Forced march: if this is a direct neighbor of the start position and the unit
@@ -671,7 +690,7 @@ export function findPath(
       const tile = map.tiles[nKey];
       if (!tile) continue;
       const stepCost = options.unit
-        ? getMovementCostForUnitInContext(options.unit, tile.terrain, options)
+        ? getMovementStepCost(options.unit, map, currentCoord, neighbor, options)
         : getMovementCostForUnit(tile.terrain, domain);
       if (stepCost === Infinity) continue;
 

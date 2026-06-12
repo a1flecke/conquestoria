@@ -71,6 +71,38 @@ function createStackCorridorMap(): GameMap {
   };
 }
 
+function createRiverDetourMap(): GameMap {
+  const coords = [
+    { q: 0, r: 0 },
+    { q: 1, r: 0 },
+    { q: 2, r: 0 },
+    { q: 0, r: 1 },
+    { q: 1, r: 1 },
+  ];
+  const tiles = Object.fromEntries(coords.map(coord => [hexKey(coord), {
+    coord,
+    terrain: 'grassland' as const,
+    elevation: 'lowland' as const,
+    resource: null,
+    improvement: 'none' as const,
+    owner: null,
+    improvementTurnsLeft: 0,
+    hasRiver: false,
+    wonder: null,
+  }]));
+
+  return {
+    width: 3,
+    height: 2,
+    wrapsHorizontally: false,
+    tiles,
+    rivers: [
+      { from: { q: 0, r: 0 }, to: { q: 1, r: 0 } },
+      { from: { q: 1, r: 0 }, to: { q: 2, r: 0 } },
+    ],
+  };
+}
+
 describe('createUnit', () => {
   it('creates a unit with full movement points', () => {
     const unit = createUnit('warrior', 'p1', { q: 5, r: 5 }, mkC());
@@ -298,6 +330,15 @@ describe('getMovementBlockerReason', () => {
     expect(getMovementBlockerReason(scout, { q: 2, r: 0 }, map)?.code).toBe('insufficient-movement');
   });
 
+  it('explains when a river crossing makes a multi-step move too expensive', () => {
+    const map = createStackCorridorMap();
+    const warrior = createUnit('warrior', 'player', { q: 1, r: 1 }, mkC());
+    map.rivers = [{ from: { q: 1, r: 1 }, to: { q: 2, r: 1 } }];
+
+    expect(getMovementBlockerReason(warrior, { q: 3, r: 1 }, map)?.code)
+      .toBe('insufficient-movement');
+  });
+
   it('uses the scouting message for an unexplored tapped tile', () => {
     const map = createWrappedGrasslandMap(5, 5);
     const scout = createUnit('scout', 'player', { q: 2, r: 1 }, mkC());
@@ -355,6 +396,36 @@ describe('findPath', () => {
     const wrappedMap = createWrappedGrasslandMap(5, 3);
     const path = findPath({ q: 0, r: 1 }, { q: 4, r: 1 }, wrappedMap);
     expect(path).toEqual([{ q: 0, r: 1 }, { q: 4, r: 1 }]);
+  });
+
+  it('prefers a longer route when it avoids more expensive river crossings', () => {
+    const riverMap = createRiverDetourMap();
+    const warrior = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+
+    const path = findPath(warrior.position, { q: 2, r: 0 }, riverMap, 'land', { unit: warrior });
+
+    expect(path).toEqual([
+      { q: 0, r: 0 },
+      { q: 0, r: 1 },
+      { q: 1, r: 1 },
+      { q: 2, r: 0 },
+    ]);
+  });
+
+  it('takes the shorter river route after Bridge Building removes the surcharge', () => {
+    const riverMap = createRiverDetourMap();
+    const warrior = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+
+    const path = findPath(warrior.position, { q: 2, r: 0 }, riverMap, 'land', {
+      unit: warrior,
+      completedTechs: ['bridge-building'],
+    });
+
+    expect(path).toEqual([
+      { q: 0, r: 0 },
+      { q: 1, r: 0 },
+      { q: 2, r: 0 },
+    ]);
   });
 });
 
