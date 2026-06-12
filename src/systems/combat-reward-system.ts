@@ -62,7 +62,7 @@ function seededRoll(seed: number, victorId: string, defeatedId: string): number 
 }
 
 function canReceiveGoldReward(owner: string): boolean {
-  return owner !== 'barbarian' && owner !== 'rebels' && !owner.startsWith('mc-');
+  return owner !== 'barbarian' && owner !== 'rebels' && owner !== 'beasts' && !owner.startsWith('mc-');
 }
 
 export function getVeterancyTierForExperience(experience: number): VeterancyTier {
@@ -91,8 +91,9 @@ export function calculateDefeatReward(input: DefeatRewardInput): DefeatRewardRes
   const victorHealth = Math.max(0, input.victorHealthAfterCombat ?? input.victor.health);
   const baseHealth = Math.min(100 - victorHealth, defeatedCanFight ? 8 : 3);
   const canReceiveGold = canReceiveGoldReward(input.victor.owner);
+  const defeatedIsHorde = input.defeated.owner === 'barbarian' || input.defeated.owner === 'rebels';
   const baseGold = canReceiveGold
-    ? (defeatedCanFight ? (input.defeated.owner === 'barbarian' || input.defeated.owner === 'rebels' ? 8 : 4) : 1)
+    ? (input.defeated.owner === 'beasts' ? 0 : (defeatedCanFight ? (defeatedIsHorde ? 8 : 4) : 1))
     : 0;
   const roll = seededRoll(input.seed, input.victor.id, input.defeated.id);
 
