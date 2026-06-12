@@ -205,6 +205,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'land',
     terrainCostOverrides: { hills: 1, mountain: 1 },
   },
+  // Legendary Beasts — not trainable; spawned by beast-system.ts only
+  beast_boar: {
+    type: 'beast_boar', name: 'Giant Boar', movementPoints: 2,
+    visionRange: 2, strength: 18, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -348,6 +354,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
              + '"Establish Outpost" to plant a flag — the unit is consumed '
              + 'immediately and the outpost completes in 2 turns, granting the '
              + 'resource and charging 2 gold/turn upkeep. Requires Foraging tech.',
+  beast_boar: 'A legendary boar of monstrous size. Territorial — it defends its forest den but never wanders far. Slay it to claim its hoard.',
 };
 
 export function getUnmovedUnits(
