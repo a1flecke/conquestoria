@@ -597,34 +597,47 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       newState.beasts.mode,
       newState.turn * 7919 + 13,
     );
-    newState.beasts.lairs = {};
-    for (const lair of beastResult.updatedLairs) newState.beasts.lairs[lair.id] = lair;
+    // Rebuild lairs map from updated results (immutable)
+    let updatedLairs: Record<string, import('./types').BeastLair> = {};
+    for (const lair of beastResult.updatedLairs) updatedLairs[lair.id] = lair;
 
+    // Apply spawn orders — create beast units and wire them into lairs
     for (const spawn of beastResult.spawnOrders) {
       const def = BEAST_DEFINITIONS[spawn.beastId];
       const beast = createUnit(def.unitType, BEAST_OWNER, spawn.position, newState.idCounters);
-      newState.units[beast.id] = beast;
-      newState.beasts.lairs[spawn.lairId].unitIds.push(beast.id);
+      newState = { ...newState, units: { ...newState.units, [beast.id]: beast } };
+      const lair = updatedLairs[spawn.lairId];
+      if (lair) updatedLairs = { ...updatedLairs, [spawn.lairId]: { ...lair, unitIds: [...lair.unitIds, beast.id] } };
     }
+
+    // Stamp awakenedTurn onto awoken lairs
     for (const awakening of beastResult.awakenings) {
-      newState.beasts.lairs[awakening.lairId].awakenedTurn = newState.turn;
+      const lair = updatedLairs[awakening.lairId];
+      if (lair) updatedLairs = { ...updatedLairs, [awakening.lairId]: { ...lair, awakenedTurn: newState.turn } };
       bus.emit('beast:awakened', awakening);
     }
+
     // Growth while ignored: every N turns an awake lair hardens and its beasts gain veterancy
     if (newState.turn % LAIR_GROWTH_INTERVAL_TURNS === 0) {
-      for (const lair of Object.values(newState.beasts.lairs)) {
+      for (const lair of Object.values(updatedLairs)) {
         if (lair.status !== 'awake' || lair.strength >= LAIR_GROWTH_CAP) continue;
-        lair.strength += 1;
+        updatedLairs = { ...updatedLairs, [lair.id]: { ...lair, strength: lair.strength + 1 } };
+        let nextUnits = newState.units;
         for (const unitId of lair.unitIds) {
-          const beast = newState.units[unitId];
-          if (beast) beast.experience += LAIR_GROWTH_EXPERIENCE;
+          const beast = nextUnits[unitId];
+          if (beast) nextUnits = { ...nextUnits, [unitId]: { ...beast, experience: beast.experience + LAIR_GROWTH_EXPERIENCE } };
         }
+        newState = { ...newState, units: nextUnits };
       }
     }
+
+    // Commit final lairs into state
+    newState = { ...newState, beasts: { ...newState.beasts!, lairs: updatedLairs } };
+
     for (const move of beastResult.moveOrders) {
       const beast = newState.units[move.unitId];
       if (beast) {
-        newState.units[move.unitId] = { ...beast, position: { ...move.toCoord }, movementPointsLeft: beast.movementPointsLeft - 1 };
+        newState = { ...newState, units: { ...newState.units, [move.unitId]: { ...beast, position: { ...move.toCoord }, movementPointsLeft: beast.movementPointsLeft - 1 } } };
       }
     }
     const beastSeed = newState.turn * 7919 + 13;

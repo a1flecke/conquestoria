@@ -141,7 +141,9 @@ export function renderSelectedUnitInfo(
   }
 
   const def = UNIT_DEFINITIONS[unit.type];
-  const civColor = state.civilizations[unit.owner]?.color ?? '#e8c170';
+  const isBeast = unit.owner === 'beasts';
+  // Beasts have no civilization entry — use their dedicated crimson color
+  const civColor = isBeast ? '#7a1f2b' : (state.civilizations[unit.owner]?.color ?? '#e8c170');
   const tile = state.map.tiles[hexKey(unit.position)];
 
   container.style.display = 'block';
@@ -157,6 +159,12 @@ export function renderSelectedUnitInfo(
   const strong = document.createElement('strong');
   strong.textContent = def.name;
   infoDiv.appendChild(strong);
+  if (isBeast) {
+    const legendLabel = document.createElement('span');
+    legendLabel.style.cssText = `margin-left:8px;font-size:11px;font-weight:700;text-transform:uppercase;color:${civColor};letter-spacing:0.05em;`;
+    legendLabel.textContent = '⚠ Legendary Beast';
+    infoDiv.appendChild(legendLabel);
+  }
   infoDiv.appendChild(document.createTextNode(` · HP: ${unit.health}/100 · Moves: ${unit.movementPointsLeft}/${def.movementPoints}`));
 
   const closeBtn = document.createElement('button');
