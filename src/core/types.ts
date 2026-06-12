@@ -1231,6 +1231,7 @@ export interface GameEvents {
   'barbarian:spawned': { campId: string; unitId: string };
   'beast:awakened': { lairId: string; beastId: BeastId; position: HexCoord };
   'beast:slain': { lairId: string; beastId: BeastId; slayerCivId: string; slayerUnitId: string; goldAwarded: number };
+  'beast:sighted': { beastId: BeastId; civId: string };
   'barbarian:camp-destroyed': { campId: string; reward: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
