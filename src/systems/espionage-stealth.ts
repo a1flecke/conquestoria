@@ -3,6 +3,7 @@ import type { Unit, GameState, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { isSpyUnitType } from './espionage-system';
 import { hexDistance } from './hex-utils';
+import { isBeastConcealedFrom } from './beast-system';
 
 function hasNearbyDetector(units: Record<string, Unit>, viewerCivId: string, spyPosition: { q: number; r: number }): boolean {
   for (const u of Object.values(units)) {
@@ -31,6 +32,8 @@ export function getVisibleUnitsForPlayer(
 ): Record<string, Unit> {
   const result: Record<string, Unit> = {};
 
+  const viewerUnits = Object.values(units).filter(u => u.owner === viewerCivId);
+
   for (const [id, unit] of Object.entries(units)) {
     if (unit.transportId) continue;
 
@@ -38,6 +41,8 @@ export function getVisibleUnitsForPlayer(
       result[id] = unit;
       continue;
     }
+
+    if (isBeastConcealedFrom(unit, state.map, viewerUnits)) continue;
 
     const spyRecord = state.espionage?.[unit.owner]?.spies[id];
     const disguise = spyRecord?.disguiseAs;

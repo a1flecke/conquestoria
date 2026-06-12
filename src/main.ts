@@ -43,7 +43,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain, placeBeastLairs } from '@/systems/beast-system';
+import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
 import { showBeastSightingBanner } from '@/ui/beast-sighting-banner';
@@ -2233,10 +2233,12 @@ function restAction(): void {
 }
 
 function visibleUnitEntriesAtKey(key: string): Array<[string, Unit]> {
+  const viewerUnits = Object.values(gameState.units).filter(u => u.owner === gameState.currentPlayer);
   return Object.entries(gameState.units).filter(([, unit]) =>
     hexKey(unit.position) === key
     && canInspectUnitForViewer(gameState, gameState.currentPlayer, unit.id)
     && (unit.owner === gameState.currentPlayer || !isForestConcealedUnit(gameState, gameState.currentPlayer, unit))
+    && !isBeastConcealedFrom(unit, gameState.map, viewerUnits)
   );
 }
 
