@@ -10,6 +10,7 @@ export interface BeastDefinition {
   leashRadius: number;              // beasts never move beyond this distance from the lair
   packSize: number;                 // units spawned on awakening
   hoardGoldBase: number;            // base hoard gold; scaled by era at slay time
+  concealedInHabitat?: boolean;     // hidden on habitat terrain unless a viewer unit is adjacent
   dangerHint: string;               // bestiary riddle shown before first sighting (MR2)
   awakeningFlavor: string;          // map-wide notification on awakening
   sightingFlavor: string;           // first-sighting notification/ceremony text (MR2)
@@ -29,6 +30,35 @@ export const BEAST_DEFINITIONS: Record<BeastId, BeastDefinition> = {
     dangerHint: 'Trees splinter and the ground is churned in the deep woods. Something heavy lives there.',
     awakeningFlavor: 'A thunder of hooves shakes the forest. The Giant Boar has awoken!',
     sightingFlavor: 'Your scouts lay eyes on the Giant Boar — a beast of legend!',
+  },
+  dire_wolf: {
+    id: 'dire_wolf',
+    unitType: 'beast_wolf',
+    name: 'Dire Wolf Pack',
+    habitatTerrains: ['tundra', 'snow'],
+    awakenEra: 1,
+    tier: 1,
+    leashRadius: 4,
+    packSize: 3,
+    hoardGoldBase: 50,
+    dangerHint: 'Howls echo across the frozen wastes at night. They hunt as one.',
+    awakeningFlavor: 'Howls rise from the frozen north. The Dire Wolves are hunting!',
+    sightingFlavor: 'Your scouts spot the Dire Wolf Pack prowling the snows!',
+  },
+  emerald_basilisk: {
+    id: 'emerald_basilisk',
+    unitType: 'beast_basilisk',
+    name: 'Emerald Basilisk',
+    habitatTerrains: ['jungle'],
+    awakenEra: 2,
+    tier: 2,
+    leashRadius: 3,
+    packSize: 1,
+    hoardGoldBase: 80,
+    concealedInHabitat: true,
+    dangerHint: 'Expeditions vanish in the green depths. Survivors speak of unblinking emerald eyes.',
+    awakeningFlavor: 'Something ancient stirs beneath the canopy. Travelers, beware the green depths.',
+    sightingFlavor: 'The Emerald Basilisk reveals itself — eyes like cold gems in the gloom!',
   },
 };
 

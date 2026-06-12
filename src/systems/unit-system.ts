@@ -211,6 +211,16 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 18, canFoundCity: false,
     canBuildImprovements: false, productionCost: 0,
   },
+  beast_wolf: {
+    type: 'beast_wolf', name: 'Dire Wolf', movementPoints: 3,
+    visionRange: 2, strength: 12, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
+  beast_basilisk: {
+    type: 'beast_basilisk', name: 'Emerald Basilisk', movementPoints: 2,
+    visionRange: 2, strength: 26, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -355,6 +365,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
              + 'immediately and the outpost completes in 2 turns, granting the '
              + 'resource and charging 2 gold/turn upkeep. Requires Foraging tech.',
   beast_boar: 'A legendary boar of monstrous size. Territorial — it defends its forest den but never wanders far. Slay it to claim its hoard.',
+  beast_wolf: 'One of the Dire Wolf Pack. Fast, relentless, and never alone — defeat the whole pack to claim their hoard.',
+  beast_basilisk: 'The Emerald Basilisk lies hidden in the jungle until prey wanders close. Approach with overwhelming force.',
 };
 
 export function getUnmovedUnits(
