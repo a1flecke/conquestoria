@@ -622,6 +622,24 @@
 [data-kind="beast-serpent"] .cq-segment-3 { animation: cq-serpent-undulate 2.4s ease-in-out infinite; animation-delay: calc(var(--phase, 0) * -2.4s - 0.6s); }
 [data-kind="beast-serpent"] .cq-segment-4 { animation: cq-serpent-undulate 2.4s ease-in-out infinite; animation-delay: calc(var(--phase, 0) * -2.4s - 0.9s); }
 
+/* === beast-winged: wing flap + hover bob === */
+@keyframes cq-wing-flap-l {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-18deg); }
+}
+@keyframes cq-wing-flap-r {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(18deg); }
+}
+@keyframes cq-hover-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+[data-kind="beast-winged"] .cq-wing-l { transform-origin: 64px 60px; animation: cq-wing-flap-l 1.1s ease-in-out infinite; animation-delay: calc(var(--phase, 0) * -1.1s); }
+[data-kind="beast-winged"] .cq-wing-r { transform-origin: 64px 60px; animation: cq-wing-flap-r 1.1s ease-in-out infinite; animation-delay: calc(var(--phase, 0) * -1.1s); }
+[data-kind="beast-winged"] .cq-hover-body { animation: cq-hover-bob 2.2s ease-in-out infinite; animation-delay: calc(var(--phase, 0) * -2.2s); }
+[data-kind="beast-winged"] .cq-shadow-detached { transform: scale(0.7); opacity: 0.5; }
+
 /* Pause everything when prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .cq-sprite-figure, .cq-weapon, .cq-tool, .cq-smoke, .cq-dust, .cq-work-dust,

@@ -54,6 +54,8 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 | beast_basilisk | ✅ sprite | — |
 | beast_sea_serpent | ✅ sprite | beast-serpent |
 | beast_wurm | ✅ sprite | beast-serpent |
+| beast_roc | ✅ sprite | beast-winged |
+| beast_hydra | ✅ sprite | beast-serpent |
 
 ### Buildings — `src/renderer/sprites/buildings.tsx`
 Registered in `BUILDING_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
@@ -250,7 +252,8 @@ All animation is CSS-driven via `src/assets/sprite-animations-v2.css`. Sprites s
 | `naval` | galley, trireme, catapult, ballista | ship rock + sail billow |
 | `hound` | scout_hound, war_hound | quadruped diagonal-pair legs |
 | `spy` | spy_* family | cape sway, cloak |
-| `beast-serpent` | beast_sea_serpent, beast_wurm | phase-offset segment undulation (`cq-segment-1..4`) |
+| `beast-serpent` | beast_sea_serpent, beast_wurm, beast_hydra | phase-offset segment undulation (`cq-segment-1..4`) |
+| `beast-winged` | beast_roc | wing flap (`cq-wing-l`, `cq-wing-r`) + hover bob (`cq-hover-body`) + detached shadow (`cq-shadow-detached`) |
 
 ### Building effect classes
 | Class | Effect | Example buildings |
