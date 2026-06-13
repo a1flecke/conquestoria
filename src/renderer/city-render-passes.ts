@@ -29,6 +29,10 @@ export interface CityRenderItem {
   isMinorCiv: boolean;
   minorCivIcon?: string;
   breakaway?: { status: 'secession' | 'established' };
+  intel: {
+    hasEmbeddedSpy: boolean;
+    hasInfiltratedSpy: boolean;
+  };
   landmarkEntries: LegendaryWonderMapEntry[];
   lowZoom: boolean;
   reducedMotion: boolean;
@@ -42,7 +46,8 @@ export type CityRenderPassName =
   | 'label'
   | 'status'
   | 'production'
-  | 'idle';
+  | 'idle'
+  | 'intel';
 
 export type CityRenderPass = {
   name: CityRenderPassName;
@@ -330,6 +335,32 @@ export function drawCityIdleBadgePass(ctx: CanvasRenderingContext2D, item: CityR
   ctx.fillText(idleIcon, item.screen.x - item.size * 0.48, item.screen.y - item.size * 0.42);
 }
 
+export function drawCityIntelBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
+  markPass(ctx, 'intel');
+  if (!item.projection.isLive || item.lowZoom) return;
+
+  const badges = [
+    item.intel.hasEmbeddedSpy
+      ? { text: '🛡', x: item.screen.x - item.size * 0.5 }
+      : null,
+    item.intel.hasInfiltratedSpy
+      ? { text: '👁', x: item.screen.x + item.size * 0.5 }
+      : null,
+  ].filter((badge): badge is { text: string; x: number } => badge !== null);
+  const y = item.screen.y + item.size * 0.04;
+  for (const badge of badges) {
+    ctx.beginPath();
+    ctx.arc(badge.x, y, item.size * 0.14, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(20,24,30,0.86)';
+    ctx.fill();
+    ctx.font = `${item.size * 0.2}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badge.text, badge.x, y);
+  }
+}
+
 export const CITY_RENDER_PASSES: CityRenderPass[] = [
   { name: 'base', draw: drawCityBasePass },
   { name: 'icon', draw: drawCityIconPass },
@@ -338,6 +369,7 @@ export const CITY_RENDER_PASSES: CityRenderPass[] = [
   { name: 'status', draw: drawCityStatusBadgePass },
   { name: 'production', draw: drawCityProductionBadgePass },
   { name: 'idle', draw: drawCityIdleBadgePass },
+  { name: 'intel', draw: drawCityIntelBadgePass },
 ];
 
 export function drawCityRenderItem(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {

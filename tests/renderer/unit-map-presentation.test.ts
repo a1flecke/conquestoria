@@ -33,6 +33,7 @@ function state(units: Unit[]): GameState {
         diplomacy: { atWarWith: ['enemy'] },
       } as any,
       enemy: { id: 'enemy', civType: 'england', color: '#33c', visibility: { tiles: {} } } as any,
+      ally: { id: 'ally', civType: 'greece', color: '#3c3', visibility: { tiles: {} } } as any,
     },
     minorCivs: {},
     map: {
@@ -125,5 +126,29 @@ describe('unit map presentation', () => {
     );
 
     expect(presentation.memberIds).toEqual(['static']);
+  });
+
+  it('keeps co-located units from different owners in separate offset presentations', () => {
+    const units = [
+      unit('player-caravan', { type: 'caravan' }),
+      unit('ally-warrior', { owner: 'ally' }),
+      unit('ally-archer', { owner: 'ally', type: 'archer' }),
+    ];
+
+    const presentations = buildUnitMapPresentations(
+      state(units),
+      'player',
+      { tiles: { '1,1': 'visible' } },
+      new Set(),
+      null,
+    );
+
+    expect(presentations).toHaveLength(2);
+    expect(presentations.map(presentation => presentation.memberIds)).toEqual([
+      ['player-caravan'],
+      ['ally-archer', 'ally-warrior'],
+    ]);
+    expect(presentations[0].anchorOffsetFactor.x).toBeLessThan(0);
+    expect(presentations[1].anchorOffsetFactor.x).toBeGreaterThan(0);
   });
 });

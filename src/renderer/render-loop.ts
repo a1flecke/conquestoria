@@ -54,6 +54,7 @@ export function buildUnitEntities(
         health: presentation.leadUnit.health,
         fortified: presentation.leadUnit.isFortified,
         roleMarker: presentation.roleMarker,
+        anchorOffsetFactor: presentation.anchorOffsetFactor,
       };
     });
 }
@@ -361,8 +362,6 @@ export class RenderLoop {
       reducedMotion: prefersReducedMotion(),
       nowMs: performance.now(),
     });
-    this.drawInfiltratedSpyIndicators();
-    this.drawEmbeddedSpyIndicators();
 
     // Draw trade route lines (after cities, before units)
     this.drawTradeRouteLines(viewerId);
@@ -392,6 +391,7 @@ export class RenderLoop {
         health: presentation.leadUnit.health,
         fortified: presentation.leadUnit.isFortified,
         roleMarker: presentation.roleMarker,
+        anchorOffsetFactor: presentation.anchorOffsetFactor,
       }));
       this.spriteOverlay?.sync(
         this.camera,
@@ -533,44 +533,4 @@ export class RenderLoop {
     this.ctx.restore();
   }
 
-  private drawEmbeddedSpyIndicators(): void {
-    if (!this.state) return;
-    const civEsp = this.state.espionage?.[this.state.currentPlayer];
-    if (!civEsp) return;
-    this.ctx.save();
-    for (const spy of Object.values(civEsp.spies)) {
-      if (spy.status !== 'embedded' || !spy.targetCityId) continue;
-      const city = this.state.cities[spy.targetCityId];
-      if (!city || city.owner !== this.state.currentPlayer) continue;
-      const pixel = hexToPixel(city.position, this.camera.hexSize);
-      const screen = this.camera.worldToScreen(pixel.x, pixel.y);
-      const size = this.camera.hexSize * this.camera.zoom;
-      this.ctx.font = `${size * 0.3}px system-ui`;
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText('🛡', screen.x - size * 0.5, screen.y - size * 0.4);
-    }
-    this.ctx.restore();
-  }
-
-  private drawInfiltratedSpyIndicators(): void {
-    if (!this.state) return;
-    const civEsp = this.state.espionage?.[this.state.currentPlayer];
-    if (!civEsp) return;
-    this.ctx.save();
-    for (const spy of Object.values(civEsp.spies)) {
-      if (spy.status !== 'stationed' && spy.status !== 'on_mission' && spy.status !== 'idle') continue;
-      if (!spy.infiltrationCityId) continue;
-      const city = this.state.cities[spy.infiltrationCityId];
-      if (!city) continue;
-      const pixel = hexToPixel(city.position, this.camera.hexSize);
-      const screen = this.camera.worldToScreen(pixel.x, pixel.y);
-      const size = this.camera.hexSize * this.camera.zoom;
-      this.ctx.font = `${size * 0.3}px system-ui`;
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText('👁', screen.x + size * 0.5, screen.y - size * 0.4);
-    }
-    this.ctx.restore();
-  }
 }

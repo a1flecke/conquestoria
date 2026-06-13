@@ -182,6 +182,20 @@ describe('sync() wrapper sizing', () => {
     expect(wrapper!.style.height).toBe(expectedPx);
   });
 
+  it('positions and updates co-located owner groups using their shared anchor offset', () => {
+    const { overlay, mount } = mountOverlay();
+    const camera = cam({ zoom: 1, hexSize: 32 });
+    overlay.sync(camera, [entity({ anchorOffsetFactor: { x: -0.2, y: 0.08 } })], MAP, OPTS);
+    const wrapper = mount.querySelector('#unit-sprites > [data-entity-id="u1"]') as HTMLElement;
+    const originalLeft = wrapper.style.left;
+    const originalTop = wrapper.style.top;
+
+    overlay.sync(camera, [entity({ anchorOffsetFactor: { x: 0.2, y: -0.08 } })], MAP, OPTS);
+
+    expect(wrapper.style.left).not.toBe(originalLeft);
+    expect(wrapper.style.top).not.toBe(originalTop);
+  });
+
   it('marks every represented stack member active only while its element is visible', () => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam({ zoom: 1 }), [entity({ memberIds: ['u1', 'u2', 'u3'] })], MAP, OPTS);

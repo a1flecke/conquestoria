@@ -31,6 +31,27 @@ export interface UnitMapPresentation {
   damage: number;
   isSelected: boolean;
   roleMarker: UnitRoleMarker;
+  anchorOffsetFactor: { x: number; y: number };
+}
+
+function getOwnerGroupOffsetFactor(index: number, count: number): { x: number; y: number } {
+  if (count <= 1) return { x: 0, y: 0 };
+  if (count === 2) {
+    return index === 0 ? { x: -0.2, y: 0.08 } : { x: 0.2, y: -0.08 };
+  }
+  const angle = -Math.PI / 2 + (index * Math.PI * 2) / count;
+  return { x: Math.cos(angle) * 0.2, y: Math.sin(angle) * 0.2 };
+}
+
+export function applyUnitAnchorOffset(
+  anchor: { x: number; y: number },
+  hexSize: number,
+  factor: { x: number; y: number } = { x: 0, y: 0 },
+): { x: number; y: number } {
+  return {
+    x: anchor.x + factor.x * hexSize,
+    y: anchor.y + factor.y * hexSize,
+  };
 }
 
 export function getUnitLayoutMetrics(hexSize: number): UnitLayoutMetrics {
@@ -104,20 +125,35 @@ export function buildUnitMapPresentations(
     groups.set(key, group);
   }
 
-  return [...groups.values()].map(stack => {
-    const members = [...stack].sort((a, b) => a.id.localeCompare(b.id));
-    const leadUnit = chooseLead(state, viewerId, members, selectedUnitId);
-    return {
-      memberIds: members.map(unit => unit.id),
-      members,
-      leadUnitId: leadUnit.id,
-      leadUnit,
-      coord: { ...leadUnit.position },
-      stackCount: members.length,
-      faction: getFaction(state, leadUnit.owner),
-      damage: getDamage(leadUnit),
-      isSelected: leadUnit.id === selectedUnitId,
-      roleMarker: resolveUnitVisual(state, leadUnit, undefined, 'idle').roleMarker,
-    };
+  return [...groups.values()].flatMap(coLocatedUnits => {
+    const ownerGroups = new Map<string, Unit[]>();
+    for (const unit of coLocatedUnits) {
+      const ownerGroup = ownerGroups.get(unit.owner) ?? [];
+      ownerGroup.push(unit);
+      ownerGroups.set(unit.owner, ownerGroup);
+    }
+    const owners = [...ownerGroups.keys()].sort((a, b) => {
+      if (a === viewerId) return -1;
+      if (b === viewerId) return 1;
+      return a.localeCompare(b);
+    });
+
+    return owners.map((owner, ownerIndex) => {
+      const members = [...ownerGroups.get(owner)!].sort((a, b) => a.id.localeCompare(b.id));
+      const leadUnit = chooseLead(state, viewerId, members, selectedUnitId);
+      return {
+        memberIds: members.map(unit => unit.id),
+        members,
+        leadUnitId: leadUnit.id,
+        leadUnit,
+        coord: { ...leadUnit.position },
+        stackCount: members.length,
+        faction: getFaction(state, leadUnit.owner),
+        damage: getDamage(leadUnit),
+        isSelected: leadUnit.id === selectedUnitId,
+        roleMarker: resolveUnitVisual(state, leadUnit, undefined, 'idle').roleMarker,
+        anchorOffsetFactor: getOwnerGroupOffsetFactor(ownerIndex, owners.length),
+      };
+    });
   });
 }
