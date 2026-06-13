@@ -42,6 +42,14 @@ import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
 } from './wonders';
 import { GiantBoarSprite, DireWolfSprite, EmeraldBasiliskSprite, SeaSerpentSprite, DuneWurmSprite, StormRocSprite, SwampHydraSprite, AncientDragonSprite } from './beasts';
+import {
+  PirateCorsairSprite,
+  PirateFastAttackCraftSprite,
+  PirateFrigateSprite,
+  PirateGalleySprite,
+  PirateIroncladSprite,
+  PirateMothershipSprite,
+} from './pirates';
 
 export type UnitSpriteComponent = (props: UnitSpriteProps) => string;
 export type BuildingSpriteComponent = (props: BuildingSpriteProps) => string;
@@ -68,6 +76,12 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   galleon:         'naval',
   steamship:       'naval',
   troop_transport: 'naval',
+  pirate_galley: 'naval',
+  pirate_corsair: 'naval',
+  pirate_frigate: 'naval',
+  pirate_ironclad: 'naval',
+  pirate_fast_attack_craft: 'naval',
+  pirate_mothership: 'naval',
   spy_scout: 'humanoid',
   spy_informant: 'humanoid',
   spy_agent: 'humanoid',
@@ -150,6 +164,12 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   galleon:         withMotion('galleon', GalleonSprite),
   steamship:       withMotion('steamship', SteamshipSprite),
   troop_transport: withMotion('troop_transport', TroopTransportSprite),
+  pirate_galley: withMotion('pirate_galley', PirateGalleySprite),
+  pirate_corsair: withMotion('pirate_corsair', PirateCorsairSprite),
+  pirate_frigate: withMotion('pirate_frigate', PirateFrigateSprite),
+  pirate_ironclad: withMotion('pirate_ironclad', PirateIroncladSprite),
+  pirate_fast_attack_craft: withMotion('pirate_fast_attack_craft', PirateFastAttackCraftSprite),
+  pirate_mothership: withMotion('pirate_mothership', PirateMothershipSprite),
   spy_scout:      withMotion('spy_scout', SpyScoutSprite),
   spy_informant:  withMotion('spy_informant', SpyInformantSprite),
   spy_agent:      withMotion('spy_agent', SpyAgentSprite),

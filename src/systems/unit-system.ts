@@ -8,6 +8,26 @@ import {
   wrapHexCoord,
 } from './hex-utils';
 import { isRiverBetween } from './river-system';
+import { PIRATE_HULL_DEFINITIONS, type PirateHullType } from './pirate-definitions';
+
+function createPirateUnitDefinition(
+  type: PirateHullType,
+  attackProfile: UnitDefinition['attackProfile'],
+): UnitDefinition {
+  const hull = PIRATE_HULL_DEFINITIONS[type];
+  return {
+    type,
+    name: hull.name,
+    movementPoints: hull.movementPoints,
+    visionRange: hull.visionRange,
+    strength: hull.strength,
+    canFoundCity: false,
+    canBuildImprovements: false,
+    productionCost: 0,
+    domain: 'naval',
+    attackProfile,
+  };
+}
 
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   settler: {
@@ -98,6 +118,31 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'naval',
     cargoCapacity: 6,
   },
+  // Pirate hulls are spawned by pirate ecology and can never be city-trained.
+  pirate_galley: createPirateUnitDefinition(
+    'pirate_galley',
+    { kind: 'melee', range: 1, targets: ['unit'] },
+  ),
+  pirate_corsair: createPirateUnitDefinition(
+    'pirate_corsair',
+    { kind: 'melee', range: 1, targets: ['unit'] },
+  ),
+  pirate_frigate: createPirateUnitDefinition(
+    'pirate_frigate',
+    { kind: 'ranged', range: 2, targets: ['unit'] },
+  ),
+  pirate_ironclad: createPirateUnitDefinition(
+    'pirate_ironclad',
+    { kind: 'ranged', range: 2, targets: ['unit'] },
+  ),
+  pirate_fast_attack_craft: createPirateUnitDefinition(
+    'pirate_fast_attack_craft',
+    { kind: 'ranged', range: 2, targets: ['unit'] },
+  ),
+  pirate_mothership: createPirateUnitDefinition(
+    'pirate_mothership',
+    { kind: 'ranged', range: 2, targets: ['unit'] },
+  ),
   spy_scout: {
     type: 'spy_scout', name: 'Scout Agent', movementPoints: 2,
     visionRange: 2, strength: 3, canFoundCity: false,
@@ -419,6 +464,12 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   galleon:          'Successor to the Carrack. Broader hull, carries up to 4 land units.',
   steamship:        'Steam-powered successor to the Galleon. Carries up to 5 land units reliably.',
   troop_transport:  'Military-grade vessel. Carries up to 6 land units across any ocean.',
+  pirate_galley: 'An improvised oared raider that preys on early coastal traffic. Pirate-only and never city-trainable.',
+  pirate_corsair: 'A swift lateen-rigged xebec built to overtake merchants and escape heavier patrols.',
+  pirate_frigate: 'A captured broadside frigate refitted for long-range piracy while older corsairs remain in service.',
+  pirate_ironclad: 'An armored steam raider combining industrial protection with the mobility of an outlaw fleet.',
+  pirate_fast_attack_craft: 'A modern high-speed strike boat used by breakaway forces and mercenary flotillas.',
+  pirate_mothership: 'A converted command vessel that supports modern pirate craft while coordinating older warships.',
   spy_scout: 'Lightly trained scout agent. Move to an enemy city and attempt to infiltrate. Era 1: infiltration and scouting resolve in one action.',
   spy_informant: 'Experienced informant. Infiltrates cities for multi-turn intelligence operations. Unlocks disguise.',
   spy_agent: 'Skilled field operative. Conducts sabotage, tech theft, and disruption missions.',

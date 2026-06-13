@@ -438,11 +438,11 @@ git commit -m "feat(pirates): persist pirate and notification state"
 - Modify: `tests/renderer/sprites/sprite-catalog.test.ts`
 - Modify: `tests/renderer/unit-visual-resolver.test.ts`
 
-- [ ] **Step 1: Write failing exhaustiveness and deterministic roster tests**
+- [x] **Step 1: Write failing exhaustiveness and deterministic roster tests**
 
 Tests cover all five stages, six hulls, behavior thresholds `2/5`, caps `3/4/5`, two-flotilla limit, pressure constants, tribute costs, plunder caps, bounties, and deterministic mixed fleets. Prove Stage 5 draws never include galleys/corsairs but may include frigates and ironclads.
 
-- [ ] **Step 2: Add the exact definition tables**
+- [x] **Step 2: Add the exact definition tables**
 
 Use one typed source of truth:
 
@@ -479,15 +479,15 @@ Add all six pirate values to `UnitType` and `UNIT_DEFINITIONS` in this same step
 
 Update the trainability coverage assertion so only `beast_*` and `pirate_*` zero-cost hostile units may be absent from `TRAINABLE_UNITS`. Add a negative test proving an ordinary new unit type would still fail the coverage contract.
 
-- [ ] **Step 3: Add final low-zoom pirate art and exhaustive mappings in the same change**
+- [x] **Step 3: Add final low-zoom pirate art and exhaustive mappings in the same change**
 
 Author the six production neutral Canvas/raster components in `src/renderer/sprites/pirates.tsx` and add all six `UNIT_SPRITE_CATALOG` entries. These are the final low-zoom assets, not placeholders for the v2 work. Add all six unit types to `UNIT_MOTION_STYLES`, `LOCOMOTION_CLASS`, unit descriptions, and fallback-icon records so TypeScript exhaustiveness remains intact. `UNIT_SFX` may remain absent because it is intentionally partial; Task 16 closes the explicit SFX inventory.
 
-- [ ] **Step 4: Add deterministic combat sampling**
+- [x] **Step 4: Add deterministic combat sampling**
 
 For each stage, sample fixed seeds for equivalent contemporary naval encounters and assert expected exchange-count bands rather than a single lucky result. Include older pirate hulls in Stage 4/5 mixed fleets and verify the guaranteed current hull remains the strongest strategic anchor without making the whole fleet homogeneous.
 
-- [ ] **Step 5: Run and commit**
+- [x] **Step 5: Run and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/systems/pirate-definitions.ts src/renderer/sprites/pirates.tsx src/core/types.ts src/systems/unit-system.ts src/renderer/unit-visual-resolver.ts src/renderer/sprites/sprite-catalog.ts src/audio/sfx-catalog.ts

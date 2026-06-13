@@ -3,6 +3,7 @@ import { UNIT_SPRITE_CATALOG, BUILDING_SPRITE_CATALOG } from '@/renderer/sprites
 import { derivePalette } from '@/renderer/sprites/sprite-system';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 
 // Derive the authoritative unit-type list from UNIT_DEFINITIONS so this test
 // automatically catches any new UnitType added to types.ts without a matching
@@ -55,6 +56,16 @@ describe('sprite-catalog coverage', () => {
         expect(movingB, `${unitType} move-b should use the land pivot`).toContain('rotate(2 64 70)');
         expect(movingA, `${unitType} move-a should not use the naval pivot`).not.toContain('64 82');
         expect(movingB, `${unitType} move-b should not use the naval pivot`).not.toContain('64 82');
+      }
+    });
+
+    it('renders all pirate hulls as production naval sprites at low zoom', () => {
+      const palette = derivePalette('#7f1d1d');
+      for (const unitType of PIRATE_HULL_TYPES) {
+        const svg = UNIT_SPRITE_CATALOG[unitType]({ palette, svgOnly: true, motion: 'idle' });
+        expect(svg, unitType).toContain('data-kind="naval"');
+        expect(svg, unitType).toContain('viewBox="0 0 128 128"');
+        expect(svg.length, `${unitType} must be final art, not a trivial placeholder`).toBeGreaterThan(1200);
       }
     });
   });

@@ -13,6 +13,8 @@ import {
 import type { GameMap } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
+import { TRAINABLE_UNITS } from '@/systems/city-system';
+import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -129,6 +131,35 @@ describe('createUnit', () => {
     );
     expect(unit.movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints + 1);
     expect(resetUnitTurn(unit).movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints + 1);
+  });
+});
+
+describe('hostile-only unit definitions', () => {
+  function unexpectedUntrainableTypes(
+    definitions: Record<string, { productionCost: number }>,
+    trainableTypes: Set<string>,
+  ): string[] {
+    return Object.entries(definitions)
+      .filter(([type]) => !trainableTypes.has(type))
+      .filter(([type, definition]) =>
+        definition.productionCost !== 0 || (!type.startsWith('beast_') && !type.startsWith('pirate_')),
+      )
+      .map(([type]) => type)
+      .sort();
+  }
+
+  it('permits only explicit beast and pirate zero-cost units outside city training', () => {
+    const trainableTypes = new Set(TRAINABLE_UNITS.map(unit => unit.type));
+    expect(unexpectedUntrainableTypes(UNIT_DEFINITIONS, trainableTypes)).toEqual([]);
+    for (const type of PIRATE_HULL_TYPES) expect(trainableTypes.has(type)).toBe(false);
+  });
+
+  it('still rejects an ordinary zero-cost unit omitted from the trainable catalog', () => {
+    const trainableTypes = new Set(TRAINABLE_UNITS.map(unit => unit.type));
+    expect(unexpectedUntrainableTypes({
+      ...UNIT_DEFINITIONS,
+      forgotten_patrol_boat: { productionCost: 0 },
+    }, trainableTypes)).toContain('forgotten_patrol_boat');
   });
 });
 

@@ -304,7 +304,10 @@ export type UnitType =
   | 'expedition'
   | 'transport'
   | 'carrack' | 'galleon' | 'steamship' | 'troop_transport'
-  | 'beast_boar' | 'beast_wolf' | 'beast_basilisk' | 'beast_sea_serpent' | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon';
+  | 'pirate_galley' | 'pirate_corsair' | 'pirate_frigate'
+  | 'pirate_ironclad' | 'pirate_fast_attack_craft' | 'pirate_mothership'
+  | 'beast_boar' | 'beast_wolf' | 'beast_basilisk' | 'beast_sea_serpent'
+  | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';

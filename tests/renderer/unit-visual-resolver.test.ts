@@ -3,6 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { resolveUnitVisual } from '@/renderer/unit-visual-resolver';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import type { UnitType } from '@/core/types';
+import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -69,5 +70,15 @@ describe('unit-visual-resolver', () => {
 
       expect(resolveUnitVisual(state, unit).fallbackIcon, unitType).not.toBe('?');
     }
+  });
+
+  it('provides era-readable fallback icons for every pirate hull', () => {
+    const state = createNewGame(undefined, 'pirate-fallback-icons', 'small');
+    const icons = PIRATE_HULL_TYPES.map(unitType => {
+      const unit = { ...createUnit(unitType, 'pirate-1', { q: 0, r: 0 }, mkC()), id: unitType };
+      return resolveUnitVisual(state, unit).fallbackIcon;
+    });
+    expect(icons.every(icon => icon !== '?')).toBe(true);
+    expect(new Set(icons).size).toBeGreaterThanOrEqual(3);
   });
 });
