@@ -64,7 +64,13 @@ describe('pirate state', () => {
             exposureResolvedRaidKeys: [],
           },
           intent: null,
-          transitionGuards: { emittedEventKeys: ['seen', 'seen'] },
+          transitionGuards: {
+            emittedEventKeys: ['seen', 'seen'],
+            lastDemandReminderRoundByCiv: { player: 17, missing: 99 },
+            lastBehaviorTransitionRound: 16,
+            lastStageReinforcementRound: 15,
+            lastFlagshipAttackedRound: 18,
+          },
         },
       },
       history: [],
@@ -94,6 +100,10 @@ describe('pirate state', () => {
     expect(faction.tributeByCiv.player).toBeUndefined();
     expect(faction.contract).toBeNull();
     expect(faction.transitionGuards.emittedEventKeys).toEqual(['seen']);
+    expect(faction.transitionGuards.lastDemandReminderRoundByCiv).toEqual({ player: 17 });
+    expect(faction.transitionGuards.lastBehaviorTransitionRound).toBe(16);
+    expect(faction.transitionGuards.lastStageReinforcementRound).toBe(15);
+    expect(faction.transitionGuards.lastFlagshipAttackedRound).toBe(18);
     expect(normalized.pirates.activationWarningDeliveredByCiv).toEqual({ player: true });
     expect(normalized.pirates.intelByCiv.player).toEqual({});
   });
@@ -114,6 +124,46 @@ describe('pirate state', () => {
     expect(normalizeLoadedStateForTest(state).pirates.pressure.suppression).toEqual([
       { regionKey: '3,-2', amount: 8, expiresAfterRound: state.turn + 8 },
     ]);
+  });
+
+  it('preserves tracked relocation direction but rejects malformed persisted relocation plans', () => {
+    const state = createNewGame(undefined, 'pirate-relocation-save', 'small') as any;
+    state.units.flagship = {
+      id: 'flagship', type: 'pirate_corsair', owner: 'pirate-1', position: { q: 3, r: 3 },
+      movementPointsLeft: 4, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'raiding', maritimeStage: 2,
+      notoriety: 2, shipIds: ['flagship'],
+      headquarters: {
+        kind: 'deep-sea-flotilla', flagshipUnitId: 'flagship',
+        relocation: {
+          planned: {
+            plannedRound: 4, resolvesOnRound: 5, direction: 'sideways',
+            path: [{ q: 3, r: 2 }, { q: 3, r: 1 }],
+          },
+          lastRelocatedRound: null,
+        },
+      },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+    state.pirates.intelByCiv.player = {
+      'pirate-1': {
+        factionId: 'pirate-1', level: 'tracked', discoveredRound: 2, lastUpdatedRound: 4,
+        lastKnownHeadquarters: {
+          kind: 'deep-sea-flotilla', position: { q: 3, r: 3 }, observedRound: 4,
+        },
+        plannedRelocationDirection: 'south-east',
+      },
+    };
+
+    const normalized = normalizeLoadedStateForTest(state);
+    expect(normalized.pirates.factions['pirate-1'].headquarters).toMatchObject({
+      kind: 'deep-sea-flotilla', relocation: { planned: null },
+    });
+    expect(normalized.pirates.intelByCiv.player['pirate-1'].plannedRelocationDirection).toBe('south-east');
   });
 
   it('resolves a missing flotilla flagship into one historical destruction record across repeated normalization', () => {

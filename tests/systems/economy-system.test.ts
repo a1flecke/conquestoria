@@ -12,8 +12,10 @@ import {
   getEconomyStatusForCiv,
   getRushBuyQuote,
   normalizeEconomyStatus,
+  projectCivGrossGold,
   rushBuyActiveProduction,
 } from '@/systems/economy-system';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 
@@ -325,5 +327,43 @@ describe('rush buy', () => {
     });
 
     expect(formatGoldHudText(status, 42)).toBe('42 (+5 net)');
+  });
+});
+
+describe('pirate economy modifiers', () => {
+  it('zeros routes involving a blockaded city and reduces that city gold once without changing food or production', () => {
+    const state = makeState();
+    city(state).buildings = ['marketplace'];
+    const second = foundCity('player', { q: 7, r: 7 }, state.map, state.idCounters);
+    second.id = 'second';
+    state.cities.second = second;
+    state.civilizations.player.cities.push('second');
+    state.marketplace!.tradeRoutes = [{
+      id: 'route-1', fromCityId: 'second', toCityId: 'capital', goldPerTrip: 8, turnsPerTrip: 4,
+    }];
+    const yieldsBefore = calculateProjectedCityYields(state, 'capital');
+    const base = projectCivGrossGold(state, 'player');
+    const blockaded = projectCivGrossGold(state, 'player', {
+      plunderByCiv: {}, blockadedCityIds: ['capital', 'capital'],
+    });
+    const routeIncome = 2;
+
+    expect(base - blockaded).toBe(routeIncome + yieldsBefore.gold * 0.25);
+    expect(calculateProjectedCityYields(state, 'capital')).toMatchObject({
+      food: yieldsBefore.food,
+      production: yieldsBefore.production,
+    });
+  });
+
+  it('applies plunder to available treasury in both projection and settlement', () => {
+    const state = makeState();
+    const modifiers = { plunderByCiv: { player: 7 }, blockadedCityIds: [] };
+    const status = calculateCivEconomy(state, 'player', { grossGoldPerTurn: 0, pirateModifiers: modifiers });
+    const settled = applyEconomyTurn(state, 'player', 0, modifiers);
+
+    expect(status.startingGold).toBe(13);
+    expect(status.endingGold).toBe(13);
+    expect(settled.civilizations.player.gold).toBe(13);
+    expect(state.civilizations.player.gold).toBe(20);
   });
 });

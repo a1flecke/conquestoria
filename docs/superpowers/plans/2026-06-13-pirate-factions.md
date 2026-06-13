@@ -569,10 +569,12 @@ git commit -m "feat(pirates): add deterministic ecology and spawning"
 
 - Create: `src/systems/pirate-behavior.ts`
 - Modify: `src/systems/economy-system.ts`
+- Modify: `src/core/pirate-state.ts` and `src/storage/save-manager.ts` for relocation attack guards and save-safe direction data
 - Create: `tests/systems/pirate-behavior.test.ts`
 - Modify: `tests/systems/economy-system.test.ts`
+- Modify: `tests/core/pirate-state.test.ts`
 
-- [ ] **Step 1: Write red behavior tests**
+- [x] **Step 1: Write red behavior tests**
 
 Include positive and negative cases for:
 
@@ -588,13 +590,13 @@ Include positive and negative cases for:
 - relocation plans one round early, follows `2-4` contiguous ocean hexes, preserves formation, consumes moved ships' phase, and cancels on attack/adjacent hostile/placement failure;
 - hidden viewers receive no relocation direction.
 
-- [ ] **Step 2: Run the red tests**
+- [x] **Step 2: Run the red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-behavior.test.ts tests/systems/economy-system.test.ts
 ```
 
-- [ ] **Step 3: Implement pure decision and derivation helpers**
+- [x] **Step 3: Implement pure decision and derivation helpers**
 
 Required surface:
 
@@ -609,7 +611,7 @@ export function derivePirateBlockades(state: GameState): PirateBlockade[];
 
 Use canonical movement and combat helpers for actual orders. Return explicit facts for every movement, attack, transport kill, raid, and blockade transition; do not rediscover one-time events by scanning final state.
 
-- [ ] **Step 4: Integrate economy modifiers without a parallel economy**
+- [x] **Step 4: Integrate economy modifiers without a parallel economy**
 
 Extend economy projection with typed pirate modifiers:
 
@@ -622,12 +624,12 @@ export interface PirateEconomyModifiers {
 
 Route income involving any blockaded city is zero. A blockaded city's final gold yield is multiplied by `0.75` once, regardless of pirate count. Settlement and projection must use the same helper so HUD, dossier, and actual treasury agree.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 ```bash
-scripts/check-src-rule-violations.sh src/systems/pirate-behavior.ts src/systems/economy-system.ts
-./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-behavior.test.ts tests/systems/economy-system.test.ts tests/systems/attack-targeting.test.ts
-git add src/systems/pirate-behavior.ts src/systems/economy-system.ts tests/systems/pirate-behavior.test.ts tests/systems/economy-system.test.ts
+scripts/check-src-rule-violations.sh src/systems/pirate-behavior.ts src/systems/economy-system.ts src/core/pirate-state.ts src/storage/save-manager.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-behavior.test.ts tests/systems/economy-system.test.ts tests/systems/attack-targeting.test.ts tests/core/pirate-state.test.ts
+git add src/systems/pirate-behavior.ts src/systems/economy-system.ts src/core/pirate-state.ts src/storage/save-manager.ts tests/systems/pirate-behavior.test.ts tests/systems/economy-system.test.ts tests/core/pirate-state.test.ts
 git commit -m "feat(pirates): add raids blockades and relocation"
 ```
 

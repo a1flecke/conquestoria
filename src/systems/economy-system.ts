@@ -85,10 +85,16 @@ export const ECONOMY_RULES = {
 
 export interface CalculateCivEconomyOptions {
   grossGoldPerTurn?: number;
+  pirateModifiers?: PirateEconomyModifiers;
   maintenanceOverride?: {
     buildingUpkeep?: number;
     unitUpkeep?: number;
   };
+}
+
+export interface PirateEconomyModifiers {
+  plunderByCiv: Record<string, number>;
+  blockadedCityIds: string[];
 }
 
 export interface EconomyProjection extends EconomyStatus {
@@ -462,17 +468,23 @@ export function calculateMaintenance(state: GameState, civId: string): EconomyMa
   };
 }
 
-export function projectCivGrossGold(state: GameState, civId: string): number {
+export function projectCivGrossGold(
+  state: GameState,
+  civId: string,
+  pirateModifiers: PirateEconomyModifiers = { plunderByCiv: {}, blockadedCityIds: [] },
+): number {
   const civ = state.civilizations[civId];
   if (!civ) return 0;
 
   const civDef = resolveCivDefinition(state, civ.civType ?? '');
+  const blockadedCityIds = new Set(pirateModifiers.blockadedCityIds);
   let grossGold = 0;
 
   for (const cityId of civ.cities) {
     const projected = calculateProjectedCityYields(state, cityId, civDef?.bonusEffect);
     const wonderCityBonuses = getLegendaryWonderCityYieldBonus(state, civId, cityId);
-    grossGold += projected.gold + (wonderCityBonuses.gold ?? 0);
+    const cityGold = projected.gold + (wonderCityBonuses.gold ?? 0);
+    grossGold += blockadedCityIds.has(cityId) ? cityGold * 0.75 : cityGold;
   }
 
   const wonderCivBonuses = getLegendaryWonderCivYieldBonus(state, civId);
@@ -493,7 +505,11 @@ export function projectCivGrossGold(state: GameState, civId: string): number {
 
   if (state.marketplace) {
     grossGold += processTradeRouteIncome(
-      state.marketplace.tradeRoutes.filter(route => state.cities[route.fromCityId]?.owner === civId),
+      state.marketplace.tradeRoutes.filter(route =>
+        state.cities[route.fromCityId]?.owner === civId
+        && !blockadedCityIds.has(route.fromCityId)
+        && !blockadedCityIds.has(route.toCityId),
+      ),
     );
   }
 
@@ -508,7 +524,12 @@ export function calculateCivEconomy(
   options: CalculateCivEconomyOptions = {},
 ): EconomyProjection {
   const civ = state.civilizations[civId];
-  const grossGoldIncome = options.grossGoldPerTurn ?? projectCivGrossGold(state, civId);
+  const modifiers = options.pirateModifiers ?? { plunderByCiv: {}, blockadedCityIds: [] };
+  const baseProjectedGross = projectCivGrossGold(state, civId);
+  const modifiedProjectedGross = projectCivGrossGold(state, civId, modifiers);
+  const grossGoldIncome = options.grossGoldPerTurn === undefined
+    ? modifiedProjectedGross
+    : options.grossGoldPerTurn + (modifiedProjectedGross - baseProjectedGross);
   const baseBreakdown = calculateMaintenance(state, civId);
   const breakdown = {
     ...baseBreakdown,
@@ -519,7 +540,7 @@ export function calculateCivEconomy(
   const unitMaintenance = breakdown.unitUpkeep;
   const totalMaintenance = buildingMaintenance + unitMaintenance;
   const netGoldPerTurn = grossGoldIncome - totalMaintenance;
-  const startingGold = civ?.gold ?? 0;
+  const startingGold = Math.max(0, (civ?.gold ?? 0) - Math.max(0, modifiers.plunderByCiv[civId] ?? 0));
   const endingGold = Math.max(0, startingGold + netGoldPerTurn);
   const unpaidMaintenance = Math.max(0, totalMaintenance - (startingGold + grossGoldIncome));
   const strainLevel = getTreasuryStrainLevel(unpaidMaintenance, totalMaintenance);
@@ -556,11 +577,16 @@ function toResolvedEconomyStatus(result: EconomyProjection): EconomyStatus {
   };
 }
 
-export function applyEconomyTurn(state: GameState, civId: string, grossGoldPerTurn: number): GameState {
+export function applyEconomyTurn(
+  state: GameState,
+  civId: string,
+  grossGoldPerTurn: number,
+  pirateModifiers?: PirateEconomyModifiers,
+): GameState {
   const civ = state.civilizations[civId];
   if (!civ) return state;
 
-  const status = calculateCivEconomy(state, civId, { grossGoldPerTurn });
+  const status = calculateCivEconomy(state, civId, { grossGoldPerTurn, pirateModifiers });
   return {
     ...state,
     civilizations: {

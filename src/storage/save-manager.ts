@@ -10,11 +10,13 @@ import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { scanIdCounters } from '@/core/id-counters';
 import {
   createEmptyPirateState,
+  PIRATE_RELOCATION_DIRECTIONS,
   PIRATE_STATE_VERSION,
   type PirateFactionIntel,
   type PirateFactionState,
   type PirateHeadquarters,
   type PirateHistoryEntry,
+  type PirateRelocationDirection,
   type PirateState,
 } from '@/core/pirate-state';
 import type { NotificationEntry, NotificationLog } from '@/core/notification-log';
@@ -124,6 +126,11 @@ function isFiniteCoord(value: unknown): boolean {
   return Number.isFinite(coord.q) && Number.isFinite(coord.r);
 }
 
+function isPirateRelocationDirection(value: unknown): value is PirateRelocationDirection {
+  return typeof value === 'string'
+    && (PIRATE_RELOCATION_DIRECTIONS as readonly string[]).includes(value);
+}
+
 function normalizePirateHeadquarters(value: unknown): PirateHeadquarters | null {
   if (!isRecord(value)) return null;
   if (value.kind === 'coastal-enclave') {
@@ -140,9 +147,13 @@ function normalizePirateHeadquarters(value: unknown): PirateHeadquarters | null 
   const relocation = isRecord(value.relocation) ? value.relocation : {};
   const planned = isRecord(relocation.planned)
     && Number.isFinite(relocation.planned.plannedRound)
+    && Number(relocation.planned.plannedRound) >= 0
     && Number.isFinite(relocation.planned.resolvesOnRound)
-    && typeof relocation.planned.direction === 'string'
+    && Number(relocation.planned.resolvesOnRound) === Number(relocation.planned.plannedRound) + 1
+    && isPirateRelocationDirection(relocation.planned.direction)
     && Array.isArray(relocation.planned.path)
+    && relocation.planned.path.length >= 2
+    && relocation.planned.path.length <= 4
     && relocation.planned.path.every(isFiniteCoord)
     ? {
         plannedRound: Number(relocation.planned.plannedRound),
@@ -229,6 +240,10 @@ function normalizePirateIntel(value: unknown, state: GameState, factions: Pirate
         ...(Array.isArray(rawIntel.observedUnitIds)
           ? { observedUnitIds: rawIntel.observedUnitIds.filter((id): id is string => typeof id === 'string') }
           : {}),
+        ...(rawIntel.level === 'tracked'
+          && isPirateRelocationDirection(rawIntel.plannedRelocationDirection)
+          ? { plannedRelocationDirection: rawIntel.plannedRelocationDirection }
+          : {}),
       };
     }
     intelByCiv[civId] = normalizedByFaction;
@@ -269,6 +284,12 @@ export function normalizePirateState(state: GameState): PirateState {
       if (rawFaction.behavior !== 'patrolling' && rawFaction.behavior !== 'raiding' && rawFaction.behavior !== 'blockading') continue;
       if (![1, 2, 3, 4, 5].includes(Number(rawFaction.maritimeStage))) continue;
       const transitionGuards = isRecord(rawFaction.transitionGuards) ? rawFaction.transitionGuards : {};
+      const reminderRounds: Record<string, number> = {};
+      if (isRecord(transitionGuards.lastDemandReminderRoundByCiv)) {
+        for (const [civId, round] of Object.entries(transitionGuards.lastDemandReminderRoundByCiv)) {
+          if (state.civilizations[civId] && Number.isFinite(round)) reminderRounds[civId] = Math.max(0, Number(round));
+        }
+      }
       const faction: PirateFactionState = {
         id: factionId as PirateFactionState['id'],
         name: rawFaction.name,
@@ -288,6 +309,16 @@ export function normalizePirateState(state: GameState): PirateState {
           emittedEventKeys: [...new Set(Array.isArray(transitionGuards.emittedEventKeys)
             ? transitionGuards.emittedEventKeys.filter((key): key is string => typeof key === 'string')
             : [])],
+          ...(Object.keys(reminderRounds).length > 0 ? { lastDemandReminderRoundByCiv: reminderRounds } : {}),
+          ...(Number.isFinite(transitionGuards.lastBehaviorTransitionRound)
+            ? { lastBehaviorTransitionRound: Math.max(0, Number(transitionGuards.lastBehaviorTransitionRound)) }
+            : {}),
+          ...(Number.isFinite(transitionGuards.lastStageReinforcementRound)
+            ? { lastStageReinforcementRound: Math.max(0, Number(transitionGuards.lastStageReinforcementRound)) }
+            : {}),
+          ...(Number.isFinite(transitionGuards.lastFlagshipAttackedRound)
+            ? { lastFlagshipAttackedRound: Math.max(0, Number(transitionGuards.lastFlagshipAttackedRound)) }
+            : {}),
         },
       };
       if (isRecord(rawFaction.tributeByCiv)) {
