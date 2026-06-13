@@ -2,6 +2,7 @@ import type { EventBus } from '@/core/event-bus';
 import type { GameEvent, GameState } from '@/core/types';
 import { collectEvent } from '@/core/hotseat-events';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
+import type { MinorCivNotificationEvent } from '@/ui/minor-civ-notifications';
 import type { NotificationSink } from '@/ui/notification-routing';
 
 interface MinorCivNotificationListenerOptions {
@@ -20,9 +21,17 @@ export function registerMinorCivNotificationListeners(
   options: MinorCivNotificationListenerOptions,
 ): void {
   const { appendToCivLog } = options;
+  const routeOwnedEvent = (event: MinorCivNotificationEvent, hotSeatType: string, authoritativeState?: GameState) => {
+    if (!('majorCivId' in event)) return;
+    const state = authoritativeState ?? getState();
+    const notification = getMinorCivNotification(state, event.majorCivId, event);
+    if (!notification) return;
+    queueHotSeatEvent(state, event.majorCivId, { type: hotSeatType, message: notification.message, turn: state.turn });
+    appendToCivLog(event.majorCivId, notification.message, notification.type);
+  };
 
   bus.on('minor-civ:quest-issued', data => {
-    const state = getState();
+    const state = data.state ?? getState();
     const notification = getMinorCivNotification(state, data.majorCivId, {
       type: 'minor-civ:quest-issued',
       majorCivId: data.majorCivId,
@@ -35,7 +44,7 @@ export function registerMinorCivNotificationListeners(
   });
 
   bus.on('minor-civ:quest-completed', data => {
-    const state = getState();
+    const state = data.state ?? getState();
     const notification = getMinorCivNotification(state, data.majorCivId, {
       type: 'minor-civ:quest-completed',
       majorCivId: data.majorCivId,
@@ -45,6 +54,26 @@ export function registerMinorCivNotificationListeners(
     if (!notification) return;
     queueHotSeatEvent(state, data.majorCivId, { type: 'minor-civ:quest-done', message: notification.message, turn: state.turn });
     appendToCivLog(data.majorCivId, notification.message, notification.type);
+  });
+
+  bus.on('minor-civ:quest-progressed', data => {
+    routeOwnedEvent({ type: 'minor-civ:quest-progressed', ...data }, 'minor-civ:quest-progressed', data.state);
+  });
+
+  bus.on('minor-civ:quest-retargeted', data => {
+    routeOwnedEvent({ type: 'minor-civ:quest-retargeted', ...data }, 'minor-civ:quest-retargeted', data.state);
+  });
+
+  bus.on('minor-civ:quest-chain-pending', data => {
+    routeOwnedEvent({ type: 'minor-civ:quest-chain-pending', ...data }, 'minor-civ:quest-pending', data.state);
+  });
+
+  bus.on('minor-civ:quest-cancelled', data => {
+    routeOwnedEvent({ type: 'minor-civ:quest-cancelled', ...data }, 'minor-civ:quest-cancelled', data.state);
+  });
+
+  bus.on('minor-civ:alliance-broken', data => {
+    routeOwnedEvent({ type: 'minor-civ:alliance-broken', ...data }, 'minor-civ:alliance-broken', data.state);
   });
 
   bus.on('minor-civ:evolved', data => {
@@ -78,7 +107,7 @@ export function registerMinorCivNotificationListeners(
   });
 
   bus.on('minor-civ:allied', data => {
-    const state = getState();
+    const state = data.state ?? getState();
     const notification = getMinorCivNotification(state, data.majorCivId, {
       type: 'minor-civ:allied',
       majorCivId: data.majorCivId,
@@ -90,7 +119,7 @@ export function registerMinorCivNotificationListeners(
   });
 
   bus.on('minor-civ:relationship-threshold', data => {
-    const state = getState();
+    const state = data.state ?? getState();
     const notification = getMinorCivNotification(state, data.majorCivId, {
       type: 'minor-civ:relationship-threshold',
       majorCivId: data.majorCivId,
@@ -115,7 +144,7 @@ export function registerMinorCivNotificationListeners(
   });
 
   bus.on('minor-civ:quest-expired', data => {
-    const state = getState();
+    const state = data.state ?? getState();
     const notification = getMinorCivNotification(state, data.majorCivId, {
       type: 'minor-civ:quest-expired',
       majorCivId: data.majorCivId,

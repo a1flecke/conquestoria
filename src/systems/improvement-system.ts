@@ -7,7 +7,7 @@ import type {
   TerrainType,
   WorkerActionType,
 } from '@/core/types';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 // Improvements that only make sense on tiles with a specific resource.

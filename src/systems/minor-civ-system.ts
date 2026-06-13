@@ -1,4 +1,4 @@
-import type { GameState, MinorCivState, HexCoord, City, Unit, UnitType } from '@/core/types';
+import type { GameState, MinorCivArchetype, MinorCivState, HexCoord, City, Unit, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { getEraAdvancementTechs } from './tech-definitions';
@@ -8,10 +8,18 @@ import { hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-uti
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { foundCity } from './city-system';
 import { collectUsedCityNames } from './city-name-system';
-import { generateQuest, checkQuestCompletion, processQuestExpiry, awardQuestReward } from './quest-system';
+import { generateQuest } from './quest-system';
+import { isMinorCivAtWar } from './minor-civ-diplomacy';
 import { resolveCombat } from './combat-system';
 import { hasDiscoveredMinorCiv } from './discovery-system';
 import { canAttackByProfileOnMap } from './attack-targeting';
+import {
+  type ChainTransition,
+  emitMinorCivQuestTransitions,
+  getMinorCivRelationshipStatus,
+  isMinorCivAllianceActive,
+  reconcileMinorCivQuestTurn,
+} from './quest-chain-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -107,6 +115,9 @@ export function placeMinorCivs(
       units: [garrison.id],
       diplomacy: createDiplomacyState(majorCivIds, `mc-${def.id}`, 0),
       activeQuests: {},
+      chainStatusByCiv: {},
+      questCooldownUntilByCiv: {},
+      lastNotifiedStatusByCiv: {},
       isDestroyed: false,
       garrisonCooldown: 0,
       lastEraUpgrade: 1,
@@ -145,70 +156,69 @@ function hashSeed(seed: string): number {
 // === Turn Processing ===
 
 export function processMinorCivTurn(state: GameState, bus: EventBus): GameState {
-  for (const [_mcId, mc] of Object.entries(state.minorCivs)) {
+  let nextState = structuredClone(state);
+  for (const mcId of Object.keys(nextState.minorCivs).sort()) {
+    let mc = nextState.minorCivs[mcId];
     if (mc.isDestroyed) continue;
 
     const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
     if (!def) continue;
 
-    processMovement(state, mc);
-    processQuests(state, mc, def, bus);
-    state = applyAllyBonuses(state, mc, def, bus);
-    state = processGarrison(state, mc);
-    emitRelationshipThresholds(state, mc, bus);
+    processMovement(nextState, mc);
+    nextState = processQuests(nextState, mcId, def, bus);
+    mc = nextState.minorCivs[mcId];
+    nextState = applyAllyBonuses(nextState, mc, def);
+    mc = nextState.minorCivs[mcId];
+    nextState = processGarrison(nextState, mc);
+    emitRelationshipThresholds(nextState, nextState.minorCivs[mcId], bus);
   }
 
-  return state;
+  return nextState;
 }
 
-function processQuests(state: GameState, mc: MinorCivState, def: { archetype: any }, bus: EventBus): void {
+function processQuests(
+  state: GameState,
+  minorCivId: string,
+  def: { archetype: MinorCivArchetype },
+  bus: EventBus,
+): GameState {
+  let nextState = state;
   const majorCivIds = Object.keys(state.civilizations);
   for (const civId of majorCivIds) {
-    if (!hasDiscoveredMinorCiv(state, civId, mc.id)) {
-      continue;
-    }
-    const quest = mc.activeQuests[civId];
-    if (quest) {
-      const expiredQuest = processQuestExpiry(quest, state.turn);
-      if (expiredQuest.status === 'expired') {
-        delete mc.activeQuests[civId];
-        mc.diplomacy = modifyRelationship(mc.diplomacy, civId, -5);
-        bus.emit('minor-civ:quest-expired', { minorCivId: mc.id, majorCivId: civId, quest });
-        continue;
-      }
+    const mc = nextState.minorCivs[minorCivId];
+    if (!hasDiscoveredMinorCiv(nextState, civId, minorCivId)) continue;
+    if (isMinorCivAtWar(nextState, civId, minorCivId)) continue;
 
-      if (checkQuestCompletion(quest, state)) {
-        quest.status = 'completed';
-        const reward = awardQuestReward(quest.reward);
-        mc.diplomacy = modifyRelationship(mc.diplomacy, civId, reward.relationshipBonus);
-        if (reward.gold && state.civilizations[civId]) {
-          state.civilizations[civId].gold += reward.gold;
-        }
-        if (reward.science && state.civilizations[civId]?.techState.currentResearch) {
-          const bonusResult = applyResearchBonus(state.civilizations[civId].techState, reward.science);
-          state.civilizations[civId].techState = bonusResult.state;
-        }
-        bus.emit('minor-civ:quest-completed', { minorCivId: mc.id, majorCivId: civId, quest, reward });
-        delete mc.activeQuests[civId];
-        (mc as any)[`_cooldown_${civId}`] = state.turn + 3;
-      }
-    } else {
-      const cooldownUntil = (mc as any)[`_cooldown_${civId}`] ?? 0;
-      if (state.turn >= cooldownUntil) {
-        const rng = makeRng(state.turn * 16807 + civId.charCodeAt(0) + mc.id.charCodeAt(3));
-        const newQuest = generateQuest(def.archetype, mc.id, civId, state.turn, state, rng, state.idCounters);
-        if (newQuest) {
-          mc.activeQuests[civId] = newQuest;
-          bus.emit('minor-civ:quest-issued', { minorCivId: mc.id, majorCivId: civId, quest: newQuest });
-        }
-      }
+    const reconciled = reconcileMinorCivQuestTurn(nextState, minorCivId, civId, nextState.turn);
+    nextState = reconciled.state;
+    emitMinorCivQuestTransitions(bus, reconciled.transitions, nextState);
+
+    const current = nextState.minorCivs[minorCivId];
+    if (current.activeQuests[civId] || current.chainStatusByCiv[civId]?.status === 'pending') continue;
+    if (nextState.turn < (current.questCooldownUntilByCiv[civId] ?? 0)) continue;
+    if (current.chainStatusByCiv[civId]?.status === 'allied') continue;
+
+    const rng = makeRng(nextState.turn * 16807 + civId.charCodeAt(0) + minorCivId.charCodeAt(3));
+    const newQuest = generateQuest(
+      def.archetype,
+      minorCivId,
+      civId,
+      nextState.turn,
+      nextState,
+      rng,
+      nextState.idCounters,
+    );
+    if (newQuest) {
+      current.activeQuests[civId] = newQuest;
+      emitMinorCivQuestTransitions(bus, [{ type: 'issued', minorCivId, majorCivId: civId, quest: newQuest }], nextState);
     }
   }
+  return nextState;
 }
 
-function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus: any }, bus: EventBus): GameState {
-  for (const [civId, rel] of Object.entries(mc.diplomacy.relationships)) {
-    if (rel < 60) continue;
+function applyAllyBonuses(state: GameState, mc: MinorCivState, def: { allyBonus: any }): GameState {
+  for (const civId of Object.keys(mc.diplomacy.relationships)) {
+    if (!isMinorCivAllianceActive(state, civId, mc.id)) continue;
 
     const civ = state.civilizations[civId];
     if (!civ) continue;
@@ -277,30 +287,19 @@ function processMovement(state: GameState, mc: MinorCivState): void {
   }
 }
 
-function getRelationshipStatus(rel: number): 'hostile' | 'neutral' | 'friendly' | 'allied' {
-  if (rel <= -60) return 'hostile';
-  if (rel >= 60) return 'allied';
-  if (rel >= 30) return 'friendly';
-  return 'neutral';
-}
-
 function emitRelationshipThresholds(state: GameState, mc: MinorCivState, bus: EventBus): void {
-  if (!(mc as any)._prevStatus) (mc as any)._prevStatus = {} as Record<string, string>;
-
-  for (const [civId, rel] of Object.entries(mc.diplomacy.relationships)) {
-    const currentStatus = getRelationshipStatus(rel);
-    const prevStatus = (mc as any)._prevStatus[civId] ?? 'neutral';
+  for (const civId of Object.keys(mc.diplomacy.relationships)) {
+    const currentStatus = getMinorCivRelationshipStatus(state, civId, mc.id);
+    const prevStatus = mc.lastNotifiedStatusByCiv[civId] ?? 'neutral';
 
     if (currentStatus !== prevStatus) {
-      (mc as any)._prevStatus[civId] = currentStatus;
+      mc.lastNotifiedStatusByCiv[civId] = currentStatus;
       bus.emit('minor-civ:relationship-threshold', {
         minorCivId: mc.id,
         majorCivId: civId,
         newStatus: currentStatus,
+        state,
       });
-      if (currentStatus === 'allied') {
-        bus.emit('minor-civ:allied', { minorCivId: mc.id, majorCivId: civId });
-      }
     }
   }
 }
@@ -343,42 +342,55 @@ export function conquestMinorCiv(
   state: GameState,
   mcId: string,
   conquerorId: string,
-  bus: EventBus,
-): void {
-  const mc = state.minorCivs[mcId];
-  if (!mc || mc.isDestroyed) return;
+): { state: GameState; transitions: ChainTransition[]; conquered: boolean } {
+  const existing = state.minorCivs[mcId];
+  if (!existing || existing.isDestroyed) return { state, transitions: [], conquered: false };
+  const nextState = structuredClone(state);
+  const mc = nextState.minorCivs[mcId];
+  const transitions: ChainTransition[] = [];
+  for (const [majorCivId, status] of Object.entries(mc.chainStatusByCiv)) {
+    if (status.status === 'allied') {
+      transitions.push({ type: 'alliance-broken', majorCivId, minorCivId: mcId, chainId: status.chainId });
+    }
+  }
 
   mc.isDestroyed = true;
+  mc.activeQuests = {};
+  mc.chainStatusByCiv = {};
+  mc.questCooldownUntilByCiv = {};
+  mc.lastNotifiedStatusByCiv = {};
 
-  const city = state.cities[mc.cityId];
+  const city = nextState.cities[mc.cityId];
   if (city) {
     city.owner = conquerorId;
-    const civ = state.civilizations[conquerorId];
+    const civ = nextState.civilizations[conquerorId];
     if (civ && !civ.cities.includes(mc.cityId)) {
       civ.cities.push(mc.cityId);
     }
   }
 
   for (const uid of mc.units) {
-    delete state.units[uid];
+    delete nextState.units[uid];
   }
   mc.units = [];
 
-  for (const [otherId, otherMc] of Object.entries(state.minorCivs)) {
+  for (const [otherId, otherMc] of Object.entries(nextState.minorCivs)) {
     if (otherId === mcId || otherMc.isDestroyed) continue;
     const otherDef = MINOR_CIV_DEFINITIONS.find(d => d.id === otherMc.definitionId);
     const penalty = otherDef?.archetype === 'militaristic' ? -10 : -20;
     otherMc.diplomacy = modifyRelationship(otherMc.diplomacy, conquerorId, penalty);
   }
 
-  bus.emit('minor-civ:destroyed', { minorCivId: mcId, conquerorId });
+  return { state: nextState, transitions, conquered: true };
 }
 
 // === Guerrilla & Scuffles ===
 
 export function processGuerrilla(state: GameState, mc: MinorCivState, bus: EventBus): GameState {
   if (mc.isDestroyed) return state;
-  if (mc.diplomacy.atWarWith.length === 0) return state;
+  const targetCivId = Object.keys(state.civilizations)
+    .find(civId => isMinorCivAtWar(state, civId, mc.id));
+  if (!targetCivId) return state;
 
   const guerrillaCount = mc.units.filter(uid => state.units[uid]).length - 1;
   if (guerrillaCount >= 2) return state;
@@ -396,7 +408,7 @@ export function processGuerrilla(state: GameState, mc: MinorCivState, bus: Event
 
   bus.emit('minor-civ:guerrilla', {
     minorCivId: mc.id,
-    targetCivId: mc.diplomacy.atWarWith[0],
+    targetCivId,
     position: city.position,
   });
   return state;
@@ -496,6 +508,9 @@ export function checkCampEvolution(
       units: [garrison.id, ...transferIds],
       diplomacy: createDiplomacyState(majorCivIds, `mc-${def.id}`, 0),
       activeQuests: {},
+      chainStatusByCiv: {},
+      questCooldownUntilByCiv: {},
+      lastNotifiedStatusByCiv: {},
       isDestroyed: false,
       garrisonCooldown: 0,
       lastEraUpgrade: state.era,

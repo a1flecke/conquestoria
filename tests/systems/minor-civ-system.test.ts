@@ -166,12 +166,41 @@ describe('minor civ turn processing', () => {
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
     const mc = state.minorCivs[mcId];
-    // Set relationship to allied (+60)
+    mc.definitionId = 'carthage';
     mc.diplomacy.relationships.player = 65;
+    mc.chainStatusByCiv.player = {
+      chainId: 'trade-partnership', status: 'allied', statusTurn: state.turn, earnedTurn: state.turn,
+    };
+    const goldBefore = state.civilizations.player.gold;
 
     const result = processMinorCivTurn(state, bus);
-    // At minimum, verify no crash
-    expect(result).toBeDefined();
+    expect(result.civilizations.player.gold).toBe(goldBefore + 5);
+  });
+
+  it('does not apply an ally bonus from relationship score alone', () => {
+    const state = createNewGame(undefined, 'mc-score-not-alliance', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    const mc = state.minorCivs[mcId];
+    mc.definitionId = 'carthage';
+    mc.diplomacy.relationships.player = 65;
+    const goldBefore = state.civilizations.player.gold;
+
+    const result = processMinorCivTurn(state, bus);
+
+    expect(result.civilizations.player.gold).toBe(goldBefore);
+  });
+
+  it('does not mutate the input state while processing quests and garrisons', () => {
+    const state = createNewGame(undefined, 'mc-turn-immutable', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    const city = state.cities[state.minorCivs[mcId].cityId];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+    const before = structuredClone(state);
+
+    const result = processMinorCivTurn(state, new EventBus());
+
+    expect(state).toEqual(before);
+    expect(result).not.toBe(state);
   });
 
   it('skips destroyed minor civs', () => {
@@ -207,6 +236,8 @@ describe('minor civ turn processing', () => {
     const state = createNewGame(undefined, 'mc-discovered-quest', 'small');
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
+    state.minorCivs[mcId].definitionId = 'carthage';
+    state.civilizations.player.gold = 500;
     const city = state.cities[state.minorCivs[mcId].cityId];
     state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
 
@@ -218,9 +249,10 @@ describe('minor civ turn processing', () => {
       }
     });
 
-    processMinorCivTurn(state, localBus);
+    const result = processMinorCivTurn(state, localBus);
 
-    expect(state.minorCivs[mcId].activeQuests.player).toBeDefined();
+    expect(result.minorCivs[mcId].activeQuests.player).toBeDefined();
+    expect(state.minorCivs[mcId].activeQuests.player).toBeUndefined();
     expect(questIssued).toBe(true);
   });
 });
@@ -292,8 +324,9 @@ describe('conquest mechanics', () => {
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
 
-    conquestMinorCiv(state, mcId, 'player', bus);
-    expect(state.minorCivs[mcId].isDestroyed).toBe(true);
+    const result = conquestMinorCiv(state, mcId, 'player');
+    expect(result.state.minorCivs[mcId].isDestroyed).toBe(true);
+    expect(state.minorCivs[mcId].isDestroyed).toBe(false);
   });
 
   it('transfers city to conqueror', () => {
@@ -302,9 +335,9 @@ describe('conquest mechanics', () => {
     if (!mcId) return;
     const mc = state.minorCivs[mcId];
 
-    conquestMinorCiv(state, mcId, 'player', bus);
-    expect(state.cities[mc.cityId].owner).toBe('player');
-    expect(state.civilizations.player.cities).toContain(mc.cityId);
+    const result = conquestMinorCiv(state, mcId, 'player');
+    expect(result.state.cities[mc.cityId].owner).toBe('player');
+    expect(result.state.civilizations.player.cities).toContain(mc.cityId);
   });
 
   it('applies conquest penalty to other minor civs', () => {
@@ -312,10 +345,10 @@ describe('conquest mechanics', () => {
     const mcIds = Object.keys(state.minorCivs);
     if (mcIds.length < 2) return;
 
-    conquestMinorCiv(state, mcIds[0], 'player', bus);
+    const result = conquestMinorCiv(state, mcIds[0], 'player');
 
     for (let i = 1; i < mcIds.length; i++) {
-      const mc = state.minorCivs[mcIds[i]];
+      const mc = result.state.minorCivs[mcIds[i]];
       expect(mc.diplomacy.relationships.player).toBeLessThan(0);
     }
   });
@@ -363,6 +396,9 @@ describe('scuffles between minor civs', () => {
         units: ['sparta-warrior'],
         diplomacy: {} as any,
         activeQuests: {},
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
         isDestroyed: false,
         garrisonCooldown: 0,
         lastEraUpgrade: 1,
@@ -374,6 +410,9 @@ describe('scuffles between minor civs', () => {
         units: ['carthage-warrior'],
         diplomacy: {} as any,
         activeQuests: {},
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
         isDestroyed: false,
         garrisonCooldown: 0,
         lastEraUpgrade: 1,

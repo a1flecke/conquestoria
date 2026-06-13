@@ -824,7 +824,8 @@ export interface BeastsState {
 
 // --- Minor Civilizations ---
 
-export type MinorCivArchetype = 'militaristic' | 'mercantile' | 'cultural';
+export const MINOR_CIV_ARCHETYPES = ['militaristic', 'mercantile', 'cultural'] as const;
+export type MinorCivArchetype = typeof MINOR_CIV_ARCHETYPES[number];
 
 export type AllyBonus =
   | { type: 'free_unit'; unitType: UnitType; everyNTurns: number }
@@ -841,13 +842,15 @@ export interface MinorCivDefinition {
   color: string;
 }
 
-export type QuestType = 'destroy_camp' | 'gift_gold' | 'defeat_units' | 'trade_route';
+export const QUEST_TYPES = ['destroy_camp', 'gift_gold', 'defeat_units', 'trade_route', 'sponsor_festival'] as const;
+export type QuestType = typeof QUEST_TYPES[number];
 
 export type QuestTarget =
-  | { type: 'destroy_camp'; campId: string }
+  | { type: 'destroy_camp'; campId: string; position: HexCoord }
   | { type: 'gift_gold'; amount: number }
   | { type: 'defeat_units'; count: number; nearPosition: HexCoord; radius: number; cityId?: string }
-  | { type: 'trade_route'; minorCivId: string };
+  | { type: 'trade_route'; minorCivId: string }
+  | { type: 'sponsor_festival'; amount: number; requiresLuxury: true };
 
 export interface QuestReward {
   relationshipBonus: number;
@@ -856,20 +859,43 @@ export interface QuestReward {
   freeUnit?: UnitType;
 }
 
-export interface Quest {
+interface QuestBase {
   id: string;
   type: QuestType;
   description: string;
   target: QuestTarget;
   cityId?: string;
-  minorCivId?: string;
   reward: QuestReward;
   progress: number;
   status: 'active' | 'completed' | 'expired';
   turnIssued: number;
   expiresOnTurn: number | null;
-  chainNext?: string;
 }
+
+export type Quest = QuestBase & (
+  | { chainId?: never; stepIndex?: never }
+  | { chainId: string; stepIndex: 0 | 1 | 2 }
+);
+
+export type MinorCivChainStatus =
+  | {
+      chainId: string;
+      status: 'pending';
+      statusTurn: number;
+      pendingStepIndex: 0 | 1 | 2;
+      pendingExpiresOnTurn: number;
+    }
+  | { chainId: string; status: 'allied'; statusTurn: number; earnedTurn: number }
+  | { chainId: string; status: 'broken'; statusTurn: number; earnedTurn: number };
+
+export type MinorCivRelationshipStatus = 'at-war' | 'hostile' | 'neutral' | 'friendly' | 'allied';
+
+export type QuestAction =
+  | { type: 'gift_gold'; actorCivId: string; minorCivId: string; amount: number; turn: number }
+  | { type: 'sponsor_festival'; actorCivId: string; minorCivId: string; turn: number }
+  | { type: 'trade_route_created'; actorCivId: string; fromCityId: string; toCityId: string; routeId: string; turn: number }
+  | { type: 'unit_defeated'; actorCivId: string; defeatedOwnerId: string; unitId: string; position: HexCoord; turn: number }
+  | { type: 'camp_destroyed'; actorCivId: string; campId: string; position: HexCoord; turn: number };
 
 export interface MinorCivState {
   id: string;
@@ -878,6 +904,9 @@ export interface MinorCivState {
   units: string[];
   diplomacy: DiplomacyState;
   activeQuests: Record<string, Quest>;
+  chainStatusByCiv: Record<string, MinorCivChainStatus>;
+  questCooldownUntilByCiv: Record<string, number>;
+  lastNotifiedStatusByCiv: Record<string, MinorCivRelationshipStatus>;
   isDestroyed: boolean;
   garrisonCooldown: number;
   lastEraUpgrade: number;
@@ -1267,16 +1296,21 @@ export interface GameEvents {
   'ui:select-unit': { unitId: string };
   'ui:select-city': { cityId: string };
   'ui:deselect': {};
-  'minor-civ:quest-issued': { minorCivId: string; majorCivId: string; quest: Quest };
-  'minor-civ:quest-completed': { minorCivId: string; majorCivId: string; quest: Quest; reward: QuestReward };
+  'minor-civ:quest-issued': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
+  'minor-civ:quest-progressed': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
+  'minor-civ:quest-retargeted': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
+  'minor-civ:quest-cancelled': { minorCivId: string; majorCivId: string; chainId: string; stepIndex: number; state?: GameState };
+  'minor-civ:quest-chain-pending': { minorCivId: string; majorCivId: string; chainId: string; stepIndex: number; state?: GameState };
+  'minor-civ:quest-completed': { minorCivId: string; majorCivId: string; quest: Quest; reward: QuestReward; state?: GameState };
   'minor-civ:evolved': { campId: string; minorCivId: string; position: HexCoord };
   'minor-civ:destroyed': { minorCivId: string; conquerorId: string };
-  'minor-civ:allied': { minorCivId: string; majorCivId: string };
+  'minor-civ:allied': { minorCivId: string; majorCivId: string; chainId?: string; state?: GameState };
+  'minor-civ:alliance-broken': { minorCivId: string; majorCivId: string; chainId: string; state?: GameState };
   'minor-civ:scuffle': { attackerId: string; defenderId: string; position: HexCoord };
   'minor-civ:guerrilla': { minorCivId: string; targetCivId: string; position: HexCoord };
   'minor-civ:era-upgrade': { minorCivId: string; newEra: number };
-  'minor-civ:relationship-threshold': { minorCivId: string; majorCivId: string; newStatus: 'hostile' | 'neutral' | 'friendly' | 'allied' };
-  'minor-civ:quest-expired': { minorCivId: string; majorCivId: string; quest: Quest };
+  'minor-civ:relationship-threshold': { minorCivId: string; majorCivId: string; newStatus: MinorCivRelationshipStatus; state?: GameState };
+  'minor-civ:quest-expired': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
   'espionage:spy-recruited': { civId: string; spy: Spy };
   'espionage:spy-assigned': { civId: string; spyId: string; targetCivId: string; targetCityId: string };
   'espionage:spy-arrived': { civId: string; spyId: string; targetCityId: string };

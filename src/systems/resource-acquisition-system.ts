@@ -1,6 +1,6 @@
 import type { GameState, ResourceType, ResourceYield, PurchasedResourceEntry } from '@/core/types';
 import { hexKey } from './hex-utils';
-import { RESOURCE_DEFINITIONS } from './trade-system';
+import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { isAtWar } from './diplomacy-system';
 
 /**

@@ -55,7 +55,9 @@ function canAttackOwner(state: GameState, attackerOwner: string, targetOwner: st
   if (attackerOwner === 'barbarian' || attackerOwner === 'rebels') return true;
   if (targetOwner === 'barbarian' || targetOwner === 'rebels') return true;
   if (attackerOwner === 'beasts' || targetOwner === 'beasts') return true;
-  if (targetOwner.startsWith('mc-')) return state.civilizations[attackerOwner]?.isHuman === true;
+  if (targetOwner.startsWith('mc-')) {
+    return state.civilizations[attackerOwner]?.diplomacy.atWarWith.includes(targetOwner) ?? false;
+  }
   const diplomacy = state.civilizations[attackerOwner]?.diplomacy;
   return diplomacy ? isAtWar(diplomacy, targetOwner) : false;
 }

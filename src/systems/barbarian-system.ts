@@ -2,6 +2,7 @@ import type { BarbarianCamp, GameMap, GameState, HexCoord, IdCounters, Unit } fr
 import { canAttackByProfileOnMap } from './attack-targeting';
 import { hexKey, hexDistance, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import { selectDefenderForAttack } from './combat-system';
+import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -61,10 +62,10 @@ export function applyCampDestruction(
   civId: string,
   campId: string,
   turn: number,
-): { state: GameState; reward: number } {
+): { state: GameState; reward: number; questTransitions: ChainTransition[] } {
   const camp = state.barbarianCamps[campId];
   if (!camp) {
-    return { state, reward: 0 };
+    return { state, reward: 0, questTransitions: [] };
   }
 
   const reward = destroyCamp(camp);
@@ -79,7 +80,10 @@ export function applyCampDestruction(
   };
   nextState.civilizations[civId].gold += reward;
 
-  return { state: nextState, reward };
+  const progress = applyQuestGameplayAction(nextState, {
+    type: 'camp_destroyed', actorCivId: civId, campId, position: camp.position, turn,
+  });
+  return { state: progress.state, reward, questTransitions: progress.transitions };
 }
 
 export function applyCampDestructionAtTarget(
@@ -87,12 +91,12 @@ export function applyCampDestructionAtTarget(
   civId: string,
   target: HexCoord,
   turn: number,
-): { state: GameState; reward: number; campId: string | null } {
+): { state: GameState; reward: number; campId: string | null; questTransitions: ChainTransition[] } {
   const campEntry = Object.entries(state.barbarianCamps).find(([, camp]) =>
     hexKey(camp.position) === hexKey(target),
   );
   if (!campEntry) {
-    return { state, reward: 0, campId: null };
+    return { state, reward: 0, campId: null, questTransitions: [] };
   }
 
   const [campId] = campEntry;
@@ -101,6 +105,7 @@ export function applyCampDestructionAtTarget(
     state: destroyed.state,
     reward: destroyed.reward,
     campId,
+    questTransitions: destroyed.questTransitions,
   };
 }
 

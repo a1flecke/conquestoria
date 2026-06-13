@@ -1,6 +1,7 @@
-import type { GameState, Quest } from '@/core/types';
+import type { GameState, Quest, QuestReward } from '@/core/types';
 import type { NotificationEntry } from '@/ui/notification-log';
-import { getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
+import { getQuestDescriptionForPlayer, getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
+import { formatQuestReward } from '@/systems/quest-presentation';
 import {
   formatMinorCivEventMessageForPlayer,
   getMinorCivPresentationForPlayer,
@@ -8,10 +9,15 @@ import {
 
 export type MinorCivNotificationEvent =
   | { type: 'minor-civ:quest-issued'; majorCivId: string; minorCivId: string; quest: Quest }
-  | { type: 'minor-civ:quest-completed'; majorCivId: string; minorCivId: string; reward: { gold?: number; science?: number } }
+  | { type: 'minor-civ:quest-progressed'; majorCivId: string; minorCivId: string; quest: Quest }
+  | { type: 'minor-civ:quest-retargeted'; majorCivId: string; minorCivId: string; quest: Quest }
+  | { type: 'minor-civ:quest-cancelled'; majorCivId: string; minorCivId: string }
+  | { type: 'minor-civ:quest-chain-pending'; majorCivId: string; minorCivId: string }
+  | { type: 'minor-civ:quest-completed'; majorCivId: string; minorCivId: string; reward: QuestReward }
   | { type: 'minor-civ:evolved'; minorCivId: string }
   | { type: 'minor-civ:destroyed'; minorCivId: string }
   | { type: 'minor-civ:allied'; majorCivId: string; minorCivId: string }
+  | { type: 'minor-civ:alliance-broken'; majorCivId: string; minorCivId: string }
   | { type: 'minor-civ:relationship-threshold'; majorCivId: string; minorCivId: string; newStatus: string }
   | { type: 'minor-civ:guerrilla'; targetCivId: string; minorCivId: string }
   | { type: 'minor-civ:quest-expired'; majorCivId: string; minorCivId: string };
@@ -25,16 +31,8 @@ function getTargetedMinorCivPresentation(
   return presentation.known ? presentation : null;
 }
 
-function getQuestCompletedMessage(minorCivName: string, reward: { gold?: number; science?: number }): string {
-  const rewards: string[] = [];
-  if (reward.gold) rewards.push(`+${reward.gold} gold`);
-  if (reward.science) rewards.push(`+${reward.science} science`);
-
-  if (rewards.length === 0) {
-    return `${minorCivName} is grateful!`;
-  }
-
-  return `${minorCivName} is grateful! ${rewards.join(', ')}`;
+function getQuestCompletedMessage(minorCivName: string, reward: QuestReward): string {
+  return `${minorCivName} is grateful! ${formatQuestReward(reward)}`;
 }
 
 export function getMinorCivNotification(
@@ -95,12 +93,34 @@ export function getMinorCivNotification(
     };
   }
 
+  if (event.type === 'minor-civ:quest-progressed') {
+    const description = getQuestDescriptionForPlayer(state, viewerCivId, event.quest);
+    return { message: `Progress for ${presentation.name}: ${description}`, type: 'info', turn: state.turn };
+  }
+
+  if (event.type === 'minor-civ:quest-retargeted') {
+    const description = getQuestDescriptionForPlayer(state, viewerCivId, event.quest);
+    return { message: `${presentation.name} updated your objective: ${description}`, type: 'info', turn: state.turn };
+  }
+
+  if (event.type === 'minor-civ:quest-chain-pending') {
+    return { message: `${presentation.name} is preparing your next alliance objective`, type: 'info', turn: state.turn };
+  }
+
+  if (event.type === 'minor-civ:quest-cancelled') {
+    return { message: `${presentation.name} could not offer a feasible alliance objective`, type: 'info', turn: state.turn };
+  }
+
   if (event.type === 'minor-civ:allied') {
     return {
       message: `${presentation.name} is now your ally!`,
       type: 'success',
       turn: state.turn,
     };
+  }
+
+  if (event.type === 'minor-civ:alliance-broken') {
+    return { message: `Your durable alliance with ${presentation.name} has been broken`, type: 'warning', turn: state.turn };
   }
 
   if (event.type === 'minor-civ:relationship-threshold') {

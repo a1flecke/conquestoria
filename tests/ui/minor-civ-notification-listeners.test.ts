@@ -76,4 +76,33 @@ describe('minor-civ notification listeners', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]![0]).toBe(otherMajorId);
   });
+
+  it('queues turn-time quest events into the authoritative immutable next state', () => {
+    const stale = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'mc-authoritative-listener');
+    stale.pendingEvents = {};
+    const next = structuredClone(stale);
+    const minorCivId = getFirstMinorCivId(next);
+    discoverMinorCiv(next, 'player-1', minorCivId);
+    const bus = new EventBus();
+    registerMinorCivNotificationListeners(bus, () => stale, { appendToCivLog: vi.fn() });
+
+    bus.emit('minor-civ:quest-issued', {
+      majorCivId: 'player-1', minorCivId, state: next,
+      quest: {
+        id: 'quest-next-state', type: 'gift_gold', description: 'Gift 25 gold',
+        target: { type: 'gift_gold', amount: 25 }, reward: { relationshipBonus: 20 },
+        progress: 0, status: 'active', turnIssued: next.turn, expiresOnTurn: next.turn + 20,
+      },
+    });
+
+    expect(stale.pendingEvents?.['player-1']).toBeUndefined();
+    expect(next.pendingEvents?.['player-1']).toHaveLength(1);
+  });
 });

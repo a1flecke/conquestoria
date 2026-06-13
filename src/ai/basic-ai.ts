@@ -63,7 +63,10 @@ import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definit
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
-import { canEstablishRoute, establishRoute, getRouteCapacity, RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { canEstablishRoute, getRouteCapacity, RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
+import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
+import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
 
 function getPersonality(state: GameState, civType: string): PersonalityTraits {
   const def = resolveCivDefinition(state, civType);
@@ -439,11 +442,13 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           );
           const applied = applyCombatOutcomeToState(newState, result, seed);
           newState = applied.state;
+          emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
           civ = newState.civilizations[civId];
           if (applied.defenderDefeated) {
             const destroyedCamp = applyCampDestructionAtTarget(newState, civId, occupant.position, newState.turn);
             if (destroyedCamp.campId) {
               newState = destroyedCamp.state;
+              emitMinorCivQuestTransitions(bus, destroyedCamp.questTransitions, newState);
               for (const mcId of Object.keys(newState.minorCivs)) {
                 applyDiplomaticReaction(newState, 'camp_destroyed_nearby', civId, mcId);
               }
@@ -554,6 +559,25 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
+  // Pursue assigned economic chain steps before discretionary spending.
+  for (const minorCivId of Object.keys(newState.minorCivs).sort()) {
+    const quest = newState.minorCivs[minorCivId].activeQuests[civId];
+    if (quest?.target.type === 'gift_gold') {
+      const action = performMinorCivGift(newState, civId, minorCivId);
+      if (action.ok) {
+        newState = action.state;
+        emitMinorCivQuestTransitions(bus, action.transitions, newState);
+      }
+    } else if (quest?.target.type === 'sponsor_festival') {
+      const action = performMinorCivFestival(newState, civId, minorCivId);
+      if (action.ok) {
+        newState = action.state;
+        emitMinorCivQuestTransitions(bus, action.transitions, newState);
+      }
+    }
+  }
+  civ = newState.civilizations[civId];
+
   // --- Handle caravan route establishment ---
   const idleCaravans = (civ.units ?? [])
     .map(id => newState.units[id])
@@ -563,12 +587,22 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     // Try domestic cities first (own city), then foreign
     const ownCities = civ.cities.map(id => newState.cities[id]).filter((c): c is City => !!c);
     const foreignCities = Object.values(newState.cities).filter(c => c.owner !== civId);
-    const candidates = [...ownCities, ...foreignCities];
+    const assignedDestinationIds = new Set(Object.values(newState.minorCivs)
+      .map(minorCiv => minorCiv.activeQuests[civId])
+      .flatMap(quest => quest?.target.type === 'trade_route'
+        ? [newState.minorCivs[quest.target.minorCivId]?.cityId]
+        : [])
+      .filter((cityId): cityId is string => Boolean(cityId)));
+    const candidates = [...ownCities, ...foreignCities].sort((left, right) =>
+      Number(assignedDestinationIds.has(right.id)) - Number(assignedDestinationIds.has(left.id)));
     for (const candidate of candidates) {
       const check = canEstablishRoute(newState, caravan, candidate.id);
       if (check.ok) {
         const resourceDiversity = getCivAvailableResources(newState, civId).size;
-        newState = establishRoute(newState, caravan.id, candidate.id, bus, resourceDiversity);
+        const routeResult = establishQuestAwareRoute(newState, caravan.id, candidate.id, resourceDiversity);
+        newState = routeResult.state;
+        emitMinorCivQuestTransitions(bus, routeResult.questTransitions, newState);
+        bus.emit('trade:route-created', { route: routeResult.route });
         civ = newState.civilizations[civId];
         break;
       }

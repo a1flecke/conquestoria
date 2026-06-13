@@ -75,6 +75,24 @@ describe('destroyCamp', () => {
     expect(result.state.barbarianCamps['camp-1']).toBeUndefined();
     expect(result.reward).toBeGreaterThan(0);
   });
+
+  it('completes the matching camp quest at the destruction source', () => {
+    const state = createNewGame('egypt', 'camp-quest-source', 'small');
+    const minorCivId = Object.keys(state.minorCivs)[0];
+    state.barbarianCamps['camp-1'] = {
+      id: 'camp-1', position: { q: 4, r: 4 }, strength: 5, spawnCooldown: 0,
+    };
+    state.minorCivs[minorCivId].activeQuests.player = {
+      id: 'quest-camp', type: 'destroy_camp', description: 'Destroy the camp',
+      target: { type: 'destroy_camp', campId: 'camp-1', position: { q: 4, r: 4 } }, reward: { relationshipBonus: 10 },
+      progress: 0, status: 'active', turnIssued: state.turn, expiresOnTurn: state.turn + 20,
+    };
+
+    const result = applyCampDestruction(state, 'player', 'camp-1', state.turn);
+
+    expect(result.questTransitions.some(transition => transition.type === 'completed')).toBe(true);
+    expect(result.state.minorCivs[minorCivId].activeQuests.player).toBeUndefined();
+  });
 });
 
 describe('processBarbarians', () => {

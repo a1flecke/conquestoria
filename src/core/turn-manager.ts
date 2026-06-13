@@ -16,6 +16,7 @@ import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { resolveCombat } from '@/systems/combat-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { hexKey } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
@@ -544,6 +545,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
     const applied = applyCombatOutcomeToState(newState, result, combatSeed);
     newState = applied.state;
+    emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
     // Clean up trade routes for any committed caravans that died
     if (applied.attackerDefeated && attackerRouteId) {
       newState = removeRouteForUnit(newState, result.attackerId, bus, 'unit-died', attackerRouteId);
@@ -649,6 +651,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
       const applied = applyCombatOutcomeToState(newState, result, combatSeed);
       newState = applied.state;
+      emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
       // If the beast died on counterattack, record the slay
       if (applied.attackerDefeated) {
         const { state: afterSlay, slain } = recordBeastSlain(newState, attacker, defender);

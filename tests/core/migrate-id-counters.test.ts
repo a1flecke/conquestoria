@@ -66,8 +66,8 @@ describe('scanIdCounters', () => {
       cities: {},
       barbarianCamps: {},
       minorCivs: {
-        'mc-1': { activeQuests: { 'quest-4': { id: 'quest-4' }, 'quest-9': { id: 'quest-9' } } },
-        'mc-2': { activeQuests: { 'quest-2': { id: 'quest-2' } } },
+        'mc-1': { activeQuests: { player: { id: 'quest-9' } } },
+        'mc-2': { activeQuests: { 'ai-1': { id: 'quest-2' } } },
       },
     });
     expect(counters.nextQuestId).toBe(10);

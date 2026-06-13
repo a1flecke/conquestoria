@@ -28,6 +28,7 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import type { GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
+import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 
 // Shared fixture — used by S5 and S6a describe blocks
 function makeTile(q: number, r: number) {
@@ -467,6 +468,46 @@ describe('trade-system', () => {
       const newState = establishRoute(state, 'caravan1', 'city3', bus, 0);
       const route = newState.marketplace!.tradeRoutes[0];
       expect(route.foreignCivId).toBe('enemy');
+    });
+
+    it('establishRoute advances the exact issuer route quest', () => {
+      const state = makeMinimalState();
+      state.cities.city3.owner = 'mc-carthage';
+      state.minorCivs['mc-carthage'] = {
+        id: 'mc-carthage', definitionId: 'carthage', cityId: 'city3', units: [],
+        diplomacy: { ...state.civilizations.player.diplomacy, relationships: { player: 0 } },
+        activeQuests: {
+          player: {
+            id: 'quest-route', type: 'trade_route', description: 'Open a route',
+            target: { type: 'trade_route', minorCivId: 'mc-carthage' }, reward: { relationshipBonus: 10 },
+            progress: 0, status: 'active', turnIssued: state.turn, expiresOnTurn: state.turn + 20,
+          },
+        },
+        chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+        isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+      };
+
+      const nextState = establishQuestAwareRoute(state, 'caravan1', 'city3', 0).state;
+
+      expect(nextState.minorCivs['mc-carthage'].activeQuests.player).toBeUndefined();
+    });
+
+    it('uses canonical city-state diplomacy when validating a route', () => {
+      const state = makeMinimalState();
+      state.cities.city3.owner = 'mc-carthage';
+      state.minorCivs['mc-carthage'] = {
+        id: 'mc-carthage', definitionId: 'carthage', cityId: 'city3', units: [],
+        diplomacy: { ...state.civilizations.player.diplomacy, relationships: { player: -1 } },
+        activeQuests: {}, chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+        isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+      };
+      state.civilizations.player.diplomacy.relationships['mc-carthage'] = 100;
+
+      expect(canEstablishRoute(state, state.units.caravan1, 'city3').ok).toBe(false);
+
+      state.minorCivs['mc-carthage'].diplomacy.relationships.player = 0;
+      state.civilizations.player.diplomacy.relationships['mc-carthage'] = -100;
+      expect(canEstablishRoute(state, state.units.caravan1, 'city3').ok).toBe(true);
     });
 
     it("establishRoute: does NOT set foreignCivId for domestic route", () => {

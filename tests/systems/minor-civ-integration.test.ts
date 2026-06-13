@@ -38,7 +38,6 @@ describe('minor civ integration', () => {
 
   it('conquesting a minor civ transfers city', () => {
     const state = createNewGame(undefined, 'mc-int-conq', 'small');
-    const bus = new EventBus();
     const mcEntries = Object.entries(state.minorCivs);
     if (mcEntries.length === 0) return;
 
@@ -47,11 +46,11 @@ describe('minor civ integration', () => {
     expect(city).toBeDefined();
     expect(city.owner).toBe(mcId);
 
-    conquestMinorCiv(state, mcId, 'player', bus);
+    const result = conquestMinorCiv(state, mcId, 'player');
 
-    expect(state.cities[mc.cityId].owner).toBe('player');
-    expect(mc.isDestroyed).toBe(true);
-    expect(state.civilizations.player.cities).toContain(mc.cityId);
+    expect(result.state.cities[mc.cityId].owner).toBe('player');
+    expect(result.state.minorCivs[mcId].isDestroyed).toBe(true);
+    expect(result.state.civilizations.player.cities).toContain(mc.cityId);
   });
 
   it('full 5-turn cycle with minor civs', () => {

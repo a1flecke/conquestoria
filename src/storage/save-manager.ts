@@ -1,10 +1,12 @@
-import type { City, CityFocus, CityMaturity, GameState, SaveSlotMeta } from '@/core/types';
+import { QUEST_TYPES, type City, type CityFocus, type CityMaturity, type GameState, type QuestTarget, type SaveSlotMeta } from '@/core/types';
 import { drawNextCityName } from '@/systems/city-name-system';
 import { createEmptyCityGrid } from '@/systems/city-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from '@/systems/city-maturity-system';
 import { canonicalizeCityCoord, normalizeCityWorkClaims, recalculateTerritory } from '@/systems/city-territory-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { getQuestChain, getQuestChainForArchetype } from '@/systems/quest-chain-definitions';
+import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
 
 const SAVE_PREFIX = 'save:';
@@ -85,8 +87,152 @@ function normalizeLegacyCitySimState(state: GameState): GameState {
   return { ...state, cities };
 }
 
+function allowedQuestTypesForStep(chainId: string, stepIndex: number): Set<string> | null {
+  const chain = getQuestChain(chainId);
+  if (!chain || !Number.isInteger(stepIndex) || stepIndex < 0 || stepIndex > 2) return null;
+  const types = new Set<string>();
+  for (const variant of Object.values(chain.steps[stepIndex as 0 | 1 | 2].eraVariants)) {
+    types.add(variant.preferred.type);
+    for (const fallback of variant.fallbacks) types.add(fallback.type);
+  }
+  return types;
+}
+
+function effectiveLoadedMinorCivStatus(state: GameState, minorCivId: string, majorCivId: string) {
+  const minorCiv = state.minorCivs[minorCivId];
+  if (isMinorCivAtWar(state, majorCivId, minorCivId)) return 'at-war' as const;
+  if (minorCiv.chainStatusByCiv[majorCivId]?.status === 'allied') return 'allied' as const;
+  const relationship = minorCiv.diplomacy.relationships[majorCivId] ?? 0;
+  if (relationship <= -60) return 'hostile' as const;
+  if (relationship >= 30) return 'friendly' as const;
+  return 'neutral' as const;
+}
+
+function isFiniteCoord(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const coord = value as { q?: unknown; r?: unknown };
+  return Number.isFinite(coord.q) && Number.isFinite(coord.r);
+}
+
+function isValidQuestTarget(target: QuestTarget, minorCivId: string): boolean {
+  switch (target.type) {
+    case 'destroy_camp':
+      return typeof target.campId === 'string' && isFiniteCoord(target.position);
+    case 'gift_gold':
+      return Number.isFinite(target.amount) && target.amount > 0;
+    case 'defeat_units':
+      return Number.isInteger(target.count) && target.count > 0
+        && Number.isFinite(target.radius) && target.radius > 0
+        && isFiniteCoord(target.nearPosition);
+    case 'trade_route':
+      return target.minorCivId === minorCivId;
+    case 'sponsor_festival':
+      return Number.isFinite(target.amount) && target.amount > 0 && target.requiresLuxury === true;
+  }
+}
+
+function normalizeMinorCivQuestState(state: GameState): GameState {
+  const nextState = structuredClone(state);
+  for (const [minorCivId, minorCiv] of Object.entries(nextState.minorCivs ?? {})) {
+    minorCiv.activeQuests ??= {};
+    minorCiv.chainStatusByCiv ??= {};
+    minorCiv.questCooldownUntilByCiv ??= {};
+
+    const definition = MINOR_CIV_DEFINITIONS.find(candidate => candidate.id === minorCiv.definitionId);
+    const expectedChainId = definition ? getQuestChainForArchetype(definition.archetype).id : null;
+
+    for (const [majorCivId, quest] of Object.entries(minorCiv.activeQuests ?? {})) {
+      if (!quest || typeof quest !== 'object' || !quest.target || typeof quest.target !== 'object') {
+        delete minorCiv.activeQuests[majorCivId];
+        minorCiv.questCooldownUntilByCiv[majorCivId] = nextState.turn + 3;
+        continue;
+      }
+      if (quest.target.type === 'destroy_camp' && !quest.target.position) {
+        const camp = nextState.barbarianCamps?.[quest.target.campId];
+        if (camp) quest.target.position = { ...camp.position };
+      }
+      const knownQuestType = QUEST_TYPES.includes(quest.type);
+      const validReward = Number.isFinite(quest.reward?.relationshipBonus)
+        && (quest.reward.gold === undefined || Number.isFinite(quest.reward.gold))
+        && (quest.reward.science === undefined || Number.isFinite(quest.reward.science));
+      const validLifecycle = typeof quest.id === 'string'
+        && quest.status === 'active'
+        && Number.isFinite(quest.progress)
+        && quest.progress >= 0
+        && Number.isFinite(quest.turnIssued)
+        && (quest.expiresOnTurn === null || Number.isFinite(quest.expiresOnTurn));
+      if (!knownQuestType || quest.target.type !== quest.type || !isValidQuestTarget(quest.target, minorCivId)
+        || !validReward || !validLifecycle) {
+        delete minorCiv.activeQuests[majorCivId];
+        minorCiv.questCooldownUntilByCiv[majorCivId] = nextState.turn + 3;
+        continue;
+      }
+      const hasChainId = typeof quest.chainId === 'string';
+      const hasStepIndex = Number.isInteger(quest.stepIndex);
+      if (!hasChainId && !hasStepIndex) continue;
+      const allowedTypes = hasChainId && hasStepIndex
+        ? allowedQuestTypesForStep(quest.chainId!, quest.stepIndex!)
+        : null;
+      if (!allowedTypes?.has(quest.type) || quest.chainId !== expectedChainId) {
+        delete minorCiv.activeQuests[majorCivId];
+        minorCiv.questCooldownUntilByCiv[majorCivId] = nextState.turn + 3;
+      }
+    }
+
+    for (const [majorCivId, status] of Object.entries(minorCiv.chainStatusByCiv)) {
+      if (!status || typeof status !== 'object') {
+        delete minorCiv.chainStatusByCiv[majorCivId];
+        continue;
+      }
+      const knownChain = Boolean(getQuestChain(status.chainId)) && status.chainId === expectedChainId;
+      const validPending = status.status === 'pending'
+        && Number.isFinite(status.statusTurn)
+        && Number.isInteger(status.pendingStepIndex)
+        && status.pendingStepIndex >= 0
+        && status.pendingStepIndex <= 2
+        && Number.isFinite(status.pendingExpiresOnTurn)
+        && !('earnedTurn' in status);
+      const validSettled = (status.status === 'allied' || status.status === 'broken')
+        && Number.isFinite(status.statusTurn)
+        && Number.isFinite(status.earnedTurn)
+        && !('pendingStepIndex' in status)
+        && !('pendingExpiresOnTurn' in status);
+      if (!knownChain || (!validPending && !validSettled)) delete minorCiv.chainStatusByCiv[majorCivId];
+    }
+
+    for (const [majorCivId, status] of Object.entries(minorCiv.chainStatusByCiv)) {
+      if (status.status === 'allied' && isMinorCivAtWar(nextState, majorCivId, minorCivId)) {
+        minorCiv.chainStatusByCiv[majorCivId] = {
+          chainId: status.chainId,
+          status: 'broken',
+          statusTurn: nextState.turn,
+          earnedTurn: status.earnedTurn,
+        };
+      }
+    }
+
+    for (const [majorCivId, cooldown] of Object.entries(minorCiv.questCooldownUntilByCiv)) {
+      if (!Number.isFinite(cooldown)) delete minorCiv.questCooldownUntilByCiv[majorCivId];
+    }
+
+    minorCiv.lastNotifiedStatusByCiv ??= {};
+    const validStatuses = new Set(['at-war', 'hostile', 'neutral', 'friendly', 'allied']);
+    for (const [majorCivId, status] of Object.entries(minorCiv.lastNotifiedStatusByCiv)) {
+      if (!validStatuses.has(status)) delete minorCiv.lastNotifiedStatusByCiv[majorCivId];
+    }
+    for (const majorCivId of Object.keys(nextState.civilizations ?? {})) {
+      if (!(majorCivId in minorCiv.lastNotifiedStatusByCiv)) {
+        minorCiv.lastNotifiedStatusByCiv[majorCivId] = effectiveLoadedMinorCivStatus(nextState, minorCivId, majorCivId);
+      }
+    }
+  }
+  return nextState;
+}
+
 function normalizeLoadedState(state: GameState): GameState {
-  const normalizedCityState = normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state))));
+  const normalizedCityState = normalizeMinorCivQuestState(
+    normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))),
+  );
   if (!normalizedCityState.map?.tiles) {
     normalizedCityState.pendingDiplomacyRequests ??= [];
     return normalizedCityState;

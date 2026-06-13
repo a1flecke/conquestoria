@@ -8,6 +8,7 @@ export type SelectedUnitTapIntent =
   | { kind: 'move' }
   | { kind: 'assault-city'; cityId: string }
   | { kind: 'assault-minor-civ'; cityId: string; minorCivId: string }
+  | { kind: 'confirm-war-minor-civ'; cityId: string; minorCivId: string }
   | { kind: 'confirm-war-city'; cityId: string; defenderId: string };
 
 function hasTreaty(state: GameState, civA: string, civB: string, type: string): boolean {
@@ -85,6 +86,9 @@ export function resolveSelectedUnitTapIntent(
   }
 
   if (cityAtTarget.owner.startsWith('mc-')) {
+    if (!(state.civilizations[unit.owner]?.diplomacy.atWarWith.includes(cityAtTarget.owner) ?? false)) {
+      return { kind: 'confirm-war-minor-civ', cityId: cityAtTarget.id, minorCivId: cityAtTarget.owner };
+    }
     return { kind: 'assault-minor-civ', cityId: cityAtTarget.id, minorCivId: cityAtTarget.owner };
   }
 

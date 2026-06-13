@@ -231,6 +231,120 @@ describe('save persistence (#38)', () => {
     expect(loaded?.pendingDiplomacyRequests).toEqual([]);
   });
 
+  it('normalizes legacy minor-civ chain maps without emitting a synthetic status transition', () => {
+    const state = createNewGame(undefined, 'legacy-minor-chain-maps', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    minorCiv.diplomacy.relationships.player = 35;
+    delete (minorCiv as Partial<typeof minorCiv>).chainStatusByCiv;
+    delete (minorCiv as Partial<typeof minorCiv>).questCooldownUntilByCiv;
+    delete (minorCiv as Partial<typeof minorCiv>).lastNotifiedStatusByCiv;
+
+    const loaded = normalizeLoadedStateForTest(state);
+    const normalized = loaded.minorCivs[minorCiv.id];
+
+    expect(normalized.chainStatusByCiv).toEqual({});
+    expect(normalized.questCooldownUntilByCiv).toEqual({});
+    expect(normalized.lastNotifiedStatusByCiv.player).toBe('friendly');
+  });
+
+  it('removes malformed chain metadata without changing treasury or relationship', () => {
+    const state = createNewGame(undefined, 'invalid-minor-chain-save', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const beforeGold = state.civilizations.player.gold;
+    const beforeRelationship = minorCiv.diplomacy.relationships.player;
+    minorCiv.activeQuests.player = {
+      id: 'quest-91',
+      type: 'gift_gold',
+      description: 'Invalid partial chain quest',
+      target: { type: 'gift_gold', amount: 25 },
+      reward: { relationshipBonus: 15 },
+      progress: 0,
+      status: 'active',
+      turnIssued: state.turn,
+      expiresOnTurn: state.turn + 20,
+      chainId: 'missing-chain',
+      stepIndex: 1,
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].activeQuests.player).toBeUndefined();
+    expect(loaded.minorCivs[minorCiv.id].questCooldownUntilByCiv.player).toBe(state.turn + 3);
+    expect(loaded.civilizations.player.gold).toBe(beforeGold);
+    expect(loaded.minorCivs[minorCiv.id].diplomacy.relationships.player).toBe(beforeRelationship);
+  });
+
+  it('rejects chain statuses with fields from a different lifecycle state', () => {
+    const state = createNewGame(undefined, 'invalid-minor-chain-status-save', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    minorCiv.chainStatusByCiv.player = {
+      chainId: 'trade-partnership',
+      status: 'pending',
+      statusTurn: state.turn,
+      pendingStepIndex: 1,
+      pendingExpiresOnTurn: state.turn + 10,
+      earnedTurn: state.turn,
+    } as any;
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].chainStatusByCiv.player).toBeUndefined();
+  });
+
+  it('rejects malformed non-object chain statuses', () => {
+    const state = createNewGame(undefined, 'invalid-minor-chain-status-object', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    minorCiv.chainStatusByCiv.player = null as any;
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].chainStatusByCiv.player).toBeUndefined();
+  });
+
+  it('rejects normal quests whose target discriminator disagrees with the quest type', () => {
+    const state = createNewGame(undefined, 'invalid-normal-quest-target', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    minorCiv.activeQuests.player = {
+      id: 'quest-invalid-normal', type: 'gift_gold', description: 'Mismatched target',
+      target: { type: 'trade_route', minorCivId: minorCiv.id }, reward: { relationshipBonus: 10 },
+      progress: 0, status: 'active', turnIssued: state.turn, expiresOnTurn: state.turn + 20,
+    } as any;
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].activeQuests.player).toBeUndefined();
+  });
+
+  it('rejects chain state belonging to a different minor-civ archetype', () => {
+    const state = createNewGame(undefined, 'invalid-cross-archetype-chain', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    minorCiv.definitionId = 'sparta';
+    minorCiv.chainStatusByCiv.player = {
+      chainId: 'trade-partnership', status: 'allied', statusTurn: state.turn, earnedTurn: state.turn,
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].chainStatusByCiv.player).toBeUndefined();
+  });
+
+  it('hydrates remembered camp positions in legacy active quests', () => {
+    const state = createNewGame(undefined, 'legacy-camp-quest-position', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const camp = Object.values(state.barbarianCamps)[0];
+    if (!camp) throw new Error('Expected a generated barbarian camp');
+    minorCiv.activeQuests.player = {
+      id: 'quest-legacy-camp', type: 'destroy_camp', description: 'Destroy the camp',
+      target: { type: 'destroy_camp', campId: camp.id } as any, reward: { relationshipBonus: 10 },
+      progress: 0, status: 'active', turnIssued: state.turn, expiresOnTurn: state.turn + 20,
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+    const target = loaded.minorCivs[minorCiv.id].activeQuests.player?.target;
+
+    expect(target).toMatchObject({ type: 'destroy_camp', campId: camp.id, position: camp.position });
+  });
+
   it('normalizes older city-grid saves into city-sim fields on load', async () => {
     const state = createNewGame('rome', 'legacy-city-grid-seed');
     const city = Object.values(state.cities)[0];

@@ -74,6 +74,9 @@ describe('diplomacy-panel breakaway rows', () => {
         units: [],
         diplomacy: state.civilizations.player.diplomacy,
         activeQuests: { player: { id: 'quest-1', type: 'gift_gold', description: 'Gift 25 gold', target: { type: 'gift_gold', amount: 25 }, reward: { relationshipBonus: 20 }, progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: 21 } },
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
         isDestroyed: false,
         garrisonCooldown: 0,
         lastEraUpgrade: 0,
@@ -122,6 +125,9 @@ describe('diplomacy-panel breakaway rows', () => {
             expiresOnTurn: 21,
           },
         },
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
         isDestroyed: false,
         garrisonCooldown: 0,
         lastEraUpgrade: 0,
@@ -203,6 +209,9 @@ describe('diplomacy-panel breakaway rows', () => {
         units: [],
         diplomacy: state.civilizations.player.diplomacy,
         activeQuests: {},
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
         isDestroyed: false,
         garrisonCooldown: 0,
         lastEraUpgrade: 0,
@@ -225,6 +234,71 @@ describe('diplomacy-panel breakaway rows', () => {
 
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
     expect(rendered).toContain(presentation.name);
+  });
+
+  it('renders chain step details and exact disabled festival requirements for the current viewer', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
+    state.minorCivs['mc-alexandria'] = {
+      id: 'mc-alexandria', definitionId: 'alexandria', cityId: 'mc-city', units: [],
+      diplomacy: state.civilizations.player.diplomacy,
+      activeQuests: {
+        player: {
+          id: 'quest-festival', type: 'sponsor_festival', description: 'Sponsor the Festival of Ideas',
+          target: { type: 'sponsor_festival', amount: 50, requiresLuxury: true },
+          reward: { relationshipBonus: 25 }, progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: state.turn,
+          chainId: 'festivals-and-exchange', stepIndex: 2,
+        },
+      },
+      chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.cities['mc-city'] = {
+      ...state.cities['city-border'], id: 'mc-city', owner: 'mc-alexandria',
+      position: { q: 6, r: 0 }, ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+    const festival = panel.querySelector<HTMLButtonElement>('[data-action="sponsor-festival"]');
+
+    expect(panel.textContent).toContain('Festivals And Exchange');
+    expect(panel.textContent).toContain('Step 3 of 3');
+    expect(panel.textContent).toContain('0 turns remaining');
+    expect(panel.textContent).toContain('Requires access to any luxury resource.');
+    expect(festival?.disabled).toBe(true);
+  });
+
+  it('does not render another hot-seat player assignment', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player-2' });
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
+      diplomacy: state.civilizations['player-2'].diplomacy,
+      activeQuests: {
+        player: {
+          id: 'quest-private', type: 'gift_gold', description: 'player-a-only-target',
+          target: { type: 'gift_gold', amount: 100 }, reward: { relationshipBonus: 20 },
+          progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: 21,
+        },
+        'player-2': {
+          id: 'quest-viewer', type: 'gift_gold', description: 'viewer-target',
+          target: { type: 'gift_gold', amount: 25 }, reward: { relationshipBonus: 20 },
+          progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: 21,
+        },
+      },
+      chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.cities['mc-city'] = {
+      ...state.cities['city-border'], id: 'mc-city', owner: 'mc-sparta',
+      position: { q: 6, r: 0 }, ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.civilizations['player-2'].visibility.tiles['6,0'] = 'fog';
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).toContain('Gift 25 gold');
+    expect(panel.textContent).not.toContain('100 gold');
+    expect(panel.textContent).not.toContain('player-a-only-target');
   });
 
   it('shows Peace Requested instead of Request Peace for an outbound proposal', () => {

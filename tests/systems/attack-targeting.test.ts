@@ -76,12 +76,17 @@ describe('attack-targeting', () => {
     });
   });
 
-  it('allows human players to target minor-civ units without making AI treat them as hostile', () => {
+  it('requires bilateral war before either humans or AI can target a minor-civ unit', () => {
     const attacker = unit('attacker', 'warrior', 'player', { q: 0, r: 0 });
     const minor = unit('minor-warrior', 'warrior', 'mc-sparta', { q: 1, r: 0 });
     const aiAttacker = unit('ai-attacker', 'warrior', 'ai-1', { q: 2, r: 0 });
     const state = stateWithUnits({ attacker, 'minor-warrior': minor, 'ai-attacker': aiAttacker }, { '1,0': 'visible' });
 
+    expect(canUnitAttackTarget(state, attacker, { q: 1, r: 0 }, { viewerId: 'player' })).toEqual({
+      ok: false,
+      reason: 'not-hostile',
+    });
+    state.civilizations.player.diplomacy.atWarWith.push('mc-sparta');
     expect(canUnitAttackTarget(state, attacker, { q: 1, r: 0 }, { viewerId: 'player' })).toMatchObject({
       ok: true,
       targetType: 'unit',
