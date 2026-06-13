@@ -4,11 +4,11 @@
 >
 > **Executor model:** Sonnet 4.5. Grounded in the codebase **after MR1–MR5 merged**.
 
-**Goal:** Add the Storm Roc (mountain tier 3, flies over any land terrain) and the Swamp Hydra (swamp tier 3, regenerates 10 HP/turn — punishes hit-and-run, rewards committed assaults), plus the `beast-winged` animation rig.
+**Goal:** Add the Storm Roc (mountain tier 3, flies over any land terrain) and the Swamp Hydra (swamp tier 3, regenerates 10 HP/turn — punishes hit-and-run, rewards committed assaults), plus the `beast-winged` animation rig. Also ships v2 DOM sprites for all four MR5+MR6 beasts (sea serpent and dune wurm sprites were deferred from MR5).
 
 **Architecture:** Two final definition flags: `flying` (passability: any land terrain including mountains) extends MR5's definition-driven passability, and `regenPerTurn` adds a `regenOrders` output to `processBeasts` (orders-out pattern — turn-manager applies the healing). Combat preview must surface the hydra's regeneration so players understand why chip damage fails (combat-preview visibility rule).
 
-**Tech Stack:** TypeScript, vitest, JSX→SVG sprites, CSS keyframes.
+**Tech Stack:** TypeScript, vitest, JSX→SVG sprites, CSS keyframes, Claude Design (v2 sprite generation).
 
 **Dependencies:** MR1–MR5 merged. Branches from `main`.
 
@@ -18,6 +18,11 @@
 
 | File | Action | Responsibility |
 |---|---|---|
+| `src/renderer/sprites/v2/beast_sea_serpent.svg.ts` | Create | v2 DOM sprite for Sea Serpent (Task 0) |
+| `src/renderer/sprites/v2/beast_wurm.svg.ts` | Create | v2 DOM sprite for Dune Wurm (Task 0) |
+| `src/renderer/sprites/v2/beast_roc.svg.ts` | Create | v2 DOM sprite for Storm Roc (Task 0) |
+| `src/renderer/sprites/v2/beast_hydra.svg.ts` | Create | v2 DOM sprite for Swamp Hydra (Task 0) |
+| `src/renderer/sprites/v2/index.ts` | Modify | Wire all four new beast sprites (Task 0) |
 | `src/core/types.ts` | Modify | `BeastId` += `'storm_roc' \| 'swamp_hydra'`; `UnitType` += `'beast_roc' \| 'beast_hydra'` |
 | `src/systems/beast-definitions.ts` | Modify | Two definitions; `flying?: boolean`, `regenPerTurn?: number` |
 | `src/systems/beast-system.ts` | Modify | Flying passability; `regenOrders` in `BeastProcessResult` |
@@ -36,6 +41,120 @@
 
 - **Hydra regen must be visible before you commit**: the combat preview against a hydra must include a trait line ("Regenerates 10 HP every turn"). Without it the player can't understand why their two-turn plan fails — that's a lying preview.
 - The roc flying over mountains must not imply player units can follow — no pathing change for players.
+
+---
+
+### Task 0: v2 sprite generation (Claude Design) — four beasts
+
+**Why first:** The v2 sprites replace the JSX placeholder sprites shipped in Task 4. Generate them before starting so they're ready to drop in during Task 4's wire-up step. Sea Serpent and Dune Wurm are deferred from MR5; Storm Roc and Swamp Hydra are new in this MR.
+
+**Files:**
+- Create: `src/renderer/sprites/v2/beast_sea_serpent.svg.ts`, `beast_wurm.svg.ts`, `beast_roc.svg.ts`, `beast_hydra.svg.ts`
+- Modify: `src/renderer/sprites/v2/index.ts`
+
+**Before generating:**
+Read `src/renderer/sprites/v2/beast_boar.svg.ts` and `beast_wolf.svg.ts` to internalize the v2 format (`.cq-sprite-wrap.cq-v2` wrapper, `data-state`, `data-kind`, `data-damage`, `--phase` CSS var, `cq-wound-1/2/3` battle damage groups).
+
+---
+
+#### Task 0a: Sea Serpent
+
+- [ ] **Step 1:** Invoke the `generate-sprite-prompt` project skill (`.claude/skills/generate-sprite-prompt.md`) for `beast_sea_serpent`. Pass this visual brief:
+  - **data-kind:** `beast-serpent`
+  - **Silhouette:** Three coils rising above a dark waterline; a single rearing head with a crest fin and amber slit eye; no legs
+  - **Palette:** Deep teal-blue body (`#2e6e8c`), darker scale undersides (`#1c4a61`), cyan fin accent (`#5ec0d8`), amber eye (`#ffd34d`)
+  - **Signature elements:** Segment undulation classes `cq-segment-1` through `cq-segment-4` (each a coil or the head group); a `cq-waterline` froth strip at the base
+  - **Damage tiers:** wound-1 = scuff marks on mid-coil; wound-2 = a torn fin + blood beads; wound-3 = a cracked scale patch on the neck with exposed flesh
+  - **States required:** idle (gentle bob), walk (fast undulation), attack (head lunges forward), hurt (recoil shudder)
+  - **Style ref:** `beast_wolf.svg.ts` body proportions; no legs, no fur — scale texture only
+
+- [ ] **Step 2:** Paste the generated prompt into Claude Design. Save the returned HTML string to `src/renderer/sprites/v2/beast_sea_serpent.svg.ts`:
+
+```typescript
+// Animations driven by sprite-animations-v2.css via data-state / data-kind / data-damage.
+export const svg = {
+  beast: `<div class="cq-sprite-wrap cq-v2" data-state="idle" data-kind="beast-serpent" data-damage="0" style="--phase:0">…</div>`,
+};
+```
+
+---
+
+#### Task 0b: Dune Wurm
+
+- [ ] **Step 1:** Invoke `generate-sprite-prompt` for `beast_wurm`. Visual brief:
+  - **data-kind:** `beast-serpent`
+  - **Silhouette:** A thick armored body erupting from the ground at an arc; a tri-split maw (three jaw-plates fanning open) at the top; ringed segmented hide; no eyes (senses vibration)
+  - **Palette:** Sandy brown hide (`#b08a52`), dark-brown underplates (`#84653a`), deep red maw interior (`#5e2f2a`), ivory teeth (`#e8e0cc`)
+  - **Signature elements:** `cq-segment-1` (erupting body arc), `cq-segment-2` (maw plates — open on attack, closed on idle); scattered sand spray elements at the base
+  - **Damage tiers:** wound-1 = sand-caked slash on the flank; wound-2 = a cracked ring segment with ooze; wound-3 = a partially crushed jaw plate
+  - **States required:** idle (slow sway), walk (lunge-burrow), attack (maw snaps wide), hurt (whole body shudder)
+  - **Style ref:** scale texture like `beast_basilisk.svg.ts`; much thicker body, no legs
+
+- [ ] **Step 2:** Save to `src/renderer/sprites/v2/beast_wurm.svg.ts` with the same export shape as 0a.
+
+---
+
+#### Task 0c: Storm Roc
+
+- [ ] **Step 1:** Invoke `generate-sprite-prompt` for `beast_roc`. Visual brief:
+  - **data-kind:** `beast-winged`
+  - **Silhouette:** A massive bird of prey seen from a ¾ angle; broad swept wings dominating the frame; compact raptor body; hooked beak; a detached shadow beneath (it's airborne)
+  - **Palette:** Steel-blue feathers (`#5a6b8a`), dark wing coverts (`#3c4a63`), golden beak (`#d9a23a`), amber eye, pale-blue lightning accent on wingtips (`#9ed0ff`)
+  - **Signature elements:** `cq-wing-l` and `cq-wing-r` (wing groups, flap on `beast-winged` rig); `cq-hover-body` (body + head group, bobs vertically); `cq-shadow-detached` (ground shadow, scaled down and faint); lightning spark streaks along wing edges
+  - **Damage tiers:** wound-1 = torn feather gap on one wing; wound-2 = a slash across the breast + blood; wound-3 = a broken primary feather hanging at the wingtip
+  - **States required:** idle (slow hover-bob, wings at half-beat), walk/move (full beat, leaning forward), attack (dive stoop — body pitches forward sharply), hurt (stagger in air)
+  - **Style ref:** winged rig from `beast-winged` CSS; proportions similar to a peregrine but 3× bigger
+
+- [ ] **Step 2:** Save to `src/renderer/sprites/v2/beast_roc.svg.ts`.
+
+---
+
+#### Task 0d: Swamp Hydra
+
+- [ ] **Step 1:** Invoke `generate-sprite-prompt` for `beast_hydra`. Visual brief:
+  - **data-kind:** `beast-serpent`
+  - **Silhouette:** A squat, barrel-bodied beast half-submerged in murk; three serpentine necks rising from a shared body, each bearing a flat reptilian head; marsh bubbles and bog-water at the base
+  - **Palette:** Dark swamp-green scales (`#4a6b4a`), deeper green underside (`#2f4a2f`), pale lime belly (`#7e9a6a`), yellow-green slit eyes (`#e0d34d`)
+  - **Signature elements:** `cq-segment-1/2/3` — one per neck+head group, phase-offset for the weaving undulation; the shared body stays static; bog-bubble `<circle>` elements at water level
+  - **Damage tiers:** wound-1 = claw marks on the central neck; wound-2 = a severed neck stump (one of the three heads missing, replaced by a bloody stub — sells the "regen" fantasy); wound-3 = two stubs, only the central head remaining
+  - **States required:** idle (three heads weave slowly), walk (body lurches, heads sweep outward), attack (one head lunges toward the target), hurt (heads snap back, bodies ripple)
+  - **Style ref:** multi-head spacing like the JSX placeholder; but fully detailed v2 quality
+
+- [ ] **Step 2:** Save to `src/renderer/sprites/v2/beast_hydra.svg.ts`.
+
+---
+
+#### Task 0e: Wire all four into the v2 index
+
+- [ ] **Step 1:** Add imports and entries to `src/renderer/sprites/v2/index.ts`:
+
+```typescript
+// MR6 — sea serpent and dune wurm (deferred from MR5), roc and hydra
+import { svg as beastSeaSerpentSvg } from './beast_sea_serpent.svg';
+import { svg as beastWurmSvg }       from './beast_wurm.svg';
+import { svg as beastRocSvg }        from './beast_roc.svg';
+import { svg as beastHydraSvg }      from './beast_hydra.svg';
+```
+
+```typescript
+  beast_sea_serpent: beastSeaSerpentSvg,
+  beast_wurm:        beastWurmSvg,
+  beast_roc:         beastRocSvg,
+  beast_hydra:       beastHydraSvg,
+```
+
+- [ ] **Step 2:** Run sprite catalog test to confirm no regressions:
+
+```bash
+bash scripts/run-with-mise.sh yarn vitest run tests/renderer/sprites/sprite-catalog.test.ts
+```
+
+- [ ] **Step 3:** Commit:
+
+```bash
+git add src/renderer/sprites/v2/
+git commit -m "feat(beasts): v2 sprites — sea serpent, dune wurm, storm roc, swamp hydra"
+```
 
 ---
 

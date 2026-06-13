@@ -48,6 +48,70 @@
 
 ---
 
+### Task 0: v2 sprite generation (Claude Design) — Ancient Dragon
+
+**Why first:** Generate the v2 DOM sprite before starting gameplay work so it's ready to drop in during Task 4's wire-up step. The dragon uses the `beast-winged` rig established in MR6.
+
+**Files:**
+- Create: `src/renderer/sprites/v2/beast_dragon.svg.ts`
+- Modify: `src/renderer/sprites/v2/index.ts`
+
+**Before generating:**
+Read `src/renderer/sprites/v2/beast_boar.svg.ts` and `beast_roc.svg.ts` to internalize the v2 format (`.cq-sprite-wrap.cq-v2` wrapper, `data-state`, `data-kind`, `data-damage`, `--phase` CSS var, `cq-wound-1/2/3` battle damage groups).
+
+---
+
+#### Task 0a: Ancient Dragon
+
+- [ ] **Step 1:** Invoke the `generate-sprite-prompt` project skill (`.claude/skills/generate-sprite-prompt.md`) for `beast_dragon`. Pass this visual brief:
+  - **data-kind:** `beast-winged`
+  - **Silhouette:** A colossal serpentine dragon seen from ¾ angle; massive swept wings dominating the frame; long neck and horned head with a gaping jaw; four muscular legs; a heavy spiked tail; a detached shadow beneath (it's airborne)
+  - **Palette:** Obsidian-black scales (`#1c1c2e`), deep crimson scale accents (`#7a1a1a`), molten-gold underbelly plates (`#c8860a`), ember-orange inner wing membrane (`#d45a0a`), white-hot eye glow (`#fff4c8`)
+  - **Signature elements:** `cq-wing-l` and `cq-wing-r` (wing groups, flap on `beast-winged` rig); `cq-hover-body` (full dragon body, bobs); `cq-shadow-detached` (ground shadow); glowing ember-particle drifts along wingtip edges; a subtle fire-breath glow at the jaw on the attack state
+  - **Size cue:** Apex-scale — sprite should feel twice the visual mass of the roc (wider wingspan, thicker body)
+  - **Damage tiers:** wound-1 = cracked scale plates on one shoulder; wound-2 = a deep gash across the neck with exposed ember-glow beneath; wound-3 = a broken horn + torn wing membrane with scorch marks
+  - **States required:** idle (slow power-hover, wings half-beat, eyes smoldering), walk/move (full wing beat, neck extended), attack (neck lunges forward, jaw open, fire-glow brightens), hurt (head snaps back, wings stall)
+  - **Style ref:** `beast-winged` rig from MR6 (`beast_roc.svg.ts`); same wing-flap and hover-bob animation classes, but dragon anatomy (four limbs + horns) instead of bird
+
+- [ ] **Step 2:** Paste the generated prompt into Claude Design. Save the returned HTML string to `src/renderer/sprites/v2/beast_dragon.svg.ts`:
+
+```typescript
+// Animations driven by sprite-animations-v2.css via data-state / data-kind / data-damage.
+export const svg = {
+  beast: `<div class="cq-sprite-wrap cq-v2" data-state="idle" data-kind="beast-winged" data-damage="0" style="--phase:0">…</div>`,
+};
+```
+
+---
+
+#### Task 0b: Wire into the v2 index
+
+- [ ] **Step 1:** Add import and entry to `src/renderer/sprites/v2/index.ts`:
+
+```typescript
+// MR7 — Ancient Dragon
+import { svg as beastDragonSvg } from './beast_dragon.svg';
+```
+
+```typescript
+  beast_dragon: beastDragonSvg,
+```
+
+- [ ] **Step 2:** Run sprite catalog test:
+
+```bash
+bash scripts/run-with-mise.sh yarn vitest run tests/renderer/sprites/sprite-catalog.test.ts
+```
+
+- [ ] **Step 3:** Commit:
+
+```bash
+git add src/renderer/sprites/v2/beast_dragon.svg.ts src/renderer/sprites/v2/index.ts
+git commit -m "feat(beasts): v2 sprite — ancient dragon"
+```
+
+---
+
 ### Task 1: Types + definitions
 
 **Files:**
