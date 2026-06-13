@@ -49,9 +49,9 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 
 | Unit | Status | data-kind |
 |------|--------|-----------|
-| beast_boar | ✅ sprite | hound |
-| beast_wolf | ✅ sprite | hound |
-| beast_basilisk | ✅ sprite | hound |
+| beast_boar | ✅ sprite | — |
+| beast_wolf | ✅ sprite | — |
+| beast_basilisk | ✅ sprite | — |
 | beast_sea_serpent | ✅ sprite | beast-serpent |
 | beast_wurm | ✅ sprite | beast-serpent |
 

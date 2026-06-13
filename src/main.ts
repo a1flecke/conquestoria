@@ -2402,6 +2402,17 @@ function handleHexTap(rawCoord: HexCoord): void {
         selectUnit(selectedUnitId);
         return;
       }
+      // Check for a navalOnly beast before falling through to the generic movement blocker —
+      // "Ocean is impassable" is less useful than the specific combat restriction reason.
+      const defenderAtHex = selectDefenderEntryAtKey(key)?.[1];
+      if (defenderAtHex) {
+        const navalGate = canUnitAttackBeast(selectedUnit, defenderAtHex);
+        if (!navalGate.allowed) {
+          showNotification(navalGate.reason ?? 'Cannot attack that target.', 'warning');
+          selectUnit(selectedUnitId);
+          return;
+        }
+      }
       const civ = currentCiv();
       const visibilityState = civ.visibility ? getVisibility(civ.visibility, coord) : undefined;
       const completedTechs = gameState.civilizations[selectedUnit.owner]?.techState.completed ?? [];

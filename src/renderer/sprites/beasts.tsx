@@ -129,28 +129,30 @@ export function SeaSerpentSprite({ svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
       <Shadow cx={64} cy={95} rx={30} />
-      <g data-kind="beast-serpent" className="cq-sprite-figure">
-        {/* three coils breaking the water, phase-offset segments */}
-        <g className="cq-segment-1">
-          <path d="M28,84 Q36,62 48,84" fill="none" stroke={SERPENT.scale} strokeWidth="11" strokeLinecap="round" />
+      <g className="cq-sprite-figure">
+        <g data-kind="beast-serpent">
+          {/* three coils breaking the water, phase-offset segments */}
+          <g className="cq-segment-1">
+            <path d="M28,84 Q36,62 48,84" fill="none" stroke={SERPENT.scale} strokeWidth="11" strokeLinecap="round" />
+          </g>
+          <g className="cq-segment-2">
+            <path d="M52,84 Q62,58 74,84" fill="none" stroke={SERPENT.scale} strokeWidth="13" strokeLinecap="round" />
+            <path d="M58,68 L62,58 L66,68" fill={SERPENT.fin} />
+          </g>
+          <g className="cq-segment-3">
+            <path d="M78,84 Q88,64 98,82" fill="none" stroke={SERPENT.scale} strokeWidth="11" strokeLinecap="round" />
+          </g>
+          {/* head rearing */}
+          <g className="cq-segment-4">
+            <path d="M98,82 Q108,70 104,56 Q102,46 92,48" fill="none" stroke={SERPENT.scale} strokeWidth="10" strokeLinecap="round" />
+            <ellipse cx="91" cy="49" rx="9" ry="7" fill={SERPENT.scale} stroke={P.ink.line} strokeWidth="1.5" />
+            <path d="M83,50 L76,52 L83,55 Z" fill={SERPENT.scaleDark} />
+            <circle cx="89" cy="47" r="2.4" fill={SERPENT.eye} />
+            <path d="M92,42 L95,34 L98,43" fill={SERPENT.fin} />
+          </g>
+          {/* waterline froth */}
+          <path d="M24,86 Q40,82 56,86 Q72,90 88,86 Q100,83 108,86" fill="none" stroke="#bfe6f2" strokeWidth="2" opacity="0.7" />
         </g>
-        <g className="cq-segment-2">
-          <path d="M52,84 Q62,58 74,84" fill="none" stroke={SERPENT.scale} strokeWidth="13" strokeLinecap="round" />
-          <path d="M58,68 L62,58 L66,68" fill={SERPENT.fin} />
-        </g>
-        <g className="cq-segment-3">
-          <path d="M78,84 Q88,64 98,82" fill="none" stroke={SERPENT.scale} strokeWidth="11" strokeLinecap="round" />
-        </g>
-        {/* head rearing */}
-        <g className="cq-segment-4">
-          <path d="M98,82 Q108,70 104,56 Q102,46 92,48" fill="none" stroke={SERPENT.scale} strokeWidth="10" strokeLinecap="round" />
-          <ellipse cx="91" cy="49" rx="9" ry="7" fill={SERPENT.scale} stroke={P.ink.line} strokeWidth="1.5" />
-          <path d="M83,50 L76,52 L83,55 Z" fill={SERPENT.scaleDark} />
-          <circle cx="89" cy="47" r="2.4" fill={SERPENT.eye} />
-          <path d="M92,42 L95,34 L98,43" fill={SERPENT.fin} />
-        </g>
-        {/* waterline froth */}
-        <path d="M24,86 Q40,82 56,86 Q72,90 88,86 Q100,83 108,86" fill="none" stroke="#bfe6f2" strokeWidth="2" opacity="0.7" />
       </g>
     </SpriteFrame>
   );
@@ -167,21 +169,23 @@ export function DuneWurmSprite({ svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
       <Shadow cx={64} cy={95} rx={26} />
-      <g data-kind="beast-serpent" className="cq-sprite-figure">
-        {/* erupting body arc */}
-        <g className="cq-segment-1">
-          <path d="M40,92 Q44,60 64,52 Q84,46 92,66 Q96,78 90,92" fill="none" stroke={WURM.hide} strokeWidth="16" strokeLinecap="round" />
-          <path d="M46,80 q6,-2 10,2 M54,66 q6,-2 10,2 M70,54 q6,-2 10,2" fill="none" stroke={WURM.hideDark} strokeWidth="2" />
+      <g className="cq-sprite-figure">
+        <g data-kind="beast-serpent">
+          {/* erupting body arc */}
+          <g className="cq-segment-1">
+            <path d="M40,92 Q44,60 64,52 Q84,46 92,66 Q96,78 90,92" fill="none" stroke={WURM.hide} strokeWidth="16" strokeLinecap="round" />
+            <path d="M46,80 q6,-2 10,2 M54,66 q6,-2 10,2 M70,54 q6,-2 10,2" fill="none" stroke={WURM.hideDark} strokeWidth="2" />
+          </g>
+          {/* tri-split maw */}
+          <g className="cq-segment-2">
+            <path d="M58,50 L50,34 L64,44 Z" fill={WURM.maw} stroke={WURM.hideDark} strokeWidth="1.5" />
+            <path d="M64,44 L66,28 L74,44 Z" fill={WURM.maw} stroke={WURM.hideDark} strokeWidth="1.5" />
+            <path d="M74,44 L86,34 L78,50 Z" fill={WURM.maw} stroke={WURM.hideDark} strokeWidth="1.5" />
+            <path d="M58,46 l3,-4 M66,40 l2,-5 M76,46 l3,-4" stroke={WURM.tooth} strokeWidth="2" strokeLinecap="round" />
+          </g>
+          {/* sand spray */}
+          <path d="M34,92 q4,-8 0,-14 M104,92 q-4,-8 0,-14 M44,94 q2,-5 -1,-9" fill="none" stroke="#dcc88e" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
         </g>
-        {/* tri-split maw */}
-        <g className="cq-segment-2">
-          <path d="M58,50 L50,34 L64,44 Z" fill={WURM.maw} stroke={WURM.hideDark} strokeWidth="1.5" />
-          <path d="M64,44 L66,28 L74,44 Z" fill={WURM.maw} stroke={WURM.hideDark} strokeWidth="1.5" />
-          <path d="M74,44 L86,34 L78,50 Z" fill={WURM.maw} stroke={WURM.hideDark} strokeWidth="1.5" />
-          <path d="M58,46 l3,-4 M66,40 l2,-5 M76,46 l3,-4" stroke={WURM.tooth} strokeWidth="2" strokeLinecap="round" />
-        </g>
-        {/* sand spray */}
-        <path d="M34,92 q4,-8 0,-14 M104,92 q-4,-8 0,-14 M44,94 q2,-5 -1,-9" fill="none" stroke="#dcc88e" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
       </g>
     </SpriteFrame>
   );
