@@ -48,6 +48,7 @@ import { svg as beastBasiliskSvg } from './beast_basilisk.svg';
 import { svg as beastHydraSvg }       from './beast_hydra.svg';
 import { svg as beastSeaSerpentSvg }  from './beast_sea_serpent.svg';
 import { svg as beastWurmSvg }        from './beast_wurm.svg';
+import { svg as beastRocSvg }         from './beast_roc.svg';
 
 import { svg as amphitheaterSvg }      from './amphitheater.svg';
 import { svg as aqueductSvg }          from './aqueduct.svg';
@@ -131,6 +132,7 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   beast_hydra:       beastHydraSvg,
   beast_sea_serpent: beastSeaSerpentSvg,
   beast_wurm:        beastWurmSvg,
+  beast_roc:         beastRocSvg,
 };
 
 export function getUnitSpriteV2(unitType: string, faction: string): string | null {
