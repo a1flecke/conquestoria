@@ -22,6 +22,7 @@ import {
   CIVTYPE_TO_FACTION,
   civTypeToFaction,
 } from './civilization-visual-family';
+import { buildTerrainLabelSuppressionSet } from './terrain-label-presentation';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
@@ -259,7 +260,42 @@ export class RenderLoop {
           ]),
         )
       : undefined;
-    drawHexMap(this.ctx, this.state.map, this.camera, villagePositions, beastLairGlyphs, viewerId, viewerVisibility, viewerTechs);
+    const movingUnitIds = new Set(getMovingUnitIds(this.unitMovementAnimations));
+    const unitPresentations = viewerVisibility
+      ? buildUnitMapPresentations(
+          this.state,
+          viewerId,
+          viewerVisibility,
+          movingUnitIds,
+          this.selectedUnitId,
+        )
+      : [];
+    const movingVisibleCoords = viewerVisibility
+      ? this.unitMovementAnimations.flatMap(animation => [animation.from, animation.to])
+          .filter(coord => getVisibility(viewerVisibility, coord) !== 'unexplored')
+      : [];
+    const terrainLabelSuppressedCoords = buildTerrainLabelSuppressionSet({
+      state: this.state,
+      viewerId,
+      visibleUnitCoords: [
+        ...unitPresentations.map(presentation => presentation.coord),
+        ...movingVisibleCoords,
+      ],
+      villagePositions,
+      beastLairPositions: new Set(beastLairGlyphs?.keys() ?? []),
+      viewerTechs,
+    });
+    drawHexMap(
+      this.ctx,
+      this.state.map,
+      this.camera,
+      villagePositions,
+      beastLairGlyphs,
+      viewerId,
+      viewerVisibility,
+      viewerTechs,
+      terrainLabelSuppressedCoords,
+    );
 
     // Draw rivers
     drawRivers(this.ctx, this.state.map, this.camera, viewerVisibility);
@@ -342,15 +378,7 @@ export class RenderLoop {
         const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
         if (def) colorLookup[mc.id] = def.color;
       }
-      const movingUnitIds = new Set(getMovingUnitIds(this.unitMovementAnimations));
-      const presentations = buildUnitMapPresentations(
-        this.state,
-        viewerId,
-        viewerVisibility,
-        movingUnitIds,
-        this.selectedUnitId,
-      );
-      const unitEntities = presentations.map(presentation => ({
+      const unitEntities = unitPresentations.map(presentation => ({
         id: presentation.leadUnitId,
         memberIds: presentation.memberIds,
         kind: 'unit' as const,
@@ -379,7 +407,7 @@ export class RenderLoop {
       );
       drawUnitPresentations(
         this.ctx,
-        presentations,
+        unitPresentations,
         this.camera,
         this.state,
         colorLookup,

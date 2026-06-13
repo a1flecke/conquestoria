@@ -128,6 +128,38 @@ describe('hex renderer privacy', () => {
     expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('✦');
   });
 
+  it('does not reveal the current beast-lair marker through fog without stored lair intel', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const visibility: VisibilityMap = {
+      tiles: { '0,0': 'fog', '1,0': 'unexplored' },
+      lastSeen: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'grassland',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          improvementTurnsLeft: 0,
+          owner: null,
+          hasRiver: false,
+          wonder: null,
+        },
+      },
+    };
+
+    drawHexMap(
+      ctx,
+      makeMap(),
+      makeCamera(),
+      undefined,
+      new Map([['0,0', '🐾']]),
+      'player',
+      visibility,
+    );
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🐾');
+  });
+
   it('draws only visible minor-civ territory hexes', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const visibility: VisibilityMap = {
@@ -322,6 +354,64 @@ describe('resource icon rendering', () => {
     drawHexMap(ctx, map, makeCamera(), undefined, undefined, 'player', fog, new Set());
 
     expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('🪨');
+  });
+});
+
+describe('terrain label hierarchy', () => {
+  const visibleAll: VisibilityMap = { tiles: { '0,0': 'visible' } };
+
+  it('keeps an empty control tile labeled', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    drawHexMap(ctx, makeResourceMap(), makeCamera(), undefined, undefined, 'player', visibleAll);
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).toContain('Mtn');
+  });
+
+  it('suppresses only the terrain label when the canonical coordinate is occupied', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    drawHexMap(
+      ctx,
+      makeResourceMap(),
+      makeCamera(),
+      undefined,
+      undefined,
+      'player',
+      visibleAll,
+      new Set(),
+      new Set(['0,0']),
+    );
+
+    expect((ctx as unknown as MockCanvasContext).textCalls).not.toContain('Mtn');
+  });
+
+  it('uses terrain geometry rather than full-size improvement emoji, including during construction', () => {
+    const completedCtx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawHexMap(
+      completedCtx,
+      makeResourceMap({ improvement: 'farm' }),
+      makeCamera(),
+      undefined,
+      undefined,
+      'player',
+      visibleAll,
+    );
+
+    const buildingCtx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawHexMap(
+      buildingCtx,
+      makeResourceMap({ improvement: 'farm', improvementTurnsLeft: 2 }),
+      makeCamera(),
+      undefined,
+      undefined,
+      'player',
+      visibleAll,
+    );
+
+    expect((completedCtx as unknown as MockCanvasContext).textCalls).not.toContain('🌾');
+    expect((buildingCtx as unknown as MockCanvasContext).textCalls).not.toContain('🔨');
+    expect((buildingCtx as unknown as MockCanvasContext).textCalls).toContain('2t');
   });
 });
 
