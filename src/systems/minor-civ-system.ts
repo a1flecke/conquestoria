@@ -1,7 +1,7 @@
 import type { GameState, MinorCivArchetype, MinorCivState, HexCoord, City, Unit, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
-import { getEraAdvancementTechs } from './tech-definitions';
+import { hasReachedEraThreshold } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import { hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
@@ -539,13 +539,9 @@ const ERA_UNIT_MAP: Record<number, UnitType> = {
 
 export function checkEraAdvancement(state: GameState): number {
   const nextEra = state.era + 1;
-  const nextEraTechs = getEraAdvancementTechs(nextEra);
-  if (nextEraTechs.length === 0) return state.era;
-
-  const anyAdvanced = Object.values(state.civilizations).some(civ => {
-    const completed = nextEraTechs.filter(t => civ.techState.completed.includes(t.id));
-    return completed.length >= nextEraTechs.length * 0.6;
-  });
+  const anyAdvanced = Object.values(state.civilizations).some(
+    civ => hasReachedEraThreshold(civ.techState.completed, nextEra),
+  );
 
   return anyAdvanced ? nextEra : state.era;
 }

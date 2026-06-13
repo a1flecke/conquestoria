@@ -162,3 +162,23 @@ export const TECH_TREE: Tech[] = [
 export function getEraAdvancementTechs(era: number): Tech[] {
   return TECH_TREE.filter(tech => tech.era === era && tech.countsForEraAdvancement !== false);
 }
+
+export function hasReachedEraThreshold(completedTechIds: readonly string[], era: number): boolean {
+  const advancementTechs = getEraAdvancementTechs(era);
+  if (advancementTechs.length === 0) return false;
+  const completed = new Set(completedTechIds);
+  const completedCount = advancementTechs.filter(tech => completed.has(tech.id)).length;
+  return completedCount >= Math.ceil(advancementTechs.length * 0.6);
+}
+
+export function resolveCivilizationEra(completedTechIds: readonly string[]): number {
+  const maxEra = Math.max(1, ...TECH_TREE.map(tech => tech.era));
+  let era = 1;
+
+  for (let candidate = 2; candidate <= maxEra; candidate++) {
+    if (!hasReachedEraThreshold(completedTechIds, candidate)) break;
+    era = candidate;
+  }
+
+  return era;
+}

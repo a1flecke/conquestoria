@@ -150,6 +150,7 @@ import {
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
 import { getPendingUnload, getUnloadRange, setPendingUnload, clearPendingUnload } from '@/ui/transport-ui-state';
+import { getCapitalCity } from '@/systems/capital-system';
 import type { GameEvents, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
@@ -1244,9 +1245,7 @@ function togglePanel(panel: string): void {
         const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
         const spy = ownerEsp?.spies[spyId];
         if (!spy || spy.status !== 'stationed') return;
-        const civCities = gameState.civilizations[gameState.currentPlayer]?.cities ?? [];
-        // capital = cities[0] by convention
-        const capital = gameState.cities[civCities[0]];
+        const capital = getCapitalCity(gameState, gameState.currentPlayer);
         if (!capital) { showNotification('Cannot exfiltrate — no capital found.', 'warning'); return; }
 
         // Spawn occupancy: find a free tile at/near the capital
@@ -3044,11 +3043,7 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
       label: `Expel (${relPenalty} relations)`,
       onClick: () => {
         const updatedOwnerEsp = expelSpy(gameState.espionage![spyOwner], spyId, 15);
-        // Recreate physical unit at spy owner's capital (cities[0] = capital by convention)
-        // capital = cities[0] by convention; use local var to keep hook regex clean
-        const ownerCities = gameState.civilizations[spyOwner]?.cities ?? [];
-        const capitalCityId = ownerCities[0];
-        const capital = capitalCityId ? gameState.cities[capitalCityId] : null;
+        const capital = getCapitalCity(gameState, spyOwner);
         if (capital) {
           const newUnit = createUnit(spy.unitType, spyOwner, capital.position, gameState.idCounters);
           gameState = {
