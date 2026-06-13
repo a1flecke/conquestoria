@@ -505,9 +505,11 @@ git commit -m "feat(pirates): define progression fleets and balance"
 
 - Create: `src/systems/pirate-ecology.ts`
 - Modify: `src/core/types.ts` for pirate lifecycle events if not already added
+- Modify: `src/core/pirate-state.ts` and `src/storage/save-manager.ts` for faction spawn-round persistence
 - Create: `tests/systems/pirate-ecology.test.ts`
+- Modify: `tests/core/pirate-state.test.ts`
 
-- [ ] **Step 1: Write red activation, pressure, and site tests**
+- [x] **Step 1: Write red activation, pressure, and site tests**
 
 Cover:
 
@@ -523,13 +525,13 @@ Cover:
 - eight-round, eight-hex regional suppression;
 - wrap-aware distance at east/west map edges.
 
-- [ ] **Step 2: Run the red test**
+- [x] **Step 2: Run the red test**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-ecology.test.ts
 ```
 
-- [ ] **Step 3: Implement pure candidate and pressure helpers**
+- [x] **Step 3: Implement pure candidate and pressure helpers**
 
 Required public surface:
 
@@ -546,16 +548,16 @@ Candidate sorting is stable by score, then `q`, then `r`; seeded selection occur
 
 Keep ecology callable directly in tests, but do not activate it from the live turn loop while `PIRATE_IMPLEMENTATION_READY` is false. This is the only planned temporary feature gate and is tracked as `GATE-1`.
 
-- [ ] **Step 4: Create factions and units through canonical allocators**
+- [x] **Step 4: Create factions and units through canonical allocators**
 
 Allocate `pirate-{n}` from `IdCounters`, generate a deterministic name, create the guaranteed current-stage hull plus roster draws, assign a coastal enclave or flagship headquarters, insert units only into `state.units`, and emit `unit:created` plus one typed pirate faction-spawned event per faction. Do not add pirate units to any civilization roster.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 ```bash
-scripts/check-src-rule-violations.sh src/systems/pirate-ecology.ts src/core/types.ts
-./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-ecology.test.ts tests/core/id-counters.test.ts tests/systems/unit-system.test.ts
-git add src/systems/pirate-ecology.ts src/core/types.ts tests/systems/pirate-ecology.test.ts
+scripts/check-src-rule-violations.sh src/systems/pirate-ecology.ts src/core/types.ts src/core/pirate-state.ts src/storage/save-manager.ts
+./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-ecology.test.ts tests/core/pirate-state.test.ts tests/systems/id-counters.test.ts tests/systems/unit-system.test.ts
+git add src/systems/pirate-ecology.ts src/core/types.ts src/core/pirate-state.ts src/storage/save-manager.ts tests/systems/pirate-ecology.test.ts tests/core/pirate-state.test.ts
 git commit -m "feat(pirates): add deterministic ecology and spawning"
 ```
 

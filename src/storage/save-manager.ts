@@ -249,6 +249,7 @@ export function normalizePirateState(state: GameState): PirateState {
     normalized.pressure.suppression = Array.isArray(raw.pressure.suppression)
       ? raw.pressure.suppression.filter(entry => isRecord(entry)
         && typeof entry.regionKey === 'string'
+        && /^-?\d+,-?\d+$/.test(entry.regionKey)
         && Number.isFinite(entry.amount)
         && Number.isFinite(entry.expiresAfterRound)
         && Number(entry.expiresAfterRound) > state.turn,
@@ -271,6 +272,9 @@ export function normalizePirateState(state: GameState): PirateState {
       const faction: PirateFactionState = {
         id: factionId as PirateFactionState['id'],
         name: rawFaction.name,
+        spawnedRound: Number.isFinite(rawFaction.spawnedRound)
+          ? Math.max(0, Number(rawFaction.spawnedRound))
+          : normalized.activatedTurn ?? state.turn,
         behavior: rawFaction.behavior,
         maritimeStage: Number(rawFaction.maritimeStage) as PirateFactionState['maritimeStage'],
         notoriety: Number.isFinite(rawFaction.notoriety) ? Math.max(0, Number(rawFaction.notoriety)) : 0,

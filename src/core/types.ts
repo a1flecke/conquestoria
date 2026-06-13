@@ -1,5 +1,5 @@
 import type { NotificationLog } from './notification-log';
-import type { PirateState } from './pirate-state';
+import type { PirateFactionId, PirateHeadquarters, PirateMaritimeStage, PirateState } from './pirate-state';
 
 // --- Hex Coordinates ---
 
@@ -1268,6 +1268,13 @@ export interface GameEvents {
   'unit:move': { unitId: string; from: HexCoord; to: HexCoord; path: HexCoord[] };
   'unit:created': { unit: Unit };
   'unit:destroyed': { unitId: string; position: HexCoord };
+  'pirate:faction-spawned': {
+    factionId: PirateFactionId;
+    factionName: string;
+    headquartersKind: PirateHeadquarters['kind'];
+    position: HexCoord;
+    maritimeStage: PirateMaritimeStage;
+  };
   'city:founded': { city: City; founderId: string };
   'city:captured': { cityId: string; newOwner: string; previousOwner: string };
   'diplomacy:vassalage-offered': { fromCivId: string; toCivId: string };
