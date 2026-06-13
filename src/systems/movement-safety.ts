@@ -3,6 +3,7 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
+import { isAlwaysHostilePair } from '@/core/owner-kind';
 
 function getHexDistance(state: GameState, from: HexCoord, to: HexCoord): number {
   return state.map.wrapsHorizontally
@@ -26,7 +27,7 @@ export function isUnitHostileToCiv(state: GameState, viewerId: string, unitOwner
     return false;
   }
 
-  if (unitOwnerId === 'barbarian') {
+  if (isAlwaysHostilePair(viewerId, unitOwnerId)) {
     return true;
   }
 

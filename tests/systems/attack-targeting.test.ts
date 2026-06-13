@@ -76,6 +76,64 @@ describe('attack-targeting', () => {
     });
   });
 
+  it('allows major civilizations and pirates to target each other without diplomacy state', () => {
+    const player = unit('player-warrior', 'warrior', 'player', { q: 0, r: 0 });
+    const pirate = unit('pirate-warrior', 'warrior', 'pirate-7', { q: 1, r: 0 });
+    const state = stateWithUnits({ 'player-warrior': player, 'pirate-warrior': pirate }, { '0,0': 'visible', '1,0': 'visible' });
+    state.civilizations.player.diplomacy.atWarWith = [];
+
+    expect(canUnitAttackTarget(state, player, { q: 1, r: 0 }, { viewerId: 'player' })).toMatchObject({
+      ok: true,
+      targetUnitId: 'pirate-warrior',
+    });
+    expect(canUnitAttackTarget(state, pirate, { q: 0, r: 0 }, { requireVisibility: false })).toMatchObject({
+      ok: true,
+      targetUnitId: 'player-warrior',
+    });
+  });
+
+  it('does not make distinct pirate factions hostile to each other', () => {
+    const attacker = unit('pirate-7-warrior', 'warrior', 'pirate-7', { q: 0, r: 0 });
+    const defender = unit('pirate-8-warrior', 'warrior', 'pirate-8', { q: 1, r: 0 });
+    const state = stateWithUnits({ 'pirate-7-warrior': attacker, 'pirate-8-warrior': defender }, { '1,0': 'visible' });
+
+    expect(canUnitAttackTarget(state, attacker, { q: 1, r: 0 }, { requireVisibility: false })).toEqual({
+      ok: false,
+      reason: 'not-hostile',
+    });
+  });
+
+  it('rejects pirate attacks against cities because pirates never capture them', () => {
+    const attacker = unit('pirate-warrior', 'warrior', 'pirate-7', { q: 0, r: 0 });
+    const state = stateWithUnits({ 'pirate-warrior': attacker }, { '1,0': 'visible' });
+    state.cities.playerCity = {
+      id: 'playerCity',
+      name: 'Player City',
+      owner: 'player',
+      position: { q: 1, r: 0 },
+      population: 4,
+      buildings: [],
+      productionQueue: [],
+      productionProgress: 0,
+      food: 0,
+      foodNeeded: 10,
+      ownedTiles: [{ q: 1, r: 0 }],
+      workedTiles: [],
+      focus: 'balanced',
+      maturity: 'outpost',
+      grid: [],
+      gridSize: 3,
+      unrestLevel: 0,
+      unrestTurns: 0,
+      spyUnrestBonus: 0,
+    };
+
+    expect(canUnitAttackTarget(state, attacker, { q: 1, r: 0 }, { requireVisibility: false })).toEqual({
+      ok: false,
+      reason: 'unsupported-target',
+    });
+  });
+
   it('requires bilateral war before either humans or AI can target a minor-civ unit', () => {
     const attacker = unit('attacker', 'warrior', 'player', { q: 0, r: 0 });
     const minor = unit('minor-warrior', 'warrior', 'mc-sparta', { q: 1, r: 0 });

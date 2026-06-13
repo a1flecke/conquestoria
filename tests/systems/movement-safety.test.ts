@@ -21,4 +21,23 @@ describe('movement-safety', () => {
     expect(isThreatenedByVisibleHostiles(peaceful.state, 'player', { q: 2, r: 1 })).toBe(false);
     expect(isThreatenedByVisibleHostiles(wartime.state, 'player', { q: 2, r: 1 })).toBe(true);
   });
+
+  it('treats visible pirate units as hostile threats without diplomacy state', () => {
+    const { state } = makeAutoExploreFixture();
+    state.units['pirate-scout'] = {
+      id: 'pirate-scout',
+      type: 'warrior',
+      owner: 'pirate-7',
+      position: { q: 3, r: 1 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.civilizations.player.visibility.tiles['3,1'] = 'visible';
+
+    expect(isThreatenedByVisibleHostiles(state, 'player', { q: 2, r: 1 })).toBe(true);
+  });
 });

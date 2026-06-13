@@ -1,6 +1,7 @@
 import type { GameState, Unit, UnitType } from '@/core/types';
+import { classifyOwner, type OwnerKind } from '@/core/owner-kind';
 
-export type UnitOwnerRole = 'major' | 'minor' | 'barbarian' | 'beast';
+export type UnitOwnerRole = OwnerKind;
 export type UnitRoleMarker = 'chevron' | 'diamond' | null;
 export type UnitMotionState = 'idle' | 'move-a' | 'move-b';
 
@@ -69,10 +70,7 @@ export interface UnitVisual {
 }
 
 function getRole(unit: Unit): UnitOwnerRole {
-  if (unit.owner === 'beasts') return 'beast';
-  if (unit.owner === 'barbarian') return 'barbarian';
-  if (unit.owner.startsWith('mc-')) return 'minor';
-  return 'major';
+  return classifyOwner(unit.owner);
 }
 
 export function resolveUnitVisual(
@@ -84,10 +82,16 @@ export function resolveUnitVisual(
   const role = getRole(unit);
   const color = colorLookup[unit.owner]
     ?? state.civilizations?.[unit.owner]?.color
-    ?? (role === 'barbarian' ? '#8b4513' : role === 'beast' ? '#7a1f2b' : '#888');
+    ?? (role === 'barbarian' ? '#8b4513'
+      : role === 'beast' ? '#7a1f2b'
+      : role === 'pirate' ? '#7f1d1d'
+      : role === 'rebel' ? '#6b3f2a'
+      : '#888');
   return {
     role,
-    roleMarker: role === 'barbarian' ? 'chevron' : role === 'minor' ? 'diamond' : null,
+    roleMarker: role === 'minor' ? 'diamond'
+      : role === 'barbarian' || role === 'rebel' || role === 'pirate' ? 'chevron'
+      : null,
     color,
     fallbackIcon: FALLBACK_ICONS[unit.type] ?? '?',
     spriteOwnerId: unit.owner,

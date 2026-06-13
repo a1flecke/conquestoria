@@ -71,6 +71,16 @@ describe('combat-reward-system', () => {
     expect(reward.goldAwarded).toBe(0);
   });
 
+  it('does not report ordinary civilization gold for pirate victors', () => {
+    const victor = { ...createUnit('warrior', 'pirate-7', { q: 0, r: 0 }, mkC()), id: 'winner', health: 60 };
+    const defeated = { ...createUnit('warrior', 'player', { q: 1, r: 0 }, mkC()), id: 'fallen' };
+
+    const reward = calculateDefeatReward({ victor, defeated, seed: 64 });
+
+    expect(reward.experienceAwarded).toBeGreaterThan(0);
+    expect(reward.goldAwarded).toBe(0);
+  });
+
   it('collects a reward for the surviving attacker when the defender dies', () => {
     const attacker = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker', health: 50 };
     const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender' };

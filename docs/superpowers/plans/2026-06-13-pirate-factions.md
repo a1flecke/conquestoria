@@ -248,7 +248,7 @@ Execution note: verified issue comment `4699301862` at https://github.com/a1flec
 - Modify: `tests/systems/combat-reward-system.test.ts`
 - Modify: `tests/renderer/unit-map-presentation.test.ts`
 
-- [ ] **Step 1: Write failing owner-boundary tests**
+- [x] **Step 1: Write failing owner-boundary tests**
 
 Cover every owner kind and the pirate-specific negative boundaries:
 
@@ -269,7 +269,7 @@ expect(canReceiveCivilizationCombatRewards('pirate-7')).toBe(false);
 
 Add attack tests proving a major unit can attack a pirate without war, a pirate unit cannot target a city, and pirate owners do not enter diplomacy declaration code.
 
-- [ ] **Step 2: Run the red tests**
+- [x] **Step 2: Run the red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/core/owner-kind.test.ts tests/systems/attack-targeting.test.ts tests/systems/movement-safety.test.ts tests/systems/combat-reward-system.test.ts tests/renderer/unit-map-presentation.test.ts
@@ -277,7 +277,7 @@ Add attack tests proving a major unit can attack a pirate without war, a pirate 
 
 Expected: failures for missing helpers, missing pirate owner role, and unknown unit types.
 
-- [ ] **Step 3: Implement the authoritative owner helpers**
+- [x] **Step 3: Implement the authoritative owner helpers**
 
 ```ts
 export type OwnerKind = 'major' | 'minor' | 'barbarian' | 'rebel' | 'beast' | 'pirate';
@@ -307,7 +307,7 @@ export function isAlwaysHostilePair(a: string, b: string): boolean {
 
 Use these helpers in every touched hardcoded owner check. Do not perform a repository-wide cosmetic refactor; replace the checks that can misclassify pirates and add tests around them. `isAlwaysHostilePair` does not bypass existing beast concealment or beast-attack eligibility; attack targeting applies those gates before generic hostility.
 
-- [ ] **Step 4: Run focused checks and commit**
+- [x] **Step 4: Run focused checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/core/owner-kind.ts src/systems/attack-targeting.ts src/systems/movement-safety.ts src/systems/combat-reward-system.ts src/renderer/unit-visual-resolver.ts src/renderer/unit-map-presentation.ts src/core/turn-manager.ts src/ai/basic-ai.ts src/main.ts

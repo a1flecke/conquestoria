@@ -69,6 +69,19 @@ import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
+import { classifyOwner, isAlwaysHostilePair } from '@/core/owner-kind';
+
+function addAlwaysHostileOwners(
+  state: GameState,
+  civId: string,
+  owners: Set<string>,
+  includeBeasts: boolean,
+): void {
+  for (const unit of Object.values(state.units)) {
+    if (!includeBeasts && classifyOwner(unit.owner) === 'beast') continue;
+    if (isAlwaysHostilePair(civId, unit.owner)) owners.add(unit.owner);
+  }
+}
 
 function getPersonality(state: GameState, civType: string): PersonalityTraits {
   const def = resolveCivDefinition(state, civType);
@@ -374,6 +387,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
   // --- Handle transports: unload onto enemy coast, then load idle land units ---
   const transportHostileOwners = new Set<string>(['barbarian', ...(contestsBeasts ? [BEAST_OWNER] : []), ...(civ.diplomacy?.atWarWith ?? [])]);
+  addAlwaysHostileOwners(newState, civId, transportHostileOwners, contestsBeasts);
   for (const [mcId, mc] of Object.entries(newState.minorCivs)) {
     if (mc.diplomacy?.atWarWith?.includes(civId)) transportHostileOwners.add(mcId);
   }
@@ -532,6 +546,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     // Explore: move toward unexplored territory
     const occupancy = buildUnitOccupancy(newState.units);
     const aiHostileOwners = new Set<string>(['barbarian', ...(contestsBeasts ? [BEAST_OWNER] : []), ...(civ.diplomacy?.atWarWith ?? [])]);
+    addAlwaysHostileOwners(newState, civId, aiHostileOwners, contestsBeasts);
     for (const [mcId, mc] of Object.entries(newState.minorCivs)) {
       if (mc.diplomacy?.atWarWith?.includes(civId)) {
         aiHostileOwners.add(mcId);
