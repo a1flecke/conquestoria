@@ -2,6 +2,7 @@ import '@/assets/sprite-animations-v2.css';
 import '@/assets/boar-animations.css';
 import '@/assets/wolf-animations.css';
 import '@/assets/basilisk-animations.css';
+import '@/assets/hydra-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
