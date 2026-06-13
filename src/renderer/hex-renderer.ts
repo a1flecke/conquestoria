@@ -1,14 +1,6 @@
 import type { GameMap, HexCoord, HexTile, TerrainType, VisibilityMap } from '@/core/types';
 import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY } from '@/systems/hex-utils';
 import { Camera } from './camera';
-import { getFarmMarkerImage }        from './improvements/farm-marker';
-import { getMineMarkerImage }        from './improvements/mine-marker';
-import { getLumberCampMarkerImage }  from './improvements/lumber-camp-marker';
-import { getWatermillMarkerImage }   from './improvements/watermill-marker';
-import { getPlantationMarkerImage }  from './improvements/plantation-marker';
-import { getPastureMarkerImage }     from './improvements/pasture-marker';
-import { getCampMarkerImage }        from './improvements/camp-marker';
-import { getQuarryMarkerImage }      from './improvements/quarry-marker';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
 import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
@@ -17,21 +9,10 @@ import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/trade-system';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
 import { getOutpostMarkerImage } from './improvements/resource-outpost-marker';
 import { getTerrainTileImage } from './terrain/terrain-tile-loader';
+import { drawImprovementTreatment } from './improvements/improvement-treatment';
 
-// --- Improvement icons and SVG markers ---
-
-const IMPROVEMENT_MARKER_GETTERS: Record<string, () => HTMLImageElement | null> = {
-  farm:        getFarmMarkerImage,
-  mine:        getMineMarkerImage,
-  lumber_camp: getLumberCampMarkerImage,
-  watermill:   getWatermillMarkerImage,
-  plantation:  getPlantationMarkerImage,
-  pasture:     getPastureMarkerImage,
-  camp:        getCampMarkerImage,
-  quarry:      getQuarryMarkerImage,
-};
-
-// Emoji fallbacks — used when SVG marker hasn't loaded yet or for unknown types
+// Compatibility catalog for inspection/UI consumers. Strategic-map improvements
+// render as terrain treatments rather than these glyphs.
 export const IMPROVEMENT_ICONS: Record<string, string> = {
   farm: '🌾',
   mine: '⛏️',
@@ -103,9 +84,10 @@ function drawTileAtScreen(
   lowZoom: boolean,
   viewerTechs: ReadonlySet<string> = new Set(),
   lairGlyph?: string,
+  suppressTerrainLabel: boolean = false,
 ): void {
   drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, lowZoom, viewerTechs, lairGlyph);
-  if (shouldShowTerrainLabel(zoom)) {
+  if (shouldShowTerrainLabel(zoom) && !suppressTerrainLabel) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.font = `${Math.round(scaledSize * 0.22)}px sans-serif`;
@@ -124,6 +106,7 @@ export function drawHexMap(
   currentPlayer?: string,
   viewerVisibility?: VisibilityMap,
   viewerTechs: ReadonlySet<string> = new Set(),
+  terrainLabelSuppressedCoords: ReadonlySet<string> = new Set(),
 ): void {
   const size = camera.hexSize;
   const nowMs = typeof performance !== 'undefined' ? performance.now() : 0;
@@ -161,7 +144,8 @@ export function drawHexMap(
         reducedMotion,
         camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         viewerTechs,
-        isExplored ? rawLairGlyph : undefined,
+        presentation.kind === 'live' ? rawLairGlyph : undefined,
+        terrainLabelSuppressedCoords.has(tileKey),
       );
     }
   }
@@ -326,33 +310,20 @@ function drawHex(
         ctx.fillText('🚩', cx, cy);
       }
     } else {
-      // Try SVG marker first; fall back to emoji if not yet loaded or unknown type
-      const getter = IMPROVEMENT_MARKER_GETTERS[tile.improvement];
-      const markerImg = getter ? getter() : null;
-      if (markerImg) {
-        const s = size * 0.6;
-        ctx.drawImage(markerImg, cx - s / 2, cy - s * 0.7, s, s);
-      } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        ctx.font = `${size * 0.5}px system-ui`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const icon = IMPROVEMENT_ICONS[tile.improvement] ?? '◆';
-        ctx.fillText(icon, cx, cy);
-      }
+      drawImprovementTreatment(ctx, tile.improvement, cx, cy, size);
     }
   }
 
   // Draw construction progress indicator
   if (tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = `${size * 0.35}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🔨', cx, cy - size * 0.15);
+    ctx.globalAlpha = 0.42;
+    drawImprovementTreatment(ctx, tile.improvement, cx, cy, size);
+    ctx.globalAlpha = 1;
     ctx.font = `bold ${size * 0.22}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fillText(`${tile.improvementTurnsLeft}t`, cx, cy + size * 0.25);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${tile.improvementTurnsLeft}t`, cx, cy + size * 0.3);
   }
 
   // Draw resource icon (tech-gated).

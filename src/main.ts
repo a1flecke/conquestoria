@@ -9,14 +9,6 @@ import { processAITurn } from '@/ai/basic-ai';
 import { RenderLoop } from '@/renderer/render-loop';
 import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
-import { preloadFarmMarker }      from '@/renderer/improvements/farm-marker';
-import { preloadMineMarker }      from '@/renderer/improvements/mine-marker';
-import { preloadLumberCampMarker } from '@/renderer/improvements/lumber-camp-marker';
-import { preloadWatermillMarker }  from '@/renderer/improvements/watermill-marker';
-import { preloadPlantationMarker } from '@/renderer/improvements/plantation-marker';
-import { preloadPastureMarker }    from '@/renderer/improvements/pasture-marker';
-import { preloadCampMarker }       from '@/renderer/improvements/camp-marker';
-import { preloadQuarryMarker }     from '@/renderer/improvements/quarry-marker';
 import { preloadTerrainTiles } from '@/renderer/terrain/terrain-tile-loader';
 import { preloadNaturalWonderTiles } from '@/renderer/terrain/wonder-tile-loader';
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
@@ -3772,14 +3764,6 @@ function startGame(): void {
   }
   initSprites(civColors);
   preloadOutpostMarker().catch(() => {});
-  preloadFarmMarker().catch(() => {});
-  preloadMineMarker().catch(() => {});
-  preloadLumberCampMarker().catch(() => {});
-  preloadWatermillMarker().catch(() => {});
-  preloadPlantationMarker().catch(() => {});
-  preloadPastureMarker().catch(() => {});
-  preloadCampMarker().catch(() => {});
-  preloadQuarryMarker().catch(() => {});
   preloadTerrainTiles().catch(() => {});
   preloadNaturalWonderTiles().catch(() => {});
 
