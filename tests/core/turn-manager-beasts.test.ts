@@ -55,6 +55,34 @@ describe('turn-manager hoard handling', () => {
     expect(next.civilizations[aiCivId].gold).toBeGreaterThan(goldBefore);
   });
 
+  it('hydra regen is applied and clamped at 100 by processTurn', () => {
+    const state = createNewGame('rome', 'beast-turn-seed', 'small', 'Hydra Regen Test');
+    state.era = 3;
+    // Find a non-water tile to place the hydra so processBeasts can compute move/attack orders safely
+    const nonWaterKey = Object.keys(state.map.tiles).find(k => {
+      const t = state.map.tiles[k].terrain;
+      return t !== 'ocean' && t !== 'coast';
+    }) ?? '5,5';
+    const [hq, hr] = nonWaterKey.split(',').map(Number);
+    state.beasts = {
+      mode: 'wild',
+      lairs: {
+        'lair-swamp_hydra': {
+          id: 'lair-swamp_hydra', beastId: 'swamp_hydra',
+          position: { q: hq, r: hr }, status: 'awake', strength: 0, unitIds: ['hydra-1'],
+        },
+      },
+      sightingsByCiv: {},
+    };
+    state.units['hydra-1'] = {
+      id: 'hydra-1', type: 'beast_hydra', owner: 'beasts',
+      position: { q: hq, r: hr }, movementPointsLeft: 1, health: 95,
+      experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as any;
+    const next = processTurn(state, new EventBus());
+    expect(next.units['hydra-1'].health).toBe(100);
+  });
+
   it('claimed trophies pay per-turn gold during processTurn', () => {
     const state = createNewGame('rome', 'beast-turn-seed', 'small', 'Trophy Test');
     const me = state.currentPlayer;

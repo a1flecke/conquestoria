@@ -355,3 +355,40 @@ describe('canUnitAttackBeast', () => {
     expect(canUnitAttackBeast(makeUnit({ type: 'warrior' }), boar).allowed).toBe(true);
   });
 });
+
+describe('flying and regen', () => {
+  it('the roc may move onto mountains; land beasts may not', () => {
+    expect(isTerrainPassableForBeast('beast_roc', 'mountain')).toBe(true);
+    expect(isTerrainPassableForBeast('beast_roc', 'grassland')).toBe(true);
+    expect(isTerrainPassableForBeast('beast_roc', 'ocean')).toBe(false);
+    expect(isTerrainPassableForBeast('beast_boar', 'mountain')).toBe(false);
+  });
+
+  it('processBeasts emits regen orders for wounded hydras only', () => {
+    const map = tinyMap({ '10,10': 'swamp', '11,10': 'swamp', '9,10': 'swamp' });
+    const lair = makeLair({ id: 'lair-swamp_hydra', beastId: 'swamp_hydra', position: { q: 10, r: 10 }, status: 'awake', unitIds: ['hydra-1'] });
+    const wounded = makeUnit({ id: 'hydra-1', type: 'beast_hydra', owner: 'beasts', position: { q: 10, r: 10 }, health: 60 });
+    const result = processBeasts([lair], map, [], [wounded], 3, 'wild', 7);
+    expect(result.regenOrders).toEqual([{ unitId: 'hydra-1', amount: 10 }]);
+
+    const healthy = { ...wounded, health: 100 };
+    const none = processBeasts([lair], map, [], [healthy], 3, 'wild', 7);
+    expect(none.regenOrders).toEqual([]);
+  });
+
+  it('regen orders are emitted in calm mode too', () => {
+    const map = tinyMap({ '10,10': 'swamp' });
+    const lair = makeLair({ id: 'lair-swamp_hydra', beastId: 'swamp_hydra', position: { q: 10, r: 10 }, status: 'awake', unitIds: ['hydra-1'] });
+    const wounded = makeUnit({ id: 'hydra-1', type: 'beast_hydra', owner: 'beasts', position: { q: 10, r: 10 }, health: 50 });
+    const result = processBeasts([lair], map, [], [wounded], 3, 'calm', 7);
+    expect(result.regenOrders).toEqual([{ unitId: 'hydra-1', amount: 10 }]);
+  });
+
+  it('non-regen beasts never appear in regen orders', () => {
+    const map = tinyMap({ '10,10': 'forest', '11,10': 'forest' });
+    const lair = makeLair({ id: 'lair-giant_boar', beastId: 'giant_boar', position: { q: 10, r: 10 }, status: 'awake', unitIds: ['boar-1'] });
+    const wounded = makeUnit({ id: 'boar-1', type: 'beast_boar', owner: 'beasts', position: { q: 10, r: 10 }, health: 50 });
+    const result = processBeasts([lair], map, [], [wounded], 1, 'wild', 7);
+    expect(result.regenOrders).toEqual([]);
+  });
+});
