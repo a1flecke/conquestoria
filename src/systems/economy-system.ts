@@ -13,6 +13,7 @@ import { calculateProjectedCityYields } from './city-work-system';
 import { createSpyFromUnit, isSpyUnitType } from './espionage-system';
 import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
 import { processTradeRouteIncome } from './trade-system';
+import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { resolveCivDefinition } from './civ-registry';
 
@@ -492,6 +493,8 @@ export function projectCivGrossGold(state: GameState, civId: string): number {
       state.marketplace.tradeRoutes.filter(route => state.cities[route.fromCityId]?.owner === civId),
     );
   }
+
+  grossGold += getClaimedTrophyGoldPerTurn(state, civId);
 
   return grossGold;
 }
