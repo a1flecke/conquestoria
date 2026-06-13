@@ -90,11 +90,30 @@ describe('pirate state', () => {
     const normalized = normalizeLoadedStateForTest(state);
     const faction = normalized.pirates.factions['pirate-2'];
 
+    expect(faction.spawnedRound).toBe(12);
     expect(faction.tributeByCiv.player).toBeUndefined();
     expect(faction.contract).toBeNull();
     expect(faction.transitionGuards.emittedEventKeys).toEqual(['seen']);
     expect(normalized.pirates.activationWarningDeliveredByCiv).toEqual({ player: true });
     expect(normalized.pirates.intelByCiv.player).toEqual({});
+  });
+
+  it('drops malformed regional suppression coordinates from loaded saves', () => {
+    const state = createNewGame(undefined, 'malformed-pirate-suppression', 'small');
+    state.pirates = {
+      ...createEmptyPirateState(),
+      pressure: {
+        value: 12,
+        suppression: [
+          { regionKey: 'not-a-hex', amount: 8, expiresAfterRound: state.turn + 8 },
+          { regionKey: '3,-2', amount: 8, expiresAfterRound: state.turn + 8 },
+        ],
+      },
+    };
+
+    expect(normalizeLoadedStateForTest(state).pirates.pressure.suppression).toEqual([
+      { regionKey: '3,-2', amount: 8, expiresAfterRound: state.turn + 8 },
+    ]);
   });
 
   it('resolves a missing flotilla flagship into one historical destruction record across repeated normalization', () => {

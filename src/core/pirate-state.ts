@@ -82,6 +82,7 @@ export interface PirateTransitionGuards {
 export interface PirateFactionState {
   id: PirateFactionId;
   name: string;
+  spawnedRound: number;
   behavior: PirateBehavior;
   maritimeStage: PirateMaritimeStage;
   notoriety: number;
