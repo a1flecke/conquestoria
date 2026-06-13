@@ -190,3 +190,80 @@ export function DuneWurmSprite({ svgOnly = false }: UnitSpriteProps): string {
     </SpriteFrame>
   );
 }
+
+const ROC = {
+  feather: '#5a6b8a',
+  featherDark: '#3c4a63',
+  beak: '#d9a23a',
+  spark: '#9ed0ff',
+};
+
+export function StormRocSprite({ svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g className="cq-shadow-detached"><Shadow /></g>
+      <g data-kind="beast-winged" className="cq-sprite-figure">
+        <g className="cq-hover-body">
+          <g className="cq-wing-l">
+            <path d="M58,60 Q34,40 16,48 Q30,56 34,64 Q44,62 58,66 Z" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
+            <path d="M22,48 l6,4 M30,46 l5,5 M38,48 l4,5" stroke={ROC.featherDark} strokeWidth="1.5" />
+          </g>
+          <g className="cq-wing-r">
+            <path d="M70,60 Q94,40 112,48 Q98,56 94,64 Q84,62 70,66 Z" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
+            <path d="M106,48 l-6,4 M98,46 l-5,5 M90,48 l-4,5" stroke={ROC.featherDark} strokeWidth="1.5" />
+          </g>
+          {/* body, tail, head */}
+          <ellipse cx="64" cy="64" rx="12" ry="16" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
+          <path d="M60,78 L56,92 L64,84 L72,92 L68,78 Z" fill={ROC.featherDark} />
+          <circle cx="64" cy="48" r="8" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
+          <path d="M64,50 L72,54 L64,57 Z" fill={ROC.beak} />
+          <circle cx="61" cy="47" r="1.8" fill="#ffd34d" />
+          {/* storm sparks */}
+          <path d="M40,42 l-3,6 4,-1 -3,6 M90,40 l-3,6 4,-1 -3,6" fill="none" stroke={ROC.spark} strokeWidth="1.5" strokeLinecap="round" />
+        </g>
+      </g>
+    </SpriteFrame>
+  );
+}
+
+const HYDRA = {
+  scale: '#4a6b4a',
+  scaleDark: '#2f4a2f',
+  belly: '#7e9a6a',
+  eye: '#e0d34d',
+};
+
+export function SwampHydraSprite({ svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      <g data-kind="beast-serpent" className="cq-sprite-figure">
+        {/* squat body in the mire */}
+        <ellipse cx="64" cy="80" rx="26" ry="14" fill={HYDRA.scale} stroke={P.ink.line} strokeWidth="1.5" />
+        <ellipse cx="64" cy="86" rx="20" ry="7" fill={HYDRA.belly} opacity="0.6" />
+        {/* three weaving necks + heads, phase-offset */}
+        <g className="cq-segment-1">
+          <path d="M52,72 Q40,56 44,44" fill="none" stroke={HYDRA.scale} strokeWidth="7" strokeLinecap="round" />
+          <ellipse cx="44" cy="42" rx="7" ry="6" fill={HYDRA.scale} stroke={P.ink.line} strokeWidth="1.2" />
+          <path d="M38,42 L26,44 L38,46 Z" fill={HYDRA.scaleDark} />
+          <circle cx="42" cy="40" r="1.6" fill={HYDRA.eye} />
+        </g>
+        <g className="cq-segment-2">
+          <path d="M64,70 Q64,52 64,40" fill="none" stroke={HYDRA.scale} strokeWidth="8" strokeLinecap="round" />
+          <ellipse cx="64" cy="37" rx="7" ry="6" fill={HYDRA.scale} stroke={P.ink.line} strokeWidth="1.2" />
+          <path d="M70,37 L82,39 L70,41 Z" fill={HYDRA.scaleDark} />
+          <circle cx="66" cy="35" r="1.6" fill={HYDRA.eye} />
+        </g>
+        <g className="cq-segment-3">
+          <path d="M76,72 Q88,56 84,44" fill="none" stroke={HYDRA.scale} strokeWidth="7" strokeLinecap="round" />
+          <ellipse cx="84" cy="42" rx="7" ry="6" fill={HYDRA.scale} stroke={P.ink.line} strokeWidth="1.2" />
+          <path d="M90,42 L102,44 L90,46 Z" fill={HYDRA.scaleDark} />
+          <circle cx="86" cy="40" r="1.6" fill={HYDRA.eye} />
+        </g>
+        {/* marsh bubbles */}
+        <circle cx="40" cy="92" r="2" fill="#9ec79e" opacity="0.6" />
+        <circle cx="90" cy="90" r="1.5" fill="#9ec79e" opacity="0.6" />
+      </g>
+    </SpriteFrame>
+  );
+}
