@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 
 describe('tech.unlocks copy matches gameplay gating', () => {
   it('every "Unlock <Name> building" claim corresponds to a building gated by that tech', () => {
@@ -64,6 +65,11 @@ describe('tech.unlocks must contain only effect text', () => {
 });
 
 describe('tech structured unlock arrays', () => {
+  it('never exposes pirate hulls through technology unlocks', () => {
+    const unlockedUnits = new Set(TECH_TREE.flatMap(tech => tech.unlocksUnits ?? []));
+    for (const hull of PIRATE_HULL_TYPES) expect(unlockedUnits.has(hull), hull).toBe(false);
+  });
+
   it('every unlocksUnits entry is a trainable unit gated by that tech', () => {
     const failures: string[] = [];
     for (const tech of TECH_TREE) {
