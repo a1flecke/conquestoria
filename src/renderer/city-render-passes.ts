@@ -2,10 +2,11 @@ import type { City, HexCoord } from '@/core/types';
 import { getOccupiedCityMood } from '@/systems/city-occupation-system';
 import { PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
-import { drawLegendaryWonderLandmarks } from '@/renderer/wonders/legendary-wonder-renderer';
-import { spriteCache } from '@/renderer/sprites/sprite-loader';
-
-const CITY_ICON_EMOJI_Y_NUDGE_RATIO = 0.08;
+import { drawLegendaryWonderLandmarkGlyph } from '@/renderer/wonders/legendary-wonder-renderer';
+import {
+  selectPrimaryCityWonder,
+  type CityMapPresentation,
+} from '@/renderer/city-map-presentation';
 
 export interface CityRenderProjection {
   name: string;
@@ -20,6 +21,7 @@ export interface CityRenderProjection {
 export interface CityRenderItem {
   projection: CityRenderProjection;
   city?: City;
+  presentation: CityMapPresentation;
   screen: { x: number; y: number };
   size: number;
   ownerColor: string;
@@ -31,7 +33,6 @@ export interface CityRenderItem {
   lowZoom: boolean;
   reducedMotion: boolean;
   nowMs: number;
-  turn: number;
 }
 
 export type CityRenderPassName =
@@ -54,13 +55,81 @@ export function getProductionBadgeIcon(city: { productionQueue: string[] }): str
   return PRODUCTION_ICONS[id] ?? PRODUCTION_ICON_FALLBACK;
 }
 
-export function getProductionBadgeSprite(
-  city: { productionQueue: string[] },
-  civId: string,
-): HTMLImageElement | null {
-  if (city.productionQueue.length === 0) return null;
-  const id = city.productionQueue[0];
-  return spriteCache.getBuilding(id, civId) ?? null;
+const TIER_STRUCTURE_COUNTS = {
+  outpost: 1,
+  village: 2,
+  town: 3,
+  city: 4,
+  metropolis: 5,
+} as const;
+
+const SPECIALIZATION_COLORS = {
+  military: '#b84b43',
+  food: '#78a95b',
+  production: '#b37a45',
+  economy: '#d6b34f',
+  science: '#5d94cf',
+  culture: '#a76ac2',
+  espionage: '#59606c',
+} as const;
+
+const FAMILY_ROOF_COLORS: Record<string, string> = {
+  pharaohs: '#d3b35b',
+  hellenes: '#7f9fb8',
+  imperials: '#9b5148',
+  vikings: '#61817d',
+  khanate: '#a67c48',
+  shogunate: '#764d58',
+  generic: '#7d7467',
+};
+
+export function getCityDioramaBounds(size: number): { width: number; height: number } {
+  return { width: size * 1.22, height: size * 0.96 };
+}
+
+export function formatCityBannerLabel(name: string, population: number, maxNameLength = 14): string {
+  const trimmed = name.length > maxNameLength ? `${name.slice(0, Math.max(1, maxNameLength - 1))}…` : name;
+  return `${trimmed} (${population})`;
+}
+
+export function getCityBannerTextColor(backgroundColor: string): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(backgroundColor);
+  if (!match) return '#fff';
+  const value = Number.parseInt(match[1], 16);
+  const red = (value >> 16) & 0xff;
+  const green = (value >> 8) & 0xff;
+  const blue = value & 0xff;
+  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
+  return luminance > 155 ? '#181818' : '#fff';
+}
+
+function drawRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fillStyle: string,
+  strokeStyle?: string,
+): void {
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.fillStyle = fillStyle;
+  ctx.fill();
+  if (strokeStyle) {
+    ctx.strokeStyle = strokeStyle;
+    ctx.stroke();
+  }
+}
+
+function getArchitecturePalette(item: CityRenderItem): { wall: string; roof: string; trim: string } {
+  const eraLightness = Math.min(4, Math.max(0, item.presentation.architectureEra - 1));
+  const stale = item.presentation.visibilityMode === 'last-seen';
+  return {
+    wall: stale ? '#89857d' : ['#dfcfaa', '#d8c8a4', '#c7c3b5', '#b8bec1', '#adb8bd'][eraLightness],
+    roof: stale ? '#66635e' : FAMILY_ROOF_COLORS[item.presentation.visualFamily] ?? FAMILY_ROOF_COLORS.generic,
+    trim: stale ? '#55524d' : '#3d3a35',
+  };
 }
 
 function markPass(ctx: CanvasRenderingContext2D, passName: CityRenderPassName): void {
@@ -71,55 +140,138 @@ export function drawCityBasePass(ctx: CanvasRenderingContext2D, item: CityRender
   if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'base');
   ctx.beginPath();
-  ctx.arc(item.screen.x, item.screen.y, item.size * 0.45, 0, Math.PI * 2);
-  ctx.fillStyle = item.ownerColor;
+  ctx.arc(item.screen.x, item.screen.y + item.size * 0.19, item.size * 0.44, 0, Math.PI);
+  ctx.fillStyle = 'rgba(31,34,34,0.72)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = item.ownerColor;
+  ctx.lineWidth = Math.max(1.5, item.size * 0.045);
   ctx.stroke();
 }
 
 export function drawCityIconPass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
   if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'icon');
-  ctx.font = `${item.size * 0.45}px system-ui`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(
-    item.isMinorCiv ? item.minorCivIcon ?? '📜' : '🏛️',
-    item.screen.x,
-    item.screen.y + item.size * CITY_ICON_EMOJI_Y_NUDGE_RATIO,
-  );
+  const { wall, roof, trim } = getArchitecturePalette(item);
+  const count = item.lowZoom ? 1 : TIER_STRUCTURE_COUNTS[item.presentation.populationTier];
+  const spacing = item.size * 0.19;
+  const bodyWidth = item.size * (count === 1 ? 0.34 : 0.22);
+  const bodyHeight = item.size * (0.24 + Math.min(3, item.presentation.architectureEra) * 0.025);
+  const startX = item.screen.x - ((count - 1) * spacing) / 2;
+  const baseline = item.screen.y + item.size * 0.18;
+
+  for (let index = 0; index < count; index++) {
+    const x = startX + index * spacing;
+    const height = bodyHeight * (index % 2 === 0 ? 1 : 0.82);
+    drawRect(ctx, x - bodyWidth / 2, baseline - height, bodyWidth, height, wall, trim);
+    ctx.beginPath();
+    ctx.moveTo(x - bodyWidth * 0.65, baseline - height);
+    ctx.lineTo(x, baseline - height - item.size * 0.12);
+    ctx.lineTo(x + bodyWidth * 0.65, baseline - height);
+    ctx.closePath();
+    ctx.fillStyle = roof;
+    ctx.fill();
+    ctx.strokeStyle = trim;
+    ctx.stroke();
+  }
+
+  if (!item.lowZoom) {
+    item.presentation.specializations.forEach((category, index) => {
+      const width = item.size * 0.11;
+      drawRect(
+        ctx,
+        item.screen.x - item.size * 0.12 + index * item.size * 0.14,
+        baseline - item.size * 0.08,
+        width,
+        item.size * 0.045,
+        SPECIALIZATION_COLORS[category],
+      );
+    });
+  }
+
+  if (item.presentation.isCapital || item.presentation.isBreakawayCapital) {
+    const flagX = item.screen.x;
+    const flagTop = item.screen.y - item.size * 0.44;
+    ctx.beginPath();
+    ctx.moveTo(flagX, baseline - bodyHeight);
+    ctx.lineTo(flagX, flagTop);
+    ctx.lineTo(flagX + item.size * 0.19, flagTop + item.size * 0.06);
+    ctx.lineTo(flagX, flagTop + item.size * 0.12);
+    ctx.fillStyle = item.presentation.isBreakawayCapital ? '#f2d35e' : item.ownerColor;
+    ctx.fill();
+    ctx.strokeStyle = '#312f2b';
+    ctx.stroke();
+  }
+
+  if (item.isMinorCiv && !item.lowZoom) {
+    ctx.font = `${item.size * 0.18}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(item.minorCivIcon ?? '📜', item.screen.x, item.screen.y + item.size * 0.03);
+  }
 }
 
 export function drawCityLandmarkPass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
   markPass(ctx, 'landmarks');
   if (item.landmarkEntries.length === 0) return;
-  drawLegendaryWonderLandmarks({
+  const selection = item.projection.renderMode === 'landmark-only'
+    ? selectPrimaryCityWonder(item.landmarkEntries)
+    : {
+        primary: item.presentation.primaryWonder,
+        completedOverflowCount: item.presentation.completedWonderOverflowCount,
+      };
+  if (!selection.primary) return;
+  (ctx as unknown as { operations?: string[] }).operations?.push('legendary-landmarks:start');
+  const radius = item.size * (item.lowZoom ? 0.12 : 0.16);
+  const x = item.projection.renderMode === 'landmark-only' ? item.screen.x : item.screen.x + item.size * 0.4;
+  const y = item.projection.renderMode === 'landmark-only' ? item.screen.y : item.screen.y - item.size * 0.3;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(16,16,24,0.92)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(232,193,112,0.78)';
+  ctx.lineWidth = Math.max(1, radius * 0.14);
+  ctx.stroke();
+  drawLegendaryWonderLandmarkGlyph({
     ctx,
-    cx: item.screen.x,
-    cy: item.screen.y,
-    size: item.size,
-    entries: item.landmarkEntries,
+    cx: x,
+    cy: y,
+    radius,
+    metadata: selection.primary.metadata,
+    state: selection.primary.state,
     reducedMotion: item.reducedMotion,
-    lowZoom: item.lowZoom,
-    turn: item.turn,
     nowMs: item.nowMs,
   });
+  if (selection.completedOverflowCount > 0 && !item.lowZoom) {
+    ctx.font = `bold ${Math.max(8, item.size * 0.13)}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f8e7af';
+    ctx.fillText(`+${selection.completedOverflowCount}`, x + radius * 0.72, y + radius * 0.72);
+  }
 }
 
 export function drawCityLabelPass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
   if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'label');
-  ctx.font = `bold ${Math.max(9, item.size * 0.22)}px system-ui`;
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(
-    `${item.projection.name} (${item.projection.population})`,
-    item.screen.x,
-    item.screen.y + item.size * 0.5,
+  const label = formatCityBannerLabel(item.projection.name, item.projection.population);
+  const bannerWidth = item.size * 1.22;
+  const bannerHeight = Math.max(13, item.size * 0.27);
+  const bannerY = item.screen.y + item.size * 0.27;
+  drawRect(
+    ctx,
+    item.screen.x - bannerWidth / 2,
+    bannerY,
+    bannerWidth,
+    bannerHeight,
+    item.ownerColor,
+    'rgba(255,255,255,0.82)',
   );
+  ctx.font = `bold ${Math.max(9, item.size * 0.18)}px system-ui`;
+  ctx.fillStyle = getCityBannerTextColor(item.ownerColor);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, item.screen.x, bannerY + bannerHeight / 2);
 }
 
 export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
@@ -140,7 +292,7 @@ export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: Cit
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';
-  ctx.fillText(statusText, item.screen.x + item.size * 0.45, item.screen.y - item.size * 0.45);
+  ctx.fillText(statusText, item.screen.x + item.size * 0.48, item.screen.y - item.size * 0.42);
 }
 
 export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
@@ -148,26 +300,13 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
   markPass(ctx, 'production');
   if (!item.projection.isLive || !item.city || item.city.owner !== item.playerCivId) return;
 
-  const badgeSprite = item.lowZoom ? null : getProductionBadgeSprite(item.city, item.playerCivId);
-  if (badgeSprite) {
-    const badgeSize = item.size * 0.30;
-    ctx.drawImage(
-      badgeSprite,
-      item.screen.x + item.size * 0.45 - badgeSize / 2,
-      item.screen.y + item.size * 0.45 - badgeSize / 2,
-      badgeSize,
-      badgeSize,
-    );
-    return;
-  }
-
   const buildIcon = getProductionBadgeIcon(item.city);
   if (!buildIcon) return;
   ctx.font = `${item.size * 0.28}px system-ui`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';
-  ctx.fillText(buildIcon, item.screen.x + item.size * 0.45, item.screen.y + item.size * 0.45);
+  ctx.fillText(buildIcon, item.screen.x - item.size * 0.48, item.screen.y - item.size * 0.42);
 }
 
 export function drawCityIdleBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
@@ -188,7 +327,7 @@ export function drawCityIdleBadgePass(ctx: CanvasRenderingContext2D, item: CityR
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';
-  ctx.fillText(idleIcon, item.screen.x - item.size * 0.45, item.screen.y - item.size * 0.45);
+  ctx.fillText(idleIcon, item.screen.x - item.size * 0.48, item.screen.y - item.size * 0.42);
 }
 
 export const CITY_RENDER_PASSES: CityRenderPass[] = [

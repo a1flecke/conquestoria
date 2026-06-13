@@ -343,6 +343,7 @@ describe('drawCities — explicit city render pass contract', () => {
     expectOperationBefore(ctx, 'city-pass:landmarks', `text:${city.name} (${city.population})`);
     expectOperationBefore(ctx, 'city-pass:landmarks', `text:${getProductionBadgeIcon(city)}`);
     expectOperationBefore(ctx, 'city-pass:landmarks', 'text:⚡');
+    expect((ctx as unknown as MockCanvasContext).operations).not.toContain('drawImage');
   });
 
   it('restores canvas state around each explicit city render item', () => {
