@@ -1,0 +1,143 @@
+/* Conquestoria — Sea Serpent (legendary beast) animations.
+ * Companion to the v2 sprite system. Runs as data-kind="beast-serpent" with
+ * data-unit-type="beast_sea_serpent" so the bespoke segment / attack / hurt
+ * rules below stay scoped to the sea serpent and never touch the hydra (which
+ * shares data-kind="beast-serpent") or any future serpent.
+ *
+ * State + damage contract:
+ *   data-state  ∈ idle | walk | attack | hurt | death
+ *   data-damage ∈ 0 (healthy) | 1 (wounded) | 2 (bloodied) | 3 (near death)
+ *
+ * Hooks on the sprite:
+ *   .cq-segment-1   tail coil        (lateral sway, phase 0)
+ *   .cq-segment-2   mid coil         (sway, phase -0.3s)
+ *   .cq-segment-3   high neck-coil   (sway, phase -0.6s)
+ *   .cq-segment-4   neck + head + crest fin (sway, phase -0.9s; lunges on attack)
+ *   .cq-serpent-head  the reared skull inside segment-4 (tilts at near-death)
+ *   .cq-wound-1 / -2 / -3   progressive battle damage
+ *
+ * NOTE: the shared sprite-animations-v2.css ships generic
+ * [data-kind="beast-serpent"] .cq-segment-* undulation. The block below
+ * re-scopes the four coils to this beast's own pivot points (coils, not necks)
+ * and adds the fourth segment, so it is correct whether or not the shared lib
+ * (or the hydra's self-contained copy) is also present.
+ */
+
+/* ── IDLE ─ lateral undulation: a travelling sway down the body ───────── */
+@keyframes cq-serpent-sway {
+  0%, 100% { transform: translateX(-5px) rotate(-2deg); }
+  50%      { transform: translateX(5px) rotate(2deg); }
+}
+[data-unit-type="beast_sea_serpent"]:not([data-state="death"]) .cq-segment-1,
+[data-unit-type="beast_sea_serpent"]:not([data-state="death"]) .cq-segment-2,
+[data-unit-type="beast_sea_serpent"]:not([data-state="death"]) .cq-segment-3,
+[data-unit-type="beast_sea_serpent"]:not([data-state="death"]) .cq-segment-4 {
+  transform-box: view-box;
+  animation: cq-serpent-sway 3s ease-in-out infinite;
+}
+/* pivot each segment at its waterline base (head pivots at the neck root) */
+[data-unit-type="beast_sea_serpent"] .cq-segment-1 { transform-origin: 24px 92px; animation-delay: 0s; }
+[data-unit-type="beast_sea_serpent"] .cq-segment-2 { transform-origin: 54px 92px; animation-delay: -0.3s; }
+[data-unit-type="beast_sea_serpent"] .cq-segment-3 { transform-origin: 80px 90px; animation-delay: -0.6s; }
+[data-unit-type="beast_sea_serpent"] .cq-segment-4 { transform-origin: 76px 88px; animation-delay: -0.9s; }
+/* the reared head sways a touch wider — as if scenting the air */
+[data-unit-type="beast_sea_serpent"]:not([data-state="death"]) .cq-segment-4 {
+  animation-name: cq-serpent-head-sway;
+}
+@keyframes cq-serpent-head-sway {
+  0%, 100% { transform: translateX(-5px) rotate(-3deg); }
+  50%      { transform: translateX(5px) rotate(3deg); }
+}
+
+/* ── WALK ─ the whole serpent surges through the water (faster sway + bob) ── */
+@keyframes cq-serpent-surge {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50%      { transform: translateY(-2px) translateX(2px); }
+}
+[data-state="walk"][data-kind="beast-serpent"][data-unit-type="beast_sea_serpent"] .cq-sprite-figure {
+  animation: cq-serpent-surge 1.6s ease-in-out infinite;
+}
+[data-state="walk"][data-unit-type="beast_sea_serpent"] .cq-segment-1,
+[data-state="walk"][data-unit-type="beast_sea_serpent"] .cq-segment-2,
+[data-state="walk"][data-unit-type="beast_sea_serpent"] .cq-segment-3,
+[data-state="walk"][data-unit-type="beast_sea_serpent"] .cq-segment-4 { animation-duration: 1.8s; }
+
+/* ── ATTACK ─ the neck rears back then the head strikes down-forward ──── */
+@keyframes cq-serpent-strike {
+  0%   { transform: translateX(0) rotate(0deg); }
+  20%  { transform: translateX(-4px) rotate(-7deg); }   /* rear back */
+  46%  { transform: translateX(9px) rotate(10deg); }    /* strike forward + down */
+  60%  { transform: translateX(8px) rotate(9deg); }
+  82%  { transform: translateX(0) rotate(0deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+[data-state="attack"][data-unit-type="beast_sea_serpent"] .cq-segment-4 {
+  animation: cq-serpent-strike 0.95s cubic-bezier(.34,.1,.3,1) infinite;
+}
+@keyframes cq-serpent-lurch {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-3px); }
+  46%  { transform: translateX(5px); }
+  82%  { transform: translateX(0); }
+  100% { transform: translateX(0); }
+}
+[data-state="attack"][data-kind="beast-serpent"][data-unit-type="beast_sea_serpent"] .cq-sprite-figure {
+  animation: cq-serpent-lurch 0.95s ease-out infinite;
+}
+
+/* ── HURT ─ shudder + brightness flash ────────────────────────────────── */
+@keyframes cq-serpent-shudder {
+  0%, 64%, 100% { transform: translateX(0); filter: brightness(1) saturate(1); }
+  70%  { transform: translateX(-3px); filter: brightness(1.5) saturate(1.5); }
+  78%  { transform: translateX(2px);  filter: brightness(1.35) saturate(1.35); }
+  86%  { transform: translateX(-1px); filter: brightness(1.15); }
+}
+[data-state="hurt"][data-kind="beast-serpent"][data-unit-type="beast_sea_serpent"] .cq-sprite-figure {
+  animation: cq-serpent-shudder 2.4s ease-out infinite;
+}
+/* bloodied + near-death: the undulation quickens as the beast thrashes */
+[data-state="hurt"][data-damage="2"][data-unit-type="beast_sea_serpent"] .cq-segment-1,
+[data-state="hurt"][data-damage="2"][data-unit-type="beast_sea_serpent"] .cq-segment-2,
+[data-state="hurt"][data-damage="2"][data-unit-type="beast_sea_serpent"] .cq-segment-3,
+[data-state="hurt"][data-damage="2"][data-unit-type="beast_sea_serpent"] .cq-segment-4 { animation-duration: 2s; }
+[data-state="hurt"][data-damage="3"][data-kind="beast-serpent"][data-unit-type="beast_sea_serpent"] .cq-sprite-figure { animation-duration: 1.4s; }
+[data-state="hurt"][data-damage="3"][data-unit-type="beast_sea_serpent"] .cq-segment-1,
+[data-state="hurt"][data-damage="3"][data-unit-type="beast_sea_serpent"] .cq-segment-2,
+[data-state="hurt"][data-damage="3"][data-unit-type="beast_sea_serpent"] .cq-segment-3,
+[data-state="hurt"][data-damage="3"][data-unit-type="beast_sea_serpent"] .cq-segment-4 { animation-duration: 1.5s; }
+/* near-death: the reared head lists to one side (head group is un-animated, so the tilt holds) */
+[data-damage="3"][data-kind="beast-serpent"][data-unit-type="beast_sea_serpent"] .cq-serpent-head {
+  transform-box: view-box; transform-origin: 92px 36px; transform: rotate(5deg);
+}
+
+/* ── DAMAGE ─ three escalating tiers, driven by data-damage ───────────── */
+.cq-wound-1, .cq-wound-2, .cq-wound-3 { opacity: 0; }
+/* tier 1+ : slashes across the mid coil */
+[data-damage="1"] .cq-wound-1,
+[data-damage="2"] .cq-wound-1,
+[data-damage="3"] .cq-wound-1 { opacity: 1; }
+/* tier 2+ : torn crest fin */
+[data-damage="2"] .cq-wound-2,
+[data-damage="3"] .cq-wound-2 { opacity: 1; }
+/* tier 3 : cracked scale patch on the neck */
+[data-damage="3"] .cq-wound-3 { opacity: 1; }
+
+/* ── DEATH ─ the coils sink beneath the waterline and fade ────────────── */
+@keyframes cq-serpent-sink {
+  0%   { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(16px) rotate(-4deg); opacity: 0; }
+}
+[data-state="death"][data-kind="beast-serpent"][data-unit-type="beast_sea_serpent"] .cq-sprite-figure {
+  transform-box: view-box; transform-origin: 66px 92px;
+  animation: cq-serpent-sink 1.5s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-unit-type="beast_sea_serpent"] .cq-sprite-figure,
+  [data-unit-type="beast_sea_serpent"] .cq-segment-1,
+  [data-unit-type="beast_sea_serpent"] .cq-segment-2,
+  [data-unit-type="beast_sea_serpent"] .cq-segment-3,
+  [data-unit-type="beast_sea_serpent"] .cq-segment-4 {
+    animation: none !important;
+  }
+}
