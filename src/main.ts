@@ -187,7 +187,11 @@ import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
-import { removeRouteForUnit, createMarketplaceState, establishRoute, getEffectiveGoldPerTurn } from '@/systems/trade-system';
+import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn } from '@/systems/trade-system';
+import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
+import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
+import { performMinorCivFestival, performMinorCivGift, setMinorCivWarState } from '@/systems/minor-civ-actions';
+import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 
 // --- App State ---
@@ -672,45 +676,60 @@ function handleRejectPeaceRequest(requestId: string): void {
   showNotification('Peace request rejected.', 'info');
 }
 
-function handleGiftGold(mcId: string): void {
-  const mc = gameState.minorCivs[mcId];
-  if (!mc) return;
-  const quest = mc.activeQuests[gameState.currentPlayer];
-  const amount = quest?.target.type === 'gift_gold' ? (quest.target as { amount: number }).amount : 25;
-
-  if (currentCiv().gold < amount) {
-    showNotification('Not enough gold!', 'warning');
-    return;
-  }
-
-  currentCiv().gold -= amount;
-  mc.diplomacy = modifyRelationship(mc.diplomacy, gameState.currentPlayer, 10);
-
-  if (quest?.target.type === 'gift_gold') {
-    quest.progress += amount;
-  }
-
-  showNotification(`Gifted ${amount} gold`, 'info');
+function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
+  const cityName = gameState.cities[cityId]?.name ?? 'City-State';
+  executeAnimatedUnitMove(unitId, () => executeUnitMove(gameState, unitId, target, {
+    actor: 'player', civId: gameState.currentPlayer, bus,
+  }));
+  const movedUnit = gameState.units[unitId];
+  if (movedUnit) gameState.units[unitId] = { ...movedUnit, movementPointsLeft: 0 };
+  const conquered = conquestMinorCiv(gameState, minorCivId, gameState.currentPlayer);
+  gameState = conquered.state;
+  emitMinorCivQuestTransitions(bus, conquered.transitions, gameState);
+  if (conquered.conquered) bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: gameState.currentPlayer });
+  showNotification(`${cityName} has been conquered!`, 'success');
+  SFX.tap();
   renderLoop.setGameState(gameState);
   updateHUD();
 }
 
-function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
-  const mc = gameState.minorCivs[mcId];
-  if (!mc) return;
-
-  const playerCiv = currentCiv();
-  if (currentlyAtWar) {
-    mc.diplomacy = makePeace(mc.diplomacy, gameState.currentPlayer, gameState.turn);
-    playerCiv.diplomacy = makePeace(playerCiv.diplomacy, mcId, gameState.turn);
-    showNotification('Peace with city-state', 'success');
-  } else {
-    mc.diplomacy = declareWar(mc.diplomacy, gameState.currentPlayer, gameState.turn);
-    playerCiv.diplomacy = declareWar(playerCiv.diplomacy, mcId, gameState.turn);
-    showNotification('War declared on city-state!', 'warning');
+function handleGiftGold(mcId: string): void {
+  const result = performMinorCivGift(gameState, gameState.currentPlayer, mcId);
+  if (!result.ok) {
+    showNotification(result.reason ?? 'Gift unavailable.', 'warning');
+    return;
   }
+  gameState = result.state;
+  emitMinorCivQuestTransitions(bus, result.transitions, gameState);
+  showNotification('Gift delivered.', 'info');
   renderLoop.setGameState(gameState);
   updateHUD();
+  openDiplomacyPanel();
+}
+
+function handleSponsorFestival(mcId: string): void {
+  const result = performMinorCivFestival(gameState, gameState.currentPlayer, mcId);
+  if (!result.ok) {
+    showNotification(result.reason ?? 'Festival unavailable.', 'warning');
+    return;
+  }
+  gameState = result.state;
+  emitMinorCivQuestTransitions(bus, result.transitions, gameState);
+  showNotification('Festival sponsored.', 'success');
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+}
+
+function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
+  const result = setMinorCivWarState(gameState, gameState.currentPlayer, mcId, !currentlyAtWar);
+  if (!result.ok) return;
+  gameState = result.state;
+  emitMinorCivQuestTransitions(bus, result.transitions, gameState);
+  showNotification(currentlyAtWar ? 'Peace with city-state' : 'War declared on city-state!', currentlyAtWar ? 'success' : 'warning');
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
 }
 
 function openDiplomacyPanel(): void {
@@ -720,6 +739,7 @@ function openDiplomacyPanel(): void {
     onAcceptPeaceRequest: handleAcceptPeaceRequest,
     onRejectPeaceRequest: handleRejectPeaceRequest,
     onGiftGold: handleGiftGold,
+    onSponsorFestival: handleSponsorFestival,
     onMinorCivWarPeace: handleMinorCivWarPeace,
     onClose: () => {},
   });
@@ -1664,7 +1684,10 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
       onEstablishRoute: (caravanId) => {
         openEstablishRoutePanel(uiLayer, gameState, caravanId, (toCityId) => {
           const resourceDiversity = getCivAvailableResources(gameState, gameState.currentPlayer).size;
-          gameState = establishRoute(gameState, caravanId, toCityId, bus, resourceDiversity);
+          const routeResult = establishQuestAwareRoute(gameState, caravanId, toCityId, resourceDiversity);
+          gameState = routeResult.state;
+          emitMinorCivQuestTransitions(bus, routeResult.questTransitions, gameState);
+          bus.emit('trade:route-created', { route: routeResult.route });
           renderLoop.setGameState(gameState);
           updateHUD();
           selectUnit(caravanId);
@@ -2162,6 +2185,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
 
   const applied = applyCombatOutcomeToState(gameState, result, seed);
   gameState = applied.state;
+  emitMinorCivQuestTransitions(bus, applied.questTransitions, gameState);
   // Clean up trade routes for any committed caravans that died
   if (applied.attackerDefeated && attackerRouteId) {
     gameState = removeRouteForUnit(gameState, result.attackerId, bus, 'unit-died', attackerRouteId);
@@ -2190,6 +2214,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
     const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
     if (destroyedCamp.campId) {
       gameState = destroyedCamp.state;
+      emitMinorCivQuestTransitions(bus, destroyedCamp.questTransitions, gameState);
       showNotification(`Barbarian camp destroyed! +${destroyedCamp.reward} gold`, 'success');
       advisorSystem.resetMessage('treasurer_camp_reward');
       advisorSystem.check(gameState);
@@ -2205,7 +2230,12 @@ function executeAttack(attackerId: string, targetKey: string): void {
       if (!remainingHostileDefenders) {
         if (cityAtTarget.owner.startsWith('mc-')) {
           const conqueredCityName = cityAtTarget.name;
-          conquestMinorCiv(gameState, cityAtTarget.owner, gameState.currentPlayer, bus);
+          const conquered = conquestMinorCiv(gameState, cityAtTarget.owner, gameState.currentPlayer);
+          gameState = conquered.state;
+          emitMinorCivQuestTransitions(bus, conquered.transitions, gameState);
+          if (conquered.conquered) {
+            bus.emit('minor-civ:destroyed', { minorCivId: cityAtTarget.owner, conquerorId: gameState.currentPlayer });
+          }
           showNotification(`${conqueredCityName} has been conquered!`, 'success');
         }
         if (!cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
@@ -2612,27 +2642,30 @@ function handleHexTap(rawCoord: HexCoord): void {
         return;
       }
 
+      if (tapIntent.kind === 'confirm-war-minor-civ') {
+        const selectedId = selectedUnitId;
+        const city = gameState.cities[tapIntent.cityId];
+        const minor = gameState.minorCivs[tapIntent.minorCivId];
+        const definition = MINOR_CIV_DEFINITIONS.find(candidate => candidate.id === minor?.definitionId);
+        createForeignCityEntryPanel(uiLayer, {
+          cityName: city?.name ?? 'this city-state',
+          defenderName: definition?.name ?? 'the city-state',
+          onConfirm: () => {
+            const war = setMinorCivWarState(gameState, gameState.currentPlayer, tapIntent.minorCivId, true);
+            if (!war.ok) return;
+            gameState = war.state;
+            emitMinorCivQuestTransitions(bus, war.transitions, gameState);
+            executeMinorCivConquest(selectedId, coord, tapIntent.minorCivId, tapIntent.cityId);
+          },
+          onCancel: () => selectUnit(selectedId),
+        });
+        return;
+      }
+
       if (tapIntent.kind === 'assault-minor-civ') {
         const mc = gameState.minorCivs[tapIntent.minorCivId];
         if (mc && !mc.isDestroyed) {
-          const cityName = gameState.cities[tapIntent.cityId]?.name ?? 'City-State';
-          // Move the unit onto the city hex (updates fog, position, movement cost).
-          executeAnimatedUnitMove(selectedUnitId, () => executeUnitMove(gameState, selectedUnitId!, coord, {
-            actor: 'player',
-            civId: gameState.currentPlayer,
-            bus,
-          }));
-          // Conquering a city ends the unit's turn regardless of remaining movement.
-          const movedUnit = gameState.units[selectedUnitId];
-          if (movedUnit) {
-            gameState.units[selectedUnitId] = { ...movedUnit, movementPointsLeft: 0 };
-          }
-          conquestMinorCiv(gameState, tapIntent.minorCivId, gameState.currentPlayer, bus);
-          showNotification(`${cityName} has been conquered!`, 'success');
-          SFX.tap();
-          renderLoop.setGameState(gameState);
-          updateHUD();
-          // selectNextUnit fires in animateMovedUnit's onComplete (movementPointsLeft === 0)
+          executeMinorCivConquest(selectedUnitId, coord, tapIntent.minorCivId, tapIntent.cityId);
         } else {
           SFX.tap();
           renderLoop.setGameState(gameState);

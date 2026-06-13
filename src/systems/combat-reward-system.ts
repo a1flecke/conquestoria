@@ -1,6 +1,7 @@
 import type { CombatResult, CombatRewardNotification, GameState, Unit } from '@/core/types';
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 
 export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
 
@@ -39,6 +40,7 @@ export interface CombatOutcomeApplication {
   rewards: CombatReward[];
   attackerDefeated: boolean;
   defenderDefeated: boolean;
+  questTransitions: ChainTransition[];
 }
 
 export const VETERANCY_TIERS: VeterancyTier[] = [
@@ -222,7 +224,7 @@ export function applyCombatOutcomeToState(
   const attackerBefore = state.units[result.attackerId];
   const defenderBefore = state.units[result.defenderId];
   if (!attackerBefore || !defenderBefore) {
-    return { state, rewards: [], attackerDefeated: false, defenderDefeated: false };
+    return { state, rewards: [], attackerDefeated: false, defenderDefeated: false, questTransitions: [] };
   }
 
   let units = { ...state.units };
@@ -279,15 +281,35 @@ export function applyCombatOutcomeToState(
     }
   }
 
-  return {
-    state: {
+  let nextState: GameState = {
       ...state,
       units,
       civilizations,
       espionage,
-    },
+  };
+  const questTransitions: ChainTransition[] = [];
+  if (!result.defenderSurvived) {
+    const progress = applyQuestGameplayAction(nextState, {
+      type: 'unit_defeated', actorCivId: attackerBefore.owner, defeatedOwnerId: defenderBefore.owner,
+      unitId: defenderBefore.id, position: defenderBefore.position, turn: state.turn,
+    });
+    nextState = progress.state;
+    questTransitions.push(...progress.transitions);
+  }
+  if (!result.attackerSurvived) {
+    const progress = applyQuestGameplayAction(nextState, {
+      type: 'unit_defeated', actorCivId: defenderBefore.owner, defeatedOwnerId: attackerBefore.owner,
+      unitId: attackerBefore.id, position: attackerBefore.position, turn: state.turn,
+    });
+    nextState = progress.state;
+    questTransitions.push(...progress.transitions);
+  }
+
+  return {
+    state: nextState,
     rewards,
     attackerDefeated: !result.attackerSurvived,
     defenderDefeated: !result.defenderSurvived,
+    questTransitions,
   };
 }

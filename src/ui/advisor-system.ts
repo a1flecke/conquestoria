@@ -3,6 +3,8 @@ import { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
 import { NEW_WORLD_START_POSITIONS } from '@/systems/new-world-map-data';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
+import { isMinorCivAllianceActive } from '@/systems/quest-chain-system';
+import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { getNextCouncilCallback, markCouncilCallbackDelivered } from '@/systems/council-memory';
 import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
@@ -467,7 +469,8 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'A nearby city-state could be a valuable ally. Consider their quest.',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && Object.values(mc.activeQuests).some(q => q.status === 'active')
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id)
+        && mc.activeQuests[state.currentPlayer]?.status === 'active'
       ),
   },
   {
@@ -498,7 +501,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'City-state guerrillas are harassing our borders!',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        !mc.isDestroyed && mc.diplomacy.atWarWith.includes(state.currentPlayer) && mc.units.length > 1
+        !mc.isDestroyed && isMinorCivAtWar(state, state.currentPlayer, mc.id) && mc.units.length > 1
       ),
   },
   {
@@ -518,7 +521,8 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'Our mercantile ally is boosting our income.',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id)
+        && isMinorCivAllianceActive(state, state.currentPlayer, mc.id)
       ),
   },
   // Minor Civ — Scholar
@@ -529,7 +533,8 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: 'Our cultural ally advances our knowledge.',
     trigger: (state: GameState) =>
       Object.values(state.minorCivs ?? {}).some(mc =>
-        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id) && (mc.diplomacy.relationships[state.currentPlayer] ?? 0) >= 60
+        hasDiscoveredMinorCiv(state, state.currentPlayer, mc.id)
+        && isMinorCivAllianceActive(state, state.currentPlayer, mc.id)
       ),
   },
   // --- Spymaster Advisor ---

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { createNewGame } from '@/core/game-state';
 import {
   generateQuest,
   checkQuestCompletion,
@@ -10,28 +11,29 @@ import {
 } from '@/systems/quest-system';
 import { getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
 import type { Quest } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+function questState(seed: string) {
+  const state = createNewGame(undefined, seed, 'small');
+  const minorCivId = Object.keys(state.minorCivs)[0];
+  const minorCiv = state.minorCivs[minorCivId];
+  const city = state.cities[minorCiv.cityId];
+  state.civilizations.player.gold = 500;
+  state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+  return { state, minorCivId, city };
+}
 
 describe('quest system', () => {
   describe('generateQuest', () => {
     it('generates destroy_camp quest for militaristic archetype', () => {
-      const quest = generateQuest('militaristic', 'mc-sparta', 'player', 1, {
-        barbarianCamps: { camp1: { id: 'camp1', position: { q: 5, r: 5 }, strength: 5, spawnCooldown: 0 } },
-        era: 1,
-        minorCivs: {
-          'mc-sparta': { cityId: 'city-sparta' },
-        },
-        cities: {
-          'city-sparta': {
-            id: 'city-sparta',
-            owner: 'mc-sparta',
-            position: { q: 4, r: 5 },
-            ownedTiles: [{ q: 4, r: 5 }],
-          },
-        },
-        units: {},
-      } as any, () => 0.1, mkC());
+      const { state, minorCivId, city } = questState('normal-military-quest');
+      state.barbarianCamps.camp1 = {
+        id: 'camp1', position: { q: city.position.q + 1, r: city.position.r }, strength: 5, spawnCooldown: 0,
+      };
+      state.civilizations.player.visibility.tiles[hexKey(state.barbarianCamps.camp1.position)] = 'visible';
+      const quest = generateQuest('militaristic', minorCivId, 'player', 1, state, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect(quest!.type).toBe('destroy_camp');
       expect(quest!.status).toBe('active');
@@ -39,72 +41,50 @@ describe('quest system', () => {
     });
 
     it('generates gift_gold quest for mercantile archetype', () => {
-      const quest = generateQuest('mercantile', 'mc-carthage', 'player', 5, {
-        barbarianCamps: {},
-        era: 1,
-      } as any, () => 0.1, mkC());
+      const { state, minorCivId } = questState('normal-gift-quest');
+      const quest = generateQuest('mercantile', minorCivId, 'player', 5, state, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect(quest!.type).toBe('gift_gold');
       expect((quest!.target as any).amount).toBe(25);
     });
 
     it('scales gift_gold amount by era', () => {
-      const quest = generateQuest('mercantile', 'mc-carthage', 'player', 5, {
-        barbarianCamps: {},
-        era: 3,
-      } as any, () => 0.1, mkC());
+      const { state, minorCivId } = questState('normal-gift-era-quest');
+      state.era = 3;
+      const quest = generateQuest('mercantile', minorCivId, 'player', 5, state, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect((quest!.target as any).amount).toBe(75);
     });
 
     it('returns null if no valid targets exist', () => {
-      const quest = generateQuest('militaristic', 'mc-sparta', 'player', 1, {
-        barbarianCamps: {},
-        era: 1,
-      } as any, () => 0.0, mkC());
+      const { state, minorCivId } = questState('normal-no-target-quest');
+      state.barbarianCamps = {};
+      state.units = {};
+      state.civilizations.player.gold = 0;
+      const quest = generateQuest('militaristic', minorCivId, 'player', 1, state, () => 0.0, mkC());
       // Should fall back to another type or return null
       expect(quest === null || quest.type !== 'destroy_camp').toBe(true);
     });
 
     it('sets expiry 20 turns from issued turn', () => {
-      const quest = generateQuest('mercantile', 'mc-carthage', 'player', 10, {
-        barbarianCamps: {},
-        era: 1,
-      } as any, () => 0.1, mkC());
+      const { state, minorCivId } = questState('normal-expiry-quest');
+      const quest = generateQuest('mercantile', minorCivId, 'player', 10, state, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect(quest!.expiresOnTurn).toBe(30);
     });
 
-    it('preserves chainNext field as undefined', () => {
-      const quest = generateQuest('mercantile', 'mc-carthage', 'player', 1, {
-        barbarianCamps: {},
-        era: 1,
-      } as any, () => 0.1, mkC());
+    it('leaves chain metadata undefined for a normal quest', () => {
+      const { state, minorCivId } = questState('normal-metadata-quest');
+      const quest = generateQuest('mercantile', minorCivId, 'player', 1, state, () => 0.1, mkC());
       expect(quest).toBeDefined();
-      expect(quest!.chainNext).toBeUndefined();
+      expect(quest!.chainId).toBeUndefined();
+      expect(quest!.stepIndex).toBeUndefined();
     });
 
-    it('does not emit trade_route quests while the trade-route gameplay loop is unsupported', () => {
-      const quest = generateQuest('mercantile', 'mc-carthage', 'player', 5, {
-        barbarianCamps: {},
-        era: 1,
-        minorCivs: {
-          'mc-carthage': { cityId: 'city-carthage' },
-        },
-        cities: {
-          'city-carthage': {
-            id: 'city-carthage',
-            owner: 'mc-carthage',
-            position: { q: 5, r: 5 },
-            ownedTiles: [{ q: 5, r: 5 }],
-          },
-        },
-        units: {},
-        civilizations: {
-          player: { units: [], cities: [] },
-        },
-        map: { tiles: {} },
-      } as any, () => 0.8, mkC());
+    it('does not emit trade_route quests before the route is feasible', () => {
+      const { state, minorCivId } = questState('normal-route-gate-quest');
+      state.civilizations.player.techState.completed = [];
+      const quest = generateQuest('mercantile', minorCivId, 'player', 5, state, () => 0.8, mkC());
       expect(quest?.type).not.toBe('trade_route');
     });
 
@@ -133,29 +113,14 @@ describe('quest system', () => {
     });
 
     it('targets the nearby barbarian camp instead of a faraway one', () => {
-      const quest = generateQuest('militaristic', 'mc-sparta', 'player', 1, {
-        barbarianCamps: {
-          far: { id: 'far', position: { q: 20, r: 20 }, strength: 5, spawnCooldown: 0 },
-          near: { id: 'near', position: { q: 6, r: 5 }, strength: 5, spawnCooldown: 0 },
-        },
-        era: 1,
-        minorCivs: {
-          'mc-sparta': { cityId: 'city-sparta' },
-        },
-        cities: {
-          'city-sparta': {
-            id: 'city-sparta',
-            owner: 'mc-sparta',
-            position: { q: 5, r: 5 },
-            ownedTiles: [{ q: 5, r: 5 }],
-          },
-        },
-        units: {},
-        civilizations: {
-          player: { units: [], cities: [] },
-        },
-        map: { tiles: {} },
-      } as any, () => 0.1, mkC());
+      const { state, minorCivId, city } = questState('normal-nearest-camp-quest');
+      state.barbarianCamps = {
+        far: { id: 'far', position: { q: city.position.q + 7, r: city.position.r }, strength: 5, spawnCooldown: 0 },
+        near: { id: 'near', position: { q: city.position.q + 1, r: city.position.r }, strength: 5, spawnCooldown: 0 },
+      };
+      state.civilizations.player.visibility.tiles[hexKey(state.barbarianCamps.far.position)] = 'visible';
+      state.civilizations.player.visibility.tiles[hexKey(state.barbarianCamps.near.position)] = 'visible';
+      const quest = generateQuest('militaristic', minorCivId, 'player', 1, state, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect((quest!.target as any).campId).toBe('near');
     });
@@ -165,7 +130,7 @@ describe('quest system', () => {
     it('completes destroy_camp when camp no longer exists', () => {
       const quest: Quest = {
         id: 'q1', type: 'destroy_camp', description: 'test',
-        target: { type: 'destroy_camp', campId: 'camp1' },
+        target: { type: 'destroy_camp', campId: 'camp1', position: { q: 0, r: 0 } },
         reward: { relationshipBonus: 25, gold: 50 },
         progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: 21,
       };
@@ -176,7 +141,7 @@ describe('quest system', () => {
     it('does not complete destroy_camp when camp still exists', () => {
       const quest: Quest = {
         id: 'q1', type: 'destroy_camp', description: 'test',
-        target: { type: 'destroy_camp', campId: 'camp1' },
+        target: { type: 'destroy_camp', campId: 'camp1', position: { q: 0, r: 0 } },
         reward: { relationshipBonus: 25 },
         progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: 21,
       };
@@ -202,7 +167,7 @@ describe('quest system', () => {
     it('marks quest as expired when turn exceeds expiry', () => {
       const quest: Quest = {
         id: 'q1', type: 'destroy_camp', description: 'test',
-        target: { type: 'destroy_camp', campId: 'camp1' },
+        target: { type: 'destroy_camp', campId: 'camp1', position: { q: 0, r: 0 } },
         reward: { relationshipBonus: 25 },
         progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: 21,
       };
@@ -213,7 +178,7 @@ describe('quest system', () => {
     it('does not expire quest before expiry turn', () => {
       const quest: Quest = {
         id: 'q1', type: 'destroy_camp', description: 'test',
-        target: { type: 'destroy_camp', campId: 'camp1' },
+        target: { type: 'destroy_camp', campId: 'camp1', position: { q: 0, r: 0 } },
         reward: { relationshipBonus: 25 },
         progress: 0, status: 'active', turnIssued: 1, expiresOnTurn: 21,
       };
@@ -418,7 +383,6 @@ describe('quest system', () => {
         id: 'q-trade',
         type: 'trade_route',
         description: 'Establish a trade route to our city',
-        minorCivId: 'mc-sparta',
         target: { type: 'trade_route', minorCivId: 'mc-sparta' },
         reward: { relationshipBonus: 25, science: 20 },
         progress: 0,

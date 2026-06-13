@@ -1,24 +1,31 @@
 import type { MinorCivArchetype, Quest, QuestReward, QuestTarget, QuestType, GameState, IdCounters } from '@/core/types';
-import { hexDistance } from './hex-utils';
+import { createQuestTarget } from './quest-objective-system';
+import type { QuestObjectiveOption } from './quest-chain-definitions';
 import {
   getQuestDescriptionForPlayer as getQuestDescriptionForPlayerFromPresentation,
   getQuestIssuedMessageForPlayer as getQuestIssuedMessageForPlayerFromPresentation,
 } from './quest-presentation';
 
 const QUEST_WEIGHTS: Record<MinorCivArchetype, Record<QuestType, number>> = {
-  militaristic: { destroy_camp: 0.6, defeat_units: 0.4, gift_gold: 0.0, trade_route: 0.0 },
-  mercantile: { gift_gold: 0.6, trade_route: 0.25, destroy_camp: 0.1, defeat_units: 0.05 },
-  cultural: { trade_route: 0.4, gift_gold: 0.3, destroy_camp: 0.15, defeat_units: 0.15 },
+  militaristic: { destroy_camp: 0.6, defeat_units: 0.4, gift_gold: 0.0, trade_route: 0.0, sponsor_festival: 0.0 },
+  mercantile: { gift_gold: 0.6, trade_route: 0.25, destroy_camp: 0.1, defeat_units: 0.05, sponsor_festival: 0.0 },
+  cultural: { trade_route: 0.4, gift_gold: 0.3, destroy_camp: 0.15, defeat_units: 0.15, sponsor_festival: 0.0 },
 };
 
-const GOLD_PER_ERA = [0, 25, 50, 75, 100];
+const NORMAL_QUEST_OPTIONS: Record<QuestType, QuestObjectiveOption> = {
+  destroy_camp: { type: 'destroy_camp', radius: 8, description: 'Destroy a nearby barbarian camp' },
+  gift_gold: { type: 'gift_gold', goldMultiplier: 1, description: 'Contribute gold to this city-state' },
+  defeat_units: { type: 'defeat_units', radius: 8, description: 'Defeat nearby hostile units' },
+  trade_route: { type: 'trade_route', description: 'Establish a trade route to this city-state' },
+  sponsor_festival: { type: 'sponsor_festival', description: 'Sponsor a cultural festival' },
+};
 
 export function generateQuest(
   archetype: MinorCivArchetype,
   minorCivId: string,
   majorCivId: string,
   currentTurn: number,
-  state: Pick<GameState, 'barbarianCamps' | 'era' | 'minorCivs' | 'cities' | 'units'>,
+  state: GameState,
   rng: () => number,
   counters: IdCounters,
 ): Quest | null {
@@ -28,7 +35,10 @@ export function generateQuest(
     .map(([type, weight]) => ({
       type,
       weight,
-      target: buildQuestTarget(type, minorCivId, majorCivId, state),
+      target: createQuestTarget(
+        { state, minorCivId, majorCivId, currentTurn, duration: 20 },
+        NORMAL_QUEST_OPTIONS[type],
+      ),
     }))
     .filter((candidate): candidate is { type: QuestType; weight: number; target: QuestTarget } => candidate.target !== null);
 
@@ -40,54 +50,15 @@ export function generateQuest(
   for (const candidate of candidates) {
     cumulative += candidate.weight;
     if (roll < cumulative) {
-      return makeQuest(candidate.type, candidate.target, currentTurn, counters, minorCivId);
+      return makeQuest(candidate.type, candidate.target, currentTurn, counters);
     }
   }
 
   const fallback = candidates[candidates.length - 1];
-  return makeQuest(fallback.type, fallback.target, currentTurn, counters, minorCivId);
+  return makeQuest(fallback.type, fallback.target, currentTurn, counters);
 }
 
-function buildQuestTarget(
-  type: QuestType,
-  minorCivId: string,
-  majorCivId: string,
-  state: Pick<GameState, 'barbarianCamps' | 'era' | 'minorCivs' | 'cities' | 'units'>,
-): QuestTarget | null {
-  const minorCiv = state.minorCivs?.[minorCivId];
-  const city = minorCiv ? state.cities?.[minorCiv.cityId] : null;
-  const cityPosition = city?.position;
-
-  switch (type) {
-    case 'destroy_camp': {
-      if (!cityPosition) return null;
-      const camps = Object.values(state.barbarianCamps)
-        .filter(camp => hexDistance(camp.position, cityPosition) <= 8)
-        .sort((a, b) => hexDistance(a.position, cityPosition) - hexDistance(b.position, cityPosition));
-      if (camps.length === 0) return null;
-      const camp = camps[0];
-      return { type: 'destroy_camp', campId: camp.id };
-    }
-    case 'gift_gold':
-      return { type: 'gift_gold', amount: GOLD_PER_ERA[state.era] ?? 25 };
-    case 'defeat_units': {
-      if (!cityPosition) return null;
-      const nearbyHostiles = Object.values(state.units ?? {}).filter(unit => (
-        unit.owner !== majorCivId
-        && unit.owner !== minorCivId
-        && hexDistance(unit.position, cityPosition) <= 8
-      ));
-      if (nearbyHostiles.length < 2) return null;
-      return { type: 'defeat_units', count: 2, nearPosition: cityPosition, radius: 8, cityId: city?.id };
-    }
-    case 'trade_route':
-      return null;
-    default:
-      return null;
-  }
-}
-
-function makeQuest(type: QuestType, target: QuestTarget, currentTurn: number, counters: IdCounters, minorCivId?: string): Quest {
+function makeQuest(type: QuestType, target: QuestTarget, currentTurn: number, counters: IdCounters): Quest {
   const reward = getRewardForType(type);
   return {
     id: `quest-${counters.nextQuestId++}`,
@@ -95,7 +66,6 @@ function makeQuest(type: QuestType, target: QuestTarget, currentTurn: number, co
     description: getQuestDescription(type, target),
     target,
     cityId: target.type === 'defeat_units' ? target.cityId : undefined,
-    minorCivId,
     reward,
     progress: 0,
     status: 'active',
@@ -110,6 +80,7 @@ function getRewardForType(type: QuestType): QuestReward {
     case 'gift_gold': return { relationshipBonus: 20 };
     case 'defeat_units': return { relationshipBonus: 30, freeUnit: 'warrior' };
     case 'trade_route': return { relationshipBonus: 25, science: 20 };
+    case 'sponsor_festival': return { relationshipBonus: 25 };
   }
 }
 
@@ -119,6 +90,7 @@ function getQuestDescription(type: QuestType, target: QuestTarget): string {
     case 'gift_gold': return `Gift ${(target as { amount: number }).amount} gold`;
     case 'defeat_units': return `Defeat ${(target as { count: number }).count} enemy units nearby`;
     case 'trade_route': return 'Establish a trade route to our city';
+    case 'sponsor_festival': return `Sponsor a festival for ${(target as { amount: number }).amount} gold`;
   }
 }
 
@@ -131,6 +103,8 @@ export function checkQuestCompletion(quest: Quest, state: Pick<GameState, 'barba
     case 'defeat_units':
       return quest.progress >= quest.target.count;
     case 'trade_route':
+      return quest.progress >= 1;
+    case 'sponsor_festival':
       return quest.progress >= 1;
     default:
       return false;

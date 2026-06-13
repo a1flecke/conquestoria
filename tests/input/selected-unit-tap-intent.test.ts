@@ -79,7 +79,7 @@ describe('selected-unit-tap-intent', () => {
     expect(intent).toEqual({ kind: 'confirm-war-city', cityId: 'enemyCity', defenderId: 'ai-1' });
   });
 
-  it('returns assault-minor-civ for an ungarrisoned city-state city in movement range', () => {
+  it('requires war confirmation for a neutral ungarrisoned city-state city', () => {
     const state = makeTapAssaultFixture();
     // Replace the major enemy city at {q:1,r:0} with a city-state city.
     delete state.cities.enemyCity;
@@ -101,6 +101,9 @@ describe('selected-unit-tap-intent', () => {
       units: [],
       diplomacy: createDiplomacyState(Object.keys(state.civilizations), 'mc-warriors', 0),
       activeQuests: {},
+      chainStatusByCiv: {},
+      questCooldownUntilByCiv: {},
+      lastNotifiedStatusByCiv: {},
       isDestroyed: false,
       garrisonCooldown: 0,
       lastEraUpgrade: 1,
@@ -108,7 +111,30 @@ describe('selected-unit-tap-intent', () => {
 
     const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 });
 
-    expect(intent).toEqual({ kind: 'assault-minor-civ', cityId: 'mc-city', minorCivId: 'mc-warriors' });
+    expect(intent).toEqual({ kind: 'confirm-war-minor-civ', cityId: 'mc-city', minorCivId: 'mc-warriors' });
+  });
+
+  it('returns assault-minor-civ for an ungarrisoned city-state already at war', () => {
+    const state = makeTapAssaultFixture();
+    delete state.cities.enemyCity;
+    state.civilizations['ai-1'].cities = [];
+    state.cities['mc-city'] = {
+      ...foundCity('mc-warriors', { q: 1, r: 0 }, state.map, mkC()),
+      id: 'mc-city', name: 'Warriors Haven', owner: 'mc-warriors', position: { q: 1, r: 0 },
+      population: 3, ownedTiles: [{ q: 1, r: 0 }],
+    };
+    state.minorCivs['mc-warriors'] = {
+      id: 'mc-warriors', definitionId: 'warriors', cityId: 'mc-city', units: [],
+      diplomacy: createDiplomacyState(Object.keys(state.civilizations), 'mc-warriors', 0),
+      activeQuests: {}, chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.civilizations.player.diplomacy.atWarWith.push('mc-warriors');
+    state.minorCivs['mc-warriors'].diplomacy.atWarWith.push('player');
+
+    expect(resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 })).toEqual({
+      kind: 'assault-minor-civ', cityId: 'mc-city', minorCivId: 'mc-warriors',
+    });
   });
 
   it('returns move (not assault-minor-civ) when a garrison occupies the city-state hex', () => {
@@ -134,6 +160,9 @@ describe('selected-unit-tap-intent', () => {
       units: [garrison.id],
       diplomacy: createDiplomacyState(Object.keys(state.civilizations), 'mc-warriors', 0),
       activeQuests: {},
+      chainStatusByCiv: {},
+      questCooldownUntilByCiv: {},
+      lastNotifiedStatusByCiv: {},
       isDestroyed: false,
       garrisonCooldown: 0,
       lastEraUpgrade: 1,

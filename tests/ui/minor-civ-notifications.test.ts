@@ -74,6 +74,41 @@ describe('minor-civ-notifications', () => {
     expect(notification?.message).not.toContain('Rome');
   });
 
+  it('keeps undiscovered foreign city targets generic in progress notifications', () => {
+    const state = createNewGame(undefined, 'mc-quest-progress-generic-city', 'small');
+    const minorCivId = getFirstMinorCivId(state);
+    discoverMinorCiv(state, 'player', minorCivId);
+    state.cities.rome = {
+      ...state.cities[state.minorCivs[minorCivId].cityId],
+      id: 'rome',
+      owner: Object.keys(state.civilizations).find(id => id !== 'player') ?? 'ai-1',
+      name: 'Rome',
+      position: { q: 7, r: 0 },
+      ownedTiles: [{ q: 7, r: 0 }],
+    };
+    const quest: Quest = {
+      id: 'quest-city-progress',
+      type: 'defeat_units',
+      description: 'Clear 2 units from Rome',
+      target: { type: 'defeat_units', count: 2, nearPosition: { q: 7, r: 0 }, radius: 8, cityId: 'rome' } as any,
+      reward: { relationshipBonus: 20 },
+      progress: 1,
+      status: 'active',
+      turnIssued: 1,
+      expiresOnTurn: 21,
+    };
+
+    const notification = getMinorCivNotification(state, 'player', {
+      type: 'minor-civ:quest-progressed',
+      majorCivId: 'player',
+      minorCivId,
+      quest,
+    });
+
+    expect(notification?.message).toContain('foreign city');
+    expect(notification?.message).not.toContain('Rome');
+  });
+
   it('returns quest-completed rewards only to the affected major civ', () => {
     const state = createNewGame(undefined, 'mc-quest-completed-targeted', 'small');
     const minorCivId = getFirstMinorCivId(state);
@@ -84,13 +119,13 @@ describe('minor-civ-notifications', () => {
       type: 'minor-civ:quest-completed',
       majorCivId: 'player',
       minorCivId,
-      reward: { gold: 50, science: 10 },
+      reward: { relationshipBonus: 20, gold: 50, science: 10 },
     });
     const otherNotification = getMinorCivNotification(state, otherMajorId, {
       type: 'minor-civ:quest-completed',
       majorCivId: 'player',
       minorCivId,
-      reward: { gold: 50, science: 10 },
+      reward: { relationshipBonus: 20, gold: 50, science: 10 },
     });
 
     expect(ownerNotification?.message).toContain('+50 gold');
@@ -167,6 +202,17 @@ describe('minor-civ-notifications', () => {
 
     expect(ownerNotification?.message).toMatch(/ally/i);
     expect(otherNotification).toBeNull();
+  });
+
+  it('routes alliance-broken notifications only to the alliance owner', () => {
+    const state = createNewGame(undefined, 'mc-alliance-broken-targeted', 'small');
+    const minorCivId = getFirstMinorCivId(state);
+    discoverMinorCiv(state, 'player', minorCivId);
+    const otherMajorId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const event = { type: 'minor-civ:alliance-broken' as const, majorCivId: 'player', minorCivId };
+
+    expect(getMinorCivNotification(state, 'player', event)?.message).toMatch(/broken/i);
+    expect(getMinorCivNotification(state, otherMajorId, event)).toBeNull();
   });
 
   it('only returns relationship-threshold notifications for the affected major civ', () => {

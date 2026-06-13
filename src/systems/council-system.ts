@@ -1,5 +1,6 @@
 import type { CouncilAgenda, CouncilCard, CouncilInterrupt, CouncilTalkLevel, GameState } from '@/core/types';
-import { getQuestDescriptionForPlayer, getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
+import { getMinorCivQuestPresentationForPlayer } from '@/systems/quest-presentation';
+import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
@@ -144,15 +145,15 @@ export function buildCouncilAgenda(state: GameState, civId: string): CouncilAgen
 
   for (const minorCiv of Object.values(state.minorCivs ?? {})) {
     const quest = minorCiv.activeQuests[civId];
-    if (!quest || !isQuestVisibleToPlayer(state, quest, civId)) {
-      continue;
-    }
+    const presentation = getMinorCivQuestPresentationForPlayer(state, civId, minorCiv.id);
+    if (!quest || !presentation) continue;
+    const issuer = getMinorCivPresentationForPlayer(state, civId, minorCiv.id, 'City-state');
     doNow.push({
       id: `quest-${quest.id}`,
       advisor: 'chancellor',
       bucket: 'do-now',
-      title: `Aid ${getQuestOriginLabel(state, quest, civId)}`,
-      summary: getQuestDescriptionForPlayer(state, civId, quest),
+      title: `Aid ${issuer.name}`,
+      summary: presentation.description,
       why: 'Helping friendly powers gives the Council concrete momentum, rewards, and a sense of purpose.',
       priority: 55,
       actionLabel: 'Review quest',

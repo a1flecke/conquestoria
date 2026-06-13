@@ -218,6 +218,36 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.rewards[0]?.message).toMatch(/Combat reward/);
   });
 
+  it('records an attributed hostile defeat at the combat mutation source', () => {
+    const state = makeRewardState();
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
+      diplomacy: { ...state.civilizations.player.diplomacy, relationships: { player: 0 } },
+      activeQuests: {
+        player: {
+          id: 'quest-defeat', type: 'defeat_units', description: 'Defeat one enemy',
+          target: { type: 'defeat_units', count: 1, nearPosition: { q: 1, r: 0 }, radius: 3 },
+          reward: { relationshipBonus: 10 }, progress: 0, status: 'active',
+          turnIssued: state.turn, expiresOnTurn: state.turn + 20,
+        },
+      },
+      chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 10, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.questTransitions.some(transition => transition.type === 'completed')).toBe(true);
+    expect(applied.state.minorCivs['mc-sparta'].activeQuests.player).toBeUndefined();
+  });
+
   it('restores victory health from the survivor post-combat health', () => {
     const state = makeRewardState();
     state.units.attacker = { ...state.units.attacker, health: 100 };

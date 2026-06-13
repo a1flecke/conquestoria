@@ -11,13 +11,22 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { shouldListMajorCivForViewer } from '@/systems/viewer-intel';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
-import { getQuestDescriptionForPlayer } from '@/systems/quest-system';
+import {
+  formatQuestReward,
+  getMinorCivChainPresentationForPlayer,
+  getMinorCivQuestPresentationForPlayer,
+} from '@/systems/quest-presentation';
+import { getMinorCivRelationshipStatus } from '@/systems/quest-chain-system';
+import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
+import { hasAccessibleLuxury } from '@/systems/quest-objective-system';
+import { createGameButton } from '@/ui/ui-kit';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
   onAcceptPeaceRequest?: (requestId: string) => void;
   onRejectPeaceRequest?: (requestId: string) => void;
   onGiftGold?: (mcId: string) => void;
+  onSponsorFestival?: (mcId: string) => void;
   onMinorCivWarPeace?: (mcId: string, currentlyAtWar: boolean) => void;
   onClose: () => void;
 }
@@ -47,9 +56,10 @@ interface MinorCivRowData {
   statusColor: string;
   statusText: string;
   questDescription: string | null;
+  giftLabel: string;
+  festivalLabel: string | null;
+  festivalDisabledReason: string | null;
   atWar: boolean;
-  warBg: string;
-  warBorder: string;
 }
 
 export function createDiplomacyPanel(
@@ -145,11 +155,30 @@ export function createDiplomacyPanel(
     if (!def) return;
     const presentation = getMinorCivPresentationForPlayer(state, state.currentPlayer, mcId, 'City-State');
     const rel = mc.diplomacy.relationships[state.currentPlayer] ?? 0;
-    const status = rel <= -60 ? 'Hostile' : rel >= 60 ? 'Allied' : rel >= 30 ? 'Friendly' : 'Neutral';
+    const status = getMinorCivRelationshipStatus(state, state.currentPlayer, mcId);
     const archIcon = def.archetype === 'militaristic' ? '⚔️' : def.archetype === 'mercantile' ? '🪙' : '📜';
     const quest = mc.activeQuests[state.currentPlayer];
-    const statusColor = rel >= 60 ? '#4a9b4a' : rel >= 30 ? '#8ab84a' : rel <= -60 ? '#d94a4a' : '#888';
-    const atWar = mc.diplomacy.atWarWith?.includes(state.currentPlayer) ?? false;
+    const questPresentation = getMinorCivQuestPresentationForPlayer(state, state.currentPlayer, mcId);
+    const chainPresentation = getMinorCivChainPresentationForPlayer(state, state.currentPlayer, mcId);
+    const questDescription = questPresentation
+      ? [
+        questPresentation.chainName,
+        questPresentation.stepLabel,
+        questPresentation.stepTitle,
+        questPresentation.description,
+        questPresentation.progressLabel,
+        questPresentation.turnsRemaining === undefined ? null : `${questPresentation.turnsRemaining} turns remaining`,
+        `Reward: ${formatQuestReward(questPresentation.currentReward)}`,
+        questPresentation.finalAllianceLabel,
+      ].filter(Boolean).join(' · ')
+      : chainPresentation ? `${chainPresentation.label} · ${chainPresentation.detail}` : null;
+    const statusColor = status === 'allied' ? '#4a9b4a' : status === 'friendly' ? '#8ab84a' : status === 'hostile' || status === 'at-war' ? '#d94a4a' : '#888';
+    const atWar = isMinorCivAtWar(state, state.currentPlayer, mcId);
+    const festivalTarget = quest?.target.type === 'sponsor_festival' ? quest.target : null;
+    const festivalDisabledReason = !festivalTarget ? null
+      : !hasAccessibleLuxury(state, state.currentPlayer) ? 'Requires access to any luxury resource.'
+      : playerCiv.gold < festivalTarget.amount ? `Requires ${festivalTarget.amount} gold.`
+      : null;
 
     minorCivRows.push({
       mcId,
@@ -158,11 +187,14 @@ export function createDiplomacyPanel(
       defColor: presentation.color,
       archIcon,
       statusColor,
-      statusText: `${status} (${rel})`,
-      questDescription: quest ? getQuestDescriptionForPlayer(state, state.currentPlayer, quest) : null,
+      statusText: `${status === 'at-war' ? 'At War' : status[0].toUpperCase() + status.slice(1)} (${rel})`,
+      questDescription,
+      giftLabel: quest?.target.type === 'gift_gold' ? `Gift ${quest.target.amount} Gold` : 'Gift 25 Gold',
+      festivalLabel: festivalTarget
+        ? `Sponsor ${questPresentation?.stepTitle ?? 'Festival'} (${festivalTarget.amount} Gold)`
+        : null,
+      festivalDisabledReason,
       atWar,
-      warBg: atWar ? 'rgba(74,155,74,0.3)' : 'rgba(217,74,74,0.3)',
-      warBorder: atWar ? '#4a9b4a' : '#d94a4a',
     });
   });
 
@@ -228,10 +260,10 @@ export function createDiplomacyPanel(
       if (row.questDescription !== null) {
         minorCivsHtml += `<div style="font-size:11px;opacity:0.7;margin-top:4px;">Quest: <span data-text="mc-quest-${row.mcIdx}"></span></div>`;
       }
-      minorCivsHtml += `<div style="display:flex;gap:6px;margin-top:6px;">`;
-      minorCivsHtml += `<button class="mc-gift" data-mc-id="${row.mcId}" style="padding:4px 10px;background:rgba(232,193,112,0.2);border:1px solid rgba(232,193,112,0.4);border-radius:5px;color:#e8c170;cursor:pointer;font-size:10px;">Gift Gold</button>`;
-      minorCivsHtml += `<button class="mc-war" data-mc-id="${row.mcId}" data-at-war="${row.atWar}" style="padding:4px 10px;background:${row.warBg};border:1px solid ${row.warBorder};border-radius:5px;color:white;cursor:pointer;font-size:10px;" data-text="mc-war-label-${row.mcIdx}"></button>`;
-      minorCivsHtml += `</div>`;
+      if (row.festivalDisabledReason) {
+        minorCivsHtml += `<div style="font-size:10px;color:#e8c170;margin-top:5px;" data-text="mc-festival-reason-${row.mcIdx}"></div>`;
+      }
+      minorCivsHtml += `<div data-role="mc-actions-${row.mcIdx}" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>`;
       minorCivsHtml += `</div>`;
     }
   }
@@ -272,9 +304,28 @@ export function createDiplomacyPanel(
   for (const row of minorCivRows) {
     setText(`mc-name-${row.mcIdx}`, row.defName);
     setText(`mc-status-${row.mcIdx}`, row.statusText);
-    setText(`mc-war-label-${row.mcIdx}`, row.atWar ? 'Make Peace' : 'Declare War');
     if (row.questDescription !== null) {
       setText(`mc-quest-${row.mcIdx}`, row.questDescription);
+    }
+    if (row.festivalDisabledReason) setText(`mc-festival-reason-${row.mcIdx}`, row.festivalDisabledReason);
+    const actions = panel.querySelector<HTMLElement>(`[data-role="mc-actions-${row.mcIdx}"]`);
+    if (actions) {
+      const gift = createGameButton(row.giftLabel, 'secondary', { disabled: row.atWar });
+      gift.className = 'mc-gift';
+      gift.dataset.mcId = row.mcId;
+      actions.appendChild(gift);
+      if (row.festivalLabel) {
+        const festival = createGameButton(row.festivalLabel, 'primary', { disabled: row.atWar || Boolean(row.festivalDisabledReason) });
+        festival.className = 'mc-festival';
+        festival.dataset.mcId = row.mcId;
+        festival.dataset.action = 'sponsor-festival';
+        actions.appendChild(festival);
+      }
+      const war = createGameButton(row.atWar ? 'Make Peace' : 'Declare War', row.atWar ? 'secondary' : 'danger');
+      war.className = 'mc-war';
+      war.dataset.mcId = row.mcId;
+      war.dataset.atWar = String(row.atWar);
+      actions.appendChild(war);
     }
   }
 
@@ -323,6 +374,14 @@ export function createDiplomacyPanel(
       const mcId = (btn as HTMLElement).dataset.mcId!;
       const atWar = (btn as HTMLElement).dataset.atWar === 'true';
       callbacks.onMinorCivWarPeace?.(mcId, atWar);
+      panel.remove();
+    });
+  });
+
+  panel.querySelectorAll('.mc-festival').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mcId = (btn as HTMLElement).dataset.mcId!;
+      callbacks.onSponsorFestival?.(mcId);
       panel.remove();
     });
   });

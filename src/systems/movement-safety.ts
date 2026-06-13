@@ -2,6 +2,7 @@ import type { GameState, HexCoord, Unit } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
 import { wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 
 function getHexDistance(state: GameState, from: HexCoord, to: HexCoord): number {
   return state.map.wrapsHorizontally
@@ -35,7 +36,7 @@ export function isUnitHostileToCiv(state: GameState, viewerId: string, unitOwner
   }
 
   if (unitOwnerId.startsWith('mc-')) {
-    return state.minorCivs[unitOwnerId]?.diplomacy.atWarWith.includes(viewerId) ?? false;
+    return isMinorCivAtWar(state, viewerId, unitOwnerId);
   }
 
   const owner = state.civilizations[unitOwnerId];

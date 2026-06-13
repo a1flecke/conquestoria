@@ -41,8 +41,8 @@ export function scanIdCounters(state: ScanableState): IdCounters {
     if (n) maxCamp = Math.max(maxCamp, +n[1]);
   }
   for (const mc of Object.values(state.minorCivs ?? {})) {
-    for (const id of Object.keys(mc.activeQuests)) {
-      const n = /^quest-(\d+)$/.exec(id);
+    for (const quest of Object.values(mc.activeQuests ?? {})) {
+      const n = /^quest-(\d+)$/.exec(quest.id);
       if (n) maxQuest = Math.max(maxQuest, +n[1]);
     }
   }

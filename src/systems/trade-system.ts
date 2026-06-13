@@ -1,50 +1,12 @@
-import type { BuildableImprovementType, MarketplaceState, ResourceType, TradeRoute, GameState, Unit, City } from '@/core/types';
+import type { MarketplaceState, TradeRoute, GameState, Unit, City } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { findPath } from '@/systems/unit-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
-
-export interface ResourceEffect {
-  type: 'happiness' | 'gold' | 'production' | 'food';
-  amount: number; // always 1 in S4a
-}
-
-export interface ResourceDefinition {
-  id: ResourceType;
-  name: string;
-  type: 'luxury' | 'strategic';
-  terrain: string | string[];   // spawn terrain(s) — multi-terrain for furs, cattle, sheep
-  basePrice: number;
-  tech: string;
-  icon: string;
-  requiredImprovement: BuildableImprovementType;
-  effect: ResourceEffect | null; // null = no S4a passive (copper/iron/horses/stone)
-}
-
-export const RESOURCE_DEFINITIONS: ResourceDefinition[] = [
-  // Luxury — happiness
-  { id: 'silk',    name: 'Silk',    type: 'luxury',    terrain: 'grassland',             basePrice: 8,  tech: 'irrigation',       icon: '🧵', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
-  { id: 'wine',    name: 'Wine',    type: 'luxury',    terrain: 'plains',                basePrice: 7,  tech: 'pottery',           icon: '🍇', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
-  { id: 'ivory',   name: 'Ivory',   type: 'luxury',    terrain: 'forest',                basePrice: 9,  tech: 'foraging',          icon: '🐘', requiredImprovement: 'camp',       effect: { type: 'happiness', amount: 1 } },
-  { id: 'furs',    name: 'Furs',    type: 'luxury',    terrain: ['forest', 'tundra'],    basePrice: 9,  tech: 'foraging',          icon: '🦊', requiredImprovement: 'camp',       effect: { type: 'happiness', amount: 1 } },
-  { id: 'incense', name: 'Incense', type: 'luxury',    terrain: 'desert',                basePrice: 6,  tech: 'currency',          icon: '🕯️', requiredImprovement: 'plantation', effect: { type: 'happiness', amount: 1 } },
-  // Luxury — gold/turn
-  { id: 'gems',    name: 'Gems',    type: 'luxury',    terrain: 'hills',                 basePrice: 12, tech: 'mining-tech',       icon: '💎', requiredImprovement: 'mine',       effect: { type: 'gold', amount: 1 } },
-  { id: 'gold',    name: 'Gold',    type: 'luxury',    terrain: 'hills',                 basePrice: 15, tech: 'currency',          icon: '⭐', requiredImprovement: 'mine',       effect: { type: 'gold', amount: 1 } },
-  { id: 'silver',  name: 'Silver',  type: 'luxury',    terrain: 'hills',                 basePrice: 11, tech: 'mining-tech',       icon: '🥈', requiredImprovement: 'mine',       effect: { type: 'gold', amount: 1 } },
-  { id: 'spices',  name: 'Spices',  type: 'luxury',    terrain: 'jungle',                basePrice: 10, tech: 'cartography',       icon: '🌶️', requiredImprovement: 'plantation', effect: { type: 'gold', amount: 1 } },
-  // Luxury — production/turn
-  { id: 'sheep',   name: 'Sheep',   type: 'luxury',    terrain: ['hills', 'plains'],     basePrice: 7,  tech: 'animal-husbandry',  icon: '🐑', requiredImprovement: 'pasture',    effect: { type: 'production', amount: 1 } },
-  // Strategic — food/turn
-  { id: 'cattle',  name: 'Cattle',  type: 'strategic', terrain: ['grassland', 'plains'], basePrice: 5,  tech: 'domestication',     icon: '🐄', requiredImprovement: 'pasture',    effect: { type: 'food', amount: 1 } },
-  // Strategic — gold/turn
-  { id: 'salt',    name: 'Salt',    type: 'strategic', terrain: 'hills',                 basePrice: 5,  tech: 'pottery',           icon: '🧂', requiredImprovement: 'mine',       effect: { type: 'gold', amount: 1 } },
-  // Strategic — null (S4b gating)
-  { id: 'copper',  name: 'Copper',  type: 'strategic', terrain: 'hills',                 basePrice: 5,  tech: 'stone-weapons',     icon: '🪙', requiredImprovement: 'mine',       effect: null },
-  { id: 'iron',    name: 'Iron',    type: 'strategic', terrain: 'hills',                 basePrice: 8,  tech: 'bronze-working',    icon: '⚙️', requiredImprovement: 'mine',       effect: null },
-  { id: 'horses',  name: 'Horses',  type: 'strategic', terrain: 'plains',                basePrice: 7,  tech: 'animal-husbandry',  icon: '🐎', requiredImprovement: 'pasture',    effect: null },
-  { id: 'stone',   name: 'Stone',   type: 'strategic', terrain: 'mountain',              basePrice: 4,  tech: 'gathering',         icon: '🪨', requiredImprovement: 'quarry',     effect: null },
-];
+import { isMinorCivAtWar } from './minor-civ-diplomacy';
+import { RESOURCE_DEFINITIONS } from './resource-definitions';
+export { RESOURCE_DEFINITIONS } from './resource-definitions';
+export type { ResourceDefinition, ResourceEffect } from './resource-definitions';
 
 export const BASE_PRICES: Record<string, number> = {};
 for (const r of RESOURCE_DEFINITIONS) {
@@ -197,6 +159,21 @@ function routesFromCity(state: GameState, cityId: string): number {
   return (state.marketplace?.tradeRoutes ?? []).filter(r => r.fromCityId === cityId).length;
 }
 
+function getRouteDiplomacy(state: GameState, ownerCivId: string, foreignCivId: string) {
+  const minorCiv = state.minorCivs[foreignCivId];
+  if (minorCiv) {
+    return {
+      atWar: isMinorCivAtWar(state, ownerCivId, foreignCivId),
+      relationship: minorCiv.diplomacy.relationships[ownerCivId] ?? 0,
+    };
+  }
+  const diplomacy = state.civilizations[ownerCivId]?.diplomacy;
+  return {
+    atWar: diplomacy ? isAtWar(diplomacy, foreignCivId) : false,
+    relationship: diplomacy ? getRelationship(diplomacy, foreignCivId) : 0,
+  };
+}
+
 // --- S5: FROM city resolution ---
 
 export function resolveFromCity(state: GameState, caravanUnit: Unit): City | null {
@@ -269,14 +246,13 @@ export function canEstablishRoute(
   if (toCity.owner !== caravanUnit.owner) {
     const ownerCiv = state.civilizations[caravanUnit.owner];
     if (!ownerCiv) return { ok: false, reason: 'Owner civilization not found' };
-    const dip = ownerCiv.diplomacy;
-    if (isAtWar(dip, toCity.owner)) {
+    const routeDiplomacy = getRouteDiplomacy(state, caravanUnit.owner, toCity.owner);
+    if (routeDiplomacy.atWar) {
       const enemyName = state.civilizations[toCity.owner]?.name ?? toCity.owner;
       return { ok: false, reason: `At war with ${enemyName}` };
     }
-    const rel = getRelationship(dip, toCity.owner);
-    if (rel < 0) {
-      return { ok: false, reason: `Relations too hostile (score: ${rel})` };
+    if (routeDiplomacy.relationship < 0) {
+      return { ok: false, reason: `Relations too hostile (score: ${routeDiplomacy.relationship})` };
     }
   }
   return { ok: true };
@@ -352,7 +328,6 @@ export function establishRoute(
   };
 
   bus?.emit('trade:route-created', { route });
-
   return newState;
 }
 
@@ -405,13 +380,13 @@ export function scrubStaleForeignRoutes(state: GameState, bus: EventBus | undefi
     const ownerCiv = newState.civilizations[fromCity.owner];
     if (!ownerCiv) continue;
 
-    if (isAtWar(ownerCiv.diplomacy, route.foreignCivId)) {
+    const routeDiplomacy = getRouteDiplomacy(newState, fromCity.owner, route.foreignCivId);
+    if (routeDiplomacy.atWar) {
       newState = removeRouteById(newState, route.id, bus, 'war-declared');
       continue;
     }
 
-    const rel = getRelationship(ownerCiv.diplomacy, route.foreignCivId);
-    if (rel < -25) {
+    if (routeDiplomacy.relationship < -25) {
       newState = removeRouteById(newState, route.id, bus, 'hostile-relations');
     }
   }
