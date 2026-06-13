@@ -8,11 +8,7 @@
 
 **After getting output:** say "here is the storm roc sprite" and paste both outputs. Claude Code will save them and add `import '@/assets/roc-animations.css';` to `src/main.ts`.
 
-**Files to upload to Claude Design** (repo is private):
-1. `src/renderer/sprites/v2/beast_wolf.svg.ts`
-2. `src/assets/wolf-animations.css`
-3. `src/assets/sprite-animations-v2.css`
-4. `src/assets/basilisk-animations.css`
+**Reference files** (Claude Design will fetch these directly):
 
 ---
 
@@ -35,11 +31,11 @@ export const svg: Record<string, string> = {
 
 `data-state` and `data-damage` are updated at runtime by `SpriteOverlay.sync()`. CSS animations are driven by attributes, NOT by JavaScript.
 
-**Reference files**: Read all four uploaded files before writing anything:
-1. `beast_wolf.svg.ts` — canonical v2 format reference; internalize the wrapper structure and wound groups
-2. `wolf-animations.css` — companion CSS pattern; produce a matching CSS for this beast
-3. `sprite-animations-v2.css` — shared animation library; the `[data-kind="beast-winged"]` rules at the bottom control wing-flap and hover-bob automatically
-4. `basilisk-animations.css` — second companion CSS example
+**Reference files**: Fetch and read all four URLs before writing anything:
+1. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/v2/beast_wolf.svg.ts — canonical v2 format reference; internalize the wrapper structure and wound groups
+2. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/wolf-animations.css — companion CSS pattern; produce a matching CSS for this beast
+3. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css — shared animation library; the `[data-kind="beast-winged"]` rules at the bottom control wing-flap and hover-bob automatically
+4. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/basilisk-animations.css — second companion CSS example
 </context>
 
 <design_system>
