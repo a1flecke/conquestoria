@@ -90,12 +90,15 @@ export interface BeastProcessResult {
   moveOrders: BeastMoveOrder[];
   attackOrders: BeastAttackOrder[];
   awakenings: BeastAwakening[];
+  regenOrders: Array<{ unitId: string; amount: number }>;
 }
 
 const IMPASSABLE_FOR_LAND_BEASTS = new Set(['ocean', 'coast', 'mountain']);
 const WATER_TERRAINS = new Set(['ocean', 'coast']);
 
 export function isTerrainPassableForBeast(unitType: UnitType, terrain: string): boolean {
+  const beastDef = getBeastDefinitionByUnitType(unitType);
+  if (beastDef?.flying) return !WATER_TERRAINS.has(terrain);
   const domain = UNIT_DEFINITIONS[unitType]?.domain;
   if (domain === 'naval') return WATER_TERRAINS.has(terrain);
   return !IMPASSABLE_FOR_LAND_BEASTS.has(terrain);
@@ -122,7 +125,7 @@ export function processBeasts(
   mode: BeastsMode,
   seed: number,
 ): BeastProcessResult {
-  const empty: BeastProcessResult = { updatedLairs: lairs, spawnOrders: [], moveOrders: [], attackOrders: [], awakenings: [] };
+  const empty: BeastProcessResult = { updatedLairs: lairs, spawnOrders: [], moveOrders: [], attackOrders: [], awakenings: [], regenOrders: [] };
   if (mode === 'off') return empty;
 
   const rng = lcg(seed);
@@ -157,8 +160,16 @@ export function processBeasts(
     }
   }
 
+  const regenOrders: Array<{ unitId: string; amount: number }> = [];
+  for (const beast of beastUnits) {
+    const def = getBeastDefinitionByUnitType(beast.type);
+    if (def?.regenPerTurn && beast.health < 100) {
+      regenOrders.push({ unitId: beast.id, amount: def.regenPerTurn });
+    }
+  }
+
   if (mode === 'calm') {
-    return { updatedLairs, spawnOrders, moveOrders: [], attackOrders: [], awakenings };
+    return { updatedLairs, spawnOrders, moveOrders: [], attackOrders: [], awakenings, regenOrders };
   }
 
   const lairByUnitId = new Map<string, BeastLair>();
@@ -196,7 +207,7 @@ export function processBeasts(
     }
   }
 
-  return { updatedLairs, spawnOrders, moveOrders, attackOrders, awakenings };
+  return { updatedLairs, spawnOrders, moveOrders, attackOrders, awakenings, regenOrders };
 }
 
 // ---- Slay rewards ----

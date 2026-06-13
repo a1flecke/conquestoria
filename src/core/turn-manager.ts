@@ -644,6 +644,13 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         newState = { ...newState, units: { ...newState.units, [move.unitId]: { ...beast, position: { ...move.toCoord }, movementPointsLeft: beast.movementPointsLeft - 1 } } };
       }
     }
+    for (const regen of beastResult.regenOrders) {
+      const beast = newState.units[regen.unitId];
+      if (beast) {
+        newState = { ...newState, units: { ...newState.units, [regen.unitId]: { ...beast, health: Math.min(100, beast.health + regen.amount) } } };
+      }
+    }
+
     for (const order of beastResult.attackOrders) {
       const attacker = newState.units[order.attackerUnitId];
       const defender = newState.units[order.defenderUnitId];
