@@ -19,14 +19,14 @@ Four v2 DOM sprite prompts for the MR6 beasts. Each file is self-contained and r
 | Storm Roc | `beast-roc.md` | `src/renderer/sprites/v2/beast_roc.svg.ts` | `src/assets/roc-animations.css` |
 | Swamp Hydra | `beast-hydra.md` | `src/renderer/sprites/v2/beast_hydra.svg.ts` | `src/assets/hydra-animations.css` |
 
-## Reference files to upload
+## Reference files
 
-The repo is private so raw GitHub URLs won't work. Upload these four files directly to each Claude Design conversation:
+Claude Design will fetch these directly — no uploads needed:
 
-- `src/renderer/sprites/v2/beast_wolf.svg.ts` — primary v2 format reference
-- `src/assets/wolf-animations.css` — companion CSS pattern
-- `src/assets/sprite-animations-v2.css` — full animation class library
-- `src/assets/basilisk-animations.css` — second companion CSS example
+- `https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/v2/beast_wolf.svg.ts`
+- `https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/wolf-animations.css`
+- `https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css`
+- `https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/basilisk-animations.css`
 
 ## After getting output
 

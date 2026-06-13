@@ -317,7 +317,7 @@ https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/hex-re
 https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/core/types.ts
 ```
 
-> If the repo is private, these URLs return 403. Attach the files as uploads to the Claude Design conversation instead.
+> The repo is public — Claude Design can fetch these URLs directly.
 
 ---
 
