@@ -74,6 +74,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   beast_basilisk: 'animal',
   beast_sea_serpent: 'naval',
   beast_wurm: 'animal',
+  beast_roc: 'animal',
+  beast_hydra: 'animal',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
@@ -145,6 +147,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   beast_basilisk:     withMotion('beast_basilisk', EmeraldBasiliskSprite),
   beast_sea_serpent:  withMotion('beast_sea_serpent', SeaSerpentSprite),
   beast_wurm:         withMotion('beast_wurm', DuneWurmSprite),
+  beast_roc:          withMotion('beast_roc', GiantBoarSprite),
+  beast_hydra:        withMotion('beast_hydra', GiantBoarSprite),
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {

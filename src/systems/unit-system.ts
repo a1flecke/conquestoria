@@ -231,6 +231,16 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 30, canFoundCity: false,
     canBuildImprovements: false, productionCost: 0,
   },
+  beast_roc: {
+    type: 'beast_roc', name: 'Storm Roc', movementPoints: 4,
+    visionRange: 3, strength: 34, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
+  beast_hydra: {
+    type: 'beast_hydra', name: 'Swamp Hydra', movementPoints: 1,
+    visionRange: 2, strength: 36, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -379,6 +389,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   beast_basilisk: 'The Emerald Basilisk lies hidden in the jungle until prey wanders close. Approach with overwhelming force.',
   beast_sea_serpent: 'A serpent of the deep ocean. It drags ships under within its hunting waters — only ships and ranged units can fight it.',
   beast_wurm: 'The Dune Wurm swims beneath the sand, invisible until you stand beside it. Bring ranged units and overwhelming force.',
+  beast_roc: 'The Storm Roc nests on the high peaks and dives on anything that crosses its skies. It flies over terrain that would stop an army.',
+  beast_hydra: 'The Swamp Hydra regrows flesh as fast as you can cut it — 10 health every turn. Strike hard and finish it in one assault.',
 };
 
 export function getUnmovedUnits(
