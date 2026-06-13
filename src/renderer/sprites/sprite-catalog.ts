@@ -72,6 +72,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   beast_boar: 'animal',
   beast_wolf: 'animal',
   beast_basilisk: 'animal',
+  beast_sea_serpent: 'naval',
+  beast_wurm: 'animal',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {

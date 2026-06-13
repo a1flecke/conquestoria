@@ -221,6 +221,16 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 26, canFoundCity: false,
     canBuildImprovements: false, productionCost: 0,
   },
+  beast_sea_serpent: {
+    type: 'beast_sea_serpent', name: 'Sea Serpent', movementPoints: 3,
+    visionRange: 3, strength: 38, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0, domain: 'naval',
+  },
+  beast_wurm: {
+    type: 'beast_wurm', name: 'Dune Wurm', movementPoints: 2,
+    visionRange: 2, strength: 30, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -367,6 +377,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   beast_boar: 'A legendary boar of monstrous size. Territorial — it defends its forest den but never wanders far. Slay it to claim its hoard.',
   beast_wolf: 'One of the Dire Wolf Pack. Fast, relentless, and never alone — defeat the whole pack to claim their hoard.',
   beast_basilisk: 'The Emerald Basilisk lies hidden in the jungle until prey wanders close. Approach with overwhelming force.',
+  beast_sea_serpent: 'A serpent of the deep ocean. It drags ships under within its hunting waters — only ships and ranged units can fight it.',
+  beast_wurm: 'The Dune Wurm swims beneath the sand, invisible until you stand beside it. Bring ranged units and overwhelming force.',
 };
 
 export function getUnmovedUnits(
