@@ -24,7 +24,7 @@
 | `src/systems/unit-system.ts` | Modify | Definitions (`domain: 'naval'` for serpent) + descriptions |
 | `src/systems/attack-targeting.ts` | Modify | `navalOnly` gating |
 | `src/main.ts` | Modify | navalOnly gating on the tap-attack path with player-facing warning |
-| `src/renderer/sprites/beasts.tsx` | Modify | `SeaSerpentSprite`, `DuneWurmSprite` (`data-kind="beast-serpent"`) |
+| `src/renderer/sprites/beasts.tsx` | Modify | `SeaSerpentSprite`, `DuneWurmSprite` (`data-kind="beast-serpent"`) — **JSX placeholder only; v2 DOM sprites deferred to MR6 (see `2026-06-11-legendary-beasts-mr6-roc-hydra.md` Task 0)** |
 | `src/renderer/sprites/sprite-catalog.ts` | Modify | Register both |
 | `src/renderer/unit-visual-resolver.ts` | Modify | Icons |
 | `src/audio/sfx-catalog.ts` | Modify | Locomotion classes |
