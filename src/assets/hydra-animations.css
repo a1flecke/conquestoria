@@ -1,0 +1,130 @@
+/* Conquestoria — Swamp Hydra (legendary beast) animations.
+ * Companion to the v2 sprite system. Runs as data-kind="beast-serpent" with
+ * data-unit-type="beast_hydra" so the bespoke attack/hurt rules below stay
+ * scoped to the hydra and never touch a future sea-serpent or wurm.
+ *
+ * State + damage contract:
+ *   data-state  ∈ idle | walk | attack | hurt | death
+ *   data-damage ∈ 0 (healthy) | 1 (wounded) | 2 (bloodied · 1 head severed) | 3 (near death · 2 heads severed)
+ *
+ * Hooks on the sprite:
+ *   .cq-segment-1   left neck + head    (weave, phase 0)
+ *   .cq-segment-2   centre neck + head  (weave phase -0.3s; whips forward on attack)
+ *   .cq-segment-3   right neck + head   (weave, phase -0.6s)
+ *   .cq-hydra-strike wrapper on the centre head — the whip's second joint (head tip)
+ *   .cq-hydra-head  the reptilian skull on each neck (hidden when that neck is severed)
+ *   .cq-wound-1     claw rake on the centre neck      (damage 1+)
+ *   .cq-wound-2     severed-neck stump, LEFT  neck     (damage 2+)
+ *   .cq-wound-3     severed-neck stump, RIGHT neck     (damage 3)
+ */
+
+/* ── IDLE / WALK ─ three necks weave independently (lateral sway, not the shared vertical bob) ── */
+/* The shared sprite-animations-v2.css provides a vertical-bob undulate for beast-serpent.
+ * The hydra overrides this with a lateral sway scoped to data-unit-type="beast_hydra"
+ * so future sea-serpent and wurm sprites inherit the shared rules unaffected. */
+@keyframes cq-hydra-weave {
+  0%, 100% { transform: translateX(-3px) rotate(-3deg); }
+  50%      { transform: translateX(3px) rotate(3deg); }
+}
+[data-unit-type="beast_hydra"] .cq-segment-1,
+[data-unit-type="beast_hydra"] .cq-segment-2,
+[data-unit-type="beast_hydra"] .cq-segment-3 {
+  transform-box: view-box;
+  animation: cq-hydra-weave 2.2s ease-in-out infinite;
+}
+/* pivot each neck at its base where it meets the body */
+[data-unit-type="beast_hydra"] .cq-segment-1 { transform-origin: 50px 60px; animation-delay: 0s; }
+[data-unit-type="beast_hydra"] .cq-segment-2 { transform-origin: 64px 58px; animation-delay: -0.3s; }
+[data-unit-type="beast_hydra"] .cq-segment-3 { transform-origin: 78px 60px; animation-delay: -0.6s; }
+
+/* a faint extra sway on walk to read as the body shifting in the bog */
+[data-state="walk"][data-unit-type="beast_hydra"] .cq-segment-1,
+[data-state="walk"][data-unit-type="beast_hydra"] .cq-segment-2,
+[data-state="walk"][data-unit-type="beast_hydra"] .cq-segment-3 {
+  animation-duration: 1.7s;
+}
+
+/* ── ATTACK ─ the centre neck WHIPS: a two-joint lunge that bends at the neck.
+ * Joint 1 (.cq-segment-2)   — the neck base coils back, then drives forward & down,
+ *                             pivoting at the body (transform-origin 64px 58px).
+ * Joint 2 (.cq-hydra-strike)— the head tip LAGS the base on the wind-up, then snaps
+ *                             over the top a beat later (whip follow-through),
+ *                             pivoting at the top of the neck (64px 26px).
+ * The phase offset between the two joints is what sells the whip crack. */
+@keyframes cq-hydra-neck-whip {
+  0%   { transform: translate(0,0) rotate(0deg); }
+  16%  { transform: translate(-7px,3px) rotate(-12deg); }  /* coil — rear back & up */
+  44%  { transform: translate(18px,9px) rotate(22deg); }   /* DRIVE — neck swings forward & down */
+  56%  { transform: translate(14px,7px) rotate(17deg); }   /* hold — the bite lands */
+  78%  { transform: translate(4px,2px) rotate(4deg); }     /* unwind */
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+[data-unit-type="beast_hydra"][data-state="attack"] .cq-segment-2 {
+  animation: cq-hydra-neck-whip 0.9s cubic-bezier(.34,.1,.3,1) infinite;
+}
+
+/* head tip — pivots at the neck top, lags then overshoots the base */
+.cq-hydra-strike { transform-box: view-box; transform-origin: 64px 26px; }
+@keyframes cq-hydra-head-whip {
+  0%   { transform: rotate(0deg); }
+  20%  { transform: rotate(-26deg); }   /* head flicks further back than the neck (lag) */
+  40%  { transform: rotate(2deg); }
+  50%  { transform: rotate(34deg); }    /* CRACK — head whips over the top to bite */
+  62%  { transform: rotate(24deg); }    /* settle into the bite */
+  84%  { transform: rotate(-4deg); }    /* recoil */
+  100% { transform: rotate(0deg); }
+}
+[data-unit-type="beast_hydra"][data-state="attack"] .cq-hydra-strike {
+  animation: cq-hydra-head-whip 0.9s cubic-bezier(.5,.05,.4,1) infinite;
+}
+
+/* ── HURT ─ whole-body shudder + red flash ─────────────────────────────── */
+@keyframes cq-hydra-shudder {
+  0%, 64%, 100% { transform: translateX(0); filter: brightness(1) saturate(1); }
+  70%  { transform: translateX(-3px); filter: brightness(1.5) saturate(1.6); }
+  78%  { transform: translateX(2px);  filter: brightness(1.35) saturate(1.4); }
+  86%  { transform: translateX(-1px); filter: brightness(1.15); }
+}
+[data-state="hurt"][data-unit-type="beast_hydra"] .cq-sprite-figure {
+  animation: cq-hydra-shudder 2.3s ease-out infinite;
+}
+/* near-death: all three necks snap back simultaneously (fast recoil weave) */
+[data-state="hurt"][data-damage="3"][data-unit-type="beast_hydra"] .cq-segment-1,
+[data-state="hurt"][data-damage="3"][data-unit-type="beast_hydra"] .cq-segment-2,
+[data-state="hurt"][data-damage="3"][data-unit-type="beast_hydra"] .cq-segment-3 {
+  animation-duration: 0.5s;
+}
+
+/* ── DAMAGE ─ three escalating tiers, driven by data-damage ────────────── */
+.cq-wound-1, .cq-wound-2, .cq-wound-3 { opacity: 0; }
+/* tier 1+ : claw rake on the centre neck */
+[data-damage="1"] .cq-wound-1,
+[data-damage="2"] .cq-wound-1,
+[data-damage="3"] .cq-wound-1 { opacity: 1; }
+/* tier 2+ : LEFT head is gone — hide it, reveal the bloody stump */
+[data-damage="2"] .cq-wound-2,
+[data-damage="3"] .cq-wound-2 { opacity: 1; }
+[data-damage="2"][data-unit-type="beast_hydra"] .cq-segment-1 .cq-hydra-head,
+[data-damage="3"][data-unit-type="beast_hydra"] .cq-segment-1 .cq-hydra-head { opacity: 0; }
+/* tier 3 : RIGHT head is gone too — only the centre neck still has its head */
+[data-damage="3"] .cq-wound-3 { opacity: 1; }
+[data-damage="3"][data-unit-type="beast_hydra"] .cq-segment-3 .cq-hydra-head { opacity: 0; }
+
+/* ── DEATH ─ the heavy body sinks beneath the bog and fades ────────────── */
+@keyframes cq-hydra-sink {
+  0%   { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(14px) rotate(4deg); opacity: 0; }
+}
+[data-state="death"][data-unit-type="beast_hydra"] .cq-sprite-figure {
+  transform-box: view-box; transform-origin: 64px 90px;
+  animation: cq-hydra-sink 1.5s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-unit-type="beast_hydra"] .cq-sprite-figure,
+  [data-unit-type="beast_hydra"] .cq-segment-1,
+  [data-unit-type="beast_hydra"] .cq-segment-2,
+  [data-unit-type="beast_hydra"] .cq-segment-3 {
+    animation: none !important;
+  }
+}
