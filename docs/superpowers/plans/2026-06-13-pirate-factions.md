@@ -189,7 +189,7 @@ The executor maintains this table in the plan while working. No row may remain `
 
 **Files:** None.
 
-- [ ] **Step 1: Confirm the plan commit is the branch HEAD before code changes**
+- [x] **Step 1: Confirm the plan commit is the branch HEAD before code changes**
 
 ```bash
 git status --short --branch
@@ -198,7 +198,7 @@ git log -1 --oneline
 
 Expected: clean worktree, current branch `codex/issue-353-pirates`, and HEAD is the committed plan.
 
-- [ ] **Step 2: Comment on GitHub issue #353 with the GitHub connector**
+- [x] **Step 2: Comment on GitHub issue #353 with the GitHub connector**
 
 Post a comment that includes:
 
@@ -221,9 +221,11 @@ Scope:
 Execution will follow the committed plan task-by-task with TDD. The first code change will begin only after this comment is visible.
 ```
 
-- [ ] **Step 3: Fetch issue comments and verify the comment is present**
+- [x] **Step 3: Fetch issue comments and verify the comment is present**
 
 Use the GitHub connector to read issue #353 comments. Record the returned comment ID in the execution notes.
+
+Execution note: verified issue comment `4699301862` at https://github.com/a1flecke/conquestoria/issues/353#issuecomment-4699301862 before implementation code changes.
 
 ---
 
