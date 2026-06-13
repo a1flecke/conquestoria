@@ -857,3 +857,258 @@ Before finalising each sprite, verify:
 - [ ] Children can recognise what each ship is at 32 px (distinctive silhouette per tier)
 - [ ] Each sprite is visually distinct from the others — escalating size/complexity
 </style_checklist>
+
+---
+
+## === LEGENDARY BEAST v2 DOM SPRITES PROMPT (2026-06-12) ===
+
+### Developer Instructions (do not copy this section into Claude Design)
+
+This prompt generates **two v2 DOM sprites** (Dire Wolf + Emerald Basilisk) plus their **companion CSS animation files**. This is the same format as the existing Giant Boar (`src/renderer/sprites/v2/beast_boar.svg.ts` + `src/assets/boar-animations.css`).
+
+**These are NOT JSX sprites.** They are raw HTML/SVG strings — no JSX, no TypeScript imports inside the string, no `palette` prop. The string is stored as `export const svg: Record<string, string> = { beast: "..." }` and loaded by `src/renderer/sprites/v2/index.ts`.
+
+**What to do with the output:**
+
+1. Create `src/renderer/sprites/v2/beast_wolf.svg.ts` — paste the Dire Wolf SVG export.
+2. Create `src/renderer/sprites/v2/beast_basilisk.svg.ts` — paste the Emerald Basilisk SVG export.
+3. Create `src/assets/wolf-animations.css` — paste the Dire Wolf animation CSS.
+4. Create `src/assets/basilisk-animations.css` — paste the Emerald Basilisk animation CSS.
+5. Register both in `src/renderer/sprites/v2/index.ts`:
+   ```typescript
+   import { svg as beastWolfSvg }     from './beast_wolf.svg';
+   import { svg as beastBasiliskSvg } from './beast_basilisk.svg';
+   // ... in UNIT_SPRITES:
+   beast_wolf:     beastWolfSvg,
+   beast_basilisk: beastBasiliskSvg,
+   ```
+6. Import both CSS files in the app entry point alongside `boar-animations.css`.
+
+**Repository is private** — the GitHub raw URLs return 403. Attach these files as uploads instead:
+- `src/renderer/sprites/v2/beast_boar.svg.ts` (primary format reference)
+- `src/assets/boar-animations.css` (animation CSS reference)
+- `src/assets/sprite-animations-v2.css` (broader animation context)
+
+---
+
+### Prompt (copy everything below this line into Claude Design)
+
+<role>
+You are a senior SVG sprite artist and CSS animation engineer specializing in hand-crafted game graphics. You write clean, geometric SVG — no photorealism, no gradient meshes, no blur filters. You produce raw HTML/SVG strings (not JSX, not React) that integrate directly into a production codebase as DOM elements with CSS-driven animation.
+</role>
+
+<context>
+**Project**: Conquestoria — HTML5 Canvas + DOM strategy game, medieval/ancient theme (Eras 1–4), mobile-first, played by families including young children. Map unit graphics are DOM elements with inline SVG, positioned over a Canvas 2D hex map.
+
+**This task**: Add v2 DOM sprites for two new Legendary Beast units — the Dire Wolf and the Emerald Basilisk. These are PvE monsters that roam the map. They use the same animated DOM overlay system as the existing Giant Boar.
+
+**Audience**: Sprites appear on a hex tile map at 40–120 px. Bold, readable silhouettes. Children should immediately recognise a wolf pack and a giant lizard.
+
+**Existing reference**: The Giant Boar sprite (`beast_boar.svg.ts`) and its companion `boar-animations.css` are attached — read them in full before producing anything. Every structural and animation decision must follow the boar's precedent.
+</context>
+
+<reference_files>
+Attach these files as uploads (repository is private):
+
+1. **`src/renderer/sprites/v2/beast_boar.svg.ts`** — PRIMARY FORMAT REFERENCE. The output files must follow this exact structure: `export const svg: Record<string, string> = { beast: "..." }` where the value is a single HTML string starting with `<div class="cq-sprite-wrap cq-v2" ...>`.
+
+2. **`src/assets/boar-animations.css`** — PRIMARY ANIMATION REFERENCE. The output CSS files must follow this exact pattern: keyframes + state selectors using `[data-state="..."][data-kind="..."]` targeting `.cq-sprite-figure` and beast-specific classes. Your companion CSS files will use `data-kind="beast-wolf"` and `data-kind="beast-basilisk"` respectively.
+
+3. **`src/assets/sprite-animations-v2.css`** — Do NOT use any selectors from this file for beasts. It controls human units. Read it for CSS variable / custom property context only.
+</reference_files>
+
+<design_system>
+**Visual Language**: Flat geometric SVG. Medieval/ancient theme. 2.5D perspective — figures face right, slightly toward the viewer. Warmth: earthy, hand-made feel. Ink line `#1f1a14` holds everything together.
+
+**Line Weights**:
+- Major outlines: `stroke="#1f1a14"` `stroke-width="1"` to `"2.5"`
+- Interior detail: `stroke-width="0.5"`–`"1"`
+- No CSS filters, no gradients
+
+**Material Palette** (use these exact hex values — never arbitrary colors):
+```
+skin:   warm=#d4a373  cool=#b08968  deep=#8a5a3c
+cloth:  tunic=#c19a6b  linen=#e6dcc6  wool=#7a6e5b  dye=#5b4a7a
+metal:  iron=#5a6068  steel=#8a929b  bronze=#b8895a  gold=#d4a13c  shine=#e8edf2
+wood:   light=#c19a6b  mid=#8a6a3a  dark=#5e3f24
+stone:  light=#c4b8a4  mid=#9a8e78  dark=#6a5e4a
+thatch: straw=#d6b46a  shadow=#8a6a3a
+ground: grass=#7ea860  dirt=#a08260  sand=#d8c896  water=#3a6e94
+ink:    line=#1f1a14   soft=#3a3228
+```
+
+**Wound color**: `#c43b2e` (same as boar — blood red)
+
+**v2 DOM Sprite Structure** (copy this skeleton exactly, substituting your SVG content):
+```html
+<div class="cq-sprite-wrap cq-v2" data-state="idle" data-kind="BEAST_KIND" data-damage="0" style="--phase:0">
+  <svg viewBox="0 0 128 128" width="100%" height="100%" data-state="idle" data-kind="BEAST_KIND">
+    <!-- Hex tile overlay indicator (translucent hex border at the base) -->
+    <g transform="translate(16 38.864000000000004)">
+      <g>
+        <ellipse cx="48" cy="45.568" rx="35.88" ry="14.72" fill="#000" opacity="0.18"/>
+        <polygon points="87.837,64.568 48,87.568 8.163,64.568 8.163,18.568 48,-4.432 87.837,18.568"
+          fill="none" stroke="#000" stroke-opacity="0.25" stroke-width="1.2" stroke-dasharray="2 3"/>
+      </g>
+    </g>
+    <!-- Animated figure — all visible body content goes inside this group -->
+    <g class="cq-sprite-figure">
+      <!-- ground shadow ellipse -->
+      <ellipse cx="64" cy="95" rx="28" ry="5" fill="#000" opacity="0.35"/>
+
+      <!-- BODY CONTENT HERE -->
+
+      <!-- Damage overlays — all hidden at data-damage="0", revealed progressively -->
+      <g class="cq-wound cq-wound-1"> <!-- tier 1: first scratch --> </g>
+      <g class="cq-wound cq-wound-2"> <!-- tier 2: gash + drips --> </g>
+      <g class="cq-wound cq-wound-3"> <!-- tier 3: near-death injury --> </g>
+    </g>
+  </svg>
+</div>
+```
+
+**Animation CSS Structure** (copy the boar's pattern; substitute beast-specific class names and `data-kind`):
+- 5 states: `idle`, `walk`, `attack`, `hurt`, `death`
+- 4 damage tiers: `data-damage="0"` (healthy) → `"1"` (wounded) → `"2"` (bloodied) → `"3"` (near death)
+- Selectors always target `[data-state="..."][data-kind="BEAST_KIND"]`
+- `.cq-wound-1/2/3` default to `opacity: 0` — shown cumulatively by `[data-damage]` selectors
+- End with `@media (prefers-reduced-motion: reduce)` block that sets `animation: none !important` on all animated elements
+</design_system>
+
+<sprites>
+
+## SPRITE 1 — Dire Wolf (beast_wolf)
+
+**Output files**:
+- `src/renderer/sprites/v2/beast_wolf.svg.ts` — export as `export const svg: Record<string, string> = { beast: "..." }`
+- `src/assets/wolf-animations.css` — companion animation CSS
+
+**data-kind**: `beast-wolf`
+
+**Color palette** (use ONLY these values for the wolf body — no other colors):
+```
+fur:     #7d8a99   (blue-grey wolf body)
+furDark: #55606e   (undercoat shadow, legs, muzzle)
+belly:   #aab4c0   (lighter chest/underbelly)
+eye:     #d8b13a   (amber predator eye)
+fang:    #e8e0cc   (ivory fangs — same as boar tusk color)
+ink:     #1f1a14   (all outlines)
+wound:   #c43b2e   (blood, same as boar)
+```
+
+### Concept
+A dire wolf — massive, low-slung, built for endurance over speed. Broad-shouldered body with a heavy raised hackle ridge along the spine. Four sturdy legs drawn in diagonal pairs for quadruped gait. Large wedge-shaped head with visible fangs, upright ears, and burning amber eyes. Curled tail. The overall silhouette reads as "huge dangerous wolf" at 32 px.
+
+### Key requirements — SVG body
+- **Legs**: Four legs as rounded rects in two diagonal pairs (front-far/back-near vs front-near/back-far). Each pair shares a class for animation phase-offset. Name classes: `cq-wolf-leg--ff`, `cq-wolf-leg--bf`, `cq-wolf-leg--fn`, `cq-wolf-leg--bn`.
+- **Body**: A single `<path>` or `<ellipse>` for the torso — muscular, wide at the shoulders, tapering to haunches. Fill `furDark` for the core, with a secondary `<ellipse>` in `belly` for the chest patch.
+- **Hackle ridge**: A jagged/serrated `<path>` along the dorsal spine in `furDark`, `stroke-width="5"` — raises on alert.
+- **Head**: `<ellipse>` for the skull. Attached `<rect>` for the muzzle in `furDark`. The muzzle should face right.
+- **Ear**: Triangle `<path>` in `furDark`, upright.
+- **Eye**: `<circle>` in `eye` color — one glowing amber eye.
+- **Fangs**: Two small droop lines from the muzzle in `fang` color, `stroke-linecap="round"`. Name the fang group `cq-wolf-fangs`.
+- **Tail**: A curling `<path>` sweeping to the left (behind the body), `stroke-width="4"`, `fill="none"`.
+- **Breath**: On idle, the wolf pants — 2–3 small ellipses (`cq-wolf-breath`, `cq-wolf-breath--b`) near the muzzle, animated to drift forward and fade. Same technique as the boar's `cq-breath`.
+- **Wound tier 1** (`cq-wound-1`): Three claw-rake lines across the flank, `stroke="#c43b2e"`.
+- **Wound tier 2** (`cq-wound-2`): A deeper tear on the shoulder + blood drops.
+- **Wound tier 3** (`cq-wound-3`): A torn ear (`cq-wolf-ear-tear` element appears) + hindquarter gash.
+- Tone: feral, pack predator, cold northern wilderness
+
+### Key requirements — animation CSS (`wolf-animations.css`)
+- **idle**: Panting breath ellipses animate with `cq-wolf-breath` keyframes (same drift+fade pattern as boar's `cq-boar-breath`).
+- **walk**: `cq-sprite-figure` uses a loping lumber (`translateY` + slight `rotate`). Four legs swing with `cq-wolf-leg` keyframes; diagonal pairs phase-offset by half cycle (same technique as boar's legs).
+- **attack**: `cq-sprite-figure` snaps forward with a quick lunge (`translateX`). Assign class `cq-wolf-head` to the head+muzzle group; animate it with a swift bite-and-retract rotation.
+- **hurt**: Shudder + red `filter: brightness` flash, looping.
+- **death**: `cq-sprite-figure` tilts and fades with `forwards` fill, same as boar fall.
+- Damage escalation: at `data-damage="3"`, the hurt animation quickens and the head hangs at a downward `rotate`.
+
+---
+
+## SPRITE 2 — Emerald Basilisk (beast_basilisk)
+
+**Output files**:
+- `src/renderer/sprites/v2/beast_basilisk.svg.ts` — export as `export const svg: Record<string, string> = { beast: "..." }`
+- `src/assets/basilisk-animations.css` — companion animation CSS
+
+**data-kind**: `beast-basilisk`
+
+**Color palette** (use ONLY these values for the basilisk body):
+```
+scale:     #2f7d4f   (deep emerald green body)
+scaleDark: #1d5535   (dark scale shadow, legs, underbelly)
+frill:     #46b878   (bright green dorsal frill spines)
+eye:       #9aedc0   (glowing pale mint gaze — the basilisk's weapon)
+tongue:    #c43b2e   (forked red tongue)
+ink:       #1f1a14   (all outlines)
+wound:     #c43b2e   (blood)
+```
+
+### Concept
+A giant basilisk — long, low, reptilian. A thick barrel body close to the ground with four wide-splayed legs giving it an ancient crocodilian silhouette. A prominent fan of dorsal frill spines running the full spine length. A wide, blunt-snouted head facing right with an unblinking luminous eye. A thick, slowly-curling tail sweeping left. Scale texture along the body. The figure is wider and lower than the wolf — it should feel ancient and immovable.
+
+### Key requirements — SVG body
+- **Legs**: Four short, wide splayed legs (wider stance than the wolf — a reptile's sprawl). Use rounded rects or small arcs. Name classes: `cq-basilisk-leg--ff`, `--bf`, `--fn`, `--bn`.
+- **Body**: One large compound `<path>` for the main torso — long oval, low-slung, overlapping slightly onto the legs. Fill `scale`. Add a secondary belly stripe in `scaleDark` along the underside.
+- **Dorsal frill**: A series of 5–7 triangular spines along the top of the body from neck to tail-base. Fill `frill`, stroke `scaleDark`. Name the whole group `cq-basilisk-frill`.
+- **Tail**: A thick curving path sweeping left and slightly downward, tapering to a point. Fill `scaleDark` for the tail.
+- **Head**: A wide `<ellipse>` (wider than tall) for the skull. Small nostril dots. A short triangular snout.
+- **Forked tongue**: Two thin line segments from the snout tip in `tongue` color, curling outward. Name `cq-basilisk-tongue`. Animate with a flick on idle.
+- **Eye**: A large `<circle>` in `eye` color with a narrow vertical-slit pupil (`<rect>` rotated, in `ink`). The eye should glow — add a larger `<circle>` at `opacity="0.3"` in `eye` color as a glow ring. Name `cq-basilisk-eye-glow`.
+- **Scale texture**: 4–6 short arc `<path>` segments across the mid-body (`fill="none"`, `stroke=scaleDark`, `stroke-width="1"`).
+- **Wound tier 1** (`cq-wound-1`): Two claw rakes across the flank.
+- **Wound tier 2** (`cq-wound-2`): A deeper gash with blood drips and a cracked scale piece.
+- **Wound tier 3** (`cq-wound-3`): A broken dorsal spine (`cq-basilisk-spine-break` appears), deep hindquarter wound.
+- Tone: ancient, reptilian menace, lurking stillness
+
+### Key requirements — animation CSS (`basilisk-animations.css`)
+- **idle**: Two animations simultaneously — (1) tongue flick: `cq-basilisk-tongue` scales/rotates rapidly and returns, looping every 3s; (2) eye glow pulse: `cq-basilisk-eye-glow` opacity pulses 0.15→0.5→0.15, 2s period.
+- **walk**: A deliberate heavy plod — `cq-sprite-figure` uses a slow, heavy vertical bob (`translateY` ±2px, 0.9s). The four legs swing with slow alternating `cq-basilisk-leg` keyframes (diagonal pairs, but slower and wider arc than wolf). The frill subtly fans out (scale or rotate transform on `cq-basilisk-frill`).
+- **attack**: `cq-sprite-figure` lurches forward quickly. Assign `cq-basilisk-head` to the head group; animate a rapid forward snap and retract. The tongue flick fires simultaneously.
+- **hurt**: Shudder + brightness flash. At `data-damage="3"`, the frill droops (downward rotate on `cq-basilisk-frill`) and the shudder quickens.
+- **death**: The basilisk sinks — `cq-sprite-figure` translates downward and fades with `forwards` fill. Slightly slower than the wolf (1.4s vs 1s), befitting its mass.
+- Damage escalation: at `data-damage="3"`, the tongue-flick animation slows and the eye glow dims.
+
+</sprites>
+
+<output_format>
+Produce output in this order — one file at a time:
+
+1. `src/renderer/sprites/v2/beast_wolf.svg.ts`
+   - Single export: `export const svg: Record<string, string> = { beast: "..." }`
+   - The string value is a complete HTML+SVG fragment (not a JSX/TSX function)
+   - All attribute values with double quotes must be escaped as `\"` inside the JS string
+   - Test mentally: paste the HTML string into an HTML file and confirm it renders correctly at 128×128
+
+2. `src/assets/wolf-animations.css`
+   - CSS only, no imports, no variables
+   - Selectors use `[data-kind="beast-wolf"]` throughout
+   - Include the `@media (prefers-reduced-motion: reduce)` block at the end
+
+3. `src/renderer/sprites/v2/beast_basilisk.svg.ts`
+   - Same format as the wolf file
+
+4. `src/assets/basilisk-animations.css`
+   - Selectors use `[data-kind="beast-basilisk"]` throughout
+   - Include the `@media (prefers-reduced-motion: reduce)` block at the end
+
+**Do not output all four at once.** Complete each file fully before moving to the next. After each file, pause and ask if adjustments are needed before continuing.
+</output_format>
+
+<style_checklist>
+Before finalising each sprite, verify:
+- [ ] File exports `export const svg: Record<string, string> = { beast: "..." }` — no JSX, no TypeScript imports
+- [ ] Outer wrapper is `<div class="cq-sprite-wrap cq-v2" data-state="idle" data-kind="beast-wolf|beast-basilisk" data-damage="0" style="--phase:0">`
+- [ ] Inner SVG is `<svg viewBox="0 0 128 128" width="100%" height="100%" data-state="idle" data-kind="...">` (data-kind repeated)
+- [ ] Hex tile overlay group is present (translucent ellipse + dashed hex polygon at base)
+- [ ] All visible content (except the overlay) is inside `<g class="cq-sprite-figure">`
+- [ ] Ground shadow ellipse (`cx="64" cy="95"`) is the first child of `cq-sprite-figure`
+- [ ] Three wound groups present: `cq-wound cq-wound-1`, `cq-wound-2`, `cq-wound-3`
+- [ ] No hardcoded faction colors — only the species-specific palette values listed in the spec
+- [ ] No CSS gradients or filter effects anywhere in the SVG
+- [ ] All attribute strings use double quotes escaped as `\"` inside the JS template string
+- [ ] Animation CSS uses `[data-kind="beast-wolf"]` / `[data-kind="beast-basilisk"]` — never `[data-kind="beast"]`
+- [ ] CSS wound visibility: `.cq-wound-1, .cq-wound-2, .cq-wound-3 { opacity: 0 }` default; progressive reveal via `[data-damage]`
+- [ ] `@media (prefers-reduced-motion: reduce)` block present at end of CSS, covering all animated selectors
+- [ ] Wolf silhouette reads as "wolf" at 32 px; basilisk reads as "big lizard" at 32 px
+- [ ] Wolf and basilisk are visually distinct from the boar — different shape language, different palette, different animations
+</style_checklist>

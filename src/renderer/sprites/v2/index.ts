@@ -43,6 +43,8 @@ import { svg as steamshipSvg }     from './steamship.svg';
 import { svg as troopTransportSvg } from './troop_transport.svg';
 // Legendary beasts — faction-neutral, keyed under 'beast'
 import { svg as beastBoarSvg }     from './beast_boar.svg';
+import { svg as beastWolfSvg }     from './beast_wolf.svg';
+import { svg as beastBasiliskSvg } from './beast_basilisk.svg';
 
 import { svg as amphitheaterSvg }      from './amphitheater.svg';
 import { svg as aqueductSvg }          from './aqueduct.svg';
@@ -121,6 +123,8 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   troop_transport: troopTransportSvg,
   // Legendary beasts
   beast_boar:     beastBoarSvg,
+  beast_wolf:     beastWolfSvg,
+  beast_basilisk: beastBasiliskSvg,
 };
 
 export function getUnitSpriteV2(unitType: string, faction: string): string | null {

@@ -1,0 +1,156 @@
+/* Conquestoria — Emerald Basilisk (legendary beast) animations.
+ * Companion to the v2 sprite system. Runs as data-kind="beast-basilisk" so
+ * none of the generic unit / boar / wolf rules fire — every motion is bespoke.
+ *
+ * State + damage contract:
+ *   data-state  ∈ idle | walk | attack | hurt | death
+ *   data-damage ∈ 0 (healthy) | 1 (wounded) | 2 (bloodied) | 3 (near death)
+ *
+ * Hooks on the sprite:
+ *   .cq-basilisk-leg (+ --ff/--bf/--fn/--bn)  four hips that plod on walk
+ *   .cq-basilisk-head                         head cluster that snaps on attack
+ *   .cq-basilisk-frill                        dorsal spine fan (fans on walk, droops near-death)
+ *   .cq-basilisk-tongue                       forked tongue that flicks
+ *   .cq-basilisk-eye-glow                     luminous eye ring that pulses
+ *   .cq-wound-1 / -2 / -3                      progressive battle damage
+ *   .cq-basilisk-spine-break                   snapped dorsal spine, shows at near-death
+ */
+
+/* ── IDLE ─ tongue flick (3s) + slow eye-glow pulse (2s) ──────────────── */
+@keyframes cq-basilisk-tongue {
+  0%, 70%, 100% { transform: scaleX(0.4); opacity: 0.7; }
+  78%  { transform: scaleX(1.15); opacity: 1; }
+  86%  { transform: scaleX(0.9); }
+}
+.cq-basilisk-tongue { transform-box: view-box; transform-origin: 120px 71px; }
+[data-state="idle"][data-kind="beast-basilisk"] .cq-basilisk-tongue,
+[data-state="hurt"][data-kind="beast-basilisk"] .cq-basilisk-tongue {
+  animation: cq-basilisk-tongue 3s ease-in-out infinite;
+}
+
+@keyframes cq-basilisk-glow {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.5; }
+}
+.cq-basilisk-eye-glow { transform-box: fill-box; transform-origin: center; }
+[data-kind="beast-basilisk"]:not([data-state="death"]) .cq-basilisk-eye-glow {
+  animation: cq-basilisk-glow 2s ease-in-out infinite;
+}
+
+/* ── WALK ─ heavy plod: slow vertical bob, wide leg arcs, fanning frill ── */
+@keyframes cq-basilisk-plod {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+[data-state="walk"][data-kind="beast-basilisk"] .cq-sprite-figure {
+  animation: cq-basilisk-plod 0.9s ease-in-out infinite;
+}
+
+@keyframes cq-basilisk-leg {
+  0%, 100% { transform: rotate(18deg); }
+  50%      { transform: rotate(-18deg); }
+}
+.cq-basilisk-leg { transform-box: view-box; }
+[data-state="walk"][data-kind="beast-basilisk"] .cq-basilisk-leg {
+  animation: cq-basilisk-leg 0.9s ease-in-out infinite;
+}
+/* per-hip pivot points (top-centre of each leg) */
+.cq-basilisk-leg--bf { transform-origin: 45px 74px; }   /* back  · far  */
+.cq-basilisk-leg--ff { transform-origin: 84px 72px; }   /* front · far  */
+.cq-basilisk-leg--bn { transform-origin: 50px 78px; }   /* back  · near */
+.cq-basilisk-leg--fn { transform-origin: 81px 76px; }   /* front · near */
+/* diagonal gait, slower + wider than the wolf */
+[data-state="walk"][data-kind="beast-basilisk"] .cq-basilisk-leg--bf,
+[data-state="walk"][data-kind="beast-basilisk"] .cq-basilisk-leg--fn { animation-delay: -0.45s; }
+
+@keyframes cq-basilisk-fan {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(1.12); }
+}
+.cq-basilisk-frill { transform-box: view-box; transform-origin: 64px 60px; }
+[data-state="walk"][data-kind="beast-basilisk"] .cq-basilisk-frill {
+  animation: cq-basilisk-fan 0.9s ease-in-out infinite;
+}
+
+/* ── ATTACK ─ forward lurch + head snap (tongue fires simultaneously) ─── */
+@keyframes cq-basilisk-lurch {
+  0%   { transform: translateX(0); }
+  18%  { transform: translateX(-3px); }   /* gather */
+  40%  { transform: translateX(9px); }    /* lunge  */
+  56%  { transform: translateX(8px); }
+  80%  { transform: translateX(0); }
+  100% { transform: translateX(0); }
+}
+[data-state="attack"][data-kind="beast-basilisk"] .cq-sprite-figure {
+  animation: cq-basilisk-lurch 0.85s ease-out infinite;
+}
+@keyframes cq-basilisk-snap {
+  0%   { transform: rotate(0deg); }
+  18%  { transform: rotate(-7deg); }   /* rear back */
+  40%  { transform: rotate(8deg); }    /* strike    */
+  56%  { transform: rotate(8deg); }
+  80%  { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+.cq-basilisk-head { transform-box: view-box; transform-origin: 84px 71px; }
+[data-state="attack"][data-kind="beast-basilisk"] .cq-basilisk-head {
+  animation: cq-basilisk-snap 0.85s ease-out infinite;
+}
+@keyframes cq-basilisk-tongue-fast {
+  0%, 100% { transform: scaleX(0.4); }
+  30%      { transform: scaleX(1.2); }
+  60%      { transform: scaleX(0.7); }
+}
+[data-state="attack"][data-kind="beast-basilisk"] .cq-basilisk-tongue {
+  animation: cq-basilisk-tongue-fast 0.85s ease-out infinite;
+}
+
+/* ── HURT ─ shudder + brightness flash ────────────────────────────────── */
+@keyframes cq-basilisk-shudder {
+  0%, 64%, 100% { transform: translateX(0); filter: brightness(1) saturate(1); }
+  70%  { transform: translateX(-3px); filter: brightness(1.5) saturate(1.5); }
+  78%  { transform: translateX(2px);  filter: brightness(1.35) saturate(1.35); }
+  86%  { transform: translateX(-1px); filter: brightness(1.15); }
+}
+[data-state="hurt"][data-kind="beast-basilisk"] .cq-sprite-figure {
+  animation: cq-basilisk-shudder 2.4s ease-out infinite;
+}
+/* near-death: frill droops, shudder quickens, tongue + glow slow to a crawl */
+[data-state="hurt"][data-damage="3"][data-kind="beast-basilisk"] .cq-sprite-figure { animation-duration: 1.4s; }
+[data-damage="3"][data-kind="beast-basilisk"] .cq-basilisk-frill { transform: rotate(8deg) scaleY(0.82); }
+[data-state="hurt"][data-damage="3"][data-kind="beast-basilisk"] .cq-basilisk-tongue { animation-duration: 5s; }
+[data-damage="3"][data-kind="beast-basilisk"] .cq-basilisk-eye-glow { animation-duration: 3.6s; }
+
+/* ── DAMAGE ─ four escalating tiers, driven by data-damage ────────────── */
+.cq-wound-1, .cq-wound-2, .cq-wound-3, .cq-basilisk-spine-break { opacity: 0; }
+/* tier 1+ : claw-rakes on the flank */
+[data-damage="1"] .cq-wound-1,
+[data-damage="2"] .cq-wound-1,
+[data-damage="3"] .cq-wound-1 { opacity: 1; }
+/* tier 2+ : deep gash, cracked scale + blood */
+[data-damage="2"] .cq-wound-2,
+[data-damage="3"] .cq-wound-2 { opacity: 1; }
+/* tier 3 : broken dorsal spine + deep hindquarter wound */
+[data-damage="3"] .cq-wound-3,
+[data-damage="3"] .cq-basilisk-spine-break { opacity: 1; }
+
+/* ── DEATH ─ sinks down and fades (heavier + slower than the wolf) ────── */
+@keyframes cq-basilisk-sink {
+  0%   { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(10px) rotate(-6deg); opacity: 0; }
+}
+[data-state="death"][data-kind="beast-basilisk"] .cq-sprite-figure {
+  transform-box: view-box; transform-origin: 64px 88px;
+  animation: cq-basilisk-sink 1.4s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-kind="beast-basilisk"] .cq-sprite-figure,
+  [data-kind="beast-basilisk"] .cq-basilisk-leg,
+  [data-kind="beast-basilisk"] .cq-basilisk-head,
+  [data-kind="beast-basilisk"] .cq-basilisk-frill,
+  [data-kind="beast-basilisk"] .cq-basilisk-tongue,
+  [data-kind="beast-basilisk"] .cq-basilisk-eye-glow {
+    animation: none !important;
+  }
+}

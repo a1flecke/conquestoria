@@ -1,0 +1,131 @@
+/* Conquestoria — Dire Wolf (legendary beast) animations.
+ * Companion to the v2 sprite system. The wolf runs as data-kind="beast-wolf"
+ * so none of the generic unit / boar rules fire — every motion is bespoke.
+ *
+ * State + damage contract:
+ *   data-state  ∈ idle | walk | attack | hurt | death
+ *   data-damage ∈ 0 (healthy) | 1 (wounded) | 2 (bloodied) | 3 (near death)
+ *
+ * Hooks on the sprite:
+ *   .cq-wolf-leg (+ --ff/--bf/--fn/--bn)  four hips that lope on walk
+ *   .cq-wolf-head                         head+muzzle that bites on attack
+ *   .cq-wolf-fangs                        ivory fangs
+ *   .cq-wolf-breath (+ --b)               panting puffs off the muzzle
+ *   .cq-wound-1 / -2 / -3                 progressive battle damage
+ *   .cq-wolf-ear-tear                     torn ear, shows at near-death
+ */
+
+/* ── WALK ─ loping lumber + four legs in diagonal pairs ───────────────── */
+@keyframes cq-wolf-lope {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%      { transform: translateY(-2px) rotate(0.6deg); }
+  50%      { transform: translateY(0) rotate(0deg); }
+  75%      { transform: translateY(-2px) rotate(-0.6deg); }
+}
+[data-state="walk"][data-kind="beast-wolf"] .cq-sprite-figure {
+  animation: cq-wolf-lope 0.46s ease-in-out infinite;
+}
+
+@keyframes cq-wolf-leg {
+  0%, 100% { transform: rotate(16deg); }
+  50%      { transform: rotate(-16deg); }
+}
+.cq-wolf-leg { transform-box: view-box; }
+[data-state="walk"][data-kind="beast-wolf"] .cq-wolf-leg {
+  animation: cq-wolf-leg 0.46s ease-in-out infinite;
+}
+/* per-hip pivot points (top-centre of each leg) */
+.cq-wolf-leg--bf { transform-origin: 48px 70px; }   /* back  · far  */
+.cq-wolf-leg--ff { transform-origin: 84px 68px; }   /* front · far  */
+.cq-wolf-leg--bn { transform-origin: 55px 76px; }   /* back  · near */
+.cq-wolf-leg--fn { transform-origin: 77px 74px; }   /* front · near */
+/* diagonal gait: ff + bn lead, bf + fn trail half a cycle */
+[data-state="walk"][data-kind="beast-wolf"] .cq-wolf-leg--bf,
+[data-state="walk"][data-kind="beast-wolf"] .cq-wolf-leg--fn { animation-delay: -0.23s; }
+
+/* ── ATTACK ─ quick lunge + snapping bite ─────────────────────────────── */
+@keyframes cq-wolf-lunge {
+  0%   { transform: translateX(0); }
+  16%  { transform: translateX(-4px); }   /* coil  */
+  38%  { transform: translateX(10px); }   /* drive */
+  54%  { transform: translateX(9px); }
+  78%  { transform: translateX(0); }
+  100% { transform: translateX(0); }
+}
+[data-state="attack"][data-kind="beast-wolf"] .cq-sprite-figure {
+  animation: cq-wolf-lunge 0.8s ease-out infinite;
+}
+@keyframes cq-wolf-bite {
+  0%   { transform: rotate(0deg); }
+  16%  { transform: rotate(-10deg); }   /* jaw up — wind back */
+  38%  { transform: rotate(9deg); }     /* snap down  */
+  54%  { transform: rotate(9deg); }
+  78%  { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+.cq-wolf-head { transform-box: view-box; transform-origin: 84px 58px; }
+[data-state="attack"][data-kind="beast-wolf"] .cq-wolf-head {
+  animation: cq-wolf-bite 0.8s ease-out infinite;
+}
+
+/* ── HURT ─ recurring shudder (red flash + recoil) ────────────────────── */
+@keyframes cq-wolf-flinch {
+  0%, 64%, 100% { transform: translateX(0); filter: brightness(1) saturate(1); }
+  70%  { transform: translateX(-3px); filter: brightness(1.5) saturate(1.6); }
+  78%  { transform: translateX(2px);  filter: brightness(1.35) saturate(1.4); }
+  86%  { transform: translateX(-1px); filter: brightness(1.15); }
+}
+[data-state="hurt"][data-kind="beast-wolf"] .cq-sprite-figure {
+  animation: cq-wolf-flinch 2.2s ease-out infinite;
+}
+/* near-death: the head hangs low and the shudder quickens */
+[data-state="hurt"][data-damage="3"][data-kind="beast-wolf"] .cq-sprite-figure { animation-duration: 1.3s; }
+[data-state="hurt"][data-damage="3"][data-kind="beast-wolf"] .cq-wolf-head { transform: rotate(8deg); }
+
+/* ── IDLE ─ panting breath off the muzzle ─────────────────────────────── */
+@keyframes cq-wolf-breath {
+  0%   { opacity: 0;   transform: translate(0, 0) scale(0.35); }
+  22%  { opacity: 0.5; }
+  100% { opacity: 0;   transform: translate(12px, -5px) scale(1.5); }
+}
+.cq-wolf-breath { opacity: 0; transform-box: fill-box; transform-origin: center; }
+[data-state="idle"][data-kind="beast-wolf"] .cq-wolf-breath,
+[data-state="hurt"][data-kind="beast-wolf"] .cq-wolf-breath {
+  animation: cq-wolf-breath 1.7s ease-out infinite;
+}
+.cq-wolf-breath--b { animation-delay: 0.85s; }
+/* panting gets heavier (faster) as the beast weakens */
+[data-state="hurt"][data-damage="2"][data-kind="beast-wolf"] .cq-wolf-breath { animation-duration: 1.2s; }
+[data-state="hurt"][data-damage="3"][data-kind="beast-wolf"] .cq-wolf-breath { animation-duration: 0.85s; }
+
+/* ── DAMAGE ─ four escalating tiers, driven by data-damage ────────────── */
+.cq-wound-1, .cq-wound-2, .cq-wound-3, .cq-wolf-ear-tear { opacity: 0; }
+/* tier 1+ : claw-rakes on the flank */
+[data-damage="1"] .cq-wound-1,
+[data-damage="2"] .cq-wound-1,
+[data-damage="3"] .cq-wound-1 { opacity: 1; }
+/* tier 2+ : torn shoulder + blood */
+[data-damage="2"] .cq-wound-2,
+[data-damage="3"] .cq-wound-2 { opacity: 1; }
+/* tier 3 : torn ear + deep hindquarter gash */
+[data-damage="3"] .cq-wound-3,
+[data-damage="3"] .cq-wolf-ear-tear { opacity: 1; }
+
+/* ── DEATH ─ topple over and fade ─────────────────────────────────────── */
+@keyframes cq-wolf-fall {
+  0%   { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(7px) rotate(-80deg); opacity: 0; }
+}
+[data-state="death"][data-kind="beast-wolf"] .cq-sprite-figure {
+  transform-box: view-box; transform-origin: 60px 86px;
+  animation: cq-wolf-fall 1s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-kind="beast-wolf"] .cq-sprite-figure,
+  [data-kind="beast-wolf"] .cq-wolf-leg,
+  [data-kind="beast-wolf"] .cq-wolf-head,
+  [data-kind="beast-wolf"] .cq-wolf-breath {
+    animation: none !important;
+  }
+}
