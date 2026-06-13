@@ -14,6 +14,10 @@ import {
   type CityRenderItem,
   type CityRenderProjection,
 } from '@/renderer/city-render-passes';
+import {
+  buildLiveCityMapPresentation,
+  buildStaleCityMapPresentation,
+} from '@/renderer/city-map-presentation';
 
 export { getProductionBadgeIcon } from '@/renderer/city-render-passes';
 
@@ -115,10 +119,14 @@ function createCityRenderItems(
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const size = camera.hexSize * camera.zoom;
       const landmarkEntries = landmarksByCoord.get(`${projection.position.q},${projection.position.r}`) ?? [];
+      const presentation = projection.isLive && city
+        ? buildLiveCityMapPresentation(state, city, landmarkEntries)
+        : buildStaleCityMapPresentation(projection.population);
 
       items.push({
         projection,
         city: projection.isLive ? city : undefined,
+        presentation,
         screen,
         size,
         ownerColor,
@@ -130,7 +138,6 @@ function createCityRenderItems(
         lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         reducedMotion,
         nowMs,
-        turn: state.turn,
       });
     }
   }
@@ -157,6 +164,7 @@ function createCityRenderItems(
           isLive: false,
           renderMode: 'landmark-only',
         },
+        presentation: buildStaleCityMapPresentation(0),
         screen,
         size,
         ownerColor: state.civilizations[firstEntry.ownerId]?.color
@@ -168,7 +176,6 @@ function createCityRenderItems(
         lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         reducedMotion,
         nowMs,
-        turn: state.turn,
       });
     }
   }
