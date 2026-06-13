@@ -4,7 +4,15 @@ import { emptyIdCounters, scanIdCounters } from '@/core/id-counters';
 describe('emptyIdCounters', () => {
   it('returns all counters starting at 1', () => {
     const counters = emptyIdCounters();
-    expect(counters).toEqual({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+    expect(counters).toEqual({
+      nextUnitId: 1,
+      nextCityId: 1,
+      nextCampId: 1,
+      nextQuestId: 1,
+      nextRouteId: 1,
+      nextPirateFactionId: 1,
+      nextNotificationId: 1,
+    });
   });
 
   it('each call returns a fresh independent object', () => {
@@ -18,7 +26,14 @@ describe('emptyIdCounters', () => {
 describe('scanIdCounters', () => {
   it('returns 1 for all counters when state has no entities', () => {
     const counters = scanIdCounters({ units: {}, cities: {}, barbarianCamps: {}, minorCivs: {} });
-    expect(counters).toEqual({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+    expect(counters).toMatchObject({
+      nextUnitId: 1,
+      nextCityId: 1,
+      nextCampId: 1,
+      nextQuestId: 1,
+      nextPirateFactionId: 1,
+      nextNotificationId: 1,
+    });
   });
 
   it('is safe on legacy saves missing barbarianCamps or minorCivs fields', () => {
@@ -83,6 +98,21 @@ describe('scanIdCounters', () => {
     // Non-standard IDs → no match → stays at 1
     expect(counters.nextUnitId).toBe(1);
     expect(counters.nextCityId).toBe(1);
+  });
+
+  it('scans active and historical pirate IDs plus persisted notification IDs', () => {
+    const counters = scanIdCounters({
+      pirates: {
+        factions: { 'pirate-7': { id: 'pirate-7' } },
+        history: [{ factionId: 'pirate-4' }],
+      },
+      notificationLog: {
+        player: [{ id: 'notification-12' }],
+      },
+    });
+
+    expect(counters.nextPirateFactionId).toBe(8);
+    expect(counters.nextNotificationId).toBe(13);
   });
 
   it('migrateLegacySave pattern: injects idCounters into a save that lacks it', () => {

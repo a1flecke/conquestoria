@@ -1,3 +1,6 @@
+import type { NotificationLog } from './notification-log';
+import type { PirateState } from './pirate-state';
+
 // --- Hex Coordinates ---
 
 export interface HexCoord {
@@ -1186,6 +1189,8 @@ export interface IdCounters {
   nextCampId:  number;
   nextQuestId: number;
   nextRouteId?: number;  // defaults to 1 on old saves (optional for back-compat)
+  nextPirateFactionId?: number;
+  nextNotificationId?: number;
 }
 
 // --- Game State (the whole thing) ---
@@ -1224,6 +1229,8 @@ export interface GameState {
   legendaryWonderHistory?: LegendaryWonderHistory;
   legendaryWonderIntel?: Record<string, LegendaryWonderIntelEntry[]>;
   espionage?: EspionageState;
+  pirates?: PirateState;       // normalized on load; absent on legacy saves
+  notificationLog?: NotificationLog; // normalized on load; absent on legacy saves
   idCounters: IdCounters;
   embargoes: Embargo[];
   defensiveLeagues: DefensiveLeague[];

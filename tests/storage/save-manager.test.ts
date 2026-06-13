@@ -12,8 +12,9 @@ vi.mock('@/storage/db', () => ({
   dbGetAllKeys: vi.fn(async () => Array.from(dbState.keys())),
 }));
 
-import { createDefaultSettings } from '@/core/game-state';
-import { autoSave, deleteSaveEntry, listSaveEpics, listSaves, loadGame, loadMostRecentAutoSave, loadSettings, saveGame, saveSettings } from '@/storage/save-manager';
+import { createDefaultSettings, createNewGame } from '@/core/game-state';
+import { autoSave, deleteSaveEntry, listSaveEpics, listSaves, loadGame, loadMostRecentAutoSave, loadSettings, normalizeLoadedStateForTest, saveGame, saveSettings } from '@/storage/save-manager';
+import { appendNotification } from '@/core/notification-log';
 import type { CustomCivDefinition } from '@/core/types';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 
@@ -45,6 +46,47 @@ describe('save-manager autosave listing', () => {
   beforeEach(() => {
     dbState.clear();
     (globalThis as typeof globalThis & { localStorage?: ReturnType<typeof makeLocalStorageMock> }).localStorage = makeLocalStorageMock();
+  });
+
+  it('round-trips pirate state, viewer notifications, and repaired counters through a manual save', async () => {
+    const state = createNewGame(undefined, 'pirate-save-round-trip', 'small');
+    state.pirates!.activatedTurn = 20;
+    state.pirates!.nextSpawnCheckTurn = 24;
+    appendNotification(state, 'player', {
+      message: 'Pirates sighted',
+      type: 'warning',
+      turn: 20,
+      review: { kind: 'pirate-faction', factionId: 'pirate-2' },
+    });
+
+    await saveGame('pirate-slot', 'Pirate Save', state);
+    const loaded = await loadGame('pirate-slot');
+
+    expect(loaded?.pirates).toEqual(state.pirates);
+    expect(loaded?.notificationLog).toEqual(state.notificationLog);
+    expect(loaded?.idCounters.nextNotificationId).toBe(2);
+
+    await autoSave(state);
+    const autoLoaded = await loadMostRecentAutoSave();
+    expect(autoLoaded?.pirates).toEqual(state.pirates);
+    expect(autoLoaded?.notificationLog).toEqual(state.notificationLog);
+  });
+
+  it('normalizes malformed persisted notification IDs without duplicating them', () => {
+    const state = createNewGame(undefined, 'notification-repair', 'small') as any;
+    state.notificationLog = {
+      player: [
+        { id: 'notification-12', message: 'one', type: 'info', turn: 1, read: false },
+        { id: 'notification-12', message: 'two', type: 'warning', turn: 2, read: false },
+      ],
+    };
+    state.idCounters.nextNotificationId = 1;
+
+    const normalized = normalizeLoadedStateForTest(state);
+    const ids = normalized.notificationLog.player.map(entry => entry.id);
+
+    expect(new Set(ids).size).toBe(2);
+    expect(normalized.idCounters.nextNotificationId).toBeGreaterThan(12);
   });
 
   it('includes autosave as the first list entry when requested', async () => {

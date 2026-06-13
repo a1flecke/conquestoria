@@ -12,6 +12,8 @@ import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { spawnBarbarianCamp } from '@/systems/barbarian-system';
 import { emptyIdCounters } from '@/core/id-counters';
+import { createEmptyPirateState } from '@/core/pirate-state';
+import { createNotificationLog } from '@/core/notification-log';
 import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createMarketplaceState } from '@/systems/trade-system';
@@ -286,6 +288,8 @@ export function createNewGame(
     wonderDiscoverers: {},
     legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
     legendaryWonderIntel: {},
+    pirates: createEmptyPirateState(),
+    notificationLog: createNotificationLog(),
     embargoes: [],
     defensiveLeagues: [],
     pendingDiplomacyRequests: [],
@@ -437,6 +441,8 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     wonderDiscoverers: {},
     legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
     legendaryWonderIntel: {},
+    pirates: createEmptyPirateState(),
+    notificationLog: createNotificationLog(),
     embargoes: [],
     defensiveLeagues: [],
     pendingDiplomacyRequests: [],

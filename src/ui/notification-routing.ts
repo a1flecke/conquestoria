@@ -5,7 +5,7 @@ import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { REVOLT_UNREST_TURNS, BREAKAWAY_REVOLT_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
-import type { NotificationEntry } from '@/ui/notification-log';
+import type { NotificationEntry } from '@/core/notification-log';
 
 export type NotificationSink = (
   civId: string,

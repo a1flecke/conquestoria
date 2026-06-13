@@ -1,4 +1,4 @@
-import type { NotificationEntry, NotificationMapTarget } from '@/ui/notification-log';
+import type { NotificationEntry, NotificationMapTarget } from '@/core/notification-log';
 
 interface NotificationLogPanelOptions {
   onClose: () => void;

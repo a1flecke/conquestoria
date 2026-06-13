@@ -152,7 +152,7 @@ describe('generateQuest uses and increments counters.nextQuestId', () => {
 
 describe('scanIdCounters', () => {
   it('returns {1,1,1,1} for empty state', () => {
-    expect(scanIdCounters(makeState())).toEqual(
+    expect(scanIdCounters(makeState())).toMatchObject(
       { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     );
   });
@@ -173,7 +173,7 @@ describe('scanIdCounters', () => {
       ['city-3'],
       ['camp-10'],
     ));
-    expect(result).toEqual({ nextUnitId: 6, nextCityId: 4, nextCampId: 11, nextQuestId: 1 });
+    expect(result).toMatchObject({ nextUnitId: 6, nextCityId: 4, nextCampId: 11, nextQuestId: 1 });
   });
 
   it('scans quests nested inside minorCivs.activeQuests', () => {
@@ -196,9 +196,15 @@ describe('scanIdCounters', () => {
 
 describe('emptyIdCounters', () => {
   it('returns a fresh object starting at 1 for all counters', () => {
-    expect(emptyIdCounters()).toEqual(
-      { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
-    );
+    expect(emptyIdCounters()).toEqual({
+      nextUnitId: 1,
+      nextCityId: 1,
+      nextCampId: 1,
+      nextQuestId: 1,
+      nextRouteId: 1,
+      nextPirateFactionId: 1,
+      nextNotificationId: 1,
+    });
   });
 
   it('returns a new object each call (not a shared reference)', () => {

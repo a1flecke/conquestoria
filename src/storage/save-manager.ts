@@ -7,6 +7,17 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { getQuestChain, getQuestChainForArchetype } from '@/systems/quest-chain-definitions';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
+import { scanIdCounters } from '@/core/id-counters';
+import {
+  createEmptyPirateState,
+  PIRATE_STATE_VERSION,
+  type PirateFactionIntel,
+  type PirateFactionState,
+  type PirateHeadquarters,
+  type PirateHistoryEntry,
+  type PirateState,
+} from '@/core/pirate-state';
+import type { NotificationEntry, NotificationLog } from '@/core/notification-log';
 import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
 
@@ -16,6 +27,15 @@ const LEGACY_AUTO_SAVE_KEY = 'autosave';
 const AUTO_SAVE_PREFIX = 'autosave:';
 const SETTINGS_KEY = 'settings';
 const LOCALSTORAGE_AUTOSAVE_KEY = 'conquestoria-autosave';
+
+export type NormalizedGameState = GameState & {
+  pirates: PirateState;
+  notificationLog: NotificationLog;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 function ensureGameIdentity(state: GameState): GameState {
   if (!state.gameId) {
@@ -102,6 +122,302 @@ function isFiniteCoord(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const coord = value as { q?: unknown; r?: unknown };
   return Number.isFinite(coord.q) && Number.isFinite(coord.r);
+}
+
+function normalizePirateHeadquarters(value: unknown): PirateHeadquarters | null {
+  if (!isRecord(value)) return null;
+  if (value.kind === 'coastal-enclave') {
+    if (!isFiniteCoord(value.position) || !Number.isFinite(value.integrity) || !Number.isFinite(value.maxIntegrity)) return null;
+    const maxIntegrity = Math.max(1, Number(value.maxIntegrity));
+    return {
+      kind: 'coastal-enclave',
+      position: { ...(value.position as { q: number; r: number }) },
+      integrity: Math.max(0, Math.min(maxIntegrity, Number(value.integrity))),
+      maxIntegrity,
+    };
+  }
+  if (value.kind !== 'deep-sea-flotilla' || typeof value.flagshipUnitId !== 'string') return null;
+  const relocation = isRecord(value.relocation) ? value.relocation : {};
+  const planned = isRecord(relocation.planned)
+    && Number.isFinite(relocation.planned.plannedRound)
+    && Number.isFinite(relocation.planned.resolvesOnRound)
+    && typeof relocation.planned.direction === 'string'
+    && Array.isArray(relocation.planned.path)
+    && relocation.planned.path.every(isFiniteCoord)
+    ? {
+        plannedRound: Number(relocation.planned.plannedRound),
+        resolvesOnRound: Number(relocation.planned.resolvesOnRound),
+        direction: relocation.planned.direction as NonNullable<Extract<PirateHeadquarters, { kind: 'deep-sea-flotilla' }>['relocation']['planned']>['direction'],
+        path: relocation.planned.path.map(coord => ({ ...(coord as { q: number; r: number }) })),
+      }
+    : null;
+  return {
+    kind: 'deep-sea-flotilla',
+    flagshipUnitId: value.flagshipUnitId,
+    relocation: {
+      planned,
+      lastRelocatedRound: Number.isFinite(relocation.lastRelocatedRound) ? Number(relocation.lastRelocatedRound) : null,
+    },
+  };
+}
+
+function normalizePirateHistory(value: unknown): PirateHistoryEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is PirateHistoryEntry =>
+    isRecord(entry)
+    && typeof entry.id === 'string'
+    && (entry.kind === 'destroyed' || entry.kind === 'contract-resolved')
+    && typeof entry.factionId === 'string'
+    && /^pirate-\d+$/.test(entry.factionId)
+    && typeof entry.factionName === 'string'
+    && Number.isFinite(entry.round),
+  ).map(entry => structuredClone(entry));
+}
+
+function normalizeWarningMarkers(value: unknown, state: GameState): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  if (Array.isArray(value)) {
+    for (const civId of value) {
+      if (typeof civId === 'string' && state.civilizations[civId]) result[civId] = true;
+    }
+    return result;
+  }
+  if (!isRecord(value)) return result;
+  for (const [civId, delivered] of Object.entries(value)) {
+    if (delivered === true && state.civilizations[civId]) result[civId] = true;
+  }
+  return result;
+}
+
+function normalizePirateIntel(value: unknown, state: GameState, factions: PirateState['factions']): PirateState['intelByCiv'] {
+  if (!isRecord(value)) return {};
+  const intelByCiv: PirateState['intelByCiv'] = {};
+  for (const [civId, rawIntelByFaction] of Object.entries(value)) {
+    if (!state.civilizations[civId] || !isRecord(rawIntelByFaction)) continue;
+    const normalizedByFaction: Record<string, PirateFactionIntel> = {};
+    for (const [factionId, rawIntel] of Object.entries(rawIntelByFaction)) {
+      if (!factions[factionId] || !isRecord(rawIntel) || rawIntel.factionId !== factionId) continue;
+      if (rawIntel.level !== 'rumor' && rawIntel.level !== 'sighted' && rawIntel.level !== 'tracked') continue;
+      if (!Number.isFinite(rawIntel.discoveredRound) || !Number.isFinite(rawIntel.lastUpdatedRound)) continue;
+      const region = isRecord(rawIntel.approximateRegion)
+        && isFiniteCoord(rawIntel.approximateRegion.center)
+        && Number.isFinite(rawIntel.approximateRegion.radius)
+        && Number(rawIntel.approximateRegion.radius) > 0
+        ? {
+            center: { ...(rawIntel.approximateRegion.center as { q: number; r: number }) },
+            radius: Number(rawIntel.approximateRegion.radius),
+          }
+        : undefined;
+      const headquarters = isRecord(rawIntel.lastKnownHeadquarters)
+        && (rawIntel.lastKnownHeadquarters.kind === 'coastal-enclave' || rawIntel.lastKnownHeadquarters.kind === 'deep-sea-flotilla')
+        && isFiniteCoord(rawIntel.lastKnownHeadquarters.position)
+        && Number.isFinite(rawIntel.lastKnownHeadquarters.observedRound)
+        ? {
+            kind: rawIntel.lastKnownHeadquarters.kind as 'coastal-enclave' | 'deep-sea-flotilla',
+            position: { ...(rawIntel.lastKnownHeadquarters.position as { q: number; r: number }) },
+            observedRound: Number(rawIntel.lastKnownHeadquarters.observedRound),
+          }
+        : undefined;
+      if (rawIntel.level === 'rumor' ? !region : !headquarters) continue;
+      normalizedByFaction[factionId] = {
+        factionId: factionId as PirateFactionIntel['factionId'],
+        level: rawIntel.level,
+        discoveredRound: Number(rawIntel.discoveredRound),
+        lastUpdatedRound: Number(rawIntel.lastUpdatedRound),
+        ...(region ? { approximateRegion: region } : {}),
+        ...(headquarters ? { lastKnownHeadquarters: headquarters } : {}),
+        ...(Array.isArray(rawIntel.observedUnitIds)
+          ? { observedUnitIds: rawIntel.observedUnitIds.filter((id): id is string => typeof id === 'string') }
+          : {}),
+      };
+    }
+    intelByCiv[civId] = normalizedByFaction;
+  }
+  return intelByCiv;
+}
+
+export function normalizePirateState(state: GameState): PirateState {
+  const raw = isRecord(state.pirates) ? (state.pirates as unknown as Record<string, unknown>) : {};
+  const normalized = createEmptyPirateState();
+  normalized.version = PIRATE_STATE_VERSION;
+  normalized.history = normalizePirateHistory(raw.history);
+  normalized.nextSpawnCheckTurn = Number.isFinite(raw.nextSpawnCheckTurn) ? Math.max(0, Number(raw.nextSpawnCheckTurn)) : 0;
+  normalized.activatedTurn = Number.isFinite(raw.activatedTurn) ? Number(raw.activatedTurn) : null;
+  normalized.activationWarningDeliveredByCiv = normalizeWarningMarkers(raw.activationWarningDeliveredByCiv, state);
+  if (isRecord(raw.pressure)) {
+    normalized.pressure.value = Number.isFinite(raw.pressure.value) ? Math.max(0, Number(raw.pressure.value)) : 0;
+    normalized.pressure.suppression = Array.isArray(raw.pressure.suppression)
+      ? raw.pressure.suppression.filter(entry => isRecord(entry)
+        && typeof entry.regionKey === 'string'
+        && Number.isFinite(entry.amount)
+        && Number.isFinite(entry.expiresAfterRound)
+        && Number(entry.expiresAfterRound) > state.turn,
+      ).map(entry => ({
+        regionKey: String(entry.regionKey),
+        amount: Math.max(0, Number(entry.amount)),
+        expiresAfterRound: Number(entry.expiresAfterRound),
+      }))
+      : [];
+  }
+
+  if (isRecord(raw.factions)) {
+    for (const [factionId, rawFaction] of Object.entries(raw.factions)) {
+      if (!/^pirate-\d+$/.test(factionId) || !isRecord(rawFaction)) continue;
+      const headquarters = normalizePirateHeadquarters(rawFaction.headquarters);
+      if (!headquarters || typeof rawFaction.name !== 'string') continue;
+      if (rawFaction.behavior !== 'patrolling' && rawFaction.behavior !== 'raiding' && rawFaction.behavior !== 'blockading') continue;
+      if (![1, 2, 3, 4, 5].includes(Number(rawFaction.maritimeStage))) continue;
+      const transitionGuards = isRecord(rawFaction.transitionGuards) ? rawFaction.transitionGuards : {};
+      const faction: PirateFactionState = {
+        id: factionId as PirateFactionState['id'],
+        name: rawFaction.name,
+        behavior: rawFaction.behavior,
+        maritimeStage: Number(rawFaction.maritimeStage) as PirateFactionState['maritimeStage'],
+        notoriety: Number.isFinite(rawFaction.notoriety) ? Math.max(0, Number(rawFaction.notoriety)) : 0,
+        shipIds: Array.isArray(rawFaction.shipIds) ? rawFaction.shipIds.filter((id): id is string => typeof id === 'string') : [],
+        headquarters,
+        tributeByCiv: {},
+        demandByCiv: {},
+        contract: null,
+        intent: null,
+        transitionGuards: {
+          emittedEventKeys: [...new Set(Array.isArray(transitionGuards.emittedEventKeys)
+            ? transitionGuards.emittedEventKeys.filter((key): key is string => typeof key === 'string')
+            : [])],
+        },
+      };
+      if (isRecord(rawFaction.tributeByCiv)) {
+        for (const [civId, tribute] of Object.entries(rawFaction.tributeByCiv)) {
+          if (!state.civilizations[civId] || !isRecord(tribute)) continue;
+          if (!Number.isFinite(tribute.paidRound) || !Number.isFinite(tribute.protectedUntilRound)) continue;
+          if (Number(tribute.protectedUntilRound) <= state.turn) continue;
+          faction.tributeByCiv[civId] = {
+            paidRound: Number(tribute.paidRound),
+            protectedUntilRound: Number(tribute.protectedUntilRound),
+          };
+        }
+      }
+      if (isRecord(rawFaction.demandByCiv)) {
+        for (const [civId, demand] of Object.entries(rawFaction.demandByCiv)) {
+          if (!state.civilizations[civId] || !isRecord(demand)) continue;
+          if (!Number.isFinite(demand.demandedRound) || !Number.isFinite(demand.quotedCost)) continue;
+          faction.demandByCiv[civId] = {
+            demandedRound: Number(demand.demandedRound),
+            lastReminderRound: Number.isFinite(demand.lastReminderRound) ? Number(demand.lastReminderRound) : null,
+            quotedCost: Math.max(0, Number(demand.quotedCost)),
+          };
+        }
+      }
+      if (isRecord(rawFaction.contract)) {
+        const employerId = rawFaction.contract.employerId;
+        const targetId = rawFaction.contract.targetId;
+        const contractValid = headquarters.kind === 'deep-sea-flotilla'
+          && faction.maritimeStage === 5
+          && typeof employerId === 'string'
+          && typeof targetId === 'string'
+          && employerId !== targetId
+          && Boolean(state.civilizations[employerId])
+          && Boolean(state.civilizations[targetId])
+          && Number.isFinite(rawFaction.contract.startedRound)
+          && Number.isFinite(rawFaction.contract.expiresAfterRound)
+          && Number(rawFaction.contract.expiresAfterRound) > state.turn;
+        if (contractValid) {
+          faction.contract = {
+            employerId,
+            targetId,
+            startedRound: Number(rawFaction.contract.startedRound),
+            expiresAfterRound: Number(rawFaction.contract.expiresAfterRound),
+            successfulRaidCount: Number.isFinite(rawFaction.contract.successfulRaidCount)
+              ? Math.max(0, Number(rawFaction.contract.successfulRaidCount))
+              : 0,
+            exposed: rawFaction.contract.exposed === true,
+            exposureResolvedRaidKeys: Array.isArray(rawFaction.contract.exposureResolvedRaidKeys)
+              ? [...new Set(rawFaction.contract.exposureResolvedRaidKeys.filter((key): key is string => typeof key === 'string'))]
+              : [],
+          };
+        }
+      }
+      if (headquarters.kind === 'deep-sea-flotilla' && !state.units?.[headquarters.flagshipUnitId]) {
+        if (!normalized.history.some(entry => entry.kind === 'destroyed' && entry.factionId === faction.id)) {
+          normalized.history.push({
+            id: `pirate-history-destroyed-${faction.id}`,
+            kind: 'destroyed',
+            factionId: faction.id,
+            factionName: faction.name,
+            round: state.turn,
+            headquartersKind: headquarters.kind,
+            destroyedByOwnerId: null,
+            bountyAwarded: 0,
+            reason: 'missing-flagship',
+          });
+        }
+        continue;
+      }
+      normalized.factions[factionId] = faction;
+    }
+  }
+  normalized.intelByCiv = normalizePirateIntel(raw.intelByCiv, state, normalized.factions);
+  return normalized;
+}
+
+function normalizeNotificationTarget(value: unknown): NotificationEntry['target'] | undefined {
+  if (!isRecord(value) || value.kind !== 'map' || !isFiniteCoord(value.coord) || typeof value.label !== 'string') return undefined;
+  return { kind: 'map', coord: { ...(value.coord as { q: number; r: number }) }, label: value.label };
+}
+
+export function normalizeNotificationLog(value: unknown): NotificationLog {
+  if (!isRecord(value)) return {};
+  const allEntries = Object.values(value).flatMap(entries => Array.isArray(entries) ? entries : []);
+  let nextId = allEntries.reduce((max, entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string') return max;
+    const match = /^notification-(\d+)$/.exec(entry.id);
+    return match ? Math.max(max, Number(match[1]) + 1) : max;
+  }, 1);
+  const usedIds = new Set<string>();
+  const log: NotificationLog = {};
+  for (const [civId, rawEntries] of Object.entries(value)) {
+    if (!Array.isArray(rawEntries)) continue;
+    const entries: NotificationEntry[] = [];
+    for (const rawEntry of rawEntries.slice(-50)) {
+      if (!isRecord(rawEntry) || typeof rawEntry.message !== 'string' || !Number.isFinite(rawEntry.turn)) continue;
+      if (rawEntry.type !== 'info' && rawEntry.type !== 'success' && rawEntry.type !== 'warning') continue;
+      let id = typeof rawEntry.id === 'string' && /^notification-\d+$/.test(rawEntry.id) ? rawEntry.id : '';
+      if (!id || usedIds.has(id)) id = `notification-${nextId++}`;
+      usedIds.add(id);
+      const review = isRecord(rawEntry.review)
+        && ((rawEntry.review.kind === 'pirate-faction' && typeof rawEntry.review.factionId === 'string')
+          || (rawEntry.review.kind === 'pirate-history' && typeof rawEntry.review.historyId === 'string'))
+        ? structuredClone(rawEntry.review) as NotificationEntry['review']
+        : undefined;
+      entries.push({
+        id,
+        message: rawEntry.message,
+        type: rawEntry.type,
+        turn: Number(rawEntry.turn),
+        read: rawEntry.read === true,
+        ...(normalizeNotificationTarget(rawEntry.target) ? { target: normalizeNotificationTarget(rawEntry.target) } : {}),
+        ...(typeof rawEntry.linkedCityId === 'string' ? { linkedCityId: rawEntry.linkedCityId } : {}),
+        ...(review ? { review } : {}),
+      });
+    }
+    log[civId] = entries;
+  }
+  return log;
+}
+
+export function normalizeIdCounters(state: GameState): GameState['idCounters'] {
+  const scanned = scanIdCounters(state);
+  const current = (isRecord(state.idCounters) ? state.idCounters : {}) as Partial<GameState['idCounters']>;
+  const positive = (value: unknown): number | null => Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
+  return {
+    nextUnitId: Math.max(positive(current.nextUnitId) ?? 1, scanned.nextUnitId),
+    nextCityId: Math.max(positive(current.nextCityId) ?? 1, scanned.nextCityId),
+    nextCampId: Math.max(positive(current.nextCampId) ?? 1, scanned.nextCampId),
+    nextQuestId: Math.max(positive(current.nextQuestId) ?? 1, scanned.nextQuestId),
+    nextRouteId: Math.max(positive(current.nextRouteId) ?? 1, scanned.nextRouteId ?? 1),
+    nextPirateFactionId: Math.max(positive(current.nextPirateFactionId) ?? 1, scanned.nextPirateFactionId ?? 1),
+    nextNotificationId: Math.max(positive(current.nextNotificationId) ?? 1, scanned.nextNotificationId ?? 1),
+  };
 }
 
 function isValidQuestTarget(target: QuestTarget, minorCivId: string): boolean {
@@ -264,13 +580,16 @@ export function migrateLegacyCoastalData(state: GameState): GameState {
   return changed ? { ...state, cities } : state;
 }
 
-function normalizeLoadedState(state: GameState): GameState {
+export function normalizeLoadedState(state: GameState): NormalizedGameState {
   const normalizedCityState = normalizeMinorCivQuestState(
     migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))))))),
   );
+  normalizedCityState.pirates = normalizePirateState(normalizedCityState);
+  normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog);
+  normalizedCityState.idCounters = normalizeIdCounters(normalizedCityState);
   if (!normalizedCityState.map?.tiles) {
     normalizedCityState.pendingDiplomacyRequests ??= [];
-    return normalizedCityState;
+    return normalizedCityState as NormalizedGameState;
   }
   const territoryNormalized = recalculateTerritory(normalizedCityState, {
     reason: 'load',
@@ -291,7 +610,7 @@ function normalizeLoadedState(state: GameState): GameState {
       }
     }
   }
-  return normalized;
+  return normalized as NormalizedGameState;
 }
 
 export const normalizeLoadedStateForTest = normalizeLoadedState;
@@ -545,7 +864,7 @@ async function retireLegacyAutosaveIfRealAutosavesExist(): Promise<boolean> {
 // --- Auto-save ---
 
 export async function autoSave(state: GameState): Promise<void> {
-  const resolved = ensureGameIdentity(state);
+  const resolved = normalizeLoadedState(state);
   const entryId = `${AUTO_SAVE_PREFIX}${resolved.gameId}:${resolved.turn}`;
   const meta = buildSaveMeta(entryId, `Autosave Turn ${resolved.turn}`, resolved, 'autosave');
 

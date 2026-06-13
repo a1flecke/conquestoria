@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { NotificationEntry } from '@/ui/notification-log';
+import type { NotificationEntry } from '@/core/notification-log';
 import { routeEraAdvanced, type NotificationSink } from '@/ui/notification-routing';
 import { hexKey } from '@/systems/hex-utils';
 import type { HexCoord } from '@/core/types';
