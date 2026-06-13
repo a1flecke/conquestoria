@@ -3356,8 +3356,11 @@ bus.on('beast:slain', ({ beastId, slayerCivId, goldAwarded }) => {
 
 bus.on('beast:hoard-claimed', ({ beastId, civId, choice }) => {
   const def = BEAST_DEFINITIONS[beastId];
-  const label = choice === 'gold' ? 'took the Gold Hoard' : choice === 'lore' ? 'claimed the Ancient Lore' : 'raised a Beast Trophy';
-  appendToCivLog(civId, `You ${label} of the ${def.name}.`, 'success');
+  let message: string;
+  if (choice === 'gold') message = `You took the Gold Hoard of the ${def.name}.`;
+  else if (choice === 'lore') message = `You claimed the Ancient Lore of the ${def.name}.`;
+  else message = `You raised a ${def.name} Trophy.`;
+  appendToCivLog(civId, message, 'success');
 });
 
 bus.on('beast:sighted', ({ beastId, civId }) => {

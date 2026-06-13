@@ -4,6 +4,7 @@ import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { generateMap } from '@/systems/map-generator';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { createNewGame } from '@/core/game-state';
+import { startResearch } from '@/systems/tech-system';
 import type { BeastLair, Unit } from '@/core/types';
 
 describe('placeBeastLairs', () => {
@@ -252,6 +253,25 @@ describe('hoard choices', () => {
     expect(next.civilizations[victor.owner].gold).toBe(goldBefore + preview.gold);
     expect(next.beasts!.pendingHoardChoices).toEqual([]);
     expect(next.beasts!.lairs['lair-emerald_basilisk'].status).toBe('slain');
+  });
+
+  it('applyHoardChoice lore advances research progress and clears the pending entry', () => {
+    const { state, beast, victor } = stateWithSlainBasilisk();
+    const { state: slainState } = recordBeastSlain(state, beast, victor);
+    const civId = victor.owner;
+    const civ = slainState.civilizations[civId];
+    const withResearch = {
+      ...slainState,
+      civilizations: {
+        ...slainState.civilizations,
+        [civId]: { ...civ, techState: startResearch(civ.techState, 'stone-weapons') },
+      },
+    };
+    const next = applyHoardChoice(withResearch, 'lair-emerald_basilisk', civId, 'lore');
+    expect(next.beasts!.pendingHoardChoices).toEqual([]);
+    const nextTech = next.civilizations[civId].techState;
+    // lore bonus >> stone-weapons cost (4), so the tech should complete
+    expect(nextTech.completed).toContain('stone-weapons');
   });
 
   it('applyHoardChoice trophy claims the lair and produces per-turn income', () => {

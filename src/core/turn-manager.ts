@@ -911,7 +911,6 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     }
   }
 
-  // --- Beasts MR4: AI hoard auto-resolve + per-turn trophy income ---
   if (newState.beasts) {
     for (const pending of [...(newState.beasts.pendingHoardChoices ?? [])]) {
       if (pending.civId === newState.currentPlayer) continue;

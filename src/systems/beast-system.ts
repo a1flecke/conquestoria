@@ -284,9 +284,7 @@ export function recordBeastSlain(
   };
 }
 
-// --- MR4: Hoard choices ---
-
-const TROPHY_GOLD_PER_TURN: Record<number, number> = { 1: 2, 2: 3, 3: 5, 4: 8 };
+const TROPHY_GOLD_PER_TURN: Record<number, number> = { 2: 3, 3: 5, 4: 8 };
 
 export interface HoardChoicePreview {
   gold: number;
