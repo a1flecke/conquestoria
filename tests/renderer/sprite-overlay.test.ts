@@ -89,6 +89,16 @@ describe('sync() LOD gate', () => {
     expect(overlay.getActiveIds().size).toBe(0);
   });
 
+  it('does not revive stale pooled sprites when suppression ends during a pinch', () => {
+    const { overlay, mount } = mountOverlay();
+    overlay.sync(cam({ zoom: 1 }), [entity()], MAP, OPTS);
+    overlay.sync(cam({ zoom: 1 }), [], MAP, { ...OPTS, reducedMotion: true });
+    overlay.sync(cam({ zoom: 1 }), [], MAP, { ...OPTS, isPinching: true });
+
+    expect(mount.querySelector('#unit-sprites')!.children.length).toBe(0);
+    expect(overlay.getActiveIds().size).toBe(0);
+  });
+
   it('shows container at or above threshold', () => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam({ zoom: LOD_SPRITE_ZOOM_THRESHOLD + 0.1 }), [], MAP, OPTS);

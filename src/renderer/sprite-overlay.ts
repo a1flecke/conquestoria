@@ -94,6 +94,7 @@ export class SpriteOverlay {
     // 1. LOD + reduced-motion gate
     if (camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD || opts.reducedMotion) {
       this.container.style.display = 'none';
+      this.clearPool();
       this._activeIds.clear();
       return;
     }
@@ -199,6 +200,11 @@ export class SpriteOverlay {
   }
 
   getActiveIds(): ReadonlySet<string> { return this._activeIds; }
+
+  private clearPool(): void {
+    for (const entry of this.pool.values()) entry.el.remove();
+    this.pool.clear();
+  }
 
   invalidateFaction(faction: string): void {
     const toEvict: string[] = [];

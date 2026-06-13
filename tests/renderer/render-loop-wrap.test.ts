@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 const rendererMocks = vi.hoisted(() => ({
   drawHexHighlight: vi.fn(),
   drawMinorCivTerritory: vi.fn(),
+  drawUnitGlyph: vi.fn(),
 }));
 
 vi.mock('@/renderer/hex-renderer', async (importOriginal) => {
@@ -27,7 +28,7 @@ vi.mock('@/renderer/city-renderer', () => ({
 vi.mock('@/renderer/unit-renderer', () => ({
   drawUnits: vi.fn(),
   drawUnitPresentations: vi.fn(),
-  drawUnitGlyph: vi.fn(),
+  drawUnitGlyph: rendererMocks.drawUnitGlyph,
 }));
 
 import { RenderLoop } from '@/renderer/render-loop';
@@ -167,6 +168,63 @@ describe('render-loop wrap parity', () => {
     (loop as unknown as { render: () => void }).render();
 
     expect(callbackSawMoving).toBe(false);
+    nowSpy.mockRestore();
+  });
+
+  it('drops a normal movement snapshot when the authoritative unit is deleted', () => {
+    rendererMocks.drawUnitGlyph.mockReset();
+    const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const loop = new RenderLoop(createCanvas());
+    const unit = {
+      id: 'deleted', owner: 'player', type: 'warrior', position: { q: 0, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false,
+      hasActed: false, isResting: false,
+    } as Unit;
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {}, cities: {}, units: {},
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: { '1,0': 'visible' } } } },
+    } as unknown as GameState;
+    let completed = false;
+
+    loop.setGameState(state);
+    loop.camera.isHexVisible = () => true;
+    loop.animateUnitMove(unit, [{ q: 0, r: 0 }, { q: 1, r: 0 }], () => { completed = true; });
+    nowSpy.mockReturnValue(100);
+    (loop as unknown as { render: () => void }).render();
+
+    expect(rendererMocks.drawUnitGlyph).not.toHaveBeenCalled();
+    expect(completed).toBe(true);
+    expect(loop.hasMovingUnit('deleted')).toBe(false);
+    nowSpy.mockRestore();
+  });
+
+  it('keeps a detached boarding slide visible after cargo leaves authoritative map state', () => {
+    rendererMocks.drawUnitGlyph.mockReset();
+    const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const loop = new RenderLoop(createCanvas());
+    const unit = {
+      id: 'cargo', owner: 'player', type: 'warrior', position: { q: 0, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false,
+      hasActed: false, isResting: false,
+    } as Unit;
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {}, cities: {}, units: {},
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: { '1,0': 'visible' } } } },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    loop.camera.isHexVisible = () => true;
+    loop.animateUnitSlide(unit, { q: 1, r: 0 });
+    nowSpy.mockReturnValue(100);
+    (loop as unknown as { render: () => void }).render();
+
+    expect(rendererMocks.drawUnitGlyph).toHaveBeenCalledTimes(1);
     nowSpy.mockRestore();
   });
 });
