@@ -37,7 +37,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview } from '@/systems/beast-system';
+import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
@@ -2512,6 +2512,12 @@ function handleHexTap(rawCoord: HexCoord): void {
     const defenderEntry = selectDefenderEntryAtKey(key);
     if (selectedUnitCanAttackTappedHex && defenderEntry) {
       const defender = defenderEntry[1];
+      const navalGate = canUnitAttackBeast(unit, defender);
+      if (!navalGate.allowed) {
+        showNotification(navalGate.reason ?? 'Cannot attack that target.', 'warning');
+        selectUnit(selectedUnitId);
+        return;
+      }
       const atkDef = UNIT_DEFINITIONS[unit.type];
       const defDef = UNIT_DEFINITIONS[defender.type];
       const attackerBonus = currentCivDef()?.bonusEffect;
