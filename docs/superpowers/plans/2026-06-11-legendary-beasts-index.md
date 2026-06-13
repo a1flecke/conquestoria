@@ -14,8 +14,8 @@
 |---|---|---|---|
 | MR1 | [2026-06-11-legendary-beasts-mr1-core-boar.md](2026-06-11-legendary-beasts-mr1-core-boar.md) | Core system + Giant Boar + setup toggle + lair rendering | ✅ merged |
 | MR2 | [2026-06-11-legendary-beasts-mr2-bestiary.md](2026-06-11-legendary-beasts-mr2-bestiary.md) | Bestiary panel + sighting banner + per-civ sighting tracking | ◐ in progress ([PR #366](https://github.com/a1flecke/conquestoria/pull/366)) |
-| MR3 | [2026-06-11-legendary-beasts-mr3-wolves-basilisk.md](2026-06-11-legendary-beasts-mr3-wolves-basilisk.md) | Dire Wolf Pack + Emerald Basilisk + habitat concealment | ◐ in progress |
-| MR4 | [2026-06-11-legendary-beasts-mr4-hoard-trophies.md](2026-06-11-legendary-beasts-mr4-hoard-trophies.md) | Hoard choice panel + lair trophies + AI auto-resolve | ☐ not started |
+| MR3 | [2026-06-11-legendary-beasts-mr3-wolves-basilisk.md](2026-06-11-legendary-beasts-mr3-wolves-basilisk.md) | Dire Wolf Pack + Emerald Basilisk + habitat concealment | ✅ merged ([PR #367](https://github.com/a1flecke/conquestoria/pull/367)) |
+| MR4 | [2026-06-11-legendary-beasts-mr4-hoard-trophies.md](2026-06-11-legendary-beasts-mr4-hoard-trophies.md) | Hoard choice panel + lair trophies + AI auto-resolve | ◐ in progress |
 | MR5 | [2026-06-11-legendary-beasts-mr5-serpent-wurm.md](2026-06-11-legendary-beasts-mr5-serpent-wurm.md) | Sea Serpent + Dune Wurm + naval passability + `beast-serpent` rig | ☐ not started |
 | MR6 | [2026-06-11-legendary-beasts-mr6-roc-hydra.md](2026-06-11-legendary-beasts-mr6-roc-hydra.md) | Storm Roc + Swamp Hydra + flight + regen + `beast-winged` rig | ☐ not started |
 | MR7 | [2026-06-11-legendary-beasts-mr7-ancient-dragon.md](2026-06-11-legendary-beasts-mr7-ancient-dragon.md) | Ancient Dragon apex + ranged breath + slay ceremony + apex reward | ☐ not started |

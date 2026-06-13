@@ -804,6 +804,13 @@ export type BeastsMode = 'off' | 'calm' | 'wild';
 
 export type BeastLairStatus = 'dormant' | 'awake' | 'slain' | 'claimed';
 
+export type BeastHoardChoice = 'gold' | 'lore' | 'trophy';
+
+export interface PendingHoardChoice {
+  lairId: string;
+  civId: string;     // slayer civ; only this civ may resolve it
+}
+
 export interface BeastLair {
   id: string;                 // `lair-${beastId}`
   beastId: BeastId;
@@ -813,6 +820,7 @@ export interface BeastLair {
   awakenedTurn?: number;
   slainBy?: string;           // civ id that landed the killing blow
   slainTurn?: number;
+  claimedBy?: string;         // civ that chose the Trophy option (MR4)
   unitIds: string[];          // live beast unit ids leashed to this lair
 }
 
@@ -820,6 +828,7 @@ export interface BeastsState {
   mode: BeastsMode;
   lairs: Record<string, BeastLair>;
   sightingsByCiv: Record<string, BeastId[]>;   // per-civ bestiary sightings (MR2 populates)
+  pendingHoardChoices?: PendingHoardChoice[];   // queued for human players (MR4)
 }
 
 // --- Minor Civilizations ---
@@ -1261,6 +1270,7 @@ export interface GameEvents {
   'beast:awakened': { lairId: string; beastId: BeastId; position: HexCoord };
   'beast:slain': { lairId: string; beastId: BeastId; slayerCivId: string; slayerUnitId: string; goldAwarded: number };
   'beast:sighted': { beastId: BeastId; civId: string };
+  'beast:hoard-claimed': { lairId: string; beastId: BeastId; civId: string; choice: BeastHoardChoice };
   'barbarian:camp-destroyed': { campId: string; reward: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
