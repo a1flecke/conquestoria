@@ -3,7 +3,7 @@ import { placeMinorCivs, processMinorCivTurn, checkEraAdvancement, processMinorC
 import { createNewGame } from '@/core/game-state';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
-import { TECH_TREE } from '@/systems/tech-definitions';
+import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit } from '@/systems/unit-system';
 
@@ -261,7 +261,7 @@ describe('era advancement', () => {
   it('advances era when a civ has 60% of next era techs', () => {
     const state = createNewGame(undefined, 'era-test', 'small');
     state.era = 1;
-    const era2Techs = TECH_TREE.filter(t => t.era === 2);
+    const era2Techs = getEraAdvancementTechs(2);
     const needed = Math.ceil(era2Techs.length * 0.6);
     state.civilizations.player.techState.completed = era2Techs.slice(0, needed).map(t => t.id);
     const newEra = checkEraAdvancement(state);
@@ -271,7 +271,7 @@ describe('era advancement', () => {
   it('does not advance era below 60% threshold', () => {
     const state = createNewGame(undefined, 'era-no-test', 'small');
     state.era = 1;
-    const era2Techs = TECH_TREE.filter(t => t.era === 2);
+    const era2Techs = getEraAdvancementTechs(2);
     const below = Math.floor(era2Techs.length * 0.6) - 1;
     state.civilizations.player.techState.completed = era2Techs.slice(0, below).map(t => t.id);
     const newEra = checkEraAdvancement(state);

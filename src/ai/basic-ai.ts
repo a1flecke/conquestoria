@@ -67,6 +67,7 @@ import { canEstablishRoute, getRouteCapacity, RESOURCE_DEFINITIONS } from '@/sys
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
+import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 
 function getPersonality(state: GameState, civType: string): PersonalityTraits {
   const def = resolveCivDefinition(state, civType);
@@ -86,8 +87,8 @@ function shouldAiStationDefensiveSpy(state: GameState, civId: string): boolean {
   const hasStage3Espionage = civ.techState.completed.includes('spy-networks') || civ.techState.completed.includes('sabotage');
   if (!hasStage3Espionage) return false;
 
-  const capitalId = civ.cities[0];
-  if (!capitalId || !state.cities[capitalId]) return false;
+  const capitalId = getCapitalCityId(state, civId);
+  if (!capitalId) return false;
 
   return (espState.counterIntelligence[capitalId] ?? 0) === 0;
 }
@@ -939,8 +940,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   }
 
   if (shouldAiStationDefensiveSpy(newState, civId)) {
-    const capitalId = civ.cities[0];
-    const capital = capitalId ? newState.cities[capitalId] : undefined;
+    const capital = getCapitalCity(newState, civId);
     const espState = newState.espionage?.[civId];
     const idleSpy = espState ? Object.values(espState.spies).find(spy => spy.status === 'idle') : undefined;
     if (capital && idleSpy) {
@@ -1127,10 +1127,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
         if (verdict === 'expel') {
           const updatedOwnerEsp = expelSpy(newState.espionage![victimCivId], capturedSpy.id, 15);
-          // capital = cities[0] by convention
-          const victimCivCities = newState.civilizations[victimCivId]?.cities ?? [];
-          const capitalCityId = victimCivCities[0];
-          const capital = capitalCityId ? newState.cities[capitalCityId] : null;
+          const capital = getCapitalCity(newState, victimCivId);
           if (capital) {
             const newUnit = createUnit(capturedSpy.unitType, victimCivId, capital.position, newState.idCounters);
             newState = {
@@ -1264,12 +1261,10 @@ export function chooseAiSpyTarget(
   if (targets.length === 0) return null;
 
   const bestCivId = targets[0].civId;
-  const targetCiv = state.civilizations[bestCivId];
-  const firstCityId = targetCiv.cities[0];
-  const city = state.cities[firstCityId];
+  const city = getCapitalCity(state, bestCivId);
   if (!city) return null;
 
-  return { civId: bestCivId, cityId: firstCityId, position: city.position };
+  return { civId: bestCivId, cityId: city.id, position: city.position };
 }
 
 export function chooseAiMission(

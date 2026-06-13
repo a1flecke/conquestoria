@@ -7,6 +7,7 @@ import { hexDistance } from './hex-utils';
 import { createBreakawayFromCity } from './breakaway-system';
 import { getEconomyStatusForCiv } from './economy-system';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
+import { getCapitalCity } from './capital-system';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
@@ -36,10 +37,8 @@ export function computeUnrestPressure(cityId: string, state: GameState, ownerHap
   const cityCount = civ.cities.length;
   pressure += Math.min(MAX_PRESSURE_EMPIRE, Math.max(0, (cityCount - 5) * 3));
 
-  // Distance from capital (first city in civ.cities list)
-  const capitalId = civ.cities[0];
-  const capital = capitalId ? state.cities[capitalId] : null;
-  if (capital && capitalId !== cityId) {
+  const capital = getCapitalCity(state, owner);
+  if (capital && capital.id !== cityId) {
     const dist = hexDistance(city.position, capital.position);
     pressure += Math.min(MAX_PRESSURE_DISTANCE, Math.max(0, (dist - 5) * 2));
   }

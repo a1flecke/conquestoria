@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
+import { TECH_TREE, getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
 import {
   estimateTurnsToComplete,
   getResearchOutputProfileForTech,
@@ -120,6 +120,32 @@ describe('tech definitions', () => {
     const ids = getEraAdvancementTechs(5).map(tech => tech.id);
 
     expect(ids).toEqual(['digital-surveillance', 'cyber-warfare']);
+  });
+
+  it('resolves civilization era through contiguous 60-percent thresholds', () => {
+    const era2 = getEraAdvancementTechs(2);
+    const era3 = getEraAdvancementTechs(3);
+    const era2Needed = Math.ceil(era2.length * 0.6);
+    const era3Needed = Math.ceil(era3.length * 0.6);
+    const era3Only = era3.slice(0, era3Needed).map(tech => tech.id);
+
+    expect(resolveCivilizationEra(era3Only)).toBe(1);
+    expect(resolveCivilizationEra([
+      ...era2.slice(0, era2Needed).map(tech => tech.id),
+      ...era3Only,
+    ])).toBe(3);
+  });
+
+  it('stays below an era threshold and ignores non-advancement technologies', () => {
+    const era2 = getEraAdvancementTechs(2);
+    const belowThreshold = Math.ceil(era2.length * 0.6) - 1;
+
+    expect(resolveCivilizationEra([
+      ...era2.slice(0, belowThreshold).map(tech => tech.id),
+      'mass-media',
+      'global-logistics',
+      'nuclear-theory',
+    ])).toBe(1);
   });
 
   it('has no orphan late-era nodes', () => {
