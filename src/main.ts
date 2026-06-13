@@ -45,7 +45,8 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom } from '@/systems/beast-system';
+import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview } from '@/systems/beast-system';
+import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
 import { showBeastSightingBanner } from '@/ui/beast-sighting-banner';
@@ -415,6 +416,20 @@ function scanBeastSightings(): void {
   for (const beastId of sightingResult.newSightings) {
     bus.emit('beast:sighted', { beastId, civId: gameState.currentPlayer });
   }
+}
+
+function maybeShowPendingHoardChoice(): void {
+  const pending = (gameState.beasts?.pendingHoardChoices ?? [])
+    .find(p => p.civId === gameState.currentPlayer);
+  if (!pending) return;
+  const preview = getHoardChoicePreview(gameState, pending.lairId);
+  const lair = gameState.beasts!.lairs[pending.lairId];
+  createBeastHoardPanel(uiLayer, preview, choice => {
+    gameState = applyHoardChoice(gameState, pending.lairId, pending.civId, choice);
+    bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
+    updateHUD();
+    maybeShowPendingHoardChoice();
+  });
 }
 
 function openWonderAtlas(initialWonderId?: string): void {
@@ -2210,6 +2225,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
     if (slayResult.slain) {
       bus.emit('beast:slain', slayResult.slain);
     }
+    maybeShowPendingHoardChoice();
 
     const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
     if (destroyedCamp.campId) {
@@ -2898,6 +2914,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
           updateHUD();
           // Scan for beast sightings at turn start (units may have gained vision from prior turns)
           scanBeastSightings();
+          maybeShowPendingHoardChoice();
           // Compute audio-state snapshot for the incoming player (Spec 3 hot-seat drift fix)
           const nextCiv = gameState.civilizations[nextSlotId];
           const nextCivCities = Object.values(gameState.cities).filter(c => c.owner === nextSlotId);
@@ -3323,16 +3340,24 @@ bus.on('beast:awakened', ({ beastId, position }) => {
 bus.on('beast:slain', ({ beastId, slayerCivId, goldAwarded }) => {
   const def = BEAST_DEFINITIONS[beastId];
   const slayerName = gameState.civilizations[slayerCivId]?.name ?? slayerCivId;
+  const isChoiceTier = def.tier >= 2;
   for (const civId of Object.keys(gameState.civilizations)) {
-    const message = civId === slayerCivId
-      ? `Your forces have slain the ${def.name}! Hoard claimed: +${goldAwarded} gold.`
-      : `${slayerName} has slain the ${def.name}!`;
+    const slayerMsg = isChoiceTier
+      ? `Your forces have slain the ${def.name}! Choose your reward.`
+      : `Your forces have slain the ${def.name}! Hoard claimed: +${goldAwarded} gold.`;
+    const message = civId === slayerCivId ? slayerMsg : `${slayerName} has slain the ${def.name}!`;
     appendToCivLog(civId, message, civId === slayerCivId ? 'success' : 'info');
   }
-  // Prominent toast for the current player
   if (slayerCivId === gameState.currentPlayer) {
-    showNotification(`🏆 ${def.name} slain! +${goldAwarded} gold`, 'success');
+    const toast = isChoiceTier ? `🏆 ${def.name} slain! Choose your reward.` : `🏆 ${def.name} slain! +${goldAwarded} gold`;
+    showNotification(toast, 'success');
   }
+});
+
+bus.on('beast:hoard-claimed', ({ beastId, civId, choice }) => {
+  const def = BEAST_DEFINITIONS[beastId];
+  const label = choice === 'gold' ? 'took the Gold Hoard' : choice === 'lore' ? 'claimed the Ancient Lore' : 'raised a Beast Trophy';
+  appendToCivLog(civId, `You ${label} of the ${def.name}.`, 'success');
 });
 
 bus.on('beast:sighted', ({ beastId, civId }) => {
@@ -3763,6 +3788,7 @@ function startGame(): void {
   renderLoop.setGameState(gameState);
   updateHUD();
   maybeShowCouncilInterrupt();
+  maybeShowPendingHoardChoice();
 
   // Auto-save immediately so closing before turn 1 doesn't lose the game
   autoSave(gameState).catch(() => {});
