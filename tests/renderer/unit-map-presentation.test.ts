@@ -110,6 +110,25 @@ describe('unit map presentation', () => {
     expect(presentation.leadUnitId).toBe('z-strong');
   });
 
+  it('uses the canonical combat defender and shared faction visuals for pirate stacks', () => {
+    const units = [
+      unit('pirate-weak', { owner: 'pirate-7', health: 20 }),
+      unit('pirate-strong', { owner: 'pirate-7', type: 'swordsman', health: 100 }),
+    ];
+
+    const [presentation] = buildUnitMapPresentations(
+      state(units),
+      'player',
+      { tiles: { '1,1': 'visible' } },
+      new Set(),
+      null,
+    );
+
+    expect(presentation.leadUnitId).toBe('pirate-strong');
+    expect(presentation.faction).toBe('pirates');
+    expect(presentation.roleMarker).toBe('chevron');
+  });
+
   it('excludes moving and transported units before grouping', () => {
     const units = [
       unit('static'),

@@ -1,5 +1,4 @@
 import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
-import { PIRATE_OWNER } from '@/systems/threat-pressure-system';
 import { selectDefenderForAttack } from '@/systems/combat-system';
 import { isForestConcealedUnit } from '@/systems/fog-of-war';
 import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
@@ -8,6 +7,7 @@ import { sortUnitsForStackPicker } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { civTypeToFaction } from './civilization-visual-family';
 import { resolveUnitVisual, type UnitRoleMarker } from './unit-visual-resolver';
+import { isAlwaysHostilePair, isPirateOwner } from '@/core/owner-kind';
 
 export const UNIT_DISPLAY_SIZE_FACTOR = 0.9;
 
@@ -84,16 +84,16 @@ function chooseLead(state: GameState, viewerId: string, stack: Unit[], selectedU
 
   const owner = stack[0]?.owner;
   const viewerDiplomacy = state.civilizations[viewerId]?.diplomacy;
-  const hostile = owner === 'barbarian'
-    || owner === 'beasts'
-    || owner === 'rebels'
-    || owner === PIRATE_OWNER
-    || Boolean(owner && viewerDiplomacy?.atWarWith?.includes(owner));
+  const hostile = Boolean(owner && (
+    isAlwaysHostilePair(viewerId, owner)
+    || viewerDiplomacy?.atWarWith?.includes(owner)
+  ));
   if (hostile) return selectDefenderForAttack(stack, state.map) ?? stack[0];
   return [...stack].sort((a, b) => a.id.localeCompare(b.id))[0];
 }
 
 function getFaction(state: GameState, ownerId: string): string {
+  if (isPirateOwner(ownerId)) return 'pirates';
   const civilization = state.civilizations?.[ownerId];
   return civilization ? civTypeToFaction(civilization.civType) : ownerId;
 }

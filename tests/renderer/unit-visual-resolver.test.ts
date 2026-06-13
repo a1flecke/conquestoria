@@ -40,6 +40,27 @@ describe('unit-visual-resolver', () => {
     });
   });
 
+  it('uses a hostile chevron and distinct fallback color for pirate units', () => {
+    const state = createNewGame(undefined, 'pirate-visual', 'small');
+    const unit = { ...createUnit('warrior', 'pirate-7', { q: 0, r: 0 }, mkC()), id: 'pirate' };
+
+    expect(resolveUnitVisual(state, unit)).toMatchObject({
+      role: 'pirate',
+      roleMarker: 'chevron',
+      color: '#7f1d1d',
+    });
+  });
+
+  it('classifies rebels independently from major civilizations', () => {
+    const state = createNewGame(undefined, 'rebel-visual', 'small');
+    const unit = { ...createUnit('warrior', 'rebels', { q: 0, r: 0 }, mkC()), id: 'rebel' };
+
+    expect(resolveUnitVisual(state, unit)).toMatchObject({
+      role: 'rebel',
+      roleMarker: 'chevron',
+    });
+  });
+
   it('provides a concrete fallback icon for every defined unit type', () => {
     const state = createNewGame(undefined, 'fallback-icon-coverage', 'small');
 

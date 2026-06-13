@@ -22,6 +22,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason, findPath } from '@/systems/unit-system';
 import { scanIdCounters } from '@/core/id-counters';
+import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
 import { foundCity, BUILDINGS, getProductionDisplayName } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
@@ -2059,7 +2060,7 @@ function performWorkerAction(action: WorkerActionType): void {
 
 function ensurePlayerWarState(targetCivId: string): void {
   const targetCiv = gameState.civilizations[targetCivId];
-  if (!targetCiv || targetCivId.startsWith('mc-') || targetCivId === 'barbarian') return;
+  if (!targetCiv || !isMajorCivOwner(targetCivId)) return;
 
   const cp = gameState.currentPlayer;
   const alreadyAtWar = currentCiv().diplomacy?.atWarWith.includes(targetCivId) ?? false;
@@ -2178,11 +2179,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
   const defender = gameState.units[defenderId];
   if (!defender) return;
 
-  const defOwnerCiv = defender.owner;
-  const isBarbarian = defOwnerCiv === 'barbarian' || defOwnerCiv.startsWith('mc-');
-  if (!isBarbarian && gameState.civilizations[defOwnerCiv]) {
-    ensurePlayerWarState(defOwnerCiv);
-  }
+  ensurePlayerWarState(defender.owner);
 
   const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
   const attackerBonus = currentCivDef()?.bonusEffect;
@@ -2450,14 +2447,23 @@ function handleHexTap(rawCoord: HexCoord): void {
       const enemyUnit = defenderEntryAtHex[1];
       const def = UNIT_DEFINITIONS[enemyUnit.type];
       const desc = UNIT_DESCRIPTIONS[enemyUnit.type] ?? '';
-      const isBarbarian = enemyUnit.owner === 'barbarian';
-      const isMinorCiv = enemyUnit.owner.startsWith('mc-');
+      const ownerKind = classifyOwner(enemyUnit.owner);
+      const isMinorCiv = ownerKind === 'minor';
       let ownerName: string;
       let ownerColor: string;
 
-      if (isBarbarian) {
+      if (ownerKind === 'barbarian') {
         ownerName = 'Barbarian';
         ownerColor = '#8b4513';
+      } else if (ownerKind === 'pirate') {
+        ownerName = 'Pirates';
+        ownerColor = '#7f1d1d';
+      } else if (ownerKind === 'rebel') {
+        ownerName = 'Rebels';
+        ownerColor = '#6b3f2a';
+      } else if (ownerKind === 'beast') {
+        ownerName = 'Legendary Beasts';
+        ownerColor = '#7a1f2b';
       } else if (isMinorCiv) {
         const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, enemyUnit.owner, 'City-State');
         ownerName = presentation.name;
@@ -2468,9 +2474,10 @@ function handleHexTap(rawCoord: HexCoord): void {
         ownerColor = civ?.color ?? '#888';
       }
 
-      const atWar = !isBarbarian && !isMinorCiv && (currentCiv()?.diplomacy?.atWarWith.includes(enemyUnit.owner) ?? false);
-      const relationshipTag = isBarbarian ? 'Hostile' : atWar ? 'At War' : 'Neutral';
-      const relColor = isBarbarian || atWar ? '#d94a4a' : '#e8c170';
+      const alwaysHostile = isAlwaysHostilePair(gameState.currentPlayer, enemyUnit.owner);
+      const atWar = ownerKind === 'major' && (currentCiv()?.diplomacy?.atWarWith.includes(enemyUnit.owner) ?? false);
+      const relationshipTag = alwaysHostile ? 'Hostile' : atWar ? 'At War' : 'Neutral';
+      const relColor = alwaysHostile || atWar ? '#d94a4a' : '#e8c170';
 
       const panel = document.getElementById('info-panel');
       if (panel) {
@@ -2559,11 +2566,17 @@ function handleHexTap(rawCoord: HexCoord): void {
       const atkStr = Math.round(strengthPreview.attackerStrength);
       const defStr = Math.round(strengthPreview.defenderStrength);
 
-      const isBarbarian = defender.owner === 'barbarian';
-      const isMinorCiv = defender.owner.startsWith('mc-');
+      const ownerKind = classifyOwner(defender.owner);
+      const isMinorCiv = ownerKind === 'minor';
       let ownerName: string;
-      if (isBarbarian) {
+      if (ownerKind === 'barbarian') {
         ownerName = 'Barbarian';
+      } else if (ownerKind === 'pirate') {
+        ownerName = 'Pirates';
+      } else if (ownerKind === 'rebel') {
+        ownerName = 'Rebels';
+      } else if (ownerKind === 'beast') {
+        ownerName = 'Legendary Beasts';
       } else if (isMinorCiv) {
         const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, defender.owner, 'City-State');
         ownerName = presentation.name;

@@ -5,6 +5,7 @@ import { hexDistance, hexKey, hexesInRange, getWrappedHexesInRange, wrappedHexDi
 import { selectDefenderForAttack } from '@/systems/combat-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { isBeastConcealedFrom, canUnitAttackBeast } from '@/systems/beast-system';
+import { isAlwaysHostilePair, isPirateOwner } from '@/core/owner-kind';
 
 export type AttackTargetFailure =
   | 'missing-attacker'
@@ -52,9 +53,7 @@ function isVisibleToViewer(state: GameState, viewerId: string | undefined, coord
 
 function canAttackOwner(state: GameState, attackerOwner: string, targetOwner: string): boolean {
   if (targetOwner === attackerOwner) return false;
-  if (attackerOwner === 'barbarian' || attackerOwner === 'rebels') return true;
-  if (targetOwner === 'barbarian' || targetOwner === 'rebels') return true;
-  if (attackerOwner === 'beasts' || targetOwner === 'beasts') return true;
+  if (isAlwaysHostilePair(attackerOwner, targetOwner)) return true;
   if (targetOwner.startsWith('mc-')) {
     return state.civilizations[attackerOwner]?.diplomacy.atWarWith.includes(targetOwner) ?? false;
   }
@@ -109,16 +108,17 @@ export function canUnitAttackTarget(
   const targetUnit = unitAt(state, attacker, coord);
   if (targetUnit) {
     if (targetUnit[1].owner === attacker.owner) return { ok: false, reason: 'friendly-target' };
-    if (!canAttackOwner(state, attacker.owner, targetUnit[1].owner)) return { ok: false, reason: 'not-hostile' };
     const attackerOwnerUnits = Object.values(state.units).filter(u => u.owner === attacker.owner && !u.transportId);
     if (isBeastConcealedFrom(targetUnit[1], state.map, attackerOwnerUnits)) return { ok: false, reason: 'not-visible' };
     if (!canUnitAttackBeast(attacker, targetUnit[1]).allowed) return { ok: false, reason: 'unsupported-target' };
+    if (!canAttackOwner(state, attacker.owner, targetUnit[1].owner)) return { ok: false, reason: 'not-hostile' };
     if (!profile.targets.includes('unit')) return { ok: false, reason: 'unsupported-target' };
     return { ok: true, targetType: 'unit', targetUnitId: targetUnit[0], coord, range };
   }
 
   const targetCity = cityAt(state, attacker, coord);
   if (targetCity) {
+    if (isPirateOwner(attacker.owner)) return { ok: false, reason: 'unsupported-target' };
     if (!canAttackOwner(state, attacker.owner, targetCity[1].owner)) return { ok: false, reason: 'not-hostile' };
     if (!profile.targets.includes('city')) return { ok: false, reason: 'unsupported-target' };
     return { ok: true, targetType: 'city', cityId: targetCity[0], coord, range };

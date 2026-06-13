@@ -74,6 +74,7 @@ import {
   getNationalProjectCivYieldBonus,
   expireNationalProjects,
 } from '@/systems/national-project-system';
+import { classifyOwner } from './owner-kind';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
@@ -539,7 +540,10 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       newState.units[unitId] = resetUnitTurn(unit);
     }
   }
-  const playerUnits = Object.values(newState.units).filter(u => u.owner !== 'barbarian' && u.owner !== BEAST_OWNER && !u.owner.startsWith('mc-'));
+  const playerUnits = Object.values(newState.units).filter(unit => {
+    const kind = classifyOwner(unit.owner);
+    return kind !== 'barbarian' && kind !== 'beast' && kind !== 'minor';
+  });
   const barbarianUnits = Object.values(newState.units).filter(u => u.owner === 'barbarian');
   const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
   const cityTargets = Object.values(newState.cities)
@@ -687,9 +691,10 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
     }
     const beastUnits = Object.values(newState.units).filter(u => u.owner === BEAST_OWNER);
-    const intruders = Object.values(newState.units).filter(u =>
-      u.owner !== BEAST_OWNER && u.owner !== 'barbarian' && u.owner !== PIRATE_OWNER
-    );
+    const intruders = Object.values(newState.units).filter(unit => {
+      const kind = classifyOwner(unit.owner);
+      return kind !== 'beast' && kind !== 'barbarian' && unit.owner !== PIRATE_OWNER;
+    });
     const beastSeed = newState.turn * 7919 + 13;
     const beastResult = processBeasts(
       Object.values(newState.beasts!.lairs),

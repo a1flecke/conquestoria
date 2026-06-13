@@ -2,6 +2,7 @@ import type { CombatResult, CombatRewardNotification, GameState, Unit } from '@/
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
+import { canReceiveCivilizationCombatRewards } from '@/core/owner-kind';
 
 export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
 
@@ -63,10 +64,6 @@ function seededRoll(seed: number, victorId: string, defeatedId: string): number 
   return state / 2147483647;
 }
 
-function canReceiveGoldReward(owner: string): boolean {
-  return owner !== 'barbarian' && owner !== 'rebels' && owner !== 'beasts' && owner !== 'pirate' && !owner.startsWith('mc-');
-}
-
 export function getVeterancyTierForExperience(experience: number): VeterancyTier {
   const xp = Math.max(0, experience);
   return [...VETERANCY_TIERS].reverse().find(tier => xp >= tier.minExperience) ?? VETERANCY_TIERS[0];
@@ -92,7 +89,7 @@ export function calculateDefeatReward(input: DefeatRewardInput): DefeatRewardRes
   const baseExperience = defeatedCanFight ? Math.max(8, Math.round(defeatedStrength * 0.8)) : 3;
   const victorHealth = Math.max(0, input.victorHealthAfterCombat ?? input.victor.health);
   const baseHealth = Math.min(100 - victorHealth, defeatedCanFight ? 8 : 3);
-  const canReceiveGold = canReceiveGoldReward(input.victor.owner);
+  const canReceiveGold = canReceiveCivilizationCombatRewards(input.victor.owner);
   const defeatedIsHorde = input.defeated.owner === 'barbarian' || input.defeated.owner === 'rebels';
   const baseGold = canReceiveGold
     ? (input.defeated.owner === 'beasts' ? 0 : (defeatedCanFight ? (defeatedIsHorde ? 8 : 4) : 1))
