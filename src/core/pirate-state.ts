@@ -6,6 +6,10 @@ export type PirateFactionId = `pirate-${number}`;
 export type PirateBehavior = 'patrolling' | 'raiding' | 'blockading';
 export type PirateMaritimeStage = 1 | 2 | 3 | 4 | 5;
 export type PirateIntelLevel = 'rumor' | 'sighted' | 'tracked';
+export const PIRATE_RELOCATION_DIRECTIONS = [
+  'north', 'north-east', 'south-east', 'south', 'south-west', 'north-west',
+] as const;
+export type PirateRelocationDirection = (typeof PIRATE_RELOCATION_DIRECTIONS)[number];
 
 export interface PirateSuppressionRecord {
   regionKey: string;
@@ -21,7 +25,7 @@ export interface PiratePressureState {
 export interface PirateRelocationPlan {
   plannedRound: number;
   resolvesOnRound: number;
-  direction: 'north' | 'north-east' | 'south-east' | 'south' | 'south-west' | 'north-west';
+  direction: PirateRelocationDirection;
   path: HexCoord[];
 }
 
@@ -77,6 +81,7 @@ export interface PirateTransitionGuards {
   lastDemandReminderRoundByCiv?: Record<string, number>;
   lastBehaviorTransitionRound?: number;
   lastStageReinforcementRound?: number;
+  lastFlagshipAttackedRound?: number;
 }
 
 export interface PirateFactionState {
