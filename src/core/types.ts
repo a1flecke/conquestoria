@@ -292,7 +292,7 @@ export type UnitType =
   | 'expedition'
   | 'transport'
   | 'carrack' | 'galleon' | 'steamship' | 'troop_transport'
-  | 'beast_boar' | 'beast_wolf' | 'beast_basilisk';
+  | 'beast_boar' | 'beast_wolf' | 'beast_basilisk' | 'beast_sea_serpent' | 'beast_wurm';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
@@ -798,7 +798,7 @@ export interface BarbarianCamp {
 
 // --- Legendary Beasts ---
 
-export type BeastId = 'giant_boar' | 'dire_wolf' | 'emerald_basilisk';   // union grows one MR at a time — see beasts index plan
+export type BeastId = 'giant_boar' | 'dire_wolf' | 'emerald_basilisk' | 'sea_serpent' | 'dune_wurm';
 
 export type BeastsMode = 'off' | 'calm' | 'wild';
 

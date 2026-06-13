@@ -186,6 +186,8 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   beast_boar:    'animal',
   beast_wolf:    'animal',
   beast_basilisk: 'animal',
+  beast_sea_serpent: 'naval',
+  beast_wurm:    'animal',
 };
 
 export function getLocomotionClass(unitType: UnitType): LocomotionClass {
