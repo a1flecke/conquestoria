@@ -26,6 +26,7 @@ vi.mock('@/renderer/city-renderer', () => ({
 
 vi.mock('@/renderer/unit-renderer', () => ({
   drawUnits: vi.fn(),
+  drawUnitPresentations: vi.fn(),
   drawUnitGlyph: vi.fn(),
 }));
 

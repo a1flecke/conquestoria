@@ -8,16 +8,10 @@ import {
 } from './sprites/v2/index';
 import type { Camera } from './camera';
 import type { HexCoord } from '@/core/types';
+import { getUnitLayoutMetrics } from './unit-map-presentation';
+import type { UnitRoleMarker } from './unit-visual-resolver';
 
-/**
- * Sprite wrappers live in world-space (sizes are in pre-zoom units).
- * The container applies scale(camera.zoom), so children sized in world units.
- * At zoom = 2 (= BUILDING_SPRITE_SIZE / (hexSize * SPRITE_OVERLAY_WORLD_SIZE_FACTOR)),
- * building sprites (192px native) render at their design size.
- * Unit sprites (128px native) render at their native size at zoom = 2.
- */
-export const SPRITE_OVERLAY_WORLD_SIZE_FACTOR = 2;
-
+/** Sprite wrappers live in world-space; the container applies camera zoom. */
 export interface SpriteEntity {
   id:      string;
   kind:    'unit' | 'building' | 'improvement';
@@ -36,6 +30,13 @@ export interface SpriteEntity {
    * Always 0 for non-combat units (strength === 0). Defaults to 0 when absent.
    */
   damage?: number;
+  /** Canonical unit IDs represented by this one static stack element. */
+  memberIds?: string[];
+  stackCount?: number;
+  selected?: boolean;
+  health?: number;
+  fortified?: boolean;
+  roleMarker?: UnitRoleMarker;
 }
 
 interface PoolEntry {
@@ -44,6 +45,7 @@ interface PoolEntry {
   phase:        number;
   faction:      string;
   coord:        HexCoord;       // stored so we can detect position change after movement
+  memberIds:    string[];
 }
 
 // djb2 hash — deterministic, no external dependency
@@ -92,6 +94,7 @@ export class SpriteOverlay {
     // 1. LOD + reduced-motion gate
     if (camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD || opts.reducedMotion) {
       this.container.style.display = 'none';
+      this._activeIds.clear();
       return;
     }
     this.container.style.display = '';
@@ -120,6 +123,8 @@ export class SpriteOverlay {
           // Pool hit — update state via setAttribute (no node replacement!)
           existing.spriteWrapEl.setAttribute('data-state', entity.state);
           existing.spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
+          existing.memberIds = entity.memberIds ?? [entity.id];
+          if (entity.kind === 'unit') updateUnitDecorations(existing.el, entity);
           // Update world position if unit moved hex after movement animation completed
           if (existing.coord.q !== coord.q || existing.coord.r !== coord.r) {
             const px = hexToPixel(coord, camera.hexSize);
@@ -136,7 +141,9 @@ export class SpriteOverlay {
           const px = hexToPixel(coord, camera.hexSize);
 
           const wrapper = document.createElement('div');
-          const wrapSizePx = camera.hexSize * SPRITE_OVERLAY_WORLD_SIZE_FACTOR;
+          const wrapSizePx = entity.kind === 'unit'
+            ? getUnitLayoutMetrics(camera.hexSize).displaySize
+            : camera.hexSize * 2;
           wrapper.style.cssText =
             `position:absolute;width:${wrapSizePx}px;height:${wrapSizePx}px;overflow:hidden;` +
             `transform:translate(-50%,-50%);left:${px.x}px;top:${px.y}px`;
@@ -152,9 +159,17 @@ export class SpriteOverlay {
           spriteWrapEl.style.setProperty('--phase', String(phase));
           spriteWrapEl.setAttribute('data-state', entity.state);
           spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
+          if (entity.kind === 'unit') updateUnitDecorations(wrapper, entity);
 
           this.layers[entity.kind].appendChild(wrapper);
-          this.pool.set(key, { el: wrapper, spriteWrapEl, phase, faction: entity.faction, coord });
+          this.pool.set(key, {
+            el: wrapper,
+            spriteWrapEl,
+            phase,
+            faction: entity.faction,
+            coord,
+            memberIds: entity.memberIds ?? [entity.id],
+          });
         }
       }
     }
@@ -169,8 +184,8 @@ export class SpriteOverlay {
 
     // Rebuild activeIds from current pool (key = `${entityId}:${ghostIdx}`)
     this._activeIds.clear();
-    for (const key of this.pool.keys()) {
-      this._activeIds.add(key.slice(0, key.lastIndexOf(':')));
+    for (const entry of this.pool.values()) {
+      for (const memberId of entry.memberIds) this._activeIds.add(memberId);
     }
   }
 
@@ -196,9 +211,81 @@ export class SpriteOverlay {
     for (const key of toEvict) this.pool.delete(key);
     // Rebuild activeIds
     this._activeIds.clear();
-    for (const key of this.pool.keys()) {
-      this._activeIds.add(key.slice(0, key.lastIndexOf(':')));
+    for (const entry of this.pool.values()) {
+      for (const memberId of entry.memberIds) this._activeIds.add(memberId);
     }
+  }
+}
+
+function getOrCreateDecoration(wrapper: HTMLElement, className: string): HTMLDivElement {
+  const existing = wrapper.querySelector(`.${className}`);
+  if (existing) return existing as HTMLDivElement;
+  const element = document.createElement('div');
+  element.className = className;
+  wrapper.appendChild(element);
+  return element;
+}
+
+function removeDecoration(wrapper: HTMLElement, className: string): void {
+  wrapper.querySelector(`.${className}`)?.remove();
+}
+
+function updateUnitDecorations(wrapper: HTMLElement, entity: SpriteEntity): void {
+  if (entity.selected) {
+    const ring = getOrCreateDecoration(wrapper, 'cq-unit-selected');
+    ring.style.cssText =
+      'position:absolute;inset:4%;border:2px solid #ffd54f;border-radius:50%;' +
+      'box-sizing:border-box;pointer-events:none';
+  } else {
+    removeDecoration(wrapper, 'cq-unit-selected');
+  }
+
+  if ((entity.stackCount ?? 1) > 1) {
+    const count = getOrCreateDecoration(wrapper, 'cq-unit-stack-count');
+    count.textContent = String(entity.stackCount);
+    count.style.cssText =
+      'position:absolute;right:2%;top:2%;min-width:28%;height:28%;border-radius:50%;' +
+      'background:rgba(0,0,0,.82);border:1px solid rgba(255,255,255,.85);color:#fff;' +
+      'font:700 0.72em system-ui;display:flex;align-items:center;justify-content:center;pointer-events:none';
+  } else {
+    removeDecoration(wrapper, 'cq-unit-stack-count');
+  }
+
+  if ((entity.health ?? 100) < 100) {
+    const health = getOrCreateDecoration(wrapper, 'cq-unit-health');
+    health.style.cssText =
+      'position:absolute;left:29%;bottom:8%;width:42%;height:6%;background:rgba(0,0,0,.6);pointer-events:none';
+    let fill = health.querySelector('.cq-unit-health-fill') as HTMLDivElement | null;
+    if (!fill) {
+      fill = document.createElement('div');
+      fill.className = 'cq-unit-health-fill';
+      health.appendChild(fill);
+    }
+    const healthValue = Math.max(0, Math.min(100, entity.health ?? 100));
+    fill.style.cssText = `height:100%;width:${healthValue}%;background:${healthValue > 50 ? '#4caf50' : healthValue > 25 ? '#ff9800' : '#f44336'}`;
+  } else {
+    removeDecoration(wrapper, 'cq-unit-health');
+  }
+
+  if (entity.fortified) {
+    const fortified = getOrCreateDecoration(wrapper, 'cq-unit-fortified');
+    fortified.textContent = 'F';
+    fortified.style.cssText =
+      'position:absolute;left:3%;top:3%;width:28%;height:28%;border-radius:50%;' +
+      'background:rgba(200,150,0,.92);border:1px solid #fff;color:#fff;' +
+      'font:700 0.65em system-ui;display:flex;align-items:center;justify-content:center;pointer-events:none';
+  } else {
+    removeDecoration(wrapper, 'cq-unit-fortified');
+  }
+
+  if (entity.roleMarker) {
+    const role = getOrCreateDecoration(wrapper, 'cq-unit-role');
+    role.textContent = entity.roleMarker === 'chevron' ? '⌄' : '◆';
+    role.style.cssText =
+      'position:absolute;right:7%;bottom:18%;color:#fff;text-shadow:0 1px 2px #000;' +
+      'font:700 0.7em system-ui;pointer-events:none';
+  } else {
+    removeDecoration(wrapper, 'cq-unit-role');
   }
 }
 

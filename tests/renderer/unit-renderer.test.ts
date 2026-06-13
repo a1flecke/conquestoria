@@ -26,6 +26,25 @@ function createContext(): CanvasRenderingContext2D {
 }
 
 describe('unit renderer wrap parity', () => {
+  it('does not shrink a sprite when it belongs to a stack', () => {
+    const ctx = createContext();
+    const sprite = {} as HTMLImageElement;
+    const state = { civilizations: {} } as unknown as GameState;
+    const stacked = {
+      id: 'stacked', owner: 'player', type: 'warrior', position: { q: 0, r: 0 },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false,
+      hasActed: false, isResting: false,
+    } as Unit;
+
+    drawUnitGlyph(ctx, state, stacked, 100, 100, 50, { player: '#4a90d9' }, {
+      stackSize: 4,
+      stackIndex: 0,
+      spriteOverride: sprite,
+    });
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(sprite, 77.5, 77.5, 45, 45);
+  });
+
   it('renders wrapped ghost units at the horizontal seam when only the mirrored copy is on screen', () => {
     const ctx = createContext();
     const units: Record<string, Unit> = {
@@ -103,7 +122,7 @@ describe('unit renderer wrap parity', () => {
 
     expect(ctx.fillText).toHaveBeenCalledWith('2', expect.any(Number), expect.any(Number));
     expect(ctx.fillText).toHaveBeenCalledWith('⚔️', expect.any(Number), expect.any(Number));
-    expect(ctx.fillText).toHaveBeenCalledWith('👷', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).not.toHaveBeenCalledWith('👷', expect.any(Number), expect.any(Number));
   });
 });
 

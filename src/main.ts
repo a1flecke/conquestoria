@@ -1407,6 +1407,7 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
   const unit = gameState.units[unitId];
   if (!unit || unit.owner !== gameState.currentPlayer) return;
   selectedUnitId = unitId;
+  renderLoop.setSelectedUnitId(unitId);
 
   const highlightResult = buildSelectedUnitHighlights(gameState, unitId);
   if (gameState.units[unitId]?.committedToRouteId) {
@@ -1691,6 +1692,7 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
         gameState = performEstablishOutpost(gameState, unitId);
         autoSave(gameState).catch(() => {});
         selectedUnitId = null;
+        renderLoop.setSelectedUnitId(null);
         renderLoop.setGameState(gameState);
         updateHUD();
         showNotification('Expedition planted a flag! Outpost completes in 2 turns.', 'success');
@@ -1756,6 +1758,7 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
 
 function deselectUnit(): void {
   selectedUnitId = null;
+  renderLoop.setSelectedUnitId(null);
   movementRange = [];
   attackRange = [];
   clearUnloadState();
