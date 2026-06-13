@@ -1,5 +1,5 @@
 import type { GameState, Quest, QuestReward } from '@/core/types';
-import type { NotificationEntry } from '@/ui/notification-log';
+import type { NotificationDraft } from '@/core/notification-log';
 import { getQuestDescriptionForPlayer, getQuestIssuedMessageForPlayer } from '@/systems/quest-system';
 import { formatQuestReward } from '@/systems/quest-presentation';
 import {
@@ -39,7 +39,7 @@ export function getMinorCivNotification(
   state: GameState,
   viewerCivId: string,
   event: MinorCivNotificationEvent,
-): NotificationEntry | null {
+): NotificationDraft | null {
   if (event.type === 'minor-civ:evolved') {
     return {
       message: formatMinorCivEventMessageForPlayer(state, viewerCivId, event.minorCivId, 'evolved'),

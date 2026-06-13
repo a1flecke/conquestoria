@@ -9,13 +9,27 @@ type ScanableState = {
   cities?:         Record<string, { id: string }>;
   barbarianCamps?: Record<string, { id: string }>;
   minorCivs?:      Record<string, { activeQuests: Record<string, { id: string }> }>;
+  marketplace?:    { tradeRoutes?: Array<{ id?: string }> };
+  pirates?: {
+    factions?: Record<string, { id?: string }>;
+    history?: Array<{ factionId?: string }>;
+  };
+  notificationLog?: Record<string, Array<{ id?: string }>>;
 };
 
 /**
  * Return a fresh counter set for a brand-new game (before any entities are created).
  */
 export function emptyIdCounters(): IdCounters {
-  return { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+  return {
+    nextUnitId: 1,
+    nextCityId: 1,
+    nextCampId: 1,
+    nextQuestId: 1,
+    nextRouteId: 1,
+    nextPirateFactionId: 1,
+    nextNotificationId: 1,
+  };
 }
 
 /**
@@ -27,6 +41,7 @@ export function emptyIdCounters(): IdCounters {
  */
 export function scanIdCounters(state: ScanableState): IdCounters {
   let maxUnit = 0, maxCity = 0, maxCamp = 0, maxQuest = 0;
+  let maxRoute = 0, maxPirateFaction = 0, maxNotification = 0;
 
   for (const id of Object.keys(state.units ?? {})) {
     const n = /^unit-(\d+)$/.exec(id);
@@ -46,11 +61,32 @@ export function scanIdCounters(state: ScanableState): IdCounters {
       if (n) maxQuest = Math.max(maxQuest, +n[1]);
     }
   }
+  for (const route of state.marketplace?.tradeRoutes ?? []) {
+    const match = /^route-(\d+)$/.exec(route.id ?? '');
+    if (match) maxRoute = Math.max(maxRoute, +match[1]);
+  }
+  const pirateIds = [
+    ...Object.keys(state.pirates?.factions ?? {}),
+    ...(state.pirates?.history ?? []).map(entry => entry.factionId ?? ''),
+  ];
+  for (const id of pirateIds) {
+    const match = /^pirate-(\d+)$/.exec(id);
+    if (match) maxPirateFaction = Math.max(maxPirateFaction, +match[1]);
+  }
+  for (const entries of Object.values(state.notificationLog ?? {})) {
+    for (const entry of entries) {
+      const match = /^notification-(\d+)$/.exec(entry.id ?? '');
+      if (match) maxNotification = Math.max(maxNotification, +match[1]);
+    }
+  }
 
   return {
     nextUnitId:  maxUnit  + 1,
     nextCityId:  maxCity  + 1,
     nextCampId:  maxCamp  + 1,
     nextQuestId: maxQuest + 1,
+    nextRouteId: maxRoute + 1,
+    nextPirateFactionId: maxPirateFaction + 1,
+    nextNotificationId: maxNotification + 1,
   };
 }

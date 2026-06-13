@@ -337,7 +337,7 @@ git commit -m "feat(pirates): add hostile owner boundaries"
 - Move/modify: `tests/ui/notification-log.test.ts`
 - Modify: `tests/main.integration.test.ts`, `tests/systems/playtest-fixes.test.ts`
 
-- [ ] **Step 1: Write red tests for new games, legacy saves, malformed saves, and generic notifications**
+- [x] **Step 1: Write red tests for new games, legacy saves, malformed saves, and generic notifications**
 
 Required assertions:
 
@@ -353,13 +353,13 @@ expect(getNotificationsForPlayer(roundTripped.notificationLog, 'player')).toHave
 
 Add repair tests for malformed intel, missing flagship, invalid contract target, expired protection, and duplicate warning markers. Missing flagships must produce one historical destruction record across repeated normalization.
 
-- [ ] **Step 2: Run red tests**
+- [x] **Step 2: Run red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/core/pirate-state.test.ts tests/core/migrate-id-counters.test.ts tests/storage/save-manager.test.ts tests/ui/notification-log.test.ts
 ```
 
-- [ ] **Step 3: Define serializable state factories and invariants**
+- [x] **Step 3: Define serializable state factories and invariants**
 
 `src/core/pirate-state.ts` exports the complete plain-object types plus:
 
@@ -382,7 +382,7 @@ export function createEmptyPirateState(): PirateState {
 
 Include explicit faction transition guards, demand reminder rounds, tribute records, optional contract, planned relocation, and historical snapshots. Store only earned intel; do not store a richer faction reference inside viewer intel.
 
-- [ ] **Step 4: Move notifications into core state**
+- [x] **Step 4: Move notifications into core state**
 
 The new core entry shape is:
 
@@ -403,11 +403,11 @@ export interface NotificationEntry {
 
 `appendNotification(state, civId, draft)` allocates `notification-{n}`, caps each viewer at 50, and returns/mutates the canonical `GameState.notificationLog`. Update all imports and delete the UI-owned module in the same commit; do not leave a compatibility re-export.
 
-- [ ] **Step 5: Centralize normalization in `save-manager.ts`**
+- [x] **Step 5: Centralize normalization in `save-manager.ts`**
 
 Add `normalizePirateState`, `normalizeNotificationLog`, and `normalizeIdCounters` to `normalizeLoadedState`. Remove the corresponding ID migration responsibility from `main.ts` so load, autosave, import/export, and test normalization use one path. Do not move unrelated beast migration in this task.
 
-- [ ] **Step 6: Run focused checks and commit**
+- [x] **Step 6: Run focused checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/core/pirate-state.ts src/core/notification-log.ts src/core/types.ts src/core/id-counters.ts src/core/game-state.ts src/storage/save-manager.ts src/main.ts src/ui/notification-log-panel.ts src/ui/notification-targets.ts src/ui/legendary-wonder-notifications.ts src/ui/minor-civ-notifications.ts src/ui/notification-routing.ts

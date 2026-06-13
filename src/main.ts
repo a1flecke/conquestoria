@@ -21,7 +21,6 @@ import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason, findPath } from '@/systems/unit-system';
-import { scanIdCounters } from '@/core/id-counters';
 import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
 import { foundCity, BUILDINGS, getProductionDisplayName } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
@@ -51,7 +50,7 @@ import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/bea
 import { showBeastSightingBanner } from '@/ui/beast-sighting-banner';
 import { showBeastSlayCeremony } from '@/ui/beast-slay-ceremony';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
-import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
+import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, normalizeLoadedState, saveSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
 import { SFX, routeSfxThrough } from '@/audio/sfx';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
@@ -154,10 +153,9 @@ import { getCapitalCity } from '@/systems/capital-system';
 import type { GameEvents, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
-  createNotificationLog,
   getNotificationsForPlayer,
   type NotificationEntry,
-} from '@/ui/notification-log';
+} from '@/core/notification-log';
 import {
   formatEconomyTreasuryStrainMessage,
   routeBarbarianSpawned,
@@ -542,7 +540,6 @@ function updateHUD(): void {
 
 // --- Notification queue ---
 const notificationQueue: Array<Pick<NotificationEntry, 'message' | 'type' | 'target'>> = [];
-const notificationLog = createNotificationLog();
 let isShowingNotification = false;
 let currentDismissTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -562,7 +559,7 @@ function showNotification(
 ): void {
   enqueueToast(message, type, target);
   if (gameState) {
-    appendNotification(notificationLog, gameState.currentPlayer, {
+    appendNotification(gameState, gameState.currentPlayer, {
       message,
       type,
       turn: gameState.turn,
@@ -575,7 +572,7 @@ function showNotification(
 // surfaces a toast. Used by routers that fan out global/bilateral events.
 const appendToCivLog: NotificationSink = (civId, message, type, target) => {
   if (!gameState) return;
-  appendNotification(notificationLog, civId, { message, type, turn: gameState.turn, target });
+  appendNotification(gameState, civId, { message, type, turn: gameState.turn, target });
   if (civId === gameState.currentPlayer) {
     enqueueToast(message, type, target);
   }
@@ -644,7 +641,7 @@ function toggleNotificationLog(): void {
   if (!ul) return;
 
   const entries = gameState
-    ? getNotificationsForPlayer(notificationLog, gameState.currentPlayer)
+    ? getNotificationsForPlayer(gameState.notificationLog ?? {}, gameState.currentPlayer)
     : [];
   const panel = createNotificationLogPanel(entries, {
     onClose: () => panel.remove(),
@@ -3687,7 +3684,7 @@ async function init(): Promise<void> {
       }
     },
     onImportSave: (state) => {
-      gameState = state;
+      gameState = normalizeLoadedState(state);
       migrateLegacySave();
       startGame();
       showNotification(`Save imported! Turn ${gameState.turn}`, 'info');
@@ -3696,11 +3693,6 @@ async function init(): Promise<void> {
 }
 
 function migrateLegacySave(): void {
-  if (!gameState.idCounters?.nextUnitId || !gameState.idCounters?.nextCityId ||
-      !gameState.idCounters?.nextCampId || !gameState.idCounters?.nextQuestId) {
-    gameState.idCounters = scanIdCounters(gameState);
-  }
-
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
     if (!civ.civType) (civ as any).civType = 'generic';
     if (!civ.knownCivilizations) (civ as any).knownCivilizations = [];
@@ -3791,10 +3783,6 @@ function migrateLegacySave(): void {
   // Reconstruct missing lastSeen entries for fog tiles on old saves (M5 migration)
   for (const civId of Object.keys(gameState.civilizations)) {
     reconstructLastSeenFromMap(gameState, civId);
-  }
-  // S5 migration: nextRouteId counter
-  if (!gameState.idCounters.nextRouteId) {
-    gameState.idCounters.nextRouteId = 1;
   }
   // S5 migration: marketplace state init
   if (!gameState.marketplace) {

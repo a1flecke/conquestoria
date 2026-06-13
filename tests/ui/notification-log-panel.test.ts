@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { createNotificationLogPanel } from '@/ui/notification-log-panel';
-import type { NotificationEntry } from '@/ui/notification-log';
+import type { NotificationEntry } from '@/core/notification-log';
 
 describe('notification log panel', () => {
   it('renders target-bearing entries as focusable rows', () => {
@@ -13,7 +13,7 @@ describe('notification log panel', () => {
     };
     const onFocusTarget = vi.fn();
     const entries: NotificationEntry[] = [
-      { message: 'Barbarian raiders spotted!', type: 'warning', turn: 7, target },
+      { id: 'notification-1', message: 'Barbarian raiders spotted!', type: 'warning', turn: 7, read: false, target },
     ];
 
     const panel = createNotificationLogPanel(entries, {
@@ -30,7 +30,7 @@ describe('notification log panel', () => {
   it('renders city-linked entries as clickable and fires onOpenCity on click', () => {
     const onOpenCity = vi.fn();
     const entries: NotificationEntry[] = [
-      { message: 'Carthage can start Oracle of Delphi. Tap to open that city.', type: 'info', turn: 5, linkedCityId: 'city-1' },
+      { id: 'notification-2', message: 'Carthage can start Oracle of Delphi. Tap to open that city.', type: 'info', turn: 5, read: false, linkedCityId: 'city-1' },
     ];
 
     const panel = createNotificationLogPanel(entries, {

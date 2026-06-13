@@ -1,4 +1,4 @@
-import type { NotificationMapTarget } from '@/ui/notification-log';
+import type { NotificationMapTarget } from '@/core/notification-log';
 
 export function formatNotificationTargetFocusMessage(
   target: NotificationMapTarget,

@@ -8,7 +8,7 @@ import { buildCouncilAgenda } from '@/systems/council-system';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import type { GameMap, HexTile } from '@/core/types';
-import type { NotificationEntry } from '@/ui/notification-log';
+import type { NotificationEntry } from '@/core/notification-log';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -186,16 +186,16 @@ describe('unit cycling (#25)', () => {
 
 describe('notification queue (#20)', () => {
   it('NotificationEntry type has required fields', () => {
-    const entry: NotificationEntry = { message: 'test', type: 'info', turn: 1 };
+    const entry: NotificationEntry = { id: 'notification-1', message: 'test', type: 'info', turn: 1, read: false };
     expect(entry.message).toBe('test');
     expect(entry.type).toBe('info');
     expect(entry.turn).toBe(1);
   });
 
   it('NotificationEntry accepts all type values', () => {
-    const info: NotificationEntry = { message: 'a', type: 'info', turn: 1 };
-    const success: NotificationEntry = { message: 'b', type: 'success', turn: 2 };
-    const warning: NotificationEntry = { message: 'c', type: 'warning', turn: 3 };
+    const info: NotificationEntry = { id: 'notification-1', message: 'a', type: 'info', turn: 1, read: false };
+    const success: NotificationEntry = { id: 'notification-2', message: 'b', type: 'success', turn: 2, read: false };
+    const warning: NotificationEntry = { id: 'notification-3', message: 'c', type: 'warning', turn: 3, read: false };
     expect(info.type).toBe('info');
     expect(success.type).toBe('success');
     expect(warning.type).toBe('warning');

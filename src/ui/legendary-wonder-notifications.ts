@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import type { NotificationEntry } from '@/ui/notification-log';
+import type { NotificationDraft } from '@/core/notification-log';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { hasMetCivilization } from '@/systems/discovery-system';
 
@@ -13,7 +13,7 @@ export function getLegendaryWonderNotification(
   state: GameState,
   currentPlayer: string,
   event: LegendaryWonderNotificationEvent,
-): NotificationEntry | null {
+): NotificationDraft | null {
   const city = state.cities[event.cityId];
   const wonder = getLegendaryWonderDefinition(event.wonderId);
 
