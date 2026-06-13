@@ -109,4 +109,13 @@ describe('recordBeastSightings', () => {
     expect(result.newSightings).toEqual([]);
     expect(result.state).toBe(state);
   });
+
+  it('does not sight a beast whose tile key was stripped by the caller (concealment contract)', () => {
+    // The caller (scanBeastSightings) strips concealed-beast tile keys before passing visibleKeys.
+    // This test verifies that recordBeastSightings respects that contract — it must NOT sight a
+    // beast whose position is absent from visibleKeys, even if it is otherwise on the map.
+    const result = recordBeastSightings(stateWithLair(), 'player', new Set(/* empty — beast tile stripped */));
+    expect(result.newSightings).toEqual([]);
+    expect(result.state.beasts!.sightingsByCiv['player']).toBeUndefined();
+  });
 });

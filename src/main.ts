@@ -394,9 +394,18 @@ function openBestiary(): void {
 function scanBeastSightings(): void {
   const visTiles = currentCiv()?.visibility?.tiles;
   if (!visTiles) return;
+  const viewerUnits = Object.values(gameState.units).filter(
+    u => u.owner === gameState.currentPlayer && !u.transportId,
+  );
   const visibleKeys = new Set(
     Object.entries(visTiles).filter(([, v]) => v === 'visible').map(([k]) => k),
   );
+  // A beast concealed in its habitat cannot be sighted even if the tile is visible
+  for (const unit of Object.values(gameState.units)) {
+    if (isBeastConcealedFrom(unit, gameState.map, viewerUnits)) {
+      visibleKeys.delete(hexKey(unit.position));
+    }
+  }
   const sightingResult = recordBeastSightings(gameState, gameState.currentPlayer, visibleKeys);
   gameState = sightingResult.state;
   for (const beastId of sightingResult.newSightings) {
