@@ -12,6 +12,8 @@ export interface BeastDefinition {
   hoardGoldBase: number;            // base hoard gold; scaled by era at slay time
   concealedInHabitat?: boolean;     // hidden on habitat terrain unless a viewer unit is adjacent
   navalOnly?: boolean;              // only naval-domain or ranged units may attack this beast
+  flying?: boolean;                 // passable on any land terrain (including mountains)
+  regenPerTurn?: number;            // HP restored each beast turn
   dangerHint: string;               // bestiary riddle shown before first sighting (MR2)
   awakeningFlavor: string;          // map-wide notification on awakening
   sightingFlavor: string;           // first-sighting notification/ceremony text (MR2)
@@ -90,6 +92,36 @@ export const BEAST_DEFINITIONS: Record<BeastId, BeastDefinition> = {
     dangerHint: 'Caravans tell of dunes that ripple and shift where no wind blows.',
     awakeningFlavor: 'The sands tremble. Something colossal moves beneath the dunes.',
     sightingFlavor: 'The Dune Wurm erupts from the sand in a storm of grit and teeth!',
+  },
+  storm_roc: {
+    id: 'storm_roc',
+    unitType: 'beast_roc',
+    name: 'Storm Roc',
+    habitatTerrains: ['mountain'],
+    awakenEra: 3,
+    tier: 3,
+    leashRadius: 4,
+    packSize: 1,
+    hoardGoldBase: 150,
+    flying: true,
+    dangerHint: 'Herdsmen swear a shadow the size of a cloud sweeps the high peaks before a storm.',
+    awakeningFlavor: 'A scream splits the thunder. Wings vast as sails circle the high peaks.',
+    sightingFlavor: 'The Storm Roc wheels overhead — lightning dancing along its wings!',
+  },
+  swamp_hydra: {
+    id: 'swamp_hydra',
+    unitType: 'beast_hydra',
+    name: 'Swamp Hydra',
+    habitatTerrains: ['swamp'],
+    awakenEra: 3,
+    tier: 3,
+    leashRadius: 3,
+    packSize: 1,
+    hoardGoldBase: 150,
+    regenPerTurn: 10,
+    dangerHint: 'The marsh-folk say wounds dealt to the thing in the bog are gone by morning.',
+    awakeningFlavor: 'The bog exhales. Many heads rise where one fell long ago.',
+    sightingFlavor: 'The Swamp Hydra rears from the mire — heads weaving, wounds closing as you watch!',
   },
 };
 

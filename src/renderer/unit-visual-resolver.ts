@@ -46,6 +46,8 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   beast_basilisk: '🦎',
   beast_sea_serpent: '🐉',
   beast_wurm: '🪱',
+  beast_roc: '🦅',
+  beast_hydra: '🐍',
 };
 
 export interface UnitVisual {
