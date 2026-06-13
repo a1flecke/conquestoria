@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom } from '@/systems/beast-system';
+import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, getClaimedTrophyGoldPerTurn } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { generateMap } from '@/systems/map-generator';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
@@ -194,6 +194,81 @@ describe('isBeastConcealedFrom', () => {
     expect(isBeastConcealedFrom(boar, jungleMap, [])).toBe(false);
     const warrior = makeUnit({ id: 'w1', position: { q: 5, r: 5 } });
     expect(isBeastConcealedFrom(warrior, jungleMap, [])).toBe(false);
+  });
+});
+
+describe('hoard choices', () => {
+  function stateWithSlainBasilisk() {
+    const state = createNewGame('rome', 'beast-test-seed', 'small', 'Hoard Test');
+    state.era = 2;
+    state.beasts = {
+      mode: 'wild',
+      lairs: {
+        'lair-emerald_basilisk': makeLair({ id: 'lair-emerald_basilisk', beastId: 'emerald_basilisk', status: 'awake', unitIds: ['beast-1'] }),
+      },
+      sightingsByCiv: {},
+    };
+    const beast = makeUnit({ id: 'beast-1', type: 'beast_basilisk', owner: 'beasts' });
+    const victor = makeUnit({ id: 'hero-1', owner: state.currentPlayer, position: { q: 11, r: 10 } });
+    state.units[beast.id] = beast;
+    state.units[victor.id] = victor;
+    return { state, beast, victor };
+  }
+
+  it('tier >= 2 slay queues a pending choice and awards NO automatic gold', () => {
+    const { state, beast, victor } = stateWithSlainBasilisk();
+    const goldBefore = state.civilizations[victor.owner].gold;
+    const { state: next, slain } = recordBeastSlain(state, beast, victor);
+    expect(slain).toBeDefined();
+    expect(slain!.goldAwarded).toBe(0);
+    expect(next.civilizations[victor.owner].gold).toBe(goldBefore);
+    expect(next.beasts!.pendingHoardChoices).toEqual([{ lairId: 'lair-emerald_basilisk', civId: victor.owner }]);
+  });
+
+  it('tier 1 slay still auto-pays gold and queues nothing', () => {
+    const { state, victor } = stateWithSlainBasilisk();
+    state.beasts!.lairs['lair-giant_boar'] = makeLair({ status: 'awake', unitIds: ['boar-1'] });
+    const boar = makeUnit({ id: 'boar-1', type: 'beast_boar', owner: 'beasts' });
+    state.units[boar.id] = boar;
+    const { state: next, slain } = recordBeastSlain(state, boar, victor);
+    expect(slain!.goldAwarded).toBeGreaterThan(0);
+    expect(next.beasts!.pendingHoardChoices ?? []).toEqual([]);
+  });
+
+  it('preview exposes concrete numbers for all three options', () => {
+    const { state } = stateWithSlainBasilisk();
+    const preview = getHoardChoicePreview(state, 'lair-emerald_basilisk');
+    expect(preview.gold).toBeGreaterThan(0);
+    expect(preview.lore).toBeGreaterThan(0);
+    expect(preview.trophyGoldPerTurn).toBeGreaterThan(0);
+  });
+
+  it('applyHoardChoice gold pays out and clears the pending entry', () => {
+    const { state, beast, victor } = stateWithSlainBasilisk();
+    const { state: slainState } = recordBeastSlain(state, beast, victor);
+    const goldBefore = slainState.civilizations[victor.owner].gold;
+    const preview = getHoardChoicePreview(slainState, 'lair-emerald_basilisk');
+    const next = applyHoardChoice(slainState, 'lair-emerald_basilisk', victor.owner, 'gold');
+    expect(next.civilizations[victor.owner].gold).toBe(goldBefore + preview.gold);
+    expect(next.beasts!.pendingHoardChoices).toEqual([]);
+    expect(next.beasts!.lairs['lair-emerald_basilisk'].status).toBe('slain');
+  });
+
+  it('applyHoardChoice trophy claims the lair and produces per-turn income', () => {
+    const { state, beast, victor } = stateWithSlainBasilisk();
+    const { state: slainState } = recordBeastSlain(state, beast, victor);
+    const next = applyHoardChoice(slainState, 'lair-emerald_basilisk', victor.owner, 'trophy');
+    expect(next.beasts!.lairs['lair-emerald_basilisk'].status).toBe('claimed');
+    expect(next.beasts!.lairs['lair-emerald_basilisk'].claimedBy).toBe(victor.owner);
+    expect(getClaimedTrophyGoldPerTurn(next, victor.owner)).toBeGreaterThan(0);
+    expect(getClaimedTrophyGoldPerTurn(next, 'someone-else')).toBe(0);
+  });
+
+  it('applyHoardChoice refuses the wrong civ', () => {
+    const { state, beast, victor } = stateWithSlainBasilisk();
+    const { state: slainState } = recordBeastSlain(state, beast, victor);
+    const next = applyHoardChoice(slainState, 'lair-emerald_basilisk', 'ai-1', 'gold');
+    expect(next).toBe(slainState);
   });
 });
 

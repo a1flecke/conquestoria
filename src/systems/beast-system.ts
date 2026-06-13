@@ -1,4 +1,5 @@
-import type { BeastId, BeastLair, BeastsMode, GameMap, GameState, HexCoord, Unit } from '@/core/types';
+import type { BeastHoardChoice, BeastId, BeastLair, BeastsMode, GameMap, GameState, HexCoord, Unit } from '@/core/types';
+import { applyResearchBonus } from '@/systems/tech-system';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType, type BeastDefinition } from '@/systems/beast-definitions';
 import { hexKey, hexDistance, hexNeighbors } from '@/systems/hex-utils';
 import { createRng } from '@/systems/map-generator';
@@ -240,7 +241,8 @@ export function recordBeastSlain(
   }
 
   const def = BEAST_DEFINITIONS[lair.beastId];
-  const gold = getBeastHoardGold(def, state.era);
+  const isChoiceTier = def.tier >= 2;
+  const gold = isChoiceTier ? 0 : getBeastHoardGold(def, state.era);
   const slayerCiv = state.civilizations[victor.owner];
   const updatedLair: BeastLair = {
     ...lair, unitIds: [], status: 'slain', slainBy: victor.owner, slainTurn: state.turn,
@@ -250,12 +252,21 @@ export function recordBeastSlain(
     ...state,
     beasts: { ...state.beasts, lairs: { ...state.beasts.lairs, [lair.id]: updatedLair } },
   };
-  if (slayerCiv) {
+  if (slayerCiv && gold > 0) {
     next = {
       ...next,
       civilizations: {
         ...next.civilizations,
         [victor.owner]: { ...slayerCiv, gold: slayerCiv.gold + gold },
+      },
+    };
+  }
+  if (isChoiceTier && slayerCiv) {
+    next = {
+      ...next,
+      beasts: {
+        ...next.beasts!,
+        pendingHoardChoices: [...(next.beasts!.pendingHoardChoices ?? []), { lairId: lair.id, civId: victor.owner }],
       },
     };
   }
@@ -271,4 +282,89 @@ export function recordBeastSlain(
       ? { lairId: lair.id, beastId: lair.beastId, slayerCivId: victor.owner, slayerUnitId: victor.id, goldAwarded: gold }
       : undefined,
   };
+}
+
+// --- MR4: Hoard choices ---
+
+const TROPHY_GOLD_PER_TURN: Record<number, number> = { 1: 2, 2: 3, 3: 5, 4: 8 };
+
+export interface HoardChoicePreview {
+  gold: number;
+  lore: number;
+  trophyGoldPerTurn: number;
+  beastName: string;
+}
+
+export function getHoardChoicePreview(state: GameState, lairId: string): HoardChoicePreview {
+  const lair = state.beasts!.lairs[lairId];
+  const def = BEAST_DEFINITIONS[lair.beastId];
+  const baseGold = getBeastHoardGold(def, state.era);
+  return {
+    gold: baseGold * 2,
+    lore: Math.round(baseGold * 1.5),
+    trophyGoldPerTurn: TROPHY_GOLD_PER_TURN[def.tier],
+    beastName: def.name,
+  };
+}
+
+export function getClaimedTrophyGoldPerTurn(state: GameState, civId: string): number {
+  if (!state.beasts) return 0;
+  let total = 0;
+  for (const lair of Object.values(state.beasts.lairs)) {
+    if (lair.status === 'claimed' && lair.claimedBy === civId) {
+      total += TROPHY_GOLD_PER_TURN[BEAST_DEFINITIONS[lair.beastId].tier];
+    }
+  }
+  return total;
+}
+
+function applyBeastLoreResearch(state: GameState, civId: string, amount: number): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ) return state;
+  const result = applyResearchBonus(civ.techState, amount);
+  return {
+    ...state,
+    civilizations: { ...state.civilizations, [civId]: { ...civ, techState: result.state } },
+  };
+}
+
+export function applyHoardChoice(
+  state: GameState,
+  lairId: string,
+  civId: string,
+  choice: BeastHoardChoice,
+): GameState {
+  const beasts = state.beasts;
+  const pending = beasts?.pendingHoardChoices?.find(p => p.lairId === lairId && p.civId === civId);
+  if (!beasts || !pending) return state;
+
+  const preview = getHoardChoicePreview(state, lairId);
+  const lair = beasts.lairs[lairId];
+  const civ = state.civilizations[civId];
+  if (!civ) return state;
+
+  let next: GameState = {
+    ...state,
+    beasts: {
+      ...beasts,
+      pendingHoardChoices: (beasts.pendingHoardChoices ?? []).filter(
+        p => !(p.lairId === lairId && p.civId === civId),
+      ),
+    },
+  };
+
+  if (choice === 'gold') {
+    next = { ...next, civilizations: { ...next.civilizations, [civId]: { ...civ, gold: civ.gold + preview.gold } } };
+  } else if (choice === 'lore') {
+    next = applyBeastLoreResearch(next, civId, preview.lore);
+  } else {
+    next = {
+      ...next,
+      beasts: {
+        ...next.beasts!,
+        lairs: { ...next.beasts!.lairs, [lairId]: { ...lair, status: 'claimed', claimedBy: civId } },
+      },
+    };
+  }
+  return next;
 }
