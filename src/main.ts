@@ -39,7 +39,7 @@ import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-o
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
-import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
+import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
 import { showBeastSightingBanner } from '@/ui/beast-sighting-banner';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
@@ -2587,6 +2587,20 @@ function handleHexTap(rawCoord: HexCoord): void {
         info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
         info.textContent = formatCombatPreviewDetails(ownerName, defender.health, strengthPreview);
         previewDiv.appendChild(info);
+
+        const defenderBeastDef = getBeastDefinitionByUnitType(defender.type);
+        if (defenderBeastDef?.regenPerTurn) {
+          const traitLine = document.createElement('div');
+          traitLine.style.cssText = 'font-size:10px;color:#f4c842;margin-bottom:6px;';
+          traitLine.textContent = `⚠ Regenerates ${defenderBeastDef.regenPerTurn} HP every turn`;
+          previewDiv.appendChild(traitLine);
+        }
+        if (defenderBeastDef?.navalOnly) {
+          const traitLine = document.createElement('div');
+          traitLine.style.cssText = 'font-size:10px;color:#f4c842;margin-bottom:6px;';
+          traitLine.textContent = '⚠ Only ships and ranged units can fight it';
+          previewDiv.appendChild(traitLine);
+        }
 
         const hostileStackSize = visibleHostileUnitEntriesAtKey(key).length;
         if (hostileStackSize > 1) {
