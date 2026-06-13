@@ -3,7 +3,7 @@ import type { Camera } from '@/renderer/camera';
 import { drawCities, getCityRenderData, getProductionBadgeIcon } from '@/renderer/city-renderer';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, hexToPixel } from '@/systems/hex-utils';
 import { getLegendaryWonderMapEntries } from '@/systems/legendary-wonder-map-presentation';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 
@@ -277,7 +277,8 @@ describe('city renderer', () => {
     };
 
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
-    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+    const camera = makeCamera();
+    drawCities(ctx, state, camera, 'player', { nowMs: 1000 });
 
     const ops = (ctx as unknown as MockCanvasContext).operations;
     const landmarkIndex = ops.findIndex(operation => operation === 'legendary-landmarks:start');
@@ -340,10 +341,97 @@ describe('drawCities — explicit city render pass contract', () => {
     expectOperationBefore(ctx, 'city-pass:label', 'city-pass:status');
     expectOperationBefore(ctx, 'city-pass:status', 'city-pass:production');
     expectOperationBefore(ctx, 'city-pass:production', 'city-pass:idle');
+    expectOperationBefore(ctx, 'city-pass:idle', 'city-pass:intel');
     expectOperationBefore(ctx, 'city-pass:landmarks', `text:${city.name} (${city.population})`);
     expectOperationBefore(ctx, 'city-pass:landmarks', `text:${getProductionBadgeIcon(city)}`);
     expectOperationBefore(ctx, 'city-pass:landmarks', 'text:⚡');
     expect((ctx as unknown as MockCanvasContext).operations).not.toContain('drawImage');
+  });
+
+  it('renders viewer spy intel in the city pass without reusing activity or status corners', () => {
+    const { state, city } = addVisiblePlayerCityWithWonder(
+      createNewGame(undefined, 'city-pass-spy-intel', 'small'),
+    );
+    state.espionage!.player.spies.infiltrator = {
+      id: 'infiltrator',
+      owner: 'player',
+      name: 'Infiltrator',
+      targetCivId: 'ai-1',
+      targetCityId: city.id,
+      position: null,
+      status: 'stationed',
+      experience: 0,
+      currentMission: null,
+      cooldownTurns: 0,
+      promotionAvailable: false,
+      unitType: 'spy_scout',
+      infiltrationCityId: city.id,
+    };
+    state.espionage!.player.spies.sentinel = {
+      ...state.espionage!.player.spies.infiltrator,
+      id: 'sentinel',
+      name: 'Sentinel',
+      targetCivId: null,
+      targetCityId: city.id,
+      status: 'embedded',
+      infiltrationCityId: null,
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const camera = makeCamera();
+    drawCities(ctx, state, camera, 'player', { nowMs: 1000 });
+
+    const calls = (ctx as unknown as MockCanvasContext).fillTextCalls;
+    const eye = calls.find(call => call.text === '👁');
+    const shield = calls.find(call => call.text === '🛡');
+    const world = hexToPixel(city.position, camera.hexSize);
+    const center = camera.worldToScreen(world.x, world.y);
+    expect(eye).toBeDefined();
+    expect(shield).toBeDefined();
+    expect(eye!.y).toBeGreaterThan(center.y - camera.hexSize * 0.2);
+    expect(shield!.y).toBeGreaterThan(center.y - camera.hexSize * 0.2);
+    expectOperationBefore(ctx, 'city-pass:idle', 'city-pass:intel');
+  });
+
+  it('does not render live spy intel on a fogged last-seen city', () => {
+    const { state, city } = addVisiblePlayerCityWithWonder(
+      createNewGame(undefined, 'city-pass-spy-fog', 'small'),
+    );
+    state.espionage!.player.spies.infiltrator = {
+      id: 'infiltrator',
+      owner: 'player',
+      name: 'Infiltrator',
+      targetCivId: 'ai-1',
+      targetCityId: city.id,
+      position: null,
+      status: 'stationed',
+      experience: 0,
+      currentMission: null,
+      cooldownTurns: 0,
+      promotionAvailable: false,
+      unitType: 'spy_scout',
+      infiltrationCityId: city.id,
+    };
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+    state.civilizations.player.visibility.lastSeen ??= {};
+    const tile = state.map.tiles[hexKey(city.position)];
+    state.civilizations.player.visibility.lastSeen[hexKey(city.position)] = {
+      coord: city.position,
+      terrain: tile.terrain,
+      elevation: tile.elevation,
+      resource: tile.resource,
+      improvement: tile.improvement,
+      improvementTurnsLeft: tile.improvementTurnsLeft,
+      owner: tile.owner,
+      hasRiver: tile.hasRiver,
+      wonder: tile.wonder,
+      city: { id: city.id, name: city.name, owner: city.owner, population: city.population },
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { nowMs: 1000 });
+
+    expect((ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text)).not.toContain('👁');
   });
 
   it('restores canvas state around each explicit city render item', () => {

@@ -7,6 +7,7 @@ import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 import { resolveUnitVisual, type UnitMotionState, type UnitRoleMarker } from './unit-visual-resolver';
 import {
   buildUnitMapPresentations,
+  applyUnitAnchorOffset,
   getUnitLayoutMetrics,
   type UnitMapPresentation,
 } from './unit-map-presentation';
@@ -160,8 +161,9 @@ export function drawUnitPresentations(
       if (!camera.isHexVisible(renderCoord)) continue;
 
       const pixel = hexToPixel(renderCoord, camera.hexSize);
-      const screen = camera.worldToScreen(pixel.x, pixel.y);
+      const rawScreen = camera.worldToScreen(pixel.x, pixel.y);
       const size = camera.hexSize * camera.zoom;
+      const screen = applyUnitAnchorOffset(rawScreen, size, presentation.anchorOffsetFactor);
       const metrics = getUnitLayoutMetrics(size);
 
       if (presentation.isSelected) {

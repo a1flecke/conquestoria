@@ -8,7 +8,7 @@ import {
 } from './sprites/v2/index';
 import type { Camera } from './camera';
 import type { HexCoord } from '@/core/types';
-import { getUnitLayoutMetrics } from './unit-map-presentation';
+import { applyUnitAnchorOffset, getUnitLayoutMetrics } from './unit-map-presentation';
 import type { UnitRoleMarker } from './unit-visual-resolver';
 
 /** Sprite wrappers live in world-space; the container applies camera zoom. */
@@ -37,6 +37,7 @@ export interface SpriteEntity {
   health?: number;
   fortified?: boolean;
   roleMarker?: UnitRoleMarker;
+  anchorOffsetFactor?: { x: number; y: number };
 }
 
 interface PoolEntry {
@@ -46,6 +47,7 @@ interface PoolEntry {
   faction:      string;
   coord:        HexCoord;       // stored so we can detect position change after movement
   memberIds:    string[];
+  anchorOffsetFactor: { x: number; y: number };
 }
 
 // djb2 hash — deterministic, no external dependency
@@ -120,6 +122,7 @@ export class SpriteOverlay {
         seen.add(key);
 
         const existing = this.pool.get(key);
+        const anchorOffsetFactor = entity.anchorOffsetFactor ?? { x: 0, y: 0 };
         if (existing) {
           // Pool hit — update state via setAttribute (no node replacement!)
           existing.spriteWrapEl.setAttribute('data-state', entity.state);
@@ -129,11 +132,18 @@ export class SpriteOverlay {
           existing.el.dataset.memberIds = existing.memberIds.join(',');
           if (entity.kind === 'unit') updateUnitDecorations(existing.el, entity);
           // Update world position if unit moved hex after movement animation completed
-          if (existing.coord.q !== coord.q || existing.coord.r !== coord.r) {
-            const px = hexToPixel(coord, camera.hexSize);
+          if (
+            existing.coord.q !== coord.q
+            || existing.coord.r !== coord.r
+            || existing.anchorOffsetFactor.x !== anchorOffsetFactor.x
+            || existing.anchorOffsetFactor.y !== anchorOffsetFactor.y
+          ) {
+            const rawPx = hexToPixel(coord, camera.hexSize);
+            const px = applyUnitAnchorOffset(rawPx, camera.hexSize, anchorOffsetFactor);
             existing.el.style.left = `${px.x}px`;
             existing.el.style.top = `${px.y}px`;
             existing.coord = coord;
+            existing.anchorOffsetFactor = anchorOffsetFactor;
           }
         } else {
           // Pool miss — create element
@@ -141,7 +151,8 @@ export class SpriteOverlay {
           if (!svgHtml) continue; // no v2 sprite — canvas handles it
 
           const phase = (hashCode(entity.id) % 100) / 100;
-          const px = hexToPixel(coord, camera.hexSize);
+          const rawPx = hexToPixel(coord, camera.hexSize);
+          const px = applyUnitAnchorOffset(rawPx, camera.hexSize, anchorOffsetFactor);
 
           const wrapper = document.createElement('div');
           wrapper.dataset.entityId = entity.id;
@@ -174,6 +185,7 @@ export class SpriteOverlay {
             faction: entity.faction,
             coord,
             memberIds: entity.memberIds ?? [entity.id],
+            anchorOffsetFactor,
           });
         }
       }

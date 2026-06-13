@@ -91,6 +91,7 @@ function createCityRenderItems(
   }
 
   const items: CityRenderItem[] = [];
+  const viewerSpies = Object.values(state.espionage?.[playerCivId]?.spies ?? {});
   const projections = getCityRenderProjection(state, playerCivId);
   const projectedKeys = new Set(projections.map(projection => `${projection.position.q},${projection.position.r}`));
   for (const projection of projections) {
@@ -134,6 +135,16 @@ function createCityRenderItems(
         isMinorCiv: projection.isLive && projection.owner.startsWith('mc-'),
         minorCivIcon,
         breakaway: breakaway ? { status: breakaway.status } : undefined,
+        intel: {
+          hasEmbeddedSpy: projection.isLive
+            && projection.owner === playerCivId
+            && viewerSpies.some(spy => spy.status === 'embedded' && spy.targetCityId === city?.id),
+          hasInfiltratedSpy: projection.isLive
+            && viewerSpies.some(spy => (
+              spy.infiltrationCityId === city?.id
+              && (spy.status === 'stationed' || spy.status === 'on_mission' || spy.status === 'idle')
+            )),
+        },
         landmarkEntries,
         lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         reducedMotion,
@@ -172,6 +183,7 @@ function createCityRenderItems(
           ?? '#888',
         playerCivId,
         isMinorCiv: false,
+        intel: { hasEmbeddedSpy: false, hasInfiltratedSpy: false },
         landmarkEntries,
         lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         reducedMotion,
