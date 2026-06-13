@@ -11,6 +11,7 @@ import { processBarbarians } from '@/systems/barbarian-system';
 import {
   processBeasts, recordBeastSlain, BEAST_OWNER,
   LAIR_GROWTH_INTERVAL_TURNS, LAIR_GROWTH_CAP, LAIR_GROWTH_EXPERIENCE,
+  applyHoardChoice, getClaimedTrophyGoldPerTurn,
 } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { resolveCombat } from '@/systems/combat-system';
@@ -907,6 +908,18 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     bus.emit('era:advanced', { era: newEra });
     for (const mc of Object.values(newState.minorCivs)) {
       processMinorCivEraUpgrade(newState, mc);
+    }
+  }
+
+  // --- Beasts MR4: AI hoard auto-resolve + per-turn trophy income ---
+  if (newState.beasts) {
+    for (const pending of [...(newState.beasts.pendingHoardChoices ?? [])]) {
+      if (pending.civId === newState.currentPlayer) continue;
+      newState = applyHoardChoice(newState, pending.lairId, pending.civId, 'gold');
+    }
+    for (const civId of Object.keys(newState.civilizations)) {
+      const trophyGold = getClaimedTrophyGoldPerTurn(newState, civId);
+      if (trophyGold > 0) grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + trophyGold;
     }
   }
 
