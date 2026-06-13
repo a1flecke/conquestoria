@@ -1,8 +1,9 @@
-import type { BeastHoardChoice, BeastId, BeastLair, BeastsMode, GameMap, GameState, HexCoord, Unit } from '@/core/types';
+import type { BeastHoardChoice, BeastId, BeastLair, BeastsMode, GameMap, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { applyResearchBonus } from '@/systems/tech-system';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType, type BeastDefinition } from '@/systems/beast-definitions';
 import { hexKey, hexDistance, hexNeighbors } from '@/systems/hex-utils';
 import { createRng } from '@/systems/map-generator';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export const BEAST_OWNER = 'beasts';
 
@@ -91,7 +92,26 @@ export interface BeastProcessResult {
   awakenings: BeastAwakening[];
 }
 
-const IMPASSABLE_FOR_BEASTS = new Set(['ocean', 'coast', 'mountain']);
+const IMPASSABLE_FOR_LAND_BEASTS = new Set(['ocean', 'coast', 'mountain']);
+const WATER_TERRAINS = new Set(['ocean', 'coast']);
+
+export function isTerrainPassableForBeast(unitType: UnitType, terrain: string): boolean {
+  const domain = UNIT_DEFINITIONS[unitType]?.domain;
+  if (domain === 'naval') return WATER_TERRAINS.has(terrain);
+  return !IMPASSABLE_FOR_LAND_BEASTS.has(terrain);
+}
+
+export interface BeastAttackEligibility { allowed: boolean; reason?: string }
+
+export function canUnitAttackBeast(attacker: Unit, target: Unit): BeastAttackEligibility {
+  const def = getBeastDefinitionByUnitType(target.type);
+  if (!def?.navalOnly || target.owner !== BEAST_OWNER) return { allowed: true };
+  const attackerDef = UNIT_DEFINITIONS[attacker.type];
+  const isNaval = attackerDef?.domain === 'naval';
+  const isRanged = attackerDef?.attackProfile?.kind === 'ranged';
+  if (isNaval || isRanged) return { allowed: true };
+  return { allowed: false, reason: `Only ships and ranged units can fight the ${def.name}.` };
+}
 
 export function processBeasts(
   lairs: BeastLair[],
@@ -125,7 +145,7 @@ export function processBeasts(
       for (const n of hexNeighbors(lair.position)) {
         if (spawnTiles.length >= def.packSize) break;
         const tile = map.tiles[hexKey(n)];
-        if (tile && !IMPASSABLE_FOR_BEASTS.has(tile.terrain) && !occupied.has(hexKey(n))) spawnTiles.push(n);
+        if (tile && isTerrainPassableForBeast(def.unitType, tile.terrain) && !occupied.has(hexKey(n))) spawnTiles.push(n);
       }
       for (const pos of spawnTiles.slice(0, def.packSize)) {
         spawnOrders.push({ lairId: lair.id, beastId: lair.beastId, position: { ...pos } });
@@ -166,7 +186,7 @@ export function processBeasts(
     const step = hexNeighbors(beast.position)
       .filter(n => {
         const tile = map.tiles[hexKey(n)];
-        return tile && !IMPASSABLE_FOR_BEASTS.has(tile.terrain) && !occupied.has(hexKey(n)) && inLeash(n);
+        return tile && isTerrainPassableForBeast(def.unitType, tile.terrain) && !occupied.has(hexKey(n)) && inLeash(n);
       })
       .sort((a, b) => hexDistance(a, goal) - hexDistance(b, goal))[0];
     if (step && hexDistance(step, goal) < hexDistance(beast.position, goal)) {

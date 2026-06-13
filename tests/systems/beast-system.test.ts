@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, getClaimedTrophyGoldPerTurn } from '@/systems/beast-system';
+import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, getClaimedTrophyGoldPerTurn, isTerrainPassableForBeast, canUnitAttackBeast } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { generateMap } from '@/systems/map-generator';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
@@ -308,5 +308,50 @@ describe('pack spawning', () => {
       return;
     }
     throw new Error('no seed awakened the wolf lair in 60 tries');
+  });
+});
+
+describe('beast passability', () => {
+  it('naval beasts move only on water; land beasts only on land', () => {
+    expect(isTerrainPassableForBeast('beast_sea_serpent', 'ocean')).toBe(true);
+    expect(isTerrainPassableForBeast('beast_sea_serpent', 'coast')).toBe(true);
+    expect(isTerrainPassableForBeast('beast_sea_serpent', 'grassland')).toBe(false);
+    expect(isTerrainPassableForBeast('beast_boar', 'ocean')).toBe(false);
+    expect(isTerrainPassableForBeast('beast_boar', 'forest')).toBe(true);
+    expect(isTerrainPassableForBeast('beast_boar', 'mountain')).toBe(false);
+  });
+
+  it('serpent move orders never target land (no beaching)', () => {
+    const map = tinyMap({
+      '10,10': 'ocean', '11,10': 'ocean', '12,10': 'grassland',
+      '9,10': 'ocean', '10,9': 'ocean', '10,11': 'coast', '11,9': 'grassland', '9,11': 'ocean',
+    });
+    const lair = makeLair({ id: 'lair-sea_serpent', beastId: 'sea_serpent', position: { q: 10, r: 10 }, status: 'awake', unitIds: ['serp-1'] });
+    const serpent = makeUnit({ id: 'serp-1', type: 'beast_sea_serpent', owner: 'beasts', position: { q: 10, r: 10 } });
+    const ship = makeUnit({ id: 'ship-1', type: 'galley', position: { q: 11, r: 10 } });
+    const result = processBeasts([lair], map, [ship], [serpent], 3, 'wild', 7);
+    for (const order of result.moveOrders) {
+      const terrain = map.tiles[`${order.toCoord.q},${order.toCoord.r}`].terrain;
+      expect(['ocean', 'coast']).toContain(terrain);
+    }
+  });
+});
+
+describe('canUnitAttackBeast', () => {
+  const serpent = makeUnit({ id: 's', type: 'beast_sea_serpent', owner: 'beasts' });
+  const boar = makeUnit({ id: 'b', type: 'beast_boar', owner: 'beasts' });
+
+  it('land melee cannot attack a navalOnly beast', () => {
+    expect(canUnitAttackBeast(makeUnit({ type: 'warrior' }), serpent).allowed).toBe(false);
+    expect(canUnitAttackBeast(makeUnit({ type: 'warrior' }), serpent).reason).toContain('ships and ranged');
+  });
+
+  it('naval and ranged units can attack a navalOnly beast', () => {
+    expect(canUnitAttackBeast(makeUnit({ type: 'galley' }), serpent).allowed).toBe(true);
+    expect(canUnitAttackBeast(makeUnit({ type: 'archer' }), serpent).allowed).toBe(true);
+  });
+
+  it('everything can attack normal beasts', () => {
+    expect(canUnitAttackBeast(makeUnit({ type: 'warrior' }), boar).allowed).toBe(true);
   });
 });
