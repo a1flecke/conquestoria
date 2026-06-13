@@ -125,6 +125,8 @@ export class SpriteOverlay {
           existing.spriteWrapEl.setAttribute('data-state', entity.state);
           existing.spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
           existing.memberIds = entity.memberIds ?? [entity.id];
+          existing.el.dataset.entityId = entity.id;
+          existing.el.dataset.memberIds = existing.memberIds.join(',');
           if (entity.kind === 'unit') updateUnitDecorations(existing.el, entity);
           // Update world position if unit moved hex after movement animation completed
           if (existing.coord.q !== coord.q || existing.coord.r !== coord.r) {
@@ -142,6 +144,8 @@ export class SpriteOverlay {
           const px = hexToPixel(coord, camera.hexSize);
 
           const wrapper = document.createElement('div');
+          wrapper.dataset.entityId = entity.id;
+          wrapper.dataset.memberIds = (entity.memberIds ?? [entity.id]).join(',');
           const wrapSizePx = entity.kind === 'unit'
             ? getUnitLayoutMetrics(camera.hexSize).displaySize
             : camera.hexSize * 2;

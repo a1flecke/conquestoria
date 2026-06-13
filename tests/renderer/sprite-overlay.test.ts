@@ -183,10 +183,12 @@ describe('sync() wrapper sizing', () => {
   });
 
   it('marks every represented stack member active only while its element is visible', () => {
-    const { overlay } = mountOverlay();
+    const { overlay, mount } = mountOverlay();
     overlay.sync(cam({ zoom: 1 }), [entity({ memberIds: ['u1', 'u2', 'u3'] })], MAP, OPTS);
 
     expect([...overlay.getActiveIds()].sort()).toEqual(['u1', 'u2', 'u3']);
+    const wrapper = mount.querySelector('#unit-sprites > [data-entity-id="u1"]') as HTMLElement | null;
+    expect(wrapper?.dataset.memberIds).toBe('u1,u2,u3');
 
     overlay.sync(cam({ zoom: 1 }), [], MAP, OPTS);
     expect(overlay.getActiveIds().size).toBe(0);
