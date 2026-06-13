@@ -1,0 +1,521 @@
+# Pirate Factions Design
+
+**Issue:** [#353](https://github.com/a1flecke/conquestoria/issues/353)
+**Date:** 2026-06-13
+**Status:** Approved design
+
+## Purpose
+
+Add persistent, era-aware pirate factions that threaten naval trade and coastal economies through patrols, raids, blockades, tribute demands, coastal enclaves, mobile deep-sea flotillas, and final-era proxy contracts. Pirates must remain understandable, counterable, historically recognizable, save-compatible, and fully represented in the live UI, renderer, animation, and audio paths.
+
+This is the full issue scope. Pirates are not a thin naval reskin of barbarians and are not a reason to build a generic hostile-faction framework.
+
+## Design Principles
+
+- Piracy is a recurring maritime pressure, not a one-time map cleanup problem.
+- Players must see and understand a threat before suffering major consequences.
+- Pirate technology follows maritime capability; pirate behavior follows success and notoriety.
+- Older ships remain in service for a time, but implausibly ancient hulls retire from modern fleets.
+- Every mutation has one canonical system path used by players, AI, and turn processing.
+- Viewer-scoped intelligence must never reveal information the viewer has not earned.
+- Production visuals and sounds are part of the feature, not optional polish.
+- No temporary placeholder may remain open when the overall implementation plan finishes.
+
+## Architecture
+
+Use a dedicated, definition-driven pirate domain with small modules and canonical interfaces:
+
+- `pirate-definitions.ts`: balance constants, maritime stages, fleet rosters, behavior thresholds, tribute costs, spawn limits, and presentation metadata.
+- `pirate-system.ts`: thin deterministic completed-round coordinator that returns updated state and typed transition events.
+- `pirate-ecology.ts`: pressure, scheduled spawn checks, habitat scoring, faction caps, covert anchorages, and regional suppression.
+- `pirate-behavior.ts`: patrol, raid, blockade, escort detection, target selection, and flotilla relocation.
+- `pirate-actions.ts`: tribute, contracts, enclave assaults, and idempotent faction destruction.
+- `pirate-ownership.ts`: authoritative pirate-owner classification and hostility rules for combat, AI, UI, and rendering.
+- `pirate-presentation.ts`: viewer-scoped names, intelligence, map presentation, action availability, and disabled reasons.
+- `pirate-notifications.ts` and listeners: typed, viewer-scoped notification routing and hot-seat queuing.
+- `pirate-audio-director.ts`: viewer-filtered strategic pirate cues; ordinary unit combat remains in `SfxDirector`.
+
+`turn-manager` makes one call into the pirate coordinator. It must not absorb pirate-specific decision logic.
+
+## State Model
+
+`GameState.pirates` is a versioned serializable plain object containing:
+
+- `version`
+- `factions: Record<PirateFactionId, PirateFactionState>`
+- `pressure`, including capped accumulated pressure and regional suppression records
+- `intelByCiv`, stored at the exact granularity earned by each viewer
+- `notificationsByCiv`, containing typed, read-state-aware pirate notification records
+- `nextSpawnCheckTurn`
+- pirate ID counters
+- migration activation and warning-delivery markers
+
+Each pirate faction has a distinct `pirate-*` owner ID and contains:
+
+- identity and generated name
+- behavior tier: `patrolling | raiding | blockading`
+- maritime stage: `1 | 2 | 3 | 4 | 5`
+- capped notoriety
+- owned ship IDs
+- headquarters
+- tribute protection and demand cooldowns by civilization
+- optional active proxy contract
+- current raid or blockade intent
+- transition guards needed for replay-safe events
+
+Headquarters are a discriminated union:
+
+```ts
+type PirateHeadquarters =
+  | {
+      kind: 'coastal-enclave';
+      position: HexCoord;
+      integrity: number;
+      maxIntegrity: number;
+    }
+  | {
+      kind: 'deep-sea-flotilla';
+      flagshipUnitId: string;
+      relocation: PirateRelocationState;
+    };
+```
+
+Ship health remains canonical unit health. Coastal enclave integrity is canonical headquarters health. Flotilla headquarters damage derives from flagship health.
+
+## Activation And Spawning
+
+Piracy activates only after any major civilization completes `Galleys`. This guarantees that naval counterplay exists before pirates enter play.
+
+Faction caps are shared across both headquarters types:
+
+| Map size | Maximum factions |
+|---|---:|
+| Small | 3 |
+| Medium | 4 |
+| Large | 5 |
+
+At most two active factions may use deep-sea flotilla headquarters.
+
+Spawn checks occur every four completed rounds and may create at most one faction per check. Pressure rises with maritime advancement, coastal trade, wealthy coastal cities, and ungoverned maritime regions. If no legal headquarters site exists, pressure remains capped and the system retries at a later scheduled check; it never force-spawns.
+
+Destroying a headquarters creates eight completed rounds of regional suppression. This lowers local eligibility but does not remove piracy globally.
+
+### Coastal Enclave Eligibility
+
+Unclaimed coastline is preferred. Ownership alone does not make a claimed coast invalid. A covert anchorage may appear on claimed coast only when all are true:
+
+- it is sufficiently remote from cities;
+- the exact tile is not currently visible to the owner;
+- it lies outside nearby military and naval control;
+- terrain and access rules make it a legal coastal headquarters site.
+
+The owning civilization receives delayed suspected-region intelligence, not the exact tile.
+
+### Headquarters Selection
+
+Coastal enclaves and deep-sea flotillas are parallel ecology choices, not primary and fallback modes. A seeded weighted selector chooses between eligible habitats. Both may coexist, subject to the shared cap and two-flotilla limit.
+
+## Maritime Progression And Units
+
+Pirate maritime stage follows the highest completed maritime capability held by any major civilization:
+
+| Stage | Trigger | New current hull |
+|---|---|---|
+| 1 | `Galleys` | Pirate Galley |
+| 2 | `Navigation` | Corsair/Xebec |
+| 3 | `Triremes` | Pirate Frigate |
+| 4 | `Caravels` | Ironclad Raider |
+| 5 | `Amphibious Warfare` | Rogue Flotilla, Fast Attack Craft, Pirate Mothership |
+
+Add six dedicated, non-trainable `UnitType`s:
+
+- `pirate_galley`
+- `pirate_corsair`
+- `pirate_frigate`
+- `pirate_ironclad`
+- `pirate_fast_attack_craft`
+- `pirate_mothership`
+
+They must be present in unit definitions, descriptions, fallback rendering, sprite catalogs, animation classification, and SFX catalogs, but absent from `TRAINABLE_UNITS` and technology unlock arrays.
+
+Every reinforcement fleet guarantees one current-stage hull. Remaining ships use deterministic weighted draws from the current and previous two stages. Existing ships never auto-upgrade. Stage 5 retires galleys and corsairs; modern fleets use fast attack craft, mothership support, ironclads/steel patrol craft, and aging frigates.
+
+Fleet limits:
+
+- Patrolling: 1-2 ships
+- Raiding: 2-3 ships
+- Blockading: 3-4 ships
+
+## Behavior, Targeting, And Escalation
+
+Notoriety increases by one for a successful coastal raid or transport kill, capped at one point per completed round.
+
+- Raiding begins at notoriety 2.
+- Blockading begins at notoriety 5 and requires maritime stage 2 or later.
+- Tiers never demote. Losses slow escalation by preventing successful activity.
+
+Target priority is:
+
+1. Unescorted transports
+2. Eligible coastal cities
+3. Other hostile naval units
+4. Escorted transports, only while blockading
+
+A transport is escorted only when a friendly combat-capable naval unit occupies the same tile or an adjacent tile. Tests must prove that proximity without naval combat capability is insufficient.
+
+Pirates must not deliberately target, path toward, blockade, or reinforce against a civilization currently protected by tribute from that faction. Pirate units do not become friendly and do not grant passage.
+
+## Raids And Blockades
+
+A faction resolves at most one economic raid per completed round. A valid economic raid requires either:
+
+- a pirate ship ending adjacent to an eligible coastal city; or
+- destruction of a transport belonging to the victim.
+
+Maximum plunder by maritime stage is `5 / 8 / 12 / 16 / 20` gold, capped by available treasury. The design does not invent invisible ocean paths for the current abstract trade-route model.
+
+A coastal city is blockaded only when all are true:
+
+- the pirate faction is Tier 3;
+- at least two ships from that faction are within two hexes;
+- at least one of those ships is adjacent to the city;
+- the city owner is not protected by tribute from that faction.
+
+Blockade effects do not stack:
+
+- trade routes involving that city produce no income;
+- that city's gold yield is reduced by 25%;
+- food and production are unaffected.
+
+The blockade ends immediately when any required condition becomes false, including ships being driven away, faction destruction, tribute payment, or a contract redirecting the faction.
+
+## Headquarters Combat And Movement
+
+### Coastal Enclaves
+
+Enclaves have integrity from 0 to 100. An enclave is exposed only when no surviving ship owned by that pirate faction occupies the enclave tile or an adjacent tile. An adjacent combat-capable naval unit may then spend its action assaulting the enclave. Raiding and Blockading enclaves counterfire once per assault through a definition-backed headquarters attack profile; Patrolling enclaves do not counterfire. Integrity reaching zero calls the canonical faction-destruction helper.
+
+### Deep-Sea Flotillas
+
+The headquarters is linked to a named flagship unit. Sinking the flagship calls the same canonical faction-destruction helper.
+
+Flotillas attempt relocation every four completed rounds:
+
+- relocation is blocked if the flagship was attacked during that round or a hostile combat-capable naval unit is adjacent to it at completed-round resolution;
+- movement follows a legal contiguous ocean path of two to four hexes and never teleports;
+- tracked viewers see intended direction one round in advance;
+- untracked viewers receive no destination or direction leak.
+
+## Tribute
+
+Tribute costs are predictable and definition-driven:
+
+| Behavior | Base cost |
+|---|---:|
+| Patrolling | 15 |
+| Raiding | 30 |
+| Blockading | 50 |
+
+Add `0 / 5 / 10 / 15 / 20` by maritime stage. Demands begin only when the targeted civilization has positive projected income. Payment cannot create debt and may remain temporarily unaffordable.
+
+Tribute lasts 15 turns for that faction only. Payment immediately cancels unresolved raids and blockades against the payer. Already resolved losses are not reversed. Protection ends immediately if the payer attacks that faction. Tribute and hiring the same faction are mutually exclusive.
+
+## Era 5 Proxy Contracts
+
+Only Stage 5 factions may be hired. A contract:
+
+- lasts eight turns;
+- has one employer and one selected rival target;
+- costs twice the faction's current tribute price;
+- gives the employer no direct control over pirate units;
+- creates no formal war;
+- redirects pirate targeting toward the target's naval trade and coastal economy;
+- rolls one deterministic 25% exposure check per successful contract raid;
+- on exposure, identifies the employer and records a `-30` relationship event for the target against the employer;
+- ends if the faction, employer, or target is eliminated.
+
+No automatic war or global diplomacy penalty is applied.
+
+## Completed-Round Order
+
+Pirates process once per completed game round after trade-route advancement but before final economy settlement:
+
+1. Normalize expired tribute and contracts.
+2. Resolve valid raids and blockade effects against current trade activity.
+3. Reset, move, and attack pirate units through canonical unit and combat helpers.
+4. Resolve flotilla relocation.
+5. Advance notoriety, behavior tiers, and maritime-stage reinforcement.
+6. Update pressure and suppression.
+7. Run a scheduled spawn check when due.
+8. Emit viewer-scoped transition events.
+9. Continue ordinary economy settlement with pirate consequences included.
+
+All randomness derives from game identity, completed round, faction ID, and event purpose. Pirate logic must not use `Math.random()`.
+
+## Canonical Destruction
+
+One idempotent helper destroys a pirate faction regardless of caller. It:
+
+- removes or resolves the headquarters;
+- removes or neutralizes faction-owned units as defined;
+- terminates tribute, raids, blockades, and contracts;
+- records rewards and regional suppression;
+- updates history and intelligence;
+- emits each transition exactly once.
+
+Player combat, AI combat, enclave assault, and turn-loop combat must all use this helper.
+
+## Pirate Waters UI
+
+After first pirate contact, a durable `Pirate Waters` affordance opens the authoritative management surface. Desktop uses a side panel and mobile uses a bottom sheet.
+
+The panel lists every faction the viewer has discovered. Selecting a faction opens its dossier without hiding the list. It is reachable from:
+
+- map selection;
+- the Pirate Waters affordance;
+- pirate notification `Review` actions.
+
+### Intelligence Levels
+
+- `Rumored`: approximate region and warning only.
+- `Sighted`: headquarters type, last-seen position, and turn.
+- `Observed`: currently visible ships and behavior.
+- `Tracked`: relocation direction or active target.
+
+Unknown exact location, fleet composition, health, behavior, and tier remain hidden. Player-facing terms are `Patrolling`, `Raiding`, and `Blockading`, not unexplained tier numbers.
+
+### Dossier
+
+The dossier shows only earned information and may expose:
+
+- faction name and behavior;
+- maritime stage;
+- headquarters type, status, and last-seen turn;
+- known fleet composition;
+- raid target, blockade effects, or relocation countdown;
+- tribute protection and duration;
+- available actions and exact disabled reasons.
+
+Actions are:
+
+- `Focus headquarters`
+- `Pay tribute`
+- `Hire flotilla`, Stage 5 only
+- `Track raid target`
+- contextual headquarters-destruction guidance
+
+Every action revalidates current state through canonical helpers. Paid actions require confirmation and are replay-safe. Failure leaves state unchanged, explains the reason, and refreshes the open panel immediately.
+
+## Notifications And Hot Seat
+
+Toasts are concise and informational; economic actions do not live inside transient toasts.
+
+Pirate notifications persist as typed, save-backed, viewer-scoped entries containing semantic references such as faction ID and event kind, never stale callbacks. Opening an entry resolves current state and action availability again.
+
+These records live in `GameState.pirates.notificationsByCiv`; the general notification log may project them for display but is not their source of truth.
+
+Routine events are grouped once per faction per completed round. Tribute demands, active blockades, headquarters destruction, and contract exposure remain individually visible. Hot-seat events are queued only for their intended viewers and must not leak outgoing-player intelligence or audio.
+
+## Player Truth Table
+
+| Before | Action | State change | Immediate visible result | Must remain reachable |
+|---|---|---|---|---|
+| Faction demands tribute | Confirm `Pay tribute` | Treasury decreases; protection starts; pending raid/blockade cancels | Cost, protection duration, map hostility, blockade marker, and actions refresh | Faction dossier and history |
+| Tribute button is stale | Click `Pay tribute` | None | Inline failure reason and refreshed cost/status | All other dossier actions |
+| Valid Stage 5 faction | Confirm `Hire flotilla` | Contract begins; targeting redirects | Contract target, duration, risk, and unavailable tribute state refresh | Contract history and faction list |
+| Known headquarters | Click `Focus headquarters` | Camera only | Camera centers on exact visible or last-seen position with correct label | Dossier remains reopenable |
+| Rumored enclave | Click region focus | Camera only | Camera centers on approximate region without revealing a tile | Rumor entry and dossier |
+| Blockaded city | Open faction dossier | None | Responsible faction, conditions, and exact city-local losses appear | City panel and all factions |
+| Enclave defenders cleared | Assault enclave | Unit action spent; integrity changes | Integrity, damage art, combat feedback, and button availability refresh | Combat preview and dossier |
+
+## Misleading UI Risks
+
+- `Tracked` must not appear from a sighting alone; direction or target intelligence must actually be earned.
+- `Blockading` must not appear unless every blockade condition is currently true.
+- `Protected` must not imply friendly units, safe passage, or protection from other pirate factions.
+- `Hire flotilla` must remain hidden outside Stage 5 and disabled when no valid rival exists.
+- `Focus headquarters` must distinguish current visibility from last-seen or suspected information.
+- Fleet composition must never include ships observed only by another hot-seat player.
+
+Negative UI tests must prove every boundary above.
+
+## V2 Sprite And Renderer Contract
+
+### Coverage
+
+Production v2 assets are required for:
+
+- all six pirate unit types;
+- five coastal-enclave stage foundations;
+- five deep-sea-flotilla stage compositions;
+- three reusable enclave behavior overlays: hidden, fortified, stronghold;
+- shared wake, smoke, fire, cannon, debris, flag, blockade, and relocation layers.
+
+Add `landmark` as a first-class `SpriteEntity` kind with a dedicated `PIRATE_HEADQUARTERS_SPRITE_CATALOG`. Enclaves must not masquerade as city buildings or improvements.
+
+Pirates use one neutral outlaw visual family: weathered timber, oxidized metal, patched canvas, soot, signal red, bone-white markings, and the shared ink/material language. Civilization palettes do not recolor pirates.
+
+### State Channels
+
+Sprite state uses independent attributes:
+
+- `data-state="idle | walk | attack | hurt | death"`
+- `data-mode="patrol | raid | blockade | relocating"`
+- `data-damage="0 | 1 | 2 | 3"`
+- `data-tier="1 | 2 | 3"`
+- `data-stage="1 | 2 | 3 | 4 | 5"`
+
+A sprite-state controller consumes typed movement, combat, blockade, relocation, and destruction events. One-shot states expire deterministically and return to the persistent mode.
+
+### Damage
+
+Use shared thresholds:
+
+- 0: 76-100
+- 1: 51-75
+- 2: 26-50
+- 3: 1-25
+
+Every unit and headquarters sprite contains explicit `.cq-damage-1`, `.cq-damage-2`, and `.cq-damage-3` structural groups. Torn sails, broken oars, breached hulls, collapsed docks, missing armor, disabled radar, listing, and debris must communicate damage. Smoke alone is insufficient.
+
+### Animation
+
+Every unit supports idle, movement, attack, hurt, and death. Required class-specific motion includes:
+
+- galley oars and ram/boarding surge;
+- corsair sail flex and boarding surge;
+- frigate broadside recoil and rolling smoke;
+- ironclad engine wake, exhaust, and heavy recoil;
+- fast attack craft bow lift, engine wake, and short weapon burst;
+- mothership slow roll, crane/boat motion, diesel exhaust, and sinking;
+- enclave flags, surf, cranes, defensive fire, and collapse.
+
+Blockade animation is restrained and cannot flash continuously. Deterministic phase offsets prevent synchronized loops.
+
+Moving units remain in the DOM overlay using interpolated world positions. Reduced-motion mode keeps static v2 sprites, headquarters, damage, targeting, and blockade information visible while disabling looping and one-shot motion.
+
+Canvas fallbacks remain defensive resilience only. Tests must prove every supported pirate unit and headquarters resolves to its production v2 asset in normal operation.
+
+## SFX Contract
+
+Unit combat and movement remain under `SfxDirector`. Viewer-targeted strategic pirate events use `PirateAudioDirector`.
+
+Required production families:
+
+- Galley: oars, hull creak, ram/boarding impact
+- Corsair: sail snap, light cannon, timber impact
+- Frigate: broadside, heavy wood impact, mast collapse
+- Ironclad: engine, heavy gun, metal strike
+- Fast attack craft: fast engine, short autocannon burst
+- Mothership: diesel engine, horn, heavy sinking
+- Enclave: surf/dock ambience, defensive cannon, structural collapse
+- Strategic: sighting, raid, blockade, tribute, contract accepted, exposure
+
+Rules:
+
+- only visible or viewer-targeted events play;
+- routine off-screen movement is silent;
+- enclave surf and dock ambience plays only while a currently visible enclave is focused or its dossier is open, and stops on focus change, panel close, handoff, or disposal;
+- movement sound is rate-limited per visible movement sequence, not repeated per hex;
+- fire precedes impact with a short deterministic delay;
+- faction destruction suppresses duplicate unit and strategic destruction cues;
+- strong stingers use the stinger channel; movement and combat use SFX;
+- mute, volume, hot-seat handoff, and disposal behavior remain authoritative.
+
+Existing naval files may be reused only after listening review confirms they fit. New OGGs are required where no suitable production sound exists.
+
+## Save Migration And Repair
+
+Pirate migration belongs in `save-manager` normalization, not `main.ts`.
+
+- New games initialize complete pirate state.
+- Legacy saves normalize to empty pirate state without placing entities or consuming IDs.
+- After piracy activation, the next completed round emits one warning and begins pressure accumulation.
+- Warning delivery and spawn eligibility are separate markers, preventing reload duplication.
+- Malformed intel is removed or reduced to the safest valid level.
+- Missing flagships resolve faction destruction exactly once.
+- Invalid targets and expired contracts are cleared without selecting hidden replacements.
+- Save, autosave, import/export, and hot-seat round trips preserve pirate state, notifications, and viewer intel.
+
+## AI Parity
+
+AI uses the same eligibility and mutation helpers as players. It may escort valuable transports, break blockades, pay affordable tribute under severe threat, hunt known headquarters, and hire Stage 5 factions when economically and diplomatically useful.
+
+AI receives no hidden headquarters coordinates beyond earned intelligence. Human and non-human destruction paths require parity tests.
+
+## Performance Limits
+
+- Preserve the `3 / 4 / 5` faction caps and two-flotilla limit.
+- Run full habitat scoring only on scheduled checks or relevant control changes.
+- Search bounded naval neighborhoods and prefiltered candidates for behavior.
+- Suppress distant visual effects by level of detail.
+- Set fixed per-entity budgets for smoke, fire, wake, and debris.
+- Derive Pirate Waters presentation on demand without scanning every tile per render.
+
+## Verification Contract
+
+Tests must cover:
+
+- activation after `Galleys`, including the negative pre-activation case;
+- pressure, caps, flotilla limit, covert anchorage conjunction, suppression, and no-site retry;
+- every maritime stage, roster draw, behavior tier, and escalation threshold;
+- escort conjunction and the non-combat naval near-miss;
+- raid cap, blockade conjunction, immediate blockade removal, tribute cancellation, and contract exposure;
+- human, AI, combat, enclave-assault, and turn-loop destruction parity;
+- fog, last-seen intel, suspected regions, tracked direction, hot-seat privacy, and focus non-disclosure;
+- legacy migration, malformed-state repair, round trips, and reload idempotence;
+- dossier reachability, exact disabled reasons, confirmation replay safety, and immediate refresh;
+- every unit, headquarters stage, overlay, damage tier, animation state, reduced-motion state, and catalog entry;
+- SFX visibility, ordering, rate limits, deduplication, mute, handoff, and disposal;
+- era-by-era combat sampling so equivalent encounters resolve in expected exchange counts;
+- an end-to-end discovery to raid to tribute/blockade to destruction scenario.
+
+Every conjunctive rule requires tests for each missing condition and the fully valid case.
+
+## Implementation Sequence
+
+1. After the implementation plan is written and committed, post it to GitHub issue #353 before any implementation code change. The comment must summarize scope, approved gameplay decisions, architecture, asset requirements, migration, implementation slices, and verification.
+2. Implement state, definitions, ownership, migration, deterministic ecology, and their tests.
+3. Implement all pirate units, targeting, behavior, raids, headquarters combat, destruction, and their tests.
+4. Implement tribute, blockades, contracts, AI, economy integration, and their tests.
+5. Implement Pirate Waters UI, typed persistent notifications, intel, hot-seat behavior, and interaction tests.
+6. Implement all production v2 ship and headquarters assets, animation state propagation, damage groups, static reduced-motion rendering, Canvas resilience, and visual tests.
+7. Implement and source all production pirate SFX, strategic audio routing, cooldowns, deduplication, listening review, and audio tests.
+8. Run cross-system regressions, combat balance sampling, performance checks, end-to-end visual QA, and full repository verification.
+9. Close the placeholder inventory and run the final completion gate.
+
+No slice may expose an action or entity without a working UI, renderer, fallback resilience, and tests.
+
+## Placeholder And Fallback Closure Gate
+
+The implementation plan must maintain a named inventory of every temporary:
+
+- sprite or visual layer;
+- animation;
+- damage indication;
+- SFX file or reused sound awaiting listening approval;
+- fallback icon;
+- UI copy string;
+- provisional balance constant;
+- compatibility branch or temporary feature flag.
+
+Every inventory item must name its production replacement task and verification. The final plan task must:
+
+- scan changed files for `TODO`, `TBD`, `placeholder`, temporary pirate assets, and unresolved compatibility comments;
+- verify every pirate entity resolves to production v2 art and correct SFX in normal operation;
+- verify all balance constants are intentional and documented;
+- remove temporary flags and dead compatibility paths;
+- leave the inventory with zero open items.
+
+Defensive runtime fallbacks may remain for resilience, but normal-path tests must prove supported pirate entities never use them. The feature and overall plan are incomplete while any inventory item remains open.
+
+## Completion Definition
+
+The work is complete only when:
+
+- the approved implementation plan was posted to issue #353 before implementation began;
+- all gameplay, UI, AI, save, renderer, animation, and audio contracts above are wired through live paths;
+- every production asset is present and validated at map scale;
+- the placeholder inventory has zero open items;
+- targeted, full test, build, rule checks, diff review, and visual QA pass;
+- no supported pirate entity normally reaches a placeholder or fallback.
