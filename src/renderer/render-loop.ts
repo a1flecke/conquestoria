@@ -86,7 +86,11 @@ export class RenderLoop {
   private animFrameId = 0;
   private highlights: HexHighlight[] = [];
   private journeyPath: HexCoord[] | null = null;
-  private unitMovementAnimations: Array<UnitMovementAnimation & { startTime: number; onComplete?: () => void }> = [];
+  private unitMovementAnimations: Array<UnitMovementAnimation & {
+    startTime: number;
+    onComplete?: () => void;
+    detachedFromState?: boolean;
+  }> = [];
   private spriteOverlay: SpriteOverlay | null = null;
   private touchHandlerRef: { isPinching: boolean } | null = null;
   private selectedUnitId: string | null = null;
@@ -134,6 +138,15 @@ export class RenderLoop {
   }
 
   animateUnitMove(unit: Unit, path: HexCoord[], onComplete?: () => void): void {
+    this.queueUnitMovement(unit, path, onComplete, false);
+  }
+
+  private queueUnitMovement(
+    unit: Unit,
+    path: HexCoord[],
+    onComplete: (() => void) | undefined,
+    detachedFromState: boolean,
+  ): void {
     if (!this.state || path.length < 2) {
       onComplete?.();
       return;
@@ -142,6 +155,7 @@ export class RenderLoop {
       ...createMovementAnimation(unit, path, this.state.map),
       startTime: performance.now(),
       onComplete,
+      detachedFromState,
     });
   }
 
@@ -151,7 +165,7 @@ export class RenderLoop {
    * game state (loaded onto the transport), so only the animation renders it.
    */
   animateUnitSlide(unit: Unit, destination: HexCoord): void {
-    this.animateUnitMove(unit, [unit.position, destination]);
+    this.queueUnitMovement(unit, [unit.position, destination], undefined, true);
   }
 
   /**
@@ -407,6 +421,14 @@ export class RenderLoop {
     const remaining: typeof this.unitMovementAnimations = [];
     const completedCallbacks: Array<() => void> = [];
     for (const animation of this.unitMovementAnimations) {
+      const authoritativeUnit = this.state.units[animation.unit.id];
+      if (
+        !animation.detachedFromState
+        && (!authoritativeUnit || authoritativeUnit.owner !== animation.unit.owner)
+      ) {
+        if (animation.onComplete) completedCallbacks.push(animation.onComplete);
+        continue;
+      }
       const elapsed = now - animation.startTime;
       const progress = Math.min(1, elapsed / animation.duration);
       const frame = getMovementAnimationPosition(animation, progress);
