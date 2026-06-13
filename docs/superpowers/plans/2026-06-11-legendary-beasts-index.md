@@ -13,11 +13,11 @@
 | MR | Plan file | Ships | Status |
 |---|---|---|---|
 | MR1 | [2026-06-11-legendary-beasts-mr1-core-boar.md](2026-06-11-legendary-beasts-mr1-core-boar.md) | Core system + Giant Boar + setup toggle + lair rendering | ✅ merged |
-| MR2 | [2026-06-11-legendary-beasts-mr2-bestiary.md](2026-06-11-legendary-beasts-mr2-bestiary.md) | Bestiary panel + sighting banner + per-civ sighting tracking | ◐ in progress ([PR #366](https://github.com/a1flecke/conquestoria/pull/366)) |
+| MR2 | [2026-06-11-legendary-beasts-mr2-bestiary.md](2026-06-11-legendary-beasts-mr2-bestiary.md) | Bestiary panel + sighting banner + per-civ sighting tracking | ✅ merged ([PR #366](https://github.com/a1flecke/conquestoria/pull/366)) |
 | MR3 | [2026-06-11-legendary-beasts-mr3-wolves-basilisk.md](2026-06-11-legendary-beasts-mr3-wolves-basilisk.md) | Dire Wolf Pack + Emerald Basilisk + habitat concealment | ✅ merged ([PR #367](https://github.com/a1flecke/conquestoria/pull/367)) |
-| MR4 | [2026-06-11-legendary-beasts-mr4-hoard-trophies.md](2026-06-11-legendary-beasts-mr4-hoard-trophies.md) | Hoard choice panel + lair trophies + AI auto-resolve | ◐ in progress |
-| MR5 | [2026-06-11-legendary-beasts-mr5-serpent-wurm.md](2026-06-11-legendary-beasts-mr5-serpent-wurm.md) | Sea Serpent + Dune Wurm + naval passability + `beast-serpent` rig | ☐ not started |
-| MR6 | [2026-06-11-legendary-beasts-mr6-roc-hydra.md](2026-06-11-legendary-beasts-mr6-roc-hydra.md) | Storm Roc + Swamp Hydra + flight + regen + `beast-winged` rig | ☐ not started |
+| MR4 | [2026-06-11-legendary-beasts-mr4-hoard-trophies.md](2026-06-11-legendary-beasts-mr4-hoard-trophies.md) | Hoard choice panel + lair trophies + AI auto-resolve | ✅ merged ([PR #369](https://github.com/a1flecke/conquestoria/pull/369)) |
+| MR5 | [2026-06-11-legendary-beasts-mr5-serpent-wurm.md](2026-06-11-legendary-beasts-mr5-serpent-wurm.md) | Sea Serpent + Dune Wurm + naval passability + `beast-serpent` rig | ✅ merged ([PR #371](https://github.com/a1flecke/conquestoria/pull/371)) |
+| MR6 | [2026-06-11-legendary-beasts-mr6-roc-hydra.md](2026-06-11-legendary-beasts-mr6-roc-hydra.md) | Storm Roc + Swamp Hydra + flight + regen + `beast-winged` rig | ◐ in progress |
 | MR7 | [2026-06-11-legendary-beasts-mr7-ancient-dragon.md](2026-06-11-legendary-beasts-mr7-ancient-dragon.md) | Ancient Dragon apex + ranged breath + slay ceremony + apex reward | ☐ not started |
 | MR8 | [2026-06-11-legendary-beasts-mr8-audio-ai-balance.md](2026-06-11-legendary-beasts-mr8-audio-ai-balance.md) | Roar SFX + tension music layer + gated AI hunting + balance bands | ☐ not started |
 
