@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { SpriteOverlay, hashCode, SPRITE_OVERLAY_WORLD_SIZE_FACTOR } from '@/renderer/sprite-overlay';
+import { SpriteOverlay, hashCode } from '@/renderer/sprite-overlay';
+import { getUnitLayoutMetrics } from '@/renderer/unit-map-presentation';
 import type { SpriteEntity } from '@/renderer/sprite-overlay';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
 
@@ -74,14 +75,18 @@ describe('SpriteOverlay constructor', () => {
 describe('sync() LOD gate', () => {
   it('hides container below LOD threshold', () => {
     const { overlay, mount } = mountOverlay();
+    overlay.sync(cam({ zoom: 1 }), [entity()], MAP, OPTS);
     overlay.sync(cam({ zoom: LOD_SPRITE_ZOOM_THRESHOLD - 0.01 }), [], MAP, OPTS);
     expect((mount.querySelector('#sprite-overlay') as HTMLElement).style.display).toBe('none');
+    expect(overlay.getActiveIds().size).toBe(0);
   });
 
   it('hides container when reducedMotion', () => {
     const { overlay, mount } = mountOverlay();
+    overlay.sync(cam({ zoom: 1 }), [entity()], MAP, OPTS);
     overlay.sync(cam({ zoom: 1 }), [], MAP, { ...OPTS, reducedMotion: true });
     expect((mount.querySelector('#sprite-overlay') as HTMLElement).style.display).toBe('none');
+    expect(overlay.getActiveIds().size).toBe(0);
   });
 
   it('shows container at or above threshold', () => {
@@ -156,15 +161,44 @@ describe('sync() pool lifecycle', () => {
 // ── Wrapper sizing ────────────────────────────────────────────────────────────
 
 describe('sync() wrapper sizing', () => {
-  it('wrapper width and height are hexSize × SPRITE_OVERLAY_WORLD_SIZE_FACTOR, not hardcoded 128px', () => {
+  it('wrapper width and height use the shared unit layout metrics', () => {
     const { overlay, mount } = mountOverlay();
     const hexSize = 32;
     overlay.sync(cam({ zoom: 1, hexSize }), [entity()], MAP, OPTS);
     const wrapper = mount.querySelector('.cq-sprite-wrap')?.parentElement as HTMLElement | null;
     expect(wrapper).not.toBeNull();
-    const expectedPx = `${hexSize * SPRITE_OVERLAY_WORLD_SIZE_FACTOR}px`;
+    const expectedPx = `${getUnitLayoutMetrics(hexSize).displaySize}px`;
     expect(wrapper!.style.width).toBe(expectedPx);
     expect(wrapper!.style.height).toBe(expectedPx);
+  });
+
+  it('marks every represented stack member active only while its element is visible', () => {
+    const { overlay } = mountOverlay();
+    overlay.sync(cam({ zoom: 1 }), [entity({ memberIds: ['u1', 'u2', 'u3'] })], MAP, OPTS);
+
+    expect([...overlay.getActiveIds()].sort()).toEqual(['u1', 'u2', 'u3']);
+
+    overlay.sync(cam({ zoom: 1 }), [], MAP, OPTS);
+    expect(overlay.getActiveIds().size).toBe(0);
+  });
+
+  it('renders stack, selection, health, fortified, and role decorations for DOM units', () => {
+    const { overlay, mount } = mountOverlay();
+    overlay.sync(cam({ zoom: 1 }), [entity({
+      memberIds: ['u1', 'u2'],
+      stackCount: 2,
+      selected: true,
+      health: 55,
+      fortified: true,
+      roleMarker: 'chevron',
+    })], MAP, OPTS);
+
+    expect(mount.querySelector('.cq-unit-stack-count')?.textContent).toBe('2');
+    expect(mount.querySelector('.cq-unit-selected')).not.toBeNull();
+    expect(mount.querySelector('.cq-unit-health-fill')).not.toBeNull();
+    expect((mount.querySelector('.cq-unit-health-fill') as HTMLElement).style.width).toBe('55%');
+    expect(mount.querySelector('.cq-unit-fortified')?.textContent).toBe('F');
+    expect(mount.querySelector('.cq-unit-role')?.textContent).toBe('⌄');
   });
 
   it('wrapper has overflow:hidden to prevent label bleed', () => {

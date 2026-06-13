@@ -1,15 +1,13 @@
 import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
-import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { Camera } from './camera';
 import { drawHexMap, drawRivers, drawMinorCivTerritory, drawHexHighlight } from './hex-renderer';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { drawFogOfWar } from './fog-renderer';
-import { drawUnits } from './unit-renderer';
+import { drawUnitPresentations } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem } from './animation-system';
 import { hexToPixel } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
-import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
 import { getVisibility } from '@/systems/fog-of-war';
 import { createMovementAnimation, getMovementAnimationPosition, getMovingUnitIds, type UnitMovementAnimation } from './unit-movement-animation';
 import { resolveUnitVisual } from './unit-visual-resolver';
@@ -19,107 +17,42 @@ import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
 import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { SpriteOverlay } from './sprite-overlay';
 import type { SpriteEntity } from './sprite-overlay';
+import { buildUnitMapPresentations } from './unit-map-presentation';
+import {
+  CIVTYPE_TO_FACTION,
+  civTypeToFaction,
+} from './civilization-visual-family';
 
-/** Maps real CivDefinition.id values to the sprite palette name used by the v2 sprite system. */
-export const CIVTYPE_TO_FACTION: Record<string, string> = {
-  // Ancient Mediterranean
-  egypt:      'pharaohs',
-  greece:     'hellenes',
-  rome:       'imperials',
-  babylon:    'pharaohs',
-  persia:     'pharaohs',
-  spain:      'imperials',
-  atlantis:   'imperials',
-  // Northern European
-  england:    'vikings',
-  germany:    'imperials',
-  france:     'imperials',
-  russia:     'imperials',
-  viking:     'vikings',
-  // British Isles / Celtic
-  gondor:     'imperials',
-  rohan:      'imperials',
-  shire:      'imperials',
-  prydain:    'imperials',
-  annuvin:    'imperials',
-  avalon:     'imperials',
-  // East / Central Asian
-  mongolia:   'khanate',
-  china:      'khanate',
-  japan:      'shogunate',
-  india:      'khanate',
-  ottoman:    'khanate',
-  // Sub-Saharan / Mesoamerican / Fantasy
-  zulu:       'imperials',
-  aztec:      'imperials',
-  wakanda:    'imperials',
-  // Fantasy / Tolkien
-  lothlorien: 'hellenes',
-  isengard:   'imperials',
-  narnia:     'imperials',
-};
-
-export function civTypeToFaction(civType: string): string {
-  return CIVTYPE_TO_FACTION[civType] ?? 'imperials';
-}
-
-export function buildBuildingEntities(
-  state: GameState,
-  viewerVisibility: VisibilityMap,
-): SpriteEntity[] {
-  const entities: SpriteEntity[] = [];
-  for (const city of Object.values(state.cities)) {
-    if (getVisibility(viewerVisibility, city.position) !== 'visible') continue;
-    if (city.buildings.length === 0) continue;
-
-    // Use the CITY OWNER's civType — enemy cities use their owner's faction colors
-    const ownerCivType = state.civilizations[city.owner]?.civType ?? 'generic';
-    const faction = civTypeToFaction(ownerCivType);
-
-    // Show only the most recently completed building — stacking all at city.position is unreadable (#340)
-    const buildingId = city.buildings[city.buildings.length - 1];
-    entities.push({
-      id: `${city.id}:${buildingId}`,
-      kind: 'building',
-      subtype: buildingId,
-      coord: city.position,
-      state: 'idle',
-      faction,
-    });
-  }
-  return entities;
-}
+export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
 export function buildUnitEntities(
   state: GameState,
   viewerId: string,
   viewerVisibility: VisibilityMap,
   movingUnitIds: ReadonlySet<string>,
+  selectedUnitId: string | null = null,
 ): SpriteEntity[] {
-  const visibleRecord = getVisibleUnitsForPlayer(state.units, state, viewerId);
-  return Object.values(visibleRecord)
-    .filter(u => {
-      if (movingUnitIds.has(u.id)) return false;
-      return getVisibility(viewerVisibility, u.position) === 'visible';
-    })
-    .map(u => {
-      // Use the UNIT OWNER'S civType (not the viewer's) — enemy units use their owner's faction colors
-      const civType = state.civilizations[u.owner]?.civType ?? 'generic';
-      const faction = civTypeToFaction(civType);
-      // Non-combat units (strength 0) always show tier 0; combat units scale with health
-      const strength = UNIT_DEFINITIONS[u.type]?.strength ?? 0;
-      const damage = strength === 0 ? 0
-        : u.health >= 76 ? 0
-        : u.health >= 51 ? 1
-        : u.health >= 26 ? 2 : 3;
+  return buildUnitMapPresentations(
+    state,
+    viewerId,
+    viewerVisibility,
+    movingUnitIds,
+    selectedUnitId,
+  ).map(presentation => {
       return {
-        id: u.id,
+        id: presentation.leadUnitId,
+        memberIds: presentation.memberIds,
         kind: 'unit' as const,
-        subtype: u.type,
-        coord: u.position,
-        state: 'idle' as const, // walk state set per-frame during movement (future)
-        faction,
-        damage,
+        subtype: presentation.leadUnit.type,
+        coord: presentation.coord,
+        state: 'idle' as const,
+        faction: presentation.faction,
+        damage: presentation.damage,
+        stackCount: presentation.stackCount,
+        selected: presentation.isSelected,
+        health: presentation.leadUnit.health,
+        fortified: presentation.leadUnit.isFortified,
+        roleMarker: presentation.roleMarker,
       };
     });
 }
@@ -156,9 +89,14 @@ export class RenderLoop {
   private unitMovementAnimations: Array<UnitMovementAnimation & { startTime: number; onComplete?: () => void }> = [];
   private spriteOverlay: SpriteOverlay | null = null;
   private touchHandlerRef: { isPinching: boolean } | null = null;
+  private selectedUnitId: string | null = null;
 
   setTouchHandler(th: { isPinching: boolean }): void {
     this.touchHandlerRef = th;
+  }
+
+  setSelectedUnitId(unitId: string | null): void {
+    this.selectedUnitId = unitId;
   }
 
   setHighlights(highlights: HexHighlight[]): void {
@@ -379,7 +317,7 @@ export class RenderLoop {
     // Draw trade route lines (after cities, before units)
     this.drawTradeRouteLines(viewerId);
 
-    // Draw units
+    // Prepare and draw units. Static high-zoom stacks may use DOM; movement stays Canvas below fog.
     if (viewerVisibility) {
       const colorLookup: Record<string, string> = { barbarian: '#8b4513' };
       for (const [id, civ] of Object.entries(this.state.civilizations)) {
@@ -390,11 +328,57 @@ export class RenderLoop {
         const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
         if (def) colorLookup[mc.id] = def.color;
       }
-      const visibleUnits = getVisibleUnitsForPlayer(this.state.units, this.state, viewerId);
-      drawUnits(this.ctx, visibleUnits, this.camera, viewerVisibility, this.state, viewerId, colorLookup, {
-        hiddenUnitIds: getMovingUnitIds(this.unitMovementAnimations),
-      }, this.spriteOverlay?.getActiveIds() ?? new Set());
+      const movingUnitIds = new Set(getMovingUnitIds(this.unitMovementAnimations));
+      const presentations = buildUnitMapPresentations(
+        this.state,
+        viewerId,
+        viewerVisibility,
+        movingUnitIds,
+        this.selectedUnitId,
+      );
+      const unitEntities = presentations.map(presentation => ({
+        id: presentation.leadUnitId,
+        memberIds: presentation.memberIds,
+        kind: 'unit' as const,
+        subtype: presentation.leadUnit.type,
+        coord: presentation.coord,
+        state: 'idle' as const,
+        faction: presentation.faction,
+        damage: presentation.damage,
+        stackCount: presentation.stackCount,
+        selected: presentation.isSelected,
+        health: presentation.leadUnit.health,
+        fortified: presentation.leadUnit.isFortified,
+        roleMarker: presentation.roleMarker,
+      }));
+      this.spriteOverlay?.sync(
+        this.camera,
+        unitEntities,
+        {
+          width: this.state.map.width,
+          wrapsHorizontally: this.state.map.wrapsHorizontally,
+        },
+        {
+          isPinching: this.touchHandlerRef?.isPinching ?? false,
+          reducedMotion: prefersReducedMotion(),
+        },
+      );
+      drawUnitPresentations(
+        this.ctx,
+        presentations,
+        this.camera,
+        this.state,
+        colorLookup,
+        this.spriteOverlay?.getActiveIds() ?? new Set(),
+      );
       this.drawUnitMovementAnimations(performance.now(), colorLookup, viewerVisibility);
+    } else {
+      this.spriteOverlay?.sync(
+        this.camera,
+        [],
+        { width: this.state.map.width, wrapsHorizontally: this.state.map.wrapsHorizontally },
+        { isPinching: false, reducedMotion: prefersReducedMotion() },
+      );
     }
 
     // Draw fog of war
@@ -412,30 +396,6 @@ export class RenderLoop {
     // Draw animations
     this.animations.update(this.ctx, performance.now());
 
-    // Sprite overlay — unit + building entities
-    const unitEntities = viewerVisibility
-      ? buildUnitEntities(
-          this.state,
-          viewerId,
-          viewerVisibility,
-          new Set(getMovingUnitIds(this.unitMovementAnimations)),
-        )
-      : [];
-    const buildingEntities = viewerVisibility
-      ? buildBuildingEntities(this.state, viewerVisibility)
-      : [];
-    this.spriteOverlay?.sync(
-      this.camera,
-      [...unitEntities, ...buildingEntities],
-      {
-        width: this.state.map.width,
-        wrapsHorizontally: this.state.map.wrapsHorizontally,
-      },
-      {
-        isPinching: this.touchHandlerRef?.isPinching ?? false,
-        reducedMotion: prefersReducedMotion(),
-      },
-    );
   }
 
   private drawUnitMovementAnimations(
