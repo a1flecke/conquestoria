@@ -44,6 +44,17 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 | caravan | ✅ sprite | civilian |
 | expedition | ✅ sprite | civilian |
 
+### Legendary Beasts — `src/renderer/sprites/beasts.tsx`
+Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
+
+| Unit | Status | data-kind |
+|------|--------|-----------|
+| beast_boar | ✅ sprite | hound |
+| beast_wolf | ✅ sprite | hound |
+| beast_basilisk | ✅ sprite | hound |
+| beast_sea_serpent | ✅ sprite | beast-serpent |
+| beast_wurm | ✅ sprite | beast-serpent |
+
 ### Buildings — `src/renderer/sprites/buildings.tsx`
 Registered in `BUILDING_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 
@@ -239,6 +250,7 @@ All animation is CSS-driven via `src/assets/sprite-animations-v2.css`. Sprites s
 | `naval` | galley, trireme, catapult, ballista | ship rock + sail billow |
 | `hound` | scout_hound, war_hound | quadruped diagonal-pair legs |
 | `spy` | spy_* family | cape sway, cloak |
+| `beast-serpent` | beast_sea_serpent, beast_wurm | phase-offset segment undulation (`cq-segment-1..4`) |
 
 ### Building effect classes
 | Class | Effect | Example buildings |
