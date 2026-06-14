@@ -27,7 +27,7 @@ import {
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
 } from './wonders';
-import { GiantBoarSprite, DireWolfSprite, EmeraldBasiliskSprite, SeaSerpentSprite, DuneWurmSprite, StormRocSprite, SwampHydraSprite } from './beasts';
+import { GiantBoarSprite, DireWolfSprite, EmeraldBasiliskSprite, SeaSerpentSprite, DuneWurmSprite, StormRocSprite, SwampHydraSprite, AncientDragonSprite } from './beasts';
 
 export type UnitSpriteComponent = (props: UnitSpriteProps) => string;
 export type BuildingSpriteComponent = (props: BuildingSpriteProps) => string;
@@ -76,6 +76,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   beast_wurm: 'animal',
   beast_roc: 'animal',
   beast_hydra: 'animal',
+  beast_dragon: 'animal',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
@@ -149,6 +150,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   beast_wurm:         withMotion('beast_wurm', DuneWurmSprite),
   beast_roc:          withMotion('beast_roc', StormRocSprite),
   beast_hydra:        withMotion('beast_hydra', SwampHydraSprite),
+  beast_dragon:       withMotion('beast_dragon', AncientDragonSprite),
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {

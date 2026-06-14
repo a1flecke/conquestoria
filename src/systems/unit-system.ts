@@ -241,6 +241,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 36, canFoundCity: false,
     canBuildImprovements: false, productionCost: 0,
   },
+  beast_dragon: {
+    type: 'beast_dragon', name: 'Ancient Dragon', movementPoints: 3,
+    visionRange: 3, strength: 55, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit'] },
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -391,6 +397,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   beast_wurm: 'The Dune Wurm swims beneath the sand, invisible until you stand beside it. Bring ranged units and overwhelming force.',
   beast_roc: 'The Storm Roc nests on the high peaks and dives on anything that crosses its skies. It flies over terrain that would stop an army.',
   beast_hydra: 'The Swamp Hydra regrows flesh as fast as you can cut it — 10 health every turn. Strike hard and finish it in one assault.',
+  beast_dragon: 'The Ancient Dragon, terror of the volcanic peaks. Its fire breath strikes from 2 hexes away. Slaying it is the deed of a lifetime — the hoard contains everything.',
 };
 
 export function getUnmovedUnits(
