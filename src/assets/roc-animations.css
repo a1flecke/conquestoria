@@ -166,6 +166,11 @@
 /* tier 3 : broken primary hanging from the right wingtip */
 [data-damage="3"] .cq-wound-3 { opacity: 1; }
 
+/* stop shared-lib cq-wing-flap-l/r + cq-hover-bob (no :not(death) guard there) */
+[data-state="death"][data-kind="beast-winged"] .cq-wing-l,
+[data-state="death"][data-kind="beast-winged"] .cq-wing-r,
+[data-state="death"][data-kind="beast-winged"] .cq-hover-body { animation: none; }
+
 /* ── DEATH ─ wings fold, the roc plummets and fades ───────────────────── */
 @keyframes cq-roc-plummet {
   0%   { transform: translateY(0) rotate(0); opacity: 1; }

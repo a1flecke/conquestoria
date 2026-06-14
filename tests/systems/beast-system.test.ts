@@ -353,6 +353,9 @@ describe('canUnitAttackBeast', () => {
 
   it('everything can attack normal beasts', () => {
     expect(canUnitAttackBeast(makeUnit({ type: 'warrior' }), boar).allowed).toBe(true);
+    const roc = makeUnit({ id: 'r', type: 'beast_roc', owner: 'beasts' });
+    expect(canUnitAttackBeast(makeUnit({ type: 'warrior' }), roc).allowed).toBe(true);
+    expect(canUnitAttackBeast(makeUnit({ type: 'galley' }), roc).allowed).toBe(true);
   });
 });
 
@@ -361,6 +364,7 @@ describe('flying and regen', () => {
     expect(isTerrainPassableForBeast('beast_roc', 'mountain')).toBe(true);
     expect(isTerrainPassableForBeast('beast_roc', 'grassland')).toBe(true);
     expect(isTerrainPassableForBeast('beast_roc', 'ocean')).toBe(false);
+    expect(isTerrainPassableForBeast('beast_roc', 'coast')).toBe(false);
     expect(isTerrainPassableForBeast('beast_boar', 'mountain')).toBe(false);
   });
 
