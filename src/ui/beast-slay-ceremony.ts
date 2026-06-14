@@ -18,7 +18,7 @@ export function showBeastSlayCeremony(container: HTMLElement, options: BeastSlay
   overlay.style.cssText = 'position:absolute;inset:0;background:rgba(8,8,18,0.95);z-index:60;display:flex;align-items:center;justify-content:center;';
 
   const card = document.createElement('div');
-  card.style.cssText = 'max-width:360px;background:#1a1a2e;border:2px solid #e8c170;border-radius:14px;padding:24px;text-align:center;';
+  card.style.cssText = 'width:calc(100% - 48px);max-width:360px;background:#1a1a2e;border:2px solid #e8c170;border-radius:14px;padding:24px;text-align:center;';
 
   const kicker = document.createElement('div');
   kicker.textContent = 'A LEGEND FALLS';
@@ -54,9 +54,13 @@ export function showBeastSlayCeremony(container: HTMLElement, options: BeastSlay
   card.appendChild(rewards);
 
   const continueButton = createGameButton('Continue', 'primary');
-  continueButton.style.minHeight = '44px';
-  continueButton.addEventListener('click', () => { overlay.remove(); options.onContinue(); });
+  continueButton.style.cssText += ';width:100%;min-height:44px;';
+  const dismiss = () => { overlay.remove(); document.removeEventListener('keydown', onKey); options.onContinue(); };
+  continueButton.addEventListener('click', dismiss);
   card.appendChild(continueButton);
+
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); dismiss(); } };
+  document.addEventListener('keydown', onKey);
 
   overlay.appendChild(card);
   container.appendChild(overlay);

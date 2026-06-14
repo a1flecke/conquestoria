@@ -42,7 +42,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast } from '@/systems/beast-system';
+import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
@@ -3369,7 +3369,7 @@ bus.on('beast:awakened', ({ beastId, position }) => {
   }
 });
 
-bus.on('beast:slain', ({ beastId, slayerCivId, goldAwarded }) => {
+bus.on('beast:slain', ({ beastId, lairId, slayerCivId, goldAwarded }) => {
   const def = BEAST_DEFINITIONS[beastId];
   const slayerName = gameState.civilizations[slayerCivId]?.name ?? slayerCivId;
   const isApex = def.tier >= 4;
@@ -3385,9 +3385,24 @@ bus.on('beast:slain', ({ beastId, slayerCivId, goldAwarded }) => {
   }
   if (slayerCivId === gameState.currentPlayer) {
     if (def.tier >= 3) {
-      const rewardLines = isApex
-        ? [`+${goldAwarded} gold`, 'Ancient Lore claimed (+research)', 'Beast Trophy raised (+8 gold/turn)', 'Your hero is now Legendary']
-        : ['Choose your hoard reward…'];
+      let rewardLines: string[];
+      if (isApex) {
+        const trophyGold = getBeastTrophyGoldPerTurn(def.tier);
+        rewardLines = [
+          `+${goldAwarded} gold`,
+          'Ancient Lore claimed (+research)',
+          `Beast Trophy raised (+${trophyGold} gold/turn)`,
+          'Your hero is now Legendary',
+        ];
+      } else {
+        const preview = getHoardChoicePreview(gameState, lairId);
+        rewardLines = [
+          'Choose one reward:',
+          `Gold: +${preview.gold}`,
+          `Lore: +${preview.lore} research`,
+          `Trophy: +${preview.trophyGoldPerTurn} gold/turn`,
+        ];
+      }
       showBeastSlayCeremony(uiLayer, {
         beastName: def.name,
         unitType: def.unitType,

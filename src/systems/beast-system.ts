@@ -357,6 +357,9 @@ export function recordBeastSlain(
 }
 
 const TROPHY_GOLD_PER_TURN: Record<number, number> = { 2: 3, 3: 5, 4: 8 };
+export function getBeastTrophyGoldPerTurn(tier: number): number {
+  return TROPHY_GOLD_PER_TURN[tier] ?? 0;
+}
 
 export interface HoardChoicePreview {
   gold: number;

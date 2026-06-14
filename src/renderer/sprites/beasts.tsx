@@ -250,8 +250,9 @@ const DRAGON = {
 export function AncientDragonSprite({ svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      {/* Apex shadow — large ellipse, stays on ground */}
-      <Shadow cx={60} cy={115} rx={34} ry={6} opacity={0.28} />
+      <g className="cq-shadow-detached">
+        <Shadow cx={60} cy={115} rx={34} ry={6} opacity={0.28} />
+      </g>
       <g className="cq-sprite-figure">
         <g data-kind="beast-winged">
           <g className="cq-hover-body">
