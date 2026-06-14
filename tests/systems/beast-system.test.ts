@@ -416,22 +416,40 @@ describe('apex reward (tier 4)', () => {
   }
 
   it('grants gold + lore + trophy-claim + max veterancy with NO pending choice', () => {
-    const { state, dragon, victor } = makeApexState();
-    const goldBefore = state.civilizations[victor.owner].gold;
-    const { state: next, slain } = recordBeastSlain(state, dragon, victor);
+    const { state: baseState, dragon, victor } = makeApexState();
+    // give the civ an active research so lore progress is measurable
+    const civId = victor.owner;
+    const withResearch: typeof baseState = {
+      ...baseState,
+      civilizations: {
+        ...baseState.civilizations,
+        [civId]: {
+          ...baseState.civilizations[civId],
+          techState: startResearch(baseState.civilizations[civId].techState, 'stone-weapons'),
+        },
+      },
+    };
+    const goldBefore = withResearch.civilizations[civId].gold;
+    const progressBefore = withResearch.civilizations[civId].techState.researchProgress;
+    const { state: next, slain } = recordBeastSlain(withResearch, dragon, victor);
 
     expect(slain).toBeDefined();
     // gold awarded is positive (gold ×2 formula)
     expect(slain!.goldAwarded).toBeGreaterThan(0);
     // gold deposited in treasury
-    expect(next.civilizations[victor.owner].gold).toBe(goldBefore + slain!.goldAwarded);
+    expect(next.civilizations[civId].gold).toBe(goldBefore + slain!.goldAwarded);
     // lair is claimed (not just slain), credited to victor's civ
     expect(next.beasts!.lairs['lair-ancient_dragon'].status).toBe('claimed');
-    expect(next.beasts!.lairs['lair-ancient_dragon'].claimedBy).toBe(victor.owner);
+    expect(next.beasts!.lairs['lair-ancient_dragon'].claimedBy).toBe(civId);
     // NO pending hoard choice — apex gets everything automatically
     expect(next.beasts!.pendingHoardChoices ?? []).toEqual([]);
     // hero reaches max veterancy (experience at or above elite threshold = 50)
     expect(next.units['hero-1'].experience).toBeGreaterThanOrEqual(50);
+    // lore applied — research progress must advance (or tech completes)
+    const progressAfter = next.civilizations[civId].techState.researchProgress;
+    const completedAfter = next.civilizations[civId].techState.completed;
+    const loreApplied = progressAfter > progressBefore || completedAfter.includes('stone-weapons');
+    expect(loreApplied).toBe(true);
   });
 
   it('tier-2 beasts still get choice panel, not apex path', () => {
