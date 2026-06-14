@@ -402,3 +402,9 @@ Files used: impactMetal_*, impactPunch_*, impactWood_*, impactSoft_*,
 Used for: all unit attack-swing, attack-impact, ranged-loose, ranged-impact,
           siege-fire, siege-impact, and death sounds; humanoid/animal/naval
           movement step sounds.
+
+## Legendary Beast SFX
+
+`beast-*-attack.ogg` / `beast-*-death.ogg` — synthesized in-project with ffmpeg 8.0.1
+(lavfi sine + anoisesrc layering with vibrato, echo, and filter chains).
+No external sources used.

@@ -145,6 +145,42 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   spy_agent:     { death: real('sfx-spy_agent-death',     'audio/sfx/spy_agent-death.ogg',     0.569, 'death') },
   spy_operative: { death: real('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg', 0.530, 'death') },
   spy_hacker:    { death: real('sfx-spy_hacker-death',    'audio/sfx/spy_hacker-death.ogg',    0.183, 'death') },
+
+  // === Legendary Beasts — synthesized roars (ffmpeg lavfi, see AUDIO-CREDITS.md) ===
+  // attack-swing = the beast's own roar when it attacks; death = death cry.
+  // No attack-impact: the sfx-director falls through silently when a beast is hit (the attacker's swing already sounds).
+  beast_boar: {
+    'attack-swing': real('sfx-beast_boar-attack', 'audio/sfx/beast-boar-attack.ogg', 0.500),
+    death:          real('sfx-beast_boar-death',  'audio/sfx/beast-boar-death.ogg',  1.375, 'death'),
+  },
+  beast_wolf: {
+    'attack-swing': real('sfx-beast_wolf-attack', 'audio/sfx/beast-wolf-attack.ogg', 0.700),
+    death:          real('sfx-beast_wolf-death',  'audio/sfx/beast-wolf-death.ogg',  1.750, 'death'),
+  },
+  beast_basilisk: {
+    'attack-swing': real('sfx-beast_basilisk-attack', 'audio/sfx/beast-basilisk-attack.ogg', 0.600),
+    death:          real('sfx-beast_basilisk-death',  'audio/sfx/beast-basilisk-death.ogg',  1.250, 'death'),
+  },
+  beast_sea_serpent: {
+    'attack-swing': real('sfx-beast_sea_serpent-attack', 'audio/sfx/beast-sea_serpent-attack.ogg', 0.960),
+    death:          real('sfx-beast_sea_serpent-death',  'audio/sfx/beast-sea_serpent-death.ogg',  2.060, 'death'),
+  },
+  beast_wurm: {
+    'attack-swing': real('sfx-beast_wurm-attack', 'audio/sfx/beast-wurm-attack.ogg', 0.800),
+    death:          real('sfx-beast_wurm-death',  'audio/sfx/beast-wurm-death.ogg',  1.625, 'death'),
+  },
+  beast_roc: {
+    'attack-swing': real('sfx-beast_roc-attack', 'audio/sfx/beast-roc-attack.ogg', 0.600),
+    death:          real('sfx-beast_roc-death',  'audio/sfx/beast-roc-death.ogg',  1.500, 'death'),
+  },
+  beast_hydra: {
+    'attack-swing': real('sfx-beast_hydra-attack', 'audio/sfx/beast-hydra-attack.ogg', 0.700),
+    death:          real('sfx-beast_hydra-death',  'audio/sfx/beast-hydra-death.ogg',  1.750, 'death'),
+  },
+  beast_dragon: {
+    'attack-swing': real('sfx-beast_dragon-attack', 'audio/sfx/beast-dragon-attack.ogg', 1.090),
+    death:          real('sfx-beast_dragon-death',  'audio/sfx/beast-dragon-death.ogg',  2.590, 'death'),
+  },
 };
 
 // Mirrors UNIT_MOTION_STYLES in src/renderer/sprites/sprite-catalog.ts — keep in sync.

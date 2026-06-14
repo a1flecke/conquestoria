@@ -80,11 +80,12 @@ describe('sfx-catalog completeness', () => {
     }
   });
 
-  it('allSfxEntries returns exactly 76 entries', () => {
+  it('allSfxEntries returns exactly 92 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
     // + 4 new transport death (carrack, galleon, steamship, troop_transport) + 2 transport load/unload = 76
-    expect(allSfxEntries()).toHaveLength(76);
+    // + 16 beast SFX (8 beasts × 2: attack-swing + death) = 92
+    expect(allSfxEntries()).toHaveLength(92);
   });
 
   it('no two entries share the same ID', () => {
