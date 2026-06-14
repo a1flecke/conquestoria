@@ -187,7 +187,10 @@ export function processBeasts(
       .sort((a, b) => hexDistance(a.position, beast.position) - hexDistance(b.position, beast.position));
     const target = targets[0];
 
-    if (target && hexDistance(target.position, beast.position) === 1) {
+    const attackRange = UNIT_DEFINITIONS[beast.type].attackProfile?.kind === 'ranged'
+      ? UNIT_DEFINITIONS[beast.type].attackProfile!.range
+      : 1;
+    if (target && hexDistance(target.position, beast.position) <= attackRange) {
       attackOrders.push({ attackerUnitId: beast.id, defenderUnitId: target.id });
       continue;
     }

@@ -396,3 +396,23 @@ describe('flying and regen', () => {
     expect(result.regenOrders).toEqual([]);
   });
 });
+
+describe('dragon ranged attacks', () => {
+  it('orders an attack at 2-hex range', () => {
+    const map = tinyMap({ '10,10': 'volcanic', '11,10': 'grassland', '12,10': 'grassland' });
+    const lair = makeLair({ id: 'lair-ancient_dragon', beastId: 'ancient_dragon', position: { q: 10, r: 10 }, status: 'awake', unitIds: ['drg-1'] });
+    const dragon = makeUnit({ id: 'drg-1', type: 'beast_dragon', owner: 'beasts', position: { q: 10, r: 10 } });
+    const intruder = makeUnit({ id: 'u2', position: { q: 12, r: 10 } });
+    const result = processBeasts([lair], map, [intruder], [dragon], 4, 'wild', 7);
+    expect(result.attackOrders).toEqual([{ attackerUnitId: 'drg-1', defenderUnitId: 'u2' }]);
+  });
+
+  it('melee beasts still require adjacency', () => {
+    const map = tinyMap({ '10,10': 'forest', '11,10': 'grassland', '12,10': 'grassland' });
+    const lair = makeLair({ status: 'awake', unitIds: ['boar-2'] });
+    const boar = makeUnit({ id: 'boar-2', type: 'beast_boar', owner: 'beasts', position: { q: 10, r: 10 } });
+    const intruder = makeUnit({ id: 'u3', position: { q: 12, r: 10 } });
+    const result = processBeasts([lair], map, [intruder], [boar], 1, 'wild', 7);
+    expect(result.attackOrders).toEqual([]);
+  });
+});
