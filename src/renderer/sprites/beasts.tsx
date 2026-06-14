@@ -201,25 +201,28 @@ const ROC = {
 export function StormRocSprite({ svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <g className="cq-shadow-detached"><Shadow /></g>
-      <g data-kind="beast-winged" className="cq-sprite-figure">
-        <g className="cq-hover-body">
-          <g className="cq-wing-l">
-            <path d="M58,60 Q34,40 16,48 Q30,56 34,64 Q44,62 58,66 Z" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
-            <path d="M22,48 l6,4 M30,46 l5,5 M38,48 l4,5" stroke={ROC.featherDark} strokeWidth="1.5" />
+      {/* smaller, more transparent shadow positioned lower — suggests the roc flies high */}
+      <Shadow cx={60} cy={110} rx={22} ry={4} opacity={0.18} />
+      <g className="cq-sprite-figure">
+        <g data-kind="beast-winged">
+          <g className="cq-hover-body">
+            <g className="cq-wing-l">
+              <path d="M58,60 Q34,40 16,48 Q30,56 34,64 Q44,62 58,66 Z" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
+              <path d="M22,48 l6,4 M30,46 l5,5 M38,48 l4,5" stroke={ROC.featherDark} strokeWidth="1.5" />
+            </g>
+            <g className="cq-wing-r">
+              <path d="M70,60 Q94,40 112,48 Q98,56 94,64 Q84,62 70,66 Z" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
+              <path d="M106,48 l-6,4 M98,46 l-5,5 M90,48 l-4,5" stroke={ROC.featherDark} strokeWidth="1.5" />
+            </g>
+            {/* body, tail, head */}
+            <ellipse cx="64" cy="64" rx="12" ry="16" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
+            <path d="M60,78 L56,92 L64,84 L72,92 L68,78 Z" fill={ROC.featherDark} />
+            <circle cx="64" cy="48" r="8" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
+            <path d="M64,50 L72,54 L64,57 Z" fill={ROC.beak} />
+            <circle cx="61" cy="47" r="1.8" fill="#ffd34d" />
+            {/* storm sparks */}
+            <path d="M40,42 l-3,6 4,-1 -3,6 M90,40 l-3,6 4,-1 -3,6" fill="none" stroke={ROC.spark} strokeWidth="1.5" strokeLinecap="round" />
           </g>
-          <g className="cq-wing-r">
-            <path d="M70,60 Q94,40 112,48 Q98,56 94,64 Q84,62 70,66 Z" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
-            <path d="M106,48 l-6,4 M98,46 l-5,5 M90,48 l-4,5" stroke={ROC.featherDark} strokeWidth="1.5" />
-          </g>
-          {/* body, tail, head */}
-          <ellipse cx="64" cy="64" rx="12" ry="16" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
-          <path d="M60,78 L56,92 L64,84 L72,92 L68,78 Z" fill={ROC.featherDark} />
-          <circle cx="64" cy="48" r="8" fill={ROC.feather} stroke={P.ink.line} strokeWidth="1.5" />
-          <path d="M64,50 L72,54 L64,57 Z" fill={ROC.beak} />
-          <circle cx="61" cy="47" r="1.8" fill="#ffd34d" />
-          {/* storm sparks */}
-          <path d="M40,42 l-3,6 4,-1 -3,6 M90,40 l-3,6 4,-1 -3,6" fill="none" stroke={ROC.spark} strokeWidth="1.5" strokeLinecap="round" />
         </g>
       </g>
     </SpriteFrame>
@@ -236,8 +239,9 @@ const HYDRA = {
 export function SwampHydraSprite({ svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow />
-      <g data-kind="beast-serpent" className="cq-sprite-figure">
+      <Shadow cx={64} cy={95} rx={26} />
+      <g className="cq-sprite-figure">
+        <g data-kind="beast-serpent">
         {/* squat body in the mire */}
         <ellipse cx="64" cy="80" rx="26" ry="14" fill={HYDRA.scale} stroke={P.ink.line} strokeWidth="1.5" />
         <ellipse cx="64" cy="86" rx="20" ry="7" fill={HYDRA.belly} opacity="0.6" />
@@ -263,6 +267,7 @@ export function SwampHydraSprite({ svgOnly = false }: UnitSpriteProps): string {
         {/* marsh bubbles */}
         <circle cx="40" cy="92" r="2" fill="#9ec79e" opacity="0.6" />
         <circle cx="90" cy="90" r="1.5" fill="#9ec79e" opacity="0.6" />
+        </g>
       </g>
     </SpriteFrame>
   );
