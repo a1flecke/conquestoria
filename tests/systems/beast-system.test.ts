@@ -397,6 +397,61 @@ describe('flying and regen', () => {
   });
 });
 
+describe('apex reward (tier 4)', () => {
+  function makeApexState() {
+    const state = createNewGame('rome', 'apex-test-seed', 'small', 'Apex Test');
+    const dragon = makeUnit({ id: 'drg-apex', type: 'beast_dragon', owner: 'beasts', position: { q: 5, r: 5 } });
+    const victor = makeUnit({ id: 'hero-1', owner: state.currentPlayer, position: { q: 4, r: 5 }, experience: 0 });
+    const lair: BeastLair = makeLair({
+      id: 'lair-ancient_dragon', beastId: 'ancient_dragon',
+      position: { q: 5, r: 5 }, status: 'awake', unitIds: ['drg-apex'],
+    });
+    const withBeasts: typeof state = {
+      ...state,
+      era: 4,
+      beasts: { mode: 'wild', lairs: { 'lair-ancient_dragon': lair }, sightingsByCiv: {} },
+      units: { ...state.units, [dragon.id]: dragon, [victor.id]: victor },
+    };
+    return { state: withBeasts, dragon, victor };
+  }
+
+  it('grants gold + lore + trophy-claim + max veterancy with NO pending choice', () => {
+    const { state, dragon, victor } = makeApexState();
+    const goldBefore = state.civilizations[victor.owner].gold;
+    const { state: next, slain } = recordBeastSlain(state, dragon, victor);
+
+    expect(slain).toBeDefined();
+    // gold awarded is positive (gold ×2 formula)
+    expect(slain!.goldAwarded).toBeGreaterThan(0);
+    // gold deposited in treasury
+    expect(next.civilizations[victor.owner].gold).toBe(goldBefore + slain!.goldAwarded);
+    // lair is claimed (not just slain), credited to victor's civ
+    expect(next.beasts!.lairs['lair-ancient_dragon'].status).toBe('claimed');
+    expect(next.beasts!.lairs['lair-ancient_dragon'].claimedBy).toBe(victor.owner);
+    // NO pending hoard choice — apex gets everything automatically
+    expect(next.beasts!.pendingHoardChoices ?? []).toEqual([]);
+    // hero reaches max veterancy (experience at or above elite threshold = 50)
+    expect(next.units['hero-1'].experience).toBeGreaterThanOrEqual(50);
+  });
+
+  it('tier-2 beasts still get choice panel, not apex path', () => {
+    const state = createNewGame('rome', 'tier2-test-seed', 'small', 'T2 Test');
+    const basilisk = makeUnit({ id: 'bas-1', type: 'beast_basilisk', owner: 'beasts', position: { q: 5, r: 5 } });
+    const victor = makeUnit({ id: 'hero-2', owner: state.currentPlayer, position: { q: 4, r: 5 } });
+    const lair: BeastLair = makeLair({ id: 'lair-emerald_basilisk', beastId: 'emerald_basilisk', position: { q: 5, r: 5 }, status: 'awake', unitIds: ['bas-1'] });
+    const withBeasts: typeof state = {
+      ...state,
+      era: 2,
+      beasts: { mode: 'wild', lairs: { 'lair-emerald_basilisk': lair }, sightingsByCiv: {} },
+      units: { ...state.units, [basilisk.id]: basilisk, [victor.id]: victor },
+    };
+    const { state: next } = recordBeastSlain(withBeasts, basilisk, victor);
+    expect(next.beasts!.pendingHoardChoices?.length).toBeGreaterThan(0);
+    // experience NOT boosted to max for tier-2
+    expect(next.units['hero-2'].experience).toBeLessThan(50);
+  });
+});
+
 describe('dragon ranged attacks', () => {
   it('orders an attack at 2-hex range', () => {
     const map = tinyMap({ '10,10': 'volcanic', '11,10': 'grassland', '12,10': 'grassland' });
