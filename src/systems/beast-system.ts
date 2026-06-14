@@ -4,6 +4,7 @@ import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType, type BeastDefinition }
 import { hexKey, hexDistance, hexNeighbors } from '@/systems/hex-utils';
 import { createRng } from '@/systems/map-generator';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { VETERANCY_TIERS } from '@/systems/combat-reward-system';
 
 export const BEAST_OWNER = 'beasts';
 
@@ -275,8 +276,9 @@ export function recordBeastSlain(
   }
 
   const def = BEAST_DEFINITIONS[lair.beastId];
-  const isChoiceTier = def.tier >= 2;
-  const gold = isChoiceTier ? 0 : getBeastHoardGold(def, state.era);
+  const isApex = def.tier >= 4;
+  const isChoiceTier = def.tier >= 2 && !isApex;
+  const gold = isChoiceTier || isApex ? 0 : getBeastHoardGold(def, state.era);
   const slayerCiv = state.civilizations[victor.owner];
   const updatedLair: BeastLair = {
     ...lair, unitIds: [], status: 'slain', slainBy: victor.owner, slainTurn: state.turn,
@@ -304,16 +306,52 @@ export function recordBeastSlain(
       },
     };
   }
+
+  let apexGold = 0;
+  if (isApex && slayerCiv) {
+    const baseGold = getBeastHoardGold(def, state.era);
+    apexGold = baseGold * 2;
+    const apexLore = Math.round(baseGold * 1.5);
+    // Gold
+    next = {
+      ...next,
+      civilizations: {
+        ...next.civilizations,
+        [victor.owner]: { ...next.civilizations[victor.owner], gold: next.civilizations[victor.owner].gold + apexGold },
+      },
+    };
+    // Lore
+    next = applyBeastLoreResearch(next, victor.owner, apexLore);
+    // Auto-claim trophy (skip choice panel)
+    next = {
+      ...next,
+      beasts: {
+        ...next.beasts!,
+        lairs: { ...next.beasts!.lairs, [lair.id]: { ...next.beasts!.lairs[lair.id], status: 'claimed', claimedBy: victor.owner } },
+      },
+    };
+    // Legendary veterancy for the slayer
+    const topTier = VETERANCY_TIERS[VETERANCY_TIERS.length - 1];
+    const hero = next.units[victor.id];
+    if (hero) {
+      next = {
+        ...next,
+        units: { ...next.units, [victor.id]: { ...hero, experience: Math.max(hero.experience, topTier.minExperience) } },
+      };
+    }
+  }
+
   // Victory Feast: the slaying unit is fully healed
   const victorUnit = next.units[victor.id];
   if (victorUnit) {
     next = { ...next, units: { ...next.units, [victor.id]: { ...victorUnit, health: 100 } } };
   }
 
+  const goldAwarded = isApex ? apexGold : gold;
   return {
     state: next,
     slain: slayerCiv
-      ? { lairId: lair.id, beastId: lair.beastId, slayerCivId: victor.owner, slayerUnitId: victor.id, goldAwarded: gold }
+      ? { lairId: lair.id, beastId: lair.beastId, slayerCivId: victor.owner, slayerUnitId: victor.id, goldAwarded }
       : undefined,
   };
 }
