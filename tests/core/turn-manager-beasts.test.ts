@@ -3,19 +3,26 @@ import { processTurn } from '@/core/turn-manager';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { BEAST_OWNER, getClaimedTrophyGoldPerTurn } from '@/systems/beast-system';
+import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 
 describe('turn-manager beast wiring', () => {
   it('eventually spawns a beast unit from an awakened lair and emits beast:awakened', () => {
     const state = createNewGame('rome', 'beast-turn-seed', 'small', 'Beast Turn Test');
     if (!state.beasts || Object.keys(state.beasts.lairs).length === 0) {
-      // Small maps may have no forest tiles for this seed — skip rather than fail
+      // Small maps may have no valid habitat tiles for this seed — skip rather than fail
       return;
     }
+    // Preset era to the minimum awakenEra of placed lairs so the test doesn't
+    // depend on which beasts the seeded shuffle placed (roster size changes as
+    // new beast types are added, shifting the shuffle order).
+    const minEra = Math.min(
+      ...Object.values(state.beasts.lairs).map(l => BEAST_DEFINITIONS[l.beastId].awakenEra),
+    );
     const bus = new EventBus();
     let awakened = 0;
     bus.on('beast:awakened', () => { awakened++; });
-    let s = state;
-    for (let i = 0; i < 120 && awakened === 0; i++) s = processTurn(s, bus);
+    let s = { ...state, era: minEra };
+    for (let i = 0; i < 60 && awakened === 0; i++) s = processTurn(s, bus);
     expect(awakened).toBeGreaterThan(0);
     const beastUnits = Object.values(s.units).filter(u => u.owner === BEAST_OWNER);
     expect(beastUnits.length).toBeGreaterThan(0);
