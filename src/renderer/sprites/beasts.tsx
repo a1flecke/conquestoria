@@ -236,6 +236,75 @@ const HYDRA = {
   eye: '#e0d34d',
 };
 
+const DRAGON = {
+  scale:    '#1c1c2e',
+  scaleDark:'#0d0d1a',
+  accent:   '#7a1a1a',
+  belly:    '#c8860a',
+  wing:     '#d45a0a',
+  horn:     '#e8e0cc',
+  fire:     '#ff7c2a',
+  eye:      '#fff4c8',
+};
+
+export function AncientDragonSprite({ svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      {/* Apex shadow — large ellipse, stays on ground */}
+      <Shadow cx={60} cy={115} rx={34} ry={6} opacity={0.28} />
+      <g className="cq-sprite-figure">
+        <g data-kind="beast-winged">
+          <g className="cq-hover-body">
+            <g className="cq-wing-l">
+              <path d="M60,56 C44,38 26,34 8,40 Q16,50 22,60 Q36,54 50,61 Z" fill={DRAGON.wing} stroke={P.ink.line} strokeWidth="1.2" />
+              <path d="M60,56 L26,40 M26,40 L8,40 M26,40 L22,60 M26,40 L50,61" stroke={DRAGON.scaleDark} strokeWidth="1.4" strokeLinecap="round" />
+              <path d="M60,56 C44,38 26,34 8,40" stroke={DRAGON.scale} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+              <path d="M60,56 C44,38 26,34 8,40" stroke={DRAGON.accent} strokeWidth="0.8" fill="none" strokeLinecap="round" />
+            </g>
+            <g className="cq-wing-r">
+              <path d="M68,56 C84,38 102,34 120,40 Q112,50 106,60 Q92,54 78,61 Z" fill={DRAGON.wing} stroke={P.ink.line} strokeWidth="1.2" />
+              <path d="M68,56 L102,40 M102,40 L120,40 M102,40 L106,60 M102,40 L78,61" stroke={DRAGON.scaleDark} strokeWidth="1.4" strokeLinecap="round" />
+              <path d="M68,56 C84,38 102,34 120,40" stroke={DRAGON.scale} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+              <path d="M68,56 C84,38 102,34 120,40" stroke={DRAGON.accent} strokeWidth="0.8" fill="none" strokeLinecap="round" />
+            </g>
+            {/* spiked tail */}
+            <path d="M72,64 C64,80 50,90 36,100" stroke={DRAGON.scale} strokeWidth="10" strokeLinecap="round" fill="none" />
+            <path d="M72,64 C64,80 50,90 36,100" stroke={DRAGON.scaleDark} strokeWidth="4" strokeLinecap="round" fill="none" />
+            <path d="M62,76 l-4,-6 5,3 Z M52,86 l-4,-6 5,3 Z" fill={DRAGON.horn} stroke={P.ink.line} strokeWidth="0.5" />
+            {/* hind legs */}
+            <path d="M80,66 q8,4 7,14" stroke={DRAGON.scaleDark} strokeWidth="7" strokeLinecap="round" fill="none" />
+            <path d="M70,72 q12,2 13,15" stroke={DRAGON.scale} strokeWidth="9" strokeLinecap="round" fill="none" />
+            <path d="M82,86 q-3,3 -5,6 M82,86 q0,3 0,6 M82,86 q3,3 4,6" stroke={DRAGON.scale} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+            {/* torso */}
+            <path d="M46,58 Q44,46 58,44 Q76,42 84,52 Q90,63 82,75 Q72,86 56,84 Q44,80 44,68 Z" fill={DRAGON.scale} stroke={P.ink.line} strokeWidth="1.4" />
+            <path d="M56,44 Q74,42 84,52" stroke={DRAGON.accent} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+            {/* belly plates */}
+            <ellipse cx="53" cy="64" rx="9" ry="4.5" fill={DRAGON.belly} stroke={P.ink.line} strokeWidth="0.6" />
+            <ellipse cx="54" cy="72" rx="8" ry="4" fill={DRAGON.belly} stroke={P.ink.line} strokeWidth="0.6" />
+            <ellipse cx="58" cy="79" rx="6.5" ry="3.5" fill={DRAGON.belly} stroke={P.ink.line} strokeWidth="0.6" />
+            {/* front legs */}
+            <path d="M54,76 q-4,8 -3,14" stroke={DRAGON.scale} strokeWidth="8" strokeLinecap="round" fill="none" />
+            <path d="M51,90 q-3,3 -5,6 M51,90 q0,3 0,6 M51,90 q3,3 4,6" stroke={DRAGON.scale} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+            {/* neck + head */}
+            <path d="M60,56 C62,44 73,38 86,38 C82,46 80,50 76,56 Z" fill={DRAGON.scale} stroke={P.ink.line} strokeWidth="1.3" />
+            <path d="M60,54 C65,45 75,40 85,40" stroke={DRAGON.accent} strokeWidth="1" fill="none" strokeLinecap="round" />
+            <path d="M84,40 Q88,30 98,32 Q107,34 107,42 Q105,49 96,50 L88,49 Q82,46 84,40 Z" fill={DRAGON.scale} stroke={P.ink.line} strokeWidth="1.3" />
+            {/* horns */}
+            <path d="M97,33 Q93,21 84,17 Q93,17 100,26 Q102,30 101,34 Z" fill={DRAGON.horn} stroke={P.ink.line} strokeWidth="0.8" />
+            <path d="M88,34 Q85,29 80,25 Q85,25 89,28 Q92,30 92,35 Z" fill={DRAGON.horn} stroke={P.ink.line} strokeWidth="0.8" />
+            {/* eye */}
+            <circle cx="93" cy="42" r="3.4" fill={DRAGON.fire} />
+            <circle cx="93" cy="42" r="1.8" fill={DRAGON.eye} />
+            {/* jaw ember */}
+            <ellipse cx="104" cy="49" rx="5" ry="3.5" fill={DRAGON.fire} opacity="0.55" />
+            <ellipse cx="106" cy="49" rx="3" ry="2.2" fill={DRAGON.eye} opacity="0.6" />
+          </g>
+        </g>
+      </g>
+    </SpriteFrame>
+  );
+}
+
 export function SwampHydraSprite({ svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>

@@ -123,6 +123,21 @@ export const BEAST_DEFINITIONS: Record<BeastId, BeastDefinition> = {
     awakeningFlavor: 'The bog exhales. Many heads rise where one fell long ago.',
     sightingFlavor: 'The Swamp Hydra rears from the mire — heads weaving, wounds closing as you watch!',
   },
+  ancient_dragon: {
+    id: 'ancient_dragon',
+    unitType: 'beast_dragon',
+    name: 'Ancient Dragon',
+    habitatTerrains: ['volcanic'],
+    awakenEra: 4,
+    tier: 4,
+    leashRadius: 4,
+    packSize: 1,
+    hoardGoldBase: 300,
+    flying: true,
+    dangerHint: 'The mountain that burns has a heartbeat. The oldest maps mark it with a single word: NO.',
+    awakeningFlavor: 'The burning mountain splits open. The Ancient Dragon has awoken — and the world holds its breath.',
+    sightingFlavor: 'The Ancient Dragon — wings of ember, eyes of molten gold. May fortune favor the bold.',
+  },
 };
 
 const BY_UNIT_TYPE = new Map(
