@@ -47,6 +47,7 @@ import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
 import { showBeastSightingBanner } from '@/ui/beast-sighting-banner';
+import { showBeastSlayCeremony } from '@/ui/beast-slay-ceremony';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
 import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
@@ -2224,7 +2225,12 @@ function executeAttack(attackerId: string, targetKey: string): void {
     if (slayResult.slain) {
       bus.emit('beast:slain', slayResult.slain);
     }
-    maybeShowPendingHoardChoice();
+    // Tier 3+ beasts use the slay ceremony (beast:slain listener); ceremony calls
+    // maybeShowPendingHoardChoice via onContinue so the choice panel appears after
+    // the ceremony is dismissed rather than racing with it.
+    if (!slayResult.slain || BEAST_DEFINITIONS[slayResult.slain.beastId].tier < 3) {
+      maybeShowPendingHoardChoice();
+    }
 
     const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
     if (destroyedCamp.campId) {
@@ -3366,17 +3372,33 @@ bus.on('beast:awakened', ({ beastId, position }) => {
 bus.on('beast:slain', ({ beastId, slayerCivId, goldAwarded }) => {
   const def = BEAST_DEFINITIONS[beastId];
   const slayerName = gameState.civilizations[slayerCivId]?.name ?? slayerCivId;
-  const isChoiceTier = def.tier >= 2;
+  const isApex = def.tier >= 4;
+  const isChoiceTier = def.tier >= 2 && !isApex;
   for (const civId of Object.keys(gameState.civilizations)) {
-    const slayerMsg = isChoiceTier
-      ? `Your forces have slain the ${def.name}! Choose your reward.`
-      : `Your forces have slain the ${def.name}! Hoard claimed: +${goldAwarded} gold.`;
+    const slayerMsg = isApex
+      ? `Your forces have slain the ${def.name}! The apex hoard is yours — gold, lore, trophy, and legend.`
+      : isChoiceTier
+        ? `Your forces have slain the ${def.name}! Choose your reward.`
+        : `Your forces have slain the ${def.name}! Hoard claimed: +${goldAwarded} gold.`;
     const message = civId === slayerCivId ? slayerMsg : `${slayerName} has slain the ${def.name}!`;
     appendToCivLog(civId, message, civId === slayerCivId ? 'success' : 'info');
   }
   if (slayerCivId === gameState.currentPlayer) {
-    const toast = isChoiceTier ? `🏆 ${def.name} slain! Choose your reward.` : `🏆 ${def.name} slain! +${goldAwarded} gold`;
-    showNotification(toast, 'success');
+    if (def.tier >= 3) {
+      const rewardLines = isApex
+        ? [`+${goldAwarded} gold`, 'Ancient Lore claimed (+research)', 'Beast Trophy raised (+8 gold/turn)', 'Your hero is now Legendary']
+        : ['Choose your hoard reward…'];
+      showBeastSlayCeremony(uiLayer, {
+        beastName: def.name,
+        unitType: def.unitType,
+        slayerName,
+        rewardLines,
+        onContinue: () => { if (!isApex) maybeShowPendingHoardChoice(); },
+      });
+    } else {
+      const toast = isChoiceTier ? `🏆 ${def.name} slain! Choose your reward.` : `🏆 ${def.name} slain! +${goldAwarded} gold`;
+      showNotification(toast, 'success');
+    }
   }
 });
 
