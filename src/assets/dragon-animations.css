@@ -1,0 +1,253 @@
+/* Conquestoria — Ancient Dragon (legendary beast) animations.
+ * Companion to the v2 sprite system. Runs as data-kind="beast-winged" so
+ * none of the generic unit / boar / wolf rules fire — every motion is bespoke.
+ *
+ * NOTE ON THE SHARED LIBRARY:
+ *   The brief references shared `[data-kind="beast-winged"]` rules in
+ *   sprite-animations-v2.css that flap the wings / bob the body automatically.
+ *   Those rules do NOT exist upstream yet (only beast-serpent is defined there)
+ *   — exactly as documented in roc-animations.css. Following the established
+ *   legendary-beast pattern, this file therefore OWNS the wing-flap, hover-bob
+ *   and detached-shadow behavior itself. If beast-winged hooks are later added
+ *   upstream, delete the "BASE FLIGHT" block below to avoid double animation.
+ *
+ *   The dragon is the apex boss: ~twice the roc's mass. Wingbeats are SLOWER
+ *   and deeper, the hover is heavier, and the attack is a fire-breath — the
+ *   neck rears back then THRUSTS the head down-and-forward as the jaw ignites.
+ *
+ * State + damage contract:
+ *   data-state  ∈ idle | walk | attack | hurt | death
+ *   data-damage ∈ 0 (healthy) | 1 (wounded) | 2 (bloodied) | 3 (near death)
+ *
+ * Hooks on the sprite:
+ *   .cq-wing-l / .cq-wing-r   the two great bat-wings (flap, pivot at root 64,60)
+ *   .cq-hover-body            torso + neck + head + wings + legs + tail; bobs aloft
+ *   .cq-neck                  neck + head + horns + jaw; rears + thrusts on attack
+ *   .cq-jaw-ember             contained fire at the jaw; brightens on attack
+ *   .cq-shadow-detached       ground shadow — held aloft-small to read altitude
+ *   .cq-wound-1 / -2 / -3     progressive battle damage
+ */
+
+/* ── DETACHED SHADOW ─ large + faint to read the dragon flying high aloft ─ */
+.cq-shadow-detached {
+  transform-box: view-box;
+  transform-origin: 60px 119px;
+  transform: scale(0.72);
+}
+@keyframes cq-dragon-shadow {
+  0%, 100% { transform: scale(0.72); opacity: 0.30; }
+  50%      { transform: scale(0.64); opacity: 0.22; }
+}
+[data-kind="beast-winged"]:not([data-state="death"]) .cq-shadow-detached {
+  animation: cq-dragon-shadow 3s ease-in-out infinite;
+}
+
+/* ── BASE FLIGHT ─ heavy wingbeat (1.5s) + slow body bob (3s), always aloft ─ */
+.cq-wing-l, .cq-wing-r { transform-box: view-box; transform-origin: 64px 60px; }
+.cq-hover-body         { transform-box: view-box; transform-origin: 60px 58px; }
+.cq-neck               { transform-box: view-box; transform-origin: 60px 55px; }
+.cq-jaw-ember          { transform-box: view-box; transform-origin: 104px 49px; }
+
+/* Deep, laboured beat — wing sweeps down past horizontal then powers back up.
+ * Bigger amplitude than the roc (±10°) read as a heavier, slower wing. */
+@keyframes cq-dragon-flap-l {
+  0%, 100% { transform: rotate(-11deg) scaleY(0.93); }
+  50%      { transform: rotate(8deg)   scaleY(1.07); }
+}
+@keyframes cq-dragon-flap-r {
+  0%, 100% { transform: rotate(11deg)  scaleY(0.93); }
+  50%      { transform: rotate(-8deg)  scaleY(1.07); }
+}
+@keyframes cq-dragon-hover {
+  0%, 100% { transform: translateY(2.8px); }
+  50%      { transform: translateY(-2.8px); }
+}
+@keyframes cq-dragon-neck-idle {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-2.5deg); }
+}
+@keyframes cq-dragon-ember-flicker {
+  0%, 100% { opacity: 0.78; }
+  50%      { opacity: 1; }
+}
+[data-kind="beast-winged"]:not([data-state="death"]) .cq-wing-l {
+  animation: cq-dragon-flap-l 1.5s ease-in-out infinite;
+}
+[data-kind="beast-winged"]:not([data-state="death"]) .cq-wing-r {
+  animation: cq-dragon-flap-r 1.5s ease-in-out infinite;
+}
+[data-kind="beast-winged"]:not([data-state="death"]) .cq-hover-body {
+  animation: cq-dragon-hover 3s ease-in-out infinite;
+}
+/* Neck breathes/sways gently in every state EXCEPT attack (it owns the neck). */
+[data-kind="beast-winged"]:not([data-state="death"]):not([data-state="attack"]) .cq-neck {
+  animation: cq-dragon-neck-idle 3s ease-in-out infinite;
+}
+[data-kind="beast-winged"]:not([data-state="death"]):not([data-state="attack"]) .cq-jaw-ember {
+  animation: cq-dragon-ember-flicker 2.4s ease-in-out infinite;
+}
+
+/* ── WALK (= powered flight forward) ─ faster, deeper beats, slight drift ── */
+@keyframes cq-dragon-cruise {
+  0%, 100% { transform: translate(0, 3.5px); }
+  50%      { transform: translate(2.5px, -3.5px); }
+}
+[data-state="walk"][data-kind="beast-winged"] .cq-hover-body {
+  animation: cq-dragon-cruise 1s ease-in-out infinite;
+}
+[data-state="walk"][data-kind="beast-winged"] .cq-wing-l { animation-duration: 1s; }
+[data-state="walk"][data-kind="beast-winged"] .cq-wing-r { animation-duration: 1s; }
+
+/* ── ATTACK ─ the FIRE BREATH ──────────────────────────────────────────
+ * A serpentine charge: (1) the neck RECOILS back and up — head cocked high,
+ * jaw charging — while the wings throw up and the body coils back. (2) the
+ * neck WHIPS the head down-and-forward (clockwise about the neck-base pivot
+ * 60,55, so the head end dives toward the lower-right target) as the wings
+ * power a holding down-beat and the jaw ignites. (3) settle back to idle.
+ * The neck pivots about its OWN base — the head leads, the body recoils
+ * from the blast — so the breath reads as a real thrust, not a slide. */
+@keyframes cq-dragon-rear {
+  0%   { transform: rotate(0deg); }
+  22%  { transform: rotate(-28deg); }   /* rear back — head high, jaw charging */
+  32%  { transform: rotate(-31deg); }   /* hold the cock-back a beat */
+  52%  { transform: rotate(27deg); }    /* WHIP forward + down — breathe fire */
+  64%  { transform: rotate(23deg); }    /* sustain the cone of flame */
+  84%  { transform: rotate(-4deg); }    /* lift the head back up */
+  100% { transform: rotate(0deg); }
+}
+[data-state="attack"][data-kind="beast-winged"] .cq-neck {
+  animation: cq-dragon-rear 1.5s cubic-bezier(.45,0,.4,1) infinite;
+}
+/* Body coils back as the neck cocks, then recoils from the blast. */
+@keyframes cq-dragon-lunge-body {
+  0%, 100% { transform: translate(0, 0); }
+  22%      { transform: translate(4px, -3px); }   /* gather / rise with the rear */
+  52%      { transform: translate(-5px, 2px); }   /* recoil — kicked back by the breath */
+  64%      { transform: translate(-3px, 1px); }
+}
+[data-state="attack"][data-kind="beast-winged"] .cq-hover-body {
+  animation: cq-dragon-lunge-body 1.5s cubic-bezier(.45,0,.4,1) infinite;
+}
+/* Wings: raised on the cock-back, then a powerful holding down-beat to brace
+ * the body against the breath. Wider sweep than the cruise flap. */
+@keyframes cq-dragon-attack-wing-l {
+  0%, 100% { transform: rotate(-11deg) scaleY(1); }
+  22%      { transform: rotate(-34deg) scaleY(1); }   /* thrown up with the rear */
+  52%      { transform: rotate(12deg)  scaleY(1.06); } /* power down-beat to brace */
+  64%      { transform: rotate(4deg)   scaleY(1.04); }
+}
+@keyframes cq-dragon-attack-wing-r {
+  0%, 100% { transform: rotate(11deg)  scaleY(1); }
+  22%      { transform: rotate(34deg)  scaleY(1); }
+  52%      { transform: rotate(-12deg) scaleY(1.06); }
+  64%      { transform: rotate(-4deg)  scaleY(1.04); }
+}
+[data-state="attack"][data-kind="beast-winged"] .cq-wing-l {
+  animation: cq-dragon-attack-wing-l 1.5s cubic-bezier(.45,0,.4,1) infinite;
+}
+[data-state="attack"][data-kind="beast-winged"] .cq-wing-r {
+  animation: cq-dragon-attack-wing-r 1.5s cubic-bezier(.45,0,.4,1) infinite;
+}
+/* Jaw ignites — flares white-hot as the head whips down to breathe. */
+@keyframes cq-dragon-breath {
+  0%, 30% { opacity: 0.5;  transform: scale(1); }
+  50%     { opacity: 1;    transform: scale(1.25); }   /* ignition on the thrust */
+  64%     { opacity: 0.95; transform: scale(1.18); }
+  100%    { opacity: 0.5;  transform: scale(1); }
+}
+[data-state="attack"][data-kind="beast-winged"] .cq-jaw-ember {
+  animation: cq-dragon-breath 1.5s cubic-bezier(.45,0,.4,1) infinite;
+}
+/* The breath itself — a cone of flame erupts from the mouth as the head whips
+ * down, then dies back. Grows outward from the mouth (origin at the snout)
+ * and is invisible in every state but attack. Sits inside .cq-neck so it
+ * tracks the head's rotation and points wherever the thrust aims. */
+.cq-fire { opacity: 0; transform-box: view-box; transform-origin: 106px 49px; }
+@keyframes cq-dragon-fire {
+  0%, 38% { opacity: 0;    transform: scaleX(0.15) scaleY(0.5); }
+  48%     { opacity: 1;    transform: scaleX(1.05) scaleY(1.06); }  /* erupt with the thrust */
+  60%     { opacity: 0.96; transform: scaleX(1) scaleY(0.9); }      /* roiling flicker */
+  68%     { opacity: 0.85; transform: scaleX(1.12) scaleY(1.12); }
+  80%     { opacity: 0;    transform: scaleX(0.5) scaleY(0.6); }    /* burn out */
+  100%    { opacity: 0;    transform: scaleX(0.15) scaleY(0.5); }
+}
+[data-state="attack"][data-kind="beast-winged"] .cq-fire {
+  animation: cq-dragon-fire 1.5s cubic-bezier(.45,0,.4,1) infinite;
+}
+
+/* ── HURT ─ stagger: brightness flash + recoil snap that recovers ──────── */
+@keyframes cq-dragon-flinch {
+  0%, 64%, 100% { transform: translateX(0); filter: brightness(1) saturate(1); }
+  70%  { transform: translateX(-3px); filter: brightness(1.5) saturate(1.5); }
+  78%  { transform: translateX(2px);  filter: brightness(1.35) saturate(1.35); }
+  86%  { transform: translateX(-1px); filter: brightness(1.15); }
+}
+[data-state="hurt"][data-kind="beast-winged"] .cq-sprite-figure {
+  animation: cq-dragon-flinch 2.4s ease-out infinite;
+}
+@keyframes cq-dragon-recoil {
+  0%, 60%, 100% { transform: translateY(0) rotate(0deg); }
+  70%  { transform: translateY(1.5px) rotate(-5deg); }  /* snapped by the blow */
+  82%  { transform: translateY(0) rotate(2deg); }       /* recover */
+}
+[data-state="hurt"][data-kind="beast-winged"] .cq-hover-body {
+  animation: cq-dragon-hover 3s ease-in-out infinite, cq-dragon-recoil 2.4s ease-out infinite;
+}
+/* near-death: wingbeats slow ~50% — struggling to stay airborne. */
+[data-state="hurt"][data-damage="3"][data-kind="beast-winged"] .cq-wing-l,
+[data-state="hurt"][data-damage="3"][data-kind="beast-winged"] .cq-wing-r {
+  animation-duration: 2.25s;
+}
+[data-damage="3"][data-kind="beast-winged"]:not([data-state="death"]) .cq-wing-l,
+[data-damage="3"][data-kind="beast-winged"]:not([data-state="death"]) .cq-wing-r {
+  animation-duration: 2.25s;
+}
+[data-state="hurt"][data-damage="3"][data-kind="beast-winged"] .cq-sprite-figure {
+  animation-duration: 1.6s;
+}
+
+/* ── DAMAGE ─ three escalating tiers, driven by data-damage ────────────── */
+.cq-wound-1, .cq-wound-2, .cq-wound-3 { opacity: 0; }
+/* tier 1+ : cracked scale plates on the shoulder */
+[data-damage="1"] .cq-wound-1,
+[data-damage="2"] .cq-wound-1,
+[data-damage="3"] .cq-wound-1 { opacity: 1; }
+/* tier 2+ : deep gash across the neck, ember glowing through */
+[data-damage="2"] .cq-wound-2,
+[data-damage="3"] .cq-wound-2 { opacity: 1; }
+/* tier 3 : broken horn + torn wing membrane */
+[data-damage="3"] .cq-wound-3 { opacity: 1; }
+/* tier 3 also SNAPS the front horn off — hide its breakable tip so the jagged
+ * stub + tumbling shard in .cq-wound-3 read as a genuine break. */
+[data-damage="3"] .cq-horn-tip { opacity: 0; }
+
+/* ── DEATH ─ wings fold, the dragon plummets and fades ─────────────────── */
+@keyframes cq-dragon-plummet {
+  0%   { transform: translateY(0) rotate(0); opacity: 1; }
+  16%  { transform: translateY(-4px) rotate(7deg); }   /* a last lurch up */
+  100% { transform: translateY(40px) rotate(-42deg); opacity: 0; }
+}
+[data-state="death"][data-kind="beast-winged"] .cq-sprite-figure {
+  transform-box: view-box; transform-origin: 60px 62px;
+  animation: cq-dragon-plummet 1.3s cubic-bezier(.5,0,.8,.4) forwards;
+}
+@keyframes cq-dragon-shadow-die {
+  0%   { transform: scale(0.72); opacity: 0.3; }
+  100% { transform: scale(1.1); opacity: 0; }   /* grows as the body nears the ground */
+}
+[data-state="death"][data-kind="beast-winged"] .cq-shadow-detached {
+  animation: cq-dragon-shadow-die 1.3s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-kind="beast-winged"] .cq-sprite-figure,
+  [data-kind="beast-winged"] .cq-hover-body,
+  [data-kind="beast-winged"] .cq-wing-l,
+  [data-kind="beast-winged"] .cq-wing-r,
+  [data-kind="beast-winged"] .cq-neck,
+  [data-kind="beast-winged"] .cq-jaw-ember,
+  [data-kind="beast-winged"] .cq-fire,
+  [data-kind="beast-winged"] .cq-shadow-detached {
+    animation: none !important;
+  }
+}
