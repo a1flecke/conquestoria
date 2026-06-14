@@ -6,6 +6,7 @@ import '@/assets/hydra-animations.css';
 import '@/assets/sea-serpent-animations.css';
 import '@/assets/wurm-animations.css';
 import '@/assets/roc-animations.css';
+import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
