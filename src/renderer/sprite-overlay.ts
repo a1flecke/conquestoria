@@ -263,12 +263,19 @@ function updateUnitDecorations(wrapper: HTMLElement, entity: SpriteEntity): void
   }
 
   if ((entity.stackCount ?? 1) > 1) {
-    const count = getOrCreateDecoration(wrapper, 'cq-unit-stack-count');
-    count.textContent = String(entity.stackCount);
-    count.style.cssText =
-      'position:absolute;right:2%;top:2%;min-width:28%;height:28%;border-radius:50%;' +
+    const pill = getOrCreateDecoration(wrapper, 'cq-unit-stack-count');
+    pill.style.cssText =
+      'position:absolute;right:2%;top:2%;min-width:42%;height:28%;border-radius:999px;' +
       'background:rgba(0,0,0,.82);border:1px solid rgba(255,255,255,.85);color:#fff;' +
-      'font:700 0.72em system-ui;display:flex;align-items:center;justify-content:center;pointer-events:none';
+      'font:700 0.65em system-ui;display:flex;align-items:center;justify-content:center;' +
+      'gap:2px;padding:0 3%;pointer-events:none';
+    const icon = document.createElement('span');
+    icon.textContent = '🪖️';
+    icon.style.cssText = 'font-size:0.9em;line-height:1';
+    const label = document.createElement('span');
+    label.textContent = `×${entity.stackCount}`;
+    label.style.cssText = 'font-weight:700';
+    pill.replaceChildren(icon, label);
   } else {
     removeDecoration(wrapper, 'cq-unit-stack-count');
   }
