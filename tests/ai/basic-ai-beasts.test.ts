@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { processAITurn } from '@/ai/basic-ai';
 import { EventBus } from '@/core/event-bus';
-import type { GameEvents, GameState } from '@/core/types';
+import type { GameState } from '@/core/types';
 
 function makeBeastState(overrides: {
   aiUnitType?: string;
@@ -87,7 +87,7 @@ describe('AI vs beasts', () => {
   it('never attacks a beast when aiContestsBeasts is false (default)', () => {
     const state = makeBeastState({ aiUnitType: 'warrior', beastType: 'beast_boar' });
     const combatEvents: unknown[] = [];
-    const bus = new EventBus<GameEvents>();
+    const bus = new EventBus();
     bus.on('combat:resolved', p => combatEvents.push(p));
 
     processAITurn(state, 'ai-1', bus);
@@ -105,7 +105,7 @@ describe('AI vs beasts', () => {
       contestsBeasts: true,
     });
     const combatEvents: unknown[] = [];
-    const bus = new EventBus<GameEvents>();
+    const bus = new EventBus();
     bus.on('combat:resolved', p => combatEvents.push(p));
 
     processAITurn(state, 'ai-1', bus);
@@ -114,15 +114,15 @@ describe('AI vs beasts', () => {
   });
 
   it('does not attack when enabled but the beast is too strong (< 1.5x advantage)', () => {
-    // warrior (str 10) vs full-health basilisk (str 26)
-    // myStrength = 10; beastStrength = 26; 10 < 26 * 1.5 = 39 → skip
+    // warrior (str 10) vs full-health basilisk (str 30)
+    // myStrength = 10; beastStrength = 30; 10 < 30 * 1.5 = 45 → skip
     const state = makeBeastState({
       aiUnitType: 'warrior', aiUnitHealth: 100,
       beastType: 'beast_basilisk', beastHealth: 100,
       contestsBeasts: true,
     });
     const combatEvents: unknown[] = [];
-    const bus = new EventBus<GameEvents>();
+    const bus = new EventBus();
     bus.on('combat:resolved', p => combatEvents.push(p));
 
     processAITurn(state, 'ai-1', bus);
