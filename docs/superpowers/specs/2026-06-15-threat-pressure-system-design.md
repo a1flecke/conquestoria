@@ -35,7 +35,8 @@ nowhere to fight. This is especially acute for experienced players who expand qu
 - New pirate base / tribute / elimination campaign — pirates are raiders, not a full faction.
 - AI civ threat pressure — AI always has something to do; human boredom is the target problem.
 - Difficulty modes — threat intensity is governed solely by era and landmass dominance.
-- Sprite artwork for pirate units — short-term visual handled by renderer tint (see §8).
+- New unit types for pirates — pirates reuse existing naval sprites (`galley`, `carrack`, `trireme`)
+  with a hostile faction palette, exactly as barbarian warriors reuse the warrior sprite.
 
 ---
 
@@ -236,10 +237,11 @@ Seed: `state.turn * 99991 + landmassId.charCodeAt(0) * 7 + civId.charCodeAt(0) *
 ### Bandit Lord Variant (Era 3+, score > 8)
 
 25% chance (from seeded RNG) that a resurgent spawn is a "bandit lord":
-- Named: `'Bandit Lord [X]'` using a short name pool (5 entries).
+- Named using this pool (chosen by seeded RNG, no repeats until pool exhausted):
+  `['Grakkus the Scarred', 'Morrigan of the Wastes', 'Thorn Black-Hand', 'The Iron Duke', 'Selia the Burned']`
 - Strength = era-max + 4.
 - Grants 2× gold reward on destruction.
-- Council notification uses distinct text (see §8).
+- Council notification uses distinct text (see §9).
 
 ### Event
 
@@ -422,14 +424,15 @@ processPirateFleets(state, bus):
 
 ## Section 8 — Visual Treatment for Pirate Units
 
-No pirate sprite exists. Short-term approach (this spec):
+Pirates reuse existing naval unit sprites (`galley` → era 1–2, `carrack` → era 3, `trireme` → era 4).
+No new sprite needed — the visual distinction comes from faction palette.
 
-The renderer assigns unit colors based on `unit.owner`. Pirate units (`owner === PIRATE_OWNER`)
-receive the same hostile-red palette currently used for barbarian units. Visually distinct
-from player-owned naval units of the same type.
+The renderer already assigns colors based on `unit.owner`. Pirate units (`owner === PIRATE_OWNER`)
+receive the hostile-red palette currently used for barbarian units. A player's galley is blue/gold;
+a pirate galley is red/dark. Visually unambiguous, zero new art required.
 
-Long-term: a dedicated Claude Design prompt for pirate unit sprites is deferred. When created,
-it should follow the v2 DOM sprite format documented in `docs/sprite-design-system.md`.
+**Required renderer change:** In the unit color/palette lookup, add a case for `PIRATE_OWNER`
+mapping to the existing barbarian hostile palette (same as `'barbarian'`).
 
 ---
 
@@ -448,7 +451,46 @@ All notifications route through the existing council/advisor notification system
 
 ---
 
-## Section 10 — Save Migration Summary
+## Section 10 — Sound Effects
+
+All SFX follow the existing synthesized-audio pattern (Web Audio API, same approach as beast SFX).
+No placeholder audio — all four SFX are fully specified below and required by MR end.
+
+### `threat:barbarian-resurgence` — Resurgence Drum
+
+A low, distant war-drum roll building to a single heavy strike.
+- Waveform: two `triangle` oscillators at 80 Hz and 120 Hz, slightly detuned (+3 cents)
+- Envelope: 0 → 0.6 gain over 0.3 s, hold 0.2 s, decay to 0 over 0.8 s
+- A `BiquadFilterNode` (lowpass, cutoff 300 Hz) keeps it earth-toned and not jarring for kids
+- Total duration: ~1.3 s
+
+### `threat:pirate-fleet-spawned` — Sea Horn
+
+A deep, foghorn-like bleat evoking something spotted on the horizon.
+- Waveform: `sawtooth` oscillator at 55 Hz, pitched up by a perfect fifth (+7 semitones) over 0.4 s
+- Envelope: 0 → 0.5 gain over 0.2 s, hold 0.5 s, decay to 0 over 0.6 s
+- Light reverb via `ConvolverNode` (small impulse, wet mix 0.3)
+- Total duration: ~1.3 s
+
+### `threat:pirate-plunder` — Coin Theft Jingle (negative)
+
+Descending three-note motif conveying loss — like coins spilling away.
+- Three `sine` tones in sequence: E4 (330 Hz) → C4 (262 Hz) → A3 (220 Hz)
+- Each note: 0.15 s duration, 10 ms crossfade, gain 0.4
+- Light distortion (`WaveShaperNode`, soft clip) gives a slightly jangling, unsatisfying quality
+- Total duration: ~0.5 s
+
+### `threat:pirate-fleet-destroyed` — Victory Splash
+
+Short triumphant crash + water-rush, rewarding the kill.
+- White noise burst (0.08 s, gain 0.7) — the impact
+- Followed by a rising `sine` sweep from 200 Hz → 800 Hz over 0.3 s (gain 0.3) — the rush
+- Envelope: instant attack, decay to 0 over 0.4 s total
+- Total duration: ~0.5 s
+
+---
+
+## Section 11 — Save Migration Summary
 
 All migration runs in `migrateLegacySave()` in `main.ts` (for existing saves) and
 `normalizeLoadedState()` for normalization:
@@ -466,7 +508,7 @@ Solo saves and hot-seat saves go through the same migration path.
 
 ---
 
-## Section 11 — Hot-Seat Summary
+## Section 12 — Hot-Seat Summary
 
 | Behavior | Rule |
 |---|---|
@@ -479,7 +521,7 @@ Solo saves and hot-seat saves go through the same migration path.
 
 ---
 
-## Section 12 — Testing
+## Section 13 — Testing
 
 ### Unit Tests (`tests/systems/threat-pressure-system.test.ts`)
 
@@ -535,5 +577,9 @@ Tests: integration tests for resurgence cap, cooldown, era strength.
 
 **MR4 — Sea Raiders**
 `PirateFleet`, `processPirateSpawn`, `processPirateFleets`, plunder/siege logic, destruction + cooldown.
-Renderer hostile-tint for `PIRATE_OWNER`.
+Renderer hostile-tint for `PIRATE_OWNER` (reuses barbarian palette — no new sprites).
+All four SFX synthesized and wired to their events (§10).
 Tests: all pirate integration tests.
+
+By the end of MR4 there are no placeholder sprites, animations, text, SFX, UI, or UX elements —
+every player-visible part of the system is production-ready.
