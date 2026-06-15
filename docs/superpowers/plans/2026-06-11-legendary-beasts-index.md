@@ -18,8 +18,8 @@
 | MR4 | [2026-06-11-legendary-beasts-mr4-hoard-trophies.md](2026-06-11-legendary-beasts-mr4-hoard-trophies.md) | Hoard choice panel + lair trophies + AI auto-resolve | ✅ merged ([PR #369](https://github.com/a1flecke/conquestoria/pull/369)) |
 | MR5 | [2026-06-11-legendary-beasts-mr5-serpent-wurm.md](2026-06-11-legendary-beasts-mr5-serpent-wurm.md) | Sea Serpent + Dune Wurm + naval passability + `beast-serpent` rig | ✅ merged ([PR #371](https://github.com/a1flecke/conquestoria/pull/371)) |
 | MR6 | [2026-06-11-legendary-beasts-mr6-roc-hydra.md](2026-06-11-legendary-beasts-mr6-roc-hydra.md) | Storm Roc + Swamp Hydra + flight + regen + `beast-winged` rig | ✅ merged ([PR #372](https://github.com/a1flecke/conquestoria/pull/372)) |
-| MR7 | [2026-06-11-legendary-beasts-mr7-ancient-dragon.md](2026-06-11-legendary-beasts-mr7-ancient-dragon.md) | Ancient Dragon apex + ranged breath + slay ceremony + apex reward | ◐ in progress |
-| MR8 | [2026-06-11-legendary-beasts-mr8-audio-ai-balance.md](2026-06-11-legendary-beasts-mr8-audio-ai-balance.md) | Roar SFX + tension music layer + gated AI hunting + balance bands | ☐ not started |
+| MR7 | [2026-06-11-legendary-beasts-mr7-ancient-dragon.md](2026-06-11-legendary-beasts-mr7-ancient-dragon.md) | Ancient Dragon apex + ranged breath + slay ceremony + apex reward | ✅ merged |
+| MR8 | [2026-06-11-legendary-beasts-mr8-audio-ai-balance.md](2026-06-11-legendary-beasts-mr8-audio-ai-balance.md) | Roar SFX + tension music layer + gated AI hunting + balance bands | ◐ in progress |
 
 Update this table as MRs land: ☐ not started → ◐ in progress (PR #N) → ✅ merged (PR #N).
 
