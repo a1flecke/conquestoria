@@ -285,6 +285,21 @@ describe('resolveSnapshot — priority chain (Spec 3)', () => {
   it('inUnrest alone → unrest', () => {
     expect(makeDirectorWithPlayer('rome', false, 1, false).resolveSnapshot()).toBe('unrest');
   });
+  it('beastTerritory alone → beast-territory', () => {
+    const d = new MusicDirector(makeMixer(), makeLoader());
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
+    expect(d.resolveSnapshot()).toBe('beast-territory');
+  });
+  it('beastTerritory + atWar → at-war (atWar wins over beastTerritory)', () => {
+    const d = new MusicDirector(makeMixer(), makeLoader());
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
+    expect(d.resolveSnapshot()).toBe('at-war');
+  });
+  it('beastTerritory + inUnrest → unrest (inUnrest wins over beastTerritory)', () => {
+    const d = new MusicDirector(makeMixer(), makeLoader());
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: true });
+    expect(d.resolveSnapshot()).toBe('unrest');
+  });
   it('all flags false → peace', () => {
     expect(makeDirectorWithPlayer('rome').resolveSnapshot()).toBe('peace');
   });

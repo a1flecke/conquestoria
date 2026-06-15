@@ -829,6 +829,7 @@ export interface BeastsState {
   lairs: Record<string, BeastLair>;
   sightingsByCiv: Record<string, BeastId[]>;   // per-civ bestiary sightings (MR2 populates)
   pendingHoardChoices?: PendingHoardChoice[];   // queued for human players (MR4)
+  migrationPending?: boolean;                  // true on legacy saves; processTurn places lairs on first tick
 }
 
 // --- Minor Civilizations ---

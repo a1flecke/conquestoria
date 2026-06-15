@@ -42,7 +42,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn, isCivUnitInBeastTerritory } from '@/systems/beast-system';
+import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn, isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
@@ -3738,25 +3738,11 @@ function migrateLegacySave(): void {
     delete r.goldPerTurn;
   }
 
-  // Beasts migration: seed lairs into saves that pre-date the beasts system.
-  // Uses the game's own id as seed so placement is identical on every reload.
+  // Beasts migration: flag legacy saves so processTurn places lairs on the FIRST tick after load.
+  // This defers the 🐾 markers and discovery notification until the player takes an action,
+  // giving them a moment to orient before the map changes.
   if (!gameState.beasts) {
-    const mapSize = gameState.settings.mapSize ?? 'medium';
-    // Use city positions as start-position proxies so no lair spawns inside a settled area.
-    const cityPositions = Object.values(gameState.cities).map(c => c.position);
-    const migrationSeed = (gameState.gameId ?? 'legacy') + '-beasts-migration';
-    const lairs = placeBeastLairs(gameState.map, cityPositions, mapSize, migrationSeed);
-    (gameState as any).beasts = { mode: 'wild', lairs, sightingsByCiv: {} };
-    // Queue a one-time discovery notification on next turn
-    if (!gameState.pendingEvents) (gameState as any).pendingEvents = {};
-    for (const civId of Object.keys(gameState.civilizations)) {
-      if (!gameState.pendingEvents![civId]) gameState.pendingEvents![civId] = [];
-      gameState.pendingEvents![civId].push({
-        type: 'info',
-        message: 'Ancient legends are stirring in the wilderness. Legendary beasts now roam forgotten lairs across the land.',
-        turn: gameState.turn,
-      });
-    }
+    (gameState as any).beasts = { mode: 'wild', lairs: {}, sightingsByCiv: {}, migrationPending: true };
   }
 }
 

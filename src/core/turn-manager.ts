@@ -9,7 +9,7 @@ import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-wor
 import { processResearch, getTechById } from '@/systems/tech-system';
 import { processBarbarians } from '@/systems/barbarian-system';
 import {
-  processBeasts, recordBeastSlain, BEAST_OWNER,
+  processBeasts, placeBeastLairs, recordBeastSlain, BEAST_OWNER,
   LAIR_GROWTH_INTERVAL_TURNS, LAIR_GROWTH_CAP, LAIR_GROWTH_EXPERIENCE,
   applyHoardChoice, getClaimedTrophyGoldPerTurn,
 } from '@/systems/beast-system';
@@ -584,6 +584,25 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // --- Process legendary beasts ---
   if (newState.beasts && newState.beasts.mode !== 'off') {
+    // Legacy save migration: place lairs on the first turn after the flag is set by migrateLegacySave.
+    // Deferred from load time so 🐾 markers don't appear until the player takes their first action.
+    if (newState.beasts.migrationPending) {
+      const mapSize = newState.settings.mapSize ?? 'medium';
+      const cityPositions = Object.values(newState.cities).map(c => c.position);
+      const migrationSeed = (newState.gameId ?? 'legacy') + '-beasts-migration';
+      const lairs = placeBeastLairs(newState.map, cityPositions, mapSize, migrationSeed);
+      newState = { ...newState, beasts: { ...newState.beasts, lairs, migrationPending: undefined } };
+      if (!newState.pendingEvents) newState = { ...newState, pendingEvents: {} };
+      for (const civId of Object.keys(newState.civilizations)) {
+        if (!newState.pendingEvents![civId]) newState.pendingEvents![civId] = [];
+        newState.pendingEvents![civId]!.push({
+          type: 'info',
+          message: 'Ancient legends are stirring in the wilderness. Legendary beasts now roam forgotten lairs across the land.',
+          turn: newState.turn,
+        });
+      }
+    }
+
     for (const [unitId, unit] of Object.entries(newState.units)) {
       if (unit.owner === BEAST_OWNER) {
         newState.units[unitId] = { ...unit, movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints, hasMoved: false };
@@ -593,12 +612,12 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const intruders = Object.values(newState.units).filter(u => u.owner !== BEAST_OWNER && u.owner !== 'barbarian');
     const beastSeed = newState.turn * 7919 + 13;
     const beastResult = processBeasts(
-      Object.values(newState.beasts.lairs),
+      Object.values(newState.beasts!.lairs),
       newState.map,
       intruders,
       beastUnits,
       newState.era,
-      newState.beasts.mode,
+      newState.beasts!.mode,
       beastSeed,
     );
     // Rebuild lairs map from updated results (immutable)
@@ -610,6 +629,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const def = BEAST_DEFINITIONS[spawn.beastId];
       const beast = createUnit(def.unitType, BEAST_OWNER, spawn.position, newState.idCounters);
       newState = { ...newState, units: { ...newState.units, [beast.id]: beast } };
+      bus.emit('unit:created', { unit: beast }); // register with SfxDirector's unitTypeCache
       const lair = updatedLairs[spawn.lairId];
       if (lair) updatedLairs = { ...updatedLairs, [spawn.lairId]: { ...lair, unitIds: [...lair.unitIds, beast.id] } };
     }
