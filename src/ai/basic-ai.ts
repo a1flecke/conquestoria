@@ -61,6 +61,7 @@ import { BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
+import { BEAST_OWNER, isBeastUnit, canUnitAttackBeast } from '@/systems/beast-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { canEstablishRoute, getRouteCapacity, RESOURCE_DEFINITIONS } from '@/systems/trade-system';
@@ -358,8 +359,10 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
+  const contestsBeasts = newState.settings?.aiContestsBeasts === true;
+
   // --- Handle transports: unload onto enemy coast, then load idle land units ---
-  const transportHostileOwners = new Set<string>(['barbarian', ...(civ.diplomacy?.atWarWith ?? [])]);
+  const transportHostileOwners = new Set<string>(['barbarian', ...(contestsBeasts ? [BEAST_OWNER] : []), ...(civ.diplomacy?.atWarWith ?? [])]);
   for (const [mcId, mc] of Object.entries(newState.minorCivs)) {
     if (mc.diplomacy?.atWarWith?.includes(civId)) transportHostileOwners.add(mcId);
   }
@@ -430,6 +433,14 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       if (target.result.targetType === 'unit') {
         const occupant = newState.units[target.result.targetUnitId];
         if (occupant) {
+          // Beast guard: only engage beasts when enabled AND the fight is clearly winnable
+          if (isBeastUnit(occupant)) {
+            if (!contestsBeasts) continue;
+            if (!canUnitAttackBeast(unit, occupant).allowed) continue;
+            const myStrength = UNIT_DEFINITIONS[unit.type].strength * (unit.health / 100);
+            const beastStrength = UNIT_DEFINITIONS[occupant.type].strength * (occupant.health / 100);
+            if (myStrength < beastStrength * 1.5) continue;
+          }
           const seed = newState.turn * 16807 + unit.id.charCodeAt(0);
           const attackerBonus = resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect;
           const defenderBonus = resolveCivDefinition(newState, newState.civilizations[occupant.owner]?.civType ?? '')?.bonusEffect;
@@ -509,7 +520,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
     // Explore: move toward unexplored territory
     const occupancy = buildUnitOccupancy(newState.units);
-    const aiHostileOwners = new Set<string>(['barbarian', ...(civ.diplomacy?.atWarWith ?? [])]);
+    const aiHostileOwners = new Set<string>(['barbarian', ...(contestsBeasts ? [BEAST_OWNER] : []), ...(civ.diplomacy?.atWarWith ?? [])]);
     for (const [mcId, mc] of Object.entries(newState.minorCivs)) {
       if (mc.diplomacy?.atWarWith?.includes(civId)) {
         aiHostileOwners.add(mcId);

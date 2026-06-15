@@ -1216,6 +1216,7 @@ export interface GameSettings {
   stingerEnabled?: boolean;  // default true
   tutorialEnabled: boolean;
   beastsMode?: BeastsMode;    // default 'wild' for new games; undefined on legacy saves
+  aiContestsBeasts?: boolean; // default false: AI ignores beasts, players keep the glory
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
   customCivilizations?: CustomCivDefinition[];
