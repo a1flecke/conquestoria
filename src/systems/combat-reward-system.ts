@@ -64,7 +64,7 @@ function seededRoll(seed: number, victorId: string, defeatedId: string): number 
 }
 
 function canReceiveGoldReward(owner: string): boolean {
-  return owner !== 'barbarian' && owner !== 'rebels' && owner !== 'beasts' && !owner.startsWith('mc-');
+  return owner !== 'barbarian' && owner !== 'rebels' && owner !== 'beasts' && owner !== 'pirate' && !owner.startsWith('mc-');
 }
 
 export function getVeterancyTierForExperience(experience: number): VeterancyTier {

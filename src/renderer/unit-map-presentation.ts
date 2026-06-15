@@ -1,4 +1,5 @@
 import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
+import { PIRATE_OWNER } from '@/systems/threat-pressure-system';
 import { selectDefenderForAttack } from '@/systems/combat-system';
 import { isForestConcealedUnit } from '@/systems/fog-of-war';
 import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
@@ -86,6 +87,7 @@ function chooseLead(state: GameState, viewerId: string, stack: Unit[], selectedU
   const hostile = owner === 'barbarian'
     || owner === 'beasts'
     || owner === 'rebels'
+    || owner === PIRATE_OWNER
     || Boolean(owner && viewerDiplomacy?.atWarWith?.includes(owner));
   if (hostile) return selectDefenderForAttack(stack, state.map) ?? stack[0];
   return [...stack].sort((a, b) => a.id.localeCompare(b.id))[0];
