@@ -285,17 +285,15 @@ as a `Record<CivId, string[]>`.
 | Avalon | Mordred, Morgan le Fay, Morgause, Meleagant, King Lot, Accolon, Galehaut | Arthurian legend |
 | Narnia | Jadis, Miraz, Rabadash, Rishda Tarkaan, Ginger, Shift | Chronicles of Narnia |
 
-**Fantasy civs requiring plan-level resolution before finalizing names:**
+**Fantasy civs with invented or supplemented pools:**
 
-| Civ | Issue | Recommended resolution |
+| Civ | Pool | Notes |
 |---|---|---|
-| **The Shire** | Peaceful civ; canonical "bandit" figures are limited to 4 Scouring-era characters (Lotho, Sharkey's ruffians, Bill Ferny, Ted Sandyman). | Accept 4 canonical names OR supplement with 1–3 invented Hobbit-flavored names (e.g., "Bolger the Bitter"). Plan must decide. |
-| **Annuvin** | Overlaps with Prydain — shares source material. Arawn and The Horned King appear naturally in both pools. | De-duplicate: Annuvin gets Arawn, Achren, and Annuvin-specific servants; Prydain gets The Horned King, Dorath, etc. Plan must split the pool explicitly. |
-| **Lothlorien** | No canonical bandit lord figures exist within Lothlorien itself. The civ's history contains peaceful elven rulers, not warlords. | Use named historical enemies of Lothlorien (e.g., Sauron's Dol Guldur lieutenants: Khamûl the Easterling, the Necromancer's shadow) OR push back and use 4 Elvish-flavored invented names. Plan must decide. |
-| **Atlantis** | Plato names 10 kings (Atlas, Gadeiros, Ampheres, etc.) but they have no warrior characterization. Source material too thin for 4–7 distinct warlord names. | Use Plato's king list (Atlas, Gadeiros, Mneseus, Evaemon) plus 2–3 game-invented Atlantean-flavored names consistent with the civ's existing worldbuilding. Plan must confirm. |
-
-The implementation plan **must include a dedicated task** to finalize every civ's name pool,
-resolve the four flagged cases above, and get sign-off before the pool is written to code.
+| **The Shire** | Grimald Sandybanks, Bolger the Bitter, Rufus Burrows the Raider, Tanner Harfoot, Black Took, Lotho the Chief | Fully invented in Hobbit naming style — cozy names turned menacing. Lotho is the one canonical anchor. |
+| **Annuvin** | Arawn the Death-Lord, Gorthad the Hollow, Malgant Ironbone, Caradawg the Wretched, Rhitta the Grim, Drust the Unburied | Arawn is canonical; remainder invented in Welsh/dark-Celtic style. Pool is distinct from Prydain's. |
+| **Prydain** | The Horned King, Dorath the Cutthroat, Achren the Witch Queen, Pryderi the Traitor, Ellidyr of the Black Beast, Morda the Enchanter | All six are canonical Lloyd Alexander antagonists. Split cleanly from Annuvin — no shared names. |
+| **Lothlorien** | Morithel the Forsaken, Ithilmar the Dimmed, Caladûr the Fallen, Fëaniel of the Broken Bow, Galathir the Ensnared, Nimriel the Lost | Fully invented in Sindarin-flavored style — corrupted or shadow-touched elven figures. |
+| **Atlantis** | Atlas the First King, Gadeiros the Twin, Ampheres the Bold, Azaes the Iron-Handed, Thalassir the Drowned, Pelagos the Warlord | Atlas, Gadeiros, Ampheres, Azaes from Plato's king list; Thalassir and Pelagos invented in the same Greco-maritime style. |
 
 ### Event
 
