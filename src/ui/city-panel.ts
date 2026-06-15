@@ -446,6 +446,18 @@ export function createCityPanel(
       </div>`
     : '';
 
+  const cityHp = city.hp ?? 100;
+  const cityUnderSiege = cityHp < 100;
+  const siegeHpPct = Math.max(0, cityHp);
+  const siegeBarHtml = cityUnderSiege
+    ? `<div style="margin-top:6px;">
+        <div style="font-size:12px;color:#f87171;font-weight:bold;">⚔️ Under siege — ${cityHp}/100 HP</div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:4px;height:6px;margin-top:4px;width:120px;">
+          <div style="background:#ef4444;border-radius:4px;height:6px;width:${siegeHpPct}%;transition:width 0.3s;"></div>
+        </div>
+      </div>`
+    : '';
+
   const html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div>
@@ -453,6 +465,7 @@ export function createCityPanel(
         <div style="font-size:12px;opacity:0.7;">Population: <span data-text="city-pop"></span></div>
         ${city.occupation ? '<div style="font-size:12px;color:#e8c170;" data-text="occupied-status"></div>' : ''}
         ${occupiedMoodText ? '<div style="font-size:12px;color:#d9a25c;" data-text="occupied-mood"></div>' : ''}
+        ${siegeBarHtml}
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         ${navHtml}

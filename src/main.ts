@@ -3374,8 +3374,8 @@ bus.on('threat:barbarian-resurgence', ({ civId, isBanditLord, banditLordName }) 
   SFX.barbarianResurgence?.();
 });
 
-bus.on('threat:pirate-fleet-spawned', ({ civId, fleetId }) => {
-  appendToCivLog(civId, `A pirate fleet has been spotted in your waters! (fleet ${fleetId})`, 'warning');
+bus.on('threat:pirate-fleet-spawned', ({ civId }) => {
+  appendToCivLog(civId, 'A pirate fleet has been spotted in your waters!', 'warning');
   SFX.seaHorn?.();
 });
 
@@ -3395,8 +3395,8 @@ bus.on('threat:pirate-siege', ({ cityId, hpLost }) => {
   SFX.piratePlunder?.();
 });
 
-bus.on('threat:pirate-fleet-destroyed', ({ civId, fleetId }) => {
-  appendToCivLog(civId, `Pirate fleet ${fleetId} has been driven off!`, 'info');
+bus.on('threat:pirate-fleet-destroyed', ({ civId }) => {
+  appendToCivLog(civId, 'A pirate fleet in your waters has been driven off!', 'info');
   SFX.pirateDestroyed?.();
 });
 

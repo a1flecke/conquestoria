@@ -72,7 +72,7 @@ function lcg(seed: number): () => number {
 const BANDIT_LORD_NAMES: Record<string, string[]> = {
   generic: ['The Iron Fist', 'Greymantle', 'The Scarred One', 'Black Hand', 'The Reaver'],
   egypt: ['Amenhotep the Black', 'Kha-em-waset', 'Neferkare', 'Paneb', 'Userhat'],
-  rome: ['Spartacus II', 'The Conqueror', 'Henry II', 'Richard III', 'Cromwell', 'Edward I', 'Robin Hood'],
+  rome: ['Spartacus', 'Catilina', 'Viriathus', 'Bulla Felix', 'Salvian the Red', 'Maternus', 'Aelianus'],
   aztec: ['Montezuma II', 'Cuauhtémoc', 'Itzcoatl', 'Ahuitzotl', 'Tlacaelel'],
   japan: ['Nobunaga', 'Hideyoshi', 'Ieyasu', 'Takeda Shingen', 'Uesugi Kenshin', 'Miyamoto Musashi'],
   india: ['Chandragupta', 'Ashoka', 'Prithviraj Chauhan', 'Shivaji', 'Tipu Sultan', 'Akbar'],
@@ -182,7 +182,7 @@ export function processLandResurgence(
     campId,
     position: chosen.coord,
     isBanditLord,
-    banditLordName: (camp as any).banditLordName,
+    banditLordName: camp.banditLordName,
   });
 
   return updatedState;
@@ -194,10 +194,8 @@ const PIRATE_FLEET_THRESHOLD = 4.0;
 const PIRATE_FLEET_CAP = 2;
 const PIRATE_FLEET_COOLDOWN = 10;
 
-function pirateUnitType(era: number): 'galley' | 'carrack' | 'trireme' {
-  if (era >= 4) return 'trireme';
-  if (era === 3) return 'carrack';
-  return 'galley';
+function pirateUnitType(era: number): 'galley' | 'trireme' {
+  return era >= 3 ? 'trireme' : 'galley';
 }
 
 export function processPirateSpawn(
