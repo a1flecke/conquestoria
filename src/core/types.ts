@@ -778,6 +778,7 @@ export interface Civilization {
   satelliteSurveillanceTargets?: Record<string, number>;
   breakaway?: BreakawayMetadata;
   nearDefeat?: boolean;   // true when cities.length <= 1; used by audio system
+  lastCombatTurnByLandmass?: Record<string, number>; // landmassId → turn of last combat
 }
 
 export interface BreakawayMetadata {
