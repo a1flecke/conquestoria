@@ -2,6 +2,7 @@ import type { GameMap, HexCoord } from '@/core/types';
 import { getLandTerrain, placeResources, createRng, createNoise } from './map-generator';
 import { hexKey } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
+import { tagLandmassRegions } from './landmass-tagger';
 
 const ISLAND_RESOURCES = ['gems', 'ivory', 'spices'] as const;
 
@@ -174,9 +175,11 @@ export function generateContinentMap(
     }
   }
 
-  const map: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
-  const rivers = generateRivers(map, seed);
-  applyRiversToMap(map, rivers);
+  const mapWithRivers: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
+  const rivers = generateRivers(mapWithRivers, seed);
+  applyRiversToMap(mapWithRivers, rivers);
 
+  const taggedTiles = tagLandmassRegions(mapWithRivers);
+  const map: GameMap = { ...mapWithRivers, tiles: taggedTiles };
   return { map, continentHexes };
 }
