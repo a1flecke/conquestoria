@@ -219,12 +219,26 @@ describe('sync() wrapper sizing', () => {
       roleMarker: 'chevron',
     })], MAP, OPTS);
 
-    expect(mount.querySelector('.cq-unit-stack-count')?.textContent).toBe('2');
+    const pill = mount.querySelector('.cq-unit-stack-count') as HTMLElement | null;
+    expect(pill).not.toBeNull();
+    const spans = pill!.querySelectorAll('span');
+    expect(spans.length).toBe(2);
+    expect(spans[0].textContent).toBe('🪖️');
+    expect(spans[1].textContent).toBe('×2');
     expect(mount.querySelector('.cq-unit-selected')).not.toBeNull();
     expect(mount.querySelector('.cq-unit-health-fill')).not.toBeNull();
     expect((mount.querySelector('.cq-unit-health-fill') as HTMLElement).style.width).toBe('55%');
     expect(mount.querySelector('.cq-unit-fortified')?.textContent).toBe('🛡️');
     expect(mount.querySelector('.cq-unit-role')?.textContent).toBe('⌄');
+  });
+
+  it('pill children are replaced cleanly on re-render, not accumulated', () => {
+    const { overlay, mount } = mountOverlay();
+    const e = entity({ stackCount: 2, memberIds: ['u1', 'u2'] });
+    overlay.sync(cam({ zoom: 1 }), [e], MAP, OPTS);
+    overlay.sync(cam({ zoom: 1 }), [e], MAP, OPTS);
+    const pill = mount.querySelector('.cq-unit-stack-count') as HTMLElement | null;
+    expect(pill?.querySelectorAll('span').length).toBe(2); // not 4 — replaceChildren, not appendChild
   });
 
   it('wrapper has overflow:hidden to prevent label bleed', () => {
