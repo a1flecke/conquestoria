@@ -218,7 +218,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   beast_basilisk: {
     type: 'beast_basilisk', name: 'Emerald Basilisk', movementPoints: 2,
-    visionRange: 2, strength: 26, canFoundCity: false,
+    visionRange: 2, strength: 30, canFoundCity: false,
     canBuildImprovements: false, productionCost: 0,
   },
   beast_sea_serpent: {
@@ -243,7 +243,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   beast_dragon: {
     type: 'beast_dragon', name: 'Ancient Dragon', movementPoints: 3,
-    visionRange: 3, strength: 55, canFoundCity: false,
+    visionRange: 3, strength: 120, canFoundCity: false,
     canBuildImprovements: false, productionCost: 0,
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit'] },
   },

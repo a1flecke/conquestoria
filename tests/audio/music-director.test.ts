@@ -158,7 +158,7 @@ describe('MusicDirector', () => {
   it('reloads current music context without changing snapshot', () => {
     director.handleEraAdvanced({ era: 1, civType: 'rome' });
     vi.mocked(mixer.setSnapshot).mockClear();
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     // Snapshot re-applied to reload the correct accent track for the new civ
     expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', expect.any(Number));
   });
@@ -256,7 +256,7 @@ import {
 // catch comparisons that accidentally use one where the other is required.
 function makeDirectorWithPlayer(civType: string, atWar = false, unrestCityCount = 0, nearDefeat = false): MusicDirector {
   const d = new MusicDirector(makeMixer(), makeLoader());
-  d.handlePlayerChanged({ civId: `civ-${civType}`, civType, atWar, unrestCityCount, nearDefeat });
+  d.handlePlayerChanged({ civId: `civ-${civType}`, civType, atWar, unrestCityCount, nearDefeat, inBeastTerritory: false });
   return d;
 }
 
@@ -341,24 +341,24 @@ describe('handlePlayerChanged — hot-seat drift reset (Spec 3)', () => {
   });
 
   it('handoff with atWar:true resets to at-war', () => {
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: true, unrestCityCount: 0, nearDefeat: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('at-war');
   });
 
   it('handoff with nearDefeat:true resets to brink-of-defeat', () => {
-    director.handlePlayerChanged({ civId: civId('viking'), civType: 'viking', atWar: false, unrestCityCount: 0, nearDefeat: true });
+    director.handlePlayerChanged({ civId: civId('viking'), civType: 'viking', atWar: false, unrestCityCount: 0, nearDefeat: true, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('brink-of-defeat');
   });
 
   it('handoff clears prior unrest for incoming player at peace', () => {
     director.handleUnrestStarted({ owner: civId('rome') });
     director.handleUnrestStarted({ owner: civId('rome') });
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('peace');
   });
 
   it('handoff with unrestCityCount:2 resolves to unrest', () => {
-    director.handlePlayerChanged({ civId: civId('aztec'), civType: 'aztec', atWar: false, unrestCityCount: 2, nearDefeat: false });
+    director.handlePlayerChanged({ civId: civId('aztec'), civType: 'aztec', atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('unrest');
   });
 });
