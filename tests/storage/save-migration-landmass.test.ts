@@ -43,6 +43,34 @@ function makeLegacyState(): GameState {
   } as unknown as GameState;
 }
 
+describe('pirate fleet migration defaults', () => {
+  it('adds pirateFleets: {} to old saves lacking the field', () => {
+    const state = makeLegacyState();
+    expect((state as any).pirateFleets).toBeUndefined();
+    const normalized = normalizeLoadedStateForTest(state);
+    expect(normalized.pirateFleets).toBeDefined();
+    expect(typeof normalized.pirateFleets).toBe('object');
+  });
+
+  it('adds pirateFleetCooldownByCivLandmass: {} to old saves lacking the field', () => {
+    const state = makeLegacyState();
+    expect((state as any).pirateFleetCooldownByCivLandmass).toBeUndefined();
+    const normalized = normalizeLoadedStateForTest(state);
+    expect(normalized.pirateFleetCooldownByCivLandmass).toBeDefined();
+    expect(typeof normalized.pirateFleetCooldownByCivLandmass).toBe('object');
+  });
+
+  it('does not overwrite existing pirate fleet data', () => {
+    const state = makeLegacyState();
+    (state as any).pirateFleets = { 'unit-42': { id: 'unit-42' } };
+    (state as any).pirateFleetCooldownByCivLandmass = { 'p1:continent-0': 5 };
+
+    const normalized = normalizeLoadedStateForTest(state);
+    expect(normalized.pirateFleets).toHaveProperty('unit-42');
+    expect(normalized.pirateFleetCooldownByCivLandmass?.['p1:continent-0']).toBe(5);
+  });
+});
+
 describe('normalizeLandmassKeys migration', () => {
   it('adds regionKey to land tiles on old saves with no regionKey', () => {
     const state = makeLegacyState();

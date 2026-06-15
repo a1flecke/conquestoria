@@ -92,6 +92,81 @@ export const SFX = {
     }
   },
 
+  seaHorn: () => {
+    try {
+      const ctx = getContext();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(55, now);
+      osc.frequency.linearRampToValueAtTime(45, now + 1.2);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.5, now + 0.2);
+      gain.gain.setValueAtTime(0.5, now + 0.8);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+      osc.connect(gain);
+      gain.connect(sfxDestination ?? ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.5);
+    } catch { /* audio unavailable */ }
+  },
+
+  piratePlunder: () => {
+    try {
+      const ctx = getContext();
+      const now = ctx.currentTime;
+      // White noise burst (impact)
+      const bufferSize = Math.floor(ctx.sampleRate * 0.08);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let noiseSeed = 42;
+      for (let i = 0; i < bufferSize; i++) {
+        noiseSeed = (noiseSeed * 1664525 + 1013904223) & 0xffffffff;
+        data[i] = (noiseSeed / 0x80000000) - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.7, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      noise.connect(noiseGain);
+      noiseGain.connect(sfxDestination ?? ctx.destination);
+      noise.start(now);
+
+      // Rising sine sweep
+      const sweep = ctx.createOscillator();
+      const sweepGain = ctx.createGain();
+      sweep.type = 'sine';
+      sweep.frequency.setValueAtTime(200, now + 0.08);
+      sweep.frequency.linearRampToValueAtTime(800, now + 0.4);
+      sweepGain.gain.setValueAtTime(0.3, now + 0.08);
+      sweepGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      sweep.connect(sweepGain);
+      sweepGain.connect(sfxDestination ?? ctx.destination);
+      sweep.start(now + 0.08);
+      sweep.stop(now + 0.5);
+    } catch { /* audio unavailable */ }
+  },
+
+  pirateDestroyed: () => {
+    try {
+      const ctx = getContext();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(55, now + 0.5);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc.connect(gain);
+      gain.connect(sfxDestination ?? ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.6);
+    } catch { /* audio unavailable */ }
+  },
+
   barbarianResurgence: () => {
     try {
       const ctx = getContext();

@@ -17,7 +17,7 @@ import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { resolveCombat } from '@/systems/combat-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { PIRATE_OWNER, recordCombatForCiv, processThreatPressure } from '@/systems/threat-pressure-system';
+import { PIRATE_OWNER, recordCombatForCiv, processThreatPressure, processPirateFleets } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { hexKey } from '@/systems/hex-utils';
@@ -705,8 +705,10 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     }
   }
 
-  // --- Threat pressure (spawn phase: land resurgence) ---
+  // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
   newState = processThreatPressure(newState, newState.currentPlayer, bus);
+  // --- Pirate fleet movement (runs every turn) ---
+  newState = processPirateFleets(newState, bus);
 
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);

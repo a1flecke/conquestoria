@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
-import { computeThreatScore, empireShare, nearestLandmassId, recordCombatForCiv, processLandResurgence, processThreatPressure } from '@/systems/threat-pressure-system';
+import { computeThreatScore, empireShare, nearestLandmassId, recordCombatForCiv, processLandResurgence, processThreatPressure, processPirateSpawn, processPirateFleets, PIRATE_OWNER } from '@/systems/threat-pressure-system';
 import type { GameMap, GameState, HexTile, Civilization } from '@/core/types';
 
 function makeTestState(overrides: Partial<GameState> = {}): GameState {
@@ -194,6 +194,115 @@ describe('processThreatPressure — hot-seat isolation', () => {
     const score1 = computeThreatScore(state, 'p1', 'continent-1');
     expect(score0).toBeGreaterThan(2.5);
     expect(score1).toBeGreaterThan(2.5);
+  });
+});
+
+describe('processPirateSpawn', () => {
+  function makeCoastalState(): GameState {
+    const state = makeTestState({ era: 2, turn: 40 });
+    // High idle — score ≥ 4.0 needed for pirate spawn
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 0 }; // 40 turns idle
+    // City at 0,0 (coast). Landmass tiles at 0,0 through 9,0 (from makeTestState).
+    // Ocean tiles at 10..15,0 — adjacent to 9,0 (continent-0), 10+ tiles from city.
+    state.map.tiles['0,0'] = { ...state.map.tiles['0,0'], terrain: 'coast', owner: 'p1' };
+    for (let q = 10; q <= 15; q++) {
+      state.map.tiles[`${q},0`] = {
+        coord: { q, r: 0 }, terrain: 'ocean', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+    }
+    state.cities['city-1'] = { ...state.cities['city-1'], position: { q: 0, r: 0 } } as any;
+    return state;
+  }
+
+  it('spawns a pirate fleet when score ≥ 4.0 and no cooldown', () => {
+    const state = makeCoastalState();
+    const events: any[] = [];
+    const bus = { emit: (e: string, p: any) => events.push({ e, ...p }) } as any;
+    const updated = processPirateSpawn(state, 'p1', 'continent-0', bus);
+    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(1);
+    expect(events.some(e => e.e === 'threat:pirate-fleet-spawned')).toBe(true);
+  });
+
+  it('does not spawn when max 2 fleets already active for this civ+landmass', () => {
+    const state = makeCoastalState();
+    state.pirateFleets = {
+      'fleet-1': { id: 'fleet-1', unitId: 'u1', targetCivId: 'p1', targetCityId: 'city-1', landmassId: 'continent-0', era: 2, plunderCooldown: 0 },
+      'fleet-2': { id: 'fleet-2', unitId: 'u2', targetCivId: 'p1', targetCityId: 'city-1', landmassId: 'continent-0', era: 2, plunderCooldown: 0 },
+    };
+    const bus = { emit: () => {} } as any;
+    const updated = processPirateSpawn(state, 'p1', 'continent-0', bus);
+    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(2);
+  });
+
+  it('does not spawn when score < 4.0', () => {
+    const state = makeCoastalState();
+    // Low idle so score is low
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 39 }; // 1 turn idle
+    const bus = { emit: () => {} } as any;
+    const updated = processPirateSpawn(state, 'p1', 'continent-0', bus);
+    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(0);
+  });
+});
+
+describe('processPirateFleets', () => {
+  function makeFleetState(): GameState {
+    const state = makeTestState({ era: 2, turn: 50 });
+    // Add ocean path between spawn and target city
+    for (let r = 1; r <= 7; r++) {
+      state.map.tiles[`5,${r}`] = {
+        coord: { q: 5, r }, terrain: 'ocean', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+    }
+    state.map.tiles['5,0'] = { ...state.map.tiles['5,0'], terrain: 'coast' };
+    state.cities['city-1'] = { ...state.cities['city-1'], position: { q: 5, r: 0 } } as any;
+
+    const unit = {
+      id: 'u-pirate', type: 'galley' as const, owner: PIRATE_OWNER,
+      position: { q: 5, r: 7 }, health: 100, movementPointsLeft: 2,
+      hasMoved: false, experience: 0, isFortified: false,
+    } as any;
+    state.units['u-pirate'] = unit;
+    state.pirateFleets = {
+      'fleet-1': {
+        id: 'fleet-1', unitId: 'u-pirate', targetCivId: 'p1',
+        targetCityId: 'city-1', landmassId: 'continent-0', era: 2, plunderCooldown: 0,
+      },
+    };
+    return state;
+  }
+
+  it('moves pirate fleet toward target city', () => {
+    const state = makeFleetState();
+    const bus = { emit: () => {} } as any;
+    const updated = processPirateFleets(state, bus);
+    const unit = updated.units['u-pirate'];
+    // Should have moved closer to city at 5,0
+    expect(unit.position.r).toBeLessThan(7);
+  });
+
+  it('removes fleet from state when its unit is destroyed', () => {
+    const state = makeFleetState();
+    delete state.units['u-pirate']; // unit died in combat
+    const bus = { emit: () => {} } as any;
+    const updated = processPirateFleets(state, bus);
+    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(0);
+  });
+});
+
+describe('pirate hot-seat behavior', () => {
+  it('fleet destruction sets cooldown for civ+landmass pair', () => {
+    const state = makeTestState({ era: 2, turn: 50 });
+    state.pirateFleets = {
+      'fleet-1': { id: 'fleet-1', unitId: 'u-gone', targetCivId: 'p1', targetCityId: 'city-1',
+        landmassId: 'continent-0', era: 2, plunderCooldown: 0 },
+    };
+    // Unit not present (already destroyed)
+    const bus = { emit: () => {} } as any;
+    const updated = processPirateFleets(state, bus);
+    expect(updated.pirateFleetCooldownByCivLandmass?.['p1:continent-0']).toBe(60); // turn 50 + 10
+    expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(0);
   });
 });
 

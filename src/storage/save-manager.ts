@@ -240,9 +240,21 @@ function normalizeLandmassKeys(state: GameState): GameState {
   return { ...state, map: { ...state.map, tiles: taggedTiles } };
 }
 
+function normalizeThreatPressureDefaults(state: GameState): GameState {
+  if (state.pirateFleets !== undefined && state.pirateFleetCooldownByCivLandmass !== undefined) {
+    return state;
+  }
+  return {
+    ...state,
+    pirateFleets: state.pirateFleets ?? {},
+    pirateFleetCooldownByCivLandmass: state.pirateFleetCooldownByCivLandmass ?? {},
+    resurgentCampCooldownByCivLandmass: state.resurgentCampCooldownByCivLandmass ?? {},
+  };
+}
+
 function normalizeLoadedState(state: GameState): GameState {
   const normalizedCityState = normalizeMinorCivQuestState(
-    normalizeLandmassKeys(normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state))))),
+    normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))))),
   );
   if (!normalizedCityState.map?.tiles) {
     normalizedCityState.pendingDiplomacyRequests ??= [];
