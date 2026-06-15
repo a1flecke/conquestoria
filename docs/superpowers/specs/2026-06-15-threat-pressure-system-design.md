@@ -237,11 +237,65 @@ Seed: `state.turn * 99991 + landmassId.charCodeAt(0) * 7 + civId.charCodeAt(0) *
 ### Bandit Lord Variant (Era 3+, score > 8)
 
 25% chance (from seeded RNG) that a resurgent spawn is a "bandit lord":
-- Named using this pool (chosen by seeded RNG, no repeats until pool exhausted):
-  `['Grakkus the Scarred', 'Morrigan of the Wastes', 'Thorn Black-Hand', 'The Iron Duke', 'Selia the Burned']`
+- Named from the **current player's civ's bandit lord pool** (seeded RNG, no repeats until pool exhausted, then restart).
 - Strength = era-max + 4.
 - Grants 2× gold reward on destruction.
 - Council notification uses distinct text (see §9).
+
+### Bandit Lord Name Pool Requirement
+
+Each civ must supply **4–7 names** drawn from that civ's history (real figures, canonical
+fictional characters, or thematically consistent invented names for civs with thin source
+material). Names should evoke warlords, rebel leaders, rivals, usurpers, or conquerors —
+not peaceful rulers. The full pool is defined in `src/systems/threat-pressure-system.ts`
+as a `Record<CivId, string[]>`.
+
+**Historical civs — sources are rich; 5–7 names each are readily available:**
+
+| Civ | Candidate figures |
+|---|---|
+| Egypt | Ramesses II, Thutmose III, Akhenaten, Seti I, Apep, Amenhotep IV |
+| Rome | Sulla, Marius, Spartacus, Catiline, Brutus, Caesar, Pompey |
+| Greece | Lysander, Alcibiades, Critias, Alexander, Pausanias, Themistocles |
+| Mongolia | Genghis Khan, Batu Khan, Tamerlane, Ögedei, Berke Khan |
+| Babylon | Nebuchadnezzar II, Nabopolassar, Sargon of Akkad, Naram-Sin, Hammurabi |
+| Zulu | Shaka, Cetshwayo, Dingane, Mpande, Senzangakhona |
+| China | Cao Cao, Huang Chao, Li Zicheng, Liu Bei, An Lushan, Wu Zetian |
+| Persia | Cyrus, Darius, Xerxes, Artaxerxes, Cambyses, Shahpur II |
+| England | William the Conqueror, Henry II, Richard III, Cromwell, Edward I, Robin Hood |
+| Aztec | Montezuma II, Cuauhtémoc, Itzcoatl, Ahuitzotl, Tlacaelel |
+| Japan | Nobunaga, Hideyoshi, Ieyasu, Takeda Shingen, Uesugi Kenshin, Miyamoto Musashi |
+| India | Chandragupta, Ashoka, Prithviraj Chauhan, Shivaji, Tipu Sultan, Akbar |
+| France | Charlemagne, Charles Martel, Robespierre, Du Guesclin, Napoleon, Attila (ravager of Gaul) |
+| Germany | Arminius, Frederick Barbarossa, Otto the Great, Odoacer, Alaric |
+| Russia | Ivan the Terrible, Peter the Great, Alexander Nevsky, Pugachev, Stenka Razin |
+| Ottoman | Suleiman, Mehmed II, Selim I, Osman I, Murad I |
+| Spain | El Cid, Cortés, Pizarro, Gonzalo de Córdoba, Ferdinand I |
+| Viking | Ragnar Lothbrok, Eric Bloodaxe, Ivar the Boneless, Harald Hardrada, Björn Ironside, Leif Erikson |
+
+**Fantasy civs — canonical figures exist; 5–7 names each:**
+
+| Civ | Candidate figures | Source |
+|---|---|---|
+| Gondor | Aragorn, Boromir, Faramir, Denethor, Isildur, Anárion, Éarnur | LotR |
+| Rohan | Théoden, Éomer, Helm Hammerhand, Erkenbrand, Grimbold, Déorhere, Folca | LotR |
+| Isengard | Saruman, Grima Wormtongue, Uglúk, Grishnákh, Mauhúr, Lurtz | LotR |
+| Prydain | The Horned King, Dorath, Ellidyr, Morda, Pryderi, Rhuddlum | Chronicles of Prydain |
+| Wakanda | N'Jadaka (Killmonger), M'Baku, N'Jobu, Moses Magnum, Achebe, Erik Stevens | Marvel |
+| Avalon | Mordred, Morgan le Fay, Morgause, Meleagant, King Lot, Accolon, Galehaut | Arthurian legend |
+| Narnia | Jadis, Miraz, Rabadash, Rishda Tarkaan, Ginger, Shift | Chronicles of Narnia |
+
+**Fantasy civs requiring plan-level resolution before finalizing names:**
+
+| Civ | Issue | Recommended resolution |
+|---|---|---|
+| **The Shire** | Peaceful civ; canonical "bandit" figures are limited to 4 Scouring-era characters (Lotho, Sharkey's ruffians, Bill Ferny, Ted Sandyman). | Accept 4 canonical names OR supplement with 1–3 invented Hobbit-flavored names (e.g., "Bolger the Bitter"). Plan must decide. |
+| **Annuvin** | Overlaps with Prydain — shares source material. Arawn and The Horned King appear naturally in both pools. | De-duplicate: Annuvin gets Arawn, Achren, and Annuvin-specific servants; Prydain gets The Horned King, Dorath, etc. Plan must split the pool explicitly. |
+| **Lothlorien** | No canonical bandit lord figures exist within Lothlorien itself. The civ's history contains peaceful elven rulers, not warlords. | Use named historical enemies of Lothlorien (e.g., Sauron's Dol Guldur lieutenants: Khamûl the Easterling, the Necromancer's shadow) OR push back and use 4 Elvish-flavored invented names. Plan must decide. |
+| **Atlantis** | Plato names 10 kings (Atlas, Gadeiros, Ampheres, etc.) but they have no warrior characterization. Source material too thin for 4–7 distinct warlord names. | Use Plato's king list (Atlas, Gadeiros, Mneseus, Evaemon) plus 2–3 game-invented Atlantean-flavored names consistent with the civ's existing worldbuilding. Plan must confirm. |
+
+The implementation plan **must include a dedicated task** to finalize every civ's name pool,
+resolve the four flagged cases above, and get sign-off before the pool is written to code.
 
 ### Event
 
