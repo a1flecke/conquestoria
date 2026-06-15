@@ -3366,6 +3366,14 @@ bus.on('barbarian:spawned', ({ campId, unitId }) => {
   );
 });
 
+bus.on('threat:barbarian-resurgence', ({ civId, isBanditLord, banditLordName }) => {
+  const message = isBanditLord
+    ? `${banditLordName ?? 'A bandit lord'} has united the raiders and threatens your lands!`
+    : 'Barbarian forces are resurgent on your lands!';
+  appendToCivLog(civId, message, 'warning');
+  SFX.barbarianResurgence?.();
+});
+
 bus.on('beast:awakened', ({ beastId, position }) => {
   const def = BEAST_DEFINITIONS[beastId];
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
@@ -3748,6 +3756,9 @@ function migrateLegacySave(): void {
   // giving them a moment to orient before the map changes.
   if (!gameState.beasts) {
     (gameState as any).beasts = { mode: 'wild', lairs: {}, sightingsByCiv: {}, migrationPending: true };
+  }
+  if (!gameState.resurgentCampCooldownByCivLandmass) {
+    (gameState as any).resurgentCampCooldownByCivLandmass = {};
   }
 }
 

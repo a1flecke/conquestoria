@@ -705,6 +705,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     }
   }
 
+  // --- Threat pressure (spawn phase: land resurgence) ---
+  newState = processThreatPressure(newState, newState.currentPlayer, bus);
+
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);
   newState = processDetection(newState, bus);

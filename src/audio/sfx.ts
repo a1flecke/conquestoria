@@ -91,4 +91,31 @@ export const SFX = {
       setTimeout(() => playTone(330, 0.1, 0.12, 'triangle'), 80);
     }
   },
+
+  barbarianResurgence: () => {
+    try {
+      const ctx = getContext();
+      const now = ctx.currentTime;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(300, now);
+      filter.connect(sfxDestination ?? ctx.destination);
+
+      for (const [freq, detune] of [[80, 0], [120, 3]] as const) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.detune.setValueAtTime(detune, now);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.6, now + 0.3);
+        gain.gain.setValueAtTime(0.6, now + 0.5);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
+        osc.connect(gain);
+        gain.connect(filter);
+        osc.start(now);
+        osc.stop(now + 1.3);
+      }
+    } catch { /* audio unavailable */ }
+  },
 };

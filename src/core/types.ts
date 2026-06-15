@@ -1292,6 +1292,11 @@ export interface GameEvents {
   'beast:sighted': { beastId: BeastId; civId: string };
   'beast:hoard-claimed': { lairId: string; beastId: BeastId; civId: string; choice: BeastHoardChoice };
   'barbarian:camp-destroyed': { campId: string; reward: number };
+  'threat:barbarian-resurgence': { civId: string; landmassId: string; campId: string; position: HexCoord; isBanditLord: boolean; banditLordName?: string };
+  'threat:pirate-fleet-spawned': { fleetId: string; civId: string; landmassId: string; position: HexCoord };
+  'threat:pirate-plunder': { fleetId: string; cityId: string; goldStolen: number };
+  'threat:pirate-siege': { fleetId: string; cityId: string; hpLost: number };
+  'threat:pirate-fleet-destroyed': { fleetId: string; civId: string; landmassId: string };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
   'game:saved': { turn: number };
