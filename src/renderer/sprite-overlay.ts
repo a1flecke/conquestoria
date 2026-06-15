@@ -291,7 +291,7 @@ function updateUnitDecorations(wrapper: HTMLElement, entity: SpriteEntity): void
 
   if (entity.fortified) {
     const fortified = getOrCreateDecoration(wrapper, 'cq-unit-fortified');
-    fortified.textContent = 'F';
+    fortified.textContent = '🛡️';
     fortified.style.cssText =
       'position:absolute;left:3%;top:3%;width:28%;height:28%;border-radius:50%;' +
       'background:rgba(200,150,0,.92);border:1px solid #fff;color:#fff;' +
