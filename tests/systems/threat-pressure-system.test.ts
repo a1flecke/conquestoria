@@ -289,6 +289,40 @@ describe('processPirateFleets', () => {
     const updated = processPirateFleets(state, bus);
     expect(Object.keys(updated.pirateFleets ?? {}).length).toBe(0);
   });
+
+  it('plunder steals gold from target civ when adjacent', () => {
+    const state = makeFleetState();
+    state.civilizations['p1'].gold = 80;
+    // Place unit adjacent to city (distance ≤ 2)
+    state.units['u-pirate'] = { ...state.units['u-pirate'], position: { q: 5, r: 2 } } as any;
+    state.pirateFleets = { ...state.pirateFleets, 'fleet-1': { ...state.pirateFleets!['fleet-1'], plunderCooldown: 0 } };
+    const bus = { emit: () => {} } as any;
+    const updated = processPirateFleets(state, bus);
+    // era-2 plunder: Math.floor((1 + (2-1)*0.5) * 5) = Math.floor(1.5*5) = 7
+    expect(updated.civilizations['p1'].gold).toBeLessThan(80);
+  });
+
+  it('siege deals HP damage to city when adjacent (era ≥ 2)', () => {
+    const state = makeFleetState();
+    // Place unit adjacent to city
+    state.units['u-pirate'] = { ...state.units['u-pirate'], position: { q: 5, r: 2 } } as any;
+    state.pirateFleets = { ...state.pirateFleets, 'fleet-1': { ...state.pirateFleets!['fleet-1'], plunderCooldown: 1 } }; // suppress plunder
+    const bus = { emit: () => {} } as any;
+    const updated = processPirateFleets(state, bus);
+    const cityHp = updated.cities['city-1'].hp ?? 100;
+    expect(cityHp).toBeLessThan(100);
+    expect(cityHp).toBe(90); // era-2 siege: 10 HP lost
+  });
+
+  it('siege event fires exactly once per turn regardless of repeated calls', () => {
+    const state = makeFleetState();
+    state.units['u-pirate'] = { ...state.units['u-pirate'], position: { q: 5, r: 2 } } as any;
+    state.pirateFleets = { ...state.pirateFleets, 'fleet-1': { ...state.pirateFleets!['fleet-1'], plunderCooldown: 1 } };
+    const events: string[] = [];
+    const bus = { emit: (e: string) => events.push(e) } as any;
+    processPirateFleets(state, bus);
+    expect(events.filter(e => e === 'threat:pirate-siege').length).toBe(1);
+  });
 });
 
 describe('pirate hot-seat behavior', () => {
