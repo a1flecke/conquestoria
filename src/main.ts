@@ -3374,6 +3374,32 @@ bus.on('threat:barbarian-resurgence', ({ civId, isBanditLord, banditLordName }) 
   SFX.barbarianResurgence?.();
 });
 
+bus.on('threat:pirate-fleet-spawned', ({ civId, fleetId }) => {
+  appendToCivLog(civId, `A pirate fleet has been spotted in your waters! (fleet ${fleetId})`, 'warning');
+  SFX.seaHorn?.();
+});
+
+bus.on('threat:pirate-plunder', ({ cityId, goldStolen }) => {
+  const city = gameState.cities[cityId];
+  const civId = city?.owner ?? '';
+  const cityName = city?.name ?? cityId;
+  appendToCivLog(civId, `Pirates plundered ${cityName} — ${goldStolen} gold stolen!`, 'warning');
+  SFX.piratePlunder?.();
+});
+
+bus.on('threat:pirate-siege', ({ cityId, hpLost }) => {
+  const city = gameState.cities[cityId];
+  const civId = city?.owner ?? '';
+  const cityName = city?.name ?? cityId;
+  appendToCivLog(civId, `Pirates bombard ${cityName} for ${hpLost} damage!`, 'warning');
+  SFX.piratePlunder?.();
+});
+
+bus.on('threat:pirate-fleet-destroyed', ({ civId, fleetId }) => {
+  appendToCivLog(civId, `Pirate fleet ${fleetId} has been driven off!`, 'info');
+  SFX.pirateDestroyed?.();
+});
+
 bus.on('beast:awakened', ({ beastId, position }) => {
   const def = BEAST_DEFINITIONS[beastId];
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
@@ -3759,6 +3785,12 @@ function migrateLegacySave(): void {
   }
   if (!gameState.resurgentCampCooldownByCivLandmass) {
     (gameState as any).resurgentCampCooldownByCivLandmass = {};
+  }
+  if (!gameState.pirateFleets) {
+    (gameState as any).pirateFleets = {};
+  }
+  if (!gameState.pirateFleetCooldownByCivLandmass) {
+    (gameState as any).pirateFleetCooldownByCivLandmass = {};
   }
 }
 
