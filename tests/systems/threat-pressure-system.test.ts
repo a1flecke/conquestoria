@@ -2,7 +2,50 @@ import { describe, it, expect } from 'vitest';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
-import type { GameMap, HexTile } from '@/core/types';
+import { computeThreatScore, empireShare, nearestLandmassId, recordCombatForCiv } from '@/systems/threat-pressure-system';
+import type { GameMap, GameState, HexTile, Civilization } from '@/core/types';
+
+function makeTestState(overrides: Partial<GameState> = {}): GameState {
+  const tiles: Record<string, HexTile> = {};
+  // 10 land tiles tagged continent-0
+  for (let q = 0; q < 10; q++) {
+    tiles[`${q},0`] = {
+      coord: { q, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: q < 8 ? 'p1' : null, improvementTurnsLeft: 0,
+      hasRiver: false, wonder: null, regionKey: 'continent-0',
+    };
+  }
+  // ocean tile adjacent for nearestLandmassId test
+  tiles['0,1'] = {
+    coord: { q: 0, r: 1 }, terrain: 'ocean', elevation: 'lowland', resource: null,
+    improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+  };
+
+  const p1: Civilization = {
+    id: 'p1', name: 'Player 1', color: '#fff', isHuman: true, civType: 'rome',
+    cities: ['city-1'], units: [],
+    techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} as any },
+    gold: 0, visibility: { tiles: {} }, score: 0,
+    diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [] },
+    lastCombatTurnByLandmass: {},
+  };
+
+  return {
+    turn: 10, era: 2,
+    civilizations: { p1 },
+    map: { width: 15, height: 5, tiles, wrapsHorizontally: false, rivers: [] },
+    units: {},
+    cities: { 'city-1': { id: 'city-1', owner: 'p1', position: { q: 0, r: 0 } } as any },
+    barbarianCamps: {}, minorCivs: {}, currentPlayer: 'p1',
+    tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+    gameOver: false, winner: null,
+    settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false },
+    tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
+    embargoes: [], defensiveLeagues: [],
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+    ...overrides,
+  } as unknown as GameState;
+}
 
 describe('landmass tagging', () => {
   it('generateBalancedMap assigns regionKey to all land tiles', () => {
@@ -84,5 +127,87 @@ describe('continent-map-generator landmass tagging', () => {
     for (const tile of landTiles) {
       expect(tile.regionKey).toMatch(/^(continent|island)-\d+$/);
     }
+  });
+});
+
+describe('empireShare', () => {
+  it('returns ~0.8 when 8 of 10 viable tiles are owned by player', () => {
+    const state = makeTestState();
+    const share = empireShare(state, 'p1', 'continent-0');
+    expect(share).toBeCloseTo(0.8, 1);
+  });
+
+  it('returns 0 when player owns no tiles', () => {
+    const state = makeTestState();
+    Object.values(state.map.tiles).forEach(t => { if (t.owner === 'p1') t.owner = null; });
+    expect(empireShare(state, 'p1', 'continent-0')).toBe(0);
+  });
+});
+
+describe('computeThreatScore', () => {
+  it('returns ~1 for era-1 player with no empire share and 0 idle turns', () => {
+    const state = makeTestState({ era: 1, turn: 5 });
+    // Remove all ownership so empireShare = 0
+    Object.values(state.map.tiles).forEach(t => { if (t.owner === 'p1') t.owner = null; });
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 5 }; // no idle
+    const score = computeThreatScore(state, 'p1', 'continent-0');
+    expect(score).toBeGreaterThan(0);
+    expect(score).toBeCloseTo(1.0, 1); // era 1 × (1 + 0 + 0) = 1.0
+  });
+
+  it('returns > 5 for era-2 dominant player with 10 idle turns', () => {
+    const state = makeTestState({ era: 2, turn: 20 });
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 10 };
+    const score = computeThreatScore(state, 'p1', 'continent-0');
+    expect(score).toBeGreaterThan(5);
+  });
+
+  it('returns 0 for AI civ', () => {
+    const state = makeTestState();
+    state.civilizations['p1'].isHuman = false;
+    expect(computeThreatScore(state, 'p1', 'continent-0')).toBe(0);
+  });
+
+  it('returns 0 when civ has no city on landmass', () => {
+    const state = makeTestState();
+    state.civilizations['p1'].cities = [];
+    expect(computeThreatScore(state, 'p1', 'continent-0')).toBe(0);
+  });
+});
+
+describe('nearestLandmassId', () => {
+  it('finds continent-0 from adjacent ocean tile', () => {
+    const state = makeTestState();
+    // tile '0,1' is ocean adjacent to '0,0' which has regionKey continent-0
+    const id = nearestLandmassId({ q: 0, r: 1 }, state.map);
+    expect(id).toBe('continent-0');
+  });
+
+  it('returns null when no land within 10 tiles', () => {
+    const state = makeTestState();
+    // Replace all land tiles with ocean
+    for (const key of Object.keys(state.map.tiles)) {
+      state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'ocean', regionKey: undefined };
+    }
+    const id = nearestLandmassId({ q: 0, r: 0 }, state.map);
+    expect(id).toBeNull();
+  });
+});
+
+describe('recordCombatForCiv', () => {
+  it('updates lastCombatTurnByLandmass for the combat landmass', () => {
+    const state = makeTestState({ turn: 15 });
+    state.civilizations['p1'].lastCombatTurnByLandmass = {};
+    // tile '0,0' has regionKey 'continent-0'
+    const updated = recordCombatForCiv(state, 'p1', { q: 0, r: 0 });
+    expect(updated.civilizations['p1'].lastCombatTurnByLandmass?.['continent-0']).toBe(15);
+  });
+
+  it('uses nearestLandmassId when the combat tile has no regionKey', () => {
+    const state = makeTestState({ turn: 20 });
+    state.civilizations['p1'].lastCombatTurnByLandmass = {};
+    // tile '0,1' is ocean with no regionKey, but adjacent to continent-0
+    const updated = recordCombatForCiv(state, 'p1', { q: 0, r: 1 });
+    expect(updated.civilizations['p1'].lastCombatTurnByLandmass?.['continent-0']).toBe(20);
   });
 });
