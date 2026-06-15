@@ -231,6 +231,7 @@ export interface HexTile {
   improvementOwner?: string;        // civ that started the in-progress improvement
   hasRiver: boolean;
   wonder: string | null;           // wonder definition ID
+  regionKey?: string;              // landmass ID for threat pressure (e.g. 'continent-0', 'island-2')
 }
 
 export interface GameMap {

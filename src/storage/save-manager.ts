@@ -8,6 +8,7 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { getQuestChain, getQuestChainForArchetype } from '@/systems/quest-chain-definitions';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
+import { tagLandmassRegions } from '@/systems/landmass-tagger';
 
 const SAVE_PREFIX = 'save:';
 const META_PREFIX = 'meta:';
@@ -229,9 +230,19 @@ function normalizeMinorCivQuestState(state: GameState): GameState {
   return nextState;
 }
 
+function normalizeLandmassKeys(state: GameState): GameState {
+  if (!state.map?.tiles) return state;
+  const anyLandMissingKey = Object.values(state.map.tiles).some(
+    t => t.terrain !== 'ocean' && t.terrain !== 'coast' && !t.regionKey
+  );
+  if (!anyLandMissingKey) return state;
+  const taggedTiles = tagLandmassRegions(state.map);
+  return { ...state, map: { ...state.map, tiles: taggedTiles } };
+}
+
 function normalizeLoadedState(state: GameState): GameState {
   const normalizedCityState = normalizeMinorCivQuestState(
-    normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))),
+    normalizeLandmassKeys(normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state))))),
   );
   if (!normalizedCityState.map?.tiles) {
     normalizedCityState.pendingDiplomacyRequests ??= [];
