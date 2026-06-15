@@ -1288,6 +1288,7 @@ export interface GameEvents {
     atWarCount: number;    // exact war count so AudioSystem can track remainingWars precisely
     unrestCityCount: number;
     nearDefeat: boolean;
+    inBeastTerritory: boolean;
   };
   'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
   'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };

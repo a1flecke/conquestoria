@@ -211,6 +211,7 @@ export class AudioSystem {
           atWar: p.atWarCount > 0,
           unrestCityCount: p.unrestCityCount,
           nearDefeat: p.nearDefeat,
+          inBeastTerritory: p.inBeastTerritory,
         });
         // Swap in the new civ's accent track; era + adaptive buses keep their current sources
         void this.reloadAccent(this.currentCivType);

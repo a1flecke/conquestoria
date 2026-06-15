@@ -58,6 +58,11 @@ export const UNREST_LAYER: Record<EraId, TrackEntry> = {
   5: { id: 'era5-unrest', file: 'audio/adaptive/era5-unrest.ogg', bpm: 0, key: 'atonal', loop: { loopStart: 0, loopEnd: 104.757 } },
 };
 
+// Synthesized in-project with ffmpeg 8.0.1 (lavfi 55 Hz sine + brown noise drone).
+// Era-independent: the same low-frequency tension track plays for all eras.
+export const BEAST_TERRITORY_LAYER: TrackEntry =
+  { id: 'beast-territory', file: 'audio/adaptive/beast-territory.ogg', bpm: 0, key: 'atonal', loop: { loopStart: 0, loopEnd: 30.000 } };
+
 // "Anguish" by Kevin MacLeod (incompetech.com) — CC-BY 3.0
 // Loop region 0–226.958 s; coda section (227–239 s) excluded from loop
 export const DEFEAT_LAYER: Record<EraId, TrackEntry> = {
