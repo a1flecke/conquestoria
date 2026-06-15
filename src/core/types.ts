@@ -405,6 +405,7 @@ export interface City {
   spyUnrestBonus: number;      // bonus pressure injected by enemy espionage; decays 5/turn
   productionDisabledTurns?: number; // late-game sabotage/cyber effect timer
   idleProduction?: 'gold' | 'science' | null; // conversion mode when queue is empty
+  hp?: number;               // city hit points for pirate siege (default 100)
 }
 
 // --- Economy ---
@@ -796,6 +797,18 @@ export interface BarbarianCamp {
   position: HexCoord;
   strength: number;          // grows over time
   spawnCooldown: number;     // turns until next raider spawns
+  resurgent?: boolean;       // true for threat-pressure spawned camps
+  banditLordName?: string;   // named leader for high-threat resurgent camps
+}
+
+export interface PirateFleet {
+  id: string;
+  unitId: string;            // Unit in state.units with owner === 'pirate'
+  targetCivId: string;       // player civ the fleet is pressuring
+  targetCityId: string;      // nearest coastal city at spawn time
+  landmassId: string;
+  era: number;               // era at spawn time, governs siege damage
+  plunderCooldown: number;   // turns remaining before next plunder attempt
 }
 
 // --- Legendary Beasts ---
@@ -1192,6 +1205,9 @@ export interface GameState {
   councilMemory?: CouncilMemoryState;
   tribalVillages: Record<string, TribalVillage>;
   beasts?: BeastsState;       // optional: legacy saves have no beasts
+  pirateFleets?: Record<string, PirateFleet>;
+  pirateFleetCooldownByCivLandmass?: Record<string, number>; // key: '${civId}:${landmassId}'
+  resurgentCampCooldownByCivLandmass?: Record<string, number>; // key: '${civId}:${landmassId}'
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
