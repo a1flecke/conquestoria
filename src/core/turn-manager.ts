@@ -614,7 +614,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
     }
     const beastUnits = Object.values(newState.units).filter(u => u.owner === BEAST_OWNER);
-    const intruders = Object.values(newState.units).filter(u => u.owner !== BEAST_OWNER && u.owner !== 'barbarian');
+    const intruders = Object.values(newState.units).filter(u =>
+      u.owner !== BEAST_OWNER && u.owner !== 'barbarian' && u.owner !== PIRATE_OWNER
+    );
     const beastSeed = newState.turn * 7919 + 13;
     const beastResult = processBeasts(
       Object.values(newState.beasts!.lairs),
