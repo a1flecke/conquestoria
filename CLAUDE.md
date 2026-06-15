@@ -2,6 +2,10 @@
 
 Civilization-building strategy game. TypeScript + Canvas 2D + Vite.
 
+## Agent Policy
+
+**NEVER use subagents or parallel agents.** Execute all tasks inline in the current session. Do not spawn Agent tool calls, fork subagents, or delegate to parallel workers for any reason.
+
 ## Commands
 
 **Always use `bash scripts/run-with-mise.sh yarn <cmd>` — never `eval "$(mise activate bash)" && yarn <cmd>`.** The script is pre-approved in `.claude/settings.local.json` and avoids permission prompts.
