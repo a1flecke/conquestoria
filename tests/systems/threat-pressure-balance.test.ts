@@ -18,7 +18,7 @@ function makeScenario(era: number, idleTurns: number, dominanceRatio: number): G
     id: 'p1', name: 'P1', color: '#fff', isHuman: true, civType: 'egypt',
     cities: ['c1'], units: [], gold: 0, visibility: { tiles: {} }, score: 0,
     techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} as any },
-    diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [] },
+    diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
     lastCombatTurnByLandmass: { 'continent-0': lastCombatTurn },
   };
   return {

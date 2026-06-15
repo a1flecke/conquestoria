@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
-import { computeThreatScore, empireShare, nearestLandmassId, recordCombatForCiv } from '@/systems/threat-pressure-system';
+import { computeThreatScore, empireShare, nearestLandmassId, recordCombatForCiv, processLandResurgence, processThreatPressure } from '@/systems/threat-pressure-system';
 import type { GameMap, GameState, HexTile, Civilization } from '@/core/types';
 
 function makeTestState(overrides: Partial<GameState> = {}): GameState {
@@ -26,7 +26,7 @@ function makeTestState(overrides: Partial<GameState> = {}): GameState {
     cities: ['city-1'], units: [],
     techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} as any },
     gold: 0, visibility: { tiles: {} }, score: 0,
-    diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [] },
+    diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
     lastCombatTurnByLandmass: {},
   };
 
@@ -114,6 +114,65 @@ describe('tagLandmassRegions', () => {
 
     const tagged = tagLandmassRegions(map);
     expect(tagged['1,0'].regionKey).toBeUndefined();
+  });
+});
+
+describe('processLandResurgence', () => {
+  function makeResurgenceState(): GameState {
+    const state = makeTestState({ era: 2, turn: 30 });
+    // Player idle for 15 turns (score ≥ 2.5)
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 15 };
+    // 8 of 10 tiles owned = 80% dominance
+    return state;
+  }
+
+  it('spawns a resurgent camp when score ≥ 2.5 and cooldown passed', () => {
+    const state = makeResurgenceState();
+    const bus = { emit: () => {} } as any;
+    const updated = processLandResurgence(state, 'p1', 'continent-0', bus);
+    const resurgentCamps = Object.values(updated.barbarianCamps).filter(c => c.resurgent);
+    expect(resurgentCamps.length).toBeGreaterThan(0);
+  });
+
+  it('does not spawn when score < 2.5', () => {
+    const state = makeTestState({ era: 1, turn: 5 });
+    // Low score: era 1, idle 0 turns, low ownership
+    Object.values(state.map.tiles).forEach(t => { if (t.owner === 'p1') t.owner = null; });
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 5 };
+    const bus = { emit: () => {} } as any;
+    const updated = processLandResurgence(state, 'p1', 'continent-0', bus);
+    const resurgentCamps = Object.values(updated.barbarianCamps).filter(c => c.resurgent);
+    expect(resurgentCamps.length).toBe(0);
+  });
+
+  it('does not spawn when cooldown is active', () => {
+    const state = makeResurgenceState();
+    state.resurgentCampCooldownByCivLandmass = { 'p1:continent-0': 35 }; // cooldown until turn 35
+    const bus = { emit: () => {} } as any;
+    const updated = processLandResurgence(state, 'p1', 'continent-0', bus);
+    const resurgentCamps = Object.values(updated.barbarianCamps).filter(c => c.resurgent);
+    expect(resurgentCamps.length).toBe(0);
+  });
+
+  it('camp strength scales with era', () => {
+    const state = makeResurgenceState();
+    const bus = { emit: () => {} } as any;
+    const updated = processLandResurgence(state, 'p1', 'continent-0', bus);
+    const camp = Object.values(updated.barbarianCamps).find(c => c.resurgent);
+    expect(camp?.strength).toBeGreaterThanOrEqual(6); // era-2 minimum
+    expect(camp?.strength).toBeLessThanOrEqual(10);   // era-2 maximum
+  });
+});
+
+describe('processThreatPressure — hot-seat isolation', () => {
+  it('only evaluates human players — AI civ never gets resurgence', () => {
+    const state = makeTestState({ era: 3, turn: 30 });
+    state.civilizations['p1'].isHuman = false;
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 10 };
+    const events: any[] = [];
+    const bus = { emit: (e: string, p: any) => events.push({ e, ...p }) } as any;
+    processThreatPressure(state, 'p1', bus);
+    expect(events.filter(e => e.e === 'threat:barbarian-resurgence').length).toBe(0);
   });
 });
 
