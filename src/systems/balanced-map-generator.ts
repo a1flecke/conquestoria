@@ -1,4 +1,5 @@
 import type { GameMap, HexTile, HexCoord } from '@/core/types';
+import { tagLandmassRegions } from './landmass-tagger';
 import {
   generateBaseTerrain,
   findStartPositions,
@@ -159,9 +160,11 @@ export function generateBalancedMap(
     }
   }
 
-  const map: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
-  const rivers = generateRivers(map, seed);
-  applyRiversToMap(map, rivers);
+  const mapWithRivers: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
+  const rivers = generateRivers(mapWithRivers, seed);
+  applyRiversToMap(mapWithRivers, rivers);
 
+  const taggedTiles = tagLandmassRegions(mapWithRivers);
+  const map: GameMap = { ...mapWithRivers, tiles: taggedTiles };
   return { map, startPositions };
 }
