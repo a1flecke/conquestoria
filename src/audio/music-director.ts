@@ -1,6 +1,6 @@
 import type { AudioMixer, SnapshotId } from './audio-mixer';
 import type { AudioLoader } from './audio-loader';
-import { STINGER, UNREST_LAYER, DEFEAT_LAYER, WAR_LAYER, resolveEra, type TrackEntry } from './audio-catalog';
+import { STINGER, UNREST_LAYER, DEFEAT_LAYER, WAR_LAYER, BEAST_TERRITORY_LAYER, resolveEra, type TrackEntry } from './audio-catalog';
 
 export interface WarDeclaredPayload {
   aggressor: string;
@@ -28,6 +28,7 @@ export interface PlayerChangedPayload {
   atWar: boolean;
   unrestCityCount: number;
   nearDefeat: boolean;
+  inBeastTerritory: boolean;
 }
 
 export interface GameEndedPayload {
@@ -54,6 +55,7 @@ export class MusicDirector {
   private atWar = false;
   private inUnrest = false;
   private nearDefeat = false;
+  private beastTerritory = false;
   private unrestCityCount = 0;
   private currentCivId = '';
   private currentEra = 1;
@@ -71,13 +73,14 @@ export class MusicDirector {
   ) {}
 
   /**
-   * Priority: brink-of-defeat > at-war > unrest > peace
+   * Priority: brink-of-defeat > at-war > unrest > beast-territory > peace
    * Public so AudioSystem can inject it as the VoiceDirector getSnapshot callback.
    */
   public resolveSnapshot(): SnapshotId {
-    if (this.nearDefeat) return 'brink-of-defeat';
-    if (this.atWar)      return 'at-war';
-    if (this.inUnrest)   return 'unrest';
+    if (this.nearDefeat)      return 'brink-of-defeat';
+    if (this.atWar)           return 'at-war';
+    if (this.inUnrest)        return 'unrest';
+    if (this.beastTerritory)  return 'beast-territory';
     return 'peace';
   }
 
@@ -91,9 +94,10 @@ export class MusicDirector {
     const era = resolveEra(this.currentEra);
     const snapshot = this.resolveSnapshot();
     let entry: TrackEntry | null = null;
-    if (snapshot === 'unrest')             entry = UNREST_LAYER[era];
-    else if (snapshot === 'at-war')        entry = WAR_LAYER[era];
+    if (snapshot === 'unrest')               entry = UNREST_LAYER[era];
+    else if (snapshot === 'at-war')          entry = WAR_LAYER[era];
     else if (snapshot === 'brink-of-defeat') entry = DEFEAT_LAYER[era];
+    else if (snapshot === 'beast-territory') entry = BEAST_TERRITORY_LAYER;
 
     if (entry) {
       const captured = entry;
@@ -194,6 +198,7 @@ export class MusicDirector {
     this.unrestCityCount = p.unrestCityCount;
     this.inUnrest = p.unrestCityCount > 0;
     this.nearDefeat = p.nearDefeat;
+    this.beastTerritory = p.inBeastTerritory;
     this.applySnapshot(CROSSFADE_MS);
   }
 

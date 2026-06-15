@@ -4,6 +4,7 @@ export type BusId = 'era' | 'accent' | 'adaptive' | 'stinger' | 'voice' | 'sfx';
 export type SnapshotId =
   | 'silent'
   | 'peace'
+  | 'beast-territory'
   | 'at-war'
   | 'unrest'
   | 'brink-of-defeat'
@@ -22,13 +23,14 @@ export type { LoopPoints };
 // stinger bus routes through stingerMasterGain → masterGain — its values here
 //   control ducking; absolute stinger volume is set via setStingerVolume().
 const SNAPSHOTS: Record<SnapshotId, Record<MusicBusId, number>> = {
-  silent:            { era: 0.0, accent: 0.00, adaptive: 0.0, stinger: 0.0, voice: 0.0 },
-  peace:             { era: 1.0, accent: 0.70, adaptive: 0.0, stinger: 1.0, voice: 1.0 },
-  'at-war':          { era: 1.0, accent: 0.50, adaptive: 0.8, stinger: 1.0, voice: 1.0 },
-  unrest:            { era: 1.0, accent: 0.55, adaptive: 0.5, stinger: 1.0, voice: 1.0 },
-  'brink-of-defeat': { era: 0.7, accent: 0.15, adaptive: 1.0, stinger: 1.0, voice: 1.0 },
-  'stinger-duck':    { era: 0.5, accent: 0.35, adaptive: 0.4, stinger: 1.0, voice: 0.2 },
-  'voice-duck':      { era: 0.5, accent: 0.35, adaptive: 0.4, stinger: 0.6, voice: 1.0 },
+  silent:             { era: 0.0, accent: 0.00, adaptive: 0.0, stinger: 0.0, voice: 0.0 },
+  peace:              { era: 1.0, accent: 0.70, adaptive: 0.0, stinger: 1.0, voice: 1.0 },
+  'beast-territory':  { era: 1.0, accent: 0.60, adaptive: 0.3, stinger: 1.0, voice: 1.0 },
+  'at-war':           { era: 1.0, accent: 0.50, adaptive: 0.8, stinger: 1.0, voice: 1.0 },
+  unrest:             { era: 1.0, accent: 0.55, adaptive: 0.5, stinger: 1.0, voice: 1.0 },
+  'brink-of-defeat':  { era: 0.7, accent: 0.15, adaptive: 1.0, stinger: 1.0, voice: 1.0 },
+  'stinger-duck':     { era: 0.5, accent: 0.35, adaptive: 0.4, stinger: 1.0, voice: 0.2 },
+  'voice-duck':       { era: 0.5, accent: 0.35, adaptive: 0.4, stinger: 0.6, voice: 1.0 },
 };
 
 interface BusState {

@@ -42,7 +42,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn } from '@/systems/beast-system';
+import { recordBeastSlain, placeBeastLairs, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn, isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
@@ -2959,6 +2959,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
             atWarCount: nextCiv?.diplomacy?.atWarWith?.length ?? 0,
             unrestCityCount: nextCivCities.filter(c => c.unrestLevel > 0).length,
             nearDefeat: nextCiv?.nearDefeat ?? false,
+            inBeastTerritory: isCivUnitInBeastTerritory(gameState, nextSlotId),
           });
         },
       });

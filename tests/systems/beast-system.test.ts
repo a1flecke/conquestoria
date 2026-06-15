@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, getClaimedTrophyGoldPerTurn, isTerrainPassableForBeast, canUnitAttackBeast } from '@/systems/beast-system';
+import { placeBeastLairs, BEAST_OWNER, LAIR_COUNTS, processBeasts, recordBeastSlain, getBeastHoardGold, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, getClaimedTrophyGoldPerTurn, isTerrainPassableForBeast, canUnitAttackBeast, isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { generateMap } from '@/systems/map-generator';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
@@ -487,5 +487,26 @@ describe('dragon ranged attacks', () => {
     const intruder = makeUnit({ id: 'u3', position: { q: 12, r: 10 } });
     const result = processBeasts([lair], map, [intruder], [boar], 1, 'wild', 7);
     expect(result.attackOrders).toEqual([]);
+  });
+});
+
+describe('isCivUnitInBeastTerritory', () => {
+  it('true only when a civ unit stands within an AWAKE lair leash radius', () => {
+    const state = createNewGame('rome', 'beast-test-seed', 'small', 'Territory Test');
+    state.beasts = {
+      mode: 'wild',
+      lairs: { 'lair-giant_boar': makeLair({ status: 'awake', unitIds: ['beast-1'] }) },
+      sightingsByCiv: {},
+    };
+    const me = state.currentPlayer;
+    state.units['scout-1'] = makeUnit({ id: 'scout-1', owner: me, position: { q: 12, r: 10 } });
+    expect(isCivUnitInBeastTerritory(state, me)).toBe(true);
+
+    state.units['scout-1'].position = { q: 20, r: 20 };
+    expect(isCivUnitInBeastTerritory(state, me)).toBe(false);
+
+    state.units['scout-1'].position = { q: 12, r: 10 };
+    state.beasts.lairs['lair-giant_boar'].status = 'dormant';
+    expect(isCivUnitInBeastTerritory(state, me)).toBe(false);
   });
 });

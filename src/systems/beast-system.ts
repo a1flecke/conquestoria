@@ -441,3 +441,16 @@ export function applyHoardChoice(
   }
   return next;
 }
+
+export function isCivUnitInBeastTerritory(state: GameState, civId: string): boolean {
+  if (!state.beasts || state.beasts.mode === 'off') return false;
+  const awakeLairs = Object.values(state.beasts.lairs).filter(l => l.status === 'awake');
+  if (awakeLairs.length === 0) return false;
+  for (const unit of Object.values(state.units)) {
+    if (unit.owner !== civId) continue;
+    for (const lair of awakeLairs) {
+      if (hexDistance(unit.position, lair.position) <= BEAST_DEFINITIONS[lair.beastId].leashRadius) return true;
+    }
+  }
+  return false;
+}
