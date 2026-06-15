@@ -198,7 +198,7 @@ export function drawUnitPresentations(
         ctx.arc(
           screen.x + metrics.countBadge.x,
           screen.y + metrics.countBadge.y,
-          metrics.countBadge.radius,
+          metrics.countBadge.radius * 1.2,   // wider to fit emoji + number
           0,
           Math.PI * 2,
         );
@@ -211,7 +211,7 @@ export function drawUnitPresentations(
         ctx.textBaseline = 'middle';
         ctx.fillStyle = 'white';
         ctx.fillText(
-          String(presentation.stackCount),
+          `🪖️×${presentation.stackCount}`,
           screen.x + metrics.countBadge.x,
           screen.y + metrics.countBadge.y,
         );
