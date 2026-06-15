@@ -17,6 +17,7 @@ import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { resolveCombat } from '@/systems/combat-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { PIRATE_OWNER, recordCombatForCiv, processThreatPressure } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { hexKey } from '@/systems/hex-utils';
@@ -543,9 +544,13 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     // Capture route IDs before combat (units may be removed from state after)
     const attackerRouteId = attacker.committedToRouteId;
     const defenderRouteId = defender.committedToRouteId;
+    const defenderPosBarbarian = { ...defender.position };
     const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
     const applied = applyCombatOutcomeToState(newState, result, combatSeed);
     newState = applied.state;
+    if (newState.civilizations[defender.owner]?.isHuman) {
+      newState = recordCombatForCiv(newState, defender.owner, defenderPosBarbarian);
+    }
     emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
     // Clean up trade routes for any committed caravans that died
     if (applied.attackerDefeated && attackerRouteId) {
@@ -676,9 +681,13 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const defender = newState.units[order.defenderUnitId];
       if (!attacker || !defender) continue;
       const combatSeed = beastSeed ^ order.attackerUnitId.charCodeAt(0);
+      const defenderPosBeast = { ...defender.position };
       const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
       const applied = applyCombatOutcomeToState(newState, result, combatSeed);
       newState = applied.state;
+      if (newState.civilizations[defender.owner]?.isHuman) {
+        newState = recordCombatForCiv(newState, defender.owner, defenderPosBeast);
+      }
       emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
       // If the beast died on counterattack, record the slay
       if (applied.attackerDefeated) {

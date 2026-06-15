@@ -39,6 +39,7 @@ import { calculateCombatStrengths, resolveCombat, selectDefenderForAttack } from
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
@@ -2185,6 +2186,8 @@ function executeAttack(attackerId: string, targetKey: string): void {
   const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
   const attackerBonus = currentCivDef()?.bonusEffect;
   const defenderBonus = resolveCivDefinition(gameState, gameState.civilizations[defender.owner]?.civType ?? '')?.bonusEffect;
+  // Capture defender position before combat (defender may be removed from state after)
+  const defenderPosition = { ...defender.position };
   // Capture route IDs before combat (units may be removed from state after)
   const attackerRouteId = attacker.committedToRouteId;
   const defenderRouteId = defender.committedToRouteId;
@@ -2200,6 +2203,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
 
   const applied = applyCombatOutcomeToState(gameState, result, seed);
   gameState = applied.state;
+  gameState = recordCombatForCiv(gameState, gameState.currentPlayer, defenderPosition);
   emitMinorCivQuestTransitions(bus, applied.questTransitions, gameState);
   // Clean up trade routes for any committed caravans that died
   if (applied.attackerDefeated && attackerRouteId) {
@@ -3627,6 +3631,7 @@ function migrateLegacySave(): void {
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
     if (!civ.civType) (civ as any).civType = 'generic';
     if (!civ.knownCivilizations) (civ as any).knownCivilizations = [];
+    if (!civ.lastCombatTurnByLandmass) (civ as any).lastCombatTurnByLandmass = {};
     if (!civ.diplomacy) {
       const relationships: Record<string, number> = {};
       for (const otherId of Object.keys(gameState.civilizations)) {
