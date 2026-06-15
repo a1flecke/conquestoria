@@ -174,6 +174,27 @@ describe('processThreatPressure — hot-seat isolation', () => {
     processThreatPressure(state, 'p1', bus);
     expect(events.filter(e => e.e === 'threat:barbarian-resurgence').length).toBe(0);
   });
+
+  it('multi-landmass: evaluates each landmass independently', () => {
+    const state = makeTestState({ era: 2, turn: 30 });
+    // Add continent-1 tiles
+    for (let q = 20; q < 30; q++) {
+      state.map.tiles[`${q},0`] = {
+        coord: { q, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null,
+        improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+        regionKey: 'continent-1',
+      };
+    }
+    // Add city on continent-1
+    state.cities['city-2'] = { id: 'city-2', owner: 'p1', position: { q: 20, r: 0 } } as any;
+    state.civilizations['p1'].cities.push('city-2');
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 15, 'continent-1': 15 };
+
+    const score0 = computeThreatScore(state, 'p1', 'continent-0');
+    const score1 = computeThreatScore(state, 'p1', 'continent-1');
+    expect(score0).toBeGreaterThan(2.5);
+    expect(score1).toBeGreaterThan(2.5);
+  });
 });
 
 describe('continent-map-generator landmass tagging', () => {
