@@ -111,3 +111,29 @@ describe('turn-manager hoard handling', () => {
     expect(delta).toBe(getClaimedTrophyGoldPerTurn(state, me));
   });
 });
+
+describe('legacy save migration (migrationPending)', () => {
+  it('places lairs on the first processTurn and clears the flag', () => {
+    const state = createNewGame('rome', 'migration-seed', 'small', 'Migration Test');
+    // Simulate a legacy save: beasts state with no lairs, just the migration flag.
+    state.beasts = { mode: 'wild', lairs: {}, sightingsByCiv: {}, migrationPending: true };
+
+    expect(Object.keys(state.beasts.lairs)).toHaveLength(0);
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.beasts!.migrationPending).toBeFalsy();
+    expect(Object.keys(next.beasts!.lairs).length).toBeGreaterThan(0);
+  });
+
+  it('queues a discovery notification for every civ on the migration turn', () => {
+    const state = createNewGame('rome', 'migration-seed', 'small', 'Migration Notify Test');
+    state.beasts = { mode: 'wild', lairs: {}, sightingsByCiv: {}, migrationPending: true };
+
+    const next = processTurn(state, new EventBus());
+
+    for (const civId of Object.keys(next.civilizations)) {
+      expect(next.pendingEvents?.[civId]?.some(e => e.message.includes('Legendary beasts'))).toBe(true);
+    }
+  });
+});
