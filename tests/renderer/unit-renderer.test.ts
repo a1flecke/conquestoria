@@ -120,7 +120,7 @@ describe('unit renderer wrap parity', () => {
 
     drawUnits(ctx, units, camera, visibility, state, 'player', { player: '#4a90d9' });
 
-    expect(ctx.fillText).toHaveBeenCalledWith('🪖️×2', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('×2', expect.any(Number), expect.any(Number));
     expect(ctx.fillText).toHaveBeenCalledWith('⚔️', expect.any(Number), expect.any(Number));
     expect(ctx.fillText).not.toHaveBeenCalledWith('👷', expect.any(Number), expect.any(Number));
   });
