@@ -143,7 +143,7 @@ describe('fortified unit badge', () => {
     } as unknown as GameState;
   }
 
-  it('draws an F badge for a fortified unit', () => {
+  it('draws a 🛡️ badge for a fortified unit', () => {
     const ctx = createContext();
     const units: Record<string, Unit> = {
       'unit-1': {
@@ -157,10 +157,10 @@ describe('fortified unit badge', () => {
 
     drawUnits(ctx, units, makeCamera(), visibility, makeState(), 'player', { player: '#4a90d9' });
 
-    expect(ctx.fillText).toHaveBeenCalledWith('F', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('🛡️', expect.any(Number), expect.any(Number));
   });
 
-  it('does not draw an F badge for a non-fortified unit', () => {
+  it('does not draw a 🛡️ badge for a non-fortified unit', () => {
     const ctx = createContext();
     const units: Record<string, Unit> = {
       'unit-1': {
@@ -174,7 +174,7 @@ describe('fortified unit badge', () => {
     drawUnits(ctx, units, makeCamera(), visibility, makeState(), 'player', { player: '#4a90d9' });
 
     const fillTextCalls = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls as [string, ...unknown[]][];
-    expect(fillTextCalls.some(([text]) => text === 'F')).toBe(false);
+    expect(fillTextCalls.some(([text]) => text === '🛡️')).toBe(false);
   });
 });
 

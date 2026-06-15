@@ -118,7 +118,7 @@ export function drawUnitGlyph(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'white';
-    ctx.fillText('F', badgeX, badgeY);
+    ctx.fillText('🛡️', badgeX, badgeY);
   }
 }
 

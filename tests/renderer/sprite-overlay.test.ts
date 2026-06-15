@@ -223,7 +223,7 @@ describe('sync() wrapper sizing', () => {
     expect(mount.querySelector('.cq-unit-selected')).not.toBeNull();
     expect(mount.querySelector('.cq-unit-health-fill')).not.toBeNull();
     expect((mount.querySelector('.cq-unit-health-fill') as HTMLElement).style.width).toBe('55%');
-    expect(mount.querySelector('.cq-unit-fortified')?.textContent).toBe('F');
+    expect(mount.querySelector('.cq-unit-fortified')?.textContent).toBe('🛡️');
     expect(mount.querySelector('.cq-unit-role')?.textContent).toBe('⌄');
   });
 
