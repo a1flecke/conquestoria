@@ -21,6 +21,7 @@ import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlocke
 import { resolveFromCity } from '@/systems/trade-system';
 import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';
+import { calculateCivUnitMaintenance } from '@/systems/economy-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -193,6 +194,25 @@ export function renderSelectedUnitInfo(
     ? `XP: ${unit.experience ?? 0} · ${tier.label} · +${combatBonus}% combat`
     : `XP: ${unit.experience ?? 0} · ${tier.label} · +${combatBonus}% combat · ${nextTierXp} XP to ${nextLabel}`;
   wrapper.appendChild(xpDiv);
+
+  if (unit.owner === state.currentPlayer) {
+    const unitMaint = calculateCivUnitMaintenance(state, unit.owner);
+    const freeEntry = unitMaint.freeDefenderUnits.find(r => r.id === unitId)
+      ?? unitMaint.supportedUnits.find(r => r.id === unitId);
+    const paidEntry = unitMaint.paidUnits.find(r => r.id === unitId);
+    if (freeEntry || paidEntry) {
+      const upkeepLine = document.createElement('div');
+      upkeepLine.style.cssText = 'font-size:10px;margin-top:2px;';
+      if (freeEntry) {
+        upkeepLine.textContent = 'Upkeep: Free support';
+        upkeepLine.style.color = '#4ade80';
+      } else {
+        upkeepLine.textContent = `Upkeep: -${paidEntry!.upkeep} 💰/turn`;
+        upkeepLine.style.color = '#f87171';
+      }
+      wrapper.appendChild(upkeepLine);
+    }
+  }
 
   const friendlyUnitsHere = Object.values(state.units).filter(other =>
     other.owner === unit.owner && !other.transportId && hexKey(other.position) === hexKey(unit.position),
