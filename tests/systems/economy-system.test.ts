@@ -55,7 +55,7 @@ function addUnits(state: GameState, count: number, type: UnitType = 'warrior'): 
 }
 
 describe('economy maintenance', () => {
-  it('keeps starter infrastructure and two defenders per city free', () => {
+  it('keeps core buildings exempt; gives one free slot to first non-exempt building', () => {
     const state = makeState();
     city(state).buildings = [
       'herbalist',
@@ -75,17 +75,18 @@ describe('economy maintenance', () => {
     const cityBreakdown = calculateCityBuildingMaintenance(state, 'capital');
     const unitBreakdown = calculateCivUnitMaintenance(state, 'player');
 
-    expect(maintenance.buildingUpkeep).toBe(0);
-    expect(maintenance.paidBuildings).toBe(0);
-    expect(maintenance.freeBuildings).toBe(10);
+    // outpost pop=2 → 1 free slot: marketplace (lowest priority) covered, forum/temple/monument paid
+    expect(maintenance.buildingUpkeep).toBe(3);
+    expect(maintenance.paidBuildings).toBe(3);
+    expect(maintenance.freeBuildings).toBe(7); // 6 exempt + 1 supported
     expect(maintenance.unitUpkeep).toBe(0);
     expect(maintenance.freeUnits).toBe(6);
-    expect(cityBreakdown.supportUsed).toBe(4);
+    expect(cityBreakdown.supportUsed).toBe(1);
     expect(unitBreakdown.defenderSlotsUsed).toBe(2);
     expect(unitBreakdown.supportUsed).toBe(4);
   });
 
-  it('charges upkeep only after generous free support is exhausted', () => {
+  it('charges upkeep for all non-exempt buildings beyond the single free slot', () => {
     const state = makeState();
     city(state).buildings = [
       'herbalist',
@@ -106,8 +107,9 @@ describe('economy maintenance', () => {
 
     const maintenance = calculateMaintenance(state, 'player');
 
-    expect(maintenance.paidBuildings).toBe(2);
-    expect(maintenance.buildingUpkeep).toBe(3);
+    // marketplace covered by 1 free slot; 6 non-exempt paid (forum+temple+monument@1 + forge+harbor+observatory@2)
+    expect(maintenance.paidBuildings).toBe(6);
+    expect(maintenance.buildingUpkeep).toBe(9);
     expect(maintenance.paidUnits).toBe(4);
     expect(maintenance.unitUpkeep).toBe(4);
   });

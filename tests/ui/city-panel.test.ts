@@ -458,8 +458,9 @@ describe('city-panel navigation', () => {
     });
 
     const rendered = collectText(panel);
-    expect(rendered).toContain('Paid upkeep: -2 city');
-    expect(rendered).toContain('Upkeep: -2 gold/turn');
+    // outpost pop=5 → 2 free slots; 7 non-exempt buildings → 5 paid (harbor+forum+monument+temple+observatory = 7g)
+    expect(rendered).toContain('Paid upkeep: -7 city');
+    expect(rendered).toContain('Upkeep: -2 gold/turn'); // harbor & observatory each cost 2g/turn
   });
 
   it('renders Overview, Buildings/Core, and Worked Land And Water sections in the Grid tab', () => {
