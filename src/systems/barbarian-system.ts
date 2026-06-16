@@ -119,11 +119,18 @@ export interface BarbarianAttackOrder {
   defenderUnitId: string;
 }
 
+export interface BarbarianCityAttackOrder {
+  attackerUnitId: string;
+  cityId: string;
+  damage: number;
+}
+
 export interface BarbarianProcessResult {
   updatedCamps: BarbarianCamp[];
   spawnedUnits: Array<{ campId: string; position: HexCoord }>;
   moveOrders: BarbarianMoveOrder[];
   attackOrders: BarbarianAttackOrder[];
+  cityAttackOrders: BarbarianCityAttackOrder[];
 }
 
 const BARBARIAN_CHASE_RANGE = 5;
@@ -141,12 +148,14 @@ export function processBarbarians(
   playerUnits: Unit[],
   seed: number,
   barbarianUnits?: Unit[],
+  playerCities?: Array<{ id: string; position: HexCoord; owner: string }>,
 ): BarbarianProcessResult {
   const rng = lcg(seed ^ 0xdeadbeef);
   const updatedCamps: BarbarianCamp[] = [];
   const spawnedUnits: Array<{ campId: string; position: HexCoord }> = [];
   const moveOrders: BarbarianMoveOrder[] = [];
   const attackOrders: BarbarianAttackOrder[] = [];
+  const cityAttackOrders: BarbarianCityAttackOrder[] = [];
 
   // --- Camp processing: cooldowns and spawning ---
   for (const camp of camps) {
@@ -166,7 +175,7 @@ export function processBarbarians(
 
   // --- Barbarian unit movement and attack ---
   if (!barbarianUnits || barbarianUnits.length === 0) {
-    return { updatedCamps, spawnedUnits, moveOrders, attackOrders };
+    return { updatedCamps, spawnedUnits, moveOrders, attackOrders, cityAttackOrders };
   }
 
   // Build a set of all occupied positions (for collision avoidance)
@@ -194,7 +203,46 @@ export function processBarbarians(
       }
     }
 
-    if (!nearestTarget) continue;
+    if (!nearestTarget) {
+      if (playerCities && playerCities.length > 0) {
+        let nearestCity: (typeof playerCities)[0] | null = null;
+        let nearestCityDist = BARBARIAN_CHASE_RANGE + 1;
+        for (const city of playerCities) {
+          const dist = map.wrapsHorizontally
+            ? wrappedHexDistance(barbUnit.position, city.position, map.width)
+            : hexDistance(barbUnit.position, city.position);
+          if (dist < nearestCityDist) {
+            nearestCityDist = dist;
+            nearestCity = city;
+          }
+        }
+        if (nearestCity) {
+          if (nearestCityDist <= 1) {
+            cityAttackOrders.push({ attackerUnitId: barbUnit.id, cityId: nearestCity.id, damage: 10 });
+          } else {
+            const neighbors = hexNeighbors(barbUnit.position);
+            const passable = neighbors.filter(coord => {
+              const t = map.tiles[hexKey(coord)];
+              if (!t) return false;
+              if (t.terrain === 'ocean' || t.terrain === 'coast' || t.terrain === 'mountain') return false;
+              return !occupiedByUnit.get(hexKey(coord));
+            });
+            if (passable.length > 0) {
+              let best = passable[0]!;
+              let bestD = hexDistance(passable[0]!, nearestCity.position);
+              for (const coord of passable) {
+                const d = hexDistance(coord, nearestCity.position);
+                if (d < bestD) { bestD = d; best = coord; }
+              }
+              moveOrders.push({ unitId: barbUnit.id, toCoord: best });
+              occupiedByUnit.delete(hexKey(barbUnit.position));
+              occupiedByUnit.set(hexKey(best), barbUnit.id);
+            }
+          }
+        }
+      }
+      continue;
+    }
 
     // If adjacent to target, issue an attack order
     if (canAttackByProfileOnMap(barbUnit, nearestTarget, map)) {
@@ -243,5 +291,5 @@ export function processBarbarians(
     }
   }
 
-  return { updatedCamps, spawnedUnits, moveOrders, attackOrders };
+  return { updatedCamps, spawnedUnits, moveOrders, attackOrders, cityAttackOrders };
 }
