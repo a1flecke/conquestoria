@@ -182,7 +182,8 @@ import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel'
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
-import { calculateCivEconomy, formatGoldHudText, formatMaintenanceTooltip, rushBuyActiveProduction } from '@/systems/economy-system';
+import { calculateCivEconomy, formatGoldHudText, rushBuyActiveProduction } from '@/systems/economy-system';
+import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
@@ -197,6 +198,7 @@ import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 
 // --- App State ---
 let gameState: GameState;
+let drawer: TreasuryDrawer;
 let selectedUnitId: string | null = null;
 let movementRange: HexCoord[] = [];
 let attackRange: HexCoord[] = [];
@@ -433,6 +435,7 @@ function maybeShowPendingHoardChoice(): void {
 }
 
 function openWonderAtlas(initialWonderId?: string): void {
+  drawer?.close();
   audio.stopNaturalWonderAmbient('codex-page-hidden');
   createWonderAtlasPanel(uiLayer, gameState, {
     initialWonderId,
@@ -492,10 +495,13 @@ function updateHUD(): void {
   prodSpan.textContent = `⚒️ ${totalProd}`;
   yieldsRow.appendChild(prodSpan);
 
-  const goldSpan = document.createElement('span');
-  goldSpan.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
-  goldSpan.title = formatMaintenanceTooltip(economyStatus);
-  yieldsRow.appendChild(goldSpan);
+  const goldBtn = document.createElement('button');
+  goldBtn.style.cssText =
+    'background:transparent;color:inherit;border:none;font-size:inherit;padding:0;cursor:pointer;min-height:44px;';
+  goldBtn.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
+  goldBtn.addEventListener('click', () => drawer?.toggle());
+  yieldsRow.appendChild(goldBtn);
+  drawer?.update(economyStatus, civ.gold);
 
   const sciSpan = document.createElement('span');
   sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
@@ -748,6 +754,7 @@ function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
 }
 
 function openDiplomacyPanel(): void {
+  drawer?.close();
   document.getElementById('diplomacy-panel')?.remove();
   createDiplomacyPanel(uiLayer, gameState, {
     onAction: handleDiplomaticAction,
@@ -761,6 +768,7 @@ function openDiplomacyPanel(): void {
 }
 
 function openMarketplacePanel(): void {
+  drawer?.close();
   document.getElementById('marketplace-panel')?.remove();
   createMarketplacePanel(uiLayer, gameState, {
     onClose: () => {},
@@ -833,6 +841,7 @@ function openWonderPanelForCityId(selectedCityId: string): void {
 }
 
 function openCityPanelForCity(city: import('@/core/types').City): void {
+  drawer?.close();
   if (city.owner !== gameState.currentPlayer) return;
   const playerCities = currentCiv().cities;
   const idx = playerCities.indexOf(city.id);
@@ -1056,6 +1065,7 @@ function showRequiredChoicesIfNeeded(): boolean {
 }
 
 function togglePanel(panel: string): void {
+  drawer?.close();
   // Remove any existing panel
   document.getElementById('tech-panel')?.remove();
   document.getElementById('city-panel')?.remove();
@@ -3878,6 +3888,12 @@ function showGameModeSelection(): void {
 }
 
 function startGame(): void {
+  // Initialize treasury drawer once
+  if (!drawer) {
+    drawer = createTreasuryDrawer();
+    (document.getElementById('game-shell') ?? document.body).appendChild(drawer.element);
+  }
+
   // Warm sprite cache non-blocking — renderers fall back to emoji while loading
   const civColors: Record<string, string> = {};
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
@@ -3901,6 +3917,8 @@ function startGame(): void {
 
   // Input (only set up once)
   if (!inputInitialized) {
+    canvas.addEventListener('pointerdown', () => { if (drawer?.isOpen()) drawer.close(); });
+
     const callbacks: InputCallbacks = {
       onHexTap: handleHexTap,
       onHexLongPress: handleHexLongPress,
