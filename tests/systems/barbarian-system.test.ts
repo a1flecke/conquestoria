@@ -224,3 +224,72 @@ describe('barbarian camp evolution', () => {
     expect(result).toBeNull();
   });
 });
+
+describe('processBarbarians — city targeting', () => {
+  const seed = 99999;
+
+  function flatMap(size = 16): GameMap {
+    const tiles: Record<string, any> = {};
+    for (let q = 0; q < size; q++) {
+      for (let r = 0; r < size; r++) {
+        tiles[`${q},${r}`] = {
+          coord: { q, r },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: null,
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: null,
+        };
+      }
+    }
+    return { width: size, height: size, wrapsHorizontally: false, rivers: [], tiles };
+  }
+
+  it('produces a cityAttackOrders field even when no cities are provided', () => {
+    const map = flatMap();
+    const barb = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, mkC());
+    const result = processBarbarians([], map, [], seed, [barb]);
+    expect(result.cityAttackOrders).toBeDefined();
+    expect(result.cityAttackOrders).toHaveLength(0);
+  });
+
+  it('issues a city attack order when a barbarian is adjacent to an empty city', () => {
+    const map = flatMap();
+    const barb = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, mkC());
+    const city = { id: 'city-1', position: { q: 6, r: 5 }, owner: 'civ-1' };
+
+    const result = processBarbarians([], map, [], seed, [barb], [city]);
+
+    expect(result.cityAttackOrders).toHaveLength(1);
+    expect(result.cityAttackOrders[0].attackerUnitId).toBe(barb.id);
+    expect(result.cityAttackOrders[0].cityId).toBe('city-1');
+    expect(result.cityAttackOrders[0].damage).toBeGreaterThan(0);
+  });
+
+  it('prefers a player unit over an empty city when the unit is in chase range', () => {
+    const map = flatMap();
+    const barb = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, mkC());
+    const playerUnit = createUnit('warrior', 'civ-1', { q: 6, r: 5 }, mkC());
+    const city = { id: 'city-1', position: { q: 6, r: 5 }, owner: 'civ-1' };
+
+    const result = processBarbarians([], map, [playerUnit], seed, [barb], [city]);
+
+    expect(result.cityAttackOrders).toHaveLength(0);
+    expect(result.attackOrders).toHaveLength(1);
+    expect(result.attackOrders[0].attackerUnitId).toBe(barb.id);
+  });
+
+  it('moves toward an empty city when not yet adjacent', () => {
+    const map = flatMap();
+    const barb = createUnit('warrior', 'barbarian', { q: 0, r: 0 }, mkC());
+    const city = { id: 'city-1', position: { q: 4, r: 0 }, owner: 'civ-1' };
+
+    const result = processBarbarians([], map, [], seed, [barb], [city]);
+
+    expect(result.cityAttackOrders).toHaveLength(0);
+    expect(result.moveOrders.some(o => o.unitId === barb.id)).toBe(true);
+  });
+});
