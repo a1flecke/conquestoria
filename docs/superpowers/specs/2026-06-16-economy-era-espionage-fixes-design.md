@@ -141,42 +141,67 @@ const disguiseOptions = allDisguises.filter(opt => !opt.minTier || spyTier >= op
 
 ## 5. HUD Treasury Drawer (`src/ui/treasury-drawer.ts`)
 
+### Mobile-first layout constraints
+
+The game targets tablet/phone as primary input. Key constraints from the current shell layout:
+
+- `#hud` is `position:absolute; top:0; left:0; right:0; z-index:10`. Height is approximately 44px (two lines of content at 13px + 8px padding).
+- Floating action buttons (`📜 🗺️ ✦ ☰ ⏩`) are at `position:absolute; top:44px; right:X`. Any drawer must co-exist with them.
+- Notifications sit at `top:40px; z-index:20`. Drawer needs `z-index:25` to overlay them while open.
+- The game canvas handles `pointerdown` for tile selection — a canvas tap must close the drawer.
+- No hover/title tooltip available on touch. The existing `goldSpan.title` only works on desktop; the drawer fully replaces it.
+- Touch targets must be `min-height:44px` per project rules.
+- Safe-area: viewport uses `viewport-fit=cover` and `black-translucent` status bar. The HUD top of 0 already accounts for this via the OS — no additional offset needed in the drawer.
+
 ### Design
-The gold chip in the HUD (`💰 {gold} (+{net} net)`) becomes a **tap-to-toggle** button. Tapping it opens a drawer row below the main HUD yields row. Tapping again collapses it.
 
-### Drawer layout
+The gold chip becomes a **tap-to-toggle** button (min-height 44px). Tapping opens an overlay drawer anchored to the top of the screen at the HUD bottom edge (`top:44px`). The drawer spans the **left two-thirds** of the screen, leaving the right third free for the floating buttons. Tapping outside the drawer (canvas or any other area) closes it.
+
 ```
-┌─────────────────────────────────────────────────┐
-│  💰 450 (+12 net)                    [tap to close]
-├─────────────────────────────────────────────────┤
-│  Revenue      +32/turn   (gold from all cities)  │
-│  Buildings     -8/turn   (6 paid × avg 1.3/turn) │
-│  Units        -12/turn   (4 paid units)           │
-│  Net          +12/turn                            │
-│  Treasury     450 gold                            │
-│  Strain       None                                │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────┐  [📜][🗺️][✦][☰]
+│ 💰 450 (+12 net)  [×]            │   ← HUD bar
+├──────────────────────────────────┤
+│ Revenue       +32/turn           │
+│ Buildings      -8/turn           │
+│ Units         -12/turn           │
+│ Net           +12/turn ████████  │  ← colored bar
+│ Treasury      450 gold           │
+└──────────────────────────────────┘
+      ↑ drawer (left 66%, below HUD, z-index 25)
 ```
 
-- Strain states color the "Net" row: green (none), yellow (low/high), red (critical).
-- "Buildings" row links to city panel (tap opens city panel for current city).
-- "Units" row is informational only.
-- Drawer closes automatically when the city panel or any other panel opens.
+- **Drawer position**: `position:absolute; top:44px; left:0; width:66%; background:rgba(0,0,0,0.85); border-radius:0 0 8px 0; padding:8px 12px; z-index:25`
+- **Row height**: each row `min-height:36px; display:flex; align-items:center; justify-content:space-between; font-size:13px`
+- **Net row color**: green (`#4ade80`) when ≥0, yellow (`#facc15`) when strain='low'/'high', red (`#f87171`) when strain='critical'
+- **Close button** (×): top-right of drawer, `min-height:44px; min-width:44px` touch target — satisfies the 44px rule
+- **Canvas close**: `main.ts` adds a `pointerdown` listener on `#game-canvas` that calls `drawer.close()` when the drawer is open. This fires before tile-selection logic so the drawer dismisses cleanly without also selecting the tile under the finger.
+- **Panel close**: `drawer.close()` is called by `main.ts` whenever any other panel opens (city, espionage, etc.)
+- No "link to city panel" from the drawer — keeps the drawer simple and prevents accidental navigation on touch
 
 ### Implementation
+
 New file `src/ui/treasury-drawer.ts` exports:
 ```typescript
 export function createTreasuryDrawer(): {
-  element: HTMLElement;
+  element: HTMLElement;                               // insert into game-shell
+  isOpen: () => boolean;
   update(economy: EconomyProjection, currentGold: number): void;
   toggle(): void;
   close(): void;
 }
 ```
 
-The existing `goldSpan` in `main.ts` is replaced by a `createGameButton` call (`'ghost'` variant styled as a chip) that calls `drawer.toggle()`. The drawer element is inserted immediately after the HUD yields row.
+In `main.ts`:
+1. The existing plain `goldSpan` is replaced by a `<button>` (styled inline, not via `createGameButton` — the HUD chip has its own compact style) that calls `drawer.toggle()`.
+2. `drawer.element` is appended to `game-shell` immediately after `#hud`.
+3. A `pointerdown` handler on `#game-canvas` calls `drawer.close()` when `drawer.isOpen()`.
+4. Every panel-open call-site (city, espionage, tech, etc.) calls `drawer.close()` before opening.
+
+The `updateHUD()` function calls `drawer.update(economyStatus, civ.gold)` so the drawer content stays current without requiring a separate refresh cycle.
 
 ### Test contract
-- `createTreasuryDrawer().update(economy, gold)` with known values → drawer element contains correct revenue/maintenance/net text.
-- Toggle hides/shows the drawer.
-- Strain level 'critical' → net row has red color in cssText.
+- `createTreasuryDrawer().update(economy, gold)` with known values → drawer element contains correct revenue/maintenance/net text nodes.
+- `toggle()` → `element.style.display` toggles between `'block'` and `'none'`; `isOpen()` reflects state.
+- Strain level `'critical'` → net value element has red color in `style.color`.
+- Strain level `'none'` with positive net → net value element has green color.
+- `close()` when already closed → no error, `isOpen()` returns false.
