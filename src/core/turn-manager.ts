@@ -505,7 +505,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   const barbarianUnits = Object.values(newState.units).filter(u => u.owner === 'barbarian');
   const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
   const cityTargets = Object.values(newState.cities)
-    .filter(city => city.owner !== 'barbarian' && !city.owner.startsWith('mc-') && city.owner !== 'beasts')
+    .filter(city => city.owner !== 'barbarian' && !city.owner.startsWith('mc-') && city.owner !== BEAST_OWNER)
     .map(city => ({ id: city.id, position: city.position, owner: city.owner }));
   const barbResult = processBarbarians(
     Object.values(newState.barbarianCamps),
@@ -574,6 +574,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const city = newState.cities[order.cityId];
     if (!city) continue;
     const currentHp = city.hp ?? 100;
+    if (currentHp <= 0) continue; // already at zero (shouldn't persist, but guard against legacy saves)
     const newHp = Math.max(0, currentHp - order.damage);
     newState = {
       ...newState,

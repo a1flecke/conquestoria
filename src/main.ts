@@ -3409,7 +3409,8 @@ bus.on('barbarian:city-attacked', ({ cityId, hpLost }) => {
 
 bus.on('barbarian:city-destroyed', ({ cityId, ownerId }) => {
   if (!gameState.civilizations[ownerId]?.isHuman) return;
-  appendToCivLog(ownerId, `A city was destroyed by barbarian raiders!`, 'warning');
+  const cityName = gameState.cities[cityId]?.name ?? 'A city';
+  appendToCivLog(ownerId, `${cityName} was destroyed by barbarian raiders!`, 'warning');
 });
 
 bus.on('beast:awakened', ({ beastId, position }) => {
