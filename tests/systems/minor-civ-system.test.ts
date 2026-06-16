@@ -268,24 +268,45 @@ describe('era advancement', () => {
     expect(newEra).toBe(2);
   });
 
-  it('does not advance era below 60% threshold', () => {
-    const state = createNewGame(undefined, 'era-no-test', 'small');
+  it('advances era when any civ completes a single era-advancement tech of that era', () => {
+    const state = createNewGame(undefined, 'era-single-tech', 'small');
     state.era = 1;
-    const era2Techs = getEraAdvancementTechs(2);
-    const below = Math.floor(era2Techs.length * 0.6) - 1;
-    state.civilizations.player.techState.completed = era2Techs.slice(0, below).map(t => t.id);
+    const era2Tech = getEraAdvancementTechs(2)[0];
+    expect(era2Tech).toBeDefined();
+    state.civilizations.player.techState.completed = [era2Tech.id];
     const newEra = checkEraAdvancement(state);
-    expect(newEra).toBe(1);
+    expect(newEra).toBe(2);
   });
 
-  it('does not require late-era scaffolding techs to advance into era 5', () => {
-    const state = createNewGame(undefined, 'era-five-test', 'small');
+  it('does not advance era via scaffolding techs marked countsForEraAdvancement: false', () => {
+    const state = createNewGame(undefined, 'era-five-scaffold', 'small');
     state.era = 4;
-    state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
-
+    // global-logistics and nuclear-theory are era-5 techs with countsForEraAdvancement: false
+    state.civilizations.player.techState.completed = ['global-logistics', 'nuclear-theory'];
     const newEra = checkEraAdvancement(state);
+    // Should stay at era 4 — scaffold techs excluded from era advancement
+    expect(newEra).toBe(4);
+  });
 
+  it('advances era to 5 when a real era-5 advancement tech is completed', () => {
+    const state = createNewGame(undefined, 'era-five-advance', 'small');
+    state.era = 4;
+    // digital-surveillance is an era-5 tech without countsForEraAdvancement: false
+    state.civilizations.player.techState.completed = ['digital-surveillance'];
+    const newEra = checkEraAdvancement(state);
     expect(newEra).toBe(5);
+  });
+
+  it('tracks highest era across all civs, not just current player', () => {
+    const state = createNewGame(undefined, 'era-multiciv', 'small');
+    state.era = 1;
+    const era3Tech = getEraAdvancementTechs(3)[0];
+    expect(era3Tech).toBeDefined();
+    const aiCivId = Object.keys(state.civilizations).find(id => id !== 'player');
+    if (!aiCivId) return;
+    state.civilizations[aiCivId].techState.completed = [era3Tech.id];
+    const newEra = checkEraAdvancement(state);
+    expect(newEra).toBe(3);
   });
 });
 
