@@ -239,4 +239,24 @@ describe('selected-unit-tap-intent', () => {
 
     expect(intent).toEqual({ kind: 'move' });
   });
+
+  it('returns move when tapping a friendly-occupied tile in range (stacking regression)', () => {
+    const state = createNewGame(undefined, 'stacking-regression', 'small');
+    state.currentPlayer = 'player';
+
+    const counters = mkC();
+    const movingUnit = createUnit('warrior', 'player', { q: 0, r: 0 }, counters);
+    state.units[movingUnit.id] = { ...movingUnit, movementPointsLeft: 2, hasMoved: false };
+
+    const occupant = createUnit('warrior', 'player', { q: 1, r: 0 }, counters);
+    state.units[occupant.id] = occupant;
+
+    const intent = resolveSelectedUnitTapIntent(
+      state,
+      movingUnit.id,
+      { q: 1, r: 0 },
+      [{ q: 1, r: 0 }],
+    );
+    expect(intent).toEqual({ kind: 'move' });
+  });
 });

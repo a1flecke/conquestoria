@@ -262,8 +262,9 @@ export function validateUnitMove(
 
   const occupancy = buildUnitOccupancy(state.units);
   const occupants = getUnitIdsAtCoord(occupancy, target).filter(id => id !== unitId);
-  if (occupants.length > 0) {
-    return movementFailure(from, target, [from, target], 'occupied', 'Another unit is already there.');
+  const hasHostileOccupant = occupants.some(id => occupancy.ownersByUnitId[id] !== unit.owner);
+  if (hasHostileOccupant) {
+    return movementFailure(from, target, [from, target], 'occupied', 'An enemy unit is blocking the way.');
   }
 
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';

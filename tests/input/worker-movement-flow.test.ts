@@ -51,7 +51,7 @@ describe('worker-movement-flow', () => {
     state.units.blocker = {
       id: 'blocker',
       type: 'warrior',
-      owner: 'player',
+      owner: 'barbarian',
       position: { q: 1, r: 1 },
       movementPointsLeft: 2,
       health: 100,

@@ -445,3 +445,40 @@ describe('river crossing movement cost', () => {
     expect(state.units.mover.movementPointsLeft).toBe(0);
   });
 });
+
+describe('validateUnitMove — friendly stacking', () => {
+  function stackState(unitOwner: string, occupantOwner: string): GameState {
+    const counters = mkC();
+    const unit = createUnit('warrior', unitOwner, { q: 0, r: 0 }, counters);
+    const occupant = createUnit('warrior', occupantOwner, { q: 1, r: 0 }, counters);
+    const tiles = [
+      tile({ q: 0, r: 0 }),
+      tile({ q: 1, r: 0 }),
+      tile({ q: 2, r: 0 }),
+    ];
+    return movementState(unit, tiles, { extraUnits: [occupant] });
+  }
+
+  it('allows moving to a hex occupied by a same-owner unit', () => {
+    const state = stackState('civ-1', 'civ-1');
+    const unitId = Object.values(state.units).find(u => u.position.q === 0)!.id;
+    const result = executeUnitMove(state, unitId, { q: 1, r: 0 }, { actor: 'player', civId: 'civ-1' });
+    expect(result.ok).toBe(true);
+  });
+
+  it('blocks moving to a hex occupied by a different-owner unit', () => {
+    const state = stackState('civ-1', 'civ-2');
+    const unitId = Object.values(state.units).find(u => u.position.q === 0)!.id;
+    const result = executeUnitMove(state, unitId, { q: 1, r: 0 }, { actor: 'player', civId: 'civ-1' });
+    expect(result.ok).toBe(false);
+    expect((result as any).reason).toBe('occupied');
+  });
+
+  it('blocks moving to a hex occupied by a barbarian unit', () => {
+    const state = stackState('civ-1', 'barbarian');
+    const unitId = Object.values(state.units).find(u => u.position.q === 0)!.id;
+    const result = executeUnitMove(state, unitId, { q: 1, r: 0 }, { actor: 'player', civId: 'civ-1' });
+    expect(result.ok).toBe(false);
+    expect((result as any).reason).toBe('occupied');
+  });
+});
