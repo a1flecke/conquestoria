@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
-import { describe, it, expect, afterEach } from 'vitest';
-import { SpriteOverlay, hashCode } from '@/renderer/sprite-overlay';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { SpriteOverlay, hashCode, applyFactionCivColor } from '@/renderer/sprite-overlay';
+import * as SpriteIndex from '@/renderer/sprites/v2/index';
 import { getUnitLayoutMetrics } from '@/renderer/unit-map-presentation';
 import type { SpriteEntity } from '@/renderer/sprite-overlay';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
@@ -271,5 +272,76 @@ describe('invalidateFaction', () => {
     overlay.invalidateFaction('imperials');
     // viking element should remain
     expect(overlay.getActiveIds().has('u2')).toBe(true);
+  });
+});
+
+// ── applyFactionCivColor — pure function tests ────────────────────────────────
+
+describe('applyFactionCivColor', () => {
+  it('replaces all occurrences of the faction accent color with the civ game color', () => {
+    const svg = `<div><rect fill="#b53026"/><path stroke="#b53026"/></div>`;
+    const result = applyFactionCivColor(svg, 'imperials', '#2d6a4f');
+    expect(result).not.toContain('#b53026');
+    expect(result.match(/#2d6a4f/g)?.length).toBe(2);
+  });
+
+  it('returns the original string when faction has no entry in FACTION_SPRITE_ACCENT', () => {
+    const svg = `<div><rect fill="#b53026"/></div>`;
+    expect(applyFactionCivColor(svg, 'unknown-faction', '#2d6a4f')).toBe(svg);
+  });
+
+  it('returns the original string when civColor is empty', () => {
+    const svg = `<div><rect fill="#b53026"/></div>`;
+    expect(applyFactionCivColor(svg, 'imperials', '')).toBe(svg);
+  });
+
+  it('returns the original string when civColor equals faction accent (no-op)', () => {
+    const svg = `<div><rect fill="#b53026"/></div>`;
+    expect(applyFactionCivColor(svg, 'imperials', '#b53026')).toBe(svg);
+  });
+});
+
+// ── sync() colorLookup param ─────────────────────────────────────────────────
+
+describe('SpriteOverlay.sync() — colorLookup param', () => {
+  it('does not crash when called with no colorLookup (default empty)', () => {
+    const { overlay } = mountOverlay();
+    expect(() =>
+      overlay.sync(cam(), [], MAP, OPTS),
+    ).not.toThrow();
+  });
+
+  it('accepts colorLookup as the fifth argument without error', () => {
+    const { overlay } = mountOverlay();
+    expect(() =>
+      overlay.sync(cam(), [], MAP, OPTS, { 'civ-1': '#2d6a4f' }),
+    ).not.toThrow();
+  });
+});
+
+// ── pool invalidation on civColor change ─────────────────────────────────────
+
+describe('SpriteOverlay.sync() — pool invalidation on civColor change', () => {
+  it('re-creates the DOM element when civColor changes between syncs', () => {
+    const mockSvg = '<div class="unit-sprite"><rect fill="#b53026"/></div>';
+    const spy = vi.spyOn(SpriteIndex, 'getUnitSpriteV2').mockReturnValue(mockSvg);
+
+    const { overlay, mount } = mountOverlay();
+    const ent = entity({ faction: 'imperials', civId: 'civ-1' });
+
+    // First sync — imperials accent replaced with green
+    overlay.sync(cam(), [ent], MAP, OPTS, { 'civ-1': '#2d6a4f' });
+    const el1 = mount.querySelector('[data-entity-id="u1"]') as HTMLElement;
+    expect(el1).not.toBeNull();
+    expect(el1.innerHTML).toContain('#2d6a4f');
+    expect(el1.innerHTML).not.toContain('#b53026');
+
+    // Second sync — same entity, but new color
+    overlay.sync(cam(), [ent], MAP, OPTS, { 'civ-1': '#ff0000' });
+    const el2 = mount.querySelector('[data-entity-id="u1"]') as HTMLElement;
+    expect(el2.innerHTML).toContain('#ff0000');
+    expect(el2.innerHTML).not.toContain('#2d6a4f');
+
+    spy.mockRestore();
   });
 });
