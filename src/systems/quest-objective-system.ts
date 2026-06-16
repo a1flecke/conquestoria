@@ -102,7 +102,7 @@ export function estimateCaravanReadyTurns(state: GameState, majorCivId: string, 
   const trainable = getTrainableUnitsForCity(
     city,
     civ.techState.completed,
-    state.map.tiles,
+    state.map,
     civ.civType,
     availableResources,
   ).some(unit => unit.type === 'caravan');

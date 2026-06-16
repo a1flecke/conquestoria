@@ -1302,8 +1302,9 @@ describe('city-panel coastal unit gating', () => {
     const inlandText = (inlandPanel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? inlandPanel.textContent ?? '';
     expect(inlandText).not.toContain('Transport');
 
-    state.map.tiles['99,99'] = {
-      coord: { q: 99, r: 99 },
+    // Place coast tile adjacent to city (q:2,r:2) so isCityCoastal sees it
+    state.map.tiles['2,1'] = {
+      coord: { q: 2, r: 1 },
       terrain: 'coast',
       elevation: 'lowland',
       resource: null,
@@ -1313,7 +1314,7 @@ describe('city-panel coastal unit gating', () => {
       hasRiver: false,
       wonder: null,
     };
-    const coastalCity = { ...city, ownedTiles: [city.position, { q: 99, r: 99 }] };
+    const coastalCity = { ...city };
     const coastalPanel = createCityPanel(container, coastalCity, state, {
       onBuild: () => {},
       onOpenWonderPanel: () => {},

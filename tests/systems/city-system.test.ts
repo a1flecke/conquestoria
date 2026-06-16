@@ -2,6 +2,7 @@ import {
   foundCity,
   getAvailableBuildings,
   getTrainableUnitsForCity,
+  isCityCoastal,
   getTrainableUnitsForCiv,
   getProductionCostForItem,
   processCity,
@@ -20,9 +21,10 @@ import {
   getProductionIconForItem,
   getSettlerProductionCost,
 } from '@/systems/city-system';
-import type { City, GameMap, ResourceType, UnitType } from '@/core/types';
+import type { City, GameMap, HexCoord, ResourceType, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
+import { hexKey } from '@/systems/hex-utils';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -99,12 +101,109 @@ describe('foundCity', () => {
   });
 });
 
+describe('isCityCoastal', () => {
+  function makeTile(coord: HexCoord, terrain = 'plains') {
+    return {
+      coord,
+      terrain: terrain as any,
+      elevation: 'lowland',
+      resource: null,
+      improvement: 'none',
+      owner: null,
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+    };
+  }
+
+  function coastMap(centerTerrain: string, neighborTerrain: string): GameMap {
+    return {
+      width: 20,
+      height: 20,
+      wrapsHorizontally: false,
+      rivers: [],
+      tiles: {
+        [hexKey({ q: 5, r: 5 })]: makeTile({ q: 5, r: 5 }, centerTerrain),
+        [hexKey({ q: 6, r: 5 })]: makeTile({ q: 6, r: 5 }, neighborTerrain),
+        [hexKey({ q: 4, r: 5 })]: makeTile({ q: 4, r: 5 }),
+        [hexKey({ q: 5, r: 4 })]: makeTile({ q: 5, r: 4 }),
+        [hexKey({ q: 6, r: 4 })]: makeTile({ q: 6, r: 4 }),
+        [hexKey({ q: 4, r: 6 })]: makeTile({ q: 4, r: 6 }),
+        [hexKey({ q: 5, r: 6 })]: makeTile({ q: 5, r: 6 }),
+        [hexKey({ q: 15, r: 15 })]: makeTile({ q: 15, r: 15 }, 'coast'),
+      },
+    } as GameMap;
+  }
+
+  function makeCity(ownedTiles?: HexCoord[]): City {
+    return {
+      id: 'c-coast',
+      name: 'Test',
+      owner: 'civ-1',
+      position: { q: 5, r: 5 },
+      population: 1,
+      food: 0,
+      foodNeeded: 15,
+      buildings: [],
+      productionQueue: [],
+      productionProgress: 0,
+      ownedTiles: ownedTiles ?? [{ q: 5, r: 5 }],
+      workedTiles: [],
+      focus: 'balanced',
+      grid: [],
+      gridSize: 1,
+      hp: 100,
+      maturity: 'core',
+    } as unknown as City;
+  }
+
+  it('returns true when an adjacent tile is coast', () => {
+    const city = makeCity();
+    const map = coastMap('plains', 'coast');
+    expect(isCityCoastal(city, map)).toBe(true);
+  });
+
+  it('returns true when the city centre tile itself is coast', () => {
+    const city = makeCity();
+    const map = coastMap('coast', 'plains');
+    expect(isCityCoastal(city, map)).toBe(true);
+  });
+
+  it('returns false for a landlocked city', () => {
+    const city = makeCity();
+    const map = coastMap('plains', 'plains');
+    expect(isCityCoastal(city, map)).toBe(false);
+  });
+
+  it('regression: returns false when a distant ownedTile is coast but no adjacent tile is (old bug)', () => {
+    const city = makeCity([{ q: 5, r: 5 }, { q: 15, r: 15 }]);
+    const map = coastMap('plains', 'plains');
+    expect(isCityCoastal(city, map)).toBe(false);
+  });
+
+  it('returns true for a city at q=0 on a wrapping map when the wrapped neighbour is coast', () => {
+    const city = makeCity([{ q: 0, r: 5 }]);
+    city.position = { q: 0, r: 5 };
+    const wrappingMap: GameMap = {
+      width: 20,
+      height: 20,
+      wrapsHorizontally: true,
+      rivers: [],
+      tiles: {
+        [hexKey({ q: 0, r: 5 })]: makeTile({ q: 0, r: 5 }),
+        [hexKey({ q: 19, r: 5 })]: makeTile({ q: 19, r: 5 }, 'coast'),
+      },
+    } as GameMap;
+    expect(isCityCoastal(city, wrappingMap)).toBe(true);
+  });
+});
+
 describe('getAvailableBuildings', () => {
   it('returns buildings the city can build', () => {
     const map = generateMap(30, 30, 'city-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', landTile.coord, map, mkC());
-    const available = getAvailableBuildings(city, [], map.tiles);
+    const available = getAvailableBuildings(city, [], map);
     expect(available.length).toBeGreaterThan(0);
   });
 
@@ -113,7 +212,7 @@ describe('getAvailableBuildings', () => {
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', landTile.coord, map, mkC());
     city.buildings = ['granary'];
-    const available = getAvailableBuildings(city, [], map.tiles);
+    const available = getAvailableBuildings(city, [], map);
     expect(available.find(b => b.id === 'granary')).toBeUndefined();
   });
 
@@ -128,7 +227,7 @@ describe('getAvailableBuildings', () => {
       )
     )!;
     const city = foundCity('p1', inlandTile.coord, map, mkC());
-    const available = getAvailableBuildings(city, ['fishing'], map.tiles);
+    const available = getAvailableBuildings(city, ['fishing'], map);
     expect(available.find(b => b.id === 'dock')).toBeUndefined();
   });
 
@@ -145,7 +244,7 @@ describe('getAvailableBuildings', () => {
       ...foundCity('p1', nearTile.coord, map, mkC()),
       ownedTiles: [nearTile.coord, waterTile.coord],
     };
-    const available = getAvailableBuildings(city, ['fishing'], map.tiles);
+    const available = getAvailableBuildings(city, ['fishing'], map);
     expect(available.find(b => b.id === 'dock')).toBeDefined();
   });
 
@@ -162,7 +261,7 @@ describe('getAvailableBuildings', () => {
       ...foundCity('p1', nearTile.coord, map, mkC()),
       ownedTiles: [nearTile.coord, waterTile.coord],
     };
-    const available = getAvailableBuildings(city, [], map.tiles); // no fishing tech
+    const available = getAvailableBuildings(city, [], map); // no fishing tech
     expect(available.find(b => b.id === 'dock')).toBeUndefined();
   });
 
@@ -177,7 +276,7 @@ describe('getAvailableBuildings', () => {
       )
     )!;
     const city = foundCity('p1', inlandTile.coord, map, mkC());
-    const available = getAvailableBuildings(city, ['harbor-tech'], map.tiles);
+    const available = getAvailableBuildings(city, ['harbor-tech'], map);
     expect(available.find(b => b.id === 'harbor')).toBeUndefined();
   });
 
@@ -194,7 +293,7 @@ describe('getAvailableBuildings', () => {
       ...foundCity('p1', nearTile.coord, map, mkC()),
       ownedTiles: [nearTile.coord, waterTile.coord],
     };
-    const available = getAvailableBuildings(city, ['harbor-tech'], map.tiles);
+    const available = getAvailableBuildings(city, ['harbor-tech'], map);
     expect(available.find(b => b.id === 'harbor')).toBeDefined();
   });
 });
@@ -222,8 +321,8 @@ describe('getTrainableUnitsForCity', () => {
     inlandCity.ownedTiles = [{ q: 3, r: 0 }];
     const techs = ['galleys', 'triremes'];
 
-    const coastalTypes = getTrainableUnitsForCity(coastalCity, techs, map.tiles).map(unit => unit.type);
-    const inlandTypes = getTrainableUnitsForCity(inlandCity, techs, map.tiles).map(unit => unit.type);
+    const coastalTypes = getTrainableUnitsForCity(coastalCity, techs, map).map(unit => unit.type);
+    const inlandTypes = getTrainableUnitsForCity(inlandCity, techs, map).map(unit => unit.type);
 
     expect(coastalTypes).toEqual(expect.arrayContaining(['galley', 'trireme', 'transport']));
     expect(inlandTypes).not.toContain('galley');
@@ -553,7 +652,7 @@ describe('expanded buildings', () => {
   it('getAvailableBuildings filters by tech requirements', () => {
     const map = generateMap(30, 30, 'building-test');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    const available = getAvailableBuildings(city, [], map.tiles);
+    const available = getAvailableBuildings(city, [], map);
     for (const b of available) {
       expect(b.techRequired).toBeNull();
     }
@@ -760,7 +859,7 @@ describe('getAvailableBuildings — resource gate', () => {
     const map = generateMap(30, 30, 'res-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
-    const available = getAvailableBuildings(city, ['stone-weapons'], map.tiles, undefined);
+    const available = getAvailableBuildings(city, ['stone-weapons'], map, undefined);
     // bronze-workshop requires stone-weapons + copper; no filter → should appear
     expect(available.some(b => b.id === 'bronze-workshop')).toBe(true);
   });
@@ -769,7 +868,7 @@ describe('getAvailableBuildings — resource gate', () => {
     const map = generateMap(30, 30, 'res-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
-    const available = getAvailableBuildings(city, ['stone-weapons'], map.tiles, new Set<ResourceType>());
+    const available = getAvailableBuildings(city, ['stone-weapons'], map, new Set<ResourceType>());
     expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
   });
 
@@ -777,7 +876,7 @@ describe('getAvailableBuildings — resource gate', () => {
     const map = generateMap(30, 30, 'res-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
-    const available = getAvailableBuildings(city, ['stone-weapons'], map.tiles, new Set<ResourceType>(['copper']));
+    const available = getAvailableBuildings(city, ['stone-weapons'], map, new Set<ResourceType>(['copper']));
     expect(available.some(b => b.id === 'bronze-workshop')).toBe(true);
   });
 
@@ -785,7 +884,7 @@ describe('getAvailableBuildings — resource gate', () => {
     const map = generateMap(30, 30, 'res-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
-    const available = getAvailableBuildings(city, [], map.tiles, new Set<ResourceType>(['copper']));
+    const available = getAvailableBuildings(city, [], map, new Set<ResourceType>(['copper']));
     expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
   });
 });
@@ -907,7 +1006,7 @@ describe('S4b — new buildings', () => {
     const map = generateMap(30, 30, 'bldg-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
-    const available = getAvailableBuildings(city, ['stone-weapons'], map.tiles, new Set<ResourceType>());
+    const available = getAvailableBuildings(city, ['stone-weapons'], map, new Set<ResourceType>());
     expect(available.some(b => b.id === 'bronze-workshop')).toBe(false);
   });
 
@@ -915,7 +1014,7 @@ describe('S4b — new buildings', () => {
     const map = generateMap(30, 30, 'bldg-test');
     const tile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', tile.coord, map, mkC());
-    const available = getAvailableBuildings(city, ['iron-forging'], map.tiles, new Set<ResourceType>(['iron']));
+    const available = getAvailableBuildings(city, ['iron-forging'], map, new Set<ResourceType>(['iron']));
     expect(available.some(b => b.id === 'iron-foundry')).toBe(true);
   });
 });

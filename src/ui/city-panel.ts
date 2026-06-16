@@ -175,7 +175,7 @@ export function createCityPanel(
     bonusEffect: civDef?.bonusEffect,
     era: state.era,
   });
-  const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map.tiles, playerResources);
+  const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map, playerResources);
   const cityWonderEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, city.id);
   const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);
   const activeLegendaryEntry = city.productionQueue[0]?.startsWith('legendary:')
@@ -231,13 +231,13 @@ export function createCityPanel(
   }
 
   const completedTechs = currentCiv.techState.completed;
-  const availableUnits = getTrainableUnitsForCity(city, completedTechs, state.map.tiles, currentCiv.civType, playerResources);
+  const availableUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, playerResources);
 
   // Locked items: tech met + resource NOT met (tech-missing items stay hidden entirely)
-  const allTechUnlockedUnits = getTrainableUnitsForCity(city, completedTechs, state.map.tiles, currentCiv.civType, undefined);
+  const allTechUnlockedUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, undefined);
   const lockedUnits = allTechUnlockedUnits.filter(u => !availableUnits.some(a => a.type === u.type));
 
-  const allTechUnlockedBuildings = getAvailableBuildings(city, completedTechs, state.map.tiles, undefined);
+  const allTechUnlockedBuildings = getAvailableBuildings(city, completedTechs, state.map, undefined);
   const lockedBuildings = allTechUnlockedBuildings.filter(b => !availableBuildings.some(a => a.id === b.id));
 
   const lockedItems: Array<{ id: string; name: string; missingResources: ResourceType[] }> = [
