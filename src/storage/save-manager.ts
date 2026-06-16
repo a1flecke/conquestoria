@@ -290,6 +290,7 @@ function normalizeLoadedState(state: GameState): GameState {
   }).state;
   const normalized = normalizeCityWorkClaims(territoryNormalized).state;
   normalized.pendingDiplomacyRequests ??= [];
+  normalized.era ??= 1;
   return normalized;
 }
 
