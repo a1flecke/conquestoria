@@ -3400,6 +3400,18 @@ bus.on('threat:pirate-fleet-destroyed', ({ civId }) => {
   SFX.pirateDestroyed?.();
 });
 
+bus.on('barbarian:city-attacked', ({ cityId, hpLost }) => {
+  const city = gameState.cities[cityId];
+  if (!city) return;
+  if (!gameState.civilizations[city.owner]?.isHuman) return;
+  appendToCivLog(city.owner, `Barbarians attack ${city.name}! (−${hpLost} HP)`, 'warning');
+});
+
+bus.on('barbarian:city-destroyed', ({ cityId, ownerId }) => {
+  if (!gameState.civilizations[ownerId]?.isHuman) return;
+  appendToCivLog(ownerId, `A city was destroyed by barbarian raiders!`, 'warning');
+});
+
 bus.on('beast:awakened', ({ beastId, position }) => {
   const def = BEAST_DEFINITIONS[beastId];
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
