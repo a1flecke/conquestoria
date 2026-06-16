@@ -1297,6 +1297,8 @@ export interface GameEvents {
   'threat:pirate-plunder': { fleetId: string; cityId: string; goldStolen: number };
   'threat:pirate-siege': { fleetId: string; cityId: string; hpLost: number };
   'threat:pirate-fleet-destroyed': { fleetId: string; civId: string; landmassId: string };
+  'barbarian:city-attacked': { attackerUnitId: string; cityId: string; hpLost: number };
+  'barbarian:city-destroyed': { attackerUnitId: string; cityId: string; ownerId: string };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
   'game:saved': { turn: number };
