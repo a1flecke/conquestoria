@@ -200,13 +200,13 @@ function getUnitLabel(unit: Unit): string {
 
 function getFreeBuildingSlots(city: City): number {
   const maturityBonusByLevel: Record<City['maturity'], number> = {
-    outpost: 0,
-    village: 1,
-    town: 2,
-    city: 3,
-    metropolis: 4,
+    outpost:    0,
+    village:    0,
+    town:       1,
+    city:       2,
+    metropolis: 3,
   };
-  return 4 + Math.floor(city.population / 2) + maturityBonusByLevel[city.maturity];
+  return Math.floor(city.population / 2) + maturityBonusByLevel[city.maturity];
 }
 
 function getFreeGeneralUnitSlots(cities: City[]): number {
