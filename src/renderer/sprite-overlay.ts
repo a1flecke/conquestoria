@@ -11,6 +11,23 @@ import type { HexCoord } from '@/core/types';
 import { applyUnitAnchorOffset, getUnitLayoutMetrics } from './unit-map-presentation';
 import type { UnitRoleMarker } from './unit-visual-resolver';
 
+// Faction accent colors baked into serialized sprite SVG fills by scripts/serialize-sprites.mjs.
+// Must match the palette.secondary value from the source sprite TSX files.
+const FACTION_SPRITE_ACCENT: Record<string, string> = {
+  imperials: '#b53026',
+  vikings:   '#1d4a8c',
+  pharaohs:  '#d4a13c',
+  hellenes:  '#2c8a5a',
+  khanate:   '#7a3a14',
+  shogunate: '#5b4a7a',
+};
+
+export function applyFactionCivColor(svgHtml: string, faction: string, civColor: string): string {
+  const accent = FACTION_SPRITE_ACCENT[faction];
+  if (!accent || !civColor || civColor === accent) return svgHtml;
+  return svgHtml.replaceAll(accent, civColor);
+}
+
 /** Sprite wrappers live in world-space; the container applies camera zoom. */
 export interface SpriteEntity {
   id:      string;
@@ -38,6 +55,8 @@ export interface SpriteEntity {
   fortified?: boolean;
   roleMarker?: UnitRoleMarker;
   anchorOffsetFactor?: { x: number; y: number };
+  /** Owner civ ID used to look up the game-assigned color for accent replacement. */
+  civId?: string;
 }
 
 interface PoolEntry {
@@ -45,6 +64,7 @@ interface PoolEntry {
   spriteWrapEl: HTMLElement;    // .cq-sprite-wrap.cq-v2 — animation root
   phase:        number;
   faction:      string;
+  civColor:     string;
   coord:        HexCoord;       // stored so we can detect position change after movement
   memberIds:    string[];
   anchorOffsetFactor: { x: number; y: number };
@@ -92,6 +112,7 @@ export class SpriteOverlay {
     entities: SpriteEntity[],
     map: { width: number; wrapsHorizontally: boolean },
     opts: { isPinching: boolean; reducedMotion: boolean },
+    colorLookup: Record<string, string> = {},
   ): void {
     // 1. LOD + reduced-motion gate
     if (camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD || opts.reducedMotion) {
@@ -121,9 +142,16 @@ export class SpriteOverlay {
         const key = `${entity.id}:${i}`;
         seen.add(key);
 
-        const existing = this.pool.get(key);
         const anchorOffsetFactor = entity.anchorOffsetFactor ?? { x: 0, y: 0 };
-        if (existing) {
+        const newCivColor = entity.civId ? (colorLookup[entity.civId] ?? '') : '';
+        const poolEntry = this.pool.get(key);
+        // Invalidate if faction or civ color changed (e.g. unit captured or color reassigned)
+        if (poolEntry && (poolEntry.faction !== entity.faction || poolEntry.civColor !== newCivColor)) {
+          poolEntry.el.remove();
+          this.pool.delete(key);
+        }
+        if (this.pool.has(key)) {
+          const existing = this.pool.get(key)!;
           // Pool hit — update state via setAttribute (no node replacement!)
           existing.spriteWrapEl.setAttribute('data-state', entity.state);
           existing.spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
@@ -147,8 +175,9 @@ export class SpriteOverlay {
           }
         } else {
           // Pool miss — create element
-          const svgHtml = this.lookupSprite(entity);
-          if (!svgHtml) continue; // no v2 sprite — canvas handles it
+          const rawSvgHtml = this.lookupSprite(entity);
+          if (!rawSvgHtml) continue; // no v2 sprite — canvas handles it
+          const svgHtml = applyFactionCivColor(rawSvgHtml, entity.faction, newCivColor);
 
           const phase = (hashCode(entity.id) % 100) / 100;
           const rawPx = hexToPixel(coord, camera.hexSize);
@@ -183,6 +212,7 @@ export class SpriteOverlay {
             spriteWrapEl,
             phase,
             faction: entity.faction,
+            civColor: newCivColor,
             coord,
             memberIds: entity.memberIds ?? [entity.id],
             anchorOffsetFactor,
