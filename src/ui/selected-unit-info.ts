@@ -465,17 +465,20 @@ export function renderSelectedUnitInfo(
   if (isSpyUnitType(unit.type) && !unit.hasActed && callbacks.onSetDisguise) {
     const spy = state.espionage?.[unit.owner]?.spies[unitId];
     if (spy?.status === 'idle') {
-    const ownerTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
-    type DisguiseOption = { label: string; value: DisguiseType | null; tech?: string };
+    const SPY_DISGUISE_TIERS: Partial<Record<string, number>> = {
+      spy_scout: 0, spy_informant: 1, spy_agent: 2, spy_operative: 3, spy_hacker: 3,
+    };
+    const spyTier = SPY_DISGUISE_TIERS[unit.type] ?? 0;
+    type DisguiseOption = { label: string; value: DisguiseType | null; minTier?: number };
     const allDisguises: DisguiseOption[] = [
-      { label: 'No Disguise', value: null },
-      { label: 'As Barbarian', value: 'barbarian', tech: 'espionage-informants' },
-      { label: 'As Warrior',   value: 'warrior',   tech: 'espionage-informants' },
-      { label: 'As Scout',     value: 'scout',     tech: 'spy-networks' },
-      { label: 'As Archer',    value: 'archer',    tech: 'spy-networks' },
-      { label: 'As Worker',    value: 'worker',    tech: 'cryptography' },
+      { label: 'No Disguise',   value: null },
+      { label: 'As Barbarian',  value: 'barbarian', minTier: 1 },
+      { label: 'As Warrior',    value: 'warrior',   minTier: 1 },
+      { label: 'As Scout',      value: 'scout',     minTier: 2 },
+      { label: 'As Archer',     value: 'archer',    minTier: 2 },
+      { label: 'As Worker',     value: 'worker',    minTier: 3 },
     ];
-    const disguiseOptions = allDisguises.filter(opt => !opt.tech || ownerTechs.includes(opt.tech));
+    const disguiseOptions = allDisguises.filter(opt => !opt.minTier || spyTier >= opt.minTier);
 
     if (disguiseOptions.length > 1) {
       const disguiseSection = document.createElement('div');

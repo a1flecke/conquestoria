@@ -291,6 +291,17 @@ function normalizeLoadedState(state: GameState): GameState {
   const normalized = normalizeCityWorkClaims(territoryNormalized).state;
   normalized.pendingDiplomacyRequests ??= [];
   normalized.era ??= 1;
+  // Clear stale disguise on spy_scouts — they have no tier-1+ options
+  if (normalized.espionage) {
+    for (const espState of Object.values(normalized.espionage)) {
+      for (const spyRecord of Object.values(espState.spies)) {
+        const unit = normalized.units[spyRecord.unitId];
+        if (unit?.type === 'spy_scout' && spyRecord.disguiseAs != null) {
+          spyRecord.disguiseAs = null;
+        }
+      }
+    }
+  }
   return normalized;
 }
 

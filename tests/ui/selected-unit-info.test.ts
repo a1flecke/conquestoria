@@ -82,16 +82,20 @@ function findButtons(node: unknown): MockElement[] {
   return result;
 }
 
-function makeSpyState(techs: string[], spyStatus: string = 'idle'): GameState {
+function makeSpyState(
+  techs: string[],
+  spyStatus: string = 'idle',
+  spyType: 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker' = 'spy_scout',
+): GameState {
   let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
-  const { state: esp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed');
+  const { state: esp } = createSpyFromUnit(civEsp, 'unit-1', 'player', spyType, 'seed');
   civEsp = { ...esp, spies: { ...esp.spies, 'unit-1': { ...esp.spies['unit-1'], status: spyStatus as any } } };
   return {
     turn: 1, era: 1, currentPlayer: 'player', gameOver: false, winner: null,
     map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
     units: {
       'unit-1': {
-        id: 'unit-1', type: 'spy_scout', owner: 'player',
+        id: 'unit-1', type: spyType, owner: 'player',
         position: { q: 0, r: 0 }, health: 100, maxHealth: 100,
         movementPointsLeft: 2, movement: 2, hasActed: false, status: 'idle',
       } as any,
@@ -158,8 +162,8 @@ describe('renderSelectedUnitInfo — spy disguise buttons', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
 
-  it('does not render "As Scout" button without spy-networks tech', () => {
-    const state = makeSpyState(['espionage-informants']); // spy-networks NOT researched
+  it('spy_scout (tier 0) does not render any disguise options', () => {
+    const state = makeSpyState([], 'idle', 'spy_scout');
     const container = new MockElement('div');
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
       onSetDisguise: () => {},
@@ -167,10 +171,11 @@ describe('renderSelectedUnitInfo — spy disguise buttons', () => {
     const btns = findButtons(container).map(b => b.textContent);
     expect(btns.some(t => t.includes('As Scout'))).toBe(false);
     expect(btns.some(t => t.includes('As Archer'))).toBe(false);
+    expect(btns.some(t => t.includes('As Barbarian'))).toBe(false);
   });
 
-  it('renders "As Scout" and "As Archer" buttons when spy-networks is researched', () => {
-    const state = makeSpyState(['espionage-informants', 'spy-networks']);
+  it('spy_agent (tier 2) renders "As Scout" and "As Archer" buttons', () => {
+    const state = makeSpyState([], 'idle', 'spy_agent');
     const container = new MockElement('div');
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
       onSetDisguise: () => {},
@@ -178,10 +183,12 @@ describe('renderSelectedUnitInfo — spy disguise buttons', () => {
     const btns = findButtons(container).map(b => b.textContent);
     expect(btns.some(t => t.includes('As Scout'))).toBe(true);
     expect(btns.some(t => t.includes('As Archer'))).toBe(true);
+    // tier 2 does NOT yet have As Worker
+    expect(btns.some(t => t.includes('As Worker'))).toBe(false);
   });
 
   it('does not render disguise section when spy is not idle', () => {
-    const state = makeSpyState(['espionage-informants', 'spy-networks'], 'on_mission');
+    const state = makeSpyState([], 'on_mission', 'spy_agent');
     const container = new MockElement('div');
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
       onSetDisguise: () => {},
@@ -192,9 +199,9 @@ describe('renderSelectedUnitInfo — spy disguise buttons', () => {
 
   it('marks the active disguise with a checkmark', () => {
     let civEsp = { ...createEspionageCivState(), maxSpies: 1 };
-    const { state: esp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_scout', 'seed');
+    const { state: esp } = createSpyFromUnit(civEsp, 'unit-1', 'player', 'spy_informant', 'seed');
     civEsp = setDisguise(esp, 'unit-1', 'barbarian');
-    const gameState = makeSpyState(['espionage-informants']);
+    const gameState = makeSpyState([], 'idle', 'spy_informant');
     (gameState.espionage as any).player = civEsp;
 
     const container = new MockElement('div');
@@ -207,7 +214,7 @@ describe('renderSelectedUnitInfo — spy disguise buttons', () => {
   });
 
   it('fires onSetDisguise with the correct value when a button is clicked', () => {
-    const state = makeSpyState(['espionage-informants', 'spy-networks']);
+    const state = makeSpyState([], 'idle', 'spy_agent');
     const container = new MockElement('div');
     let called: [string, unknown] | null = null;
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'unit-1', {
