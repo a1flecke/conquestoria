@@ -504,12 +504,16 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   const playerUnits = Object.values(newState.units).filter(u => u.owner !== 'barbarian' && u.owner !== BEAST_OWNER && !u.owner.startsWith('mc-'));
   const barbarianUnits = Object.values(newState.units).filter(u => u.owner === 'barbarian');
   const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
+  const cityTargets = Object.values(newState.cities)
+    .filter(city => city.owner !== 'barbarian' && !city.owner.startsWith('mc-') && city.owner !== 'beasts')
+    .map(city => ({ id: city.id, position: city.position, owner: city.owner }));
   const barbResult = processBarbarians(
     Object.values(newState.barbarianCamps),
     newState.map,
     playerUnits,
     barbSeed,
     barbarianUnits,
+    cityTargets,
   );
   newState.barbarianCamps = {};
   for (const camp of barbResult.updatedCamps) {
@@ -562,6 +566,36 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     bus.emit('combat:resolved', { result });
     for (const reward of applied.rewards) {
       bus.emit('combat:reward-earned', { reward });
+    }
+  }
+
+  // Barbarian city attacks
+  for (const order of barbResult.cityAttackOrders) {
+    const city = newState.cities[order.cityId];
+    if (!city) continue;
+    const currentHp = city.hp ?? 100;
+    const newHp = Math.max(0, currentHp - order.damage);
+    newState = {
+      ...newState,
+      cities: { ...newState.cities, [order.cityId]: { ...city, hp: newHp } },
+    };
+    bus.emit('barbarian:city-attacked', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, hpLost: currentHp - newHp });
+
+    if (newHp === 0) {
+      const ownerId = city.owner;
+      const { [order.cityId]: _removed, ...remainingCities } = newState.cities;
+      newState = { ...newState, cities: remainingCities };
+      const ownerCiv = newState.civilizations[ownerId];
+      if (ownerCiv) {
+        newState = {
+          ...newState,
+          civilizations: {
+            ...newState.civilizations,
+            [ownerId]: { ...ownerCiv, cities: ownerCiv.cities.filter((cId: string) => cId !== order.cityId) },
+          },
+        };
+      }
+      bus.emit('barbarian:city-destroyed', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, ownerId });
     }
   }
 
