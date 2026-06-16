@@ -1,6 +1,6 @@
 import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType } from '@/core/types';
 import { isSpyUnitType } from './espionage-system';
-import { hexKey, hexesInRange, wrapHexCoord } from './hex-utils';
+import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 import { findOptimalSlot, isSlotUnlocked } from './adjacency-system';
@@ -455,11 +455,11 @@ export function getTrainableUnitsForCiv(
 export function getTrainableUnitsForCity(
   city: City,
   completedTechs: string[],
-  mapTiles: GameMap['tiles'],
+  map: GameMap,
   civType?: string,
   availableResources?: Set<ResourceType>,
 ): TrainableUnitEntry[] {
-  const coastal = isCityCoastal(city, mapTiles);
+  const coastal = isCityCoastal(city, map);
   return getTrainableUnitsForCiv(completedTechs, civType, availableResources)
     .filter(unit => !unit.coastalRequired || coastal);
 }
@@ -521,20 +521,22 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
   };
 }
 
-export function isCityCoastal(city: City, mapTiles: GameMap['tiles']): boolean {
-  return (city.ownedTiles ?? []).some(coord => {
-    const tile = mapTiles[hexKey(coord)];
-    return tile?.terrain === 'ocean' || tile?.terrain === 'coast';
+export function isCityCoastal(city: City, map: GameMap): boolean {
+  const coordsToCheck = [city.position, ...hexNeighbors(city.position)];
+  return coordsToCheck.some(coord => {
+    const wrapped = map.wrapsHorizontally ? wrapHexCoord(coord, map.width) : coord;
+    const t = map.tiles[hexKey(wrapped)];
+    return t?.terrain === 'ocean' || t?.terrain === 'coast';
   });
 }
 
 export function getAvailableBuildings(
   city: City,
   completedTechs: string[],
-  mapTiles: GameMap['tiles'],
+  map: GameMap,
   availableResources?: Set<ResourceType>,
 ): Building[] {
-  const coastal = isCityCoastal(city, mapTiles);
+  const coastal = isCityCoastal(city, map);
   return Object.values(BUILDINGS).filter(b => {
     if (city.buildings.includes(b.id)) return false;
     if (b.techRequired && !completedTechs.includes(b.techRequired)) return false;
@@ -719,13 +721,13 @@ export function processCity(
   // lost coastal access (e.g. map-script edge case), remove the item silently.
   if (newQueue.length > 0) {
     const headBuilding = BUILDINGS[newQueue[0]];
-    if (headBuilding?.coastalRequired && !isCityCoastal(city, map.tiles)) {
+    if (headBuilding?.coastalRequired && !isCityCoastal(city, map)) {
       droppedBuilding = newQueue.shift()!;
       droppedProductionItem = droppedBuilding;
       newProgress = 0;
     }
     const headUnit = TRAINABLE_UNITS.find(unit => unit.type === newQueue[0]);
-    if (headUnit?.coastalRequired && !isCityCoastal(city, map.tiles)) {
+    if (headUnit?.coastalRequired && !isCityCoastal(city, map)) {
       droppedUnit = newQueue.shift() as UnitType;
       droppedProductionItem = droppedUnit;
       newProgress = 0;
