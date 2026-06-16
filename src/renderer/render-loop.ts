@@ -392,6 +392,7 @@ export class RenderLoop {
         fortified: presentation.leadUnit.isFortified,
         roleMarker: presentation.roleMarker,
         anchorOffsetFactor: presentation.anchorOffsetFactor,
+        civId: presentation.leadUnit.owner,
       }));
       this.spriteOverlay?.sync(
         this.camera,
@@ -404,6 +405,7 @@ export class RenderLoop {
           isPinching: this.touchHandlerRef?.isPinching ?? false,
           reducedMotion: prefersReducedMotion(),
         },
+        colorLookup,
       );
       drawUnitPresentations(
         this.ctx,
