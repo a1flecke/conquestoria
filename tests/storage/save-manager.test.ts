@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { City, GameMap, GameState } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
+import { migrateLegacyCoastalData } from '@/storage/save-manager';
 
 const dbState = new Map<string, unknown>();
 
@@ -383,5 +386,122 @@ describe('save-manager autosave listing', () => {
     const loaded = await loadGame('slot-auto-explore');
 
     expect(loaded?.units[unitId].automation).toEqual(state.units[unitId].automation);
+  });
+});
+
+// ─── migrateLegacyCoastalData ───────────────────────────────────────────────
+
+function makeTileMigration(q: number, r: number, terrain = 'plains') {
+  return {
+    coord: { q, r },
+    terrain: terrain as any,
+    elevation: 'lowland',
+    resource: null,
+    improvement: 'none',
+    owner: null,
+    improvementTurnsLeft: 0,
+    hasRiver: false,
+    wonder: null,
+  };
+}
+
+function makeCityMigration(id: string, overrides: Partial<City> = {}): City {
+  return {
+    id,
+    name: id,
+    owner: 'civ-1',
+    position: { q: 5, r: 5 },
+    population: 1,
+    food: 0,
+    foodNeeded: 15,
+    buildings: [],
+    productionQueue: [],
+    productionProgress: 0,
+    ownedTiles: [{ q: 5, r: 5 }],
+    workedTiles: [],
+    focus: 'balanced',
+    grid: [],
+    gridSize: 1,
+    hp: 100,
+    maturity: 'core',
+    ...overrides,
+  } as unknown as City;
+}
+
+function makeMigrationState(cities: City[], extraTiles: ReturnType<typeof makeTileMigration>[] = []): GameState {
+  const baseTiles = [
+    makeTileMigration(5, 5),
+    makeTileMigration(6, 5),
+    makeTileMigration(4, 5),
+    makeTileMigration(5, 4),
+    makeTileMigration(6, 4),
+    makeTileMigration(4, 6),
+    makeTileMigration(5, 6),
+  ];
+  const tileMap = Object.fromEntries(
+    [...baseTiles, ...extraTiles].map(t => [hexKey(t.coord), t]),
+  );
+  return {
+    turn: 1,
+    era: 1,
+    gameId: 'migration-test',
+    currentPlayer: 'civ-1',
+    gameOver: false,
+    winner: null,
+    map: {
+      width: 20,
+      height: 20,
+      wrapsHorizontally: false,
+      rivers: [],
+      tiles: tileMap,
+    } as GameMap,
+    units: {},
+    cities: Object.fromEntries(cities.map(c => [c.id, c])),
+    civilizations: {},
+    barbarianCamps: {},
+    minorCivs: {},
+    tutorial: { active: false, currentStep: 'welcome', completedSteps: [] },
+    settings: { mapSize: 'small', soundEnabled: true } as any,
+    idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+  } as unknown as GameState;
+}
+
+describe('migrateLegacyCoastalData', () => {
+  it('removes coastal-required ship from productionQueue of a non-coastal city', () => {
+    const city = makeCityMigration('c1', { productionQueue: ['galley', 'warrior'] });
+    const state = makeMigrationState([city]);
+    const result = migrateLegacyCoastalData(state);
+    expect(result.cities['c1'].productionQueue).toEqual(['warrior']);
+  });
+
+  it('removes coastal-required dock from city.buildings of a non-coastal city', () => {
+    const city = makeCityMigration('c1', { buildings: ['dock', 'barracks'] });
+    const state = makeMigrationState([city]);
+    const result = migrateLegacyCoastalData(state);
+    expect(result.cities['c1'].buildings).toEqual(['barracks']);
+  });
+
+  it('does not modify a genuinely coastal city', () => {
+    const city = makeCityMigration('c1', { buildings: ['dock'], productionQueue: ['galley'] });
+    const coastTile = makeTileMigration(6, 5, 'coast');
+    const state = makeMigrationState([city], [coastTile]);
+    const result = migrateLegacyCoastalData(state);
+    expect(result.cities['c1'].buildings).toEqual(['dock']);
+    expect(result.cities['c1'].productionQueue).toEqual(['galley']);
+  });
+
+  it('is idempotent — running twice produces the same result', () => {
+    const city = makeCityMigration('c1', { productionQueue: ['galley', 'warrior'] });
+    const state = makeMigrationState([city]);
+    const once = migrateLegacyCoastalData(state);
+    const twice = migrateLegacyCoastalData(once);
+    expect(twice.cities['c1'].productionQueue).toEqual(once.cities['c1'].productionQueue);
+  });
+
+  it('returns state unchanged when no cities need migration', () => {
+    const city = makeCityMigration('c1', { buildings: ['barracks'], productionQueue: ['warrior'] });
+    const state = makeMigrationState([city]);
+    const result = migrateLegacyCoastalData(state);
+    expect(result).toBe(state);
   });
 });

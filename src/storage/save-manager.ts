@@ -1,6 +1,6 @@
 import { QUEST_TYPES, type City, type CityFocus, type CityMaturity, type GameState, type QuestTarget, type SaveSlotMeta } from '@/core/types';
 import { drawNextCityName } from '@/systems/city-name-system';
-import { createEmptyCityGrid } from '@/systems/city-system';
+import { createEmptyCityGrid, isCityCoastal, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from '@/systems/city-maturity-system';
 import { canonicalizeCityCoord, normalizeCityWorkClaims, recalculateTerritory } from '@/systems/city-territory-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -252,9 +252,32 @@ function normalizeThreatPressureDefaults(state: GameState): GameState {
   };
 }
 
+export function migrateLegacyCoastalData(state: GameState): GameState {
+  if (!state.map) return state;
+  const cities = { ...state.cities };
+  let changed = false;
+  for (const [id, city] of Object.entries(cities)) {
+    if (isCityCoastal(city, state.map)) continue;
+    const cleanQueue = city.productionQueue.filter(item => {
+      if (BUILDINGS[item]?.coastalRequired) return false;
+      const unit = TRAINABLE_UNITS.find(u => u.type === item);
+      return !unit?.coastalRequired;
+    });
+    const cleanBuildings = city.buildings.filter(bId => !BUILDINGS[bId]?.coastalRequired);
+    if (
+      cleanQueue.length !== city.productionQueue.length ||
+      cleanBuildings.length !== city.buildings.length
+    ) {
+      cities[id] = { ...city, productionQueue: cleanQueue, buildings: cleanBuildings };
+      changed = true;
+    }
+  }
+  return changed ? { ...state, cities } : state;
+}
+
 function normalizeLoadedState(state: GameState): GameState {
   const normalizedCityState = normalizeMinorCivQuestState(
-    normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))))),
+    migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state))))))),
   );
   if (!normalizedCityState.map?.tiles) {
     normalizedCityState.pendingDiplomacyRequests ??= [];
