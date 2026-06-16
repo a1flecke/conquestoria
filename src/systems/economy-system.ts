@@ -369,8 +369,8 @@ export function calculateCivUnitMaintenance(state: GameState, civId: string): Ci
     };
   }
 
-  const cities = civ.cities.map(cityId => state.cities[cityId]).filter((city): city is City => Boolean(city));
-  const units = civ.units.map(unitId => state.units[unitId]).filter((unit): unit is Unit => Boolean(unit));
+  const cities = (civ.cities ?? []).map(cityId => state.cities[cityId]).filter((city): city is City => Boolean(city));
+  const units = (civ.units ?? []).map(unitId => state.units[unitId]).filter((unit): unit is Unit => Boolean(unit));
   const exemptUnitIds = new Set<string>();
   const exemptUnits: MaintenanceRow[] = [];
 

@@ -3,6 +3,8 @@ import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
 import type { GameState, HexCoord } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
+import { createNewGame } from '@/core/game-state';
+import { createUnit } from '@/systems/unit-system';
 
 class MockElement {
   tagName: string;
@@ -81,6 +83,7 @@ function findButtons(node: unknown): MockElement[] {
   for (const child of el.children ?? []) result.push(...findButtons(child));
   return result;
 }
+
 
 function makeSpyState(
   techs: string[],
@@ -1206,5 +1209,40 @@ describe('Expedition — Establish Outpost action', () => {
 
     const buttons = findButtons(container);
     expect(buttons.some(b => b.textContent?.includes('Establish Outpost'))).toBe(false);
+  });
+});
+
+describe('renderSelectedUnitInfo — unit upkeep display', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows Free support for a warrior covered by free unit slots', () => {
+    const state = createNewGame(undefined, 'upkeep-free-test', 'small');
+    const unit = createUnit('warrior', 'player', { q: 0, r: 0 }, state.idCounters);
+    state.units[unit.id] = unit;
+    state.civilizations.player.units = [unit.id];
+
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, unit.id, {});
+
+    const allText = collectAllText(container).join(' ');
+    expect(allText).toContain('Free support');
+  });
+
+  it('does not show upkeep line for enemy units', () => {
+    const state = createNewGame(undefined, 'upkeep-enemy-test', 'small');
+    const aiCivId = Object.keys(state.civilizations).find(id => id !== 'player');
+    if (!aiCivId) return;
+    const unit = createUnit('warrior', aiCivId, { q: 0, r: 0 }, state.idCounters);
+    state.units[unit.id] = unit;
+    state.civilizations[aiCivId].units = [unit.id];
+    state.currentPlayer = 'player';
+
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, unit.id, {});
+
+    const allText = collectAllText(container).join(' ');
+    expect(allText).not.toContain('Free support');
+    expect(allText).not.toContain('💰/turn');
   });
 });
