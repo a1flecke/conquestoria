@@ -1,6 +1,6 @@
 import { QUEST_TYPES, type City, type CityFocus, type CityMaturity, type GameState, type QuestTarget, type SaveSlotMeta } from '@/core/types';
 import { drawNextCityName } from '@/systems/city-name-system';
-import { createEmptyCityGrid, isCityCoastal, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { isCityCoastal, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from '@/systems/city-maturity-system';
 import { canonicalizeCityCoord, normalizeCityWorkClaims, recalculateTerritory } from '@/systems/city-territory-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -50,28 +50,19 @@ function migrateLegacyPlanningState(state: GameState): GameState {
   return state;
 }
 
-function normalizeCityGrid(grid: (string | null)[][] | undefined): (string | null)[][] {
-  const normalized = createEmptyCityGrid();
-  if (!grid) return normalized;
-  const center = Math.floor(grid.length / 2);
-  for (let row = 0; row < grid.length; row++) {
-    for (let col = 0; col < (grid[row]?.length ?? 0); col++) {
-      const targetRow = 3 + row - center;
-      const targetCol = 3 + col - center;
-      if (targetRow >= 0 && targetRow < 7 && targetCol >= 0 && targetCol < 7) {
-        normalized[targetRow][targetCol] = grid[row][col];
-      }
-    }
-  }
-  normalized[3][3] = 'city-center';
-  return normalized;
+function migrateStripCityGrid(state: GameState): GameState {
+  const cities = Object.fromEntries(
+    Object.entries(state.cities ?? {}).map(([id, city]) => {
+      const { grid: _grid, gridSize: _gridSize, ...rest } = city as any;
+      return [id, rest];
+    }),
+  );
+  return { ...state, cities };
 }
 
 function normalizeLegacyCitySimState(state: GameState): GameState {
   const cities: Record<string, City> = {};
   for (const [cityId, city] of Object.entries(state.cities ?? {})) {
-    const rawGridSize = Number(city.gridSize);
-    const gridSize: 3 | 5 | 7 = rawGridSize >= 7 ? 7 : rawGridSize >= 5 ? 5 : 3;
     const canonicalizeLoadedCoord = (coord: { q: number; r: number }) => (
       state.map ? canonicalizeCityCoord(coord, state.map) : { ...coord }
     );
@@ -81,8 +72,6 @@ function normalizeLegacyCitySimState(state: GameState): GameState {
       workedTiles: (city.workedTiles ?? []).map(canonicalizeLoadedCoord),
       focus: (city.focus ?? INITIAL_CITY_FOCUS) as CityFocus,
       maturity: (city.maturity ?? INITIAL_CITY_MATURITY) as CityMaturity,
-      grid: normalizeCityGrid(city.grid),
-      gridSize,
     };
   }
   return { ...state, cities };
@@ -277,7 +266,7 @@ export function migrateLegacyCoastalData(state: GameState): GameState {
 
 function normalizeLoadedState(state: GameState): GameState {
   const normalizedCityState = normalizeMinorCivQuestState(
-    migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state))))))),
+    migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))))))),
   );
   if (!normalizedCityState.map?.tiles) {
     normalizedCityState.pendingDiplomacyRequests ??= [];
