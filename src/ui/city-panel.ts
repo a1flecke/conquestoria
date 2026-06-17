@@ -869,16 +869,7 @@ export function createCityPanel(
 
   const renderCityGridTab = (): void => {
     gridView.textContent = '';
-    createCityGrid(gridView, city, state.map, {
-      onSlotTap: () => {
-        callbacks.onClose();
-      },
-      onBuyExpansion: () => {
-        callbacks.onClose();
-      },
-      onClose: callbacks.onClose,
-      onPlaceBuilding: (buildingId, row, col) => callbacks.onPlaceBuilding?.(city.id, buildingId, row, col),
-    }, undefined, {
+    createCityGrid(gridView, city, state.map, undefined, {
       state,
       onSetCityFocus: (cityId, focus) => rerenderPanel(callbacks.onSetCityFocus?.(cityId, focus), 'grid'),
       onToggleWorkedTile: (cityId, coord, worked) => rerenderPanel(callbacks.onToggleWorkedTile?.(cityId, coord, worked), 'grid'),
