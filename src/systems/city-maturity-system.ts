@@ -7,16 +7,15 @@ export interface CityMaturityDefinition {
   populationRequired: number;
   maturityTechsRequired: number;
   requiresQualifyingTechAtEra: boolean;
-  gridSize: 3 | 5 | 7;
   districtPages: string[];
 }
 
 export const CITY_MATURITY_DEFINITIONS: CityMaturityDefinition[] = [
-  { id: 'outpost', era: 1, populationRequired: 1, maturityTechsRequired: 0, requiresQualifyingTechAtEra: false, gridSize: 3, districtPages: ['overview', 'buildings'] },
-  { id: 'village', era: 2, populationRequired: 3, maturityTechsRequired: 1, requiresQualifyingTechAtEra: true, gridSize: 3, districtPages: ['overview', 'buildings', 'worked-land-water'] },
-  { id: 'town', era: 3, populationRequired: 5, maturityTechsRequired: 2, requiresQualifyingTechAtEra: true, gridSize: 5, districtPages: ['overview', 'buildings', 'worked-land-water'] },
-  { id: 'city', era: 4, populationRequired: 8, maturityTechsRequired: 3, requiresQualifyingTechAtEra: true, gridSize: 5, districtPages: ['overview', 'buildings', 'worked-land-water', 'advanced-districts'] },
-  { id: 'metropolis', era: 5, populationRequired: 12, maturityTechsRequired: 4, requiresQualifyingTechAtEra: true, gridSize: 7, districtPages: ['overview', 'buildings', 'worked-land-water', 'advanced-districts'] },
+  { id: 'outpost', era: 1, populationRequired: 1, maturityTechsRequired: 0, requiresQualifyingTechAtEra: false, districtPages: ['overview', 'buildings'] },
+  { id: 'village', era: 2, populationRequired: 3, maturityTechsRequired: 1, requiresQualifyingTechAtEra: true, districtPages: ['overview', 'buildings', 'worked-land-water'] },
+  { id: 'town', era: 3, populationRequired: 5, maturityTechsRequired: 2, requiresQualifyingTechAtEra: true, districtPages: ['overview', 'buildings', 'worked-land-water'] },
+  { id: 'city', era: 4, populationRequired: 8, maturityTechsRequired: 3, requiresQualifyingTechAtEra: true, districtPages: ['overview', 'buildings', 'worked-land-water', 'advanced-districts'] },
+  { id: 'metropolis', era: 5, populationRequired: 12, maturityTechsRequired: 4, requiresQualifyingTechAtEra: true, districtPages: ['overview', 'buildings', 'worked-land-water', 'advanced-districts'] },
 ];
 
 export const INITIAL_CITY_MATURITY: CityMaturity = 'outpost';
@@ -87,12 +86,10 @@ export interface CityMaturityApplicationResult {
 export function applyCityMaturity(city: City, completedTechs: string[]): CityMaturityApplicationResult {
   const current = resolveCityMaturity(city.population, completedTechs);
   const previous = city.maturity ?? INITIAL_CITY_MATURITY;
-  const definition = getCityMaturityDefinition(current);
-  const gridSize = Math.max(city.gridSize ?? definition.gridSize, definition.gridSize) as 3 | 5 | 7;
   return {
-    city: { ...city, maturity: current, gridSize },
+    city: { ...city, maturity: current },
     previous,
     current,
-    changed: previous !== current || city.gridSize !== gridSize,
+    changed: previous !== current,
   };
 }
