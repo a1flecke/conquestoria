@@ -355,11 +355,6 @@ export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | '
 export type CityFocus = 'balanced' | 'food' | 'production' | 'gold' | 'science' | 'custom';
 export type CityMaturity = 'outpost' | 'village' | 'town' | 'city' | 'metropolis';
 
-export interface AdjacencyBonus {
-  adjacentTo: string;
-  yields: Partial<ResourceYield>;
-}
-
 export interface Building {
   id: string;
   name: string;
@@ -369,7 +364,6 @@ export interface Building {
   description: string;
   techRequired?: string | null;
   coastalRequired?: boolean;
-  adjacencyBonuses?: AdjacencyBonus[];
   pacing?: PacingMetadata;
   resourceRequired?: ResourceType[];
   routeCapacity?: number;   // trade route slots added to the FROM city; 0 or absent = none
@@ -396,8 +390,6 @@ export interface City {
   focus: CityFocus;
   maturity: CityMaturity;
   lastFocusReminderTurn?: number;
-  grid: (string | null)[][];  // 7x7 city interior grid with centered unlocked rings
-  gridSize: 3 | 5 | 7;        // unlocked centered grid size
   unrestLevel: 0 | 1 | 2;     // 0=stable, 1=unrest, 2=revolt
   unrestTurns: number;         // turns spent at current unrest level (>= 1 when unrestLevel > 0)
   conquestTurn?: number;       // turn this city was captured; cleared after 15 turns
@@ -1304,8 +1296,6 @@ export interface GameEvents {
   'game:saved': { turn: number };
   'game:loaded': { turn: number };
   'game:over': { winnerId: string };
-  'grid:slot-unlocked': { cityId: string; newGridSize: number };
-  'grid:building-placed': { cityId: string; buildingId: string; row: number; col: number };
   'diplomacy:war-declared': { attackerId: string; defenderId: string; opponentKind: 'major' | 'minor' | 'barbarian' };
   'diplomacy:peace-requested': { fromCivId: string; toCivId: string };
   'diplomacy:peace-made': { civA: string; civB: string };
