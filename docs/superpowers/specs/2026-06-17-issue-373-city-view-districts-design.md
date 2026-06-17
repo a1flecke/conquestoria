@@ -76,7 +76,7 @@ The city panel tab bar changes from `List | Grid | Wonders` to:
 Queue | Districts | Citizens | Wonders
 ```
 
-The `CityPanelTab` type becomes `'list' | 'districts' | 'citizens' | 'wonders'`. This renames `'grid'` to `'districts'`, adds `'citizens'`, and formally adds `'wonders'` which existed as a tab but was not in the type.
+The `CityPanelTab` type becomes `'list' | 'districts' | 'citizens' | 'wonders'`. This renames `'grid'` to `'districts'`, adds `'citizens'`, and formally adds `'wonders'` which existed as a tab but was not in the type. The `'list'` tab label changes from "List" to "Queue" in the UI — no logic change, purely a display rename to better describe its purpose.
 
 ### Districts tab
 
@@ -135,13 +135,13 @@ The summary recalculates from `calculateProjectedCityYields` and matches the yie
 - Yield string (e.g. `+3 🌾` or `+2 ⚒️ +1 💰`)
 - Status indicator: a green dot and "working" label when worked; dim "idle" label when not
 
-Tapping a worked tile unworks it; tapping an idle tile works it (if a citizen is available). Either tap calls `onToggleWorkedTile` and sets focus to `custom`. The focus button row immediately reflects the switch to Custom.
+Tapping a worked tile unworks it; tapping an idle tile works it if a citizen is available. If no citizens are unassigned, tapping an idle tile does nothing — the tile card shows a muted appearance (reduced opacity) and is non-interactive. Either successful tap calls `onToggleWorkedTile` and sets focus to `custom`. The focus button row immediately reflects the switch to Custom.
 
 **Unassigned citizen count**: shown in the panel sub-header line ("Pop 7 · 5 citizens working · 2 unassigned"), not repeated inside the tab body.
 
 ### Implementation notes
 
-- **`src/ui/city-districts.ts`** (new file): exports `createCityDistrictsTab(city: City): HTMLElement`. Imports `BUILDINGS` from `city-system.ts`. No callbacks needed — the tab is read-only.
+- **`src/ui/city-districts.ts`** (new file): exports `createCityDistrictsTab(city: City): HTMLElement`. Imports `BUILDINGS` from `city-system.ts`. No callbacks needed — the tab is read-only. If `BUILDINGS[id]` is undefined for a building ID in `city.buildings` (possible with old saves), skip that building silently rather than throwing.
 - **`src/ui/city-grid.ts`**: export the Citizens section as `createCityWorkSection(city, state, options): HTMLElement` so `city-panel.ts` can call it from the Citizens tab handler.
 - **`src/systems/city-maturity-system.ts`**: remove `districtPages` from all maturity level definitions and from the `CityMaturityLevel` type. District presence is now derived from `city.buildings` at render time.
 - No new state fields are added to `City` or `GameState`.
@@ -156,5 +156,6 @@ Tapping a worked tile unworks it; tapping an idle tile works it (if a citizen is
 - **Multi-yield header total**: a district containing a Harbor (food + gold) shows both yield types in the header total string.
 - **Building row order**: buildings within a district appear in `city.buildings` insertion order.
 - **Citizens tab focus buttons**: clicking a named focus button calls `onSetCityFocus` with the correct value.
-- **Citizens tab tile tap**: tapping an idle tile calls `onToggleWorkedTile` and the focus indicator switches to Custom.
+- **Citizens tab tile tap**: tapping an idle tile when citizens are available calls `onToggleWorkedTile` and the focus indicator switches to Custom.
+- **Citizens tab — no available citizens**: tapping an idle tile when all citizens are assigned does not call `onToggleWorkedTile` and does not change focus.
 - **Citizens tab yield summary**: switching focus mode updates the summary text to reflect the new focus.
