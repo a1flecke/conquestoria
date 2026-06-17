@@ -1,7 +1,7 @@
 import type { GameState, MinorCivArchetype, MinorCivState, HexCoord, City, Unit, UnitType } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
-import { hasReachedEraThreshold, TECH_TREE } from './tech-definitions';
+import { TECH_TREE } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import { hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
@@ -537,12 +537,19 @@ const ERA_UNIT_MAP: Record<number, UnitType> = {
   4: 'musketeer',
 };
 
+// Pre-built for O(1) lookup in checkEraAdvancement (called every turn)
+const ERA_ADVANCEMENT_TECH_ERA = new Map<string, number>(
+  TECH_TREE
+    .filter(t => t.countsForEraAdvancement !== false)
+    .map(t => [t.id, t.era])
+);
+
 export function checkEraAdvancement(state: GameState): number {
   let maxEra = state.era ?? 1;
   for (const civ of Object.values(state.civilizations)) {
     for (const techId of civ.techState.completed) {
-      const tech = TECH_TREE.find(t => t.id === techId && t.countsForEraAdvancement !== false);
-      if (tech && tech.era > maxEra) maxEra = tech.era;
+      const era = ERA_ADVANCEMENT_TECH_ERA.get(techId);
+      if (era !== undefined && era > maxEra) maxEra = era;
     }
   }
   return maxEra;
