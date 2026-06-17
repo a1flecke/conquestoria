@@ -3,7 +3,6 @@ import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
-import { findOptimalSlot, isSlotUnlocked } from './adjacency-system';
 import {
   getLegendaryWonderDisplayName,
   getLegendaryWonderProductionCost,
@@ -21,7 +20,7 @@ export interface FoundCityOptions {
 
 export const BUILDINGS: Record<string, Building> = {
   // Food
-  granary: { id: 'granary', name: 'Granary', category: 'food', yields: { food: 2, production: 0, gold: 0, science: 0 }, productionCost: 40, description: 'Stores food for growth', techRequired: 'granary-design', adjacencyBonuses: [] },
+  granary: { id: 'granary', name: 'Granary', category: 'food', yields: { food: 3, production: 0, gold: 0, science: 0 }, productionCost: 40, description: 'Stores food for growth', techRequired: 'granary-design' },
   herbalist: {
     id: 'herbalist',
     name: 'Herbalist',
@@ -30,7 +29,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 16,
     description: 'Herbal medicine boosts health',
     techRequired: null,
-    adjacencyBonuses: [],
+   
     pacing: {
       band: 'starter',
       role: 'early-growth',
@@ -42,35 +41,35 @@ export const BUILDINGS: Record<string, Building> = {
       unlockBreadth: 1,
     },
   },
-  aqueduct: { id: 'aqueduct', name: 'Aqueduct', category: 'food', yields: { food: 2, production: 0, gold: 0, science: 0 }, productionCost: 80, description: 'Brings fresh water for growth', techRequired: 'engineering', adjacencyBonuses: [] },
+  aqueduct: { id: 'aqueduct', name: 'Aqueduct', category: 'food', yields: { food: 2, production: 0, gold: 0, science: 0 }, productionCost: 80, description: 'Brings fresh water for growth', techRequired: 'engineering' },
 
   // Production
-  workshop: { id: 'workshop', name: 'Workshop', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 12, description: 'Tools boost production', techRequired: null, adjacencyBonuses: [], pacing: { band: 'starter', role: 'early-production', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1 } },
-  forge: { id: 'forge', name: 'Forge', category: 'production', yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 70, description: 'Metalworking facility', techRequired: 'engineering', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'production-scaling', impact: 1.2, scope: 'city', snowball: 1.25, urgency: 1, situationality: 1, unlockBreadth: 1 } },
-  lumbermill: { id: 'lumbermill', name: 'Lumbermill', category: 'production', yields: { food: 0, production: 2, gold: 1, science: 0 }, productionCost: 50, description: 'Processes timber efficiently', techRequired: 'state-workforce', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'production-economy', impact: 1.1, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1, unlockBreadth: 1 } },
-  'quarry-building': { id: 'quarry-building', name: 'Quarry', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 55, description: 'Cuts stone for construction', techRequired: 'state-workforce', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'production-scaling', impact: 1.1, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  workshop: { id: 'workshop', name: 'Workshop', category: 'production', yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 12, description: 'Tools boost production', techRequired: null, pacing: { band: 'starter', role: 'early-production', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1 } },
+  forge: { id: 'forge', name: 'Forge', category: 'production', yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 70, description: 'Metalworking facility', techRequired: 'engineering', pacing: { band: 'infrastructure', role: 'production-scaling', impact: 1.2, scope: 'city', snowball: 1.25, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  lumbermill: { id: 'lumbermill', name: 'Lumbermill', category: 'production', yields: { food: 0, production: 2, gold: 1, science: 0 }, productionCost: 50, description: 'Processes timber efficiently', techRequired: 'state-workforce', pacing: { band: 'infrastructure', role: 'production-economy', impact: 1.1, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  'quarry-building': { id: 'quarry-building', name: 'Quarry', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 55, description: 'Cuts stone for construction', techRequired: 'state-workforce', pacing: { band: 'infrastructure', role: 'production-scaling', impact: 1.1, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1, unlockBreadth: 1 } },
 
   // Science
-  library: { id: 'library', name: 'Library', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 16, description: 'Knowledge repository', techRequired: 'writing', adjacencyBonuses: [] },
-  archive: { id: 'archive', name: 'Archive', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 60, description: 'Preserves ancient knowledge', techRequired: 'mathematics', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'science-scaling', impact: 1.15, scope: 'city', snowball: 1.2, urgency: 1, situationality: 1, unlockBreadth: 1 } },
-  observatory: { id: 'observatory', name: 'Observatory', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 100, description: 'Studies the stars', techRequired: 'astronomy', adjacencyBonuses: [] },
+  library: { id: 'library', name: 'Library', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 16, description: 'Knowledge repository', techRequired: 'writing' },
+  archive: { id: 'archive', name: 'Archive', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 60, description: 'Preserves ancient knowledge', techRequired: 'mathematics', pacing: { band: 'infrastructure', role: 'science-scaling', impact: 1.15, scope: 'city', snowball: 1.2, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  observatory: { id: 'observatory', name: 'Observatory', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 100, description: 'Studies the stars', techRequired: 'astronomy' },
 
   // Economy
-  marketplace: { id: 'marketplace', name: 'Marketplace', category: 'economy', yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 50, description: 'Center of trade — adds a trade route slot.', techRequired: 'currency', adjacencyBonuses: [], routeCapacity: 1 },
-  harbor: { id: 'harbor', name: 'Harbor', category: 'economy', yields: { food: 1, production: 0, gold: 3, science: 0 }, productionCost: 80, description: 'Enables sea trade', techRequired: 'harbor-tech', coastalRequired: true, adjacencyBonuses: [] },
-  dock: { id: 'dock', name: 'Dock', category: 'economy', yields: { food: 2, production: 0, gold: 1, science: 0 }, productionCost: 20, description: 'Harbor for fishing boats. Boosts coastal city food and trade.', techRequired: 'fishing', coastalRequired: true, adjacencyBonuses: [], pacing: { band: 'core', role: 'coastal-food', impact: 1, scope: 'city', snowball: 1.05, urgency: 1, situationality: 1.2, unlockBreadth: 1 } },
+  marketplace: { id: 'marketplace', name: 'Marketplace', category: 'economy', yields: { food: 0, production: 0, gold: 4, science: 0 }, productionCost: 50, description: 'Center of trade — adds a trade route slot.', techRequired: 'currency', routeCapacity: 1 },
+  harbor: { id: 'harbor', name: 'Harbor', category: 'economy', yields: { food: 1, production: 0, gold: 3, science: 0 }, productionCost: 80, description: 'Enables sea trade', techRequired: 'harbor-tech', coastalRequired: true },
+  dock: { id: 'dock', name: 'Dock', category: 'economy', yields: { food: 2, production: 0, gold: 1, science: 0 }, productionCost: 20, description: 'Harbor for fishing boats. Boosts coastal city food and trade.', techRequired: 'fishing', coastalRequired: true, pacing: { band: 'core', role: 'coastal-food', impact: 1, scope: 'city', snowball: 1.05, urgency: 1, situationality: 1.2, unlockBreadth: 1 } },
 
   // Military
-  barracks: { id: 'barracks', name: 'Barracks', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 10, description: 'A training ground. Required by future military doctrines.', techRequired: null, adjacencyBonuses: [], pacing: { band: 'starter', role: 'military-enabler', impact: 1, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1.05 } },
-  walls: { id: 'walls', name: 'Walls', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 60, description: 'Defends the city', techRequired: 'fortification', adjacencyBonuses: [] },
-  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units', techRequired: 'horseback-riding', adjacencyBonuses: [] },
+  barracks: { id: 'barracks', name: 'Barracks', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 10, description: 'A training ground. Required by future military doctrines.', techRequired: null, pacing: { band: 'starter', role: 'military-enabler', impact: 1, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1.05 } },
+  walls: { id: 'walls', name: 'Walls', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 60, description: 'Defends the city', techRequired: 'fortification' },
+  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units', techRequired: 'horseback-riding' },
 
   // Culture
-  temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center', techRequired: 'philosophy', adjacencyBonuses: [] },
-  monument: { id: 'monument', name: 'Monument', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 30, description: 'Commemorates your civilization', techRequired: 'code-of-laws', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'early-culture', impact: 1.05, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
-  amphitheater: { id: 'amphitheater', name: 'Amphitheater', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 85, description: 'Entertainment and culture', techRequired: 'drama-poetry', adjacencyBonuses: [] },
-  shrine: { id: 'shrine', name: 'Shrine', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 8, description: 'Place of worship', techRequired: null, adjacencyBonuses: [], pacing: { band: 'starter', role: 'early-science', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
-  forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', adjacencyBonuses: [], pacing: { band: 'infrastructure', role: 'civic-economy', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center', techRequired: 'philosophy' },
+  monument: { id: 'monument', name: 'Monument', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 30, description: 'Commemorates your civilization', techRequired: 'code-of-laws', pacing: { band: 'infrastructure', role: 'early-culture', impact: 1.05, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  amphitheater: { id: 'amphitheater', name: 'Amphitheater', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 85, description: 'Entertainment and culture', techRequired: 'drama-poetry' },
+  shrine: { id: 'shrine', name: 'Shrine', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 8, description: 'Place of worship', techRequired: null, pacing: { band: 'starter', role: 'early-science', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
+  forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', pacing: { band: 'infrastructure', role: 'civic-economy', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
 
   // Espionage
   safehouse: {
@@ -78,7 +77,7 @@ export const BUILDINGS: Record<string, Building> = {
     yields: { food: 0, production: 0, gold: 0, science: 0 },
     productionCost: 36,
     description: 'Reduces spy unit training cost by 25%.',
-    techRequired: 'espionage-scouting', adjacencyBonuses: [],
+    techRequired: 'espionage-scouting',
     pacing: { band: 'power-spike', role: 'spy-cost-reduction', impact: 1.2, scope: 'city', snowball: 1.15, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 },
   },
   'intelligence-agency': {
@@ -86,7 +85,7 @@ export const BUILDINGS: Record<string, Building> = {
     yields: { food: 0, production: 0, gold: 0, science: 0 },
     productionCost: 60,
     description: "Raises this city's counter-intelligence score by 20 each turn (max 100). Bonus halves when digital-surveillance era is reached.",
-    techRequired: 'espionage-informants', adjacencyBonuses: [],
+    techRequired: 'espionage-informants',
     pacing: { band: 'infrastructure', role: 'counter-intelligence', impact: 1.15, scope: 'city', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 },
   },
   'security-bureau': {
@@ -94,7 +93,7 @@ export const BUILDINGS: Record<string, Building> = {
     yields: { food: 0, production: 0, gold: 0, science: 0 },
     productionCost: 100,
     description: 'Raises CI by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves at cyber-warfare era.',
-    techRequired: 'counter-intelligence', adjacencyBonuses: [],
+    techRequired: 'counter-intelligence',
     pacing: { band: 'infrastructure', role: 'advanced-counter-intelligence', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 },
   },
   // S4b — Strategic resource buildings (copper)
@@ -105,7 +104,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Copper-tool crafting. +1 production, +1 science per turn.',
     techRequired: 'stone-weapons',
     resourceRequired: ['copper'],
-    adjacencyBonuses: [],
+   
     pacing: { band: 'power-spike', role: 'copper-production', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 },
   },
   armory: {
@@ -115,7 +114,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Weapons depot. Reduces melee and ranged unit training cost by 15% in this city.',
     techRequired: 'stone-weapons',
     resourceRequired: ['copper'],
-    adjacencyBonuses: [],
+   
     pacing: { band: 'power-spike', role: 'melee-cost-reduction', impact: 1.15, scope: 'city', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 },
   },
   // S4b — Strategic resource buildings (horses)
@@ -126,7 +125,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Pasture and breeding grounds. +2 food per turn.',
     techRequired: 'animal-husbandry',
     resourceRequired: ['horses'],
-    adjacencyBonuses: [],
+   
     pacing: { band: 'power-spike', role: 'horse-food', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1.15, unlockBreadth: 1 },
   },
   'cavalry-academy': {
@@ -136,7 +135,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Mounted warfare school. Reduces cavalry unit training cost by 15% in this city.',
     techRequired: 'horseback-riding',
     resourceRequired: ['horses'],
-    adjacencyBonuses: [],
+   
     pacing: { band: 'power-spike', role: 'cavalry-cost-reduction', impact: 1.15, scope: 'city', snowball: 1, urgency: 1, situationality: 1.15, unlockBreadth: 1 },
   },
   // S4b — Strategic resource buildings (iron)
@@ -147,7 +146,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Advanced smelting facility. +3 production per turn. Pairs with Forge for +6 total.',
     techRequired: 'iron-forging',
     resourceRequired: ['iron'],
-    adjacencyBonuses: [],
+   
     pacing: { band: 'infrastructure', role: 'iron-production', impact: 1.25, scope: 'city', snowball: 1.3, urgency: 1, situationality: 1.2, unlockBreadth: 1 },
   },
   'war-academy': {
@@ -157,7 +156,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Military institution. Reduces melee and ranged unit training cost by 15% in this city.',
     techRequired: 'iron-forging',
     resourceRequired: ['iron'],
-    adjacencyBonuses: [],
+   
     pacing: { band: 'infrastructure', role: 'military-cost-reduction', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 },
   },
   // S4b — Strategic resource buildings (stone)
@@ -168,7 +167,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Quarried stone speeds construction. +2 production per turn. Walls cost 20% less.',
     techRequired: 'state-workforce',
     resourceRequired: ['stone'],
-    adjacencyBonuses: [],
+   
     pacing: { band: 'infrastructure', role: 'stone-production', impact: 1.15, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1.15, unlockBreadth: 1 },
   },
   'siege-workshop': {
@@ -178,7 +177,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Siege engine fabrication. Reduces Catapult and Ballista training cost by 20% in this city.',
     techRequired: 'siege-warfare',
     resourceRequired: ['stone'],
-    adjacencyBonuses: [],
+   
     pacing: { band: 'infrastructure', role: 'siege-cost-reduction', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.2, unlockBreadth: 1 },
   },
   // S5 — Trade infrastructure buildings
@@ -188,7 +187,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 40,
     description: 'A roadside inn for merchants — adds a trade route slot and resupplies traveling caravans (+2 bonus trips).',
     techRequired: 'wheel',
-    adjacencyBonuses: [],
+   
     routeCapacity: 1,
   },
   bank: {
@@ -197,7 +196,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 90,
     description: 'Letters of credit enable long-distance commerce without moving gold — adds a trade route slot.',
     techRequired: 'banking',
-    adjacencyBonuses: [],
+   
     routeCapacity: 1,
   },
   stock_exchange: {
@@ -206,7 +205,7 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 120,
     description: 'Joint-stock companies finance global trade empires — adds a trade route slot and generates financial innovation.',
     techRequired: 'global-logistics',
-    adjacencyBonuses: [],
+   
     routeCapacity: 1,
   },
 };
@@ -468,14 +467,6 @@ export function getDetectionUnitTypeForCiv(civType?: string): UnitType {
   return TRAINABLE_UNITS.find(u => u.civTypeRequired === civType && u.replacesUnit === 'scout_hound')?.type ?? 'scout_hound';
 }
 
-export function createEmptyCityGrid(): (string | null)[][] {
-  const grid: (string | null)[][] = Array.from({ length: 7 }, () =>
-    Array.from({ length: 7 }, () => null),
-  );
-  grid[3][3] = 'city-center';
-  return grid;
-}
-
 export function foundCity(owner: string, position: HexCoord, map: GameMap, counters: IdCounters, options: FoundCityOptions = {}): City {
   const canonicalPosition = map.wrapsHorizontally ? wrapHexCoord(position, map.width) : { ...position };
   const name = drawNextCityName(options.civType ?? owner, options.usedNames ?? new Set<string>(), {
@@ -495,8 +486,6 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
   }
   const ownedTiles = Array.from(ownedTileMap.values());
 
-  const grid = createEmptyCityGrid();
-
   return {
     id: `city-${counters.nextCityId++}`,
     name,
@@ -512,8 +501,6 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
     workedTiles: [],
     focus: INITIAL_CITY_FOCUS,
     maturity: INITIAL_CITY_MATURITY,
-    grid,
-    gridSize: 3,
     unrestLevel: 0,
     unrestTurns: 0,
     spyUnrestBonus: 0,
@@ -548,45 +535,6 @@ export function getAvailableBuildings(
   });
 }
 
-export function checkGridExpansion(_city: City): boolean {
-  return false;
-}
-
-export function purchaseGridExpansion(_city: City, _currentGold: number): number {
-  return 0;
-}
-
-export function placeBuildingInGrid(city: City, buildingId: string): City {
-  if (city.grid.flat().includes(buildingId)) return city;
-  const slot = findOptimalSlot(city.grid, city.gridSize, buildingId);
-  if (!slot) return city;
-
-  const grid = city.grid.map(row => row.slice());
-  if (grid[slot.row]?.[slot.col]) return city;
-  grid[slot.row][slot.col] = buildingId;
-  return { ...city, grid };
-}
-
-export function getUnplacedBuildings(city: City): string[] {
-  const placed = new Set(city.grid.flat().filter((entry): entry is string => Boolean(entry)));
-  const seen = new Set<string>();
-  return city.buildings.filter(buildingId => {
-    if (seen.has(buildingId)) return false;
-    seen.add(buildingId);
-    return !placed.has(buildingId);
-  });
-}
-
-export function placeBuilding(city: City, buildingId: string, row: number, col: number): City {
-  const renderSize = 7;
-  if (!isSlotUnlocked(row, col, city.gridSize, renderSize)) return city;
-  if (city.grid[row]?.[col] !== null) return city;
-  if (!getUnplacedBuildings(city).includes(buildingId)) return city;
-
-  const grid = city.grid.map(r => r.slice());
-  grid[row][col] = buildingId;
-  return { ...city, grid };
-}
 
 export interface CityProcessResult {
   city: City;
@@ -640,10 +588,6 @@ export function completeCityProductionItem(city: City, itemId: string): CityProd
     buildings: newBuildings,
   };
 
-  if (completedBuilding) {
-    nextCity = placeBuildingInGrid(nextCity, completedBuilding);
-  }
-
   return {
     city: nextCity,
     completedBuilding,
@@ -683,7 +627,6 @@ export function processCity(
   let newProgress = city.productionProgress;
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
-  let newGrid = city.grid;
   let droppedBuilding: string | null = null;
   let droppedUnit: UnitType | null = null;
   let droppedProductionItem: string | null = null;
@@ -749,7 +692,6 @@ export function processCity(
       newBuildings.length = 0;
       newBuildings.push(...completion.city.buildings);
       newProgress = completion.city.productionProgress;
-      newGrid = completion.city.grid;
       completedBuilding = completion.completedBuilding;
       completedUnit = completion.completedUnit;
     }
@@ -773,7 +715,6 @@ export function processCity(
     productionProgress: newProgress,
     productionQueue: newQueue,
     buildings: newBuildings,
-    grid: newGrid,
   };
 
   return {
