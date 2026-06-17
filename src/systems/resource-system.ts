@@ -2,7 +2,6 @@ import type { City, GameMap, ResourceYield, CivBonusEffect } from '@/core/types'
 import { hexKey, hexNeighbors } from './hex-utils';
 import { getImprovementYieldBonus } from './improvement-system';
 import { BUILDINGS } from './city-system';
-import { getTotalAdjacencyYields } from './adjacency-system';
 import { getWonderYieldBonus } from './wonder-system';
 import { getWonderDefinition } from './wonder-definitions';
 import { canonicalizeCityCoord } from './city-territory-system';
@@ -139,15 +138,6 @@ export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivB
       yields.gold += building.yields.gold;
       yields.science += building.yields.science;
     }
-  }
-
-  // Adjacency bonuses from city grid
-  if (city.grid) {
-    const adjYields = getTotalAdjacencyYields(city.grid, city.gridSize);
-    yields.food += adjYields.food;
-    yields.production += adjYields.production;
-    yields.gold += adjYields.gold;
-    yields.science += adjYields.science;
   }
 
   return yields;
