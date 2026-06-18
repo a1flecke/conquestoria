@@ -1,7 +1,6 @@
-import type { City, CityFocus, GameMap, GameState, HexCoord, HexTile, ResourceYield } from '@/core/types';
-import { hexKey, hexesInRange } from '@/systems/hex-utils';
+import type { City, CityFocus, GameMap, GameState, HexCoord, ResourceYield } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
 import { BUILDINGS } from '@/systems/city-system';
-import { TERRAIN_YIELDS } from '@/systems/resource-system';
 import { getImprovementYieldBonus } from '@/systems/improvement-system';
 import {
   assignCityFocus,
@@ -13,43 +12,6 @@ import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 import { createGameButton } from '@/ui/ui-kit';
 
-const BUILDING_ICONS: Record<string, string> = {
-  'city-center': '🏛️',
-  granary: '🌾',
-  herbalist: '🌿',
-  aqueduct: '💧',
-  workshop: '⚒️',
-  forge: '🔥',
-  lumbermill: '🪵',
-  'quarry-building': '🪨',
-  library: '📚',
-  archive: '📜',
-  observatory: '🔭',
-  marketplace: '🏪',
-  harbor: '⚓',
-  dock: '🚢',
-  barracks: '⚔️',
-  walls: '🧱',
-  stable: '🐴',
-  temple: '🕍',
-  monument: '🗿',
-  amphitheater: '🎭',
-  shrine: '⛩️',
-  forum: '🏛️',
-};
-
-const TERRAIN_ICONS: Record<string, string> = {
-  grassland: '🌿',
-  plains: '🌾',
-  desert: '🏜️',
-  forest: '🌲',
-  hills: '⛰️',
-  jungle: '🌴',
-  swamp: '🌊',
-  volcanic: '🌋',
-  tundra: '❄️',
-  coast: '🏖️',
-};
 
 interface CityManagementOptions {
   state: GameState;
@@ -251,16 +213,3 @@ export function createCityWorkSection(
   return panel;
 }
 
-export function createCityGrid(
-  container: HTMLElement,
-  city: City,
-  map: GameMap,
-  _suggestedBuilding?: string,
-  managementOptions?: CityManagementOptions,
-): HTMLElement {
-  const panel = managementOptions
-    ? createCityWorkSection(city, map, managementOptions)
-    : createCityWorkSection(city, map, { state: { cities: { [city.id]: city }, map } as any });
-  container.appendChild(panel);
-  return panel;
-}
