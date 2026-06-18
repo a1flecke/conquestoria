@@ -55,7 +55,7 @@ export interface CityPanelCallbacks {
   ) => void;
 }
 
-type CityPanelTab = 'list' | 'grid';
+type CityPanelTab = 'list' | 'districts' | 'citizens' | 'wonders';
 
 function getWonderBuildListStatus(state: string): string {
   switch (state) {
@@ -871,8 +871,8 @@ export function createCityPanel(
     gridView.textContent = '';
     createCityGrid(gridView, city, state.map, undefined, {
       state,
-      onSetCityFocus: (cityId, focus) => rerenderPanel(callbacks.onSetCityFocus?.(cityId, focus), 'grid'),
-      onToggleWorkedTile: (cityId, coord, worked) => rerenderPanel(callbacks.onToggleWorkedTile?.(cityId, coord, worked), 'grid'),
+      onSetCityFocus: (cityId, focus) => rerenderPanel(callbacks.onSetCityFocus?.(cityId, focus), 'citizens'),
+      onToggleWorkedTile: (cityId, coord, worked) => rerenderPanel(callbacks.onToggleWorkedTile?.(cityId, coord, worked), 'citizens'),
     });
   };
 
@@ -904,7 +904,7 @@ export function createCityPanel(
     panel.remove();
   });
 
-  if (initialTab === 'grid') {
+  if (initialTab === 'citizens') {
     activateGridTab();
   }
 
