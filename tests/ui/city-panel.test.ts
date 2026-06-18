@@ -1748,3 +1748,90 @@ describe('locked section — MR4 Find Resources button', () => {
     expect(closeCalled).toBe(true);
   });
 });
+
+describe('city-panel Districts tab', () => {
+  it('shows the empty-state message when city has no buildings', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = [];
+
+    createCityPanel(container, city, state, { onBuild: () => {}, onClose: () => {} });
+    clickElement(container.querySelector('[id="tab-districts"]'));
+
+    const view = container.querySelector('[id="city-districts-view"]');
+    expect(view?.textContent).toContain('No districts yet');
+  });
+
+  it('shows district cards only for categories present in city.buildings', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['granary', 'library'];
+
+    createCityPanel(container, city, state, { onBuild: () => {}, onClose: () => {} });
+    clickElement(container.querySelector('[id="tab-districts"]'));
+
+    const view = container.querySelector('[id="city-districts-view"]')!;
+    expect(view.querySelectorAll('[data-district]').length).toBe(2);
+    expect(view.querySelector('[data-district="food"]')).toBeTruthy();
+    expect(view.querySelector('[data-district="science"]')).toBeTruthy();
+    expect(view.querySelector('[data-district="economy"]')).toBeNull();
+  });
+});
+
+describe('city-panel Citizens tab', () => {
+  it('calls onSetCityFocus when a focus button is clicked', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const onSetCityFocus = vi.fn();
+
+    createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onClose: () => {},
+      onSetCityFocus,
+    });
+    clickElement(container.querySelector('[id="tab-citizens"]'));
+
+    const view = container.querySelector('[id="city-citizens-view"]')!;
+    const foodBtn = Array.from(view.querySelectorAll('button')).find(b => b.textContent?.includes('Food'));
+    expect(foodBtn).toBeTruthy();
+    foodBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onSetCityFocus).toHaveBeenCalledWith(city.id, 'food');
+  });
+
+  it('shows a Custom indicator when city focus is custom', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.focus = 'custom';
+
+    createCityPanel(container, city, state, { onBuild: () => {}, onClose: () => {} });
+    clickElement(container.querySelector('[id="tab-citizens"]'));
+
+    const view = container.querySelector('[id="city-citizens-view"]');
+    expect(view?.querySelector('[data-custom-focus-indicator]')).toBeTruthy();
+  });
+
+  it('does not render a Work button for tiles when all citizens are already assigned', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const workedTile = { q: city.position.q + 1, r: city.position.r };
+    const spareTile = { q: city.position.q, r: city.position.r + 1 };
+    state.map.tiles[hexKey(workedTile)] = {
+      ...state.map.tiles[hexKey(workedTile)],
+      coord: workedTile, terrain: 'grassland', elevation: 'lowland',
+      owner: city.owner, improvement: 'none', improvementTurnsLeft: 0,
+      hasRiver: false, wonder: null, resource: null,
+    };
+    state.map.tiles[hexKey(spareTile)] = {
+      ...state.map.tiles[hexKey(spareTile)],
+      coord: spareTile, terrain: 'hills', elevation: 'lowland',
+      owner: city.owner, improvement: 'none', improvementTurnsLeft: 0,
+      hasRiver: false, wonder: null, resource: null,
+    };
+    city.population = 1;
+    city.focus = 'custom';
+    city.workedTiles = [workedTile];
+    city.ownedTiles = [city.position, workedTile, spareTile];
+
+    createCityPanel(container, city, state, { onBuild: () => {}, onClose: () => {} });
+    clickElement(container.querySelector('[id="tab-citizens"]'));
+
+    const view = container.querySelector('[id="city-citizens-view"]')!;
+    // Idle (unworked) tiles should have no Work button — they render at 0.4 opacity with no action
+    expect(view.querySelector('[data-worked-tile-action="work"]')).toBeNull();
+  });
+});
