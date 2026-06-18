@@ -11,7 +11,7 @@ import type { City, HexCoord, ResourceType } from '@/core/types';
 function activeCityGrid(container: HTMLElement): HTMLElement {
   const panel = container.querySelector<HTMLElement>('[id="city-panel"]');
   expect(panel).toBeTruthy();
-  const gridView = panel!.querySelector<HTMLElement>('[id="city-grid-view"]');
+  const gridView = panel!.querySelector<HTMLElement>('[id="city-citizens-view"]');
   expect(gridView).toBeTruthy();
   return gridView!;
 }
@@ -474,7 +474,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile: () => {},
     });
 
-    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(panel.querySelector('[id="tab-citizens"]'));
     const rendered = collectText(panel);
     expect(rendered).toContain('Worked Land And Water');
     expect(rendered).toContain('Balanced focus');
@@ -494,7 +494,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile: () => {},
     });
 
-    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(panel.querySelector('[id="tab-citizens"]'));
     expect(collectText(panel)).toContain('Unassigned citizens: 4');
   });
 
@@ -536,7 +536,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile: () => {},
     });
 
-    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(panel.querySelector('[id="tab-citizens"]'));
     const rendered = collectText(panel);
     expect(rendered).toContain('Farm (+2 food)');
     expect(rendered).toContain('Water work: fishing/trapping');
@@ -567,7 +567,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile: () => {},
     });
 
-    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(panel.querySelector('[id="tab-citizens"]'));
     expect(collectText(panel)).toContain('Mine (+2 production, +1 gold)');
   });
 
@@ -596,7 +596,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile: () => {},
     });
 
-    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(panel.querySelector('[id="tab-citizens"]'));
     expect(collectText(panel)).toContain('Lumber Camp (+2 production)');
     expect(collectText(panel)).not.toContain('Lumber_camp');
   });
@@ -610,7 +610,7 @@ describe('city-panel navigation', () => {
       onSetCityFocus: () => {},
       onToggleWorkedTile: () => {},
     });
-    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(panel.querySelector('[id="tab-citizens"]'));
     const rendered = collectText(panel);
     expect(rendered).toContain('Farms');
     expect(rendered).toContain('Mines');
@@ -647,7 +647,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile: () => {},
     });
 
-    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(panel.querySelector('[id="tab-citizens"]'));
     expect(collectText(panel)).toContain('Worked by Corinth');
     expect(panel.querySelector<HTMLButtonElement>('[data-worked-tile-action="work"]')?.disabled).toBe(true);
   });
@@ -693,7 +693,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile: () => {},
     });
 
-    clickElement(panel.querySelector('[id="tab-grid"]'));
+    clickElement(panel.querySelector('[id="tab-citizens"]'));
     const rendered = collectText(activeCityGrid(container));
     expect(rendered).toContain('Food focus');
     expect(rendered).toContain('Worked 1/1 citizens');
@@ -717,7 +717,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile: () => {},
     });
 
-    clickElement(container.querySelector('[id="tab-grid"]'));
+    clickElement(container.querySelector('[id="tab-citizens"]'));
     clickElement(activeCityGrid(container).querySelector('[data-city-focus="food"]'));
 
     expect(onSetCityFocus).toHaveBeenCalledWith(city.id, 'food');
@@ -759,7 +759,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile,
     });
 
-    clickElement(container.querySelector('[id="tab-grid"]'));
+    clickElement(container.querySelector('[id="tab-citizens"]'));
     clickElement(activeCityGrid(container).querySelector('[data-worked-tile-action="work"]'));
 
     expect(onToggleWorkedTile).toHaveBeenLastCalledWith(city.id, target, true);
@@ -777,7 +777,7 @@ describe('city-panel navigation', () => {
     expect(collectText(activeCityGrid(container))).toContain('Working');
 
     clickElement(container.querySelector('[id="tab-list"]'));
-    clickElement(container.querySelector('[id="tab-grid"]'));
+    clickElement(container.querySelector('[id="tab-citizens"]'));
     expect(collectText(activeCityGrid(container))).toContain('Working');
   });
 
@@ -828,7 +828,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile,
     });
 
-    clickElement(container.querySelector('[id="tab-grid"]'));
+    clickElement(container.querySelector('[id="tab-citizens"]'));
     const gridView = activeCityGrid(container);
     // When no citizens are available, idle tiles have no Work button (muted + non-interactive)
     const idleWork = gridView.querySelector<HTMLButtonElement>('[data-worked-tile-action="work"]');
@@ -944,7 +944,7 @@ describe('city-panel navigation', () => {
       onToggleWorkedTile,
     });
 
-    clickElement(container.querySelector('[id="tab-grid"]'));
+    clickElement(container.querySelector('[id="tab-citizens"]'));
     const disabledWork = activeCityGrid(container).querySelector<HTMLButtonElement>('[data-worked-tile-action="work"]');
 
     expect(collectText(activeCityGrid(container))).toContain('Worked by Corinth');
