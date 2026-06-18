@@ -150,13 +150,20 @@ function renderWorkedLandSection(root: HTMLElement, city: City, options: CityMan
   }
 
   const focusWrap = document.createElement('div');
-  focusWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+  focusWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
   const focusModes: Array<Exclude<CityFocus, 'custom'>> = ['balanced', 'food', 'production', 'gold', 'science'];
   for (const focus of focusModes) {
     const button = createGameButton(`${focus[0].toUpperCase()}${focus.slice(1)}`, 'secondary');
     button.dataset.cityFocus = focus;
     button.addEventListener('click', () => options.onSetCityFocus?.(city.id, focus));
     focusWrap.appendChild(button);
+  }
+  if (city.focus === 'custom') {
+    const customIndicator = document.createElement('span');
+    customIndicator.dataset.customFocusIndicator = '';
+    customIndicator.textContent = 'Custom';
+    customIndicator.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.35);padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;';
+    focusWrap.appendChild(customIndicator);
   }
   section.appendChild(focusWrap);
 
@@ -202,13 +209,16 @@ function renderWorkedLandSection(root: HTMLElement, city: City, options: CityMan
     text.textContent = labels.join(' · ');
     row.appendChild(text);
 
-    const button = createGameButton(worked ? 'Unwork' : 'Work', 'secondary', { disabled: (!entry.available && !worked) || blockedByCapacity });
-    button.dataset.workedTileAction = worked ? 'unwork' : 'work';
     if (blockedByCapacity) {
-      button.title = 'Unwork another tile first';
+      row.style.opacity = '0.4';
+    } else {
+      const button = createGameButton(worked ? 'Unwork' : 'Work', 'secondary', { disabled: !entry.available && !worked });
+      button.dataset.workedTileAction = worked ? 'unwork' : 'work';
+      button.addEventListener('click', () => {
+        options.onToggleWorkedTile?.(city.id, entry.coord, !worked);
+      });
+      row.appendChild(button);
     }
-    button.addEventListener('click', () => options.onToggleWorkedTile?.(city.id, entry.coord, !worked));
-    row.appendChild(button);
     section.appendChild(row);
   }
 

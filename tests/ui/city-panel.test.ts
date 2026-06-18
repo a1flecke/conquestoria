@@ -830,12 +830,10 @@ describe('city-panel navigation', () => {
 
     clickElement(container.querySelector('[id="tab-grid"]'));
     const gridView = activeCityGrid(container);
-    const disabledWork = gridView.querySelector<HTMLButtonElement>('[data-worked-tile-action="work"]');
-    expect(disabledWork).toBeTruthy();
-    expect(disabledWork!.disabled).toBe(true);
+    // When no citizens are available, idle tiles have no Work button (muted + non-interactive)
+    const idleWork = gridView.querySelector<HTMLButtonElement>('[data-worked-tile-action="work"]');
+    expect(idleWork).toBeNull();
     expect(collectText(gridView)).toContain('No open citizen');
-
-    disabledWork!.click();
     expect(onToggleWorkedTile).not.toHaveBeenCalled();
     expect(renderState.cities[city.id].workedTiles).toEqual([workedTile]);
   });
