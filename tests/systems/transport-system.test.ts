@@ -56,8 +56,6 @@ function city(overrides: Partial<City>): City {
     workedTiles: [],
     focus: 'balanced',
     maturity: 'outpost',
-    grid: Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => null)),
-    gridSize: 3,
     unrestLevel: 0,
     unrestTurns: 0,
     spyUnrestBonus: 0,

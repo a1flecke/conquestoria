@@ -198,8 +198,6 @@ describe('city renderer', () => {
       ownedTiles: [{ q: 0, r: 0 }],
       focus: 'balanced',
       maturity: 'outpost',
-      grid: [],
-      gridSize: 3,
       unrestLevel: 2,
       unrestTurns: 3,
       spyUnrestBonus: 0,

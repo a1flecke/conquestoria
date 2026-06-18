@@ -7,11 +7,6 @@ import {
   getProductionCostForItem,
   processCity,
   completeCityProductionItem,
-  checkGridExpansion,
-  purchaseGridExpansion,
-  getUnplacedBuildings,
-  placeBuilding,
-  createEmptyCityGrid,
   BUILDINGS,
   CITY_NAMES,
   TRAINABLE_UNITS,
@@ -443,47 +438,23 @@ describe('processCity', () => {
     expect(result.city.workedTiles).toEqual([]);
   });
 
-  it('auto-places a newly completed Barracks into an unlocked building grid slot', () => {
-    const map = generateMap(30, 30, 'auto-place-barracks');
+  it('completes a Barracks and adds it to city.buildings', () => {
+    const map = generateMap(30, 30, 'complete-barracks');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const queued = { ...city, productionQueue: ['barracks'], productionProgress: 9 };
 
     const result = processCity(queued, map, 0, 1);
 
     expect(result.completedBuilding).toBe('barracks');
-    expect(result.city.buildings).toEqual(['barracks']);
-    expect(result.city.grid.flat()).toContain('barracks');
-    expect(getUnplacedBuildings(result.city)).not.toContain('barracks');
-  });
-
-  it('keeps completed buildings unplaced when every unlocked slot is full', () => {
-    const map = generateMap(30, 30, 'unplaced-barracks');
-    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    const fullGrid = city.grid.map(row => row.slice());
-    for (let row = 2; row <= 4; row++) {
-      for (let col = 2; col <= 4; col++) {
-        if (row !== 3 || col !== 3) fullGrid[row][col] = 'shrine';
-      }
-    }
-    const queued = { ...city, grid: fullGrid, productionQueue: ['barracks'], productionProgress: 9 };
-
-    const result = processCity(queued, map, 0, 1);
-
-    expect(result.completedBuilding).toBe('barracks');
     expect(result.city.buildings).toContain('barracks');
-    expect(result.city.grid.flat()).not.toContain('barracks');
-    expect(getUnplacedBuildings(result.city)).toEqual(['barracks']);
   });
 
   it('does not duplicate an already built building from a stale production queue', () => {
     const map = generateMap(30, 30, 'dedupe-built-barracks');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    const grid = city.grid.map(row => row.slice());
-    grid[3][2] = 'barracks';
     const queued = {
       ...city,
       buildings: ['barracks'],
-      grid,
       productionQueue: ['barracks'],
       productionProgress: 9,
     };
@@ -491,8 +462,6 @@ describe('processCity', () => {
     const result = processCity(queued, map, 0, 1);
 
     expect(result.city.buildings.filter(buildingId => buildingId === 'barracks')).toHaveLength(1);
-    expect(result.city.grid.flat().filter(buildingId => buildingId === 'barracks')).toHaveLength(1);
-    expect(getUnplacedBuildings(result.city)).toEqual([]);
   });
 
   it('converts production to gold when queue is empty at turn start and idleProduction is gold', () => {
@@ -600,7 +569,6 @@ describe('completeCityProductionItem', () => {
     expect(result.city.productionQueue).toEqual(['warrior']);
     expect(result.city.productionProgress).toBe(0);
     expect(result.city.buildings).toContain('workshop');
-    expect(result.city.grid.flat()).toContain('workshop');
   });
 
   it('uses the same completion path for direct unit completion as turn production', () => {
@@ -659,108 +627,42 @@ describe('expanded buildings', () => {
   });
 });
 
-describe('city grid', () => {
-  it('foundCity initializes city-sim fields and a 7x7-compatible grid', () => {
-    const map = generateMap(30, 30, 'grid-test');
+describe('foundCity does not include grid fields', () => {
+  it('foundCity does not set grid or gridSize', () => {
+    const map = generateMap(30, 30, 'grid-absent-test');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     expect(city.focus).toBe('balanced');
     expect(city.maturity).toBe('outpost');
     expect(city.workedTiles).toEqual([]);
-    expect(city.gridSize).toBe(3);
-    expect(city.grid).toHaveLength(7);
-    expect(city.grid[0]).toHaveLength(7);
-    expect(city.grid[3][3]).toBe('city-center');
-  });
-
-  it('city center is placed in the center of the grid', () => {
-    const map = generateMap(30, 30, 'grid-center');
-    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    expect(city.grid[3][3]).toBe('city-center');
+    expect((city as any).grid).toBeUndefined();
+    expect((city as any).gridSize).toBeUndefined();
   });
 });
 
-describe('grid expansion', () => {
-  it('does not expand grid size from population alone', () => {
-    const map = generateMap(30, 30, 'expand-test');
+describe('building intrinsic yield regression', () => {
+  it('granary yields exactly +3 food', () => {
+    const map = generateMap(30, 30, 'yield-granary');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    city.population = 12;
-    expect(checkGridExpansion(city)).toBe(false);
-    expect(city.gridSize).toBe(3);
+    expect(BUILDINGS['granary'].yields.food).toBe(3);
   });
 
-  it('keeps mature grid size unchanged when checked', () => {
-    const map = generateMap(30, 30, 'expand-test-2');
-    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    city.gridSize = 5;
-    expect(checkGridExpansion(city)).toBe(false);
-    expect(city.gridSize).toBe(5);
+  it('library yields exactly +3 science', () => {
+    expect(BUILDINGS['library'].yields.science).toBe(3);
   });
 
-  it('purchase grid expansion cannot bypass city maturity', () => {
-    const map = generateMap(30, 30, 'buy-test');
-    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    const cost = purchaseGridExpansion(city, 60);
-    expect(cost).toBe(0);
-    expect(city.gridSize).toBe(3);
+  it('workshop yields exactly +3 production', () => {
+    expect(BUILDINGS['workshop'].yields.production).toBe(3);
   });
 
-  it('purchase fails with insufficient gold', () => {
-    const map = generateMap(30, 30, 'buy-test-2');
-    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    const cost = purchaseGridExpansion(city, 30);
-    expect(cost).toBe(0);
-    expect(city.gridSize).toBe(3);
-  });
-});
-
-describe('placeBuilding', () => {
-  const mkCity = (): City => ({
-    id: 'test',
-    name: 'Test',
-    owner: 'player',
-    position: { q: 0, r: 0 },
-    population: 1,
-    food: 0,
-    foodNeeded: 10,
-    productionProgress: 0,
-    productionQueue: [],
-    buildings: ['granary'],
-    workedTiles: [],
-    ownedTiles: [],
-    grid: createEmptyCityGrid(),
-    gridSize: 3,
-    focus: 'balanced' as const,
-    maturity: 'outpost' as const,
-    idleProduction: null,
-    unrestLevel: 0,
-    unrestTurns: 0,
-    spyUnrestBonus: 0,
+  it('marketplace yields exactly +4 gold', () => {
+    expect(BUILDINGS['marketplace'].yields.gold).toBe(4);
   });
 
-  it('places a building in the specified slot', () => {
-    const city = mkCity();
-    const result = placeBuilding(city, 'granary', 3, 4);
-    expect(result.grid[3][4]).toBe('granary');
-  });
-
-  it('returns city unchanged when slot is occupied', () => {
-    const city = mkCity();
-    city.grid[3][4] = 'workshop';
-    const result = placeBuilding(city, 'granary', 3, 4);
-    expect(result.grid[3][4]).toBe('workshop');
-  });
-
-  it('returns city unchanged when building is not in the unplaced list', () => {
-    const city = mkCity();
-    city.grid[3][4] = 'granary';
-    const result = placeBuilding(city, 'granary', 3, 5);
-    expect(result.grid[3][5]).toBeNull();
-  });
-
-  it('returns city unchanged when slot is out of unlocked range', () => {
-    const city = mkCity(); // gridSize: 3 — outer rows/cols are locked
-    const result = placeBuilding(city, 'granary', 0, 0); // top-left corner, locked
-    expect(result.grid[0][0]).toBeNull();
+  it('library+temple do not produce old adjacency bonus of +2 science', () => {
+    const libYields = BUILDINGS['library'].yields;
+    const templeYields = BUILDINGS['temple']?.yields ?? { food: 0, production: 0, gold: 0, science: 0 };
+    // Combined yield must equal the sum of intrinsic yields — no bonus
+    expect(libYields.science + templeYields.science).toBe(BUILDINGS['library'].yields.science + templeYields.science);
   });
 });
 

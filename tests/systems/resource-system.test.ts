@@ -2,7 +2,7 @@ import { calculateCityYields, TERRAIN_YIELDS } from '@/systems/resource-system';
 import type { GameMap, HexCoord, TerrainType } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { generateMap } from '@/systems/map-generator';
-import { foundCity } from '@/systems/city-system';
+import { foundCity, BUILDINGS } from '@/systems/city-system';
 import { recalculateTerritory } from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -200,16 +200,24 @@ describe('calculateCityYields', () => {
   });
 });
 
-describe('adjacency yields in city calculation', () => {
-  it('includes adjacency bonuses in city yields', () => {
-    const map = generateMap(30, 30, 'adj-yield');
+describe('building intrinsic yields (no adjacency component)', () => {
+  it('library yields exactly 3 science from intrinsic yield alone', () => {
+    const map = generateMap(30, 30, 'intrinsic-library');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-    city.grid[2][1] = 'library';
     city.buildings = ['library'];
+    const baseYields = calculateCityYields({ ...city, buildings: [] }, map);
+    const withLibrary = calculateCityYields(city, map);
+    expect(withLibrary.science - baseYields.science).toBe(3);
+  });
 
-    const yields = calculateCityYields(city, map);
-    // Base science from library (2) + adjacency to city-center (+1) = at least 3
-    expect(yields.science).toBeGreaterThanOrEqual(3);
+  it('library+temple do NOT produce old adjacency bonus of +2 science', () => {
+    const map = generateMap(30, 30, 'no-adjacency-bonus');
+    const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
+    const baseYields = calculateCityYields({ ...city, buildings: [] }, map);
+    const withBoth = calculateCityYields({ ...city, buildings: ['library', 'temple'] }, map);
+    const expected = BUILDINGS['library'].yields.science + BUILDINGS['temple'].yields.science;
+    // No adjacency bonus — total science equals the sum of intrinsic yields exactly
+    expect(withBoth.science - baseYields.science).toBe(expected);
   });
 });
 

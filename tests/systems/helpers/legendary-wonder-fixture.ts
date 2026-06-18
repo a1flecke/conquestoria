@@ -32,8 +32,6 @@ function makeCity(id: string, owner: string, position: HexCoord, overrides: Part
     workedTiles: [],
     focus: 'balanced',
     maturity: 'outpost',
-    grid: [[null]],
-    gridSize: 3,
     unrestLevel: 0,
     unrestTurns: 0,
     spyUnrestBonus: 0,

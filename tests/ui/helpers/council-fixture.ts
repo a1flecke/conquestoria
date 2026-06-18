@@ -29,8 +29,6 @@ function makeForeignCity(owner: string, name: string): City {
     workedTiles: [],
     focus: 'balanced',
     maturity: 'outpost',
-    grid: [[null]],
-    gridSize: 3,
     unrestLevel: 0,
     unrestTurns: 0,
     spyUnrestBonus: 0,
