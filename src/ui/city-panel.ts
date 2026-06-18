@@ -24,7 +24,8 @@ import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { createCityGrid } from './city-grid';
+import { createCityGrid, createCityWorkSection } from './city-grid';
+import { createCityDistrictsTab } from './city-districts';
 import {
   calculateCityBuildingMaintenance,
   calculateCivEconomy,
@@ -487,9 +488,10 @@ export function createCityPanel(
       ${economyStatus.strainLevel !== 'none' ? '<span style="color:#d9a25c;" data-text="economy-strain"></span>' : ''}
     </div>
 
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">List</div>
-      <div id="tab-grid" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Grid</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Queue</div>
+      <div id="tab-districts" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Districts</div>
+      <div id="tab-citizens" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Citizens</div>
       <div id="tab-wonders" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Legendary Wonders</div>
     </div>
     <div id="city-list-view">
@@ -505,7 +507,8 @@ export function createCityPanel(
         ${lockedSectionHtml}
       </div>
     </div>
-    <div id="city-grid-view" style="display:none;"></div>
+    <div id="city-districts-view" style="display:none;"></div>
+    <div id="city-citizens-view" style="display:none;"></div>
   `;
 
   panel.innerHTML = html;
@@ -862,50 +865,64 @@ export function createCityPanel(
 
   // Tab switching
   const listTab = byId('tab-list') as HTMLElement;
-  const gridTab = byId('tab-grid') as HTMLElement;
+  const districtsTab = byId('tab-districts') as HTMLElement;
+  const citizensTab = byId('tab-citizens') as HTMLElement;
   const wondersTab = byId('tab-wonders') as HTMLElement;
   const listView = byId('city-list-view') as HTMLElement;
-  const gridView = byId('city-grid-view') as HTMLElement;
+  const districtsView = byId('city-districts-view') as HTMLElement;
+  const citizensView = byId('city-citizens-view') as HTMLElement;
 
-  const renderCityGridTab = (): void => {
-    gridView.textContent = '';
-    createCityGrid(gridView, city, state.map, undefined, {
-      state,
-      onSetCityFocus: (cityId, focus) => rerenderPanel(callbacks.onSetCityFocus?.(cityId, focus), 'citizens'),
-      onToggleWorkedTile: (cityId, coord, worked) => rerenderPanel(callbacks.onToggleWorkedTile?.(cityId, coord, worked), 'citizens'),
-    });
+  const ALL_VIEWS = [listView, districtsView, citizensView];
+  const ALL_TABS = [listTab, districtsTab, citizensTab, wondersTab];
+  const ACTIVE_BG = 'rgba(255,255,255,0.15)';
+  const INACTIVE_BG = 'rgba(255,255,255,0.05)';
+
+  const deactivateAll = () => {
+    for (const v of ALL_VIEWS) v.style.display = 'none';
+    for (const t of ALL_TABS) t.style.background = INACTIVE_BG;
   };
 
   const activateListTab = () => {
+    deactivateAll();
     listView.style.display = 'block';
-    gridView.style.display = 'none';
-    listTab.style.background = 'rgba(255,255,255,0.15)';
-    gridTab.style.background = 'rgba(255,255,255,0.05)';
+    listTab.style.background = ACTIVE_BG;
   };
 
-  const activateGridTab = () => {
-    listView.style.display = 'none';
-    gridView.style.display = 'block';
-    gridTab.style.background = 'rgba(255,255,255,0.15)';
-    listTab.style.background = 'rgba(255,255,255,0.05)';
-    renderCityGridTab();
+  const activateDistrictsTab = () => {
+    deactivateAll();
+    districtsView.textContent = '';
+    districtsView.appendChild(createCityDistrictsTab(city));
+    districtsView.style.display = 'block';
+    districtsTab.style.background = ACTIVE_BG;
   };
 
-  listTab?.addEventListener('click', () => {
-    activateListTab();
-  });
+  const activateCitizensTab = () => {
+    deactivateAll();
+    citizensView.textContent = '';
+    citizensView.appendChild(createCityWorkSection(city, state.map, {
+      state,
+      onSetCityFocus: (cityId, focus) => rerenderPanel(callbacks.onSetCityFocus?.(cityId, focus), 'citizens'),
+      onToggleWorkedTile: (cityId, coord, worked) => rerenderPanel(callbacks.onToggleWorkedTile?.(cityId, coord, worked), 'citizens'),
+    }));
+    citizensView.style.display = 'block';
+    citizensTab.style.background = ACTIVE_BG;
+  };
 
-  gridTab?.addEventListener('click', () => {
-    activateGridTab();
-  });
+  listTab?.addEventListener('click', activateListTab);
+  districtsTab?.addEventListener('click', activateDistrictsTab);
+  citizensTab?.addEventListener('click', activateCitizensTab);
 
   wondersTab?.addEventListener('click', () => {
     callbacks.onOpenWonderPanel(city.id);
     panel.remove();
   });
 
-  if (initialTab === 'citizens') {
-    activateGridTab();
+  if (initialTab === 'districts') {
+    activateDistrictsTab();
+  } else if (initialTab === 'citizens') {
+    activateCitizensTab();
+  } else {
+    activateListTab();
   }
 
   // Upgradeable units section — computed and rendered after rerenderPanel is defined
