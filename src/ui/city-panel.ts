@@ -24,7 +24,7 @@ import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { createCityGrid, createCityWorkSection } from './city-grid';
+import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
 import {
   calculateCityBuildingMaintenance,
@@ -490,8 +490,8 @@ export function createCityPanel(
 
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Queue</div>
-      <div id="tab-districts" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Districts</div>
-      <div id="tab-citizens" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Citizens</div>
+      <div id="tab-districts" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;font-weight:normal;">Districts</div>
+      <div id="tab-citizens" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;font-weight:normal;">Citizens</div>
       <div id="tab-wonders" style="padding:6px 16px;background:rgba(255,255,255,0.05);border-radius:6px;cursor:pointer;font-size:12px;">Legendary Wonders</div>
     </div>
     <div id="city-list-view">
@@ -879,13 +879,14 @@ export function createCityPanel(
 
   const deactivateAll = () => {
     for (const v of ALL_VIEWS) v.style.display = 'none';
-    for (const t of ALL_TABS) t.style.background = INACTIVE_BG;
+    for (const t of ALL_TABS) { t.style.background = INACTIVE_BG; t.style.fontWeight = 'normal'; }
   };
 
   const activateListTab = () => {
     deactivateAll();
     listView.style.display = 'block';
     listTab.style.background = ACTIVE_BG;
+    listTab.style.fontWeight = 'bold';
   };
 
   const activateDistrictsTab = () => {
@@ -894,6 +895,7 @@ export function createCityPanel(
     districtsView.appendChild(createCityDistrictsTab(city));
     districtsView.style.display = 'block';
     districtsTab.style.background = ACTIVE_BG;
+    districtsTab.style.fontWeight = 'bold';
   };
 
   const activateCitizensTab = () => {
@@ -906,6 +908,7 @@ export function createCityPanel(
     }));
     citizensView.style.display = 'block';
     citizensTab.style.background = ACTIVE_BG;
+    citizensTab.style.fontWeight = 'bold';
   };
 
   listTab?.addEventListener('click', activateListTab);

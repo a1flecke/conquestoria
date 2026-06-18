@@ -1754,7 +1754,7 @@ describe('city-panel Districts tab', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.buildings = [];
 
-    createCityPanel(container, city, state, { onBuild: () => {}, onClose: () => {} });
+    createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     clickElement(container.querySelector('[id="tab-districts"]'));
 
     const view = container.querySelector('[id="city-districts-view"]');
@@ -1765,7 +1765,7 @@ describe('city-panel Districts tab', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.buildings = ['granary', 'library'];
 
-    createCityPanel(container, city, state, { onBuild: () => {}, onClose: () => {} });
+    createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     clickElement(container.querySelector('[id="tab-districts"]'));
 
     const view = container.querySelector('[id="city-districts-view"]')!;
@@ -1783,6 +1783,7 @@ describe('city-panel Citizens tab', () => {
 
     createCityPanel(container, city, state, {
       onBuild: () => {},
+      onOpenWonderPanel: () => {},
       onClose: () => {},
       onSetCityFocus,
     });
@@ -1799,7 +1800,7 @@ describe('city-panel Citizens tab', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.focus = 'custom';
 
-    createCityPanel(container, city, state, { onBuild: () => {}, onClose: () => {} });
+    createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     clickElement(container.querySelector('[id="tab-citizens"]'));
 
     const view = container.querySelector('[id="city-citizens-view"]');
@@ -1827,7 +1828,7 @@ describe('city-panel Citizens tab', () => {
     city.workedTiles = [workedTile];
     city.ownedTiles = [city.position, workedTile, spareTile];
 
-    createCityPanel(container, city, state, { onBuild: () => {}, onClose: () => {} });
+    createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     clickElement(container.querySelector('[id="tab-citizens"]'));
 
     const view = container.querySelector('[id="city-citizens-view"]')!;
