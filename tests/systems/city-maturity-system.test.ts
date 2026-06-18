@@ -20,7 +20,6 @@ describe('city maturity definitions', () => {
       'metropolis',
     ]);
     expect(CITY_MATURITY_DEFINITIONS.map(def => def.era)).toEqual([1, 2, 3, 4, 5]);
-    expect(CITY_MATURITY_DEFINITIONS.map(def => def.gridSize)).toEqual([3, 3, 5, 5, 7]);
   });
 
   it('requires population and qualifying maturity techs', () => {
@@ -39,13 +38,12 @@ describe('city maturity definitions', () => {
     expect(resolveCityMaturity(12, ['early-empire', 'engineering', 'medicine', 'global-logistics'])).toBe('metropolis');
   });
 
-  it('applies maturity grid size from population plus qualifying techs', () => {
+  it('applies maturity from population plus qualifying techs', () => {
     const map = generateMap(30, 30, 'city-maturity-apply');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
     const result = applyCityMaturity({ ...city, population: 5 }, ['early-empire', 'engineering']);
     expect(result.changed).toBe(true);
     expect(result.previous).toBe('outpost');
     expect(result.current).toBe('town');
-    expect(result.city.gridSize).toBe(5);
   });
 });

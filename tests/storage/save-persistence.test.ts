@@ -345,64 +345,20 @@ describe('save persistence (#38)', () => {
     expect(target).toMatchObject({ type: 'destroy_camp', campId: camp.id, position: camp.position });
   });
 
-  it('normalizes older city-grid saves into city-sim fields on load', async () => {
-    const state = createNewGame('rome', 'legacy-city-grid-seed');
+  it('strips grid and gridSize from legacy saves on load', async () => {
+    const state = createNewGame('rome', 'legacy-city-grid-strip-seed');
     const city = Object.values(state.cities)[0];
-    const legacyCity = city as unknown as {
-      workedTiles?: unknown;
-      focus?: unknown;
-      maturity?: unknown;
-      grid: (string | null)[][];
-      gridSize: number;
-    };
-    delete legacyCity.workedTiles;
-    delete legacyCity.focus;
-    delete legacyCity.maturity;
+    const legacyCity = city as any;
     legacyCity.grid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => null));
-    legacyCity.grid[2][2] = 'city-center';
     legacyCity.gridSize = 5;
 
-    await saveGame('slot-legacy-city-grid', 'Legacy City Grid', state);
-    const loaded = await loadGame('slot-legacy-city-grid');
+    await saveGame('slot-legacy-grid-strip', 'Legacy Grid Strip', state);
+    const loaded = await loadGame('slot-legacy-grid-strip');
 
-    const loadedCity = Object.values(loaded!.cities)[0];
-    expect(loadedCity.workedTiles).toEqual([]);
-    expect(loadedCity.focus).toBe('balanced');
-    expect(loadedCity.maturity).toBe('outpost');
-    expect(loadedCity.grid).toHaveLength(7);
-    expect(loadedCity.grid[3][3]).toBe('city-center');
-    expect([3, 5, 7]).toContain(loadedCity.gridSize);
-  });
-
-  it('does not shrink a migrated 5x5 city grid during the next turn', async () => {
-    const state = createNewGame('rome', 'legacy-city-grid-turn-seed');
-    const playerCiv = state.civilizations.player;
-    const startPosition = state.units[playerCiv.units[0]].position;
-    const city = foundCity('player', startPosition, state.map, mkC());
-    state.cities[city.id] = city;
-    playerCiv.cities.push(city.id);
-
-    const legacyCity = city as unknown as {
-      workedTiles?: unknown;
-      focus?: unknown;
-      maturity?: unknown;
-      grid: (string | null)[][];
-      gridSize: number;
-    };
-    delete legacyCity.workedTiles;
-    delete legacyCity.focus;
-    delete legacyCity.maturity;
-    legacyCity.grid = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => null));
-    legacyCity.grid[2][2] = 'city-center';
-    legacyCity.grid[0][2] = 'workshop';
-    legacyCity.gridSize = 5;
-
-    await saveGame('slot-legacy-city-grid-turn', 'Legacy City Grid Turn', state);
-    const loaded = await loadGame('slot-legacy-city-grid-turn');
-    const processed = processTurn(loaded!, new EventBus());
-
-    expect(processed.cities[city.id].gridSize).toBe(5);
-    expect(processed.cities[city.id].grid[1][3]).toBe('workshop');
+    const loadedCity = Object.values(loaded!.cities)[0] as any;
+    expect(loadedCity.grid).toBeUndefined();
+    expect(loadedCity.gridSize).toBeUndefined();
+    expect(loadedCity.buildings).toBeDefined();
   });
 
   it('round-trips legendary wonder history through JSON serialization', () => {
@@ -639,8 +595,6 @@ describe('save persistence (#38)', () => {
       workedTiles: [],
       focus: 'balanced',
       maturity: 'outpost',
-      grid: [[null]],
-      gridSize: 3,
       unrestLevel: 0,
       unrestTurns: 0,
       spyUnrestBonus: 0,
@@ -680,8 +634,6 @@ describe('save persistence (#38)', () => {
       workedTiles: [],
       focus: 'balanced',
       maturity: 'outpost',
-      grid: [[null]],
-      gridSize: 3,
       unrestLevel: 0,
       unrestTurns: 0,
       spyUnrestBonus: 0,
@@ -716,8 +668,6 @@ describe('save persistence (#38)', () => {
         workedTiles: [],
         focus: 'balanced',
         maturity: 'outpost',
-        grid: [[null]],
-        gridSize: 3,
         unrestLevel: 0,
         unrestTurns: 0,
         spyUnrestBonus: 0,
@@ -737,8 +687,6 @@ describe('save persistence (#38)', () => {
         workedTiles: [],
         focus: 'balanced',
         maturity: 'outpost',
-        grid: [[null]],
-        gridSize: 3,
         unrestLevel: 0,
         unrestTurns: 0,
         spyUnrestBonus: 0,

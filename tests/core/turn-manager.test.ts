@@ -425,7 +425,6 @@ describe('processTurn', () => {
       population: 5,
       food: 0,
       maturity: 'outpost',
-      gridSize: 3,
       workedTiles: [],
       focus: 'balanced',
     };
@@ -435,7 +434,6 @@ describe('processTurn', () => {
     const result = processTurn(state, bus);
 
     expect(result.cities[city.id].maturity).toBe('town');
-    expect(result.cities[city.id].gridSize).toBe(5);
   });
 
   it('assigns focused worked tiles before calculating city yields', () => {
@@ -930,8 +928,6 @@ describe('espionage post-loop snapshot', () => {
       ownedTiles: [enemyPos],
       focus: 'balanced',
       maturity: 'outpost',
-      grid: [],
-      gridSize: 3,
       unrestLevel: 0,
       unrestTurns: 0,
       spyUnrestBonus: 0,

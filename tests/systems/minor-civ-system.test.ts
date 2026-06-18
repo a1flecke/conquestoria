@@ -440,8 +440,8 @@ describe('scuffles between minor civs', () => {
       },
     };
     state.cities = {
-      'city-sparta': { id: 'city-sparta', name: 'Sparta', owner: 'mc-sparta', position: { q: 0, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
-      'city-carthage': { id: 'city-carthage', name: 'Carthage', owner: 'mc-carthage', position: { q: 1, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: [], gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
+      'city-sparta': { id: 'city-sparta', name: 'Sparta', owner: 'mc-sparta', position: { q: 0, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost',  unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
+      'city-carthage': { id: 'city-carthage', name: 'Carthage', owner: 'mc-carthage', position: { q: 1, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost',  unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
     };
     const attacker = createUnit('warrior', 'mc-sparta', { q: 0, r: 0 }, mkC());
     attacker.id = 'sparta-warrior';

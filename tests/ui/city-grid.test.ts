@@ -3,52 +3,30 @@ import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { foundCity } from '@/systems/city-system';
 import { generateMap } from '@/systems/map-generator';
-import { createCityGrid } from '@/ui/city-grid';
+import type { GameState } from '@/core/types';
+import { createCityWorkSection } from '@/ui/city-grid';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
-describe('city-grid view', () => {
-  it('mentions improvements in the Grid View intro text', () => {
+describe('createCityWorkSection', () => {
+  it('renders worked-land section without throwing', () => {
     const previousDocument = globalThis.document;
     const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' });
     globalThis.document = dom.window.document;
 
     try {
-      const map = generateMap(30, 30, 'city-grid-intro-test');
+      const map = generateMap(30, 30, 'city-work-section-test');
       const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-      const container = document.createElement('div');
+      const state = { cities: { [city.id]: city }, map } as unknown as GameState;
 
-      const panel = createCityGrid(container, city, map, {
-        onSlotTap: () => {},
-        onBuyExpansion: () => {},
-        onClose: () => {},
+      const panel = createCityWorkSection(city, map, {
+        state,
+        onSetCityFocus: () => {},
+        onToggleWorkedTile: () => {},
       });
 
-      expect(panel.textContent).toContain('improvements');
-    } finally {
-      globalThis.document = previousDocument;
-    }
-  });
-
-  it('renders the full 7x7 city grid with the city center in the visual center', () => {
-    const previousDocument = globalThis.document;
-    const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/' });
-    globalThis.document = dom.window.document;
-
-    try {
-      const map = generateMap(30, 30, 'city-grid-ui-test');
-      const city = foundCity('player', { q: 15, r: 15 }, map, mkC());
-      const container = document.createElement('div');
-
-      const panel = createCityGrid(container, city, map, {
-        onSlotTap: () => {},
-        onBuyExpansion: () => {},
-        onClose: () => {},
-      });
-
-      const cells = Array.from(panel.querySelectorAll('.grid-slot, .grid-building, .grid-locked'));
-      expect(cells).toHaveLength(49);
-      expect((cells[24] as HTMLElement).dataset.building).toBe('city-center');
+      expect(panel).toBeTruthy();
+      expect(panel.id).toBe('city-grid');
     } finally {
       globalThis.document = previousDocument;
     }
