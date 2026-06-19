@@ -436,7 +436,12 @@ export function processPirateFleets(state: GameState, bus: EventBus): GameState 
 
 // ── Spawn-phase dispatcher ────────────────────────────────────────────────────
 
-export function processThreatPressure(state: GameState, civId: string, bus: EventBus): GameState {
+export function processThreatPressure(
+  state: GameState,
+  civId: string,
+  bus: EventBus,
+  options: { includeLegacyPirates?: boolean } = {},
+): GameState {
   const civ = state.civilizations[civId];
   if (!civ || !civ.isHuman) return state;
 
@@ -455,7 +460,7 @@ export function processThreatPressure(state: GameState, civId: string, bus: Even
     if (score >= LAND_RESURGENCE_THRESHOLD) {
       nextState = processLandResurgence(nextState, civId, landmassId, bus);
     }
-    if (score >= PIRATE_FLEET_THRESHOLD) {
+    if (options.includeLegacyPirates !== false && score >= PIRATE_FLEET_THRESHOLD) {
       nextState = processPirateSpawn(nextState, civId, landmassId, bus);
     }
   }
