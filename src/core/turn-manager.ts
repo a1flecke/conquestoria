@@ -74,6 +74,9 @@ import {
   getNationalProjectCivYieldBonus,
   expireNationalProjects,
 } from '@/systems/national-project-system';
+import type { PirateEconomyModifiers } from '@/systems/economy-system';
+import { PIRATE_IMPLEMENTATION_READY } from '@/systems/pirate-definitions';
+import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
@@ -784,9 +787,11 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   }
 
   // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
-  newState = processThreatPressure(newState, newState.currentPlayer, bus);
+  newState = processThreatPressure(newState, newState.currentPlayer, bus, {
+    includeLegacyPirates: !PIRATE_IMPLEMENTATION_READY,
+  });
   // --- Pirate fleet movement (runs every turn) ---
-  newState = processPirateFleets(newState, bus);
+  if (!PIRATE_IMPLEMENTATION_READY) newState = processPirateFleets(newState, bus);
 
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);
@@ -990,6 +995,13 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     newState = advanceRouteRunners(newState, bus);
   }
 
+  let pirateEconomyModifiers: PirateEconomyModifiers | undefined;
+  if (PIRATE_IMPLEMENTATION_READY) {
+    const pirateRound = processPiratesForCompletedRound(newState, bus);
+    newState = pirateRound.state;
+    pirateEconomyModifiers = pirateRound.economyModifiers;
+  }
+
   if (newState.marketplace) {
     for (const civId of Object.keys(newState.civilizations)) {
       const civRouteIncome = processTradeRouteIncome(
@@ -1078,7 +1090,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   }
 
   for (const civId of Object.keys(newState.civilizations)) {
-    newState = applyEconomyTurn(newState, civId, grossGoldByCiv[civId] ?? 0);
+    newState = applyEconomyTurn(newState, civId, grossGoldByCiv[civId] ?? 0, pirateEconomyModifiers);
     emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus, civId);
   }
 
