@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { City, GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
-import { createEmptyCityGrid } from '@/systems/city-system';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import {
   applyRegionalSuppression,
@@ -52,8 +51,8 @@ function addCity(state: GameState, id: string, owner: string, position: HexCoord
   const city: City = {
     id, owner, position, name: id, population: 1, food: 0, foodNeeded: 15,
     buildings, productionQueue: [], productionProgress: 0, ownedTiles: [position],
-    workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: createEmptyCityGrid(),
-    gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    workedTiles: [], focus: 'balanced', maturity: 'outpost',
+    unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
   };
   state.cities[id] = city;
   state.civilizations[owner].cities.push(id);

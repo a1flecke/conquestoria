@@ -165,6 +165,21 @@ export const PIRATE_STAGE_SURCHARGE = [0, 0, 5, 10, 15, 20] as const;
 export const PIRATE_PLUNDER_CAP = [0, 5, 8, 12, 16, 20] as const;
 export const PIRATE_BOUNTY_BASE = { patrolling: 10, raiding: 25, blockading: 45 } as const;
 
+export const PIRATE_ACTION_RULES = {
+  tributeDurationRounds: 15,
+  demandReminderRounds: 8,
+  contractDurationRounds: 8,
+  contractCostMultiplier: 2,
+  contractExposureChance: 0.25,
+  contractExposureRelationshipPenalty: -30,
+  enclaveAssault: {
+    baseDamage: 15,
+    strengthDivisor: 5,
+    maximumDamage: 35,
+    counterfireByBehavior: { patrolling: 0, raiding: 8, blockading: 14 },
+  },
+} as const;
+
 export function getPirateStageDefinition(stage: PirateMaritimeStage): PirateStageDefinition {
   return PIRATE_STAGE_DEFINITIONS[stage - 1];
 }

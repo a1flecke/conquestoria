@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { City, GameMap, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
-import { createEmptyCityGrid } from '@/systems/city-system';
 import {
   applyPlannedRelocation,
   choosePirateIntent,
@@ -66,8 +65,8 @@ function city(state: GameState, id: string, owner: string, position: HexCoord): 
   const value: City = {
     id, owner, position, name: id, population: 2, food: 0, foodNeeded: 15,
     buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [position],
-    workedTiles: [], focus: 'balanced', maturity: 'outpost', grid: createEmptyCityGrid(),
-    gridSize: 3, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    workedTiles: [], focus: 'balanced', maturity: 'outpost',
+    unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
   };
   state.cities[id] = value;
   state.civilizations[owner].cities.push(id);

@@ -8,6 +8,7 @@ import {
   getVeterancyCombatModifier,
   getVeterancyTier,
 } from '@/systems/combat-reward-system';
+import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import type { CombatResult, GameState } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -390,5 +391,72 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.units.transport).toBeUndefined();
     expect(applied.state.units.cargo).toBeUndefined();
     expect(applied.state.civilizations['ai-1'].units).toEqual([]);
+  });
+
+  it('breaks tribute as soon as its payer attacks that pirate faction', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, owner: 'pirate-1' };
+    state.civilizations['ai-1'].units = [];
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'raiding',
+      maritimeStage: 3, notoriety: 2, shipIds: ['defender'],
+      headquarters: { kind: 'coastal-enclave', position: { q: 3, r: 3 }, integrity: 100, maxIntegrity: 100 },
+      tributeByCiv: { player: { paidRound: 1, protectedUntilRound: 30 } },
+      demandByCiv: {}, contract: null, intent: null, transitionGuards: { emittedEventKeys: [] },
+    } satisfies PirateFactionState;
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 5, defenderDamage: 5,
+      attackerSurvived: true, defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.pirates!.factions['pirate-1'].tributeByCiv.player).toBeUndefined();
+  });
+
+  it('destroys a deep-sea faction once when its flagship sinks and awards the headquarters bounty', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, owner: 'pirate-1', type: 'pirate_frigate' };
+    state.civilizations['ai-1'].units = [];
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'raiding',
+      maritimeStage: 3, notoriety: 2, shipIds: ['defender'],
+      headquarters: { kind: 'deep-sea-flotilla', flagshipUnitId: 'defender', relocation: { planned: null, lastRelocatedRound: null } },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    } satisfies PirateFactionState;
+    const beforeGold = state.civilizations.player.gold;
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 5, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.pirates!.factions['pirate-1']).toBeUndefined();
+    expect(applied.state.pirates!.history.filter(entry => entry.kind === 'destroyed')).toHaveLength(1);
+    expect(applied.pirateEvents.filter(event => event.type === 'faction-destroyed')).toHaveLength(1);
+    expect(applied.state.civilizations.player.gold).toBeGreaterThan(beforeGold + 39);
+  });
+
+  it('does not grant ordinary combat rewards to a pirate victor', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, owner: 'pirate-1', type: 'pirate_galley', health: 40 };
+    state.civilizations.player.units = [];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 10, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.rewards).toEqual([]);
+    expect(applied.state.units.attacker.experience).toBe(0);
+    expect(applied.state.units.attacker.health).toBe(30);
   });
 });

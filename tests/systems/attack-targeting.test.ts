@@ -121,8 +121,6 @@ describe('attack-targeting', () => {
       workedTiles: [],
       focus: 'balanced',
       maturity: 'outpost',
-      grid: [],
-      gridSize: 3,
       unrestLevel: 0,
       unrestTurns: 0,
       spyUnrestBonus: 0,
