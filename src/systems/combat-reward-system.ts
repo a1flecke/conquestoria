@@ -2,7 +2,12 @@ import type { CombatResult, CombatRewardNotification, GameState, Unit } from '@/
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
-import { canReceiveCivilizationCombatRewards } from '@/core/owner-kind';
+import { canReceiveCivilizationCombatRewards, isPirateOwner } from '@/core/owner-kind';
+import {
+  breakPirateTributeOnAttack,
+  destroyPirateFaction,
+  type PirateActionEvent,
+} from '@/systems/pirate-actions';
 
 export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
 
@@ -42,6 +47,7 @@ export interface CombatOutcomeApplication {
   attackerDefeated: boolean;
   defenderDefeated: boolean;
   questTransitions: ChainTransition[];
+  pirateEvents: PirateActionEvent[];
 }
 
 export const VETERANCY_TIERS: VeterancyTier[] = [
@@ -137,6 +143,7 @@ export function collectCombatRewards(
 ): CombatReward[] {
   const rewards: CombatReward[] = [];
   if (!result.defenderSurvived && result.attackerSurvived) {
+    if (isPirateOwner(attackerBefore.owner)) return rewards;
     const victorHealthAfterCombat = Math.max(1, attackerBefore.health - result.attackerDamage);
     const values = calculateDefeatReward({ victor: attackerBefore, defeated: defenderBefore, seed, victorHealthAfterCombat });
     const reward = {
@@ -149,6 +156,7 @@ export function collectCombatRewards(
     rewards.push({ ...reward, message: formatCombatRewardMessage(reward) });
   }
   if (!result.attackerSurvived && result.defenderSurvived) {
+    if (isPirateOwner(defenderBefore.owner)) return rewards;
     const victorHealthAfterCombat = Math.max(1, defenderBefore.health - result.defenderDamage);
     const values = calculateDefeatReward({ victor: defenderBefore, defeated: attackerBefore, seed, victorHealthAfterCombat });
     const reward = {
@@ -221,7 +229,7 @@ export function applyCombatOutcomeToState(
   const attackerBefore = state.units[result.attackerId];
   const defenderBefore = state.units[result.defenderId];
   if (!attackerBefore || !defenderBefore) {
-    return { state, rewards: [], attackerDefeated: false, defenderDefeated: false, questTransitions: [] };
+    return { state, rewards: [], attackerDefeated: false, defenderDefeated: false, questTransitions: [], pirateEvents: [] };
   }
 
   let units = { ...state.units };
@@ -284,6 +292,11 @@ export function applyCombatOutcomeToState(
       civilizations,
       espionage,
   };
+  const pirateEvents: PirateActionEvent[] = [];
+  const defenderFaction = state.pirates?.factions[defenderBefore.owner];
+  if (defenderFaction && canReceiveCivilizationCombatRewards(attackerBefore.owner)) {
+    nextState = breakPirateTributeOnAttack(nextState, defenderFaction.id, attackerBefore.owner);
+  }
   const questTransitions: ChainTransition[] = [];
   if (!result.defenderSurvived) {
     const progress = applyQuestGameplayAction(nextState, {
@@ -302,11 +315,42 @@ export function applyCombatOutcomeToState(
     questTransitions.push(...progress.transitions);
   }
 
+  if (
+    !result.defenderSurvived
+    && defenderFaction?.headquarters.kind === 'deep-sea-flotilla'
+    && defenderFaction.headquarters.flagshipUnitId === defenderBefore.id
+  ) {
+    const destruction = destroyPirateFaction(nextState, {
+      factionId: defenderFaction.id,
+      destroyedByOwnerId: attackerBefore.owner,
+      reason: 'combat',
+      position: defenderBefore.position,
+    });
+    nextState = destruction.state;
+    pirateEvents.push(...destruction.events);
+  }
+  const attackerFaction = state.pirates?.factions[attackerBefore.owner];
+  if (
+    !result.attackerSurvived
+    && attackerFaction?.headquarters.kind === 'deep-sea-flotilla'
+    && attackerFaction.headquarters.flagshipUnitId === attackerBefore.id
+  ) {
+    const destruction = destroyPirateFaction(nextState, {
+      factionId: attackerFaction.id,
+      destroyedByOwnerId: defenderBefore.owner,
+      reason: 'combat',
+      position: attackerBefore.position,
+    });
+    nextState = destruction.state;
+    pirateEvents.push(...destruction.events);
+  }
+
   return {
     state: nextState,
     rewards,
     attackerDefeated: !result.attackerSurvived,
     defenderDefeated: !result.defenderSurvived,
     questTransitions,
+    pirateEvents,
   };
 }
