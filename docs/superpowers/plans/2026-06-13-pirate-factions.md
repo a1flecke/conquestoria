@@ -180,7 +180,7 @@ The executor maintains this table in the plan while working. No row may remain `
 | SFX-STRAT | Sighting/raid/blockade/tribute/contract/exposure cues | Task 16; viewer routing tests and listening checklist | open |
 | COPY-1 | Pirate Waters labels, disabled reasons, advice | Tasks 10-12; DOM assertions and copy review | open |
 | BALANCE-1 | Fleet stats and encounter exchange counts | Task 17; deterministic sampling tests | open |
-| COMPAT-1 | Legacy save and ID repair | Task 3; migration/round-trip tests | open |
+| COMPAT-1 | Legacy save and ID repair | Task 3; migration/round-trip tests | complete |
 | GATE-1 | Temporary internal runtime-readiness gate preventing partial feature exposure | Tasks 5 and 8 create/use it; Task 17 removes it and proves live activation | open |
 
 ---
@@ -648,6 +648,8 @@ git commit -m "feat(pirates): add raids blockades and relocation"
 
 - [ ] **Step 1: Write red action and actor-parity tests**
 
+Status: action, combat-wrapper, enclave, idempotence, and bounty regressions are complete. Explicit AI and turn-loop destruction parity cases remain to be added in Task 9/17.
+
 Cover:
 
 - tribute quote by behavior plus stage surcharge;
@@ -665,13 +667,13 @@ Cover:
 - repeated destruction calls do not duplicate bounty, suppression, history, notification, or events;
 - bounty is `10/25/45 + stage*5` for a major destroyer and zero for autonomous non-major destroyers.
 
-- [ ] **Step 2: Run red tests**
+- [x] **Step 2: Run red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-actions.test.ts tests/input/pirate-headquarters-assault.test.ts tests/systems/combat-system.test.ts tests/core/turn-manager.test.ts
 ```
 
-- [ ] **Step 3: Implement quote-first action APIs**
+- [x] **Step 3: Implement quote-first action APIs**
 
 Every UI/AI action calls the same quote and mutation functions:
 
@@ -687,11 +689,11 @@ export function destroyPirateFaction(state: GameState, input: DestroyPirateFacti
 
 Quotes include `available`, `reason`, `cost`, and duration where relevant. Mutations revalidate from current state and return unchanged state plus exact reason when stale.
 
-- [ ] **Step 4: Preserve diplomacy and combat boundaries**
+- [x] **Step 4: Preserve diplomacy and combat boundaries**
 
 Pirate attacks and assaults never emit `diplomacy:war-declared`. Contract exposure uses the canonical diplomacy event/history helper, scoped to the target's opinion of the employer. Pirate victors do not receive ordinary civilization combat rewards.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/systems/pirate-actions.ts src/input/pirate-headquarters-assault.ts
@@ -715,6 +717,8 @@ git commit -m "feat(pirates): add tribute contracts and headquarters combat"
 
 - [ ] **Step 1: Write red ordering and idempotence tests**
 
+Status: exact trace, final-position raid/blockade, relocation action consumption, expiry normalization, and replay coverage are complete. The legacy-save one-time viewer warning remains for Task 10 integration.
+
 Build a fixture where a pirate starts two hexes from a coastal city, moves adjacent, raids, and forms a blockade. Assert that the same completed round uses the final position. Add a relocation fixture proving relocated ships do not also attack. Add reload/replay tests proving transition events fire once.
 
 Add a legacy-save fixture already past `Galleys`: the next completed round emits one viewer-scoped piracy warning and starts pressure accumulation, while repeated load/process cycles do not duplicate the warning or consume a spawn check early. Warning delivery and spawn eligibility must use separate markers.
@@ -735,7 +739,7 @@ expect(trace).toEqual([
 ]);
 ```
 
-- [ ] **Step 2: Implement the coordinator result**
+- [x] **Step 2: Implement the coordinator result**
 
 ```ts
 export interface ProcessPiratesResult {
@@ -755,11 +759,11 @@ export function processPiratesForCompletedRound(
 
 Until Task 17, the live coordinator call and Pirate Waters launcher are guarded by `PIRATE_IMPLEMENTATION_READY`. Tests invoke systems and panels directly. No partially implemented pirate entity or action appears in ordinary gameplay.
 
-- [ ] **Step 3: Ensure existing autonomous systems still work**
+- [x] **Step 3: Ensure existing autonomous systems still work**
 
 Regression-test barbarian and beast reset/movement/attack behavior. Use `owner-kind.ts` for intruder filters so pirates are classified intentionally rather than falling through accidentally.
 
-- [ ] **Step 4: Run checks and commit**
+- [x] **Step 4: Run checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/systems/pirate-system.ts src/core/turn-manager.ts src/core/types.ts
@@ -1432,6 +1436,10 @@ git commit -m "test(pirates): complete end-to-end and balance coverage"
 ## Task 18: Close Every Placeholder And Run The Final Completion Gate
 
 **Files:** All changed files and this plan inventory.
+
+- [ ] **Additional required closure item: repair and verify worktree-aware repository scripts**
+
+Reproduce the worktree path failure that interrupted this effort, fix the owning scripts so commands resolve the active worktree rather than assuming the primary checkout, and add a regression that runs from an isolated worktree. This must be complete before the final PR.
 
 - [ ] **Step 1: Prove the asset inventory has zero open rows**
 
