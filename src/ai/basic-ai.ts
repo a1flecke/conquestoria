@@ -70,6 +70,14 @@ import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import { classifyOwner, isAlwaysHostilePair } from '@/core/owner-kind';
+import { getPirateWatersPresentation, type PirateFactionPresentation } from '@/systems/pirate-presentation';
+import {
+  assaultPirateEnclave,
+  getEnclaveAssaultPreview,
+  hirePirateFlotilla,
+  payPirateTribute,
+} from '@/systems/pirate-actions';
+import { derivePirateBlockades } from '@/systems/pirate-behavior';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -222,6 +230,179 @@ function abandonLostLegendaryWonderRace(state: GameState, civId: string): Abando
 
 function personalitySafe(state: GameState, civId: string): PersonalityTraits {
   return getPersonality(state, state.civilizations[civId]?.civType ?? 'generic');
+}
+
+function pirateDistance(state: GameState, from: HexCoord, to: HexCoord): number {
+  return state.map.wrapsHorizontally
+    ? wrappedHexDistance(from, to, state.map.width)
+    : hexDistance(from, to);
+}
+
+function isCombatWarship(unit: Unit): boolean {
+  const definition = UNIT_DEFINITIONS[unit.type];
+  return definition?.domain === 'naval' && definition.strength > 0 && definition.cargoCapacity === undefined;
+}
+
+function moveWarshipToward(state: GameState, civId: string, unit: Unit, target: HexCoord): GameState {
+  const occupancy = buildUnitOccupancy(state.units);
+  const hostileOwners = new Set<string>(['barbarian']);
+  addAlwaysHostileOwners(state, civId, hostileOwners, false);
+  const range = getMovementRange(
+    unit,
+    state.map,
+    occupancy.unitIdsByHex,
+    occupancy.ownersByUnitId,
+    hostileOwners,
+    { completedTechs: state.civilizations[civId]?.techState.completed ?? [] },
+  );
+  const best = range
+    .map(coord => ({ coord, distance: pirateDistance(state, coord, target) }))
+    .filter(candidate => candidate.distance < pirateDistance(state, unit.position, target))
+    .sort((left, right) => left.distance - right.distance
+      || left.coord.q - right.coord.q || left.coord.r - right.coord.r)[0];
+  if (!best) return state;
+  return {
+    ...state,
+    units: {
+      ...state.units,
+      [unit.id]: moveUnit(unit, best.coord, unit.movementPointsLeft),
+    },
+  };
+}
+
+function isFavorablePirateFight(attacker: Unit, defender: Unit): boolean {
+  const attackerStrength = (UNIT_DEFINITIONS[attacker.type]?.strength ?? 0) * attacker.health / 100;
+  const defenderStrength = (UNIT_DEFINITIONS[defender.type]?.strength ?? 0) * defender.health / 100;
+  return attackerStrength >= defenderStrength * 1.15;
+}
+
+function activeBlockadeFactionIds(state: GameState, civId: string): Set<string> {
+  return new Set(derivePirateBlockades(state)
+    .filter(blockade => blockade.victimCivId === civId)
+    .map(blockade => blockade.factionId));
+}
+
+function shouldAiAvoidPirateFaction(state: GameState, civId: string, factionId: string): boolean {
+  const faction = state.pirates?.factions[factionId];
+  return Boolean(
+    faction?.contract?.employerId === civId
+    || (faction?.tributeByCiv[civId]?.protectedUntilRound ?? 0) > state.turn,
+  );
+}
+
+function knownPirateResponseUnitIds(
+  state: GameState,
+  civId: string,
+  factionPresentations: PirateFactionPresentation[],
+): Set<string> {
+  return new Set(factionPresentations
+    .filter(faction => !shouldAiAvoidPirateFaction(state, civId, faction.factionId))
+    .flatMap(faction => faction.observedUnitIds));
+}
+
+function choosePirateGoal(
+  state: GameState,
+  civId: string,
+  factionPresentations: PirateFactionPresentation[],
+  warship: Unit,
+): HexCoord | null {
+  const headquarters = factionPresentations
+    .filter(faction => !shouldAiAvoidPirateFaction(state, civId, faction.factionId))
+    .filter(faction => faction.headquarters?.current && faction.headquarters.kind === 'coastal-enclave')
+    .filter(faction => !faction.observedUnitIds.some(unitId => {
+      const ship = state.units[unitId];
+      return Boolean(ship && pirateDistance(state, ship.position, faction.headquarters!.position) === 1);
+    }))
+    .map(faction => faction.headquarters!.position)
+    .sort((left, right) => pirateDistance(state, warship.position, left) - pirateDistance(state, warship.position, right))[0];
+  if (headquarters) return headquarters;
+
+  const blockadeShip = factionPresentations
+    .filter(faction => !shouldAiAvoidPirateFaction(state, civId, faction.factionId))
+    .filter(faction => faction.behavior === 'blockading')
+    .flatMap(faction => faction.observedUnitIds)
+    .map(unitId => state.units[unitId])
+    .filter((unit): unit is Unit => Boolean(unit))
+    .sort((left, right) => pirateDistance(state, warship.position, left.position) - pirateDistance(state, warship.position, right.position))[0];
+  if (blockadeShip) return blockadeShip.position;
+
+  const loadedTransport = state.civilizations[civId]?.units
+    .map(unitId => state.units[unitId])
+    .filter((unit): unit is Unit => Boolean(unit?.cargoUnitIds?.length))
+    .sort((left, right) => pirateDistance(state, warship.position, left.position) - pirateDistance(state, warship.position, right.position))[0];
+  return loadedTransport?.position ?? null;
+}
+
+export function applyPirateAiResponse(state: GameState, civId: string, bus: EventBus): GameState {
+  const civ = state.civilizations[civId];
+  const presentation = getPirateWatersPresentation(state, civId);
+  if (!civ || !presentation.available) return state;
+  let nextState = state;
+  const blockadingFactionIds = activeBlockadeFactionIds(nextState, civId);
+
+  for (const faction of presentation.factions) {
+    if (blockadingFactionIds.has(faction.factionId) && faction.tributeQuote.available) {
+      const tribute = payPirateTribute(nextState, faction.factionId, civId);
+      if (tribute.success) nextState = tribute.state;
+    }
+  }
+
+  const afterTribute = getPirateWatersPresentation(nextState, civId);
+  for (const faction of afterTribute.factions) {
+    const target = faction.contractTargets.find(candidate => civ.diplomacy.atWarWith.includes(candidate.civId));
+    if (!target || nextState.civilizations[civId].gold < target.cost * 2) continue;
+    const hired = hirePirateFlotilla(nextState, faction.factionId, civId, target.civId);
+    if (hired.success) {
+      nextState = hired.state;
+      break;
+    }
+  }
+
+  const currentPresentation = getPirateWatersPresentation(nextState, civId);
+  const knownPirateUnitIds = knownPirateResponseUnitIds(nextState, civId, currentPresentation.factions);
+  const warshipIds = nextState.civilizations[civId].units.filter(unitId => {
+    const unit = nextState.units[unitId];
+    return Boolean(unit && isCombatWarship(unit) && !unit.hasActed && unit.movementPointsLeft > 0);
+  });
+
+  for (const unitId of warshipIds) {
+    let warship = nextState.units[unitId];
+    if (!warship) continue;
+    const adjacentPirate = [...knownPirateUnitIds]
+      .map(pirateUnitId => nextState.units[pirateUnitId])
+      .filter((unit): unit is Unit => Boolean(unit) && pirateDistance(nextState, warship.position, unit.position) === 1)
+      .filter(unit => isFavorablePirateFight(warship, unit))
+      .sort((left, right) => left.id.localeCompare(right.id))[0];
+    if (adjacentPirate) {
+      const seed = Math.max(1, nextState.turn * 16807 + warship.id.length * 97 + adjacentPirate.id.length);
+      const combat = resolveCombat(warship, adjacentPirate, nextState.map, seed, undefined, nextState.era);
+      const applied = applyCombatOutcomeToState(nextState, combat, seed);
+      nextState = applied.state;
+      emitMinorCivQuestTransitions(bus, applied.questTransitions, nextState);
+      bus.emit('combat:resolved', { result: combat });
+      for (const reward of applied.rewards) bus.emit('combat:reward-earned', { reward });
+      continue;
+    }
+
+    const assaultFaction = currentPresentation.factions.find(faction =>
+      !shouldAiAvoidPirateFaction(nextState, civId, faction.factionId)
+      &&
+      faction.headquarters?.current
+      && faction.headquarters.kind === 'coastal-enclave'
+      && getEnclaveAssaultPreview(nextState, faction.factionId, unitId).available,
+    );
+    if (assaultFaction) {
+      const assault = assaultPirateEnclave(nextState, assaultFaction.factionId, unitId);
+      if (assault.success) nextState = assault.state;
+      continue;
+    }
+
+    warship = nextState.units[unitId];
+    if (!warship) continue;
+    const goal = choosePirateGoal(nextState, civId, currentPresentation.factions, warship);
+    if (goal) nextState = moveWarshipToward(nextState, civId, warship, goal);
+  }
+  return nextState;
 }
 
 function chooseLegendaryWonderFallback(
@@ -444,6 +625,11 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
+  newState = applyPirateAiResponse(newState, civId, bus);
+  civ = newState.civilizations[civId];
+  const piratePresentation = getPirateWatersPresentation(newState, civId);
+  const knownPirateUnitIds = knownPirateResponseUnitIds(newState, civId, piratePresentation.factions);
+
   // --- Handle military units: explore or attack ---
   const militaryUnits = civ.units
     .map(id => newState.units[id])
@@ -458,6 +644,8 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       if (target.result.targetType === 'unit') {
         const occupant = newState.units[target.result.targetUnitId];
         if (occupant) {
+          if (classifyOwner(occupant.owner) === 'pirate' && !knownPirateUnitIds.has(occupant.id)) continue;
+          if (classifyOwner(occupant.owner) === 'pirate' && !isFavorablePirateFight(unit, occupant)) continue;
           // Beast guard: only engage beasts when enabled AND the fight is clearly winnable
           if (isBeastUnit(occupant)) {
             if (!contestsBeasts) continue;
@@ -566,6 +754,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       if (isWarship) {
         const enemyNaval = Object.values(newState.units).filter(u => {
           if (u.owner === civId || !aiHostileOwners.has(u.owner)) return false;
+          if (classifyOwner(u.owner) === 'pirate' && !knownPirateUnitIds.has(u.id)) return false;
           return (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'naval';
         });
         if (enemyNaval.length > 0) {
