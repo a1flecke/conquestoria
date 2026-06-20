@@ -646,9 +646,9 @@ git commit -m "feat(pirates): add raids blockades and relocation"
 - Modify: `tests/systems/combat-system.test.ts`
 - Modify: `tests/core/turn-manager.test.ts`
 
-- [ ] **Step 1: Write red action and actor-parity tests**
+- [x] **Step 1: Write red action and actor-parity tests**
 
-Status: action, combat-wrapper, enclave, idempotence, and bounty regressions are complete. Explicit AI and turn-loop destruction parity cases remain to be added in Task 9/17.
+Status: action, combat-wrapper, enclave, idempotence, bounty, AI flagship, and AI enclave parity regressions are complete. The full turn-loop scenario remains in Task 17.
 
 Cover:
 
@@ -717,7 +717,7 @@ git commit -m "feat(pirates): add tribute contracts and headquarters combat"
 
 - [x] **Step 1: Write red ordering and idempotence tests**
 
-Status: exact trace, final-position raid/blockade, relocation action consumption, expiry normalization, and replay coverage are complete. The legacy-save one-time viewer warning remains for Task 10 integration.
+Status: exact trace, final-position raid/blockade, relocation action consumption, expiry normalization, replay coverage, and the legacy-save one-time viewer warning are complete.
 
 Build a fixture where a pirate starts two hexes from a coastal city, moves adjacent, raids, and forms a blockade. Assert that the same completed round uses the final position. Add a relocation fixture proving relocated ships do not also attack. Add reload/replay tests proving transition events fire once.
 
@@ -781,7 +781,7 @@ git commit -m "feat(pirates): wire completed-round processing"
 - Modify: `src/ai/basic-ai.ts`
 - Create: `tests/ai/basic-ai-pirates.test.ts`
 
-- [ ] **Step 1: Write red AI decision tests**
+- [x] **Step 1: Write red AI decision tests**
 
 Test that AI:
 
@@ -795,17 +795,17 @@ Test that AI:
 - uses canonical quote/action helpers and receives the same stale-state reasons as the player;
 - can destroy a flagship/enclave through the canonical destruction path.
 
-- [ ] **Step 2: Run red tests**
+- [x] **Step 2: Run red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/ai/basic-ai-pirates.test.ts
 ```
 
-- [ ] **Step 3: Implement conservative pirate priorities**
+- [x] **Step 3: Implement conservative pirate priorities**
 
 Add a small pirate decision phase that consumes `PiratePresentation`/earned intel and action quotes. Do not grant AI direct access to hidden faction coordinates. Reuse ordinary naval movement/combat execution. Keep pirate response below immediate city defense and winning military actions, but above optional exploration when a blockade or exposed headquarters is materially harming the AI.
 
-- [ ] **Step 4: Run checks and commit**
+- [x] **Step 4: Run checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/ai/basic-ai.ts
@@ -940,7 +940,7 @@ Use `createGameButton`, `textContent`, and `createTextNode`. Desktop is a side p
 
 `main.ts` owns the current panel selection ID and opens the same helper from launcher, unit/HQ selection, and notification review. Do not leave an inline alternate path. `Pirate Waters` becomes visible after the viewer's first rumor/sighting and remains durable thereafter.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/ui/pirate-waters-panel.ts src/ui/game-shell.ts src/ui/selected-unit-info.ts src/main.ts
