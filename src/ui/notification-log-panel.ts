@@ -1,9 +1,12 @@
-import type { NotificationEntry, NotificationMapTarget } from '@/core/notification-log';
+import type { NotificationEntry, NotificationMapTarget, PirateNotificationReview } from '@/core/notification-log';
+import { createGameButton } from '@/ui/ui-kit';
 
 interface NotificationLogPanelOptions {
   onClose: () => void;
   onFocusTarget: (target: NotificationMapTarget) => void;
   onOpenCity?: (cityId: string) => void;
+  onReviewPirate?: (review: PirateNotificationReview) => void;
+  onMarkRead?: (notificationId: string) => void;
 }
 
 const colors: Record<NotificationEntry['type'], string> = {
@@ -24,10 +27,9 @@ export function createNotificationLogPanel(
   header.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:8px;display:flex;justify-content:space-between;';
   const headerTitle = document.createElement('span');
   headerTitle.textContent = 'Message Log';
-  const closeBtn = document.createElement('span');
+  const closeBtn = createGameButton('X', 'close');
   closeBtn.id = 'close-log';
-  closeBtn.style.cssText = 'cursor:pointer;opacity:0.6;';
-  closeBtn.textContent = 'X';
+  closeBtn.setAttribute('aria-label', 'Close message log');
   header.appendChild(headerTitle);
   header.appendChild(closeBtn);
   panel.appendChild(header);
@@ -77,5 +79,16 @@ function createNotificationRow(
   turnSpan.textContent = `T${entry.turn}`;
   row.appendChild(turnSpan);
   row.appendChild(document.createTextNode(entry.message));
+  if (entry.review) {
+    const reviewButton = createGameButton('Review', 'secondary');
+    reviewButton.dataset.reviewPirate = entry.review.kind;
+    reviewButton.style.marginTop = '6px';
+    reviewButton.addEventListener('click', event => {
+      event.stopPropagation();
+      options.onMarkRead?.(entry.id);
+      options.onReviewPirate?.(entry.review!);
+    });
+    row.appendChild(reviewButton);
+  }
   return row;
 }

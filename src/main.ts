@@ -62,6 +62,11 @@ import { createCouncilPanel } from '@/ui/council-panel';
 import { createGameShell } from '@/ui/game-shell';
 import { createContextMenu } from '@/ui/context-menu';
 import { createNotificationLogPanel } from '@/ui/notification-log-panel';
+import { createPirateWatersPanel } from '@/ui/pirate-waters-panel';
+import { createGameButton } from '@/ui/ui-kit';
+import { getPirateWatersPresentation, type PirateFocusTarget } from '@/systems/pirate-presentation';
+import { hirePirateFlotilla, payPirateTribute, type PirateActionResult } from '@/systems/pirate-actions';
+import { markNotificationRead, resolvePirateNotificationReview } from '@/ui/pirate-notification-listeners';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
@@ -199,6 +204,8 @@ import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 let gameState: GameState;
 let drawer: TreasuryDrawer;
 let selectedUnitId: string | null = null;
+let selectedPirateFactionId: string | null = null;
+let selectedPirateHistoryId: string | null = null;
 let movementRange: HexCoord[] = [];
 let attackRange: HexCoord[] = [];
 // Tracks whether the "tap a highlighted tile or cancel" notification has been shown
@@ -326,6 +333,7 @@ function createUI(): void {
     onEndTurn: () => endTurn(),
     onNextUnit: () => selectNextUnit(),
     onOpenNotificationLog: () => toggleNotificationLog(),
+    onOpenPirateWaters: () => openPirateWaters(),
     onToggleIconLegend: () => {
       const existing = document.getElementById('icon-legend');
       if (existing && existing.style.display !== 'none') {
@@ -527,6 +535,11 @@ function updateHUD(): void {
   hud.appendChild(yieldsRow);
   hud.appendChild(infoRow);
 
+  const pirateWatersButton = document.getElementById('btn-pirate-waters');
+  if (pirateWatersButton) {
+    pirateWatersButton.hidden = !getPirateWatersPresentation(gameState, gameState.currentPlayer).available;
+  }
+
   // Show "Next Unit" button when there are unmoved units
   const nextUnitBtn = document.getElementById('btn-next-unit');
   if (nextUnitBtn) {
@@ -584,6 +597,83 @@ function focusNotificationTarget(target: NotificationEntry['target']): void {
   const visibility = currentCiv().visibility;
   const isCurrentlyVisible = visibility ? getVisibility(visibility, target.coord) === 'visible' : false;
   enqueueToast(formatNotificationTargetFocusMessage(target, isCurrentlyVisible), 'info');
+}
+
+function focusPirateTarget(target: PirateFocusTarget): void {
+  const coord = target.kind === 'region' ? target.center : target.coord;
+  renderLoop.camera.centerOn(coord);
+  enqueueToast(target.label, 'info');
+}
+
+function applyPirateActionResult(result: PirateActionResult, successMessage: string): void {
+  if (!result.success) {
+    showNotification(result.reason ?? 'That pirate action is no longer available.', 'warning');
+    return;
+  }
+  gameState = result.state;
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  showNotification(successMessage, 'success');
+}
+
+function openPirateWaters(selection?: { factionId?: string; historyId?: string }): void {
+  if (selection?.factionId) {
+    selectedPirateFactionId = selection.factionId;
+    selectedPirateHistoryId = null;
+  } else if (selection?.historyId) {
+    selectedPirateHistoryId = selection.historyId;
+    selectedPirateFactionId = null;
+  }
+
+  const renderPanel = (): void => {
+    const base = getPirateWatersPresentation(gameState, gameState.currentPlayer);
+    if (!base.available) return;
+    const factionId = selectedPirateFactionId && base.factions.some(faction => faction.factionId === selectedPirateFactionId)
+      ? selectedPirateFactionId
+      : base.factions[0]?.factionId;
+    const historyId = selectedPirateHistoryId && base.history.some(entry => entry.id === selectedPirateHistoryId)
+      ? selectedPirateHistoryId
+      : undefined;
+    if (!historyId) selectedPirateFactionId = factionId ?? null;
+    const presentation = {
+      ...base,
+      ...(factionId && !historyId ? { selectedFactionId: factionId } : {}),
+      ...(historyId ? { selectedHistoryId: historyId } : {}),
+    };
+    createPirateWatersPanel(uiLayer, presentation, {
+      onClose: () => document.getElementById('pirate-waters-panel')?.remove(),
+      onSelectFaction: nextFactionId => {
+        selectedPirateFactionId = nextFactionId;
+        selectedPirateHistoryId = null;
+        renderPanel();
+      },
+      onSelectHistory: nextHistoryId => {
+        selectedPirateHistoryId = nextHistoryId;
+        selectedPirateFactionId = null;
+        renderPanel();
+      },
+      onFocus: focusPirateTarget,
+      onPayTribute: faction => {
+        const result = payPirateTribute(gameState, faction, gameState.currentPlayer);
+        applyPirateActionResult(result, 'Pirate tribute paid.');
+        renderPanel();
+        return result;
+      },
+      onHireFlotilla: (faction, targetId) => {
+        const result = hirePirateFlotilla(gameState, faction, gameState.currentPlayer, targetId);
+        applyPirateActionResult(result, 'Pirate flotilla hired.');
+        renderPanel();
+        return result;
+      },
+      onOpenAssault: faction => {
+        const target = base.factions.find(entry => entry.factionId === faction)?.focusTarget;
+        if (target) focusPirateTarget(target);
+        showNotification('Select an adjacent available naval combat unit to assault this enclave.', 'info');
+      },
+    });
+  };
+
+  renderPanel();
 }
 
 function displayNextNotification(): void {
@@ -650,6 +740,15 @@ function toggleNotificationLog(): void {
       panel.remove();
       const city = gameState?.cities[cityId];
       if (city) openCityPanelForCity(city);
+    },
+    onMarkRead: notificationId => {
+      gameState = markNotificationRead(gameState, gameState.currentPlayer, notificationId);
+    },
+    onReviewPirate: review => {
+      const resolved = resolvePirateNotificationReview(gameState, gameState.currentPlayer, review);
+      panel.remove();
+      if (resolved?.kind === 'active') openPirateWaters({ factionId: resolved.factionId });
+      if (resolved?.kind === 'history') openPirateWaters({ historyId: resolved.historyId });
     },
   });
 
@@ -2505,10 +2604,9 @@ function handleHexTap(rawCoord: HexCoord): void {
         info.appendChild(ownerLine);
         info.appendChild(unitLine);
 
-        const closeBtn = document.createElement('span');
+        const closeBtn = createGameButton('X', 'close');
         closeBtn.id = 'btn-deselect';
-        closeBtn.style.cssText = 'cursor:pointer;font-size:18px;opacity:0.6;';
-        closeBtn.textContent = '✕';
+        closeBtn.setAttribute('aria-label', 'Close unit details');
 
         header.appendChild(info);
         header.appendChild(closeBtn);
@@ -2518,6 +2616,13 @@ function handleHexTap(rawCoord: HexCoord): void {
         descDiv.style.cssText = 'font-size:10px;opacity:0.6;margin-top:4px;';
         descDiv.textContent = desc;
         wrapper.appendChild(descDiv);
+
+        if (ownerKind === 'pirate') {
+          const pirateWaters = createGameButton('Open Pirate Waters', 'secondary');
+          pirateWaters.dataset.action = 'open-pirate-waters';
+          pirateWaters.addEventListener('click', () => openPirateWaters({ factionId: enemyUnit.owner }));
+          wrapper.appendChild(pirateWaters);
+        }
 
         const hostileStackSize = visibleHostileUnitEntriesAtKey(key).length;
         if (hostileStackSize > 1) {

@@ -71,4 +71,32 @@ describe('game-shell', () => {
 
     expect(opened).toBe(true);
   });
+
+  it('reveals Pirate Waters only after discovery and routes the launcher', () => {
+    let opened = false;
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {},
+      onOpenTech: () => {},
+      onOpenCity: () => {},
+      onOpenEspionage: () => {},
+      onOpenDiplomacy: () => {},
+      onOpenMarketplace: () => {},
+      onEndTurn: () => {},
+      onNextUnit: () => {},
+      onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {},
+      onOpenWonderAtlas: () => {},
+      onOpenPirateWaters: () => { opened = true; },
+      onOpenMenu: () => {},
+    });
+
+    const button = shell.querySelector<HTMLButtonElement>('#btn-pirate-waters');
+    expect(button).toBeTruthy();
+    expect(button?.hidden).toBe(true);
+
+    button!.hidden = false;
+    button!.click();
+
+    expect(opened).toBe(true);
+  });
 });

@@ -5,6 +5,32 @@ import { createNotificationLogPanel } from '@/ui/notification-log-panel';
 import type { NotificationEntry } from '@/core/notification-log';
 
 describe('notification log panel', () => {
+  it('uses semantic close and review buttons and marks reviewed entries read', () => {
+    const onClose = vi.fn();
+    const onReviewPirate = vi.fn();
+    const onMarkRead = vi.fn();
+    const review = { kind: 'pirate-faction' as const, factionId: 'pirate-1' };
+    const panel = createNotificationLogPanel([
+      { id: 'notification-3', message: 'Pirates demand tribute.', type: 'warning', turn: 8, read: false, review },
+    ], {
+      onClose,
+      onFocusTarget: vi.fn(),
+      onReviewPirate,
+      onMarkRead,
+    });
+
+    const close = panel.querySelector('#close-log');
+    const reviewButton = panel.querySelector('[data-review-pirate]');
+    expect(close?.tagName).toBe('BUTTON');
+    expect(close?.getAttribute('aria-label')).toBe('Close message log');
+    expect(reviewButton?.tagName).toBe('BUTTON');
+
+    (reviewButton as HTMLButtonElement).click();
+    expect(onMarkRead).toHaveBeenCalledWith('notification-3');
+    expect(onReviewPirate).toHaveBeenCalledWith(review);
+    (close as HTMLButtonElement).click();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
   it('renders target-bearing entries as focusable rows', () => {
     const target = {
       kind: 'map' as const,
