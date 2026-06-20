@@ -18,6 +18,12 @@ import {
 import { destroyPirateFaction, recordPirateContractRaid, type PirateActionEvent } from './pirate-actions';
 import { PIRATE_NOTORIETY } from './pirate-definitions';
 import { processPirateEcology } from './pirate-ecology';
+import { refreshPirateIntel } from './pirate-presentation';
+import {
+  applyPirateNotifications,
+  deliverPirateActivationWarnings,
+  type PirateNotificationEvent,
+} from './pirate-notifications';
 import { getMovementStepCost, moveUnit, resetUnitTurn, UNIT_DEFINITIONS } from './unit-system';
 
 export const PIRATE_ROUND_TRACE = [
@@ -273,5 +279,35 @@ export function processPiratesForCompletedRound(state: GameState, bus: EventBus)
   events.push(...advanced.events);
   nextState = processPirateEcology(nextState, bus, state.gameId ?? 'pirates');
   if (!wasActivated && nextState.pirates?.activatedTurn !== null) events.push({ type: 'activated', factionId: '' });
+  const previousIntel = state.pirates?.intelByCiv ?? {};
+  for (const viewerId of Object.keys(nextState.civilizations)) {
+    nextState = refreshPirateIntel(nextState, viewerId);
+  }
+  nextState = deliverPirateActivationWarnings(nextState);
+  const notificationEvents: PirateNotificationEvent[] = [];
+  for (const [viewerId, viewerIntel] of Object.entries(nextState.pirates?.intelByCiv ?? {})) {
+    for (const factionId of Object.keys(viewerIntel)) {
+      if (!previousIntel[viewerId]?.[factionId]) {
+        notificationEvents.push({ type: 'sighting', factionId, viewerId });
+      }
+    }
+  }
+  for (const event of events) {
+    const viewers = event.civId && nextState.civilizations[event.civId]
+      ? [event.civId]
+      : Object.entries(nextState.pirates?.intelByCiv ?? {})
+          .filter(([, intel]) => Boolean(intel[event.factionId]))
+          .map(([viewerId]) => viewerId);
+    for (const viewerId of viewers) {
+      if (event.type === 'raid') {
+        notificationEvents.push({ type: 'raid', factionId: event.factionId, viewerId, amount: event.amount });
+      } else if (event.type === 'blockade') {
+        notificationEvents.push({ type: 'blockade', factionId: event.factionId, viewerId, cityId: event.cityId });
+      } else if (event.type === 'relocated' || event.type === 'behavior-changed') {
+        notificationEvents.push({ type: event.type, factionId: event.factionId, viewerId });
+      }
+    }
+  }
+  nextState = applyPirateNotifications(nextState, notificationEvents);
   return { state: nextState, economyModifiers, events, facts, trace };
 }

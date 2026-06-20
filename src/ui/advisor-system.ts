@@ -9,6 +9,8 @@ import { getNextCouncilCallback, markCouncilCallbackDelivered } from '@/systems/
 import { getIdleCityIds, needsResearchChoice } from '@/systems/planning-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
+import { getPirateTributeQuote } from '@/systems/pirate-actions';
 
 /**
  * Session-scoped tip suppression. Cleared on page load (module re-init).
@@ -25,6 +27,7 @@ interface AdvisorMessage {
   trigger: (state: GameState) => boolean;
   /** If set, maps to a tutorial step (for backward compat) */
   tutorialStep?: TutorialStep;
+  viewerScoped?: boolean;
 }
 
 const ADVISOR_MESSAGES: AdvisorMessage[] = [
@@ -98,6 +101,29 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: "You're doing great! You now know the basics. Explore, expand, research, and conquer. The world is yours to shape!",
     trigger: (state) => state.turn >= 10,
     tutorialStep: 'complete',
+  },
+
+  // --- Pirate Waters ---
+  {
+    id: 'warchief_pirate_sighting',
+    advisor: 'warchief',
+    icon: '☠',
+    message: 'Organized pirates have been reported at sea. Escort valuable shipping and investigate Pirate Waters before raids escalate.',
+    viewerScoped: true,
+    trigger: (state) => getPirateWatersPresentation(state, state.currentPlayer).factions.length > 0,
+  },
+  {
+    id: 'treasurer_pirate_demand_unaffordable',
+    advisor: 'treasurer',
+    icon: '💰',
+    message: 'A pirate tribute demand exceeds our treasury. Protect coastal income while we gather enough gold or prepare to break the threat.',
+    viewerScoped: true,
+    trigger: (state) => getPirateWatersPresentation(state, state.currentPlayer).factions.some(entry => {
+      const faction = state.pirates?.factions[entry.factionId];
+      if (!faction?.demandByCiv[state.currentPlayer]) return false;
+      const quote = getPirateTributeQuote(state, entry.factionId, state.currentPlayer);
+      return !quote.available && quote.reason?.toLowerCase().includes('gold') === true;
+    }),
   },
 
   // --- Explorer — Resource Accessibility ---
@@ -665,13 +691,14 @@ export class AdvisorSystem {
     let emittedMessage = false;
 
     for (const msg of ADVISOR_MESSAGES) {
-      if (this.shownIds.has(msg.id)) continue;
+      const shownKey = msg.viewerScoped ? `${state.currentPlayer}:${msg.id}` : msg.id;
+      if (this.shownIds.has(shownKey)) continue;
 
       // Skip tutorial messages if tutorial is completed or disabled
       if (msg.tutorialStep) {
         if (!state.tutorial.active) continue;
         if (state.tutorial.completedSteps.includes(msg.tutorialStep)) {
-          this.shownIds.add(msg.id);
+          this.shownIds.add(shownKey);
           continue;
         }
       }
@@ -682,7 +709,7 @@ export class AdvisorSystem {
       if (!msg.tutorialStep && disabledUntil !== undefined && disabledUntil >= state.turn) continue;
 
       if (msg.trigger(state)) {
-        this.shownIds.add(msg.id);
+        this.shownIds.add(shownKey);
         SESSION_SHOWN_TIPS.add(msg.id);
 
         if (msg.tutorialStep) {

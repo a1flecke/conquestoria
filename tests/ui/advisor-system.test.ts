@@ -4,6 +4,7 @@ import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import type { GameState, Unit } from '@/core/types';
+import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -25,6 +26,84 @@ function stateWithCity(): GameState {
 }
 
 describe('AdvisorSystem', () => {
+  it('gives viewer-scoped pirate sighting advice without hidden coordinates', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = makeState();
+    state.turn = 20;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: true, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'raiding', maritimeStage: 2,
+      notoriety: 2, shipIds: [], headquarters: { kind: 'coastal-enclave', position: { q: 9, r: 7 }, integrity: 100, maxIntegrity: 100 },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null, transitionGuards: { emittedEventKeys: [] },
+    } satisfies PirateFactionState;
+    state.pirates.intelByCiv.player = {
+      'pirate-1': { factionId: 'pirate-1', level: 'rumor', discoveredRound: 20, lastUpdatedRound: 20, approximateRegion: { center: { q: 8, r: 8 }, radius: 5 } },
+    };
+    const messages: any[] = [];
+    bus.on('advisor:message', message => messages.push(message));
+
+    advisor.check(state);
+
+    expect(messages[0]).toMatchObject({ advisor: 'warchief' });
+    expect(messages[0].message).toMatch(/pirate/i);
+    expect(messages[0].message).not.toMatch(/9|7|8,8/);
+  });
+
+  it('does not let one hot-seat viewer consume another viewers pirate advice cooldown', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = makeState();
+    state.turn = 20;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: true, treasurer: false, scholar: false, spymaster: false, artisan: false };
+    state.pirates = createEmptyPirateState();
+    state.pirates.intelByCiv.player = {
+      'pirate-1': { factionId: 'pirate-1', level: 'rumor', discoveredRound: 20, lastUpdatedRound: 20 },
+    };
+    state.pirates.intelByCiv['ai-1'] = {
+      'pirate-1': { factionId: 'pirate-1', level: 'rumor', discoveredRound: 20, lastUpdatedRound: 20 },
+    };
+    const messages: any[] = [];
+    bus.on('advisor:message', message => messages.push(message));
+
+    state.currentPlayer = 'player';
+    advisor.check(state);
+    state.currentPlayer = 'ai-1';
+    advisor.check(state);
+
+    expect(messages.filter(message => /pirate/i.test(message.message))).toHaveLength(2);
+  });
+
+  it('warns through the Treasurer when a known tribute demand is unaffordable', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = makeState();
+    state.turn = 20;
+    state.tutorial.active = false;
+    state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: false, warchief: false, treasurer: true, scholar: false, spymaster: false, artisan: false };
+    state.civilizations.player.gold = 0;
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'blockading', maritimeStage: 4,
+      notoriety: 5, shipIds: [], headquarters: { kind: 'coastal-enclave', position: { q: 9, r: 7 }, integrity: 100, maxIntegrity: 100 },
+      tributeByCiv: {}, demandByCiv: { player: { demandedRound: 20, lastReminderRound: 20, quotedCost: 65 } },
+      contract: null, intent: null, transitionGuards: { emittedEventKeys: [] },
+    } satisfies PirateFactionState;
+    state.pirates.intelByCiv.player = {
+      'pirate-1': { factionId: 'pirate-1', level: 'sighted', discoveredRound: 20, lastUpdatedRound: 20 },
+    };
+    const messages: any[] = [];
+    bus.on('advisor:message', message => messages.push(message));
+
+    advisor.check(state);
+
+    expect(messages[0]).toMatchObject({ advisor: 'treasurer' });
+    expect(messages[0].message).toMatch(/tribute|gold/i);
+    expect(messages[0].message).not.toMatch(/9|7/);
+  });
   it('shows welcome message on first check', () => {
     const bus = new EventBus();
     const advisor = new AdvisorSystem(bus);

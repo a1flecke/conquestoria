@@ -715,7 +715,7 @@ git commit -m "feat(pirates): add tribute contracts and headquarters combat"
 - Modify: `tests/core/turn-manager.test.ts`
 - Modify: `tests/core/turn-manager-beasts.test.ts`
 
-- [ ] **Step 1: Write red ordering and idempotence tests**
+- [x] **Step 1: Write red ordering and idempotence tests**
 
 Status: exact trace, final-position raid/blockade, relocation action consumption, expiry normalization, and replay coverage are complete. The legacy-save one-time viewer warning remains for Task 10 integration.
 
@@ -830,7 +830,7 @@ git commit -m "feat(pirates): add AI response and contracts"
 - Modify: `tests/ui/notification-log-panel.test.ts`
 - Modify: `tests/ui/advisor-system.test.ts`
 
-- [ ] **Step 1: Write red privacy and semantic-notification tests**
+- [x] **Step 1: Write red privacy and semantic-notification tests**
 
 Prove:
 
@@ -845,17 +845,17 @@ Prove:
 - notification close and review controls are semantic buttons with accessible labels;
 - advisor messages obey viewer cooldowns and never include hidden coordinates.
 
-- [ ] **Step 2: Run red tests**
+- [x] **Step 2: Run red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-presentation.test.ts tests/ui/pirate-notification-listeners.test.ts tests/ui/notification-log-panel.test.ts tests/ui/advisor-system.test.ts
 ```
 
-- [ ] **Step 3: Implement projection, not live-object reuse**
+- [x] **Step 3: Implement projection, not live-object reuse**
 
 `getPirateWatersPresentation(state, viewerId)` returns only copied, earned data. It must never pass `PirateFactionState` objects to UI code. Add focused selectors for map entity visibility, action quotes, city blockade explanations, and historical entries.
 
-- [ ] **Step 4: Persist notification read state**
+- [x] **Step 4: Persist notification read state**
 
 The panel receives callbacks such as:
 
@@ -871,7 +871,7 @@ interface NotificationLogPanelOptions {
 
 Marking read mutates `gameState.notificationLog` and immediately rerenders. No callback is serialized.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/systems/pirate-presentation.ts src/systems/pirate-notifications.ts src/ui/pirate-notification-listeners.ts src/ui/notification-log-panel.ts src/ui/advisor-system.ts
@@ -909,13 +909,13 @@ Tests must perform real clicks and inspect current DOM after:
 - mobile-width layout using the same content and actions;
 - all actionable factions remain reachable even if a recommended faction is highlighted.
 
-- [ ] **Step 2: Run red UI tests**
+- [x] **Step 2: Run red UI tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/ui/pirate-waters-panel.test.ts tests/ui/selected-unit-info.test.ts tests/main.integration.test.ts
 ```
 
-- [ ] **Step 3: Build a projection-driven panel**
+- [x] **Step 3: Build a projection-driven panel**
 
 ```ts
 export interface PirateWatersCallbacks {
@@ -936,7 +936,7 @@ export function createPirateWatersPanel(
 
 Use `createGameButton`, `textContent`, and `createTextNode`. Desktop is a side panel; narrow/mobile is a bottom sheet. After every action, remove and recreate from a fresh projection so visible status, cost, reason, duration, and list ordering cannot go stale.
 
-- [ ] **Step 4: Wire live callers in the same change**
+- [x] **Step 4: Wire live callers in the same change**
 
 `main.ts` owns the current panel selection ID and opens the same helper from launcher, unit/HQ selection, and notification review. Do not leave an inline alternate path. `Pirate Waters` becomes visible after the viewer's first rumor/sighting and remains durable thereafter.
 

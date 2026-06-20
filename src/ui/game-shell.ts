@@ -5,12 +5,13 @@ export interface GameShellCallbacks extends PrimaryActionBarCallbacks {
   onOpenNotificationLog: () => void;
   onToggleIconLegend: () => void;
   onOpenWonderAtlas: () => void;
+  onOpenPirateWaters?: () => void;
   onOpenMenu: () => void;
   iconLegendOverlay?: HTMLElement;
 }
 
 function removeExistingShell(container: HTMLElement): void {
-  for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas', 'notifications', 'info-panel', 'icon-legend']) {
+  for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas', 'btn-pirate-waters', 'notifications', 'info-panel', 'icon-legend']) {
     container.querySelector(`#${id}`)?.remove();
   }
 }
@@ -50,7 +51,10 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
   shell.appendChild(createFloatingButton('btn-notif-log', '📜', 'View message log', 52, callbacks.onOpenNotificationLog));
   shell.appendChild(createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', 92, callbacks.onToggleIconLegend));
   shell.appendChild(createFloatingButton('btn-wonder-atlas', '✦', 'Open Wonder Atlas', 132, callbacks.onOpenWonderAtlas));
-  shell.appendChild(createFloatingButton('btn-pause-menu', '☰', 'Pause menu', 172, callbacks.onOpenMenu));
+  const pirateWatersButton = createFloatingButton('btn-pirate-waters', 'Pirates', 'Open Pirate Waters', 172, () => callbacks.onOpenPirateWaters?.());
+  pirateWatersButton.hidden = true;
+  shell.appendChild(pirateWatersButton);
+  shell.appendChild(createFloatingButton('btn-pause-menu', '☰', 'Pause menu', 236, callbacks.onOpenMenu));
 
   if (callbacks.iconLegendOverlay) {
     shell.appendChild(callbacks.iconLegendOverlay);

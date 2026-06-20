@@ -60,6 +60,23 @@ function faction(headquarters: PirateFactionState['headquarters'], shipIds: stri
 }
 
 describe('completed-round pirate coordinator', () => {
+  it('activates a legacy campaign past Galleys and warns each viewer once without consuming a spawn check', () => {
+    const state = fixture();
+    state.pirates = createEmptyPirateState();
+    state.civilizations.player.techState.completed.push('galleys');
+    state.civilizations['ai-1'].techState.completed.push('galleys');
+
+    const first = processPiratesForCompletedRound(state, new EventBus());
+    const replay = processPiratesForCompletedRound(first.state, new EventBus());
+
+    expect(first.state.pirates!.activatedTurn).toBe(12);
+    expect(first.state.pirates!.nextSpawnCheckTurn).toBe(16);
+    expect(first.state.pirates!.activationWarningDeliveredByCiv).toEqual({ player: true, 'ai-1': true });
+    expect(first.state.notificationLog!.player.filter(entry => /pirate waters/i.test(entry.message))).toHaveLength(1);
+    expect(replay.state.notificationLog!.player.filter(entry => /pirate waters/i.test(entry.message))).toHaveLength(1);
+    expect(replay.state.pirates!.nextSpawnCheckTurn).toBe(16);
+  });
+
   it('uses the approved phase order and final ship positions for same-round raids and blockades', () => {
     const state = fixture();
     addCity(state);
