@@ -81,6 +81,8 @@ export interface SelectedUnitInfoCallbacks {
    * unit and a Cancel button, instead of the normal cargo list.
    */
   pendingUnloadUnitName?: string;
+  getPirateAssaultAction?: (unitId: string) => { factionId: string; label: string } | null;
+  onOpenPirateAssault?: (factionId: string, unitId: string) => void;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -464,6 +466,15 @@ export function renderSelectedUnitInfo(
 
   if (canHeal(unit) && !unit.hasMoved && !unit.hasActed && unit.movementPointsLeft > 0 && callbacks.onRest) {
     actionsDiv.appendChild(makeButton('Rest (+15 HP)', '#4a90d9', callbacks.onRest));
+  }
+
+  const pirateAssault = callbacks.getPirateAssaultAction?.(unitId);
+  if (pirateAssault && callbacks.onOpenPirateAssault) {
+    actionsDiv.appendChild(makeButton(
+      pirateAssault.label,
+      '#8b2635',
+      () => callbacks.onOpenPirateAssault?.(pirateAssault.factionId, unitId),
+    ));
   }
 
   if (unit.movementPointsLeft > 0 && !unit.hasActed && !unit.skippedTurn && callbacks.onSkipTurn) {

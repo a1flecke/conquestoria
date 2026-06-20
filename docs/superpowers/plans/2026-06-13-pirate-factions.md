@@ -894,7 +894,7 @@ git commit -m "feat(pirates): add private intel and notifications"
 - Modify: `tests/ui/selected-unit-info.test.ts`
 - Modify: `tests/main.integration.test.ts`
 
-- [ ] **Step 1: Write rendered interaction tests before panel code**
+- [x] **Step 1: Write rendered interaction tests before panel code**
 
 Tests must perform real clicks and inspect current DOM after:
 
@@ -957,6 +957,8 @@ git commit -m "feat(pirates): add Pirate Waters interface"
 **Files:**
 
 - Create: `src/renderer/pirate-headquarters-presentation.ts`
+- Create: `src/input/pirate-headquarters-selection.ts`
+- Create: `src/ui/pirate-headquarters-assault-panel.ts`
 - Modify: `src/renderer/render-loop.ts`
 - Modify: `src/input/mouse-handler.ts`
 - Modify: `src/input/touch-handler.ts`
@@ -966,7 +968,7 @@ git commit -m "feat(pirates): add Pirate Waters interface"
 - Create: `tests/input/pirate-headquarters-selection.test.ts`
 - Modify: `tests/input/pirate-headquarters-assault.test.ts`
 
-- [ ] **Step 1: Write red viewer-scope and interaction tests**
+- [x] **Step 1: Write red viewer-scope and interaction tests**
 
 Assert:
 
@@ -979,13 +981,13 @@ Assert:
 - preview displays integrity damage, counterfire, action consumption, and destruction bounty;
 - applying assault rerenders map, unit info, and dossier immediately.
 
-- [ ] **Step 2: Run red tests**
+- [x] **Step 2: Run red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/renderer/pirate-headquarters-presentation.test.ts tests/input/pirate-headquarters-selection.test.ts tests/input/pirate-headquarters-assault.test.ts
 ```
 
-- [ ] **Step 3: Implement viewer-scoped landmark entities**
+- [x] **Step 3: Implement viewer-scoped landmark entities**
 
 ```ts
 export interface PirateHeadquartersMapEntity {
@@ -1003,11 +1005,11 @@ export interface PirateHeadquartersMapEntity {
 
 Only exact earned coordinates become entities. Approximate rumor regions remain Canvas/UI markers and never become clickable exact headquarters.
 
-- [ ] **Step 4: Reuse the canonical assault preview flow**
+- [x] **Step 4: Reuse the canonical assault preview flow**
 
 The selected-unit surface opens `pirate-headquarters-assault.ts`; it does not calculate damage or eligibility itself. Repeat-click after a first assault must use current integrity and unit action state.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/renderer/pirate-headquarters-presentation.ts src/renderer/render-loop.ts src/input/mouse-handler.ts src/input/touch-handler.ts src/ui/selected-unit-info.ts src/main.ts

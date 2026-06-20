@@ -4,6 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import {
   confirmPirateHeadquartersAssault,
+  findAvailablePirateHeadquartersAssault,
   preparePirateHeadquartersAssault,
 } from '@/input/pirate-headquarters-assault';
 
@@ -35,6 +36,25 @@ function fixture(): GameState {
 }
 
 describe('pirate headquarters assault input flow', () => {
+  it('offers an assault only from current viewer intel and an eligible adjacent unit', () => {
+    const state = fixture();
+    state.civilizations.player.visibility.tiles['5,5'] = 'visible';
+    state.pirates!.intelByCiv.player = {
+      'pirate-1': {
+        factionId: 'pirate-1', level: 'sighted', discoveredRound: 1, lastUpdatedRound: 1,
+        lastKnownHeadquarters: {
+          kind: 'coastal-enclave', position: { q: 5, r: 5 }, observedRound: 1, integrityBand: 'healthy',
+        },
+        knownBehavior: 'raiding', knownMaritimeStage: 3, observedUnitIds: [],
+      },
+    };
+
+    expect(findAvailablePirateHeadquartersAssault(state, 'player', 'attacker')).toMatchObject({
+      factionId: 'pirate-1', unitId: 'attacker', preview: { available: true },
+    });
+    expect(findAvailablePirateHeadquartersAssault(state, 'ai-1', 'attacker')).toBeNull();
+  });
+
   it('previews first and revalidates the current state when confirmed', () => {
     const state = fixture();
     const pending = preparePirateHeadquartersAssault(state, 'pirate-1', 'attacker');

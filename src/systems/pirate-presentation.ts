@@ -26,7 +26,7 @@ export interface PirateHeadquartersPresentation {
   position: HexCoord;
   observedRound: number;
   current: boolean;
-  integrityBand?: 'healthy' | 'damaged' | 'critical';
+  integrityBand?: 'healthy' | 'worn' | 'damaged' | 'critical';
 }
 
 export interface PirateFactionPresentation {
@@ -64,9 +64,10 @@ export interface PirateWatersPresentation {
   selectedHistoryId?: string;
 }
 
-function integrityBand(integrity: number, maximum: number): 'healthy' | 'damaged' | 'critical' {
+function integrityBand(integrity: number, maximum: number): 'healthy' | 'worn' | 'damaged' | 'critical' {
   const ratio = maximum > 0 ? integrity / maximum : 0;
-  if (ratio > 0.65) return 'healthy';
+  if (ratio > 0.75) return 'healthy';
+  if (ratio > 0.5) return 'worn';
   if (ratio > 0.25) return 'damaged';
   return 'critical';
 }
