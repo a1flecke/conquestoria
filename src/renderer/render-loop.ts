@@ -23,6 +23,10 @@ import {
   civTypeToFaction,
 } from './civilization-visual-family';
 import { buildTerrainLabelSuppressionSet } from './terrain-label-presentation';
+import {
+  buildPirateHeadquartersMapPresentation,
+  drawPirateHeadquartersMapPresentation,
+} from './pirate-headquarters-presentation';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
@@ -96,6 +100,7 @@ export class RenderLoop {
   private spriteOverlay: SpriteOverlay | null = null;
   private touchHandlerRef: { isPinching: boolean } | null = null;
   private selectedUnitId: string | null = null;
+  private selectedPirateFactionId: string | null = null;
 
   setTouchHandler(th: { isPinching: boolean }): void {
     this.touchHandlerRef = th;
@@ -103,6 +108,10 @@ export class RenderLoop {
 
   setSelectedUnitId(unitId: string | null): void {
     this.selectedUnitId = unitId;
+  }
+
+  setSelectedPirateFactionId(factionId: string | null): void {
+    this.selectedPirateFactionId = factionId;
   }
 
   setHighlights(highlights: HexHighlight[]): void {
@@ -271,6 +280,11 @@ export class RenderLoop {
           this.selectedUnitId,
         )
       : [];
+    const pirateHeadquartersPresentation = buildPirateHeadquartersMapPresentation(
+      this.state,
+      viewerId,
+      this.selectedPirateFactionId,
+    );
     const movingVisibleCoords = viewerVisibility
       ? this.unitMovementAnimations.flatMap(animation => [animation.from, animation.to])
           .filter(coord => getVisibility(viewerVisibility, coord) !== 'unexplored')
@@ -281,6 +295,7 @@ export class RenderLoop {
       visibleUnitCoords: [
         ...unitPresentations.map(presentation => presentation.coord),
         ...movingVisibleCoords,
+        ...pirateHeadquartersPresentation.entities.map(entity => entity.coord),
       ],
       villagePositions,
       beastLairPositions: new Set(beastLairGlyphs?.keys() ?? []),
@@ -366,6 +381,13 @@ export class RenderLoop {
     // Draw trade route lines (after cities, before units)
     this.drawTradeRouteLines(viewerId);
 
+    drawPirateHeadquartersMapPresentation(
+      this.ctx,
+      { entities: pirateHeadquartersPresentation.entities, regions: [] },
+      this.camera,
+      this.state.map,
+    );
+
     // Prepare and draw units. Static high-zoom stacks may use DOM; movement stays Canvas below fog.
     if (viewerVisibility) {
       const colorLookup: Record<string, string> = { barbarian: '#8b4513' };
@@ -436,6 +458,13 @@ export class RenderLoop {
         this.state.map.wrapsHorizontally,
       );
     }
+
+    drawPirateHeadquartersMapPresentation(
+      this.ctx,
+      { entities: [], regions: pirateHeadquartersPresentation.regions },
+      this.camera,
+      this.state.map,
+    );
 
     // Draw animations
     this.animations.update(this.ctx, performance.now());

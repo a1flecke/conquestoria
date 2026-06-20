@@ -1246,3 +1246,27 @@ describe('renderSelectedUnitInfo — unit upkeep display', () => {
     expect(allText).not.toContain('💰/turn');
   });
 });
+
+describe('renderSelectedUnitInfo — pirate enclave assault', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows the canonical assault action supplied by the live controller', () => {
+    const state = createNewGame(undefined, 'pirate-unit-action', 'small');
+    const unit = createUnit('trireme', 'player', { q: 0, r: 0 }, state.idCounters);
+    state.units[unit.id] = unit;
+    state.civilizations.player.units = [unit.id];
+    let opened = false;
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, unit.id, {
+      getPirateAssaultAction: () => ({ factionId: 'pirate-1', label: 'Assault The Red Wake enclave' }),
+      onOpenPirateAssault: () => { opened = true; },
+    });
+
+    const button = findButtons(container).find(candidate => candidate.textContent.includes('Assault The Red Wake enclave'));
+    expect(button).toBeTruthy();
+    button?.click();
+    expect(opened).toBe(true);
+  });
+});

@@ -67,6 +67,13 @@ import { createGameButton } from '@/ui/ui-kit';
 import { getPirateWatersPresentation, type PirateFocusTarget } from '@/systems/pirate-presentation';
 import { hirePirateFlotilla, payPirateTribute, type PirateActionResult } from '@/systems/pirate-actions';
 import { markNotificationRead, resolvePirateNotificationReview } from '@/ui/pirate-notification-listeners';
+import { resolvePirateHeadquartersSelection } from '@/input/pirate-headquarters-selection';
+import {
+  confirmPirateHeadquartersAssault,
+  findAvailablePirateHeadquartersAssault,
+  preparePirateHeadquartersAssault,
+} from '@/input/pirate-headquarters-assault';
+import { createPirateHeadquartersAssaultPanel } from '@/ui/pirate-headquarters-assault-panel';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
@@ -631,17 +638,25 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
     const factionId = selectedPirateFactionId && base.factions.some(faction => faction.factionId === selectedPirateFactionId)
       ? selectedPirateFactionId
       : base.factions[0]?.factionId;
-    const historyId = selectedPirateHistoryId && base.history.some(entry => entry.id === selectedPirateHistoryId)
+    let historyId = selectedPirateHistoryId && base.history.some(entry => entry.id === selectedPirateHistoryId)
       ? selectedPirateHistoryId
       : undefined;
+    if (!historyId && selectedPirateFactionId && !base.factions.some(faction => faction.factionId === selectedPirateFactionId)) {
+      historyId = [...base.history].reverse().find(entry => entry.factionId === selectedPirateFactionId)?.id;
+      selectedPirateHistoryId = historyId ?? null;
+    }
     if (!historyId) selectedPirateFactionId = factionId ?? null;
+    renderLoop.setSelectedPirateFactionId(historyId ? null : (factionId ?? null));
     const presentation = {
       ...base,
       ...(factionId && !historyId ? { selectedFactionId: factionId } : {}),
       ...(historyId ? { selectedHistoryId: historyId } : {}),
     };
     createPirateWatersPanel(uiLayer, presentation, {
-      onClose: () => document.getElementById('pirate-waters-panel')?.remove(),
+      onClose: () => {
+        document.getElementById('pirate-waters-panel')?.remove();
+        renderLoop.setSelectedPirateFactionId(null);
+      },
       onSelectFaction: nextFactionId => {
         selectedPirateFactionId = nextFactionId;
         selectedPirateHistoryId = null;
@@ -666,6 +681,13 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
         return result;
       },
       onOpenAssault: faction => {
+        if (selectedUnitId) {
+          const pending = preparePirateHeadquartersAssault(gameState, faction, selectedUnitId);
+          if (pending.preview.available) {
+            openPirateHeadquartersAssault(faction, selectedUnitId);
+            return;
+          }
+        }
         const target = base.factions.find(entry => entry.factionId === faction)?.focusTarget;
         if (target) focusPirateTarget(target);
         showNotification('Select an adjacent available naval combat unit to assault this enclave.', 'info');
@@ -674,6 +696,41 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
   };
 
   renderPanel();
+}
+
+function openPirateHeadquartersAssault(factionId: string, unitId: string): void {
+  const pending = preparePirateHeadquartersAssault(gameState, factionId, unitId);
+  if (!pending.preview.available) {
+    showNotification(pending.preview.reason ?? 'This enclave cannot be assaulted now.', 'warning');
+    return;
+  }
+  const panel = createPirateHeadquartersAssaultPanel(uiLayer, pending, {
+    onCancel: () => panel.remove(),
+    onConfirm: () => {
+      const result = confirmPirateHeadquartersAssault(gameState, pending);
+      if (!result.success) {
+        panel.remove();
+        showNotification(result.reason ?? 'The assault is no longer available.', 'warning');
+        if (gameState.units[unitId]) selectUnit(unitId);
+        return;
+      }
+      gameState = result.state;
+      panel.remove();
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      SFX.combat();
+      const bountyAwarded = result.events.find(event => event.type === 'faction-destroyed')?.bountyAwarded ?? 0;
+      showNotification(
+        result.destroyed
+          ? `Pirate enclave destroyed. Bounty awarded: ${bountyAwarded} gold.`
+          : `Pirate enclave damaged for ${result.damageToHeadquarters ?? 0} integrity.`,
+        result.destroyed ? 'success' : 'info',
+      );
+      if (gameState.units[unitId]) selectUnit(unitId);
+      else deselectUnit();
+      openPirateWaters({ factionId });
+    },
+  });
 }
 
 function displayNextNotification(): void {
@@ -1610,6 +1667,14 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
         if (selectedUnitId) selectUnit(selectedUnitId);
       },
       pendingUnloadUnitName: opts?.pendingUnloadUnitName,
+      getPirateAssaultAction: uid => {
+        const pending = findAvailablePirateHeadquartersAssault(gameState, gameState.currentPlayer, uid);
+        if (!pending) return null;
+        const faction = getPirateWatersPresentation(gameState, gameState.currentPlayer).factions
+          .find(entry => entry.factionId === pending.factionId);
+        return { factionId: pending.factionId, label: `Assault ${faction?.name ?? 'pirate'} enclave` };
+      },
+      onOpenPirateAssault: (factionId, uid) => openPirateHeadquartersAssault(factionId, uid),
       onLoadTransport: (uid, transportId) => {
         const prevPos = gameState.units[uid]?.position;
         const result = loadUnitOntoTransport(gameState, uid, transportId);
@@ -2446,6 +2511,19 @@ function handleHexTap(rawCoord: HexCoord): void {
     return;
   }
   const key = hexKey(coord);
+
+  if (!selectedUnitId) {
+    const pirateSelection = resolvePirateHeadquartersSelection(gameState, gameState.currentPlayer, coord);
+    if (pirateSelection?.kind === 'faction') {
+      openPirateWaters({ factionId: pirateSelection.factionId });
+      return;
+    }
+    if (pirateSelection?.kind === 'region') {
+      renderLoop.camera.centerOn(pirateSelection.center);
+      openPirateWaters({ factionId: pirateSelection.factionId });
+      return;
+    }
+  }
 
   if (isUnitAnimationLocked(selectedUnitId)) {
     showNotification('Unit is moving.', 'info');

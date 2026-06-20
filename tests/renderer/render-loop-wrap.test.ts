@@ -4,6 +4,7 @@ const rendererMocks = vi.hoisted(() => ({
   drawHexHighlight: vi.fn(),
   drawMinorCivTerritory: vi.fn(),
   drawUnitGlyph: vi.fn(),
+  drawPirateHeadquarters: vi.fn(),
 }));
 
 vi.mock('@/renderer/hex-renderer', async (importOriginal) => {
@@ -30,6 +31,14 @@ vi.mock('@/renderer/unit-renderer', () => ({
   drawUnitPresentations: vi.fn(),
   drawUnitGlyph: rendererMocks.drawUnitGlyph,
 }));
+
+vi.mock('@/renderer/pirate-headquarters-presentation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/renderer/pirate-headquarters-presentation')>();
+  return {
+    ...actual,
+    drawPirateHeadquartersMapPresentation: rendererMocks.drawPirateHeadquarters,
+  };
+});
 
 import { RenderLoop } from '@/renderer/render-loop';
 import type { GameState, Unit } from '@/core/types';
@@ -123,6 +132,38 @@ describe('render-loop wrap parity', () => {
       state.civilizations.player.visibility,
       'player',
       'mc-sparta',
+    );
+  });
+
+  it('passes viewer-scoped pirate headquarters presentation into the map layer', () => {
+    rendererMocks.drawPirateHeadquarters.mockReset();
+    const loop = new RenderLoop(createCanvas());
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {}, cities: {}, units: {},
+      pirates: { version: 1, factions: {}, history: [], pressure: { value: 0, suppression: [] }, intelByCiv: {}, nextSpawnCheckTurn: 1 },
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: {} } } },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    loop.setSelectedPirateFactionId('pirate-1');
+    (loop as unknown as { render: () => void }).render();
+
+    expect(rendererMocks.drawPirateHeadquarters).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      expect.objectContaining({ entities: expect.any(Array), regions: [] }),
+      expect.anything(),
+      state.map,
+    );
+    expect(rendererMocks.drawPirateHeadquarters).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({ entities: [], regions: expect.any(Array) }),
+      expect.anything(),
+      state.map,
     );
   });
 

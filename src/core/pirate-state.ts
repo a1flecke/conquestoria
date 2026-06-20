@@ -109,7 +109,7 @@ export interface PirateHeadquartersIntel {
   kind: PirateHeadquarters['kind'];
   position: HexCoord;
   observedRound: number;
-  integrityBand?: 'healthy' | 'damaged' | 'critical';
+  integrityBand?: 'healthy' | 'worn' | 'damaged' | 'critical';
 }
 
 export interface PirateFactionIntel {
