@@ -131,6 +131,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       totalGold += yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
       const availableResources = getCivAvailableResources(newState, civId);
+      const npKeysForCiv = new Set(
+        Object.keys(newState.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
+      );
       const result = processCity(
         city,
         newState.map,
@@ -141,6 +144,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         civ.civType,
         newState.era,
         availableResources,
+        npKeysForCiv,
       );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;

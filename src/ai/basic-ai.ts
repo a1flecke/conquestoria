@@ -230,7 +230,18 @@ function chooseLegendaryWonderFallback(
   const civDef = resolveCivDefinition(state, civilization.civType ?? '');
   const yields = calculateProjectedCityYields(state, cityId, civDef?.bonusEffect);
   const civResources = getCivAvailableResources(state, civId);
-  const availableBuildings = getAvailableBuildings(city, civilization.techState.completed, state.map, civResources).map(building => building.id);
+  const builtNPKeys = new Set(
+    Object.keys(state.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
+  );
+  const availableBuildings = getAvailableBuildings(
+    city,
+    civilization.techState.completed,
+    state.map,
+    civResources,
+    state.era,
+    builtNPKeys,
+    civId,
+  ).map(building => building.id);
   const atWar = civilization.diplomacy.atWarWith.length > 0;
 
   if (yields.food <= city.population) {
@@ -709,11 +720,17 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         civ.civType,
         civAvailableResources,
       ).map(u => u.type as string);
+      const aiNPKeys = new Set(
+        Object.keys(newState.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
+      );
       const availableBuildingsList = getAvailableBuildings(
         city,
         civ.techState.completed,
         newState.map,
         civAvailableResources,
+        newState.era,
+        aiNPKeys,
+        civId,
       ).map(b => b.id);
       const derivedItems = [...trainableUnits, ...availableBuildingsList];
 
