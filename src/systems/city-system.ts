@@ -522,6 +522,9 @@ export function getAvailableBuildings(
   completedTechs: string[],
   map: GameMap,
   availableResources?: Set<ResourceType>,
+  era?: number,
+  builtNationalProjectKeys?: Set<string>,
+  civId?: string,
 ): Building[] {
   const coastal = isCityCoastal(city, map);
   return Object.values(BUILDINGS).filter(b => {
@@ -530,6 +533,14 @@ export function getAvailableBuildings(
     if (b.coastalRequired && !coastal) return false;
     if (availableResources !== undefined && b.resourceRequired?.length) {
       if (!b.resourceRequired.every(r => availableResources.has(r))) return false;
+    }
+    if (b.requiresBuildings?.length) {
+      if (!b.requiresBuildings.every((req: string) => city.buildings.includes(req))) return false;
+    }
+    if (b.nationalProject) {
+      const currentEra = era ?? 1;
+      if (currentEra < b.nationalProject.homeEra || currentEra > b.nationalProject.homeEra + 1) return false;
+      if (b.uniquePerEmpire && civId && builtNationalProjectKeys?.has(`${civId}:${b.id}`)) return false;
     }
     return true;
   });
@@ -605,6 +616,7 @@ export function processCity(
   civType?: string,
   era: number = 1,
   availableResources?: Set<ResourceType>,
+  builtNationalProjectKeys?: Set<string>,
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -656,6 +668,21 @@ export function processCity(
       newQueue.length = 0;
       newQueue.push(...filtered);
       if (filtered.length === 0) newProgress = 0;
+    }
+  }
+
+  // Belt-and-suspenders: dequeue NPs outside their build window
+  if (era > 1) {
+    const beforeNP = newQueue.length;
+    const filteredNP = newQueue.filter((item: string) => {
+      const bldg = BUILDINGS[item];
+      if (!bldg?.nationalProject) return true;
+      return era >= bldg.nationalProject.homeEra && era <= bldg.nationalProject.homeEra + 1;
+    });
+    if (filteredNP.length !== beforeNP) {
+      newQueue.length = 0;
+      newQueue.push(...filteredNP);
+      if (filteredNP.length === 0) newProgress = 0;
     }
   }
 

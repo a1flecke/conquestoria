@@ -176,7 +176,18 @@ export function createCityPanel(
     bonusEffect: civDef?.bonusEffect,
     era: state.era,
   });
-  const availableBuildings = getAvailableBuildings(city, currentCiv.techState.completed, state.map, playerResources);
+  const builtNPKeys = new Set(
+    Object.keys(state.builtNationalProjects ?? {}).filter(k => k.startsWith(`${city.owner}:`))
+  );
+  const availableBuildings = getAvailableBuildings(
+    city,
+    currentCiv.techState.completed,
+    state.map,
+    playerResources,
+    state.era,
+    builtNPKeys,
+    city.owner,
+  );
   const cityWonderEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, city.id);
   const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);
   const activeLegendaryEntry = city.productionQueue[0]?.startsWith('legendary:')
