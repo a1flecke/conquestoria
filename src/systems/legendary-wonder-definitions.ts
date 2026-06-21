@@ -358,6 +358,93 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { gold: 4 },
     },
   },
+  'palace-of-the-sun': {
+    id: 'palace-of-the-sun',
+    name: 'Palace of the Sun',
+    era: 6,
+    productionCost: 265,
+    requiredTechs: ['baroque-music', 'separation-of-powers'],
+    requiredResources: ['gold_resource'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'gold-treasury',
+        type: 'research_count',
+        track: 'economy',
+        targetCount: 4,
+        description: 'Complete 4 economy technologies.',
+      },
+      {
+        id: 'grand-cities',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 3,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 5,
+        description: 'Develop 3 cities to at least 5 buildings each.',
+      },
+    ],
+    reward: {
+      summary: '+5 gold and +1 production empire-wide each turn.',
+      civYieldBonus: { gold: 5, production: 1 },
+    },
+  },
+  'iron-arsenal': {
+    id: 'iron-arsenal',
+    name: 'Iron Arsenal',
+    era: 6,
+    productionCost: 265,
+    requiredTechs: ['precision-casting', 'fortification-engineering'],
+    requiredResources: ['iron'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'military-techs',
+        type: 'research_count',
+        track: 'military',
+        targetCount: 4,
+        description: 'Complete 4 military technologies.',
+      },
+      {
+        id: 'strongholds',
+        type: 'defeat_stronghold',
+        targetCount: 2,
+        description: 'Defeat 2 enemy strongholds or fortified cities.',
+      },
+    ],
+    reward: {
+      summary: '+3 production empire-wide each turn. Military production powerhouse.',
+      civYieldBonus: { production: 3 },
+    },
+  },
+  'merchant-admiralty': {
+    id: 'merchant-admiralty',
+    name: 'Merchant Admiralty',
+    era: 6,
+    productionCost: 265,
+    requiredTechs: ['trade-winds', 'frigate-construction'],
+    requiredResources: [],
+    cityRequirement: 'coastal',
+    questSteps: [
+      {
+        id: 'naval-routes',
+        type: 'trade-routes-established',
+        targetCount: 3,
+        routeRequirement: 'coastal',
+        description: 'Establish 3 coastal or overseas trade routes.',
+      },
+      {
+        id: 'maritime-techs',
+        type: 'research_count',
+        track: 'maritime',
+        targetCount: 3,
+        description: 'Complete 3 maritime technologies.',
+      },
+    ],
+    reward: {
+      summary: '+6 gold empire-wide each turn. Maritime trading supremacy.',
+      civYieldBonus: { gold: 6 },
+    },
+  },
 };
 
 export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = getApprovedM4LegendaryWonderRoster().map(entry => {

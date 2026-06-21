@@ -99,6 +99,9 @@ describe('legendary wonder landmark catalog', () => {
       ['sistine-vault', 'sistine-vault-bespoke'],
       ['codex-eternal', 'codex-eternal-bespoke'],
       ['navigators-compass', 'navigators-compass-bespoke'],
+      ['palace-of-the-sun', 'palace-of-the-sun-bespoke'],
+      ['iron-arsenal', 'iron-arsenal-bespoke'],
+      ['merchant-admiralty', 'merchant-admiralty-bespoke'],
     ]);
   });
 
