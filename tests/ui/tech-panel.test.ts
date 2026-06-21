@@ -57,7 +57,7 @@ describe('tech-panel', () => {
     });
 
     expect(panel.querySelector('[data-era="5"]')).toBeTruthy();
-    expect(panel.textContent).toContain('Late Era Foundations');
+    expect(panel.textContent).toContain('Early Modern');
   });
 
   it('shows ETA language for the active research summary', () => {
