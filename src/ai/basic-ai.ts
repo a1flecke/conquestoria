@@ -734,6 +734,32 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       ).map(b => b.id);
       const derivedItems = [...trainableUnits, ...availableBuildingsList];
 
+      // National project priority: queue matching NP if city is idle and personality aligns
+      const availableNPs = getAvailableBuildings(
+        city,
+        civ.techState.completed,
+        newState.map,
+        civAvailableResources,
+        newState.era,
+        aiNPKeys,
+        civId,
+      ).filter(b => b.nationalProject);
+      if (availableNPs.length > 0) {
+        const primaryTrait = resolveCivDefinition(newState, civ.civType ?? '')?.personality?.traits?.[0];
+        const bestNP = availableNPs.find(np => {
+          if (primaryTrait === 'aggressive' && (np.civYieldBonus?.production ?? 0) > 0) return true;
+          if (primaryTrait === 'trader' && (np.civYieldBonus?.gold ?? 0) > 0) return true;
+          return false;
+        }) ?? availableNPs[0];
+        if (bestNP) {
+          newState = {
+            ...newState,
+            cities: { ...newState.cities, [cityId]: { ...city, productionQueue: [bestNP.id] } },
+          };
+          continue;
+        }
+      }
+
       // Prioritise caravan training when conditions are met
       const hasTradeTech = civ.techState.completed.includes('trade-routes');
       const hasRouteCapacity = civ.cities.some(cid => {
