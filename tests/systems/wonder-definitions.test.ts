@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { WONDER_DEFINITIONS, getWonderDefinition } from '@/systems/wonder-definitions';
+import { LEGENDARY_WONDER_DEFINITIONS } from '@/systems/legendary-wonder-definitions';
+
+const ALL_WONDER_DEFINITIONS = LEGENDARY_WONDER_DEFINITIONS;
 
 describe('Wonder Definitions', () => {
   it('has exactly 15 wonders', () => {
@@ -38,4 +41,38 @@ describe('Wonder Definitions', () => {
   it('getWonderDefinition returns undefined for unknown ID', () => {
     expect(getWonderDefinition('nonexistent')).toBeUndefined();
   });
+});
+
+const RELOCATED_STUB_IDS = new Set([
+  'global-logistics', 'nuclear-theory', 'mass-media',
+  'digital-surveillance', 'cyber-warfare', 'amphibious-warfare',
+]);
+
+describe('era <= 7 wonders do not reference relocated tech stubs', () => {
+  const activeWonders = ALL_WONDER_DEFINITIONS.filter(w => w.era <= 7);
+  for (const w of activeWonders) {
+    it(`${w.id} uses no relocated tech IDs`, () => {
+      for (const techId of w.requiredTechs) {
+        expect(RELOCATED_STUB_IDS.has(techId), `${w.id} references relocated ${techId}`).toBe(false);
+      }
+    });
+  }
+});
+
+describe('wonder yield ceilings', () => {
+  for (const w of ALL_WONDER_DEFINITIONS) {
+    it(`${w.id} civYieldBonus single key <= 6`, () => {
+      for (const [k, v] of Object.entries(w.reward.civYieldBonus ?? {}) as [string, number][]) {
+        expect(v, `${w.id}.${k} = ${v} > 6`).toBeLessThanOrEqual(6);
+      }
+    });
+    it(`${w.id} civYieldBonus has <= 2 keys`, () => {
+      expect(Object.keys(w.reward.civYieldBonus ?? {}).length).toBeLessThanOrEqual(2);
+    });
+    it(`${w.id} cityYieldBonus single key <= 4`, () => {
+      for (const [k, v] of Object.entries(w.reward.cityYieldBonus ?? {}) as [string, number][]) {
+        expect(v, `${w.id}.${k} = ${v} > 4`).toBeLessThanOrEqual(4);
+      }
+    });
+  }
 });

@@ -6,7 +6,7 @@ export interface LateEraWonderTechRequirement {
   requiredTechs: string[];
 }
 
-const LATE_ERA_WONDER_IDS = ['manhattan-project', 'internet'] as const;
+const LATE_ERA_WONDER_IDS = ['storm-signal-spire', 'manhattan-project', 'internet'] as const;
 
 const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefinition> = {
   'oracle-of-delphi': {
@@ -218,7 +218,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
   'storm-signal-spire': {
     id: 'storm-signal-spire',
     name: 'Storm-Signal Spire',
-    era: 5,
+    era: 9,
     productionCost: 220,
     requiredTechs: ['mass-media', 'digital-surveillance'],
     requiredResources: [],
@@ -235,7 +235,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
   'manhattan-project': {
     id: 'manhattan-project',
     name: 'Manhattan Project',
-    era: 5,
+    era: 11,
     productionCost: 240,
     requiredTechs: ['nuclear-theory'],
     requiredResources: ['iron'],
@@ -253,7 +253,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
   internet: {
     id: 'internet',
     name: 'Internet',
-    era: 5,
+    era: 12,
     productionCost: 250,
     requiredTechs: ['mass-media', 'global-logistics'],
     requiredResources: [],
@@ -265,6 +265,97 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     reward: {
       summary: '+6 science and +2 gold empire-wide each turn.',
       civYieldBonus: { science: 6, gold: 2 },
+    },
+  },
+
+  // ERA 5 WONDERS
+  'sistine-vault': {
+    id: 'sistine-vault',
+    name: 'Sistine Vault',
+    era: 5,
+    productionCost: 220,
+    requiredTechs: ['renaissance-painting', 'monastic-orders'],
+    requiredResources: ['stone'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'arts-techs',
+        type: 'research_count',
+        track: 'arts',
+        targetCount: 4,
+        description: 'Complete 4 arts or spirituality technologies.',
+      },
+      {
+        id: 'city-depth',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 3,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 3,
+        description: 'Develop 3 cities with at least 3 buildings each.',
+      },
+    ],
+    reward: {
+      summary: '+3 science and +1 gold empire-wide each turn.',
+      civYieldBonus: { science: 3, gold: 1 },
+    },
+  },
+  'codex-eternal': {
+    id: 'codex-eternal',
+    name: 'Codex Eternal',
+    era: 5,
+    productionCost: 220,
+    requiredTechs: ['printing-press', 'scientific-method'],
+    requiredResources: [],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'science-techs',
+        type: 'research_count',
+        track: 'science',
+        targetCount: 4,
+        description: 'Complete 4 science technologies.',
+      },
+      {
+        id: 'libraries',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 3,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 2,
+        description: 'Build at least 2 buildings (including a library) in 3 separate cities.',
+      },
+    ],
+    reward: {
+      summary: '+4 science empire-wide each turn.',
+      civYieldBonus: { science: 4 },
+    },
+  },
+  'navigators-compass': {
+    id: 'navigators-compass',
+    name: "Navigator's Compass",
+    era: 5,
+    productionCost: 220,
+    requiredTechs: ['circumnavigation', 'deep-sea-routes'],
+    requiredResources: [],
+    cityRequirement: 'coastal',
+    questSteps: [
+      {
+        id: 'foreign-discoveries',
+        type: 'map-discoveries',
+        targetCount: 3,
+        discoveryTypes: ['natural-wonder', 'tribal-village'],
+        description: 'Discover 3 natural wonders or tribal villages.',
+      },
+      {
+        id: 'coastal-trade',
+        type: 'trade-routes-established',
+        targetCount: 2,
+        routeRequirement: 'coastal',
+        description: 'Establish 2 coastal trade routes.',
+      },
+    ],
+    reward: {
+      summary: '+4 gold empire-wide each turn. All newly trained naval units gain +1 movement permanently.',
+      civYieldBonus: { gold: 4 },
     },
   },
 };

@@ -16,6 +16,9 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'hall-of-champions-bespoke',
   'gate-of-the-world-bespoke',
   'manhattan-project-bespoke',
+  'sistine-vault-bespoke',
+  'codex-eternal-bespoke',
+  'navigators-compass-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -51,6 +54,9 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'hall-of-champions-bespoke': { key: 'hall-of-champions-bespoke', draw: drawHallOfChampions },
   'gate-of-the-world-bespoke': { key: 'gate-of-the-world-bespoke', draw: drawGateOfTheWorld },
   'manhattan-project-bespoke': { key: 'manhattan-project-bespoke', draw: drawManhattanProject },
+  'sistine-vault-bespoke': { key: 'sistine-vault-bespoke', draw: drawSistineVault },
+  'codex-eternal-bespoke': { key: 'codex-eternal-bespoke', draw: drawCodexEternal },
+  'navigators-compass-bespoke': { key: 'navigators-compass-bespoke', draw: drawNavigatorsCompass },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -531,6 +537,115 @@ function drawManhattanProject(options: LegendaryWonderBespokeDrawOptions): void 
 
   ctx.beginPath();
   ctx.arc(cx, cy, radius * 0.1, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+function drawSistineVault(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'sistine-vault-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  // Arched vault body
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.56, cy + radius * 0.54);
+  ctx.lineTo(cx - radius * 0.56, cy - radius * 0.12);
+  ctx.arc(cx, cy - radius * 0.12, radius * 0.56, Math.PI, Math.PI * 2);
+  ctx.lineTo(cx + radius * 0.56, cy + radius * 0.54);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner arch
+  ctx.beginPath();
+  ctx.arc(cx, cy - radius * 0.04, radius * 0.34, Math.PI, Math.PI * 2);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+
+  // Columns
+  ctx.beginPath();
+  for (const x of [cx - radius * 0.38, cx + radius * 0.38]) {
+    ctx.moveTo(x, cy + radius * 0.52);
+    ctx.lineTo(x, cy - radius * 0.08);
+  }
+  ctx.strokeStyle = metadata.palette.base;
+  ctx.stroke();
+}
+
+function drawCodexEternal(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'codex-eternal-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  // Book cover
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.52, cy - radius * 0.58, radius * 1.04, radius * 1.12);
+  ctx.fill();
+  ctx.stroke();
+
+  // Spine
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.52, cy - radius * 0.58, radius * 0.14, radius * 1.12);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+
+  // Text lines
+  ctx.beginPath();
+  ctx.strokeStyle = metadata.palette.base;
+  for (let index = 0; index < 5; index += 1) {
+    const y = cy - radius * 0.36 + index * radius * 0.22;
+    ctx.moveTo(cx - radius * 0.28, y);
+    ctx.lineTo(cx + radius * 0.38, y);
+  }
+  ctx.stroke();
+}
+
+function drawNavigatorsCompass(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'navigators-compass-bespoke');
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.06);
+
+  // Outer compass ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.58, 0, Math.PI * 2);
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.stroke();
+
+  // Cardinal points
+  const angles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
+  ctx.beginPath();
+  for (const angle of angles) {
+    ctx.moveTo(cx + Math.cos(angle) * radius * 0.58, cy + Math.sin(angle) * radius * 0.58);
+    ctx.lineTo(cx + Math.cos(angle) * radius * 0.44, cy + Math.sin(angle) * radius * 0.44);
+  }
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.stroke();
+
+  // Compass needle (north pointing up)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius * 0.42);
+  ctx.lineTo(cx + radius * 0.1, cy + radius * 0.12);
+  ctx.lineTo(cx, cy + radius * 0.06);
+  ctx.closePath();
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + radius * 0.42);
+  ctx.lineTo(cx - radius * 0.1, cy - radius * 0.12);
+  ctx.lineTo(cx, cy - radius * 0.06);
+  ctx.closePath();
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fill();
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.08, 0, Math.PI * 2);
   ctx.fillStyle = metadata.palette.glow;
   ctx.fill();
 }

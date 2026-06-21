@@ -73,6 +73,17 @@ export const SFX = {
   },
   notification: () => playTone(700, 0.1, 0.1, 'triangle'),
   error: () => playTone(200, 0.2, 0.15, 'square'),
+  nationalProjectBuilt: () => {
+    playTone(523, 0.12, 0.2);
+    setTimeout(() => playTone(659, 0.12, 0.2), 120);
+    setTimeout(() => playTone(784, 0.2, 0.25), 240);
+    setTimeout(() => playTone(1047, 0.25, 0.2), 360);
+  },
+  nationalProjectExpired: () => {
+    playTone(523, 0.15, 0.2);
+    setTimeout(() => playTone(415, 0.15, 0.2), 150);
+    setTimeout(() => playTone(349, 0.25, 0.15), 300);
+  },
   transportLoad: () => {
     if (_loader && _mixer) {
       void _loader.get(TRANSPORT_SFX.load.file)
