@@ -2,7 +2,7 @@ import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { checkDominationVictory } from '@/systems/victory-system';
 import { resetUnitTurn, createUnit, healUnit, moveUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { processCity, TRAINABLE_UNITS } from '@/systems/city-system';
+import { processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
@@ -70,6 +70,10 @@ import {
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
 import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
+import {
+  getNationalProjectCivYieldBonus,
+  expireNationalProjects,
+} from '@/systems/national-project-system';
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
@@ -160,6 +164,23 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       }
       if (result.completedBuilding) {
         bus.emit('city:building-complete', { cityId, buildingId: result.completedBuilding });
+        const completedBldg = BUILDINGS[result.completedBuilding];
+        if (completedBldg?.nationalProject && completedBldg.uniquePerEmpire) {
+          const npKey = `${civId}:${result.completedBuilding}`;
+          newState = {
+            ...newState,
+            builtNationalProjects: {
+              ...(newState.builtNationalProjects ?? {}),
+              [npKey]: { civId, cityId, eraBuilt: newState.era },
+            },
+          };
+          bus.emit('city:national-project-built', {
+            civId,
+            cityId,
+            buildingId: result.completedBuilding,
+            eraBuilt: newState.era,
+          });
+        }
       }
       if (result.droppedBuilding) {
         bus.emit('city:building-dropped', { cityId, buildingId: result.droppedBuilding });
@@ -173,6 +194,14 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       if (result.completedUnit) {
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
         const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);
+        const unitDef = UNIT_DEFINITIONS[result.completedUnit];
+        if (
+          unitDef?.domain === 'naval' &&
+          newState.completedLegendaryWonders?.['navigators-compass']?.ownerId === civId
+        ) {
+          newUnit.movementPointsLeft += 1;
+          newUnit.movementBonus = (newUnit.movementBonus ?? 0) + 1;
+        }
         newState.units[newUnit.id] = newUnit;
         newState.civilizations[civId].units.push(newUnit.id);
 
@@ -194,6 +223,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const wonderCivBonuses = getLegendaryWonderCivYieldBonus(newState, civId);
     totalScience += wonderCivBonuses.science ?? 0;
     totalGold += wonderCivBonuses.gold ?? 0;
+    const npCivBonuses = getNationalProjectCivYieldBonus(newState, civId);
+    totalScience += npCivBonuses.science ?? 0;
+    // NP gold handled in economy-system.ts to avoid double-counting
     if (civDef?.bonusEffect.type === 'allied_kingdoms') {
       const allianceCount = civ.diplomacy.treaties.filter(t => t.type === 'alliance').length;
       totalScience += allianceCount * civDef.bonusEffect.allianceYieldBonus;
@@ -983,6 +1015,40 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   const newEra = checkEraAdvancement(newState);
   if (newEra > newState.era) {
     newState.era = newEra;
+
+    const { state: afterExpiry, expired } = expireNationalProjects(newState, newEra);
+    newState = afterExpiry;
+    for (const item of expired) {
+      bus.emit('city:national-project-expired', item);
+    }
+
+    // Dequeue NPs now outside their build window (homeEra to homeEra+1)
+    for (const cityId of Object.keys(newState.cities)) {
+      const city = newState.cities[cityId];
+      if (!city) continue;
+      const staleNPs = city.productionQueue.filter((item: string) => {
+        const bldg = BUILDINGS[item];
+        return bldg?.nationalProject && newState.era > bldg.nationalProject.homeEra + 1;
+      });
+      if (staleNPs.length === 0) continue;
+      newState = {
+        ...newState,
+        cities: {
+          ...newState.cities,
+          [cityId]: {
+            ...city,
+            productionQueue: city.productionQueue.filter((item: string) => {
+              const bldg = BUILDINGS[item];
+              return !(bldg?.nationalProject && newState.era > bldg.nationalProject.homeEra + 1);
+            }),
+          },
+        },
+      };
+      for (const buildingId of staleNPs) {
+        bus.emit('city:national-project-dequeued', { civId: city.owner, cityId, buildingId });
+      }
+    }
+
     bus.emit('era:advanced', { era: newEra });
     for (const mc of Object.values(newState.minorCivs)) {
       processMinorCivEraUpgrade(newState, mc);
