@@ -13,6 +13,8 @@ set -eu
 #   yarn vitest …      → yarn vitest … --root $CURRENT_ROOT  (appended)
 #   yarn vite build …  → yarn vite build $CURRENT_ROOT …     (positional root)
 #   yarn vite …        → yarn vite $CURRENT_ROOT …           (positional root)
+#   yarn node …        → execute from $CURRENT_ROOT so relative scripts and outputs
+#                        stay in the active worktree while Yarn resolves from the parent
 #   anything else      → unchanged, but executed from $MAIN_ROOT so yarn can
 #                        find .pnp.cjs (e.g. yarn install, yarn add)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -25,9 +27,13 @@ if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ] && [ -f "$MAIN_ROO
   case "${1:-},${2:-}" in
     yarn,test)
       # Expand into the two phases so --root reaches vitest
-      (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn vitest run --root "$CURRENT_ROOT") \
+      shift 2
+      (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn vitest run --root "$CURRENT_ROOT" "$@") \
         && bash "$CURRENT_ROOT/tests/hooks/run.sh"
       exit
+      ;;
+    yarn,test:hooks)
+      exec bash "$CURRENT_ROOT/tests/hooks/run.sh"
       ;;
     yarn,build)
       # Expand so tsc targets the worktree's tsconfig; vite targets the worktree's root
@@ -53,6 +59,12 @@ if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ] && [ -f "$MAIN_ROO
           cd "$MAIN_ROOT" && exec "$MAIN_RUN" yarn vite "$CURRENT_ROOT" "$@"
           ;;
       esac
+      ;;
+    yarn,node)
+      shift 2
+      cd "$CURRENT_ROOT"
+      NODE_OPTIONS="--require $MAIN_ROOT/.pnp.cjs --experimental-loader file://$MAIN_ROOT/.pnp.loader.mjs ${NODE_OPTIONS:-}" \
+        exec mise exec -- node "$@"
       ;;
     yarn,*)
       # All other yarn sub-commands (install, add, etc.): just run from the main worktree
