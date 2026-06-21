@@ -117,6 +117,12 @@ export interface CompletedLegendaryWonder {
   turnCompleted: number;
 }
 
+export interface BuiltNationalProjectRecord {
+  civId: string;
+  cityId: string;
+  eraBuilt: number;
+}
+
 export interface DestroyedStrongholdRecord {
   civId: string;
   campId: string;
@@ -355,6 +361,11 @@ export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | '
 export type CityFocus = 'balanced' | 'food' | 'production' | 'gold' | 'science' | 'custom';
 export type CityMaturity = 'outpost' | 'village' | 'town' | 'city' | 'metropolis';
 
+export interface NationalProject {
+  homeEra: number;
+  uniquePerEmpire: true;
+}
+
 export interface Building {
   id: string;
   name: string;
@@ -367,6 +378,10 @@ export interface Building {
   pacing?: PacingMetadata;
   resourceRequired?: ResourceType[];
   routeCapacity?: number;   // trade route slots added to the FROM city; 0 or absent = none
+  requiresBuildings?: string[];   // chain of building IDs that must be built first
+  uniquePerEmpire?: true;         // only one instance per civ (used by national projects)
+  nationalProject?: NationalProject;  // present when this building is a national project
+  civYieldBonus?: Partial<ResourceYield>;  // empire-wide yield bonus while active
 }
 
 export interface OccupiedCityState {
@@ -1204,6 +1219,7 @@ export interface GameState {
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
   completedLegendaryWonders?: Record<string, CompletedLegendaryWonder>;
+  builtNationalProjects?: Record<string, BuiltNationalProjectRecord>; // key: `${civId}:${buildingId}`
   legendaryWonderHistory?: LegendaryWonderHistory;
   legendaryWonderIntel?: Record<string, LegendaryWonderIntelEntry[]>;
   espionage?: EspionageState;
@@ -1259,6 +1275,8 @@ export interface GameEvents {
   'diplomacy:league-triggered': { leagueId: string; attackerId: string; defenderId: string };
   'city:building-complete': { cityId: string; buildingId: string };
   'city:building-dropped': { cityId: string; buildingId: string };
+  'city:national-project-built': { civId: string; cityId: string; buildingId: string; eraBuilt: number };
+  'city:national-project-expired': { civId: string; cityId: string; buildingId: string };
   'city:unit-trained': { cityId: string; unitType: UnitType };
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
