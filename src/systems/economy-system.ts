@@ -12,6 +12,7 @@ import { BUILDINGS, completeCityProductionItem, getProductionCostForItem, TRAINA
 import { calculateProjectedCityYields } from './city-work-system';
 import { createSpyFromUnit, isSpyUnitType } from './espionage-system';
 import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
+import { getNationalProjectCivYieldBonus } from './national-project-system';
 import { processTradeRouteIncome } from './trade-system';
 import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
@@ -476,6 +477,8 @@ export function projectCivGrossGold(state: GameState, civId: string): number {
 
   const wonderCivBonuses = getLegendaryWonderCivYieldBonus(state, civId);
   grossGold += wonderCivBonuses.gold ?? 0;
+  const npCivBonuses = getNationalProjectCivYieldBonus(state, civId);
+  grossGold += npCivBonuses.gold ?? 0;
 
   if (civDef?.bonusEffect.type === 'allied_kingdoms') {
     const allianceCount = civ.diplomacy.treaties.filter(treaty => treaty.type === 'alliance').length;

@@ -1277,6 +1277,7 @@ export interface GameEvents {
   'city:building-dropped': { cityId: string; buildingId: string };
   'city:national-project-built': { civId: string; cityId: string; buildingId: string; eraBuilt: number };
   'city:national-project-expired': { civId: string; cityId: string; buildingId: string };
+  'city:national-project-dequeued': { civId: string; cityId: string; buildingId: string };
   'city:unit-trained': { cityId: string; unitType: UnitType };
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
