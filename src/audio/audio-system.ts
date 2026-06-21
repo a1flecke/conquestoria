@@ -12,6 +12,7 @@ import { VOICE_CATALOG, ALL_VOICE_EVENT_IDS, type VoicePackId } from './voice-ca
 import { allSfxEntries } from './sfx-catalog';
 import { SfxDirector } from './sfx-director';
 import { routeSfxComponents } from './sfx';
+import { PirateAudioDirector, type PirateAmbientStopReason } from './pirate-audio-director';
 
 export class AudioSystem {
   private loader: AudioLoader;
@@ -20,6 +21,8 @@ export class AudioSystem {
   private voiceDirector: VoiceDirector;
   private naturalWonderDirector: NaturalWonderAudioDirector;
   private sfxDirector: SfxDirector;
+  private pirateAudioDirector: PirateAudioDirector;
+  private stateProvider: (() => GameState) | null = null;
   private unsubscribers: Array<() => void> = [];
   private warCount = 0;
   private currentPlayerId = '';
@@ -44,12 +47,19 @@ export class AudioSystem {
       path => this.director.playStingerWithDuck(path),
     );
     this.sfxDirector = new SfxDirector(this.mixer, this.loader);
+    this.pirateAudioDirector = new PirateAudioDirector(
+      this.mixer,
+      this.loader,
+      path => this.director.playStingerWithDuck(path),
+      () => this.stateProvider!(),
+    );
   }
 
-  start(state: GameState, bus: EventBus): void {
+  start(state: GameState, bus: EventBus, getState: () => GameState = () => state): void {
     if (this.started) return;
     this.started = true;
     this.currentPlayerId = state.currentPlayer;
+    this.stateProvider = getState;
 
     // Snapshot civType lookup — civ identities are fixed for a game's lifetime
     for (const [id, civ] of Object.entries(state.civilizations ?? {})) {
@@ -68,7 +78,8 @@ export class AudioSystem {
     this.mixer.setStingerVolume(settings.stingerVolume ?? 1.0);
 
     this.wireEvents(bus);
-    this.sfxDirector.start(state.units, bus);
+    this.sfxDirector.start(state.units, bus, getState);
+    this.pirateAudioDirector.start(bus);
     routeSfxComponents(this.mixer, this.loader);
     this.armIosResume();
 
@@ -100,6 +111,7 @@ export class AudioSystem {
 
   setSfxEnabled(enabled: boolean): void {
     this.mixer.setSfxEnabled(enabled);
+    this.pirateAudioDirector.setEnabled(enabled);
   }
 
   setMusicVolume(volume: number): void {
@@ -154,6 +166,14 @@ export class AudioSystem {
     this.naturalWonderDirector.stopAmbient(reason);
   }
 
+  startPirateHeadquartersAmbience(factionId: string): Promise<boolean> {
+    return this.pirateAudioDirector.startHeadquartersAmbience(factionId);
+  }
+
+  stopPirateAmbience(reason: PirateAmbientStopReason): void {
+    this.pirateAudioDirector.stopAmbience(reason);
+  }
+
   dispose(): void {
     this.unsubscribers.forEach(fn => fn());
     this.unsubscribers = [];
@@ -161,11 +181,13 @@ export class AudioSystem {
     this.voiceDirector.stop();
     this.naturalWonderDirector.stopAmbient('system-disposed');
     this.sfxDirector.dispose();
+    this.pirateAudioDirector.dispose();
     this.mixer.dispose();
     this.warCount = 0;
     this.currentPlayerId = '';
     this.currentCivType = '';
     this.civTypeById = {};
+    this.stateProvider = null;
     this.started = false;
   }
 

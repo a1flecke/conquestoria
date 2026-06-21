@@ -1275,6 +1275,12 @@ export interface GameEvents {
     position: HexCoord;
     maritimeStage: PirateMaritimeStage;
   };
+  'pirate:audio-cue': {
+    cue: 'sighting' | 'raid' | 'blockade' | 'tribute' | 'contract-accepted' | 'contract-exposed';
+    factionId: string;
+    viewerIds: string[];
+  };
+  'pirate:headquarters-destroyed': { factionId: string; viewerIds: string[] };
   'city:founded': { city: City; founderId: string };
   'city:captured': { cityId: string; newOwner: string; previousOwner: string };
   'diplomacy:vassalage-offered': { fromCivId: string; toCivId: string };

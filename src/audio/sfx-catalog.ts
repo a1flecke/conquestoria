@@ -8,6 +8,7 @@ export type SfxClass =
 
 // Mirrors UnitMotionStyle in src/renderer/sprites/sprite-catalog.ts — keep in sync.
 export type LocomotionClass = 'humanoid' | 'animal' | 'naval';
+export type PirateUnitType = Extract<UnitType, `pirate_${string}`>;
 
 function real(id: string, file: string, loopEnd: number, key = 'impact'): TrackEntry {
   return { id, file, bpm: 0, key, loop: { loopStart: 0, loopEnd } };
@@ -20,8 +21,63 @@ export const MOVEMENT_SFX: Record<LocomotionClass, TrackEntry> = {
   naval:    real('sfx-naval-move-step',    'audio/sfx/naval-move-step.ogg',    0.266, 'movement'),
 };
 
+export const PIRATE_MOVEMENT_SFX: Record<PirateUnitType, TrackEntry> = {
+  pirate_galley: real('sfx-pirate-galley-movement', 'audio/sfx/pirates/galley-movement.ogg', 0.60, 'movement'),
+  pirate_corsair: real('sfx-pirate-corsair-movement', 'audio/sfx/pirates/corsair-movement.ogg', 0.60, 'movement'),
+  pirate_frigate: real('sfx-pirate-frigate-movement', 'audio/sfx/pirates/frigate-movement.ogg', 0.60, 'movement'),
+  pirate_ironclad: real('sfx-pirate-ironclad-movement', 'audio/sfx/pirates/ironclad-movement.ogg', 0.60, 'movement'),
+  pirate_fast_attack_craft: real('sfx-pirate-fast-attack-craft-movement', 'audio/sfx/pirates/fast-attack-craft-movement.ogg', 0.60, 'movement'),
+  pirate_mothership: real('sfx-pirate-mothership-movement', 'audio/sfx/pirates/mothership-movement.ogg', 0.60, 'movement'),
+};
+
+export const PIRATE_HEADQUARTERS_SFX = {
+  ambience: real('sfx-pirate-enclave-ambience', 'audio/sfx/pirates/enclave-ambience.ogg', 8.00, 'ambience'),
+  defense: real('sfx-pirate-enclave-defense', 'audio/sfx/pirates/enclave-defense.ogg', 0.80),
+  collapse: real('sfx-pirate-enclave-collapse', 'audio/sfx/pirates/enclave-collapse.ogg', 1.40, 'death'),
+} as const;
+
+export const PIRATE_STRATEGIC_SFX = {
+  sighting: real('stinger-pirate-sighting', 'audio/stinger/pirates/sighting.ogg', 1.20, 'stinger'),
+  raid: real('stinger-pirate-raid', 'audio/stinger/pirates/raid.ogg', 1.20, 'stinger'),
+  blockade: real('stinger-pirate-blockade', 'audio/stinger/pirates/blockade.ogg', 1.20, 'stinger'),
+  tribute: real('stinger-pirate-tribute', 'audio/stinger/pirates/tribute.ogg', 1.20, 'stinger'),
+  'contract-accepted': real('stinger-pirate-contract-accepted', 'audio/stinger/pirates/contract-accepted.ogg', 1.20, 'stinger'),
+  'contract-exposed': real('stinger-pirate-contract-exposed', 'audio/stinger/pirates/contract-exposed.ogg', 1.20, 'stinger'),
+} as const;
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
+
+  pirate_galley: {
+    'attack-swing': real('sfx-pirate-galley-fire', 'audio/sfx/pirates/galley-fire.ogg', 0.70),
+    'attack-impact': real('sfx-pirate-galley-impact', 'audio/sfx/pirates/galley-impact.ogg', 0.55),
+    death: real('sfx-pirate-galley-death', 'audio/sfx/pirates/galley-death.ogg', 1.10, 'death'),
+  },
+  pirate_corsair: {
+    'attack-swing': real('sfx-pirate-corsair-fire', 'audio/sfx/pirates/corsair-fire.ogg', 0.70),
+    'attack-impact': real('sfx-pirate-corsair-impact', 'audio/sfx/pirates/corsair-impact.ogg', 0.55),
+    death: real('sfx-pirate-corsair-death', 'audio/sfx/pirates/corsair-death.ogg', 1.10, 'death'),
+  },
+  pirate_frigate: {
+    'attack-swing': real('sfx-pirate-frigate-fire', 'audio/sfx/pirates/frigate-fire.ogg', 0.70),
+    'attack-impact': real('sfx-pirate-frigate-impact', 'audio/sfx/pirates/frigate-impact.ogg', 0.55),
+    death: real('sfx-pirate-frigate-death', 'audio/sfx/pirates/frigate-death.ogg', 1.10, 'death'),
+  },
+  pirate_ironclad: {
+    'attack-swing': real('sfx-pirate-ironclad-fire', 'audio/sfx/pirates/ironclad-fire.ogg', 0.70),
+    'attack-impact': real('sfx-pirate-ironclad-impact', 'audio/sfx/pirates/ironclad-impact.ogg', 0.55),
+    death: real('sfx-pirate-ironclad-death', 'audio/sfx/pirates/ironclad-death.ogg', 1.10, 'death'),
+  },
+  pirate_fast_attack_craft: {
+    'attack-swing': real('sfx-pirate-fast-attack-craft-fire', 'audio/sfx/pirates/fast-attack-craft-fire.ogg', 0.70),
+    'attack-impact': real('sfx-pirate-fast-attack-craft-impact', 'audio/sfx/pirates/fast-attack-craft-impact.ogg', 0.55),
+    death: real('sfx-pirate-fast-attack-craft-death', 'audio/sfx/pirates/fast-attack-craft-death.ogg', 1.10, 'death'),
+  },
+  pirate_mothership: {
+    'attack-swing': real('sfx-pirate-mothership-fire', 'audio/sfx/pirates/mothership-fire.ogg', 0.70),
+    'attack-impact': real('sfx-pirate-mothership-impact', 'audio/sfx/pirates/mothership-impact.ogg', 0.55),
+    death: real('sfx-pirate-mothership-death', 'audio/sfx/pirates/mothership-death.ogg', 1.10, 'death'),
+  },
 
   // === Foot Melee (attack-swing, attack-impact, death) ===
   warrior: {
@@ -263,5 +319,12 @@ export function allSfxEntries(): TrackEntry[] {
       if (entry) entries.push(entry);
     }
   }
-  return [...entries, ...Object.values(MOVEMENT_SFX), ...Object.values(TRANSPORT_SFX)];
+  return [
+    ...entries,
+    ...Object.values(MOVEMENT_SFX),
+    ...Object.values(PIRATE_MOVEMENT_SFX),
+    ...Object.values(PIRATE_HEADQUARTERS_SFX),
+    ...Object.values(PIRATE_STRATEGIC_SFX),
+    ...Object.values(TRANSPORT_SFX),
+  ];
 }

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SfxDirector } from '../../src/audio/sfx-director';
-import { UNIT_SFX, MOVEMENT_SFX } from '../../src/audio/sfx-catalog';
+import { UNIT_SFX, MOVEMENT_SFX, PIRATE_MOVEMENT_SFX } from '../../src/audio/sfx-catalog';
 import type { AudioMixer } from '../../src/audio/audio-mixer';
 import type { AudioLoader } from '../../src/audio/audio-loader';
 import type { EventBus } from '../../src/core/event-bus';
-import type { Unit, UnitType, CombatResult } from '../../src/core/types';
+import type { Unit, UnitType, CombatResult, GameState } from '../../src/core/types';
 
 // Flush 2 microtask ticks — enough for loader.get().then(playOneShot) chains to resolve
 const tick = async () => { await Promise.resolve(); await Promise.resolve(); };
@@ -42,8 +42,16 @@ function makeEventBus() {
   return { bus: { on } as unknown as EventBus, emit };
 }
 
-function makeUnit(id: string, type: UnitType): Unit {
-  return { id, type, owner: 'rome', position: { q: 0, r: 0 } } as unknown as Unit;
+function makeUnit(id: string, type: UnitType, owner = 'rome', q = 0): Unit {
+  return { id, type, owner, position: { q, r: 0 } } as unknown as Unit;
+}
+
+function stateProvider(units: Record<string, Unit>, visibility: 'visible' | 'fog' = 'visible') {
+  const state = {
+    currentPlayer: 'player', units,
+    civilizations: { player: { visibility: { tiles: { '0,0': visibility, '1,0': visibility, '3,0': visibility }, lastSeen: {} } } },
+  } as unknown as GameState;
+  return () => state;
 }
 
 function makeCombatResult(o: Partial<CombatResult> = {}): CombatResult {
@@ -197,6 +205,76 @@ describe('SfxDirector', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('rate-limits a visible multi-hex pirate move to one dedicated cue', async () => {
+    vi.useFakeTimers();
+    try {
+      const units = { p1: makeUnit('p1', 'pirate_corsair', 'pirate-1', 3) };
+      director.start(units, busHelper.bus, stateProvider(units));
+      busHelper.emit('unit:move', {
+        unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 3, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }],
+      });
+      await vi.runAllTimersAsync();
+
+      expect(mixer.playOneShot).toHaveBeenCalledTimes(1);
+      expect(loader.get).toHaveBeenCalledWith(PIRATE_MOVEMENT_SFX.pirate_corsair.file);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps off-screen pirate movement and combat silent', async () => {
+    vi.useFakeTimers();
+    try {
+      const units = {
+        a1: makeUnit('a1', 'pirate_frigate', 'pirate-1', 0),
+        d1: makeUnit('d1', 'galley', 'player', 1),
+      };
+      director.start(units, busHelper.bus, stateProvider(units, 'fog'));
+      busHelper.emit('unit:move', {
+        unitId: 'a1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+      });
+      busHelper.emit('combat:resolved', { result: makeCombatResult() });
+      await vi.runAllTimersAsync();
+
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('plays pirate fire before impact with a deterministic delay', async () => {
+    vi.useFakeTimers();
+    try {
+      const units = {
+        a1: makeUnit('a1', 'pirate_frigate', 'pirate-1', 0),
+        d1: makeUnit('d1', 'galley', 'player', 1),
+      };
+      director.start(units, busHelper.bus, stateProvider(units));
+      busHelper.emit('combat:resolved', { result: makeCombatResult() });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(loader.get).toHaveBeenCalledWith(UNIT_SFX.pirate_frigate!['attack-swing']!.file);
+      expect(loader.get).not.toHaveBeenCalledWith(UNIT_SFX.pirate_frigate!['attack-impact']!.file);
+
+      await vi.advanceTimersByTimeAsync(140);
+      expect(loader.get).toHaveBeenCalledWith(UNIT_SFX.pirate_frigate!['attack-impact']!.file);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('suppresses a duplicate unit:destroyed cue after combat death', async () => {
+    const units = { a1: makeUnit('a1', 'warrior'), d1: makeUnit('d1', 'pirate_galley', 'pirate-1', 1) };
+    director.start(units, busHelper.bus, stateProvider(units));
+    busHelper.emit('combat:resolved', { result: makeCombatResult({ defenderSurvived: false }) });
+    busHelper.emit('unit:destroyed', { unitId: 'd1', position: { q: 1, r: 0 } });
+    await tick();
+
+    const deathPath = UNIT_SFX.pirate_galley!.death!.file;
+    expect(loader.get.mock.calls.filter(([path]) => path === deathPath)).toHaveLength(1);
   });
 
   // === unit:destroyed ===
