@@ -24,7 +24,7 @@ const ERA_5_TECHS: Tech[] = [
   // ECONOMY (2)
   { id: 'guilds', name: 'Guilds', track: 'economy', cost: 150,
     prerequisites: ['banking', 'currency'],
-    unlocks: ['+1 gold per active trade route'], era: 5 },
+    unlocks: ['+1 gold per active trade route'], unlocksBuildings: ['guildhall'], era: 5 },
   { id: 'colonial-trade', name: 'Colonial Trade', track: 'economy', cost: 145,
     prerequisites: ['trade-routes', 'banking'],
     unlocks: ['Trade routes to foreign civs yield +2 gold'], era: 5 },
@@ -32,7 +32,7 @@ const ERA_5_TECHS: Tech[] = [
   // SCIENCE (2)
   { id: 'scientific-method', name: 'Scientific Method', track: 'science', cost: 155,
     prerequisites: ['astronomy', 'medicine'],
-    unlocks: ['+1 science per library empire-wide'], unlocksBuildings: ['royal_academy'], era: 5 },
+    unlocks: ['+1 science per library empire-wide'], unlocksBuildings: ['university', 'royal_academy'], era: 5 },
   { id: 'optics', name: 'Optics', track: 'science', cost: 150,
     prerequisites: ['astronomy'],
     unlocks: ['+1 vision range all units'], era: 5 },
@@ -60,7 +60,7 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['Farms yield +1 food'], era: 5 },
   { id: 'distillation', name: 'Distillation', track: 'agriculture', cost: 140,
     prerequisites: ['pottery'],
-    unlocks: ['+2 gold from luxury resources'], era: 5 },
+    unlocks: ['+2 gold from luxury resources'], unlocksBuildings: ['distillery'], era: 5 },
 
   // MEDICINE (2)
   { id: 'advanced-anatomy', name: 'Advanced Anatomy', track: 'medicine', cost: 145,
@@ -68,7 +68,7 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['Units heal +1 HP faster when idle in friendly territory'], era: 5 },
   { id: 'herbalist-guilds', name: 'Herbalist Guilds', track: 'medicine', cost: 140,
     prerequisites: ['herbalism'],
-    unlocks: ['Enables Apothecary House chain building'], era: 5 },
+    unlocks: ['Enables Apothecary House chain building'], unlocksBuildings: ['apothecary_house'], era: 5 },
 
   // PHILOSOPHY (2)
   { id: 'empiricism', name: 'Empiricism', track: 'philosophy', cost: 145,
@@ -81,7 +81,7 @@ const ERA_5_TECHS: Tech[] = [
   // ARTS (2)
   { id: 'renaissance-painting', name: 'Renaissance Painting', track: 'arts', cost: 145,
     prerequisites: ['theater'],
-    unlocks: ['+1 gold per culture building empire-wide'], era: 5 },
+    unlocks: ['+1 gold per culture building empire-wide'], unlocksBuildings: ['art_gallery'], era: 5 },
   { id: 'classical-music-form', name: 'Classical Music Form', track: 'arts', cost: 150,
     prerequisites: ['theater'],
     unlocks: ['+1 science per culture building empire-wide'], era: 5 },
@@ -89,7 +89,7 @@ const ERA_5_TECHS: Tech[] = [
   // MARITIME (2)
   { id: 'deep-sea-routes', name: 'Deep-Sea Routes', track: 'maritime', cost: 150,
     prerequisites: ['caravels'],
-    unlocks: ['+1 gold per coastal city; naval trade reaches foreign continents'], era: 5 },
+    unlocks: ['+1 gold per coastal city; naval trade reaches foreign continents'], unlocksBuildings: ['harbour_exchange'], era: 5 },
   { id: 'naval-gunnery', name: 'Naval Gunnery', track: 'maritime', cost: 155,
     prerequisites: ['naval-warfare'],
     unlocks: ['Naval combat units gain +5 strength'], era: 5 },
@@ -97,7 +97,7 @@ const ERA_5_TECHS: Tech[] = [
   // METALLURGY (2)
   { id: 'blast-furnace-tech', name: 'Blast Furnace', track: 'metallurgy', cost: 150,
     prerequisites: ['steel-forging'],
-    unlocks: ['+1 production all cities'], era: 5 },
+    unlocks: ['+1 production all cities'], unlocksBuildings: ['blast_furnace'], era: 5 },
   { id: 'cannon-casting', name: 'Cannon Casting', track: 'metallurgy', cost: 155,
     prerequisites: ['blast-furnace-tech'],
     unlocks: ['Cannon production cost reduced by 15%'], era: 5 },
@@ -132,7 +132,7 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['+2 science in cities with a temple'], era: 5 },
   { id: 'monastic-orders', name: 'Monastic Orders', track: 'spirituality', cost: 150,
     prerequisites: ['theology-tech'],
-    unlocks: ['+1 science and +1 gold per city with temple'], era: 5 },
+    unlocks: ['+1 science and +1 gold per city with temple'], unlocksBuildings: ['monastery'], era: 5 },
 ];
 
 export const TECH_TREE_ERAS_5_7: Tech[] = [

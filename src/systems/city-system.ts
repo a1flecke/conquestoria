@@ -330,7 +330,7 @@ export const BUILDINGS: Record<string, Building> = {
   // Era 5
   royal_academy: {
     id: 'royal_academy', name: 'Royal Academy', category: 'science',
-    yields: { food: 0, production: 0, gold: 0, science: 4 }, productionCost: 48,
+    yields: { food: 0, production: 0, gold: 0, science: 4 }, productionCost: 180,
     description: 'Crown-sponsored institution of learning. +4 science all cities.',
     techRequired: 'scientific-method',
     pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
@@ -339,7 +339,7 @@ export const BUILDINGS: Record<string, Building> = {
   },
   artillery_corps_hq: {
     id: 'artillery_corps_hq', name: 'Artillery Corps HQ', category: 'military',
-    yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 48,
+    yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 175,
     description: 'Central cannon command. +2 production empire-wide. Cannon units train with bonus strength.',
     techRequired: 'black-powder',
     pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
@@ -348,12 +348,65 @@ export const BUILDINGS: Record<string, Building> = {
   },
   explorers_guild: {
     id: 'explorers_guild', name: "Explorers' Guild", category: 'economy',
-    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 48,
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 175,
     description: 'National charter for discovery. +3 gold all cities. Scouts gain +1 vision range.',
     techRequired: 'circumnavigation',
     pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 5 },
     civYieldBonus: { gold: 3 },
+  },
+
+  // ERA 5 REGULAR BUILDINGS — costs calibrated to infrastructure [6,10] / power-spike [7,11] bands
+  // at era 5 production rate of 12/turn: infrastructure max=120, power-spike max=132
+  guildhall: {
+    id: 'guildhall', name: 'Guildhall', category: 'economy',
+    yields: { food: 0, production: 2, gold: 1, science: 0 }, productionCost: 120,
+    description: 'Merchants and craftspeople guild. +2 production, +1 gold.',
+    techRequired: 'guilds',
+  },
+  university: {
+    id: 'university', name: 'University', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 4 }, productionCost: 130,
+    description: 'Advanced centre of learning. +4 science.',
+    techRequired: 'scientific-method',
+  },
+  art_gallery: {
+    id: 'art_gallery', name: 'Art Gallery', category: 'culture',
+    yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 110,
+    description: 'Gallery of renaissance masterworks. +2 gold.',
+    techRequired: 'renaissance-painting',
+  },
+  blast_furnace: {
+    id: 'blast_furnace', name: 'Blast Furnace', category: 'production',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 120,
+    description: 'High-temperature iron smelter. +3 production.',
+    techRequired: 'blast-furnace-tech',
+  },
+  distillery: {
+    id: 'distillery', name: 'Distillery', category: 'economy',
+    yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 108,
+    description: 'Spirit and medicine distillery. +2 gold.',
+    techRequired: 'distillation',
+  },
+  monastery: {
+    id: 'monastery', name: 'Monastery', category: 'culture',
+    yields: { food: 0, production: 0, gold: 1, science: 1 }, productionCost: 110,
+    description: 'Monastic community of scholars. +1 science, +1 gold.',
+    techRequired: 'monastic-orders',
+  },
+
+  // ERA 5 SPECIAL BUILDINGS
+  harbour_exchange: {
+    id: 'harbour_exchange', name: 'Harbour Exchange', category: 'economy',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 120,
+    description: 'Coastal trade exchange. +3 gold. Requires coastal city.',
+    techRequired: 'deep-sea-routes', coastalRequired: true,
+  },
+  apothecary_house: {
+    id: 'apothecary_house', name: 'Apothecary House', category: 'science',
+    yields: { food: 2, production: 0, gold: 0, science: 1 }, productionCost: 125,
+    description: 'Advanced herbalist practice. +2 food, +1 science. Requires Herbalist.',
+    techRequired: 'herbalist-guilds', requiresBuildings: ['herbalist'],
   },
 };
 
@@ -573,6 +626,16 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   royal_academy:        '🎓',
   artillery_corps_hq:   '💣',
   explorers_guild:      '🧭',
+  // era 5 regular buildings
+  guildhall:            '🏛️',
+  university:           '🎓',
+  art_gallery:          '🖼️',
+  blast_furnace:        '🔩',
+  distillery:           '🍶',
+  monastery:            '⛪',
+  // era 5 special buildings
+  harbour_exchange:     '⚓',
+  apothecary_house:     '🌿',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';
