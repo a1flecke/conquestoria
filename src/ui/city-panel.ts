@@ -13,6 +13,7 @@ import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from './ui-kit';
+import { getNationalProjectMultiplier } from '@/systems/national-project-system';
 import {
   getCompactLegendaryWonderEntriesForCity,
   getLegendaryWonderPresentationForCity,
@@ -215,16 +216,33 @@ export function createCityPanel(
     const b = BUILDINGS[bid];
     if (b) {
       const upkeep = cityMaintenance.rows.find(row => row.id === bid)?.upkeep ?? 0;
+      let fadingBadge = '';
+      if (b.nationalProject && b.uniquePerEmpire) {
+        const record = state.builtNationalProjects?.[`${city.owner}:${bid}`];
+        if (record) {
+          const multiplier = getNationalProjectMultiplier(state.era, record.eraBuilt);
+          if (multiplier === 0.5) {
+            fadingBadge = ' <span style="color:#f0c040;font-size:10px;" title="This institution is losing relevance and will expire next era.">⏳ (fading)</span>';
+          }
+        }
+      }
       buildingPlaceholders += `<div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:4px;font-size:12px;">
-        <strong data-text="bldg-name-${idx}"></strong> — <span data-text="bldg-desc-${idx}"></span>
+        <strong data-text="bldg-name-${idx}"></strong>${fadingBadge} — <span data-text="bldg-desc-${idx}"></span>
         <div style="font-size:11px;opacity:0.72;margin-top:3px;" data-text="bldg-upkeep-${idx}">${upkeep > 0 ? `Upkeep: -${upkeep} gold/turn` : 'Free support'}</div>
       </div>`;
     }
   }
 
+  const nationalProjectBuildings = availableBuildings.filter(b => b.nationalProject);
+  const regularBuildings = availableBuildings.filter(b => !b.nationalProject);
+  const orderedBuildings = [...nationalProjectBuildings, ...regularBuildings];
+
   let buildItemPlaceholders = '';
-  for (let idx = 0; idx < availableBuildings.length; idx++) {
-    const b = availableBuildings[idx];
+  if (nationalProjectBuildings.length > 0) {
+    buildItemPlaceholders += `<div style="font-size:11px;font-weight:bold;color:#f0c040;text-transform:uppercase;letter-spacing:0.05em;padding:4px 0 2px;">National Projects</div>`;
+  }
+  for (let idx = 0; idx < orderedBuildings.length; idx++) {
+    const b = orderedBuildings[idx];
     const cost = getDisplayedCost(b.id);
     const turns = yields.production > 0 ? Math.ceil(cost / yields.production) : '∞';
     const yieldParts: string[] = [];
@@ -235,9 +253,15 @@ export function createCityPanel(
     const yieldStr = yieldParts.length > 0 ? yieldParts.join(' ') + ' · ' : '';
     const futureUpkeep = getFutureBuildingUpkeep(b.id);
     const upkeepStr = futureUpkeep > 0 ? ` · Upkeep: -${futureUpkeep}/turn` : ' · Free support';
-    buildItemPlaceholders += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
+    const isNP = !!b.nationalProject;
+    const npBorder = isNP ? 'border:1px solid rgba(240,192,64,0.5);' : 'border:1px solid rgba(255,255,255,0.2);';
+    const deadline = isNP ? ` · Era ${(b.nationalProject!.homeEra) + 1} deadline` : '';
+    if (idx === nationalProjectBuildings.length && nationalProjectBuildings.length > 0) {
+      buildItemPlaceholders += `<div style="font-size:11px;font-weight:bold;color:#aaa;text-transform:uppercase;letter-spacing:0.05em;padding:6px 0 2px;">Buildings</div>`;
+    }
+    buildItemPlaceholders += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);${npBorder}border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
       <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(b.id)} <span data-text="build-name-${idx}"></span></div>
-      <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}</div>
+      <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}${deadline}</div>
       <div style="font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></div>
     </div>`;
   }
@@ -594,7 +618,7 @@ export function createCityPanel(
     }
   }
 
-  availableBuildings.forEach((b, i) => {
+  orderedBuildings.forEach((b, i) => {
     setText(`build-name-${i}`, b.name);
     setText(`build-desc-${i}`, b.description);
   });
