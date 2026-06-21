@@ -24,3 +24,21 @@ if ! grep -q 'vitest run --root.*"\$@"' "$ROOT/scripts/run-with-mise.sh"; then
   echo "focused yarn test arguments are not preserved"
   exit 1
 fi
+for route in 'yarn,build:tauri)' 'yarn,test:web-smoke)' 'yarn,dev)' 'yarn,preview)'; do
+  if ! grep -q "$route" "$ROOT/scripts/run-with-mise.sh"; then
+    echo "missing worktree-local route: $route"
+    exit 1
+  fi
+done
+if ! grep -q 'vite build "\$CURRENT_ROOT" --mode tauri' "$ROOT/scripts/run-with-mise.sh"; then
+  echo "Tauri build does not target the active worktree"
+  exit 1
+fi
+if ! grep -q 'playwright test --config "\$CURRENT_ROOT/playwright.config.ts"' "$ROOT/scripts/run-with-mise.sh"; then
+  echo "web smoke does not target the active worktree config"
+  exit 1
+fi
+if ! grep -q "command: './scripts/run-with-mise.sh yarn dev" "$ROOT/playwright.config.ts"; then
+  echo "Playwright web server bypasses the worktree-aware command wrapper"
+  exit 1
+fi

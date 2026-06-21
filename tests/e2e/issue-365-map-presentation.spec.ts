@@ -132,14 +132,17 @@ test('moving a member out of the crowded stack preserves its rendered size', asy
   expect(moved.box.height).toBeCloseTo(before.height, 1);
 });
 
-test('mobile reduced-motion fallback keeps the crowded map usable without DOM sprites', async ({ page }, testInfo) => {
+test('mobile reduced motion keeps static DOM sprites and the crowded map usable', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await installFixture(page);
   await continueFixture(page);
 
-  await expect(page.locator('#unit-sprites > *')).toHaveCount(0);
-  await expect(page.locator('#building-sprites > *')).toHaveCount(0);
+  await expect(page.locator('#sprite-overlay')).toHaveAttribute('data-reduced-motion', 'true');
+  await expect(page.locator('#unit-sprites > *')).not.toHaveCount(0);
+  const animationDuration = await page.locator('#unit-sprites .cq-sprite-figure').first()
+    .evaluate(element => getComputedStyle(element).animationDuration);
+  expect(Number.parseFloat(animationDuration)).toBeLessThanOrEqual(0.000001);
   const canvasBox = await page.locator('#game-canvas').boundingBox();
   expect(canvasBox?.width).toBeGreaterThanOrEqual(390);
   expect(canvasBox?.height).toBeGreaterThan(500);

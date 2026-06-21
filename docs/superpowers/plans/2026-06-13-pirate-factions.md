@@ -458,9 +458,8 @@ export const PIRATE_PRESSURE = {
   wealthyGrossGold: 8,
 } as const;
 
-// Temporary branch-development gate. Task 17 deletes this constant and its
-// turn/UI condition once all gameplay, UI, renderer, and audio tasks pass.
-export const PIRATE_IMPLEMENTATION_READY = false;
+// The branch-development runtime gate described by the original plan was
+// removed in Task 17 after gameplay, UI, renderer, and audio wiring passed.
 
 export const PIRATE_NOTORIETY = {
   raiding: 2,
@@ -546,7 +545,7 @@ export function applyRegionalSuppression(state: GameState, center: HexCoord, des
 
 Candidate sorting is stable by score, then `q`, then `r`; seeded selection occurs only after sorting. Use existing wrap-aware hex helpers. Enclave anchor is legal land adjacent to navigable water and no city within four. Claimed coast additionally requires not visible to owner and no major combat unit within three. Flotilla anchor is unoccupied ocean, five from cities, eight from headquarters, with no major combat unit within four.
 
-Keep ecology callable directly in tests, but do not activate it from the live turn loop while `PIRATE_IMPLEMENTATION_READY` is false. This is the only planned temporary feature gate and is tracked as `GATE-1`.
+Keep ecology callable directly in tests. During branch development, live activation remained gated until Task 17; that gate is now removed and `GATE-1` is complete.
 
 - [x] **Step 4: Create factions and units through canonical allocators**
 
@@ -757,7 +756,7 @@ export function processPiratesForCompletedRound(
 
 `pirate-system.ts` calls the pure helpers in the approved order. `turn-manager.ts` makes one coordinator call after trade-route advancement and before final economy settlement. It may apply returned economy modifiers and emit typed events, but it must not duplicate pirate decisions.
 
-Until Task 17, the live coordinator call and Pirate Waters launcher are guarded by `PIRATE_IMPLEMENTATION_READY`. Tests invoke systems and panels directly. No partially implemented pirate entity or action appears in ordinary gameplay.
+Until Task 17, the live coordinator call and Pirate Waters launcher remained behind the branch-development gate while tests invoked systems and panels directly. Task 17 removed that gate after the complete paths passed.
 
 - [x] **Step 3: Ensure existing autonomous systems still work**
 
@@ -1439,7 +1438,7 @@ If equivalent encounter exchange counts fall outside intended bands, adjust `pir
 
 Execution note: all five stage bands and mixed old/new roster assertions pass without stat exceptions. Pirate Waters action labels, disabled reasons, focus semantics, stale-action refresh, and complete faction reachability pass their DOM suites.
 
-- [ ] **Step 6: Commit regression fixes and scenario**
+- [x] **Step 6: Commit regression fixes and scenario**
 
 ```bash
 git add tests/systems/pirate-end-to-end.test.ts tests/systems/pirate-balance.test.ts tests/main.integration.test.ts
@@ -1447,21 +1446,25 @@ git add tests/systems/pirate-end-to-end.test.ts tests/systems/pirate-balance.tes
 git commit -m "test(pirates): complete end-to-end and balance coverage"
 ```
 
+Execution note: committed as `ad78c8c`.
+
 ---
 
 ## Task 18: Close Every Placeholder And Run The Final Completion Gate
 
 **Files:** All changed files and this plan inventory.
 
-- [ ] **Additional required closure item: repair and verify worktree-aware repository scripts**
+- [x] **Additional required closure item: repair and verify worktree-aware repository scripts**
 
 Reproduce the worktree path failure that interrupted this effort, fix the owning scripts so commands resolve the active worktree rather than assuming the primary checkout, and add a regression that runs from an isolated worktree. This must be complete before the final PR.
+
+Execution note: `scripts/run-with-mise.sh` now preserves linked-worktree cwd and focused test arguments, and routes `dev`, `preview`, `build:tauri`, and `test:web-smoke` to the active worktree. `tests/hooks/run-with-mise-worktree.test.sh` passes from the isolated worktree. The initial repair was committed as `675bac1`; Task 18 added the named-script coverage after sequential artifact inspection exposed the remaining Tauri route.
 
 - [ ] **Step 1: Prove the asset inventory has zero open rows**
 
 Update every inventory row to `complete` with the verifying test/screenshot/listening record. Do not delete the inventory to make it appear empty.
 
-- [ ] **Step 2: Scan for temporary work**
+- [x] **Step 2: Scan for temporary work**
 
 ```bash
 rg -n "TODO|TBD|placeholder|temporary|temp pirate|provisional|fallback pending|Claude Design|feature flag" src tests design scripts public docs/superpowers/plans/2026-06-13-pirate-factions.md
@@ -1469,11 +1472,15 @@ rg -n "TODO|TBD|placeholder|temporary|temp pirate|provisional|fallback pending|C
 
 Review every match. Remove temporary branches/assets/comments. Keep only intentional documentation such as the closure instructions themselves and defensive runtime fallback language.
 
-- [ ] **Step 3: Prove normal paths never use placeholders or generic assets**
+Execution note: no pirate runtime placeholder or temporary asset remains. Pirate-related matches are final-art negative assertions and this closure documentation. Other matches belong to pre-existing voice/music curation, HTML input placeholders, data-text safety terminology, and unrelated renderer comments outside issue #353.
+
+- [x] **Step 3: Prove normal paths never use placeholders or generic assets**
 
 Run catalog tests proving all six pirate units and nine headquarters resolve production Canvas and v2 assets. Run SFX catalog tests proving every required family resolves an existing approved file. Run UI tests proving no unavailable action is represented by dead copy.
 
-- [ ] **Step 4: Run all required rule checks for changed source files**
+Execution note: seven focused catalog/renderer/audio/UI files pass with 206 assertions, covering all six units, nine headquarters, motion/damage selectors, 33 production OGG files, viewer routing, and action availability copy.
+
+- [x] **Step 4: Run all required rule checks for changed source files**
 
 ```bash
 scripts/check-src-rule-violations.sh $(git diff --name-only origin/main...HEAD -- 'src/**/*.ts' 'src/**/*.tsx')
@@ -1481,7 +1488,9 @@ scripts/check-src-rule-violations.sh $(git diff --name-only origin/main...HEAD -
 
 If shell glob/path behavior makes this unreliable, pass the changed source files explicitly. Fix every violation; do not weaken rules.
 
-- [ ] **Step 5: Run targeted suites, full suite, and build**
+Execution note: all 70 changed `src` files were passed explicitly to `scripts/check-src-rule-violations.sh`; the check completed with no findings.
+
+- [x] **Step 5: Run targeted suites, full suite, and build**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/core/owner-kind.test.ts tests/core/pirate-state.test.ts tests/systems/pirate-definitions.test.ts tests/systems/pirate-ecology.test.ts tests/systems/pirate-behavior.test.ts tests/systems/pirate-actions.test.ts tests/systems/pirate-system.test.ts tests/systems/pirate-presentation.test.ts tests/systems/pirate-balance.test.ts tests/systems/pirate-end-to-end.test.ts tests/storage/save-manager.test.ts tests/ai/basic-ai-pirates.test.ts tests/ui/pirate-waters-panel.test.ts tests/ui/pirate-notification-listeners.test.ts tests/input/pirate-headquarters-assault.test.ts tests/renderer/pirate-headquarters-presentation.test.ts tests/renderer/pirate-sprite-state.test.ts tests/audio/pirate-audio-director.test.ts
@@ -1490,6 +1499,8 @@ If shell glob/path behavior makes this unreliable, pass the changed source files
 ./scripts/run-with-mise.sh yarn build:tauri
 ./scripts/run-with-mise.sh yarn test:web-smoke
 ```
+
+Execution note: 132 focused tests and 4,033 full-suite tests pass. Web and Tauri builds pass; sequential artifact inspection confirms `/conquestoria/` web assets and relative `./assets/` Tauri assets. Five Chromium web-smoke tests pass after installing the pinned Playwright browser runtime.
 
 - [ ] **Step 6: Inspect committed and uncommitted diffs**
 
