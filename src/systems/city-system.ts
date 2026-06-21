@@ -204,7 +204,7 @@ export const BUILDINGS: Record<string, Building> = {
     yields: { food: 0, production: 0, gold: 6, science: 1 },
     productionCost: 120,
     description: 'Joint-stock companies finance global trade empires — adds a trade route slot and generates financial innovation.',
-    techRequired: 'global-logistics',
+    techRequired: 'joint-stock-companies',
 
     routeCapacity: 1,
   },
