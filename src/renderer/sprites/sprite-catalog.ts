@@ -214,6 +214,16 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   royal_academy:          ObservatorySprite,
   artillery_corps_hq:     ArmorySprite,
   explorers_guild:        CaravanseraiSprite,
+  // Era 5 regular buildings — placeholder sprites (unique assets in a future design pass)
+  guildhall:              MarketplaceSprite,
+  university:             ObservatorySprite,
+  art_gallery:            AmphitheaterSprite,
+  blast_furnace:          ForgeSprite,
+  distillery:             GranarySprite,
+  monastery:              TempleSprite,
+  // Era 5 special buildings — placeholder sprites
+  harbour_exchange:       HarborSprite,
+  apothecary_house:       HerbalistSprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;
