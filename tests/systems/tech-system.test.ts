@@ -20,26 +20,26 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the legacy shape after adding era-5 foundation nodes, bridge-building, and 30 new era-5 techs', () => {
+  it('keeps the legacy shape after adding era-5 and era-6 nodes', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      // Era 5 adds 2 new techs per track. Espionage also had 2 stubs → 12 total.
-      // Economy/science/communication/maritime/exploration each had 1 extra stub → 11.
-      // Other tracks had 8 era1-4 + 2 era5 = 10.
+      // Era 5 + era 6 each add 2 techs per track. Espionage had 2 stubs → 14 total.
+      // Economy/science/communication/maritime/exploration had 9 era1-4 each + 4 (era5+era6) = 13.
+      // Other tracks had 8 era1-4 + 4 (era5+era6) = 12.
       const expectedCount = track === 'espionage'
-        ? 12
+        ? 14
         : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-          ? 11
-          : 10;
+          ? 13
+          : 12;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 157 techs total after adding 30 era-5 tech definitions', () => {
-    expect(TECH_TREE.length).toBe(157);
+  it('has 187 techs total after adding 30 era-5 and 30 era-6 tech definitions', () => {
+    expect(TECH_TREE.length).toBe(187);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -57,14 +57,15 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('techs span eras 1-5', () => {
+  it('techs span eras 1-6', () => {
     const eras = new Set(TECH_TREE.map(t => t.era));
-    expect(eras.size).toBe(5);
+    expect(eras.size).toBe(6);
     expect(eras).toContain(1);
     expect(eras).toContain(2);
     expect(eras).toContain(3);
     expect(eras).toContain(4);
     expect(eras).toContain(5);
+    expect(eras).toContain(6);
   });
 
   it('unlocks the new late-era nodes only after their era-4 prerequisites are complete', () => {

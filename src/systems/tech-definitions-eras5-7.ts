@@ -3,7 +3,7 @@ import type { Tech } from '@/core/types';
 // Relocated stubs — same values as original to preserve existing tests.
 // Era fields and prerequisites will be updated when real late-era content lands.
 const RELOCATED_STUBS: Tech[] = [
-  { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], unlocksBuildings: ['stock_exchange'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
+  { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
   { id: 'nuclear-theory', name: 'Nuclear Theory', track: 'science', cost: 165, prerequisites: ['astronomy', 'medicine'], unlocks: ['Late-era atomic research and wonder prerequisites'], era: 5, countsForEraAdvancement: false },
   { id: 'mass-media', name: 'Mass Media', track: 'communication', cost: 150, prerequisites: ['printing', 'diplomats'], unlocks: ['Global broadcasts and late-era cultural coordination'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
   { id: 'digital-surveillance', name: 'Digital Surveillance', track: 'espionage', cost: 175, prerequisites: ['cryptography', 'counter-intelligence'], unlocks: ['Satellite Surveillance', 'Misinformation Campaign'], era: 5 },
@@ -135,7 +135,130 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['+1 science and +1 gold per city with temple'], unlocksBuildings: ['monastery'], era: 5 },
 ];
 
+const ERA_6_TECHS: Tech[] = [
+  // MILITARY (2)
+  { id: 'rifle-tactics', name: 'Rifle Tactics', track: 'military', cost: 185,
+    prerequisites: ['black-powder', 'professional-army'],
+    unlocks: ['Musketeer-class units replaced by riflemen'], era: 6 },
+  { id: 'grenade-warfare', name: 'Grenade Warfare', track: 'military', cost: 185,
+    prerequisites: ['black-powder', 'military-logistics'],
+    unlocks: ['Grenadier unlocked — anti-fortification specialist'], unlocksUnits: ['grenadier'], era: 6 },
+
+  // ECONOMY (2)
+  { id: 'joint-stock-companies', name: 'Joint-Stock Companies', track: 'economy', cost: 185,
+    prerequisites: ['guilds', 'colonial-trade'],
+    unlocks: ['Stock Exchange unlocked'], unlocksBuildings: ['stock_exchange'], era: 6 },
+  { id: 'mercantilism', name: 'Mercantilism', track: 'economy', cost: 180,
+    prerequisites: ['colonial-trade', 'banking'],
+    unlocks: ['Trade route capacity +1; +5% gold empire-wide'], era: 6 },
+
+  // SCIENCE (2)
+  { id: 'natural-history', name: 'Natural History', track: 'science', cost: 185,
+    prerequisites: ['scientific-method', 'optics'],
+    unlocks: ['+2 science per natural wonder in empire territory'], unlocksBuildings: ['natural_history_museum'], era: 6 },
+  { id: 'hydraulics', name: 'Hydraulics', track: 'science', cost: 180,
+    prerequisites: ['scientific-method', 'irrigation'],
+    unlocks: ['+2 production in river cities'], era: 6 },
+
+  // CIVICS (2)
+  { id: 'separation-of-powers', name: 'Separation of Powers', track: 'civics', cost: 185,
+    prerequisites: ['constitutional-law'],
+    unlocks: ['+1 gold per era-appropriate building empire-wide'], era: 6 },
+  { id: 'parliamentary-reform', name: 'Parliamentary Reform', track: 'civics', cost: 180,
+    prerequisites: ['civic-humanism', 'constitutional-law'],
+    unlocks: ['+5% production empire-wide'], era: 6 },
+
+  // EXPLORATION (2)
+  { id: 'land-survey', name: 'Land Survey', track: 'exploration', cost: 185,
+    prerequisites: ['colonial-charter', 'renaissance-architecture'],
+    unlocks: ['+1 tile yield in settled frontier cities'], era: 6 },
+  { id: 'colonial-administration', name: 'Colonial Administration Tech', track: 'exploration', cost: 180,
+    prerequisites: ['colonial-charter', 'mercantilism'],
+    unlocks: ['Colonial Administration national project available'], era: 6 },
+
+  // AGRICULTURE (2)
+  { id: 'improved-agriculture', name: 'Improved Agriculture', track: 'agriculture', cost: 180,
+    prerequisites: ['plantation-farming'],
+    unlocks: ['Farms yield +1 food; granaries add +1 food'], era: 6 },
+  { id: 'tobacco-trade', name: 'Tobacco Trade', track: 'agriculture', cost: 185,
+    prerequisites: ['distillation', 'colonial-trade'],
+    unlocks: ['+2 gold per plantation improvement'], era: 6 },
+
+  // MEDICINE (2)
+  { id: 'surgical-school', name: 'Surgical School', track: 'medicine', cost: 185,
+    prerequisites: ['anatomy'],
+    unlocks: ['Units in cities heal 2 additional HP per turn'], unlocksBuildings: ['surgery_guild'], era: 6 },
+  { id: 'epidemic-control', name: 'Epidemic Control', track: 'medicine', cost: 180,
+    prerequisites: ['herbalist-guilds'],
+    unlocks: ['City population loss from famine halved'], era: 6 },
+
+  // PHILOSOPHY (2)
+  { id: 'enlightenment', name: 'Enlightenment', track: 'philosophy', cost: 185,
+    prerequisites: ['empiricism', 'rationalism'],
+    unlocks: ['+1 science per two population in cities'], era: 6 },
+  { id: 'social-contract', name: 'Social Contract', track: 'philosophy', cost: 180,
+    prerequisites: ['rationalism', 'civic-humanism'],
+    unlocks: ['+2 gold per city with a market'], era: 6 },
+
+  // ARTS (2)
+  { id: 'baroque-music', name: 'Baroque Music', track: 'arts', cost: 185,
+    prerequisites: ['classical-music-form'],
+    unlocks: ['+1 gold per culture building; morale bonus'], unlocksBuildings: ['concert_hall'], era: 6 },
+  { id: 'portrait-art', name: 'Portrait Art', track: 'arts', cost: 180,
+    prerequisites: ['renaissance-painting'],
+    unlocks: ['+1 gold per art gallery in empire'], era: 6 },
+
+  // MARITIME (2)
+  { id: 'trade-winds', name: 'Trade Winds', track: 'maritime', cost: 185,
+    prerequisites: ['deep-sea-routes', 'circumnavigation'],
+    unlocks: ['Naval units gain +1 movement'], era: 6 },
+  { id: 'frigate-construction', name: 'Frigate Construction', track: 'maritime', cost: 180,
+    prerequisites: ['naval-gunnery'],
+    unlocks: ['Frigate unlocked — fast armed escort'], era: 6 },
+
+  // METALLURGY (2)
+  { id: 'precision-casting', name: 'Precision Casting', track: 'metallurgy', cost: 185,
+    prerequisites: ['cannon-casting'],
+    unlocks: ['Cannon units gain +5 strength; cannon cost -10%'], era: 6 },
+  { id: 'steel-plate-armor', name: 'Steel Plate Armor', track: 'metallurgy', cost: 180,
+    prerequisites: ['blast-furnace-tech'],
+    unlocks: ['Land melee units gain +3 defense strength'], era: 6 },
+
+  // CONSTRUCTION (2)
+  { id: 'fortification-engineering', name: 'Fortification Engineering', track: 'construction', cost: 185,
+    prerequisites: ['renaissance-architecture'],
+    unlocks: ['Walls provide +5 defense strength to garrison'], unlocksBuildings: ['star_fort'], era: 6 },
+  { id: 'aqueduct-expansion', name: 'Aqueduct Expansion', track: 'construction', cost: 180,
+    prerequisites: ['vaulted-ceilings', 'hydraulics'],
+    unlocks: ['+2 food in all cities with aqueduct'], era: 6 },
+
+  // COMMUNICATION (2)
+  { id: 'newspaper-press', name: 'Newspaper Press', track: 'communication', cost: 185,
+    prerequisites: ['printing-press', 'postal-service'],
+    unlocks: ['+2 science empire-wide; reduces unhappiness from war'], era: 6 },
+  { id: 'courier-network', name: 'Courier Network', track: 'communication', cost: 180,
+    prerequisites: ['postal-service'],
+    unlocks: ['+1 gold per road connection between your cities'], era: 6 },
+
+  // ESPIONAGE (2)
+  { id: 'counter-espionage', name: 'Counter-Espionage', track: 'espionage', cost: 185,
+    prerequisites: ['black-chambers'],
+    unlocks: ['-25% chance enemy spies succeed against your cities'], era: 6 },
+  { id: 'propaganda', name: 'Propaganda', track: 'espionage', cost: 180,
+    prerequisites: ['diplomatic-networks'],
+    unlocks: ['Spy missions to flip loyalties available in foreign cities'], era: 6 },
+
+  // SPIRITUALITY (2)
+  { id: 'ecumenical-council', name: 'Ecumenical Council', track: 'spirituality', cost: 185,
+    prerequisites: ['reformation'],
+    unlocks: ['+2 gold per city with a temple empire-wide'], era: 6 },
+  { id: 'missionary-zeal', name: 'Missionary Zeal', track: 'spirituality', cost: 180,
+    prerequisites: ['monastic-orders'],
+    unlocks: ['Missionaries spread religion to conquered cities faster'], era: 6 },
+];
+
 export const TECH_TREE_ERAS_5_7: Tech[] = [
   ...RELOCATED_STUBS,
   ...ERA_5_TECHS,
+  ...ERA_6_TECHS,
 ];
