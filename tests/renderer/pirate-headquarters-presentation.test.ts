@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
-import { buildPirateHeadquartersMapPresentation } from '@/renderer/pirate-headquarters-presentation';
+import {
+  buildPirateHeadquartersMapPresentation,
+  buildPirateHeadquartersSpriteEntities,
+} from '@/renderer/pirate-headquarters-presentation';
+import { PirateSpriteStateController } from '@/renderer/pirate-sprite-state';
 
 function fixture() {
   const state = createNewGame(undefined, 'pirate-map-presentation', 'small');
@@ -102,5 +106,33 @@ describe('pirate headquarters map presentation', () => {
     };
 
     expect(buildPirateHeadquartersMapPresentation(state, 'player').entities[0].damage).toBe(1);
+  });
+
+  it('builds live landmark entities from current faction mode and transient combat state', () => {
+    const state = fixture();
+    state.civilizations.player.visibility.tiles['5,5'] = 'visible';
+    state.pirates!.intelByCiv.player = {
+      'pirate-1': {
+        factionId: 'pirate-1', level: 'tracked', discoveredRound: 10, lastUpdatedRound: 20,
+        lastKnownHeadquarters: {
+          kind: 'coastal-enclave', position: { q: 5, r: 5 }, observedRound: 20, integrityBand: 'damaged',
+        },
+        knownBehavior: 'raiding', knownMaritimeStage: 3, observedUnitIds: [],
+      },
+    };
+    const controller = new PirateSpriteStateController();
+    controller.apply({ type: 'attack', entityId: 'pirate-headquarters-pirate-1' }, 1_000);
+
+    const entities = buildPirateHeadquartersSpriteEntities(
+      state,
+      buildPirateHeadquartersMapPresentation(state, 'player').entities,
+      controller,
+      1_100,
+    );
+
+    expect(entities[0]).toMatchObject({
+      id: 'pirate-headquarters-pirate-1', subtype: 'pirate_enclave_stage_3',
+      state: 'attack', mode: 'raid', damage: 2, tier: 2, stage: 3,
+    });
   });
 });

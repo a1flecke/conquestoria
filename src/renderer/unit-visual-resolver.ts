@@ -100,7 +100,7 @@ export function resolveUnitVisual(
       : null,
     color,
     fallbackIcon: FALLBACK_ICONS[unit.type] ?? '?',
-    spriteOwnerId: unit.owner,
+    spriteOwnerId: role === 'pirate' ? 'pirates' : unit.owner,
     motion,
   };
 }

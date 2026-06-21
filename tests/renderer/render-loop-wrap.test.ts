@@ -40,7 +40,12 @@ vi.mock('@/renderer/pirate-headquarters-presentation', async (importOriginal) =>
   };
 });
 
-import { RenderLoop } from '@/renderer/render-loop';
+import {
+  RenderLoop,
+  buildMovingUnitEntities,
+  positionMovingPirateHeadquarters,
+} from '@/renderer/render-loop';
+import type { PirateHeadquartersMapEntity } from '@/renderer/pirate-headquarters-presentation';
 import type { GameState, Unit } from '@/core/types';
 
 function createCanvas(): HTMLCanvasElement {
@@ -157,6 +162,7 @@ describe('render-loop wrap parity', () => {
       expect.objectContaining({ entities: expect.any(Array), regions: [] }),
       expect.anything(),
       state.map,
+      expect.any(Set),
     );
     expect(rendererMocks.drawPirateHeadquarters).toHaveBeenNthCalledWith(
       2,
@@ -267,5 +273,84 @@ describe('render-loop wrap parity', () => {
 
     expect(rendererMocks.drawUnitGlyph).toHaveBeenCalledTimes(1);
     nowSpy.mockRestore();
+  });
+
+  it('builds one interpolated DOM entity for a moving pirate without a stale endpoint duplicate', () => {
+    const pirate = {
+      id: 'pirate-ship', owner: 'pirate-1', type: 'pirate_corsair', position: { q: 0, r: 0 },
+      movementPointsLeft: 2, health: 60, experience: 0, hasMoved: true,
+      hasActed: false, isResting: false,
+    } as Unit;
+    const map = { width: 6, height: 3, wrapsHorizontally: true, tiles: {}, rivers: [] } as GameState['map'];
+    const state = { map, units: { [pirate.id]: pirate }, civilizations: {} } as unknown as GameState;
+    const animation = {
+      unit: pirate,
+      path: [{ q: 0, r: 0 }, { q: 5, r: 0 }],
+      renderPath: [{ q: 0, r: 0 }, { q: -1, r: 0 }],
+      from: { q: 0, r: 0 }, to: { q: 5, r: 0 }, duration: 220, startTime: 0,
+    };
+
+    const entities = buildMovingUnitEntities(
+      state,
+      [animation],
+      110,
+      { 'pirate-1': '#8b2635' },
+      { tiles: { '5,0': 'visible' }, lastSeen: {} },
+    );
+
+    expect(entities).toHaveLength(1);
+    expect(entities[0]).toMatchObject({
+      id: 'pirate-ship', faction: 'pirates', state: 'walk', coord: { q: -0.5, r: 0 },
+    });
+  });
+
+  it('does not place moving DOM sprites above fog on merely seen tiles', () => {
+    const pirate = {
+      id: 'hidden-pirate', owner: 'pirate-1', type: 'pirate_corsair', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: true,
+      hasActed: false, isResting: false,
+    } as Unit;
+    const map = { width: 6, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] } as GameState['map'];
+    const state = { map, units: { [pirate.id]: pirate }, civilizations: {} } as unknown as GameState;
+    const animation = {
+      unit: { ...pirate, position: { q: 0, r: 0 } },
+      path: [{ q: 0, r: 0 }, { q: 1, r: 0 }], renderPath: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+      from: { q: 0, r: 0 }, to: { q: 1, r: 0 }, duration: 220, startTime: 0,
+    };
+
+    expect(buildMovingUnitEntities(
+      state,
+      [animation],
+      110,
+      {},
+      { tiles: { '1,0': 'fog' }, lastSeen: {} },
+    )).toEqual([]);
+  });
+
+  it('moves a flotilla landmark with its flagship across the short wrapped path', () => {
+    const pirate = {
+      id: 'flagship', owner: 'pirate-1', type: 'pirate_mothership', position: { q: 5, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true,
+      hasActed: true, isResting: false,
+    } as Unit;
+    const map = { width: 6, height: 3, wrapsHorizontally: true, tiles: {}, rivers: [] } as GameState['map'];
+    const state = {
+      map, units: { flagship: pirate }, civilizations: {},
+      pirates: { factions: { 'pirate-1': { headquarters: { kind: 'deep-sea-flotilla', flagshipUnitId: 'flagship' } } } },
+    } as unknown as GameState;
+    const entity = {
+      id: 'pirate-headquarters-pirate-1', factionId: 'pirate-1', subtype: 'deep-sea-flotilla',
+      coord: { q: 5, r: 0 }, stage: 5, tier: 3, mode: 'current', behaviorMode: 'blockade',
+      damage: 0, selected: false, label: 'headquarters',
+    } satisfies PirateHeadquartersMapEntity;
+    const animation = {
+      unit: { ...pirate, position: { q: 0, r: 0 } },
+      path: [{ q: 0, r: 0 }, { q: 5, r: 0 }], renderPath: [{ q: 0, r: 0 }, { q: -1, r: 0 }],
+      from: { q: 0, r: 0 }, to: { q: 5, r: 0 }, duration: 220, startTime: 0,
+    };
+
+    expect(positionMovingPirateHeadquarters(state, [entity], [animation], 110)[0]).toMatchObject({
+      coord: { q: -0.5, r: 0 }, behaviorMode: 'relocating',
+    });
   });
 });

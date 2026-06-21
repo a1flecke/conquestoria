@@ -49,10 +49,20 @@ import {
   PirateGalleySprite,
   PirateIroncladSprite,
   PirateMothershipSprite,
+  PirateEnclaveStage1Sprite, PirateEnclaveStage2Sprite, PirateEnclaveStage3Sprite,
+  PirateEnclaveStage4Sprite, PirateEnclaveStage5Sprite,
+  PirateFlotillaStage2Sprite, PirateFlotillaStage3Sprite, PirateFlotillaStage4Sprite, PirateFlotillaStage5Sprite,
+  type LandmarkSpriteProps,
 } from './pirates';
 
 export type UnitSpriteComponent = (props: UnitSpriteProps) => string;
 export type BuildingSpriteComponent = (props: BuildingSpriteProps) => string;
+export type LandmarkSpriteComponent = (props: LandmarkSpriteProps) => string;
+export type PirateHeadquartersSpriteId =
+  | 'pirate_enclave_stage_1' | 'pirate_enclave_stage_2' | 'pirate_enclave_stage_3'
+  | 'pirate_enclave_stage_4' | 'pirate_enclave_stage_5'
+  | 'pirate_flotilla_stage_2' | 'pirate_flotilla_stage_3'
+  | 'pirate_flotilla_stage_4' | 'pirate_flotilla_stage_5';
 
 type UnitMotionStyle = 'humanoid' | 'animal' | 'naval';
 
@@ -321,5 +331,18 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   national_census:                NationalCensusSprite,
 };
 
+export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<PirateHeadquartersSpriteId, LandmarkSpriteComponent> = {
+  pirate_enclave_stage_1: PirateEnclaveStage1Sprite,
+  pirate_enclave_stage_2: PirateEnclaveStage2Sprite,
+  pirate_enclave_stage_3: PirateEnclaveStage3Sprite,
+  pirate_enclave_stage_4: PirateEnclaveStage4Sprite,
+  pirate_enclave_stage_5: PirateEnclaveStage5Sprite,
+  pirate_flotilla_stage_2: PirateFlotillaStage2Sprite,
+  pirate_flotilla_stage_3: PirateFlotillaStage3Sprite,
+  pirate_flotilla_stage_4: PirateFlotillaStage4Sprite,
+  pirate_flotilla_stage_5: PirateFlotillaStage5Sprite,
+};
+
 export const UNIT_SPRITE_SIZE = 128;
 export const BUILDING_SPRITE_SIZE = 192;
+export const LANDMARK_SPRITE_SIZE = 192;

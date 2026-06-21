@@ -714,6 +714,10 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
         if (gameState.units[unitId]) selectUnit(unitId);
         return;
       }
+      renderLoop.applyPirateHeadquartersAssaultVisual(factionId, unitId, {
+        destroyed: Boolean(result.destroyed),
+        attackerSurvived: Boolean(result.state.units[unitId]),
+      });
       gameState = result.state;
       panel.remove();
       renderLoop.setGameState(gameState);
@@ -3122,12 +3126,14 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
           }));
         }
 
-        gameState = processTurn(gameState, bus);
+        const hotSeatRoundMoves = captureAIMoves(() => {
+          gameState = processTurn(gameState, bus);
+        });
 
         if (handleVictoryIfNeeded()) return;
 
         renderLoop.setGameState(gameState);
-        await replayAIMoves(hotSeatAIMoves);
+        await replayAIMoves([...hotSeatAIMoves, ...hotSeatRoundMoves]);
 
       }
 
@@ -3168,12 +3174,14 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       const soloAIMoves = captureAIMoves(() => {
         gameState = processAITurn(gameState, 'ai-1', bus);
       });
-      gameState = processTurn(gameState, bus);
+      const soloRoundMoves = captureAIMoves(() => {
+        gameState = processTurn(gameState, bus);
+      });
 
       if (handleVictoryIfNeeded()) return;
 
       renderLoop.setGameState(gameState);
-      await replayAIMoves(soloAIMoves);
+      await replayAIMoves([...soloAIMoves, ...soloRoundMoves]);
       updateHUD();
 
       showNotification(`Turn ${gameState.turn}`, 'info');
@@ -3548,6 +3556,7 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
 const notifiedBarbarianCampsPerCiv = new Map<string, Set<string>>();
 
 bus.on('combat:resolved', ({ result }) => {
+  renderLoop.applyCombatVisual(result);
   routeCombatResolved(gameState, result, appendToCivLog);
 });
 
