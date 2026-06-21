@@ -6,6 +6,15 @@ Civilization-building strategy game. TypeScript + Canvas 2D + Vite.
 
 **NEVER use subagents or parallel agents.** Execute all tasks inline in the current session. Do not spawn Agent tool calls, fork subagents, or delegate to parallel workers for any reason.
 
+## Worktree Policy
+
+**ALL implementation work MUST happen in a git worktree.** At the start of every coding session:
+1. Check if already in a worktree (`git worktree list`).
+2. If not, create one via `EnterWorktree` tool BEFORE writing any code.
+3. Never write code on `main` or on a feature branch in the main working tree — always use a worktree.
+
+This is enforced by the user and is not optional.
+
 ## Commands
 
 **Always use `bash scripts/run-with-mise.sh yarn <cmd>` — never `eval "$(mise activate bash)" && yarn <cmd>`.** The script is pre-approved in `.claude/settings.local.json` and avoids permission prompts.
