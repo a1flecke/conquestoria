@@ -96,6 +96,9 @@ describe('legendary wonder landmark catalog', () => {
       ['storm-signal-spire', 'storm-signal-spire-bespoke'],
       ['manhattan-project', 'manhattan-project-bespoke'],
       ['internet', 'internet-bespoke'],
+      ['sistine-vault', 'sistine-vault-bespoke'],
+      ['codex-eternal', 'codex-eternal-bespoke'],
+      ['navigators-compass', 'navigators-compass-bespoke'],
     ]);
   });
 

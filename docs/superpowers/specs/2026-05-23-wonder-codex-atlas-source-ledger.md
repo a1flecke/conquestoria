@@ -141,5 +141,8 @@ During implementation, add a row for every codex entry using this shape:
 | `storm-signal-spire` | `noaa-weather-radio` | `image-storm` | `/images/wonders/codex/storm.jpg` | public domain | NOAA / public domain |
 | `manhattan-project` | `nps-manhattan-project` | `image-manhattan` | `/images/wonders/codex/manhattan.jpg` | public domain | U.S. Department of Energy / public domain |
 | `internet` | `internet-society-history` | `image-internet` | `/images/wonders/codex/internet.jpg` | CC BY 2.5 | The Opte Project / CC BY 2.5 |
+| `sistine-vault` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
+| `codex-eternal` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
+| `navigators-compass` | `noaa-maritime-heritage` | `image-drydock` | `/images/wonders/codex/drydock.jpeg` | public domain | Asahel Curtis / public domain |
 
 The final implementation PR must include one completed row per codex entry. Contract tests must fail if a final codex entry references missing fact source IDs, missing image source IDs, missing local image paths, or placeholder attribution text.

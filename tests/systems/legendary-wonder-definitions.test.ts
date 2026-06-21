@@ -11,8 +11,8 @@ describe('legendary-wonder-definitions', () => {
     const shipped = getLegendaryWonderDefinitions().map(w => w.id);
 
     expect(shipped).toEqual(approved);
-    expect(approved).toHaveLength(15);
-    expect(approved).toEqual(expect.arrayContaining(['manhattan-project', 'internet']));
+    expect(approved).toHaveLength(18);
+    expect(approved).toEqual(expect.arrayContaining(['manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass']));
   });
 
   it('supports the new Slice 4 quest-step patterns in the expanded catalog', () => {
@@ -63,6 +63,10 @@ describe('legendary-wonder-definitions', () => {
     );
 
     expect(requirements).toEqual([
+      {
+        wonderId: 'storm-signal-spire',
+        requiredTechs: definitions['storm-signal-spire'].requiredTechs,
+      },
       {
         wonderId: 'manhattan-project',
         requiredTechs: definitions['manhattan-project'].requiredTechs,

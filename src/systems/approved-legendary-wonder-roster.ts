@@ -19,5 +19,9 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
     { id: 'storm-signal-spire', name: 'Storm-Signal Spire' },
     { id: 'manhattan-project', name: 'Manhattan Project' },
     { id: 'internet', name: 'Internet' },
+    // Era 5 wonders (Renaissance)
+    { id: 'sistine-vault', name: 'Sistine Vault' },
+    { id: 'codex-eternal', name: 'Codex Eternal' },
+    { id: 'navigators-compass', name: "Navigator's Compass" },
   ] as const;
 }

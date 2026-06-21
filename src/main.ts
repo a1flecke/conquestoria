@@ -3240,8 +3240,23 @@ bus.on('city:maturity-upgraded', ({ cityId, current }) => {
 bus.on('city:building-complete', ({ cityId, buildingId }) => {
   const city = gameState.cities[cityId];
   if (!city) return;
-  const buildingName = BUILDINGS[buildingId]?.name ?? buildingId;
+  const bldg = BUILDINGS[buildingId];
+  const buildingName = bldg?.name ?? buildingId;
   appendToCivLog(city.owner, `${city.name}: ${buildingName} completed!`, 'success');
+  if (bldg?.nationalProject) {
+    SFX.nationalProjectBuilt();
+  }
+});
+
+bus.on('city:national-project-expired', ({ civId, cityId, buildingId }) => {
+  const city = gameState.cities[cityId];
+  const bldg = BUILDINGS[buildingId];
+  if (!bldg || !city) return;
+  const msg = document.createTextNode(
+    `${city.name}: ${bldg.name} has expired — your civilization has grown beyond this era's institutions.`
+  );
+  appendToCivLog(civId, msg.textContent ?? '', 'warning');
+  SFX.nationalProjectExpired();
 });
 
 bus.on('city:building-dropped', ({ cityId, buildingId }) => {
