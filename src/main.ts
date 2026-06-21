@@ -618,6 +618,13 @@ function applyPirateActionResult(result: PirateActionResult, successMessage: str
     return;
   }
   gameState = result.state;
+  for (const event of result.events) {
+    if (event.type === 'tribute-paid') {
+      bus.emit('pirate:audio-cue', { cue: 'tribute', factionId: event.factionId, viewerIds: [event.civId] });
+    } else if (event.type === 'contract-accepted') {
+      bus.emit('pirate:audio-cue', { cue: 'contract-accepted', factionId: event.factionId, viewerIds: [event.employerId] });
+    }
+  }
   renderLoop.setGameState(gameState);
   updateHUD();
   showNotification(successMessage, 'success');
@@ -647,6 +654,8 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
     }
     if (!historyId) selectedPirateFactionId = factionId ?? null;
     renderLoop.setSelectedPirateFactionId(historyId ? null : (factionId ?? null));
+    if (historyId || !factionId) audio.stopPirateAmbience('focus-changed');
+    else void audio.startPirateHeadquartersAmbience(factionId);
     const presentation = {
       ...base,
       ...(factionId && !historyId ? { selectedFactionId: factionId } : {}),
@@ -656,6 +665,7 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
       onClose: () => {
         document.getElementById('pirate-waters-panel')?.remove();
         renderLoop.setSelectedPirateFactionId(null);
+        audio.stopPirateAmbience('panel-closed');
       },
       onSelectFaction: nextFactionId => {
         selectedPirateFactionId = nextFactionId;
@@ -718,6 +728,12 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
         destroyed: Boolean(result.destroyed),
         attackerSurvived: Boolean(result.state.units[unitId]),
       });
+      if (result.destroyed) {
+        bus.emit('pirate:headquarters-destroyed', {
+          factionId,
+          viewerIds: [gameState.currentPlayer],
+        });
+      }
       gameState = result.state;
       panel.remove();
       renderLoop.setGameState(gameState);
@@ -4167,7 +4183,7 @@ function startGame(): void {
     inputInitialized = true;
   }
 
-  audio.start(gameState, bus);
+  audio.start(gameState, bus, () => gameState);
   routeSfxThrough(audio.getSfxRoutingNode());
 
   // Prevent zoom-out duplication: ensure the camera cannot zoom past one full

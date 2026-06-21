@@ -182,6 +182,10 @@ All stingers below are Kevin MacLeod (incompetech.com), CC-BY 3.0 — https://cr
 
 All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and converted to OGG Vorbis for in-game use.
 
+## Pirate Audio
+
+All 33 pirate movement, fire, impact, death, headquarters, and strategic cue files are original in-project procedural synthesis. They are generated from ffmpeg `lavfi` tone and noise sources by `scripts/generate-pirate-sfx.sh`; no external recordings or third-party samples are used. Exact output coverage and provenance are recorded in `src/audio/pirate-audio-sources.ts`.
+
 - `audio/wonders/great-volcano-stinger.ogg` — "Underwater Rumble" by Eric Matyas, Soundimage.org.
   Source: https://soundimage.org/wp-content/uploads/2019/11/Underwater-Rumble.mp3
   Used as: Great Volcano discovery and replay stinger

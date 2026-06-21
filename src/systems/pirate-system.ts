@@ -309,6 +309,15 @@ export function processPiratesForCompletedRound(state: GameState, bus: EventBus)
     }
   }
   nextState = applyPirateNotifications(nextState, notificationEvents);
+  for (const event of notificationEvents) {
+    if (event.type === 'sighting' || event.type === 'raid' || event.type === 'blockade' || event.type === 'contract-exposed') {
+      bus.emit('pirate:audio-cue', {
+        cue: event.type,
+        factionId: event.factionId,
+        viewerIds: [event.viewerId],
+      });
+    }
+  }
   for (const movement of facts.movements) {
     bus.emit('unit:move', {
       ...movement,

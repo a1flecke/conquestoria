@@ -6,7 +6,11 @@ import {
   MOVEMENT_SFX,
   allSfxEntries,
   getLocomotionClass,
+  PIRATE_MOVEMENT_SFX,
+  PIRATE_HEADQUARTERS_SFX,
+  PIRATE_STRATEGIC_SFX,
   type LocomotionClass,
+  type PirateUnitType,
 } from '../../src/audio/sfx-catalog';
 import type { UnitType } from '../../src/core/types';
 
@@ -25,6 +29,10 @@ const SIEGE_TYPES: UnitType[] = ['catapult', 'ballista'];
 const NON_COMBAT_TYPES: UnitType[] = ['settler', 'worker', 'caravan', 'scout', 'expedition', 'transport'];
 const SPY_TYPES: UnitType[] = ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker'];
 const ALL_LOCOMOTION_CLASSES: LocomotionClass[] = ['humanoid', 'animal', 'naval'];
+const PIRATE_TYPES: PirateUnitType[] = [
+  'pirate_galley', 'pirate_corsair', 'pirate_frigate', 'pirate_ironclad',
+  'pirate_fast_attack_craft', 'pirate_mothership',
+];
 
 describe('sfx-catalog completeness', () => {
   it('every combat melee unit has attack-swing, attack-impact, and death', () => {
@@ -80,12 +88,30 @@ describe('sfx-catalog completeness', () => {
     }
   });
 
-  it('allSfxEntries returns exactly 92 entries', () => {
+  it('every pirate unit has dedicated movement, fire, impact, and death audio', () => {
+    for (const unitType of PIRATE_TYPES) {
+      expect(PIRATE_MOVEMENT_SFX[unitType], `${unitType} missing movement`).toBeDefined();
+      expect(UNIT_SFX[unitType]?.['attack-swing'], `${unitType} missing fire`).toBeDefined();
+      expect(UNIT_SFX[unitType]?.['attack-impact'], `${unitType} missing impact`).toBeDefined();
+      expect(UNIT_SFX[unitType]?.death, `${unitType} missing death`).toBeDefined();
+    }
+  });
+
+  it('has complete headquarters and strategic pirate families', () => {
+    expect(Object.keys(PIRATE_HEADQUARTERS_SFX).sort()).toEqual([
+      'ambience', 'collapse', 'defense',
+    ]);
+    expect(Object.keys(PIRATE_STRATEGIC_SFX).sort()).toEqual([
+      'blockade', 'contract-accepted', 'contract-exposed', 'raid', 'sighting', 'tribute',
+    ]);
+  });
+
+  it('allSfxEntries returns exactly 125 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
     // + 4 new transport death (carrack, galleon, steamship, troop_transport) + 2 transport load/unload = 76
     // + 16 beast SFX (8 beasts × 2: attack-swing + death) = 92
-    expect(allSfxEntries()).toHaveLength(92);
+    expect(allSfxEntries()).toHaveLength(125);
   });
 
   it('no two entries share the same ID', () => {

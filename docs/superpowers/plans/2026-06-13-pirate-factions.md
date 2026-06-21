@@ -1297,7 +1297,7 @@ git commit -m "feat(pirates): add headquarters art and v2 animation states"
 - Modify: `tests/audio/sfx-director.test.ts`
 - Modify: `tests/audio/audio-system.integration.test.ts`
 
-- [ ] **Step 1: Write red catalog, privacy, ordering, cooldown, and lifecycle tests**
+- [x] **Step 1: Write red catalog, privacy, ordering, cooldown, and lifecycle tests**
 
 Assert:
 
@@ -1312,13 +1312,13 @@ Assert:
 - strategic cues route only to intended viewers;
 - every source is in-project synthesized, CC0, or CC-BY with exact credits; reject SA/NC/missing records.
 
-- [ ] **Step 2: Run red tests**
+- [x] **Step 2: Run red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/audio/pirate-audio-director.test.ts tests/audio/sfx-catalog.test.ts tests/audio/sfx-director.test.ts tests/audio/audio-system.integration.test.ts
 ```
 
-- [ ] **Step 3: Build a reproducible asset script and manifest**
+- [x] **Step 3: Build a reproducible asset script and manifest**
 
 The script generates or derives these outputs:
 
@@ -1348,7 +1348,7 @@ interface PirateAudioSource {
 
 Run `ffprobe` in the script or verification step and record exact durations in catalog `loopEnd`; no estimated durations remain.
 
-- [ ] **Step 4: Add live state providers to audio routing**
+- [x] **Step 4: Add live state providers to audio routing**
 
 Change startup to pass a live provider:
 
@@ -1360,6 +1360,8 @@ audioSystem.start(gameState, bus, () => gameState);
 
 - [ ] **Step 5: Run automated verification and human listening acceptance**
 
+Execution note: automated verification is complete. All 33 OGGs regenerate from in-project ffmpeg synthesis, have exact catalog durations, pass OGG integrity checks, and enforce measured peaks between -12 and -1 dBFS. Catalog/privacy/ordering/cooldown/lifecycle tests and the production build pass. Human listening acceptance for identity, timing, loop seams, fatigue, and era fit remains required before the SFX inventory rows can close.
+
 ```bash
 bash scripts/generate-pirate-sfx.sh
 ./scripts/run-with-mise.sh yarn test --run tests/audio/pirate-audio-director.test.ts tests/audio/sfx-catalog.test.ts tests/audio/sfx-director.test.ts tests/audio/audio-system.integration.test.ts
@@ -1368,7 +1370,7 @@ bash scripts/generate-pirate-sfx.sh
 
 Listen to every file and check it in context. Record pass/fail for identity, clipping, loudness, attack/impact timing, loop seams, fatigue, and era fit. Regenerate or replace every failed clip before marking `SFX-U1..U6`, `SFX-HQ`, and `SFX-STRAT` complete.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/generate-pirate-sfx.sh src/audio/pirate-audio-sources.ts src/audio/pirate-audio-director.ts src/audio/sfx-catalog.ts src/audio/sfx-director.ts src/audio/audio-system.ts src/main.ts public/audio/sfx/pirates public/audio/stinger/pirates AUDIO-CREDITS.md tests/audio/pirate-audio-director.test.ts tests/audio/sfx-catalog.test.ts tests/audio/sfx-director.test.ts tests/audio/audio-system.integration.test.ts docs/superpowers/plans/2026-06-13-pirate-factions.md
