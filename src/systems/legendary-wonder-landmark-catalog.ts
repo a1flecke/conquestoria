@@ -29,6 +29,10 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'sistine-vault': landmark('sistine-vault', 'archive', 'tall', 'knowledge', '#3d2c1e', '#d4a96a', '#fff0c8', 1.03, 'dedicationGlow', 'glint', 'scaffold', 'sistine-vault-bespoke'),
   'codex-eternal': landmark('codex-eternal', 'archive', 'wide', 'knowledge', '#242d4a', '#a0b0e8', '#e8eeff', 1.0, 'civicAura', 'pulse', 'outline', 'codex-eternal-bespoke'),
   'navigators-compass': landmark('navigators-compass', 'gateway', 'wide', 'horizon', '#1a3346', '#7ecae0', '#c4f0ff', 1.05, 'civicAura', 'glint', 'foundation', 'navigators-compass-bespoke'),
+  // Era 6 wonders (Gunpowder Age)
+  'palace-of-the-sun': landmark('palace-of-the-sun', 'hall', 'tall', 'sun', '#5e3000', '#f0c040', '#fff8c0', 1.08, 'dedicationGlow', 'glint', 'scaffold', 'palace-of-the-sun-bespoke'),
+  'iron-arsenal': landmark('iron-arsenal', 'bastion', 'wide', 'forge', '#2a2a2a', '#b05020', '#f0905a', 1.05, 'civicAura', 'spark', 'outline', 'iron-arsenal-bespoke'),
+  'merchant-admiralty': landmark('merchant-admiralty', 'drydock', 'wide', 'horizon', '#0a2a4a', '#40a0d8', '#b8e8ff', 1.05, 'civicAura', 'glint', 'foundation', 'merchant-admiralty-bespoke'),
 };
 
 function landmark(

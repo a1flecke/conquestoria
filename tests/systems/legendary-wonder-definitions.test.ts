@@ -11,8 +11,8 @@ describe('legendary-wonder-definitions', () => {
     const shipped = getLegendaryWonderDefinitions().map(w => w.id);
 
     expect(shipped).toEqual(approved);
-    expect(approved).toHaveLength(18);
-    expect(approved).toEqual(expect.arrayContaining(['manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass']));
+    expect(approved).toHaveLength(21);
+    expect(approved).toEqual(expect.arrayContaining(['manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass', 'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty']));
   });
 
   it('supports the new Slice 4 quest-step patterns in the expanded catalog', () => {

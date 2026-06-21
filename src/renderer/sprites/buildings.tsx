@@ -1258,13 +1258,13 @@ export function StockExchangeSprite({ palette, svgOnly = false }: BuildingSprite
 /* === ERA 6 BUILDINGS === */
 
 export function NaturalHistoryMuseumSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const columns = [40, 64, 88, 112, 136].map(x =>
+    <rect x={x} y={72} width="10" height="60" rx="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+  ).join('');
   return (
     <BuildingFrame label="Natural History Museum" category="science" svgOnly={svgOnly}>
-      <BuildingPlinth x={28} y={134} w={136} h={18} palette={palette} />
-      {/* neoclassical columns */}
-      {[40, 64, 88, 112, 136].map(x =>
-        <rect key={x} x={x} y={72} width="10" height="60" rx="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
-      )}
+      <BuildingPlinth w={136} />
+      {columns}
       {/* pediment */}
       <path d="M30,72 L96,38 L162,72 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.2" />
       {/* door */}
@@ -1279,7 +1279,7 @@ export function NaturalHistoryMuseumSprite({ palette, svgOnly = false }: Buildin
 export function SurgeryGuildSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Surgery Guild" category="science" svgOnly={svgOnly}>
-      <BuildingPlinth x={36} y={134} w={120} h={18} palette={palette} />
+      <BuildingPlinth w={120} />
       {/* main building */}
       <rect x="52" y="72" width="88" height="60" rx="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
       <TileRoof d="M44,72 L96,42 L148,72 Z" color={palette.mid} />
@@ -1294,17 +1294,17 @@ export function SurgeryGuildSprite({ palette, svgOnly = false }: BuildingSpriteP
 }
 
 export function ConcertHallSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const windows = [52, 88, 124].map(x =>
+    <path d={`M${x},120 L${x},96 Q${x + 12},80 ${x + 24},96 L${x + 24},120 Z`}
+      fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
+  ).join('');
   return (
     <BuildingFrame label="Concert Hall" category="culture" svgOnly={svgOnly}>
-      <BuildingPlinth x={24} y={134} w={144} h={18} palette={palette} />
+      <BuildingPlinth w={144} />
       {/* grand façade with arched windows */}
       <rect x="32" y="68" width="128" height="64" rx="4" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.2" />
       <TileRoof d="M24,68 L96,32 L168,68 Z" color={palette.mid} />
-      {/* arched windows */}
-      {[52, 88, 124].map(x =>
-        <path key={x} d={`M${x},120 L${x},96 Q${x + 12},80 ${x + 24},96 L${x + 24},120 Z`}
-          fill={palette.light} stroke={P.ink.line} strokeWidth="0.8" />
-      )}
+      {windows}
       {/* musical note on roof */}
       <circle cx="96" cy="50" r="5" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.8" />
       <line x1="101" y1="50" x2="101" y2="38" stroke={P.metal.gold} strokeWidth="2" />
@@ -1316,34 +1316,36 @@ export function ConcertHallSprite({ palette, svgOnly = false }: BuildingSpritePr
 export function StarFortSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Star Fort" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth x={24} y={138} w={144} h={14} palette={palette} />
+      <BuildingPlinth w={144} />
       {/* star-shaped walls from above perspective */}
       <path d="M96,44 L112,76 L148,80 L124,104 L132,140 L96,124 L60,140 L68,104 L44,80 L80,76 Z"
         fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.5" />
       {/* inner courtyard */}
-      <circle cx="96" cy="92" r="24" fill={palette.light} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="96" cy="92" r="24" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
       {/* central tower */}
       <rect x="82" y="76" width="28" height="32" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
       {/* flag */}
       <line x1="96" y1="64" x2="96" y2="76" stroke={P.ink.line} strokeWidth="1.5" />
-      <path d="M96,64 L108,68 L96,72 Z" fill={palette.light} />
+      <path d="M96,64 L108,68 L96,72 Z" fill={palette.bright} />
       <Banner x={148} y={28} palette={palette} scale={0.82} />
     </BuildingFrame>
   );
 }
 
 export function MilitaryAcademySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const merlonsLeft = [28, 36, 44].map(x => <rect x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />).join('');
+  const merlonsRight = [134, 142, 150].map(x => <rect x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />).join('');
   return (
     <BuildingFrame label="Military Academy" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth x={20} y={134} w={152} h={18} palette={palette} />
+      <BuildingPlinth w={152} />
       {/* imposing main building */}
       <rect x="36" y="72" width="120" height="60" rx="2" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
       {/* symmetrical towers */}
       <rect x="28" y="60" width="30" height="72" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
       <rect x="134" y="60" width="30" height="72" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
       {/* battlements on towers */}
-      {[28, 36, 44].map(x => <rect key={x} x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />)}
-      {[134, 142, 150].map(x => <rect key={x} x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />)}
+      {merlonsLeft}
+      {merlonsRight}
       {/* main door */}
       <path d="M76,132 L76,104 Q96,90 116,104 L116,132 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="1" />
       {/* regimental crest */}
@@ -1355,20 +1357,21 @@ export function MilitaryAcademySprite({ palette, svgOnly = false }: BuildingSpri
 }
 
 export function GrandCipherBureauSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const bars = [58, 84, 110].map(x =>
+    <g>
+      <rect x={x} y="94" width="16" height="24" rx="1" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.7" />
+      <line x1={x + 8} y1="94" x2={x + 8} y2="118" stroke={P.ink.line} strokeWidth="0.5" />
+      <line x1={x} y1="106" x2={x + 16} y2="106" stroke={P.ink.line} strokeWidth="0.5" />
+    </g>
+  ).join('');
   return (
     <BuildingFrame label="Grand Cipher Bureau" category="science" svgOnly={svgOnly}>
-      <BuildingPlinth x={28} y={134} w={136} h={18} palette={palette} />
+      <BuildingPlinth w={136} />
       {/* austere government building */}
       <rect x="44" y="80" width="104" height="52" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="1.2" />
       <TileRoof d="M36,80 L96,48 L156,80 Z" color={palette.mid} />
       {/* narrow barred windows */}
-      {[58, 84, 110].map(x =>
-        <g key={x}>
-          <rect x={x} y="94" width="16" height="24" rx="1" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.7" />
-          <line x1={x + 8} y1="94" x2={x + 8} y2="118" stroke={P.ink.line} strokeWidth="0.5" />
-          <line x1={x} y1="106" x2={x + 16} y2="106" stroke={P.ink.line} strokeWidth="0.5" />
-        </g>
-      )}
+      {bars}
       {/* cipher keyhole on door */}
       <rect x="84" y="108" width="24" height="24" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
       <circle cx="96" cy="116" r="4" fill={palette.dark} stroke={P.metal.gold} strokeWidth="1" />
@@ -1379,17 +1382,18 @@ export function GrandCipherBureauSprite({ palette, svgOnly = false }: BuildingSp
 }
 
 export function ColonialAdministrationSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const cols = [50, 76, 102, 128].map(x =>
+    <rect x={x} y={76} width="8" height="52" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+  ).join('');
   return (
     <BuildingFrame label="Colonial Administration" category="economy" svgOnly={svgOnly}>
-      <BuildingPlinth x={24} y={134} w={144} h={18} palette={palette} />
+      <BuildingPlinth w={144} />
       {/* colonial government hall */}
       <rect x="36" y="76" width="120" height="56" rx="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
       {/* triangular pediment */}
       <TileRoof d="M28,76 L96,40 L164,76 Z" color={palette.mid} />
       {/* decorative columns */}
-      {[50, 76, 102, 128].map(x =>
-        <rect key={x} x={x} y={76} width="8" height="52" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
-      )}
+      {cols}
       {/* main entrance */}
       <rect x="80" y="108" width="32" height="24" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
       {/* imperial seal */}

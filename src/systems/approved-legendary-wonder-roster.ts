@@ -23,5 +23,9 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
     { id: 'sistine-vault', name: 'Sistine Vault' },
     { id: 'codex-eternal', name: 'Codex Eternal' },
     { id: 'navigators-compass', name: "Navigator's Compass" },
+    // Era 6 wonders (Gunpowder Age)
+    { id: 'palace-of-the-sun', name: 'Palace of the Sun' },
+    { id: 'iron-arsenal', name: 'Iron Arsenal' },
+    { id: 'merchant-admiralty', name: 'Merchant Admiralty' },
   ] as const;
 }

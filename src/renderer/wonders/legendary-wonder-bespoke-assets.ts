@@ -19,6 +19,9 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'sistine-vault-bespoke',
   'codex-eternal-bespoke',
   'navigators-compass-bespoke',
+  'palace-of-the-sun-bespoke',
+  'iron-arsenal-bespoke',
+  'merchant-admiralty-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -57,6 +60,9 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'sistine-vault-bespoke': { key: 'sistine-vault-bespoke', draw: drawSistineVault },
   'codex-eternal-bespoke': { key: 'codex-eternal-bespoke', draw: drawCodexEternal },
   'navigators-compass-bespoke': { key: 'navigators-compass-bespoke', draw: drawNavigatorsCompass },
+  'palace-of-the-sun-bespoke': { key: 'palace-of-the-sun-bespoke', draw: drawPalaceOfTheSun },
+  'iron-arsenal-bespoke': { key: 'iron-arsenal-bespoke', draw: drawIronArsenal },
+  'merchant-admiralty-bespoke': { key: 'merchant-admiralty-bespoke', draw: drawMerchantAdmiralty },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -646,6 +652,118 @@ function drawNavigatorsCompass(options: LegendaryWonderBespokeDrawOptions): void
   // Center dot
   ctx.beginPath();
   ctx.arc(cx, cy, radius * 0.08, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+function drawPalaceOfTheSun(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'palace-of-the-sun-bespoke');
+
+  // Sun corona rays
+  const rayCount = 12;
+  ctx.beginPath();
+  for (let i = 0; i < rayCount; i++) {
+    const angle = (i / rayCount) * Math.PI * 2 - Math.PI / 2;
+    const inner = radius * 0.55;
+    const outer = radius * (i % 2 === 0 ? 1.0 : 0.75);
+    if (i === 0) {
+      ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+    }
+    ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+    const nextAngle = ((i + 0.5) / rayCount) * Math.PI * 2 - Math.PI / 2;
+    ctx.lineTo(cx + Math.cos(nextAngle) * inner, cy + Math.sin(nextAngle) * inner);
+  }
+  ctx.closePath();
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fill();
+
+  // Central palace facade
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fillRect(cx - radius * 0.28, cy - radius * 0.2, radius * 0.56, radius * 0.5);
+
+  // Central disc
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.25, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+function drawIronArsenal(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, metadata } = options;
+  const r = options.radius;
+  markBespoke(ctx, 'iron-arsenal-bespoke');
+
+  // Star-fort silhouette (5-pointed star bastion)
+  const pts = 5;
+  const outerR = r;
+  const innerR = r * 0.48;
+  ctx.beginPath();
+  for (let i = 0; i < pts * 2; i++) {
+    const angle = (i / (pts * 2)) * Math.PI * 2 - Math.PI / 2;
+    const dist = i % 2 === 0 ? outerR : innerR;
+    const px = cx + Math.cos(angle) * dist;
+    const py = cy + Math.sin(angle) * dist;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fill();
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Cannon emblem in center
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fillRect(cx - r * 0.22, cy - r * 0.07, r * 0.44, r * 0.14);
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.22, cy, r * 0.07, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Glow center
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.12, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+function drawMerchantAdmiralty(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, metadata } = options;
+  const r = options.radius;
+  markBespoke(ctx, 'merchant-admiralty-bespoke');
+
+  // Compass rose / admiralty wheel
+  const spokes = 8;
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.lineWidth = 3;
+  for (let i = 0; i < spokes; i++) {
+    const angle = (i / spokes) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(angle) * r * 0.18, cy + Math.sin(angle) * r * 0.18);
+    ctx.lineTo(cx + Math.cos(angle) * r * 0.85, cy + Math.sin(angle) * r * 0.85);
+    ctx.stroke();
+  }
+
+  // Outer ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2);
+  ctx.strokeStyle = metadata.palette.base;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Ship silhouette in center
+  ctx.fillStyle = metadata.palette.base;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.22);
+  ctx.lineTo(cx + r * 0.18, cy + r * 0.12);
+  ctx.lineTo(cx - r * 0.18, cy + r * 0.12);
+  ctx.closePath();
+  ctx.fill();
+
+  // Center glow
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.12, 0, Math.PI * 2);
   ctx.fillStyle = metadata.palette.glow;
   ctx.fill();
 }
