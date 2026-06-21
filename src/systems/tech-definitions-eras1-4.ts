@@ -2,32 +2,32 @@ import type { Tech } from '@/core/types';
 
 export const TECH_TREE_ERAS_1_4: Tech[] = [
   // === MILITARY TRACK (8 techs, existing) ===
-  { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 4, prerequisites: [], unlocks: ['Warriors deal +2 damage', 'Reveal Copper resource'], unlocksUnits: ['axeman'], unlocksBuildings: ['bronze-workshop', 'armory'], era: 1, pacing: { band: 'starter', role: 'foundational-military', impact: 1.05, scope: 'military', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1 } },
+  { id: 'stone-weapons', name: 'Stone Weapons', track: 'military', cost: 4, prerequisites: [], unlocks: ['Warriors deal +2 damage', 'Reveal Copper resource'], unlocksUnits: ['axeman'], unlocksBuildings: ['bronze-workshop', 'armory', 'tribal_muster_ground'], era: 1, pacing: { band: 'starter', role: 'foundational-military', impact: 1.05, scope: 'military', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1 } },
   { id: 'archery', name: 'Archery', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: [], unlocksUnits: ['archer'], era: 1 },
-  { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: ['Reveal Iron resource'], unlocksUnits: ['spearman', 'swordsman'], era: 2 },
+  { id: 'bronze-working', name: 'Bronze Working', track: 'military', cost: 10, prerequisites: ['stone-weapons'], unlocks: ['Reveal Iron resource'], unlocksUnits: ['spearman', 'swordsman'], unlocksBuildings: ['foundry_guild'], era: 2 },
   { id: 'horseback-riding', name: 'Horseback Riding', track: 'military', cost: 55, prerequisites: ['animal-husbandry'], unlocks: [], unlocksUnits: ['horseman', 'cavalry'], unlocksBuildings: ['stable', 'cavalry-academy'], era: 2 },
   { id: 'fortification', name: 'Fortification', track: 'military', cost: 60, prerequisites: ['bronze-working'], unlocks: [], unlocksUnits: ['pikeman'], unlocksBuildings: ['walls'], era: 3 },
-  { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 80, prerequisites: ['bronze-working', 'mining-tech'], unlocks: [], unlocksUnits: ['knight'], unlocksBuildings: ['iron-foundry', 'war-academy'], era: 3 },
+  { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 80, prerequisites: ['bronze-working', 'mining-tech'], unlocks: [], unlocksUnits: ['knight'], unlocksBuildings: ['iron-foundry', 'war-academy', 'iron_legion'], era: 3 },
   { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 90, prerequisites: ['iron-forging', 'engineering'], unlocks: [], unlocksUnits: ['catapult', 'ballista'], unlocksBuildings: ['siege-workshop'], era: 4 },
-  { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus'], unlocksUnits: ['musketeer', 'crossbowman'], era: 4 },
+  { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus'], unlocksUnits: ['musketeer', 'crossbowman'], unlocksBuildings: ['praetorian_legion'], era: 4 },
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
-  { id: 'gathering', name: 'Gathering', track: 'economy', cost: 4, prerequisites: [], unlocks: ['Foundational economy knowledge', 'Reveal Stone resource'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
+  { id: 'gathering', name: 'Gathering', track: 'economy', cost: 4, prerequisites: [], unlocks: ['Foundational economy knowledge', 'Reveal Stone resource'], unlocksBuildings: ['communal_stores'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
   { id: 'pottery', name: 'Pottery', track: 'economy', cost: 10, prerequisites: ['gathering'], unlocks: ['Foundational ceramics knowledge', 'Reveal Wine resource', 'Reveal Salt resource'], era: 1 },
-  { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 12, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource', 'Reveal Sheep resource'], unlocksBuildings: ['ranch'], era: 2 },
+  { id: 'animal-husbandry', name: 'Animal Husbandry', track: 'economy', cost: 12, prerequisites: ['gathering'], unlocks: ['Reveal Horses resource', 'Reveal Sheep resource'], unlocksBuildings: ['ranch', 'grand_bazaar'], era: 2 },
   { id: 'irrigation', name: 'Irrigation', track: 'economy', cost: 45, prerequisites: ['pottery'], unlocks: ['Farms yield +1 food', 'River farms yield +1 production', 'Reveal Silk resource'], era: 2 },
   { id: 'currency', name: 'Currency', track: 'economy', cost: 60, prerequisites: ['pottery'], unlocks: ['Reveal Incense resource', 'Reveal Gold resource'], unlocksBuildings: ['marketplace'], era: 3 },
   { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production', 'Reveal Gems resource', 'Reveal Silver resource'], era: 3 },
   { id: 'trade-routes', name: 'Trade Routes', track: 'economy', cost: 85, prerequisites: ['currency'], unlocks: ['Enable trade routes between cities'], unlocksUnits: ['caravan'], era: 4 },
-  { id: 'banking', name: 'Banking', track: 'economy', cost: 95, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+20% gold in all cities'], unlocksBuildings: ['bank'], era: 4 },
+  { id: 'banking', name: 'Banking', track: 'economy', cost: 95, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+20% gold in all cities'], unlocksBuildings: ['bank', 'royal_mint'], era: 4 },
 
   // === SCIENCE TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'fire', name: 'Fire', track: 'science', cost: 4, prerequisites: [], unlocks: ['Unlock basic research'], era: 1, pacing: { band: 'starter', role: 'foundational-science', impact: 1, scope: 'empire', snowball: 1.15, urgency: 1.1, situationality: 1, unlockBreadth: 1.1 } },
   { id: 'writing', name: 'Writing', track: 'science', cost: 10, prerequisites: ['fire'], unlocks: [], unlocksBuildings: ['library'], era: 1 },
   { id: 'wheel', name: 'The Wheel', track: 'science', cost: 10, prerequisites: ['fire'], unlocks: ['Foundational mechanics knowledge'], unlocksBuildings: ['caravanserai'], era: 2 },
-  { id: 'mathematics', name: 'Mathematics', track: 'science', cost: 60, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['archive'], era: 2 },
+  { id: 'mathematics', name: 'Mathematics', track: 'science', cost: 60, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['archive', 'scribes_hall'], era: 2 },
   { id: 'engineering', name: 'Engineering', track: 'science', cost: 80, prerequisites: ['mathematics', 'wheel'], unlocks: [], unlocksBuildings: ['aqueduct', 'forge'], era: 3 },
-  { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 70, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['temple'], era: 3 },
+  { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 70, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['temple', 'philosophers_circle'], era: 3 },
   { id: 'astronomy', name: 'Astronomy', track: 'science', cost: 90, prerequisites: ['mathematics'], unlocks: [], unlocksBuildings: ['observatory'], era: 4 },
   { id: 'medicine', name: 'Medicine', track: 'science', cost: 85, prerequisites: ['philosophy', 'pottery'], unlocks: ['City population grows faster'], era: 4 },
 
@@ -46,7 +46,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'cartography', name: 'Cartography', track: 'exploration', cost: 10, prerequisites: ['pathfinding'], unlocks: ['Reveal map edges', 'Reveal Spices resource'], era: 1 },
   { id: 'sailing', name: 'Sailing', track: 'exploration', cost: 10, prerequisites: ['pathfinding'], unlocks: ['Units can embark on coast'], era: 2 },
   { id: 'celestial-navigation', name: 'Celestial Navigation', track: 'exploration', cost: 55, prerequisites: ['sailing', 'fire'], unlocks: ['Units can cross ocean'], era: 2 },
-  { id: 'road-building', name: 'Road Building', track: 'exploration', cost: 50, prerequisites: ['wheel', 'pathfinding'], unlocks: ['Workers can build roads'], era: 3 },
+  { id: 'road-building', name: 'Road Building', track: 'exploration', cost: 50, prerequisites: ['wheel', 'pathfinding'], unlocks: ['Workers can build roads'], unlocksBuildings: ['road_corps'], era: 3 },
   { id: 'bridge-building', name: 'Bridge Building', track: 'exploration', cost: 60, prerequisites: ['road-building'], unlocks: ['River crossings cost no extra movement'], era: 3 },
   { id: 'harbor-tech', name: 'Harbors', track: 'exploration', cost: 70, prerequisites: ['sailing', 'currency'], unlocks: [], unlocksBuildings: ['harbor'], era: 3 },
   { id: 'exploration-tech', name: 'Exploration', track: 'exploration', cost: 85, prerequisites: ['celestial-navigation'], unlocks: ['All units +1 vision range'], era: 4 },
@@ -129,7 +129,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'messengers', name: 'Messengers', track: 'communication', cost: 40, prerequisites: ['smoke-signals'], unlocks: ['Messenger post'], era: 2 },
   { id: 'courier-networks', name: 'Courier Networks', track: 'communication', cost: 80, prerequisites: ['messengers', 'pictographs'], unlocks: ['Postal service'], era: 3 },
   { id: 'ciphers', name: 'Ciphers', track: 'communication', cost: 85, prerequisites: ['pictographs'], unlocks: ['Encoded messages'], era: 3 },
-  { id: 'printing', name: 'Printing', track: 'communication', cost: 120, prerequisites: ['courier-networks'], unlocks: ['Newspaper'], era: 4 },
+  { id: 'printing', name: 'Printing', track: 'communication', cost: 120, prerequisites: ['courier-networks'], unlocks: ['Newspaper'], unlocksBuildings: ['imperial_archive'], era: 4 },
   { id: 'diplomats', name: 'Diplomats', track: 'communication', cost: 130, prerequisites: ['courier-networks', 'ciphers'], unlocks: ['Embassy'], era: 4 },
 
   // === ESPIONAGE TRACK (8 techs — M4a stages 1-2, expanded in later milestones) ===
@@ -143,7 +143,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'counter-intelligence', name: 'Counter-Intelligence', track: 'espionage', cost: 130, prerequisites: ['spy-networks', 'sabotage'], unlocks: [], unlocksBuildings: ['security-bureau'], era: 4 },
 
   // === SPIRITUALITY TRACK (8 techs, new) ===
-  { id: 'animism', name: 'Animism', track: 'spirituality', cost: 5, prerequisites: [], unlocks: ['Spirit shrine'], era: 1 },
+  { id: 'animism', name: 'Animism', track: 'spirituality', cost: 5, prerequisites: [], unlocks: ['Spirit shrine'], unlocksBuildings: ['sacred_grove'], era: 1 },
   { id: 'burial-rites', name: 'Burial Rites', track: 'spirituality', cost: 10, prerequisites: ['animism'], unlocks: ['Burial ground'], era: 1 },
   { id: 'shamanism', name: 'Shamanism', track: 'spirituality', cost: 45, prerequisites: ['burial-rites', 'tribal-council'], unlocks: ['Shaman'], era: 2 },
   { id: 'sacred-sites', name: 'Sacred Sites', track: 'spirituality', cost: 40, prerequisites: ['burial-rites'], unlocks: ['Holy site'], era: 2 },
