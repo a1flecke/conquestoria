@@ -57,8 +57,18 @@ function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+export const ERA_NAMES: Record<number, string> = {
+  1: 'Ancient',
+  2: 'Classical',
+  3: 'Medieval',
+  4: 'Renaissance',
+  5: 'Early Modern',
+  6: 'Industrial',
+  7: 'Modern',
+};
+
 function getEraLabel(era: number): string {
-  return era === 5 ? 'Late Era Foundations' : `Era ${era}`;
+  return ERA_NAMES[era] ?? `Era ${era}`;
 }
 
 function getTechName(techId: string): string {
