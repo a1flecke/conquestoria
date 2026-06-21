@@ -10,6 +10,9 @@ set -eu
 #   yarn test          → vitest run --root $CURRENT_ROOT + bash tests/hooks/run.sh
 #   yarn build         → tsc --project $CURRENT_ROOT/tsconfig.json --noEmit
 #                      + vite build $CURRENT_ROOT
+#   yarn build:tauri   → same, with Vite's tauri mode at the worktree root
+#   yarn dev/preview   → vite command rooted at the active worktree
+#   yarn test:web-smoke → Playwright with the active worktree config
 #   yarn vitest …      → yarn vitest … --root $CURRENT_ROOT  (appended)
 #   yarn vite build …  → yarn vite build $CURRENT_ROOT …     (positional root)
 #   yarn vite …        → yarn vite $CURRENT_ROOT …           (positional root)
@@ -40,6 +43,23 @@ if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ] && [ -f "$MAIN_ROO
       (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn tsc --project "$CURRENT_ROOT/tsconfig.json" --noEmit) \
         && (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn vite build "$CURRENT_ROOT")
       exit
+      ;;
+    yarn,build:tauri)
+      (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn tsc --project "$CURRENT_ROOT/tsconfig.json" --noEmit) \
+        && (cd "$MAIN_ROOT" && "$MAIN_RUN" yarn vite build "$CURRENT_ROOT" --mode tauri)
+      exit
+      ;;
+    yarn,dev)
+      shift 2
+      cd "$MAIN_ROOT" && exec "$MAIN_RUN" yarn vite "$CURRENT_ROOT" "$@"
+      ;;
+    yarn,preview)
+      shift 2
+      cd "$MAIN_ROOT" && exec "$MAIN_RUN" yarn vite preview "$CURRENT_ROOT" "$@"
+      ;;
+    yarn,test:web-smoke)
+      shift 2
+      cd "$MAIN_ROOT" && exec "$MAIN_RUN" yarn playwright test --config "$CURRENT_ROOT/playwright.config.ts" "$@"
       ;;
     yarn,vitest)
       # Pass through with --root appended so aliases and test discovery use this worktree

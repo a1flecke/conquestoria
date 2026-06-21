@@ -60,14 +60,14 @@ describe('pirate fleet migration defaults', () => {
     expect(typeof normalized.pirateFleetCooldownByCivLandmass).toBe('object');
   });
 
-  it('does not overwrite existing pirate fleet data', () => {
+  it('retires malformed legacy fleet and cooldown remnants with no backing ship', () => {
     const state = makeLegacyState();
     (state as any).pirateFleets = { 'unit-42': { id: 'unit-42' } };
     (state as any).pirateFleetCooldownByCivLandmass = { 'p1:continent-0': 5 };
 
     const normalized = normalizeLoadedStateForTest(state);
-    expect(normalized.pirateFleets).toHaveProperty('unit-42');
-    expect(normalized.pirateFleetCooldownByCivLandmass?.['p1:continent-0']).toBe(5);
+    expect(normalized.pirateFleets).toEqual({});
+    expect(normalized.pirateFleetCooldownByCivLandmass).toEqual({});
   });
 });
 
