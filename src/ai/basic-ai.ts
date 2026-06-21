@@ -781,6 +781,15 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         };
         continue;
       }
+      // Prioritise grenadier when grenade-warfare is researched and civ has none
+      const hasGrenadier = (civ.units ?? []).some(id => newState.units[id]?.type === 'grenadier');
+      if (civ.techState.completed.includes('grenade-warfare') && !hasGrenadier && trainableUnits.includes('grenadier')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['grenadier'] } },
+        };
+        continue;
+      }
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {

@@ -1025,6 +1025,35 @@ export function CannonSprite({ palette, svgOnly = false }: UnitSpriteProps): str
   );
 }
 
+/* === GRENADIER === */
+
+export function GrenadierSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={100} rx={22} ry={5} />
+      {/* grenadier body */}
+      <Humanoid
+        cx={56} cy={82} scale={1.0}
+        cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} skin={P.skin.warm} hair="#3a2a1a"
+      />
+      {/* bandolier of grenades across chest */}
+      <path d="M46,68 Q56,72 66,68" fill="none" stroke={P.metal.iron} strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="49" cy="70" r="3" fill="#4a3a28" stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="56" cy="71" r="3" fill="#4a3a28" stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="63" cy="70" r="3" fill="#4a3a28" stroke={P.ink.line} strokeWidth="0.8" />
+      {/* throwing arm raised */}
+      <line x1="66" y1="70" x2="80" y2="52" stroke={P.skin.warm} strokeWidth="4" strokeLinecap="round" />
+      {/* grenade in hand */}
+      <circle cx="82" cy="49" r="7" fill="#4a3a28" stroke={P.ink.line} strokeWidth="1" />
+      <rect x="79" y="42" width="6" height="5" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* fuse spark */}
+      <path d="M82,42 Q86,36 90,32" fill="none" stroke="#e8a020" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="90" cy="32" r="2.5" fill="#ffd966" />
+      <Banner x={100} y={28} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}
+
 /* === CARAVAN === */
 
 export function CaravanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
