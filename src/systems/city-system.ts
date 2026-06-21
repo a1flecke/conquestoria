@@ -356,6 +356,35 @@ export const BUILDINGS: Record<string, Building> = {
     civYieldBonus: { gold: 3 },
   },
 
+  // Era 6
+  military_academy: {
+    id: 'military_academy', name: 'Military Academy', category: 'military',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 185,
+    description: 'Central officer training command. +3 production empire-wide. Gunpowder units train faster.',
+    techRequired: 'rifle-tactics',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 6 },
+    civYieldBonus: { production: 3 },
+  },
+  grand_cipher_bureau: {
+    id: 'grand_cipher_bureau', name: 'Grand Cipher Bureau', category: 'science',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 185,
+    description: 'State cryptographic intelligence agency. +3 gold all cities. Spy mission success rates increase.',
+    techRequired: 'counter-espionage',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 6 },
+    civYieldBonus: { gold: 3 },
+  },
+  colonial_administration: {
+    id: 'colonial_administration', name: 'Colonial Administration', category: 'economy',
+    yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 185,
+    description: '+2 gold per city beyond your 4th. Rewards colonial expansion.',
+    techRequired: 'colonial-administration',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 6 },
+    // No civYieldBonus — per-city computation beyond 4th city in national-project-system.ts
+  },
+
   // ERA 5 REGULAR BUILDINGS — costs calibrated to infrastructure [6,10] / power-spike [7,11] bands
   // at era 5 production rate of 12/turn: infrastructure max=120, power-spike max=132
   guildhall: {
@@ -407,6 +436,32 @@ export const BUILDINGS: Record<string, Building> = {
     yields: { food: 2, production: 0, gold: 0, science: 1 }, productionCost: 125,
     description: 'Advanced herbalist practice. +2 food, +1 science. Requires Herbalist.',
     techRequired: 'herbalist-guilds', requiresBuildings: ['herbalist'],
+  },
+
+  // ERA 6 REGULAR BUILDINGS
+  natural_history_museum: {
+    id: 'natural_history_museum', name: 'Natural History Museum', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 130,
+    description: 'Catalogue of the natural world. +3 science. Scientific Method era science engine.',
+    techRequired: 'natural-history',
+  },
+  surgery_guild: {
+    id: 'surgery_guild', name: 'Surgery Guild', category: 'science',
+    yields: { food: 2, production: 0, gold: 0, science: 1 }, productionCost: 120,
+    description: 'Certified surgical school. +2 food, +1 science. Units in city heal faster.',
+    techRequired: 'surgical-school',
+  },
+  concert_hall: {
+    id: 'concert_hall', name: 'Concert Hall', category: 'culture',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 115,
+    description: 'Grand music hall draws wealthy patrons. +3 gold. Cultural prestige.',
+    techRequired: 'baroque-music',
+  },
+  star_fort: {
+    id: 'star_fort', name: 'Star Fort', category: 'military',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 125,
+    description: 'Angled bastion fortress. +3 production. City walls gain +5 garrison defense.',
+    techRequired: 'fortification-engineering',
   },
 };
 
@@ -638,6 +693,15 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 5 special buildings
   harbour_exchange:     '⚓',
   apothecary_house:     '🌿',
+  // era 6 national projects
+  military_academy:     '🎖️',
+  grand_cipher_bureau:  '🔐',
+  colonial_administration: '🗺️',
+  // era 6 regular buildings
+  natural_history_museum: '🦕',
+  surgery_guild:        '⚕️',
+  concert_hall:         '🎻',
+  star_fort:            '⭐',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';

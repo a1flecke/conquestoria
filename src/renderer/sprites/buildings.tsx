@@ -1254,3 +1254,149 @@ export function StockExchangeSprite({ palette, svgOnly = false }: BuildingSprite
     </BuildingFrame>
   );
 }
+
+/* === ERA 6 BUILDINGS === */
+
+export function NaturalHistoryMuseumSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Natural History Museum" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth x={28} y={134} w={136} h={18} palette={palette} />
+      {/* neoclassical columns */}
+      {[40, 64, 88, 112, 136].map(x =>
+        <rect key={x} x={x} y={72} width="10" height="60" rx="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      )}
+      {/* pediment */}
+      <path d="M30,72 L96,38 L162,72 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* door */}
+      <rect x="84" y="104" width="24" height="28" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* fossil spiral on pediment */}
+      <path d="M96,54 Q104,50 108,56 Q112,62 108,68 Q100,72 94,66 Q88,60 92,54" fill="none" stroke={palette.mid} strokeWidth="2" />
+      <Banner x={148} y={26} palette={palette} scale={0.85} />
+    </BuildingFrame>
+  );
+}
+
+export function SurgeryGuildSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Surgery Guild" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth x={36} y={134} w={120} h={18} palette={palette} />
+      {/* main building */}
+      <rect x="52" y="72" width="88" height="60" rx="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
+      <TileRoof d="M44,72 L96,42 L148,72 Z" color={palette.mid} />
+      {/* red cross on facade */}
+      <rect x="84" y="88" width="24" height="8" rx="2" fill="#cc2222" />
+      <rect x="92" y="80" width="8" height="24" rx="2" fill="#cc2222" />
+      {/* door */}
+      <rect x="82" y="108" width="28" height="24" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={136} y={32} palette={palette} scale={0.8} />
+    </BuildingFrame>
+  );
+}
+
+export function ConcertHallSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Concert Hall" category="culture" svgOnly={svgOnly}>
+      <BuildingPlinth x={24} y={134} w={144} h={18} palette={palette} />
+      {/* grand façade with arched windows */}
+      <rect x="32" y="68" width="128" height="64" rx="4" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      <TileRoof d="M24,68 L96,32 L168,68 Z" color={palette.mid} />
+      {/* arched windows */}
+      {[52, 88, 124].map(x =>
+        <path key={x} d={`M${x},120 L${x},96 Q${x + 12},80 ${x + 24},96 L${x + 24},120 Z`}
+          fill={palette.light} stroke={P.ink.line} strokeWidth="0.8" />
+      )}
+      {/* musical note on roof */}
+      <circle cx="96" cy="50" r="5" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="101" y1="50" x2="101" y2="38" stroke={P.metal.gold} strokeWidth="2" />
+      <Banner x={152} y={22} palette={palette} scale={0.85} />
+    </BuildingFrame>
+  );
+}
+
+export function StarFortSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Star Fort" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth x={24} y={138} w={144} h={14} palette={palette} />
+      {/* star-shaped walls from above perspective */}
+      <path d="M96,44 L112,76 L148,80 L124,104 L132,140 L96,124 L60,140 L68,104 L44,80 L80,76 Z"
+        fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.5" />
+      {/* inner courtyard */}
+      <circle cx="96" cy="92" r="24" fill={palette.light} stroke={P.ink.line} strokeWidth="1" />
+      {/* central tower */}
+      <rect x="82" y="76" width="28" height="32" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      {/* flag */}
+      <line x1="96" y1="64" x2="96" y2="76" stroke={P.ink.line} strokeWidth="1.5" />
+      <path d="M96,64 L108,68 L96,72 Z" fill={palette.light} />
+      <Banner x={148} y={28} palette={palette} scale={0.82} />
+    </BuildingFrame>
+  );
+}
+
+export function MilitaryAcademySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Military Academy" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth x={20} y={134} w={152} h={18} palette={palette} />
+      {/* imposing main building */}
+      <rect x="36" y="72" width="120" height="60" rx="2" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* symmetrical towers */}
+      <rect x="28" y="60" width="30" height="72" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="134" y="60" width="30" height="72" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      {/* battlements on towers */}
+      {[28, 36, 44].map(x => <rect key={x} x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />)}
+      {[134, 142, 150].map(x => <rect key={x} x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />)}
+      {/* main door */}
+      <path d="M76,132 L76,104 Q96,90 116,104 L116,132 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="1" />
+      {/* regimental crest */}
+      <circle cx="96" cy="88" r="10" fill={palette.mid} stroke={P.metal.gold} strokeWidth="1.5" />
+      <path d="M91,88 L96,82 L101,88 L96,94 Z" fill={P.metal.gold} />
+      <Banner x={150} y={24} palette={palette} scale={0.88} />
+    </BuildingFrame>
+  );
+}
+
+export function GrandCipherBureauSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Grand Cipher Bureau" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth x={28} y={134} w={136} h={18} palette={palette} />
+      {/* austere government building */}
+      <rect x="44" y="80" width="104" height="52" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <TileRoof d="M36,80 L96,48 L156,80 Z" color={palette.mid} />
+      {/* narrow barred windows */}
+      {[58, 84, 110].map(x =>
+        <g key={x}>
+          <rect x={x} y="94" width="16" height="24" rx="1" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.7" />
+          <line x1={x + 8} y1="94" x2={x + 8} y2="118" stroke={P.ink.line} strokeWidth="0.5" />
+          <line x1={x} y1="106" x2={x + 16} y2="106" stroke={P.ink.line} strokeWidth="0.5" />
+        </g>
+      )}
+      {/* cipher keyhole on door */}
+      <rect x="84" y="108" width="24" height="24" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="96" cy="116" r="4" fill={palette.dark} stroke={P.metal.gold} strokeWidth="1" />
+      <path d="M93,120 L99,120 L97,126 L95,126 Z" fill={P.metal.gold} />
+      <Banner x={144} y={28} palette={palette} scale={0.82} />
+    </BuildingFrame>
+  );
+}
+
+export function ColonialAdministrationSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Colonial Administration" category="economy" svgOnly={svgOnly}>
+      <BuildingPlinth x={24} y={134} w={144} h={18} palette={palette} />
+      {/* colonial government hall */}
+      <rect x="36" y="76" width="120" height="56" rx="3" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* triangular pediment */}
+      <TileRoof d="M28,76 L96,40 L164,76 Z" color={palette.mid} />
+      {/* decorative columns */}
+      {[50, 76, 102, 128].map(x =>
+        <rect key={x} x={x} y={76} width="8" height="52" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      )}
+      {/* main entrance */}
+      <rect x="80" y="108" width="32" height="24" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* imperial seal */}
+      <circle cx="96" cy="56" r="8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M96,50 L98,56 L104,56 L99,60 L101,66 L96,62 L91,66 L93,60 L88,56 L94,56 Z"
+        fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <Banner x={152} y={22} palette={palette} scale={0.85} />
+    </BuildingFrame>
+  );
+}

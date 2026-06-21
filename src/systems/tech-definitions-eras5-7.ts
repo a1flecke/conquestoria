@@ -139,7 +139,7 @@ const ERA_6_TECHS: Tech[] = [
   // MILITARY (2)
   { id: 'rifle-tactics', name: 'Rifle Tactics', track: 'military', cost: 185,
     prerequisites: ['black-powder', 'professional-army'],
-    unlocks: ['Musketeer-class units replaced by riflemen'], era: 6 },
+    unlocks: ['Musketeer-class units replaced by riflemen'], unlocksBuildings: ['military_academy'], era: 6 },
   { id: 'grenade-warfare', name: 'Grenade Warfare', track: 'military', cost: 185,
     prerequisites: ['black-powder', 'military-logistics'],
     unlocks: ['Grenadier unlocked — anti-fortification specialist'], unlocksUnits: ['grenadier'], era: 6 },
@@ -174,7 +174,7 @@ const ERA_6_TECHS: Tech[] = [
     unlocks: ['+1 tile yield in settled frontier cities'], era: 6 },
   { id: 'colonial-administration', name: 'Colonial Administration Tech', track: 'exploration', cost: 180,
     prerequisites: ['colonial-charter', 'mercantilism'],
-    unlocks: ['Colonial Administration national project available'], era: 6 },
+    unlocks: ['Colonial Administration national project available'], unlocksBuildings: ['colonial_administration'], era: 6 },
 
   // AGRICULTURE (2)
   { id: 'improved-agriculture', name: 'Improved Agriculture', track: 'agriculture', cost: 180,
@@ -243,7 +243,7 @@ const ERA_6_TECHS: Tech[] = [
   // ESPIONAGE (2)
   { id: 'counter-espionage', name: 'Counter-Espionage', track: 'espionage', cost: 185,
     prerequisites: ['black-chambers'],
-    unlocks: ['-25% chance enemy spies succeed against your cities'], era: 6 },
+    unlocks: ['-25% chance enemy spies succeed against your cities'], unlocksBuildings: ['grand_cipher_bureau'], era: 6 },
   { id: 'propaganda', name: 'Propaganda', track: 'espionage', cost: 180,
     prerequisites: ['diplomatic-networks'],
     unlocks: ['Spy missions to flip loyalties available in foreign cities'], era: 6 },

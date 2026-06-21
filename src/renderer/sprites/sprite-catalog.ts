@@ -23,6 +23,8 @@ import {
   BronzeWorkshopSprite, ArmorySprite, RanchSprite, CavalryAcademySprite,
   IronFoundrySprite, WarAcademySprite, MasonryWorksSprite, SiegeWorkshopSprite,
   CaravanseraiSprite, BankSprite, StockExchangeSprite,
+  NaturalHistoryMuseumSprite, SurgeryGuildSprite, ConcertHallSprite, StarFortSprite,
+  MilitaryAcademySprite, GrandCipherBureauSprite, ColonialAdministrationSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
@@ -226,6 +228,15 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   // Era 5 special buildings — placeholder sprites
   harbour_exchange:       HarborSprite,
   apothecary_house:       HerbalistSprite,
+  // Era 6 national projects
+  military_academy:       MilitaryAcademySprite,
+  grand_cipher_bureau:    GrandCipherBureauSprite,
+  colonial_administration: ColonialAdministrationSprite,
+  // Era 6 regular buildings
+  natural_history_museum: NaturalHistoryMuseumSprite,
+  surgery_guild:          SurgeryGuildSprite,
+  concert_hall:           ConcertHallSprite,
+  star_fort:              StarFortSprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;
