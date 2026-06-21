@@ -178,10 +178,10 @@ The executor maintains this table in the plan while working. No row may remain `
 | SFX-U1..U6 | Six unit movement/fire/impact/death families | Task 16; catalog, waveform, and listening checklist | open |
 | SFX-HQ | Enclave ambience/defense/collapse and flotilla movement | Task 16; focus lifecycle and listening checklist | open |
 | SFX-STRAT | Sighting/raid/blockade/tribute/contract/exposure cues | Task 16; viewer routing tests and listening checklist | open |
-| COPY-1 | Pirate Waters labels, disabled reasons, advice | Tasks 10-12; DOM assertions and copy review | open |
-| BALANCE-1 | Fleet stats and encounter exchange counts | Task 17; deterministic sampling tests | open |
-| COMPAT-1 | Legacy save and ID repair | Task 3; migration/round-trip tests | complete |
-| GATE-1 | Temporary internal runtime-readiness gate preventing partial feature exposure | Tasks 5 and 8 create/use it; Task 17 removes it and proves live activation | open |
+| COPY-1 | Pirate Waters labels, disabled reasons, advice | Tasks 10-12 and 17; DOM assertions, stale-action tests, and copy review | complete |
+| BALANCE-1 | Fleet stats and encounter exchange counts | Tasks 4 and 17; deterministic stage sampling and mixed-fleet progression tests | complete |
+| COMPAT-1 | Legacy save and ID repair | Tasks 3 and 17; round-trip, counter repair, and legacy-fleet-to-v2 migration tests | complete |
+| GATE-1 | Temporary internal runtime-readiness gate preventing partial feature exposure | Task 17 removed the gate and retired loop; source scan and live activation tests | complete |
 
 ---
 
@@ -1388,7 +1388,7 @@ git commit -m "feat(pirates): add production audio and private routing"
 - Modify: `tests/systems/pirate-balance.test.ts`
 - Modify implementation only when a failing regression demonstrates a real defect
 
-- [ ] **Step 1: Add the complete deterministic scenario**
+- [x] **Step 1: Add the complete deterministic scenario**
 
 The test drives:
 
@@ -1407,15 +1407,19 @@ The test drives:
 
 Before running the scenario, delete `PIRATE_IMPLEMENTATION_READY` and every conditional that references it. Piracy becomes unconditionally eligible through the approved `Galleys` activation rule. Add a source scan and integration assertion proving no readiness gate remains, then mark `GATE-1` complete.
 
-- [ ] **Step 2: Run gameplay and architecture regressions**
+Execution note: the scenario and its focused system companions cover activation/warning, spawn, rumor-to-sighting privacy, mixed-fleet stage reinforcement, raids/blockades, tribute, Stage 5 contracts, relocation, destruction, replay safety, and save/load continuation. Review found and fixed three missing live behaviors: legacy fleet migration, covert-enclave rumor seeding, and the promised stage-reinforcement phase.
+
+- [x] **Step 2: Run gameplay and architecture regressions**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/systems/pirate-end-to-end.test.ts tests/systems/pirate-system.test.ts tests/systems/pirate-actions.test.ts tests/systems/economy-system.test.ts tests/ai/basic-ai-pirates.test.ts tests/storage/save-manager.test.ts tests/main.integration.test.ts
 ```
 
-- [ ] **Step 3: Run performance checks**
+- [x] **Step 3: Run performance checks**
 
 Instrument a large map with five factions and representative units. Assert scheduled habitat scoring only occurs on due checks/control invalidation, bounded behavior searches remain below documented candidate counts, and Pirate Waters projection does not scan all map tiles on ordinary rerender.
+
+Execution note: five-faction instrumentation exposed and fixed a quadratic escort-classification path. Intent selection now performs one naval-role classification pass and caps deterministic evaluation at 24 unit and 12 city candidates inside a 20-hex operational radius. Not-due ecology and ordinary Pirate Waters projection perform zero full tile scans.
 
 - [ ] **Step 4: Run browser gameplay QA**
 
@@ -1427,9 +1431,13 @@ Start the app and use the Browser plugin:
 
 Verify desktop and mobile widths, mouse and touch selection, hot-seat handoff privacy, all launcher paths, stale-action replay, blockade city explanation, combat preview, every sprite/damage/animation state, reduced motion, wrap movement, SFX focus lifecycle, save/reload, and offline refresh. Capture screenshots for representative enclave, flotilla, Pirate Waters, blockade, damage, and modern mercenary states for the eventual PR.
 
-- [ ] **Step 5: Re-run balance sampling and adjust definitions only**
+Blocked execution note (2026-06-20): the required in-app Browser controller rejects commands before navigation with `codex/sandbox-state-meta: missing field sandboxPolicy`. Structural renderer/UI tests and direct SVG render inspection are green, but this browser matrix and screenshot record remain open until the controller works.
+
+- [x] **Step 5: Re-run balance sampling and adjust definitions only**
 
 If equivalent encounter exchange counts fall outside intended bands, adjust `pirate-definitions.ts` rather than scattering stat exceptions through behavior/combat code. Mark `BALANCE-1` and `COPY-1` complete after tests and visual copy review.
+
+Execution note: all five stage bands and mixed old/new roster assertions pass without stat exceptions. Pirate Waters action labels, disabled reasons, focus semantics, stale-action refresh, and complete faction reachability pass their DOM suites.
 
 - [ ] **Step 6: Commit regression fixes and scenario**
 

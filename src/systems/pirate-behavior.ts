@@ -65,6 +65,12 @@ export interface PirateMutationResult {
   };
 }
 
+export const PIRATE_BEHAVIOR_SEARCH_LIMITS = {
+  radius: 20,
+  units: 24,
+  cities: 12,
+} as const;
+
 const DIRECTION_DELTAS = [
   { name: PIRATE_RELOCATION_DIRECTIONS[0], delta: { q: 0, r: -1 } },
   { name: PIRATE_RELOCATION_DIRECTIONS[1], delta: { q: 1, r: -1 } },
@@ -148,9 +154,9 @@ function factionReferencePosition(state: GameState, factionId: string): HexCoord
   return faction.headquarters.kind === 'coastal-enclave' ? faction.headquarters.position : null;
 }
 
-export function isTransportEscorted(state: GameState, transport: Unit): boolean {
+function isTransportEscortedBy(state: GameState, transport: Unit, units: readonly Unit[]): boolean {
   if (!isTransport(transport)) return false;
-  return Object.values(state.units).some(candidate =>
+  return units.some(candidate =>
     candidate.id !== transport.id
     && !candidate.transportId
     && candidate.owner === transport.owner
@@ -159,14 +165,8 @@ export function isTransportEscorted(state: GameState, transport: Unit): boolean 
   );
 }
 
-function isActiveTransportEscort(state: GameState, unit: Unit): boolean {
-  if (!isCombatNaval(unit)) return false;
-  return Object.values(state.units).some(candidate =>
-    candidate.id !== unit.id
-    && candidate.owner === unit.owner
-    && isTransport(candidate)
-    && distance(state, candidate.position, unit.position) <= 1,
-  );
+export function isTransportEscorted(state: GameState, transport: Unit): boolean {
+  return isTransportEscortedBy(state, transport, Object.values(state.units));
 }
 
 export function choosePirateIntent(state: GameState, factionId: string): PirateIntent | null {
@@ -174,19 +174,44 @@ export function choosePirateIntent(state: GameState, factionId: string): PirateI
   const from = factionReferencePosition(state, factionId);
   if (!faction || !from) return null;
 
-  const victimUnits = Object.values(state.units).filter(unit =>
+  const allUnits = Object.values(state.units);
+  const transports: Unit[] = [];
+  const combatNaval: Unit[] = [];
+  for (const unit of allUnits) {
+    const definition = UNIT_DEFINITIONS[unit.type];
+    if (definition?.domain !== 'naval') continue;
+    if (definition.cargoCapacity !== undefined) transports.push(unit);
+    if (definition.strength > 0) combatNaval.push(unit);
+  }
+  const escortedTransportIds = new Set(transports.filter(transport => combatNaval.some(escort =>
+    escort.owner === transport.owner
+    && distance(state, escort.position, transport.position) <= 1,
+  )).map(transport => transport.id));
+  const activeEscortIds = new Set(combatNaval.filter(escort => transports.some(transport =>
+    transport.owner === escort.owner
+    && distance(state, transport.position, escort.position) <= 1,
+  )).map(escort => escort.id));
+  const victimUnits = allUnits.filter(unit =>
     !unit.transportId
+    && distance(state, from, unit.position) <= PIRATE_BEHAVIOR_SEARCH_LIMITS.radius
     && isEligibleVictim(state, factionId, unit.owner)
     && isAlwaysHostilePair(factionId, unit.owner),
-  );
+  ).sort((a, b) => distance(state, from, a.position) - distance(state, from, b.position)
+    || a.id.localeCompare(b.id))
+    .slice(0, PIRATE_BEHAVIOR_SEARCH_LIMITS.units);
   const unescortedTransport = nearestByPosition(state, from,
-    victimUnits.filter(unit => isTransport(unit) && !isTransportEscorted(state, unit)));
+    victimUnits.filter(unit => transports.includes(unit) && !escortedTransportIds.has(unit.id)));
   if (unescortedTransport) {
     return { kind: 'raid', targetCivId: unescortedTransport.owner, targetUnitId: unescortedTransport.id, plannedRound: state.turn };
   }
 
   const eligibleCities = Object.values(state.cities).filter(city =>
-    isEligibleVictim(state, factionId, city.owner) && isCoastalCity(state, city.id));
+    distance(state, from, city.position) <= PIRATE_BEHAVIOR_SEARCH_LIMITS.radius
+    && isEligibleVictim(state, factionId, city.owner)
+    && isCoastalCity(state, city.id),
+  ).sort((a, b) => distance(state, from, a.position) - distance(state, from, b.position)
+    || a.id.localeCompare(b.id))
+    .slice(0, PIRATE_BEHAVIOR_SEARCH_LIMITS.cities);
   const targetCity = nearestByPosition(state, from, eligibleCities);
   if (targetCity) {
     return {
@@ -198,14 +223,14 @@ export function choosePirateIntent(state: GameState, factionId: string): PirateI
   }
 
   const hostileNaval = nearestByPosition(state, from,
-    victimUnits.filter(unit => isCombatNaval(unit) && !isTransport(unit) && !isActiveTransportEscort(state, unit)));
+    victimUnits.filter(unit => combatNaval.includes(unit) && !transports.includes(unit) && !activeEscortIds.has(unit.id)));
   if (hostileNaval) {
     return { kind: 'raid', targetCivId: hostileNaval.owner, targetUnitId: hostileNaval.id, plannedRound: state.turn };
   }
 
   if (faction.behavior === 'blockading') {
     const escortedTransport = nearestByPosition(state, from,
-      victimUnits.filter(unit => isTransport(unit) && isTransportEscorted(state, unit)));
+      victimUnits.filter(unit => transports.includes(unit) && escortedTransportIds.has(unit.id)));
     if (escortedTransport) {
       return { kind: 'raid', targetCivId: escortedTransport.owner, targetUnitId: escortedTransport.id, plannedRound: state.turn };
     }

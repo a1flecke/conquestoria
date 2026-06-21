@@ -246,6 +246,25 @@ describe('pirate habitat candidates', () => {
 });
 
 describe('pirate spawn selection and creation', () => {
+  it('seeds imprecise rumor intel for the owner of a covert claimed-coast enclave', () => {
+    const state = stateWithMap(mapWith([
+      [5, 5, 'plains', 'player'], [5, 4, 'coast'], [6, 4, 'coast'],
+    ]));
+    state.civilizations.player.techState.completed = ['galleys'];
+    state.civilizations.player.visibility.tiles['5,5'] = 'fog';
+    const plan = choosePirateSpawn(state, 'covert-rumor');
+    expect(plan).toMatchObject({ habitat: 'coastal-enclave', covertOwnerId: 'player' });
+
+    const spawned = spawnPirateFaction(state, plan!, new EventBus(), 'covert-rumor');
+    const factionId = Object.keys(spawned.pirates!.factions)[0]!;
+    const intel = spawned.pirates!.intelByCiv.player[factionId];
+
+    expect(intel).toMatchObject({ level: 'rumor', factionId, discoveredRound: state.turn });
+    expect(intel.approximateRegion?.radius).toBeGreaterThan(0);
+    expect(intel.approximateRegion?.center).not.toEqual(plan!.position);
+    expect(intel.lastKnownHeadquarters).toBeUndefined();
+  });
+
   it('enforces map faction caps, the two-flotilla cap, and Stage 1 enclave-only spawning', () => {
     const state = stateWithMap(mapWith([
       [3, 3, 'plains'], [3, 2, 'coast'], [4, 2, 'coast'], [4, 3, 'coast'],

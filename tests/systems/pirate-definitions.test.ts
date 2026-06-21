@@ -8,7 +8,6 @@ import {
   PIRATE_FLEET_SIZE_BY_BEHAVIOR,
   PIRATE_HULL_TYPES,
   PIRATE_HULL_DEFINITIONS,
-  PIRATE_IMPLEMENTATION_READY,
   PIRATE_MAX_FLOTILLA_FACTIONS,
   PIRATE_NOTORIETY,
   PIRATE_PLUNDER_CAP,
@@ -45,7 +44,6 @@ describe('pirate definitions', () => {
     expect(PIRATE_STAGE_SURCHARGE).toEqual([0, 0, 5, 10, 15, 20]);
     expect(PIRATE_PLUNDER_CAP).toEqual([0, 5, 8, 12, 16, 20]);
     expect(PIRATE_BOUNTY_BASE).toEqual({ patrolling: 10, raiding: 25, blockading: 45 });
-    expect(PIRATE_IMPLEMENTATION_READY).toBe(false);
   });
 
   it('defines five stages and six dedicated hulls without unlocking them for cities', () => {

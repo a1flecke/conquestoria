@@ -1,5 +1,5 @@
 import type { EventBus } from '@/core/event-bus';
-import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import type { PirateFactionState } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { canUnitAttackTarget } from './attack-targeting';
@@ -16,15 +16,21 @@ import {
   type PirateRoundFacts,
 } from './pirate-behavior';
 import { destroyPirateFaction, recordPirateContractRaid, type PirateActionEvent } from './pirate-actions';
-import { PIRATE_NOTORIETY } from './pirate-definitions';
-import { processPirateEcology } from './pirate-ecology';
+import {
+  composePirateFleet,
+  getPirateStageDefinition,
+  PIRATE_FLEET_SIZE_BY_BEHAVIOR,
+  PIRATE_HULL_DEFINITIONS,
+  PIRATE_NOTORIETY,
+} from './pirate-definitions';
+import { getPirateMaritimeStage, processPirateEcology } from './pirate-ecology';
 import { refreshPirateIntel } from './pirate-presentation';
 import {
   applyPirateNotifications,
   deliverPirateActivationWarnings,
   type PirateNotificationEvent,
 } from './pirate-notifications';
-import { getMovementStepCost, moveUnit, resetUnitTurn, UNIT_DEFINITIONS } from './unit-system';
+import { createUnit, getMovementStepCost, moveUnit, resetUnitTurn, UNIT_DEFINITIONS } from './unit-system';
 
 export const PIRATE_ROUND_TRACE = [
   'normalize',
@@ -209,13 +215,120 @@ function advanceBehavior(state: GameState, raidFactionIds: Set<string>): {
     const survival = state.turn > faction.spawnedRound
       && (state.turn - faction.spawnedRound) % PIRATE_NOTORIETY.survivalInterval === 0 ? 1 : 0;
     const notoriety = faction.notoriety + survival + (raidFactionIds.has(faction.id) ? 1 : 0);
-    const behavior = notoriety >= PIRATE_NOTORIETY.blockading
+    const behavior = notoriety >= PIRATE_NOTORIETY.blockading && faction.maritimeStage >= 2
       ? 'blockading' as const
       : notoriety >= PIRATE_NOTORIETY.raiding ? 'raiding' as const : 'patrolling' as const;
     factions[faction.id] = { ...faction, notoriety, behavior };
     if (behavior !== faction.behavior) events.push({ type: 'behavior-changed', factionId: faction.id });
   }
   return { state: { ...state, pirates: { ...state.pirates, factions } }, events };
+}
+
+function reinforcementReferencePosition(state: GameState, faction: PirateFactionState): HexCoord | null {
+  if (faction.headquarters.kind === 'coastal-enclave') return faction.headquarters.position;
+  return state.units[faction.headquarters.flagshipUnitId]?.position
+    ?? faction.shipIds.map(id => state.units[id]).find((unit): unit is Unit => Boolean(unit))?.position
+    ?? null;
+}
+
+function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
+  if (!state.pirates) return state;
+  const targetStage = getPirateMaritimeStage(state);
+  let nextState = state;
+  for (const factionId of Object.keys(state.pirates.factions).sort()) {
+    const faction = nextState.pirates?.factions[factionId];
+    if (!faction || faction.maritimeStage >= targetStage) continue;
+    const reference = reinforcementReferencePosition(nextState, faction);
+    if (!reference) continue;
+
+    const activeUnits = faction.shipIds
+      .map(id => nextState.units[id])
+      .filter((unit): unit is Unit => Boolean(unit));
+    const stageDefinition = getPirateStageDefinition(targetStage);
+    const targetFleet = composePirateFleet(
+      targetStage,
+      faction.behavior,
+      `${nextState.gameId ?? 'game'}:${nextState.turn}:${factionId}:reinforcement`,
+    );
+    const targetSize = Math.min(
+      targetFleet.length,
+      PIRATE_FLEET_SIZE_BY_BEHAVIOR[faction.behavior].max,
+    );
+    const retiredIds = new Set(activeUnits
+      .filter(unit => targetStage === 5 && (unit.type === 'pirate_galley' || unit.type === 'pirate_corsair'))
+      .map(unit => unit.id));
+    let retained = activeUnits.filter(unit => !retiredIds.has(unit.id));
+    const hasAnchor = retained.some(unit => unit.type === stageDefinition.anchorHull);
+    if (!hasAnchor && retained.length >= targetSize) {
+      const weakest = [...retained].sort((a, b) => {
+        const aStage = PIRATE_HULL_DEFINITIONS[a.type as keyof typeof PIRATE_HULL_DEFINITIONS]?.introducedAtStage ?? 0;
+        const bStage = PIRATE_HULL_DEFINITIONS[b.type as keyof typeof PIRATE_HULL_DEFINITIONS]?.introducedAtStage ?? 0;
+        return aStage - bStage || a.id.localeCompare(b.id);
+      })[0];
+      if (weakest) {
+        retiredIds.add(weakest.id);
+        retained = retained.filter(unit => unit.id !== weakest.id);
+      }
+    }
+
+    const additions: UnitType[] = [];
+    if (!retained.some(unit => unit.type === stageDefinition.anchorHull)) additions.push(stageDefinition.anchorHull);
+    for (const type of targetFleet) {
+      if (retained.length + additions.length >= targetSize) break;
+      if (type === stageDefinition.anchorHull && additions.includes(type)) continue;
+      additions.push(type);
+    }
+    const occupied = new Set(Object.values(nextState.units)
+      .filter(unit => !retiredIds.has(unit.id) && !unit.transportId)
+      .map(unit => hexKey(unit.position)));
+    const positions = Object.values(nextState.map.tiles)
+      .filter(tile => tile.terrain === 'coast' || tile.terrain === 'ocean')
+      .filter(tile => !occupied.has(hexKey(tile.coord)))
+      .filter(tile => distance(nextState, reference, tile.coord) <= 3)
+      .sort((a, b) => distance(nextState, reference, a.coord) - distance(nextState, reference, b.coord)
+        || a.coord.q - b.coord.q || a.coord.r - b.coord.r)
+      .slice(0, additions.length)
+      .map(tile => tile.coord);
+    if (positions.length < additions.length) continue;
+
+    const units = { ...nextState.units };
+    for (const id of retiredIds) delete units[id];
+    const idCounters = { ...nextState.idCounters };
+    const created = additions.map((type, index) => {
+      const unit = createUnit(type, faction.id, positions[index], idCounters);
+      units[unit.id] = unit;
+      return unit;
+    });
+    const shipIds = [...retained.map(unit => unit.id), ...created.map(unit => unit.id)];
+    const flagshipUnitId = faction.headquarters.kind === 'deep-sea-flotilla'
+      ? (shipIds.includes(faction.headquarters.flagshipUnitId)
+          ? faction.headquarters.flagshipUnitId
+          : created.find(unit => unit.type === stageDefinition.anchorHull)?.id ?? shipIds[0])
+      : undefined;
+    const advancedFaction: PirateFactionState = {
+      ...faction,
+      maritimeStage: targetStage,
+      shipIds,
+      headquarters: faction.headquarters.kind === 'deep-sea-flotilla'
+        ? { ...faction.headquarters, flagshipUnitId: flagshipUnitId! }
+        : faction.headquarters,
+      transitionGuards: {
+        ...faction.transitionGuards,
+        lastStageReinforcementRound: nextState.turn,
+      },
+    };
+    nextState = {
+      ...nextState,
+      units,
+      idCounters,
+      pirates: {
+        ...nextState.pirates!,
+        factions: { ...nextState.pirates!.factions, [factionId]: advancedFaction },
+      },
+    };
+    for (const unit of created) bus.emit('unit:created', { unit });
+  }
+  return nextState;
 }
 
 export function processPiratesForCompletedRound(state: GameState, bus: EventBus): ProcessPiratesResult {
@@ -277,6 +390,7 @@ export function processPiratesForCompletedRound(state: GameState, bus: EventBus)
   const advanced = advanceBehavior(nextState, new Set(raids.map(raid => raid.factionId)));
   nextState = advanced.state;
   events.push(...advanced.events);
+  nextState = advanceStageAndReinforce(nextState, bus);
   nextState = processPirateEcology(nextState, bus, state.gameId ?? 'pirates');
   if (!wasActivated && nextState.pirates?.activatedTurn !== null) events.push({ type: 'activated', factionId: '' });
   const previousIntel = state.pirates?.intelByCiv ?? {};

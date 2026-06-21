@@ -410,11 +410,36 @@ export function spawnPirateFaction(
     transitionGuards: { emittedEventKeys: [] },
   };
   const pirates = state.pirates ?? createEmptyPirateState();
+  const covertOwnerId = plan.habitat === 'coastal-enclave'
+    ? getCoastalEnclaveCandidates(state).find(candidate =>
+        hexKey(canonicalCoord(state, candidate.position)) === hexKey(headquartersPosition))?.covertOwnerId
+    : undefined;
+  let intelByCiv = pirates.intelByCiv;
+  if (covertOwnerId && state.civilizations[covertOwnerId]) {
+    const possibleCenters = neighbors(state, headquartersPosition)
+      .map(position => canonicalCoord(state, position))
+      .filter(position => Boolean(state.map.tiles[hexKey(position)]));
+    const rng = createRng(`pirate-rumor:${seed}:${covertOwnerId}:${factionId}`);
+    const center = possibleCenters[Math.floor(rng() * possibleCenters.length)] ?? headquartersPosition;
+    intelByCiv = {
+      ...pirates.intelByCiv,
+      [covertOwnerId]: {
+        ...(pirates.intelByCiv[covertOwnerId] ?? {}),
+        [factionId]: {
+          factionId,
+          level: 'rumor',
+          discoveredRound: state.turn,
+          lastUpdatedRound: state.turn,
+          approximateRegion: { center, radius: 4 },
+        },
+      },
+    };
+  }
   const nextState: GameState = {
     ...state,
     units,
     idCounters,
-    pirates: { ...pirates, factions: { ...pirates.factions, [factionId]: faction } },
+    pirates: { ...pirates, factions: { ...pirates.factions, [factionId]: faction }, intelByCiv },
   };
   for (const unit of createdUnits) bus.emit('unit:created', { unit });
   bus.emit('pirate:faction-spawned', {
