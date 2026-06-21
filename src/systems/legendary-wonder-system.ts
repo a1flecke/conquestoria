@@ -226,15 +226,17 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
       }
       return civ.techState.completed.length >= (step.targetCount ?? 1);
     }
-    case 'defeat_stronghold':
-      return (state.legendaryWonderHistory?.destroyedStrongholds ?? [])
-        .filter(record => record.civId === project.ownerId)
-        .some(record => {
+    case 'defeat_stronghold': {
+      const matchingStrongholds = (state.legendaryWonderHistory?.destroyedStrongholds ?? [])
+        .filter(record => {
+          if (record.civId !== project.ownerId) return false;
           if (step.scope === 'near-city') {
             return hexDistance(record.position, city.position) <= (step.radius ?? 4);
           }
           return true;
         });
+      return matchingStrongholds.length >= (step.targetCount ?? 1);
+    }
     case 'buildings-in-multiple-cities': {
       const minimumBuildings = step.minimumBuildingsPerCity ?? 3;
       const hostQualifies = city.buildings.length >= minimumBuildings;

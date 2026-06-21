@@ -200,12 +200,14 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
         const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);
         const unitDef = UNIT_DEFINITIONS[result.completedUnit];
-        if (
-          unitDef?.domain === 'naval' &&
-          newState.completedLegendaryWonders?.['navigators-compass']?.ownerId === civId
-        ) {
-          newUnit.movementPointsLeft += 1;
-          newUnit.movementBonus = (newUnit.movementBonus ?? 0) + 1;
+        if (unitDef?.domain === 'naval') {
+          let navalMoveBonus = 0;
+          if (newState.completedLegendaryWonders?.['navigators-compass']?.ownerId === civId) navalMoveBonus += 1;
+          if (civ.techState.completed.includes('trade-winds')) navalMoveBonus += 1;
+          if (navalMoveBonus > 0) {
+            newUnit.movementPointsLeft += navalMoveBonus;
+            newUnit.movementBonus = (newUnit.movementBonus ?? 0) + navalMoveBonus;
+          }
         }
         newState.units[newUnit.id] = newUnit;
         newState.civilizations[civId].units.push(newUnit.id);

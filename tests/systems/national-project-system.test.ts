@@ -124,6 +124,66 @@ describe('getNationalProjectCivYieldBonus', () => {
     });
     expect(getNationalProjectCivYieldBonus(state, 'p1').gold).toBe(3);
   });
+
+  const cityStub = (id: string) => ({
+    id, owner: 'p1', name: id, position: { q: 0, r: 0 },
+    population: 1, food: 0, foodNeeded: 10, buildings: [],
+    productionQueue: [], productionProgress: 0,
+    ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village',
+  } as any);
+
+  it('colonial_administration: 0 gold with exactly 4 cities (at threshold)', () => {
+    const state = makeState({
+      era: 6,
+      cities: { c1: cityStub('c1'), c2: cityStub('c2'), c3: cityStub('c3'), c4: cityStub('c4') },
+      builtNationalProjects: {
+        'p1:colonial_administration': { civId: 'p1', cityId: 'c1', eraBuilt: 6 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1').gold ?? 0).toBe(0);
+  });
+
+  it('colonial_administration: +2 gold with 5 cities (1 beyond threshold)', () => {
+    const state = makeState({
+      era: 6,
+      cities: {
+        c1: cityStub('c1'), c2: cityStub('c2'), c3: cityStub('c3'),
+        c4: cityStub('c4'), c5: cityStub('c5'),
+      },
+      builtNationalProjects: {
+        'p1:colonial_administration': { civId: 'p1', cityId: 'c1', eraBuilt: 6 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1').gold).toBe(2);
+  });
+
+  it('colonial_administration: +6 gold with 7 cities (3 beyond threshold)', () => {
+    const state = makeState({
+      era: 6,
+      cities: {
+        c1: cityStub('c1'), c2: cityStub('c2'), c3: cityStub('c3'),
+        c4: cityStub('c4'), c5: cityStub('c5'), c6: cityStub('c6'), c7: cityStub('c7'),
+      },
+      builtNationalProjects: {
+        'p1:colonial_administration': { civId: 'p1', cityId: 'c1', eraBuilt: 6 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1').gold).toBe(6);
+  });
+
+  it('colonial_administration: fades at era delta 2 (halves the per-city gold)', () => {
+    const state = makeState({
+      era: 8,
+      cities: {
+        c1: cityStub('c1'), c2: cityStub('c2'), c3: cityStub('c3'),
+        c4: cityStub('c4'), c5: cityStub('c5'),
+      },
+      builtNationalProjects: {
+        'p1:colonial_administration': { civId: 'p1', cityId: 'c1', eraBuilt: 6 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1').gold).toBe(1); // 2 * 0.5
+  });
 });
 
 describe('expireNationalProjects', () => {

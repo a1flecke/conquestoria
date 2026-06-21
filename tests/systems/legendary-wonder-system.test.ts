@@ -834,6 +834,40 @@ describe('legendary-wonder-system', () => {
     expect(result.legendaryWonderProjects?.['sun-spire:player:city-river']?.questSteps[1]?.completed).toBe(false);
   });
 
+  it('requires targetCount strongholds to be destroyed before completing that step', () => {
+    const state = makeLegendaryWonderFixture();
+    state.legendaryWonderProjects = {
+      'iron-arsenal:player:city-river': {
+        wonderId: 'iron-arsenal',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'questing',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [
+          { id: 'military-techs', description: 'Complete 4 military technologies.', completed: true },
+          { id: 'strongholds', description: 'Defeat 2 enemy strongholds or fortified cities.', completed: false },
+        ],
+      },
+    };
+    state.legendaryWonderHistory = {
+      discoveredSites: [],
+      destroyedStrongholds: [
+        { civId: 'player', campId: 'camp-a', position: { q: 1, r: 0 }, turn: 30 },
+      ],
+    };
+
+    const onlyOne = tickLegendaryWonderProjects(state, new EventBus());
+    expect(onlyOne.legendaryWonderProjects?.['iron-arsenal:player:city-river']?.questSteps[1]?.completed).toBe(false);
+
+    state.legendaryWonderHistory.destroyedStrongholds.push(
+      { civId: 'player', campId: 'camp-b', position: { q: 2, r: 0 }, turn: 35 },
+    );
+
+    const bothDone = tickLegendaryWonderProjects(state, new EventBus());
+    expect(bothDone.legendaryWonderProjects?.['iron-arsenal:player:city-river']?.questSteps[1]?.completed).toBe(true);
+  });
+
   it('preserves existing city production when starting a wonder build', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
