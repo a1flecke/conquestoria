@@ -772,6 +772,15 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         const u = newState.units[id];
         return u?.type === 'caravan' && !u.committedToRouteId;
       });
+      // Prioritise cannon as soon as black-powder is researched and civ has none
+      const hasCannon = (civ.units ?? []).some(id => newState.units[id]?.type === 'cannon');
+      if (civ.techState.completed.includes('black-powder') && !hasCannon && trainableUnits.includes('cannon')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['cannon'] } },
+        };
+        continue;
+      }
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {
