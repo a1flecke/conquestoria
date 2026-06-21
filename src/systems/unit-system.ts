@@ -190,6 +190,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackProfile: { kind: 'ranged', range: 3, targets: ['unit'] },
     cargoSize: 3,
   },
+  cannon: {
+    type: 'cannon', name: 'Cannon', movementPoints: 2,
+    visionRange: 2, strength: 35, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 120,
+    domain: 'land',
+    attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
+  },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -380,6 +387,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   crossbowman: 'Precision-ranged unit with a longer reach than Archers. Requires Copper.',
   catapult:    'Slow but devastating siege engine that bombards units and cities. Requires Stone.',
   ballista:    'Long-range bolt-thrower effective against massed units. Requires Iron.',
+  cannon:      'Gunpowder siege weapon. High bombard damage against cities and fortifications at range 2. Slow movement.',
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '

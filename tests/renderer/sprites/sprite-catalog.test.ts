@@ -45,7 +45,7 @@ describe('sprite-catalog coverage', () => {
 
     it('siege engines use land motion instead of naval bobbing', () => {
       const palette = derivePalette('#4a90d9');
-      const siegeTypes: Array<keyof typeof UNIT_SPRITE_CATALOG> = ['catapult', 'ballista'];
+      const siegeTypes: Array<keyof typeof UNIT_SPRITE_CATALOG> = ['catapult', 'ballista', 'cannon'];
 
       for (const unitType of siegeTypes) {
         const movingA = UNIT_SPRITE_CATALOG[unitType]({ palette, svgOnly: true, motion: 'move-a' });

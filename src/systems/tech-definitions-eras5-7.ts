@@ -16,7 +16,7 @@ const ERA_5_TECHS: Tech[] = [
   { id: 'black-powder', name: 'Black Powder', track: 'military', cost: 150,
     prerequisites: ['siege-warfare', 'tactics'],
     unlocks: ['Gunpowder replaces classical siege engines'],
-    unlocksBuildings: ['artillery_corps_hq'], era: 5 },
+    unlocksUnits: ['cannon'], unlocksBuildings: ['artillery_corps_hq'], era: 5 },
   { id: 'professional-army', name: 'Professional Army', track: 'military', cost: 145,
     prerequisites: ['tactics'],
     unlocks: ['Defending units in cities gain +10% strength'], era: 5 },

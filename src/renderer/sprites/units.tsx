@@ -972,6 +972,59 @@ export function BallistaSprite({ palette, svgOnly = false }: UnitSpriteProps): s
   );
 }
 
+/* === CANNON === */
+
+export function CannonSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={96} rx={36} ry={6} />
+      {/* carriage frame */}
+      <rect x="22" y="80" width="84" height="12" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="22" y="80" width="84" height="3" fill={P.wood.mid} />
+      {/* rear wheel */}
+      <circle cx="38" cy="94" r="9" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.5" />
+      <circle cx="38" cy="94" r="3.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="29" y1="94" x2="47" y2="94" stroke={P.wood.dark} strokeWidth="0.8" />
+      <line x1="38" y1="85" x2="38" y2="103" stroke={P.wood.dark} strokeWidth="0.8" />
+      <line x1="31" y1="87" x2="45" y2="101" stroke={P.wood.dark} strokeWidth="0.7" />
+      <line x1="45" y1="87" x2="31" y2="101" stroke={P.wood.dark} strokeWidth="0.7" />
+      {/* front wheel */}
+      <circle cx="96" cy="94" r="9" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.5" />
+      <circle cx="96" cy="94" r="3.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="87" y1="94" x2="105" y2="94" stroke={P.wood.dark} strokeWidth="0.8" />
+      <line x1="96" y1="85" x2="96" y2="103" stroke={P.wood.dark} strokeWidth="0.8" />
+      <line x1="89" y1="87" x2="103" y2="101" stroke={P.wood.dark} strokeWidth="0.7" />
+      <line x1="103" y1="87" x2="89" y2="101" stroke={P.wood.dark} strokeWidth="0.7" />
+      {/* barrel pivot block */}
+      <rect x="44" y="72" width="12" height="12" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" rx="2" />
+      {/* cannon barrel — angled slightly up */}
+      <g transform="translate(50 78) rotate(-12)">
+        <rect x="-6" y="-6" width="64" height="12" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" rx="6" />
+        <rect x="-6" y="-6" width="64" height="5" fill={P.metal.steel} rx="4" />
+        <ellipse cx="-5" cy="0" rx="7" ry="7" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="-5" cy="0" rx="5" ry="5" fill={P.metal.steel} />
+        <ellipse cx="58" cy="0" rx="5" ry="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <ellipse cx="58" cy="0" rx="3" ry="3" fill="#111" />
+        <rect x="0" y="-7.5" width="4" height="4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      {/* vent fuse */}
+      <path d="M50,68 Q54,62 60,58" fill="none" stroke="#c87941" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="60" cy="58" r="2" fill="#e8a020" />
+      {/* muzzle flash */}
+      <g transform="translate(104 75)"><g className="cq-muzzle-flash">
+        <circle r="6" fill="#ffd966" />
+        <circle r="3" fill="#fff" />
+      </g></g>
+      {/* gunner */}
+      <Humanoid
+        cx={24} cy={80} scale={0.65}
+        cloth={P.cloth.tunic} pants={P.cloth.wool} accent={palette.mid} skin={P.skin.warm} hair="#3a2a1a"
+      />
+      <Banner x={80} y={30} palette={palette} scale={0.75} />
+    </SpriteFrame>
+  );
+}
+
 /* === CARAVAN === */
 
 export function CaravanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
