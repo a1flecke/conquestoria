@@ -89,6 +89,63 @@ describe('save-manager autosave listing', () => {
     expect(normalized.idCounters.nextNotificationId).toBeGreaterThan(12);
   });
 
+  it('migrates legacy pirate fleets into distinct active v2 flotillas', () => {
+    const state = createNewGame(undefined, 'legacy-pirate-migration', 'small') as any;
+    const waterTiles = Object.values(state.map.tiles)
+      .filter((tile: any) => tile.terrain === 'ocean')
+      .slice(0, 3) as any[];
+    expect(waterTiles).toHaveLength(3);
+    state.era = 3;
+    delete state.pirates;
+    state.units['unit-901'] = {
+      id: 'unit-901', type: 'trireme', owner: 'pirate', position: waterTiles[0].coord,
+      movementPointsLeft: 2, health: 63, experience: 4, hasMoved: true, hasActed: false, isResting: false,
+    };
+    state.units['unit-902'] = {
+      id: 'unit-902', type: 'galley', owner: 'pirate', position: waterTiles[1].coord,
+      movementPointsLeft: 1, health: 88, experience: 1, hasMoved: false, hasActed: false, isResting: false,
+    };
+    state.units['unit-999'] = {
+      id: 'unit-999', type: 'galley', owner: 'pirate', position: waterTiles[2].coord,
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    const targetCityId = state.civilizations[state.currentPlayer].cities[0];
+    state.pirateFleets = {
+      'fleet-unit-901': {
+        id: 'fleet-unit-901', unitId: 'unit-901', targetCivId: state.currentPlayer,
+        targetCityId, landmassId: '0,0', era: 3, plunderCooldown: 2,
+      },
+      'fleet-unit-902': {
+        id: 'fleet-unit-902', unitId: 'unit-902', targetCivId: state.currentPlayer,
+        targetCityId, landmassId: '0,0', era: 1, plunderCooldown: 0,
+      },
+    };
+    state.pirateFleetCooldownByCivLandmass = { [`${state.currentPlayer}:0,0`]: 20 };
+
+    const normalized = normalizeLoadedStateForTest(state);
+    const factions = Object.values(normalized.pirates.factions);
+
+    expect(factions).toHaveLength(2);
+    expect(new Set(factions.map(faction => faction.id)).size).toBe(2);
+    expect(factions.map(faction => faction.headquarters.kind)).toEqual([
+      'deep-sea-flotilla', 'deep-sea-flotilla',
+    ]);
+    expect(normalized.units['unit-901']).toMatchObject({
+      owner: factions[0].id, type: 'pirate_frigate', health: 63, position: waterTiles[0].coord,
+    });
+    expect(normalized.units['unit-902']).toMatchObject({
+      owner: factions[1].id, type: 'pirate_galley', health: 88, position: waterTiles[1].coord,
+    });
+    expect(normalized.units['unit-999']).toBeUndefined();
+    expect(normalized.pirateFleets).toEqual({});
+    expect(normalized.pirateFleetCooldownByCivLandmass).toEqual({});
+    expect(normalized.pirates.activatedTurn).toBe(state.turn);
+    expect(normalized.idCounters.nextPirateFactionId).toBeGreaterThan(2);
+
+    const renormalized = normalizeLoadedStateForTest(normalized);
+    expect(renormalized.pirates.factions).toEqual(normalized.pirates.factions);
+  });
+
   it('includes autosave as the first list entry when requested', async () => {
     await autoSave({
       turn: 9,

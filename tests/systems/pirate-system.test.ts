@@ -60,6 +60,97 @@ function faction(headquarters: PirateFactionState['headquarters'], shipIds: stri
 }
 
 describe('completed-round pirate coordinator', () => {
+  it('advances factions with deterministic mixed-fleet reinforcements without upgrading old ships', () => {
+    const state = fixture();
+    state.pirates!.nextSpawnCheckTurn = 99;
+    state.civilizations.player.techState.completed = ['galleys', 'navigation', 'triremes'];
+    const oldShip = addUnit(state, 'old-galley', 'pirate_galley', 'pirate-1', { q: 6, r: 6 });
+    const current = faction({
+      kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100,
+    }, [oldShip.id]);
+    current.behavior = 'raiding';
+    current.notoriety = 2;
+    current.maritimeStage = 1;
+    state.pirates!.factions[current.id] = current;
+    const bus = new EventBus();
+    const createdIds: string[] = [];
+    bus.on('unit:created', ({ unit }) => createdIds.push(unit.id));
+
+    const result = processPiratesForCompletedRound(state, bus);
+    const advanced = result.state.pirates!.factions[current.id];
+    const types = advanced.shipIds.map(id => result.state.units[id].type);
+
+    expect(advanced.maritimeStage).toBe(3);
+    expect(advanced.transitionGuards.lastStageReinforcementRound).toBe(state.turn);
+    expect(result.state.units[oldShip.id]).toMatchObject({ type: 'pirate_galley', owner: current.id });
+    expect(types).toContain('pirate_frigate');
+    expect(createdIds.length).toBeGreaterThan(0);
+    expect(createdIds.every(id => advanced.shipIds.includes(id))).toBe(true);
+  });
+
+  it('retires implausibly ancient hulls at Stage 5 while preserving aging frigates', () => {
+    const state = fixture();
+    state.pirates!.nextSpawnCheckTurn = 99;
+    state.civilizations.player.techState.completed = [
+      'galleys', 'navigation', 'triremes', 'caravels', 'amphibious-warfare',
+    ];
+    addUnit(state, 'ancient-galley', 'pirate_galley', 'pirate-1', { q: 6, r: 6 });
+    addUnit(state, 'old-corsair', 'pirate_corsair', 'pirate-1', { q: 6, r: 7 });
+    addUnit(state, 'aging-frigate', 'pirate_frigate', 'pirate-1', { q: 7, r: 6 });
+    const current = faction({
+      kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100,
+    }, ['ancient-galley', 'old-corsair', 'aging-frigate']);
+    current.maritimeStage = 4;
+    state.pirates!.factions[current.id] = current;
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+    const types = result.state.pirates!.factions[current.id].shipIds.map(id => result.state.units[id].type);
+
+    expect(types).toContain('pirate_mothership');
+    expect(types).toContain('pirate_frigate');
+    expect(types).not.toContain('pirate_galley');
+    expect(types).not.toContain('pirate_corsair');
+    expect(result.state.units['ancient-galley']).toBeUndefined();
+    expect(result.state.units['old-corsair']).toBeUndefined();
+  });
+
+  it('defers maritime-stage reinforcement when no legal water placement exists', () => {
+    const state = fixture();
+    state.pirates!.nextSpawnCheckTurn = 99;
+    state.civilizations.player.techState.completed = ['galleys', 'navigation'];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    addUnit(state, 'old-galley', 'pirate_galley', 'pirate-1', { q: 6, r: 6 });
+    const current = faction({
+      kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100,
+    }, ['old-galley']);
+    current.behavior = 'patrolling';
+    current.notoriety = 0;
+    current.maritimeStage = 1;
+    state.pirates!.factions[current.id] = current;
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.pirates!.factions[current.id].maritimeStage).toBe(1);
+    expect(result.state.pirates!.factions[current.id].shipIds).toEqual(['old-galley']);
+  });
+
+  it('does not enter blockading behavior before maritime Stage 2', () => {
+    const state = fixture();
+    state.pirates!.nextSpawnCheckTurn = 99;
+    state.civilizations.player.techState.completed = ['galleys'];
+    addUnit(state, 'galley', 'pirate_galley', 'pirate-1', { q: 6, r: 6 });
+    const current = faction({
+      kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100,
+    }, ['galley']);
+    current.maritimeStage = 1;
+    current.notoriety = 5;
+    current.behavior = 'raiding';
+    state.pirates!.factions[current.id] = current;
+
+    expect(processPiratesForCompletedRound(state, new EventBus()).state.pirates!.factions[current.id].behavior)
+      .toBe('raiding');
+  });
+
   it('activates a legacy campaign past Galleys and warns each viewer once without consuming a spawn check', () => {
     const state = fixture();
     state.pirates = createEmptyPirateState();

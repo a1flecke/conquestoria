@@ -22,6 +22,8 @@ import {
 import type { NotificationEntry, NotificationLog } from '@/core/notification-log';
 import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
+import { getPirateStageDefinition, PIRATE_NOTORIETY, PIRATE_PRESSURE } from '@/systems/pirate-definitions';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 const SAVE_PREFIX = 'save:';
 const META_PREFIX = 'meta:';
@@ -581,7 +583,11 @@ function normalizeLandmassKeys(state: GameState): GameState {
 }
 
 function normalizeThreatPressureDefaults(state: GameState): GameState {
-  if (state.pirateFleets !== undefined && state.pirateFleetCooldownByCivLandmass !== undefined) {
+  if (
+    state.pirateFleets !== undefined
+    && state.pirateFleetCooldownByCivLandmass !== undefined
+    && state.resurgentCampCooldownByCivLandmass !== undefined
+  ) {
     return state;
   }
   return {
@@ -589,6 +595,86 @@ function normalizeThreatPressureDefaults(state: GameState): GameState {
     pirateFleets: state.pirateFleets ?? {},
     pirateFleetCooldownByCivLandmass: state.pirateFleetCooldownByCivLandmass ?? {},
     resurgentCampCooldownByCivLandmass: state.resurgentCampCooldownByCivLandmass ?? {},
+  };
+}
+
+function migrateLegacyPirateFleets(state: GameState): GameState {
+  const legacyFleets = Object.values(state.pirateFleets ?? {}).sort((a, b) => a.id.localeCompare(b.id));
+  const legacyUnitIds = new Set(legacyFleets.map(fleet => fleet.unitId));
+  const hasOrphanedLegacyUnits = Object.values(state.units ?? {}).some(
+    unit => unit.owner === 'pirate' && !legacyUnitIds.has(unit.id),
+  );
+  if (
+    legacyFleets.length === 0
+    && !hasOrphanedLegacyUnits
+    && Object.keys(state.pirateFleetCooldownByCivLandmass ?? {}).length === 0
+  ) return state;
+
+  const pirates = normalizePirateState(state);
+  const factions = { ...pirates.factions };
+  const units = Object.fromEntries(
+    Object.entries(state.units ?? {}).filter(([, unit]) => unit.owner !== 'pirate'),
+  );
+  const scannedCounters = scanIdCounters({ ...state, pirates });
+  let nextFactionNumber = Math.max(
+    state.idCounters?.nextPirateFactionId ?? 1,
+    scannedCounters.nextPirateFactionId ?? 1,
+  );
+  const activeNames = new Set(Object.values(factions).map(faction => faction.name));
+
+  for (const fleet of legacyFleets) {
+    const legacyUnit = state.units[fleet.unitId];
+    if (!legacyUnit || legacyUnit.owner !== 'pirate') continue;
+    const stage = Math.max(1, Math.min(5, Math.floor(fleet.era || state.era || 1))) as PirateFactionState['maritimeStage'];
+    const definition = getPirateStageDefinition(stage);
+    const factionId = `pirate-${nextFactionNumber++}` as PirateFactionState['id'];
+    const targetName = state.cities[fleet.targetCityId]?.name ?? 'Open Sea';
+    const baseName = `Corsairs of ${targetName}`;
+    let name = baseName;
+    let suffix = 2;
+    while (activeNames.has(name)) name = `${baseName} ${suffix++}`;
+    activeNames.add(name);
+    units[legacyUnit.id] = {
+      ...legacyUnit,
+      type: definition.anchorHull,
+      owner: factionId,
+      movementPointsLeft: Math.min(
+        legacyUnit.movementPointsLeft,
+        UNIT_DEFINITIONS[definition.anchorHull].movementPoints,
+      ),
+    };
+    factions[factionId] = {
+      id: factionId,
+      name,
+      spawnedRound: state.turn,
+      behavior: 'raiding',
+      maritimeStage: stage,
+      notoriety: PIRATE_NOTORIETY.raiding,
+      shipIds: [legacyUnit.id],
+      headquarters: {
+        kind: 'deep-sea-flotilla',
+        flagshipUnitId: legacyUnit.id,
+        relocation: { planned: null, lastRelocatedRound: null },
+      },
+      tributeByCiv: {},
+      demandByCiv: {},
+      contract: null,
+      intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+  }
+
+  return {
+    ...state,
+    units,
+    pirateFleets: {},
+    pirateFleetCooldownByCivLandmass: {},
+    pirates: {
+      ...pirates,
+      factions,
+      activatedTurn: pirates.activatedTurn ?? state.turn,
+      nextSpawnCheckTurn: Math.max(pirates.nextSpawnCheckTurn, state.turn + PIRATE_PRESSURE.checkInterval),
+    },
   };
 }
 
@@ -616,9 +702,9 @@ export function migrateLegacyCoastalData(state: GameState): GameState {
 }
 
 export function normalizeLoadedState(state: GameState): NormalizedGameState {
-  const normalizedCityState = normalizeMinorCivQuestState(
+  const normalizedCityState = migrateLegacyPirateFleets(normalizeMinorCivQuestState(
     migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))))))),
-  );
+  ));
   normalizedCityState.pirates = normalizePirateState(normalizedCityState);
   normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog);
   normalizedCityState.idCounters = normalizeIdCounters(normalizedCityState);

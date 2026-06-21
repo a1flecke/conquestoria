@@ -137,9 +137,6 @@ export const PIRATE_PRESSURE = {
   wealthyGrossGold: 8,
 } as const;
 
-// Task 17 removes this gate after gameplay, UI, renderer, and audio wiring pass.
-export const PIRATE_IMPLEMENTATION_READY = false;
-
 export const PIRATE_NOTORIETY = {
   raiding: 2,
   blockading: 5,

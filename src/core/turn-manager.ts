@@ -17,7 +17,7 @@ import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { resolveCombat } from '@/systems/combat-system';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { PIRATE_OWNER, recordCombatForCiv, processThreatPressure, processPirateFleets } from '@/systems/threat-pressure-system';
+import { PIRATE_OWNER, recordCombatForCiv, processThreatPressure } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { hexKey } from '@/systems/hex-utils';
@@ -75,7 +75,6 @@ import {
   expireNationalProjects,
 } from '@/systems/national-project-system';
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
-import { PIRATE_IMPLEMENTATION_READY } from '@/systems/pirate-definitions';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 
@@ -788,10 +787,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
   newState = processThreatPressure(newState, newState.currentPlayer, bus, {
-    includeLegacyPirates: !PIRATE_IMPLEMENTATION_READY,
+    includeLegacyPirates: false,
   });
-  // --- Pirate fleet movement (runs every turn) ---
-  if (!PIRATE_IMPLEMENTATION_READY) newState = processPirateFleets(newState, bus);
 
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);
@@ -996,11 +993,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   }
 
   let pirateEconomyModifiers: PirateEconomyModifiers | undefined;
-  if (PIRATE_IMPLEMENTATION_READY) {
-    const pirateRound = processPiratesForCompletedRound(newState, bus);
-    newState = pirateRound.state;
-    pirateEconomyModifiers = pirateRound.economyModifiers;
-  }
+  const pirateRound = processPiratesForCompletedRound(newState, bus);
+  newState = pirateRound.state;
+  pirateEconomyModifiers = pirateRound.economyModifiers;
 
   if (newState.marketplace) {
     for (const civId of Object.keys(newState.civilizations)) {

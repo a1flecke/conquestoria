@@ -89,6 +89,18 @@ function faction(
 }
 
 describe('pirate escort and targeting', () => {
+  it('ignores targets outside the bounded naval search neighborhood', () => {
+    const state = stateWithMap(oceanGrid(0, 60));
+    addUnit(state, unit('pirate', 'pirate_frigate', 'pirate-1', { q: 1, r: 1 }));
+    addUnit(state, unit('distant-transport', 'transport', 'player', { q: 50, r: 50 }));
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'raiding', {
+      kind: 'deep-sea-flotilla', flagshipUnitId: 'pirate',
+      relocation: { planned: null, lastRelocatedRound: null },
+    }, ['pirate']);
+
+    expect(choosePirateIntent(state, 'pirate-1')).toBeNull();
+  });
+
   it('requires a same-tile or adjacent friendly combat-capable naval escort', () => {
     const state = stateWithMap(oceanGrid());
     const transport = unit('transport', 'transport', 'player', { q: 5, r: 5 });
