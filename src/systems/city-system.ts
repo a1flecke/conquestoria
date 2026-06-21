@@ -205,8 +205,155 @@ export const BUILDINGS: Record<string, Building> = {
     productionCost: 120,
     description: 'Joint-stock companies finance global trade empires — adds a trade route slot and generates financial innovation.',
     techRequired: 'global-logistics',
-   
+
     routeCapacity: 1,
+  },
+
+  // ===== NATIONAL PROJECTS =====
+
+  // Era 1
+  sacred_grove: {
+    id: 'sacred_grove', name: 'Sacred Grove', category: 'culture',
+    yields: { food: 1, production: 0, gold: 0, science: 0 }, productionCost: 40,
+    description: 'Sacred nature sanctuary. +1 food empire-wide. Wounded units heal faster in friendly territory.',
+    techRequired: 'animism',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 1 },
+    civYieldBonus: { food: 1 },
+  },
+  tribal_muster_ground: {
+    id: 'tribal_muster_ground', name: 'Tribal Muster Ground', category: 'military',
+    yields: { food: 0, production: 1, gold: 0, science: 0 }, productionCost: 45,
+    description: 'Central mustering ground. +1 production empire-wide. Early unit training costs reduced.',
+    techRequired: 'stone-weapons',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 1 },
+    civYieldBonus: { production: 1 },
+  },
+  communal_stores: {
+    id: 'communal_stores', name: 'Communal Stores', category: 'food',
+    yields: { food: 2, production: 0, gold: 0, science: 0 }, productionCost: 40,
+    description: 'Empire-wide granary network. +2 food all cities.',
+    techRequired: 'gathering',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 1 },
+    civYieldBonus: { food: 2 },
+  },
+
+  // Era 2
+  grand_bazaar: {
+    id: 'grand_bazaar', name: 'Grand Bazaar', category: 'economy',
+    yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 80,
+    description: '+1 gold per city empire-wide (scales dynamically with empire size).',
+    techRequired: 'animal-husbandry',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 2 },
+    // No civYieldBonus — per-city computation in national-project-system.ts computePerCityGold()
+  },
+  foundry_guild: {
+    id: 'foundry_guild', name: 'Foundry Guild', category: 'military',
+    yields: { food: 0, production: 1, gold: 0, science: 0 }, productionCost: 85,
+    description: 'Bronze-smithing consortium. +1 production empire-wide. Bronze-class units gain combat bonus.',
+    techRequired: 'bronze-working',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 2 },
+    civYieldBonus: { production: 1 },
+  },
+  scribes_hall: {
+    id: 'scribes_hall', name: "Scribes' Hall", category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 80,
+    description: 'Empire-wide scribal tradition. +2 science all cities.',
+    techRequired: 'mathematics',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 2 },
+    civYieldBonus: { science: 2 },
+  },
+
+  // Era 3
+  philosophers_circle: {
+    id: 'philosophers_circle', name: "Philosopher's Circle", category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 120,
+    description: 'Great assembly of thinkers. +3 science all cities.',
+    techRequired: 'philosophy',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 3 },
+    civYieldBonus: { science: 3 },
+  },
+  road_corps: {
+    id: 'road_corps', name: 'Road Corps', category: 'production',
+    yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 125,
+    description: 'Imperial road network. +1 gold all cities. Roads built faster.',
+    techRequired: 'road-building',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 3 },
+    civYieldBonus: { gold: 1 },
+  },
+  iron_legion: {
+    id: 'iron_legion', name: 'Iron Legion', category: 'military',
+    yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 120,
+    description: 'Elite standing army. +2 production empire-wide. Military units gain combat bonus.',
+    techRequired: 'iron-forging',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 3 },
+    civYieldBonus: { production: 2 },
+  },
+
+  // Era 4
+  imperial_archive: {
+    id: 'imperial_archive', name: 'Imperial Archive', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 160,
+    description: 'Imperial knowledge repository. +3 science all cities.',
+    techRequired: 'printing',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 4 },
+    civYieldBonus: { science: 3 },
+  },
+  praetorian_legion: {
+    id: 'praetorian_legion', name: 'Praetorian Legion', category: 'military',
+    yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 160,
+    description: 'Elite guard corps. +2 production empire-wide. Units in fortified cities gain strength bonus.',
+    techRequired: 'tactics',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 4 },
+    civYieldBonus: { production: 2 },
+  },
+  royal_mint: {
+    id: 'royal_mint', name: 'Royal Mint', category: 'economy',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 160,
+    description: 'Crown coinage monopoly. +3 gold all cities.',
+    techRequired: 'banking',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 4 },
+    civYieldBonus: { gold: 3 },
+  },
+
+  // Era 5
+  royal_academy: {
+    id: 'royal_academy', name: 'Royal Academy', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 4 }, productionCost: 48,
+    description: 'Crown-sponsored institution of learning. +4 science all cities.',
+    techRequired: 'scientific-method',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 5 },
+    civYieldBonus: { science: 4 },
+  },
+  artillery_corps_hq: {
+    id: 'artillery_corps_hq', name: 'Artillery Corps HQ', category: 'military',
+    yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 48,
+    description: 'Central cannon command. +2 production empire-wide. Cannon units train with bonus strength.',
+    techRequired: 'black-powder',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 5 },
+    civYieldBonus: { production: 2 },
+  },
+  explorers_guild: {
+    id: 'explorers_guild', name: "Explorers' Guild", category: 'economy',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 48,
+    description: 'National charter for discovery. +3 gold all cities. Scouts gain +1 vision range.',
+    techRequired: 'circumnavigation',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 5 },
+    civYieldBonus: { gold: 3 },
   },
 };
 
@@ -408,6 +555,22 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   expedition:      '🧭',
   bank:            '🏦',
   stock_exchange:  '📈',
+  // National Projects
+  sacred_grove:         '🌳',
+  tribal_muster_ground: '⚔️',
+  communal_stores:      '🏚️',
+  grand_bazaar:         '🪙',
+  foundry_guild:        '⚒️',
+  scribes_hall:         '📜',
+  philosophers_circle:  '🏛️',
+  road_corps:           '🛤️',
+  iron_legion:          '🛡️',
+  imperial_archive:     '📚',
+  praetorian_legion:    '⚔️',
+  royal_mint:           '💰',
+  royal_academy:        '🎓',
+  artillery_corps_hq:   '💣',
+  explorers_guild:      '🧭',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';

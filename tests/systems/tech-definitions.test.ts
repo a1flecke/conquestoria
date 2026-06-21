@@ -8,22 +8,25 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
-  it('has exactly 127 techs after adding bridge-building to the exploration track', () => {
-    expect(TECH_TREE.length).toBe(127);
+  it('has exactly 157 techs after adding 30 era-5 tech definitions', () => {
+    expect(TECH_TREE.length).toBe(157);
   });
 
-  it('keeps 15 tracks while expanding economy, science, communication, maritime, and exploration', () => {
+  it('keeps 15 tracks while expanding to era 5 (2 new techs per track)', () => {
     const tracks = new Map<string, number>();
     for (const tech of TECH_TREE) {
       tracks.set(tech.track, (tracks.get(tech.track) ?? 0) + 1);
     }
     expect(tracks.size).toBe(15);
     for (const [track, count] of tracks) {
+      // Era 5 adds 2 techs per track. Espionage track had 10 (8 era1-4 + 2 stubs) → 12.
+      // Economy/science/communication/maritime/exploration had 9 (8 era1-4 + 1 stub) → 11.
+      // Other 9 tracks had 8 era1-4 → 10.
       const expected = track === 'espionage'
-        ? 10
+        ? 12
         : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-          ? 9
-          : 8;
+          ? 11
+          : 10;
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });
@@ -42,10 +45,17 @@ describe('tech definitions', () => {
         expect(trackEra.get(key), `${key} should have ${expected} techs`).toBe(expected);
       }
     }
-    expect(trackEra.get('espionage-5'), 'espionage-5 should have 2 techs').toBe(2);
-    expect(trackEra.get('economy-5'), 'economy-5 should have 1 tech').toBe(1);
-    expect(trackEra.get('science-5'), 'science-5 should have 1 tech').toBe(1);
-    expect(trackEra.get('communication-5'), 'communication-5 should have 1 tech').toBe(1);
+    // Era 5: each track has 2 new techs; stubs add 1 extra to economy/science/communication/maritime
+    // and 2 extra to espionage (digital-surveillance + cyber-warfare stubs)
+    expect(trackEra.get('espionage-5'), 'espionage-5 should have 4 techs (2 stubs + 2 new)').toBe(4);
+    expect(trackEra.get('economy-5'), 'economy-5 should have 3 techs (1 stub + 2 new)').toBe(3);
+    expect(trackEra.get('science-5'), 'science-5 should have 3 techs (1 stub + 2 new)').toBe(3);
+    expect(trackEra.get('communication-5'), 'communication-5 should have 3 techs (1 stub + 2 new)').toBe(3);
+    expect(trackEra.get('maritime-5'), 'maritime-5 should have 3 techs (1 stub + 2 new)').toBe(3);
+    // All other tracks have exactly 2 era-5 techs each
+    for (const track of ['military', 'civics', 'exploration', 'agriculture', 'medicine', 'philosophy', 'arts', 'metallurgy', 'construction', 'spirituality']) {
+      expect(trackEra.get(`${track}-5`), `${track}-5 should have 2 techs`).toBe(2);
+    }
   });
 
   it('all prerequisites reference existing tech IDs', () => {
@@ -116,10 +126,18 @@ describe('tech definitions', () => {
     expect(TECH_TREE.find(t => t.id === 'nuclear-theory')).toBeDefined();
   });
 
-  it('keeps era advancement paced by the original era-5 espionage pair', () => {
+  it('era-5 advancement includes the espionage pair and all 30 new era-5 techs', () => {
     const ids = getEraAdvancementTechs(5).map(tech => tech.id);
-
-    expect(ids).toEqual(['digital-surveillance', 'cyber-warfare']);
+    // Espionage stubs count (no countsForEraAdvancement: false), stubs with false do not
+    expect(ids).toContain('digital-surveillance');
+    expect(ids).toContain('cyber-warfare');
+    // 4 stubs have countsForEraAdvancement: false and should be absent
+    expect(ids).not.toContain('global-logistics');
+    expect(ids).not.toContain('nuclear-theory');
+    expect(ids).not.toContain('mass-media');
+    expect(ids).not.toContain('amphibious-warfare');
+    // 30 new era-5 techs all count for advancement
+    expect(ids.length).toBe(32);
   });
 
   it('resolves civilization era through contiguous 60-percent thresholds', () => {

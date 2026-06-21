@@ -196,6 +196,22 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   colosseum:              ColosseumSprite,
   great_library:          GreatLibrarySprite,
   lighthouse:             LighthouseSprite,
+  // National Project placeholders (era 1–5) — replace with unique SVGs in a future design pass
+  sacred_grove:           ShrineSprite,
+  tribal_muster_ground:   BarracksSprite,
+  communal_stores:        GranarySprite,
+  grand_bazaar:           MarketplaceSprite,
+  foundry_guild:          ForgeSprite,
+  scribes_hall:           LibrarySprite,
+  philosophers_circle:    ForumSprite,
+  road_corps:             WorkshopSprite,
+  iron_legion:            ArmorySprite,
+  imperial_archive:       ArchiveSprite,
+  praetorian_legion:      BarracksSprite,
+  royal_mint:             BankSprite,
+  royal_academy:          ObservatorySprite,
+  artillery_corps_hq:     ArmorySprite,
+  explorers_guild:        CaravanseraiSprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;

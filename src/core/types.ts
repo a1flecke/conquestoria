@@ -363,7 +363,6 @@ export type CityMaturity = 'outpost' | 'village' | 'town' | 'city' | 'metropolis
 
 export interface NationalProject {
   homeEra: number;
-  uniquePerEmpire: true;
 }
 
 export interface Building {
