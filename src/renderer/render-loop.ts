@@ -18,6 +18,8 @@ import type { WonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 import { SpriteOverlay } from './sprite-overlay';
 import type { SpriteEntity } from './sprite-overlay';
 import { buildUnitMapPresentations } from './unit-map-presentation';
+import { isPirateOwner } from '@/core/owner-kind';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import {
   CIVTYPE_TO_FACTION,
   civTypeToFaction,
@@ -25,8 +27,12 @@ import {
 import { buildTerrainLabelSuppressionSet } from './terrain-label-presentation';
 import {
   buildPirateHeadquartersMapPresentation,
+  buildPirateHeadquartersSpriteEntities,
   drawPirateHeadquartersMapPresentation,
+  type PirateHeadquartersMapEntity,
 } from './pirate-headquarters-presentation';
+import { PirateSpriteStateController } from './pirate-sprite-state';
+import type { CombatResult } from '@/core/types';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
@@ -61,6 +67,81 @@ export function buildUnitEntities(
         anchorOffsetFactor: presentation.anchorOffsetFactor,
       };
     });
+}
+
+type TimedMovementAnimation = UnitMovementAnimation & {
+  startTime: number;
+  detachedFromState?: boolean;
+};
+
+function movingUnitDamage(unit: Unit): 0 | 1 | 2 | 3 {
+  if ((UNIT_DEFINITIONS[unit.type]?.strength ?? 0) === 0 || unit.health >= 76) return 0;
+  if (unit.health >= 51) return 1;
+  if (unit.health >= 26) return 2;
+  return 3;
+}
+
+export function buildMovingUnitEntities(
+  state: GameState,
+  animations: TimedMovementAnimation[],
+  nowMs: number,
+  colorLookup: Record<string, string>,
+  viewerVisibility: VisibilityMap,
+): SpriteEntity[] {
+  return animations.flatMap(animation => {
+    if (getVisibility(viewerVisibility, animation.to) !== 'visible') return [];
+    const authoritativeUnit = state.units[animation.unit.id];
+    if (!animation.detachedFromState && (!authoritativeUnit || authoritativeUnit.owner !== animation.unit.owner)) {
+      return [];
+    }
+    const progress = animation.duration <= 0
+      ? 1
+      : Math.max(0, Math.min(1, (nowMs - animation.startTime) / animation.duration));
+    const frame = getMovementAnimationPosition(animation, progress);
+    const unit = authoritativeUnit ?? animation.unit;
+    const visual = resolveUnitVisual(state, unit, colorLookup, frame.motion);
+    const civilization = state.civilizations[unit.owner];
+    return [{
+      id: unit.id,
+      memberIds: [unit.id],
+      kind: 'unit' as const,
+      subtype: unit.type,
+      coord: frame.coord,
+      state: 'walk' as const,
+      faction: isPirateOwner(unit.owner)
+        ? 'pirates'
+        : civilization ? civTypeToFaction(civilization.civType) : unit.owner,
+      damage: movingUnitDamage(unit),
+      stackCount: 1,
+      health: unit.health,
+      fortified: unit.isFortified,
+      roleMarker: visual.roleMarker,
+      civId: unit.owner,
+    }];
+  });
+}
+
+export function positionMovingPirateHeadquarters(
+  state: GameState,
+  entities: PirateHeadquartersMapEntity[],
+  animations: TimedMovementAnimation[],
+  nowMs: number,
+): PirateHeadquartersMapEntity[] {
+  return entities.map(entity => {
+    if (entity.subtype !== 'deep-sea-flotilla' || entity.mode !== 'current') return entity;
+    const headquarters = state.pirates?.factions[entity.factionId]?.headquarters;
+    if (!headquarters || headquarters.kind !== 'deep-sea-flotilla') return entity;
+    const animation = animations.find(candidate => candidate.unit.id === headquarters.flagshipUnitId);
+    if (!animation) return entity;
+    const progress = animation.duration <= 0
+      ? 1
+      : Math.max(0, Math.min(1, (nowMs - animation.startTime) / animation.duration));
+    return {
+      ...entity,
+      coord: getMovementAnimationPosition(animation, progress).coord,
+      behaviorMode: 'relocating',
+    };
+  });
 }
 
 export interface HexHighlight {
@@ -101,6 +182,12 @@ export class RenderLoop {
   private touchHandlerRef: { isPinching: boolean } | null = null;
   private selectedUnitId: string | null = null;
   private selectedPirateFactionId: string | null = null;
+  private pirateSpriteState = new PirateSpriteStateController();
+  private pirateUnitDeathSnapshots = new Map<string, { unit: Unit; expiresAtMs: number }>();
+  private pirateLandmarkDeathSnapshots = new Map<string, {
+    entity: ReturnType<typeof buildPirateHeadquartersMapPresentation>['entities'][number];
+    expiresAtMs: number;
+  }>();
 
   setTouchHandler(th: { isPinching: boolean }): void {
     this.touchHandlerRef = th;
@@ -112,6 +199,45 @@ export class RenderLoop {
 
   setSelectedPirateFactionId(factionId: string | null): void {
     this.selectedPirateFactionId = factionId;
+  }
+
+  applyCombatVisual(result: CombatResult, nowMs = performance.now()): void {
+    this.pirateSpriteState.apply({ type: 'combat', ...result }, nowMs);
+    if (!this.state) return;
+    for (const [unitId, survived] of [
+      [result.attackerId, result.attackerSurvived],
+      [result.defenderId, result.defenderSurvived],
+    ] as const) {
+      const unit = this.state.units[unitId];
+      if (!survived && unit && isPirateOwner(unit.owner)) {
+        this.pirateUnitDeathSnapshots.set(unitId, { unit: { ...unit }, expiresAtMs: nowMs + 1_200 });
+      }
+    }
+  }
+
+  applyPirateHeadquartersAssaultVisual(
+    factionId: string,
+    unitId: string,
+    options: { destroyed: boolean; attackerSurvived: boolean },
+    nowMs = performance.now(),
+  ): void {
+    const entityId = `pirate-headquarters-${factionId}`;
+    this.pirateSpriteState.apply({
+      type: options.destroyed ? 'destroyed' : 'hurt',
+      entityId,
+    }, nowMs);
+    if (!options.attackerSurvived) {
+      this.pirateSpriteState.apply({ type: 'destroyed', entityId: unitId }, nowMs);
+    } else {
+      this.pirateSpriteState.apply({ type: 'hurt', entityId: unitId }, nowMs);
+    }
+    if (!options.destroyed || !this.state) return;
+    const entity = buildPirateHeadquartersMapPresentation(
+      this.state,
+      this.state.currentPlayer,
+      factionId,
+    ).entities.find(candidate => candidate.factionId === factionId);
+    if (entity) this.pirateLandmarkDeathSnapshots.set(entityId, { entity, expiresAtMs: nowMs + 1_200 });
   }
 
   setHighlights(highlights: HexHighlight[]): void {
@@ -381,13 +507,6 @@ export class RenderLoop {
     // Draw trade route lines (after cities, before units)
     this.drawTradeRouteLines(viewerId);
 
-    drawPirateHeadquartersMapPresentation(
-      this.ctx,
-      { entities: pirateHeadquartersPresentation.entities, regions: [] },
-      this.camera,
-      this.state.map,
-    );
-
     // Prepare and draw units. Static high-zoom stacks may use DOM; movement stays Canvas below fog.
     if (viewerVisibility) {
       const colorLookup: Record<string, string> = { barbarian: '#8b4513' };
@@ -399,26 +518,94 @@ export class RenderLoop {
         const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
         if (def) colorLookup[mc.id] = def.color;
       }
-      const unitEntities = unitPresentations.map(presentation => ({
-        id: presentation.leadUnitId,
-        memberIds: presentation.memberIds,
-        kind: 'unit' as const,
-        subtype: presentation.leadUnit.type,
-        coord: presentation.coord,
-        state: 'idle' as const,
-        faction: presentation.faction,
-        damage: presentation.damage,
-        stackCount: presentation.stackCount,
-        selected: presentation.isSelected,
-        health: presentation.leadUnit.health,
-        fortified: presentation.leadUnit.isFortified,
-        roleMarker: presentation.roleMarker,
-        anchorOffsetFactor: presentation.anchorOffsetFactor,
-        civId: presentation.leadUnit.owner,
-      }));
+      const nowMs = performance.now();
+      const unitEntities = unitPresentations.map(presentation => {
+        const faction = this.state!.pirates?.factions[presentation.leadUnit.owner];
+        const persistentMode = faction?.behavior === 'blockading'
+          ? 'blockade' as const
+          : faction?.behavior === 'raiding' ? 'raid' as const : 'patrol' as const;
+        const visual = faction
+          ? this.pirateSpriteState.resolve(presentation.leadUnitId, {
+              mode: persistentMode,
+              damage: presentation.damage as 0 | 1 | 2 | 3,
+              tier: faction.behavior === 'blockading' ? 3 : faction.behavior === 'raiding' ? 2 : 1,
+              stage: faction.maritimeStage,
+            }, nowMs)
+          : null;
+        return {
+          id: presentation.leadUnitId,
+          memberIds: presentation.memberIds,
+          kind: 'unit' as const,
+          subtype: presentation.leadUnit.type,
+          coord: presentation.coord,
+          state: visual?.state ?? 'idle' as const,
+          faction: presentation.faction,
+          damage: visual?.damage ?? presentation.damage,
+          stackCount: presentation.stackCount,
+          selected: presentation.isSelected,
+          health: presentation.leadUnit.health,
+          fortified: presentation.leadUnit.isFortified,
+          roleMarker: presentation.roleMarker,
+          anchorOffsetFactor: presentation.anchorOffsetFactor,
+          civId: presentation.leadUnit.owner,
+          ...(visual ? { mode: visual.mode, tier: visual.tier, stage: visual.stage } : {}),
+        };
+      });
+      for (const [unitId, snapshot] of this.pirateUnitDeathSnapshots) {
+        if (snapshot.expiresAtMs <= nowMs) {
+          this.pirateUnitDeathSnapshots.delete(unitId);
+          continue;
+        }
+        if (getVisibility(viewerVisibility, snapshot.unit.position) !== 'visible') continue;
+        unitEntities.push({
+          id: unitId,
+          memberIds: [unitId],
+          kind: 'unit',
+          subtype: snapshot.unit.type,
+          coord: snapshot.unit.position,
+          state: 'death',
+          faction: 'pirates',
+          damage: 3,
+          stackCount: 1,
+          selected: false,
+          health: 0,
+          fortified: false,
+          roleMarker: 'chevron',
+          anchorOffsetFactor: { x: 0, y: 0 },
+          civId: snapshot.unit.owner,
+        });
+      }
+      const movingUnitEntities = buildMovingUnitEntities(
+        this.state,
+        this.unitMovementAnimations,
+        nowMs,
+        colorLookup,
+        viewerVisibility,
+      );
+      const landmarkPresentationEntities = positionMovingPirateHeadquarters(
+        this.state,
+        pirateHeadquartersPresentation.entities,
+        this.unitMovementAnimations,
+        nowMs,
+      );
+      for (const [entityId, snapshot] of this.pirateLandmarkDeathSnapshots) {
+        if (snapshot.expiresAtMs <= nowMs) {
+          this.pirateLandmarkDeathSnapshots.delete(entityId);
+          continue;
+        }
+        if (!landmarkPresentationEntities.some(entity => entity.id === entityId)) {
+          landmarkPresentationEntities.push(snapshot.entity);
+        }
+      }
+      const landmarkEntities = buildPirateHeadquartersSpriteEntities(
+        this.state,
+        landmarkPresentationEntities,
+        this.pirateSpriteState,
+        nowMs,
+      );
       this.spriteOverlay?.sync(
         this.camera,
-        unitEntities,
+        [...unitEntities, ...movingUnitEntities, ...landmarkEntities],
         {
           width: this.state.map.width,
           wrapsHorizontally: this.state.map.wrapsHorizontally,
@@ -429,6 +616,13 @@ export class RenderLoop {
         },
         colorLookup,
       );
+      drawPirateHeadquartersMapPresentation(
+        this.ctx,
+        { entities: pirateHeadquartersPresentation.entities, regions: [] },
+        this.camera,
+        this.state.map,
+        this.spriteOverlay?.getActiveIds() ?? new Set(),
+      );
       drawUnitPresentations(
         this.ctx,
         unitPresentations,
@@ -437,7 +631,12 @@ export class RenderLoop {
         colorLookup,
         this.spriteOverlay?.getActiveIds() ?? new Set(),
       );
-      this.drawUnitMovementAnimations(performance.now(), colorLookup, viewerVisibility);
+      this.drawUnitMovementAnimations(
+        nowMs,
+        colorLookup,
+        viewerVisibility,
+        this.spriteOverlay?.getActiveIds() ?? new Set(),
+      );
     } else {
       this.spriteOverlay?.sync(
         this.camera,
@@ -475,6 +674,7 @@ export class RenderLoop {
     now: number,
     colorLookup: Record<string, string>,
     viewerVisibility: VisibilityMap,
+    overlayActiveIds: ReadonlySet<string>,
   ): void {
     if (!this.state) return;
     const remaining: typeof this.unitMovementAnimations = [];
@@ -503,7 +703,7 @@ export class RenderLoop {
       const sprite = useSprites
         ? spriteCache.getUnitMotion(animation.unit.type, visual.spriteOwnerId, frame.motion)
         : null;
-      for (const renderCoord of renderCoords) {
+      for (const renderCoord of overlayActiveIds.has(animation.unit.id) ? [] : renderCoords) {
         if (!this.camera.isHexVisible(renderCoord)) continue;
         const pixel = hexToPixel(renderCoord, this.camera.hexSize);
         const screen = this.camera.worldToScreen(pixel.x, pixel.y);

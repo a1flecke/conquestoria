@@ -56,11 +56,27 @@ describe('SpriteOverlay constructor', () => {
       .toBeLessThan(kids.findIndex(e => e.id === 'ui-layer'));
   });
 
-  it('creates unit, building, improvement layer divs', () => {
+  it('creates unit, building, improvement, and landmark layer divs', () => {
     const { mount } = mountOverlay();
     expect(mount.querySelector('#unit-sprites')).not.toBeNull();
     expect(mount.querySelector('#building-sprites')).not.toBeNull();
     expect(mount.querySelector('#improvement-sprites')).not.toBeNull();
+    expect(mount.querySelector('#landmark-sprites')).not.toBeNull();
+  });
+
+  it('renders landmark entities in their dedicated layer without disturbing unit entities', () => {
+    const { overlay, mount } = mountOverlay();
+    const landmark = entity({
+      id: 'hq-1', kind: 'landmark' as any, subtype: 'pirate_enclave_stage_3', faction: 'pirates',
+      stage: 3, tier: 2, mode: 'raid', damage: 2,
+    } as any);
+    overlay.sync(cam({ zoom: 1 }), [entity(), landmark], MAP, OPTS);
+
+    expect(mount.querySelector('#unit-sprites > [data-entity-id="u1"]')).not.toBeNull();
+    const hq = mount.querySelector('#landmark-sprites > [data-entity-id="hq-1"]') as HTMLElement | null;
+    expect(hq).not.toBeNull();
+    expect(hq?.querySelector('.cq-sprite-wrap')?.getAttribute('data-damage')).toBe('2');
+    expect(hq?.querySelector('.cq-sprite-wrap')?.getAttribute('data-mode')).toBe('raid');
   });
 
   it('does not duplicate #sprite-overlay if called twice on same mount', () => {
@@ -82,18 +98,21 @@ describe('sync() LOD gate', () => {
     expect(overlay.getActiveIds().size).toBe(0);
   });
 
-  it('hides container when reducedMotion', () => {
+  it('keeps static sprites and information layers visible when reducedMotion', () => {
     const { overlay, mount } = mountOverlay();
-    overlay.sync(cam({ zoom: 1 }), [entity()], MAP, OPTS);
-    overlay.sync(cam({ zoom: 1 }), [], MAP, { ...OPTS, reducedMotion: true });
-    expect((mount.querySelector('#sprite-overlay') as HTMLElement).style.display).toBe('none');
-    expect(overlay.getActiveIds().size).toBe(0);
+    overlay.sync(cam({ zoom: 1 }), [entity({ damage: 2, selected: true })], MAP, { ...OPTS, reducedMotion: true });
+    const container = mount.querySelector('#sprite-overlay') as HTMLElement;
+    expect(container.style.display).not.toBe('none');
+    expect(container.dataset.reducedMotion).toBe('true');
+    expect(container.querySelector('[data-damage="2"]')).not.toBeNull();
+    expect(container.querySelector('.cq-unit-selected')).not.toBeNull();
+    expect(overlay.getActiveIds()).toEqual(new Set(['u1']));
   });
 
   it('does not revive stale pooled sprites when suppression ends during a pinch', () => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam({ zoom: 1 }), [entity()], MAP, OPTS);
-    overlay.sync(cam({ zoom: 1 }), [], MAP, { ...OPTS, reducedMotion: true });
+    overlay.sync(cam({ zoom: LOD_SPRITE_ZOOM_THRESHOLD - 0.01 }), [], MAP, OPTS);
     overlay.sync(cam({ zoom: 1 }), [], MAP, { ...OPTS, isPinching: true });
 
     expect(mount.querySelector('#unit-sprites')!.children.length).toBe(0);
@@ -161,6 +180,24 @@ describe('sync() pool lifecycle', () => {
     overlay.sync(cam({ zoom: 1 }), [entity({ state: 'walk' })], MAP, OPTS);
     expect(mount.querySelector('.cq-sprite-wrap')).toBe(original);
     expect((original as HTMLElement).getAttribute('data-state')).toBe('walk');
+  });
+
+  it('updates landmark state, mode, damage, tier, and stage without replacing its DOM node', () => {
+    const { overlay, mount } = mountOverlay();
+    const first = entity({
+      id: 'hq-1', kind: 'landmark', subtype: 'pirate_enclave_stage_3', faction: 'pirates',
+      state: 'idle', mode: 'patrol', damage: 0, tier: 1, stage: 3,
+    });
+    overlay.sync(cam(), [first], MAP, OPTS);
+    const original = mount.querySelector('#landmark-sprites .cq-sprite-wrap') as HTMLElement;
+
+    overlay.sync(cam(), [{ ...first, state: 'hurt', mode: 'blockade', damage: 3, tier: 3, stage: 5 }], MAP, OPTS);
+
+    const updated = mount.querySelector('#landmark-sprites .cq-sprite-wrap') as HTMLElement;
+    expect(updated).toBe(original);
+    expect(updated.dataset).toMatchObject({
+      state: 'hurt', mode: 'blockade', damage: '3', tier: '3', stage: '5',
+    });
   });
 
   it('getActiveIds returns empty before sync', () => {

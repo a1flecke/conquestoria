@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { describe, it, expect } from 'vitest';
 
 const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'] as const;
@@ -27,7 +29,36 @@ async function loadSvg(id: string): Promise<Record<Faction, string>> {
   return mod.svg;
 }
 
+const PIRATE_IDS = [
+  ['pirate_galley', 'cq-oars'],
+  ['pirate_corsair', 'cq-lateen'],
+  ['pirate_frigate', 'cq-broadside'],
+  ['pirate_ironclad', 'cq-heavy-recoil'],
+  ['pirate_fast_attack_craft', 'cq-autocannon'],
+  ['pirate_mothership', 'cq-radar'],
+] as const;
+
 describe('v2 sprite SVG outputs', () => {
+  describe('neutral pirate unit sprites', () => {
+    for (const [id, silhouetteHook] of PIRATE_IDS) {
+      it(`${id}: has complete state, damage, and silhouette hooks`, async () => {
+        const mod = await import(`@/renderer/sprites/v2/${id}.svg.ts`);
+        expect(Object.keys(mod.svg)).toEqual(['pirates']);
+        const html = mod.svg.pirates;
+        expect(html).toBeTruthy();
+        const documentNode = new DOMParser().parseFromString(html, 'text/html');
+        const root = documentNode.querySelector('.cq-sprite-wrap');
+        expect(root?.matches('.cq-v2')).toBe(true);
+        expect(root?.querySelector('.cq-damage-1')).not.toBeNull();
+        expect(root?.querySelector('.cq-damage-2')).not.toBeNull();
+        expect(root?.querySelector('.cq-damage-3')).not.toBeNull();
+        expect(root?.querySelector('.cq-wake')).not.toBeNull();
+        expect(root?.querySelector('.cq-attack-effect')).not.toBeNull();
+        expect(root?.querySelector('.cq-death-effect')).not.toBeNull();
+        expect(root?.querySelector(`.${silhouetteHook}`)).not.toBeNull();
+      });
+    }
+  });
   describe('unit sprites', () => {
     for (const id of UNIT_IDS) {
       describe(id, () => {

@@ -5,11 +5,16 @@ import {
   getUnitSpriteV2,
   getBuildingSpriteV2,
   getImprovementSpriteV2,
+  getPirateHeadquartersSpriteV2,
 } from './sprites/v2/index';
 import type { Camera } from './camera';
 import type { HexCoord } from '@/core/types';
 import { applyUnitAnchorOffset, getUnitLayoutMetrics } from './unit-map-presentation';
 import type { UnitRoleMarker } from './unit-visual-resolver';
+import {
+  PIRATE_HEADQUARTERS_SPRITE_CATALOG,
+  type PirateHeadquartersSpriteId,
+} from './sprites/sprite-catalog';
 
 // Faction accent colors baked into serialized sprite SVG fills by scripts/serialize-sprites.mjs.
 // Must match the palette.secondary value from the source sprite TSX files.
@@ -31,14 +36,14 @@ export function applyFactionCivColor(svgHtml: string, faction: string, civColor:
 /** Sprite wrappers live in world-space; the container applies camera zoom. */
 export interface SpriteEntity {
   id:      string;
-  kind:    'unit' | 'building' | 'improvement';
+  kind:    'unit' | 'building' | 'improvement' | 'landmark';
   subtype: string;
   coord:   HexCoord;
   /**
    * v2 animation state — NOT the same as UnitMotionState ('move-a' | 'move-b').
    * RenderLoop translates: 'move-a' | 'move-b' → 'walk'.
    */
-  state:   'idle' | 'walk' | 'attack';
+  state:   'idle' | 'walk' | 'attack' | 'hurt' | 'death';
   /** Sprite palette name derived from owner's civType via civTypeToFaction() — e.g. 'imperials', 'pharaohs', 'vikings'. */
   faction: string;
   /**
@@ -57,6 +62,9 @@ export interface SpriteEntity {
   anchorOffsetFactor?: { x: number; y: number };
   /** Owner civ ID used to look up the game-assigned color for accent replacement. */
   civId?: string;
+  mode?: 'patrol' | 'raid' | 'blockade' | 'relocating';
+  tier?: 1 | 2 | 3;
+  stage?: 1 | 2 | 3 | 4 | 5;
 }
 
 interface PoolEntry {
@@ -97,10 +105,12 @@ export class SpriteOverlay {
     const unit = makeLayer('unit-sprites');
     const building = makeLayer('building-sprites');
     const improvement = makeLayer('improvement-sprites');
+    const landmark = makeLayer('landmark-sprites');
     this.container.appendChild(unit);
     this.container.appendChild(building);
     this.container.appendChild(improvement);
-    this.layers = { unit, building, improvement };
+    this.container.appendChild(landmark);
+    this.layers = { unit, building, improvement, landmark };
 
     const uiLayer = mountPoint.querySelector('#ui-layer');
     if (uiLayer) mountPoint.insertBefore(this.container, uiLayer);
@@ -114,14 +124,15 @@ export class SpriteOverlay {
     opts: { isPinching: boolean; reducedMotion: boolean },
     colorLookup: Record<string, string> = {},
   ): void {
-    // 1. LOD + reduced-motion gate
-    if (camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD || opts.reducedMotion) {
+    // 1. LOD gate. Reduced motion preserves the static frame and information layers.
+    if (camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD) {
       this.container.style.display = 'none';
       this.clearPool();
       this._activeIds.clear();
       return;
     }
     this.container.style.display = '';
+    this.container.dataset.reducedMotion = String(opts.reducedMotion);
 
     // 2. Camera transform — one write per frame, always (even during pinch)
     this.container.style.transform =
@@ -155,6 +166,7 @@ export class SpriteOverlay {
           // Pool hit — update state via setAttribute (no node replacement!)
           existing.spriteWrapEl.setAttribute('data-state', entity.state);
           existing.spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
+          setLandmarkAttributes(existing.spriteWrapEl, entity);
           existing.memberIds = entity.memberIds ?? [entity.id];
           existing.el.dataset.entityId = entity.id;
           existing.el.dataset.memberIds = existing.memberIds.join(',');
@@ -204,6 +216,7 @@ export class SpriteOverlay {
           spriteWrapEl.style.setProperty('--phase', String(phase));
           spriteWrapEl.setAttribute('data-state', entity.state);
           spriteWrapEl.setAttribute('data-damage', String(entity.damage ?? 0));
+          setLandmarkAttributes(spriteWrapEl, entity);
           if (entity.kind === 'unit') updateUnitDecorations(wrapper, entity);
 
           this.layers[entity.kind].appendChild(wrapper);
@@ -241,6 +254,9 @@ export class SpriteOverlay {
       case 'unit':        return getUnitSpriteV2(entity.subtype, entity.faction);
       case 'building':    return getBuildingSpriteV2(entity.subtype, entity.faction);
       case 'improvement': return getImprovementSpriteV2(entity.subtype); // always null
+      case 'landmark':    return getPirateHeadquartersSpriteV2(entity.subtype)
+        ?? PIRATE_HEADQUARTERS_SPRITE_CATALOG[entity.subtype as PirateHeadquartersSpriteId]?.({ svgOnly: false })
+        ?? null;
       default:            return null;
     }
   }
@@ -346,6 +362,13 @@ function updateUnitDecorations(wrapper: HTMLElement, entity: SpriteEntity): void
   } else {
     removeDecoration(wrapper, 'cq-unit-role');
   }
+}
+
+function setLandmarkAttributes(element: HTMLElement, entity: SpriteEntity): void {
+  if (entity.kind !== 'landmark') return;
+  element.setAttribute('data-mode', entity.mode ?? 'patrol');
+  element.setAttribute('data-tier', String(entity.tier ?? 1));
+  element.setAttribute('data-stage', String(entity.stage ?? 1));
 }
 
 function makeLayer(id: string): HTMLDivElement {

@@ -6,6 +6,10 @@ import {
 } from './sprite-system';
 import type { UnitSpriteProps } from './units';
 
+const PIRATE_PALETTE = { dark: '#351923', mid: '#8b2635', bright: '#d6a14a', trim: '#e7dcc5' };
+
+export interface LandmarkSpriteProps { svgOnly?: boolean }
+
 function PiratePennant({ x, y, palette, scale = 1 }: { x: number; y: number; palette: UnitSpriteProps['palette']; scale?: number }): string {
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`}>
@@ -25,7 +29,8 @@ function Wake({ broad = false }: { broad?: boolean } = {}): string {
   );
 }
 
-export function PirateGalleySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+export function PirateGalleySprite({ svgOnly = false }: UnitSpriteProps): string {
+  const palette = PIRATE_PALETTE;
   const oars = [26, 40, 54, 74, 88, 102].map((x, index) => (
     <line x1={x} y1={84 + (index % 2)} x2={x < 64 ? x - 13 : x + 13} y2="101" stroke={P.wood.dark} strokeWidth="2" strokeLinecap="round" />
   )).join('');
@@ -56,7 +61,8 @@ export function PirateGalleySprite({ palette, svgOnly = false }: UnitSpriteProps
   );
 }
 
-export function PirateCorsairSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+export function PirateCorsairSprite({ svgOnly = false }: UnitSpriteProps): string {
+  const palette = PIRATE_PALETTE;
   return (
     <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
       <g data-kind="naval" data-pirate-hull="corsair">
@@ -85,7 +91,8 @@ export function PirateCorsairSprite({ palette, svgOnly = false }: UnitSpriteProp
   );
 }
 
-export function PirateFrigateSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+export function PirateFrigateSprite({ svgOnly = false }: UnitSpriteProps): string {
+  const palette = PIRATE_PALETTE;
   const cannonPorts = [31, 46, 61, 76, 91].map(x => (
     <g><rect x={x - 3} y="84" width="6" height="5" rx="1" fill={P.ink.line} /><circle cx={x} cy="86.5" r="1.4" fill={P.metal.iron} /></g>
   )).join('');
@@ -117,7 +124,8 @@ export function PirateFrigateSprite({ palette, svgOnly = false }: UnitSpriteProp
   );
 }
 
-export function PirateIroncladSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+export function PirateIroncladSprite({ svgOnly = false }: UnitSpriteProps): string {
+  const palette = PIRATE_PALETTE;
   const rivets = [24, 38, 52, 66, 80, 94, 108].map(x => <circle cx={x} cy="92" r="1.4" fill={P.metal.shine} opacity="0.75" />).join('');
   return (
     <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
@@ -150,7 +158,8 @@ export function PirateIroncladSprite({ palette, svgOnly = false }: UnitSpritePro
   );
 }
 
-export function PirateFastAttackCraftSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+export function PirateFastAttackCraftSprite({ svgOnly = false }: UnitSpriteProps): string {
+  const palette = PIRATE_PALETTE;
   return (
     <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
       <g data-kind="naval" data-pirate-hull="fast-attack-craft">
@@ -179,7 +188,8 @@ export function PirateFastAttackCraftSprite({ palette, svgOnly = false }: UnitSp
   );
 }
 
-export function PirateMothershipSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+export function PirateMothershipSprite({ svgOnly = false }: UnitSpriteProps): string {
+  const palette = PIRATE_PALETTE;
   return (
     <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
       <g data-kind="naval" data-pirate-hull="mothership">
@@ -211,3 +221,41 @@ export function PirateMothershipSprite({ palette, svgOnly = false }: UnitSpriteP
     </SpriteFrame>
   );
 }
+
+function PirateHeadquartersSprite({
+  kind,
+  stage,
+  svgOnly = false,
+}: LandmarkSpriteProps & { kind: 'enclave' | 'flotilla'; stage: 1 | 2 | 3 | 4 | 5 }): string {
+  const modern = stage >= 4;
+  const stronghold = stage >= 3;
+  const structures = Array.from({ length: Math.min(5, stage + 1) }, (_, index) => {
+    const x = 42 + index * 24;
+    const y = 116 - (index % 2) * 10;
+    return `<g><rect x="${x}" y="${y}" width="20" height="20" rx="2" fill="${modern ? P.metal.iron : P.wood.dark}" stroke="${P.ink.line}" stroke-width="2"/><path d="M${x - 3},${y} L${x + 10},${y - 12} L${x + 23},${y} Z" fill="${index % 2 ? PIRATE_PALETTE.mid : P.cloth.wool}" stroke="${P.ink.line}" stroke-width="1.5"/><rect x="${x + 7}" y="${y + 9}" width="6" height="11" fill="${P.ink.soft}"/></g>`;
+  }).join('');
+  const guns = stronghold
+    ? `<g fill="${P.metal.iron}" stroke="${P.ink.line}" stroke-width="1.5"><circle cx="45" cy="139" r="7"/><path d="M40 135 L18 128" stroke-width="6"/><circle cx="147" cy="139" r="7"/><path d="M152 135 L174 128" stroke-width="6"/></g>`
+    : '';
+  const radar = modern
+    ? `<g transform="translate(96 58)" fill="none" stroke="${P.metal.shine}" stroke-width="3"><path d="M0 28 V0"/><path d="M-18 2 Q0 -15 18 2 Q0 18 -18 2 Z"/><path d="M-9 2 H9"/></g>`
+    : '';
+  const enclave = `<g data-pirate-headquarters="enclave" data-stage="${stage}"><ellipse cx="96" cy="157" rx="80" ry="20" fill="${P.ground.water}" opacity=".7"/><path d="M14 150 Q30 91 62 79 Q96 58 130 79 Q164 91 178 150 Z" fill="${P.stone.dark}" stroke="${P.ink.line}" stroke-width="3"/><path d="M26 137 Q48 94 70 89 Q96 75 122 89 Q145 96 165 137 Z" fill="${P.stone.mid}"/><path d="M23 153 H169 L157 166 H35 Z" fill="${P.wood.mid}" stroke="${P.ink.line}" stroke-width="2"/>${structures}${guns}${radar}<g transform="translate(96 68)"><path d="M0 0 V35" stroke="${P.wood.dark}" stroke-width="4"/><path d="M2 2 L32 10 L18 22 L32 33 L2 29 Z" fill="${PIRATE_PALETTE.mid}" stroke="${P.ink.line}" stroke-width="2"/><circle cx="13" cy="16" r="5" fill="${P.ink.line}"/></g></g>`;
+  const ships = Array.from({ length: Math.min(4, stage) }, (_, index) => {
+    const x = 38 + index * 38;
+    const y = 126 + (index % 2) * 18;
+    return `<g transform="translate(${x} ${y}) scale(${index === 1 ? 1.15 : .9})"><path d="M-24 3 Q0 -7 24 3 L18 14 Q0 20 -18 14 Z" fill="${modern ? P.metal.iron : P.wood.dark}" stroke="${P.ink.line}" stroke-width="2"/><path d="M0 2 V-34" stroke="${P.wood.dark}" stroke-width="3"/><path d="M1 -31 L20 -18 L2 -8 Z" fill="${index % 2 ? P.cloth.linen : PIRATE_PALETTE.mid}" stroke="${P.ink.line}"/></g>`;
+  }).join('');
+  const flotilla = `<g data-pirate-headquarters="flotilla" data-stage="${stage}"><ellipse cx="96" cy="143" rx="88" ry="34" fill="${P.ground.water}" opacity=".75"/><path d="M12 157 Q35 145 57 157 M66 164 Q96 150 126 164 M136 154 Q158 143 180 154" fill="none" stroke="${P.cloth.linen}" stroke-width="3" opacity=".7"/>${ships}${radar}<g transform="translate(96 49)"><path d="M0 0 V42" stroke="${P.wood.dark}" stroke-width="4"/><path d="M2 2 L34 10 L19 22 L34 34 L2 29 Z" fill="${PIRATE_PALETTE.mid}" stroke="${P.ink.line}" stroke-width="2"/></g></g>`;
+  return SpriteFrame({ size: 192, svgOnly, hex: false, animate: '', children: kind === 'enclave' ? enclave : flotilla });
+}
+
+export const PirateEnclaveStage1Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'enclave', stage: 1 });
+export const PirateEnclaveStage2Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'enclave', stage: 2 });
+export const PirateEnclaveStage3Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'enclave', stage: 3 });
+export const PirateEnclaveStage4Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'enclave', stage: 4 });
+export const PirateEnclaveStage5Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'enclave', stage: 5 });
+export const PirateFlotillaStage2Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'flotilla', stage: 2 });
+export const PirateFlotillaStage3Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'flotilla', stage: 3 });
+export const PirateFlotillaStage4Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'flotilla', stage: 4 });
+export const PirateFlotillaStage5Sprite = (props: LandmarkSpriteProps): string => PirateHeadquartersSprite({ ...props, kind: 'flotilla', stage: 5 });

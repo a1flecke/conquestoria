@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
-import type { City, GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import type { City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { processPiratesForCompletedRound, PIRATE_ROUND_TRACE } from '@/systems/pirate-system';
 
 function fixture(): GameState {
@@ -86,10 +86,17 @@ describe('completed-round pirate coordinator', () => {
       kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
     }, ['ship-a', 'ship-b']);
 
-    const result = processPiratesForCompletedRound(state, new EventBus());
+    const bus = new EventBus();
+    const movementEvents: Array<{ unitId: string; from: HexCoord; to: HexCoord; path: HexCoord[] }> = [];
+    bus.on('unit:move', event => movementEvents.push(event));
+    const result = processPiratesForCompletedRound(state, bus);
 
     expect(result.trace).toEqual(PIRATE_ROUND_TRACE);
     expect(result.facts.movements).toHaveLength(2);
+    expect(movementEvents).toEqual(result.facts.movements.map(movement => ({
+      ...movement,
+      path: [movement.from, ...movement.path],
+    })));
     expect(result.economyModifiers.plunderByCiv.player).toBe(12);
     expect(result.economyModifiers.blockadedCityIds).toEqual(['port']);
   });
@@ -112,6 +119,24 @@ describe('completed-round pirate coordinator', () => {
     expect(result.facts.attacks).toEqual([]);
     expect(result.state.units.flagship).toMatchObject({ hasActed: true, movementPointsLeft: 0 });
     expect(result.state.units.target.health).toBe(100);
+  });
+
+  it('emits canonical combat results so visible pirate attacks animate through the shared path', () => {
+    const state = fixture();
+    addUnit(state, 'raider', 'pirate_frigate', 'pirate-1', { q: 5, r: 3 });
+    addUnit(state, 'target', 'galley', 'player', { q: 5, r: 2 });
+    state.civilizations.player.units = ['target'];
+    state.pirates!.factions['pirate-1'] = faction({
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, ['raider']);
+    const bus = new EventBus();
+    const combatEvents: CombatResult[] = [];
+    bus.on('combat:resolved', event => combatEvents.push(event.result));
+
+    const result = processPiratesForCompletedRound(state, bus);
+
+    expect(result.facts.attacks).toHaveLength(1);
+    expect(combatEvents).toEqual(result.facts.attacks);
   });
 
   it('normalizes expired protection and contracts before choosing targets and remains replay-safe', () => {

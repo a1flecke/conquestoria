@@ -4,6 +4,10 @@ import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { hexToPixel } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords } from '@/renderer/wrap-rendering';
 import type { Camera } from '@/renderer/camera';
+import { spriteCache } from '@/renderer/sprites/sprite-loader';
+import type { PirateHeadquartersSpriteId } from '@/renderer/sprites/sprite-catalog';
+import type { SpriteEntity } from '@/renderer/sprite-overlay';
+import type { PirateSpriteMode, PirateSpriteStateController } from '@/renderer/pirate-sprite-state';
 
 export type PirateBehaviorTierNumber = 1 | 2 | 3;
 export type PirateVisualMode = 'current' | 'last-seen';
@@ -16,6 +20,7 @@ export interface PirateHeadquartersMapEntity {
   stage: PirateMaritimeStage;
   tier: PirateBehaviorTierNumber;
   mode: PirateVisualMode;
+  behaviorMode: PirateSpriteMode;
   damage: 0 | 1 | 2 | 3;
   selected: boolean;
   label: string;
@@ -34,6 +39,13 @@ export interface PirateHeadquartersMapPresentation {
   regions: PirateSuspectedRegionMapPresentation[];
 }
 
+export function getPirateHeadquartersSpriteId(
+  entity: Pick<PirateHeadquartersMapEntity, 'subtype' | 'stage'>,
+): PirateHeadquartersSpriteId {
+  const kind = entity.subtype === 'coastal-enclave' ? 'enclave' : 'flotilla';
+  return `pirate_${kind}_stage_${entity.stage}` as PirateHeadquartersSpriteId;
+}
+
 function tierForBehavior(behavior: string | undefined): PirateBehaviorTierNumber {
   if (behavior === 'blockading') return 3;
   if (behavior === 'raiding') return 2;
@@ -45,6 +57,16 @@ function damageForBand(band: 'healthy' | 'worn' | 'damaged' | 'critical' | undef
   if (band === 'damaged') return 2;
   if (band === 'worn') return 1;
   return 0;
+}
+
+function behaviorModeForPresentation(
+  behavior: string | undefined,
+  relocationDirection: string | undefined,
+): PirateSpriteMode {
+  if (relocationDirection) return 'relocating';
+  if (behavior === 'blockading') return 'blockade';
+  if (behavior === 'raiding') return 'raid';
+  return 'patrol';
 }
 
 export function buildPirateHeadquartersMapPresentation(
@@ -63,6 +85,7 @@ export function buildPirateHeadquartersMapPresentation(
       stage: faction.maritimeStage,
       tier: tierForBehavior(faction.behavior),
       mode: faction.headquarters.current ? 'current' : 'last-seen',
+      behaviorMode: behaviorModeForPresentation(faction.behavior, faction.plannedRelocationDirection),
       damage: damageForBand(faction.headquarters.integrityBand),
       selected: faction.factionId === selectedFactionId,
       label: faction.headquarters.current ? `${faction.name} headquarters` : `Last known ${faction.name} headquarters`,
@@ -81,11 +104,41 @@ export function buildPirateHeadquartersMapPresentation(
   return { entities, regions };
 }
 
+export function buildPirateHeadquartersSpriteEntities(
+  _state: GameState,
+  entities: PirateHeadquartersMapEntity[],
+  controller: PirateSpriteStateController,
+  nowMs: number,
+): SpriteEntity[] {
+  return entities.map(entity => {
+    const visual = controller.resolve(entity.id, {
+      mode: entity.behaviorMode,
+      damage: entity.damage,
+      tier: entity.tier,
+      stage: entity.stage,
+    }, nowMs);
+    return {
+      id: entity.id,
+      kind: 'landmark',
+      subtype: getPirateHeadquartersSpriteId(entity),
+      coord: entity.coord,
+      state: visual.state,
+      faction: 'pirates',
+      damage: visual.damage,
+      selected: entity.selected,
+      tier: visual.tier,
+      stage: visual.stage,
+      mode: visual.mode,
+    };
+  });
+}
+
 export function drawPirateHeadquartersMapPresentation(
   ctx: CanvasRenderingContext2D,
   presentation: PirateHeadquartersMapPresentation,
   camera: Camera,
   map: GameMap,
+  domActiveIds: ReadonlySet<string> = new Set(),
 ): void {
   for (const region of presentation.regions) {
     const renderCoords = map.wrapsHorizontally
@@ -109,6 +162,7 @@ export function drawPirateHeadquartersMapPresentation(
   }
 
   for (const entity of presentation.entities) {
+    if (domActiveIds.has(entity.id)) continue;
     const renderCoords = map.wrapsHorizontally
       ? getHorizontalWrapRenderCoords(entity.coord, map.width, camera)
       : [entity.coord];
@@ -116,6 +170,15 @@ export function drawPirateHeadquartersMapPresentation(
       const pixel = hexToPixel(coord, camera.hexSize);
       const screen = camera.worldToScreen(pixel.x, pixel.y);
       const size = camera.hexSize * camera.zoom * 0.7;
+      const image = spriteCache.getLandmark(getPirateHeadquartersSpriteId(entity));
+      if (image) {
+        const imageSize = camera.hexSize * camera.zoom * 2.2;
+        ctx.save();
+        ctx.globalAlpha = entity.mode === 'current' ? 1 : 0.55;
+        ctx.drawImage(image, screen.x - imageSize / 2, screen.y - imageSize / 2, imageSize, imageSize);
+        ctx.restore();
+        continue;
+      }
       ctx.save();
       ctx.globalAlpha = entity.mode === 'current' ? 1 : 0.55;
       ctx.translate(screen.x, screen.y);

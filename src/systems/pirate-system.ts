@@ -309,5 +309,14 @@ export function processPiratesForCompletedRound(state: GameState, bus: EventBus)
     }
   }
   nextState = applyPirateNotifications(nextState, notificationEvents);
+  for (const movement of facts.movements) {
+    bus.emit('unit:move', {
+      ...movement,
+      path: [movement.from, ...movement.path],
+    });
+  }
+  for (const result of facts.attacks) {
+    bus.emit('combat:resolved', { result });
+  }
   return { state: nextState, economyModifiers, events, facts, trace };
 }

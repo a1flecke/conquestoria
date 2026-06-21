@@ -62,4 +62,15 @@ describe('SpriteCache after initSprites', () => {
     expect(spriteCache.getUnit('warrior', 'mc-on-demand-test')).toBeInstanceOf(HTMLImageElement);
     expect(spriteCache.getUnitMotion('warrior', 'mc-on-demand-test', 'move-a')).toBeInstanceOf(HTMLImageElement);
   });
+
+  it('loads pirate units once under the neutral pirate owner family', () => {
+    expect(spriteCache.getUnit('pirate_galley', 'pirates')).toBeInstanceOf(HTMLImageElement);
+    expect(spriteCache.getUnit('pirate_mothership', 'pirates')).toBeInstanceOf(HTMLImageElement);
+  });
+
+  it('loads every pirate headquarters image and returns null for missing IDs', () => {
+    expect(spriteCache.getLandmark('pirate_enclave_stage_1')).toBeInstanceOf(HTMLImageElement);
+    expect(spriteCache.getLandmark('pirate_flotilla_stage_5')).toBeInstanceOf(HTMLImageElement);
+    expect(spriteCache.getLandmark('missing')).toBeNull();
+  });
 });

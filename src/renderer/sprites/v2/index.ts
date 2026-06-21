@@ -50,6 +50,21 @@ import { svg as beastSeaSerpentSvg }  from './beast_sea_serpent.svg';
 import { svg as beastWurmSvg }        from './beast_wurm.svg';
 import { svg as beastRocSvg }         from './beast_roc.svg';
 import { svg as beastDragonSvg }      from './beast_dragon.svg';
+import { svg as pirateGalleySvg } from './pirate_galley.svg';
+import { svg as pirateCorsairSvg } from './pirate_corsair.svg';
+import { svg as pirateFrigateSvg } from './pirate_frigate.svg';
+import { svg as pirateIroncladSvg } from './pirate_ironclad.svg';
+import { svg as pirateFastAttackCraftSvg } from './pirate_fast_attack_craft.svg';
+import { svg as pirateMothershipSvg } from './pirate_mothership.svg';
+import { svg as pirateEnclaveStage1Svg } from './pirate_enclave_stage_1.svg';
+import { svg as pirateEnclaveStage2Svg } from './pirate_enclave_stage_2.svg';
+import { svg as pirateEnclaveStage3Svg } from './pirate_enclave_stage_3.svg';
+import { svg as pirateEnclaveStage4Svg } from './pirate_enclave_stage_4.svg';
+import { svg as pirateEnclaveStage5Svg } from './pirate_enclave_stage_5.svg';
+import { svg as pirateFlotillaStage2Svg } from './pirate_flotilla_stage_2.svg';
+import { svg as pirateFlotillaStage3Svg } from './pirate_flotilla_stage_3.svg';
+import { svg as pirateFlotillaStage4Svg } from './pirate_flotilla_stage_4.svg';
+import { svg as pirateFlotillaStage5Svg } from './pirate_flotilla_stage_5.svg';
 
 import { svg as amphitheaterSvg }      from './amphitheater.svg';
 import { svg as aqueductSvg }          from './aqueduct.svg';
@@ -135,11 +150,36 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   beast_wurm:        beastWurmSvg,
   beast_roc:         beastRocSvg,
   beast_dragon:      beastDragonSvg,
+  pirate_galley: pirateGalleySvg,
+  pirate_corsair: pirateCorsairSvg,
+  pirate_frigate: pirateFrigateSvg,
+  pirate_ironclad: pirateIroncladSvg,
+  pirate_fast_attack_craft: pirateFastAttackCraftSvg,
+  pirate_mothership: pirateMothershipSvg,
 };
 
 export function getUnitSpriteV2(unitType: string, faction: string): string | null {
   // Faction-neutral sprites (e.g. beasts) are stored under 'beast' and shared across all factions
-  return UNIT_SPRITES[unitType]?.[faction] ?? UNIT_SPRITES[unitType]?.['beast'] ?? null;
+  const sprites = UNIT_SPRITES[unitType];
+  if (!sprites) return null;
+  if (sprites.pirates) return faction === 'pirates' ? sprites.pirates : null;
+  return sprites[faction] ?? sprites.beast ?? null;
+}
+
+const PIRATE_HEADQUARTERS_SPRITES: Record<string, Record<string, string>> = {
+  pirate_enclave_stage_1: pirateEnclaveStage1Svg,
+  pirate_enclave_stage_2: pirateEnclaveStage2Svg,
+  pirate_enclave_stage_3: pirateEnclaveStage3Svg,
+  pirate_enclave_stage_4: pirateEnclaveStage4Svg,
+  pirate_enclave_stage_5: pirateEnclaveStage5Svg,
+  pirate_flotilla_stage_2: pirateFlotillaStage2Svg,
+  pirate_flotilla_stage_3: pirateFlotillaStage3Svg,
+  pirate_flotilla_stage_4: pirateFlotillaStage4Svg,
+  pirate_flotilla_stage_5: pirateFlotillaStage5Svg,
+};
+
+export function getPirateHeadquartersSpriteV2(headquartersType: string): string | null {
+  return PIRATE_HEADQUARTERS_SPRITES[headquartersType]?.pirates ?? null;
 }
 
 // ── Building sprites ──────────────────────────────────────────────────────────

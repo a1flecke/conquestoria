@@ -1036,7 +1036,7 @@ git commit -m "feat(pirates): add headquarters map interactions"
 - Modify: `tests/renderer/sprite-overlay.test.ts`
 - Modify: `tests/renderer/hex-renderer.test.ts`
 
-- [ ] **Step 1: Write red catalog and landmark-layer tests**
+- [x] **Step 1: Write red catalog and landmark-layer tests**
 
 Assert:
 
@@ -1047,13 +1047,13 @@ Assert:
 - missing assets still return `null` defensively without breaking the frame;
 - existing unit/building/improvement layers and wrap ghosts remain unchanged.
 
-- [ ] **Step 2: Run red tests**
+- [x] **Step 2: Run red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/renderer/sprites/sprite-catalog.test.ts tests/renderer/sprites/sprite-loader.test.ts tests/renderer/sprite-overlay.test.ts tests/renderer/hex-renderer.test.ts
 ```
 
-- [ ] **Step 3: Add neutral production catalog contracts**
+- [x] **Step 3: Add neutral production catalog contracts**
 
 ```ts
 export type PirateHeadquartersSpriteId =
@@ -1070,7 +1070,7 @@ export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<
 
 `src/renderer/sprites/pirates.tsx` contains production neutral low-zoom components for all six units and nine headquarters. They use the shared material/ink language but no civilization palette. Do not use emoji as the normal low-zoom source.
 
-- [ ] **Step 4: Extend v2 serialization without making pirates a civilization faction**
+- [x] **Step 4: Extend v2 serialization without making pirates a civilization faction**
 
 Update `scripts/serialize-sprites.mjs` to load `pirates-v2.jsx` and add separate neutral lists:
 
@@ -1092,7 +1092,7 @@ const PIRATE_LANDMARK_SPRITES = [
 
 Write neutral output as `export const svg = { pirates: "..." }`; do not append `pirates` to the six civilization `FACTIONS` list.
 
-- [ ] **Step 5: Add first-class landmark rendering**
+- [x] **Step 5: Add first-class landmark rendering**
 
 Extend `SpriteEntity`:
 
@@ -1106,7 +1106,7 @@ stage?: 1 | 2 | 3 | 4 | 5;
 
 Add the landmark DOM layer and a production static landmark lookup backed by `PIRATE_HEADQUARTERS_SPRITE_CATALOG`. Extend the Canvas sprite loader/hex renderer to rasterize and draw headquarters at low zoom. Task 15 replaces the high-zoom static landmark lookup with generated v2 assets before the readiness gate is removed. Size remains derived from `camera.hexSize`; do not hardcode wrapper pixels.
 
-- [ ] **Step 6: Run checks and commit**
+- [x] **Step 6: Run checks and commit**
 
 ```bash
 scripts/check-src-rule-violations.sh src/renderer/sprites/pirates.tsx src/renderer/sprites/sprite-catalog.ts src/renderer/sprites/sprite-loader.ts src/renderer/sprites/sprite-system.tsx src/renderer/sprite-overlay.ts src/renderer/hex-renderer.ts
@@ -1135,7 +1135,7 @@ git commit -m "feat(pirates): add neutral sprite and landmark architecture"
 - Modify: `tests/renderer/sprites/v2/index.test.ts`
 - Modify: `tests/renderer/sprites/sprite-v2.test.ts`
 
-- [ ] **Step 1: Write structural tests for every unit before drawing**
+- [x] **Step 1: Write structural tests for every unit before drawing**
 
 For each generated sprite, parse the markup and require:
 
@@ -1151,13 +1151,13 @@ expect(root.querySelector('.cq-death-effect')).not.toBeNull();
 
 Also require a unique silhouette hook for each class and reject a generated file that contains an empty faction value. Add v2 index tests proving each pirate unit resolves under the neutral `pirates` key and never needs a civilization palette.
 
-- [ ] **Step 2: Run red sprite tests**
+- [x] **Step 2: Run red sprite tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/renderer/sprites/v2/index.test.ts tests/renderer/sprites/sprite-v2.test.ts
 ```
 
-- [ ] **Step 3: Author the neutral outlaw family**
+- [x] **Step 3: Author the neutral outlaw family**
 
 Use weathered timber, oxidized metal, patched canvas, soot, signal red, bone-white markings, and shared dark ink. Required silhouettes and structural damage are:
 
@@ -1173,6 +1173,8 @@ Use weathered timber, oxidized metal, patched canvas, soot, signal red, bone-whi
 Each component must render complete idle, walk, attack, hurt, and death hooks. Do not satisfy damage with smoke alone.
 
 - [ ] **Step 4: Serialize and inspect every output**
+
+Execution note: serialization, structural tests, direct SVG rendering, and map-scale inspection are complete. Browser-plugin matrix certification remains open because the in-app controller currently rejects its sandbox metadata (`sandboxPolicy` missing); the inventory remains open until that exact gate runs.
 
 ```bash
 ./scripts/run-with-mise.sh yarn node scripts/serialize-sprites.mjs
@@ -1210,7 +1212,7 @@ git commit -m "feat(pirates): add production pirate ship sprites"
 - Modify: `tests/renderer/unit-movement-animation.test.ts`
 - Modify: `tests/renderer/render-loop-wrap.test.ts`
 
-- [ ] **Step 1: Write red landmark, independent-state, movement, and reduced-motion tests**
+- [x] **Step 1: Write red landmark, independent-state, movement, and reduced-motion tests**
 
 Require:
 
@@ -1223,19 +1225,19 @@ Require:
 - reduced-motion keeps static sprites, headquarters, damage, targeting, and blockade markers visible while disabling motion;
 - wrapping movement produces the short visual path and no duplicate stale ghost.
 
-- [ ] **Step 2: Run red tests**
+- [x] **Step 2: Run red tests**
 
 ```bash
 ./scripts/run-with-mise.sh yarn test --run tests/renderer/pirate-sprite-state.test.ts tests/renderer/sprite-overlay.test.ts tests/renderer/unit-movement-animation.test.ts tests/renderer/render-loop-wrap.test.ts
 ```
 
-- [ ] **Step 3: Author all headquarters production art**
+- [x] **Step 3: Author all headquarters production art**
 
 Enclave foundations progress from hidden cove and timber jetty to fortified gun cove, industrial raider yard, and modern mercenary cliff compound. They must read as pirate infrastructure, never a tribal village. Flotillas progress from xebec tender group to frigate depot, ironclad/steam raider group, and modern mothership/fast-craft formation. Stage foundation, behavior overlay, and damage layers remain separate.
 
 Required hooks include `.cq-surf`, `.cq-flag`, `.cq-crane`, `.cq-defensive-fire`, `.cq-collapse`, `.cq-blockade-ring`, `.cq-relocation-heading`, and `.cq-damage-1/2/3`.
 
-- [ ] **Step 4: Implement event-driven sprite state**
+- [x] **Step 4: Implement event-driven sprite state**
 
 ```ts
 export interface PirateSpriteVisualState {
@@ -1250,15 +1252,17 @@ export interface PirateSpriteVisualState {
 
 The controller consumes typed movement/combat/raid/blockade/relocation/destruction events. One-shot state expiration is deterministic and tested with fake timers. Persistent mode derives from current pirate state.
 
-- [ ] **Step 5: Keep v2 units visible while moving**
+- [x] **Step 5: Keep v2 units visible while moving**
 
 Build moving `SpriteEntity` records from `getMovementAnimationPosition()` using the animation unit and interpolated coordinate. Do not exclude moving IDs from the overlay. Canvas continues to omit IDs currently active in the overlay, preventing double rendering.
 
-- [ ] **Step 6: Fix reduced motion globally**
+- [x] **Step 6: Fix reduced motion globally**
 
 Remove the current `opts.reducedMotion` display-none gate. Add `data-reduced-motion="true"` to the overlay root and CSS that sets animation/transition duration to zero while preserving the static frame and all information layers.
 
 - [ ] **Step 7: Serialize, browser-QA the full matrix, mark inventory, and commit**
+
+Execution note: nine landmark files serialize, all movement/state/reduced-motion regressions pass, source-rule checks pass, the production build passes, and the full suite passes (289 files / 3,978 tests). Browser-plugin certification and inventory closure remain open for the same controller metadata failure recorded in Task 14.
 
 ```bash
 ./scripts/run-with-mise.sh yarn node scripts/serialize-sprites.mjs

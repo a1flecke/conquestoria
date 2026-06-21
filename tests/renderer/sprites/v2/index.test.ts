@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getUnitSpriteV2,
   getBuildingSpriteV2,
+  getPirateHeadquartersSpriteV2,
   getImprovementSpriteV2,
 } from '@/renderer/sprites/v2/index';
 
@@ -47,6 +48,64 @@ describe('getUnitSpriteV2', () => {
     expect(r).not.toBeNull();
     expect(r!).toContain('cq-sprite-wrap');
     expect(r!).toContain('cq-v2');
+  });
+});
+
+const PIRATE_UNIT_TYPES = [
+  'pirate_galley', 'pirate_corsair', 'pirate_frigate', 'pirate_ironclad',
+  'pirate_fast_attack_craft', 'pirate_mothership',
+];
+
+describe('neutral pirate v2 sprites', () => {
+  it.each(PIRATE_UNIT_TYPES)('%s resolves only through the neutral pirates family', (type) => {
+    const result = getUnitSpriteV2(type, 'pirates');
+    expect(result).not.toBeNull();
+    expect(result).toContain('cq-v2');
+    expect(result).toContain('data-kind="pirate-naval"');
+    expect(getUnitSpriteV2(type, 'imperials')).toBeNull();
+  });
+});
+
+const PIRATE_HEADQUARTERS_TYPES = [
+  'pirate_enclave_stage_1', 'pirate_enclave_stage_2', 'pirate_enclave_stage_3',
+  'pirate_enclave_stage_4', 'pirate_enclave_stage_5',
+  'pirate_flotilla_stage_2', 'pirate_flotilla_stage_3', 'pirate_flotilla_stage_4',
+  'pirate_flotilla_stage_5',
+];
+
+describe('neutral pirate headquarters v2 sprites', () => {
+  it.each(PIRATE_HEADQUARTERS_TYPES)('%s has independent visual-state hooks', (type) => {
+    const result = getPirateHeadquartersSpriteV2(type);
+    expect(result).not.toBeNull();
+    expect(result).toContain('data-kind="pirate-headquarters"');
+    for (const hook of [
+      'cq-surf', 'cq-flag', 'cq-defensive-fire', 'cq-collapse',
+      'cq-blockade-ring', 'cq-relocation-heading',
+      'cq-damage-1', 'cq-damage-2', 'cq-damage-3',
+    ]) {
+      expect(result, `${type} missing ${hook}`).toContain(hook);
+    }
+  });
+
+  it.each([
+    ['pirate_enclave_stage_1', 'cq-hidden-cove'],
+    ['pirate_enclave_stage_2', 'cq-timber-jetty'],
+    ['pirate_enclave_stage_3', 'cq-gun-cove'],
+    ['pirate_enclave_stage_4', 'cq-raider-yard'],
+    ['pirate_enclave_stage_5', 'cq-mercenary-compound'],
+    ['pirate_flotilla_stage_2', 'cq-xebec-tenders'],
+    ['pirate_flotilla_stage_3', 'cq-frigate-depot'],
+    ['pirate_flotilla_stage_4', 'cq-steam-raiders'],
+    ['pirate_flotilla_stage_5', 'cq-modern-flotilla'],
+  ])('%s has its own foundation silhouette', (type, silhouette) => {
+    expect(getPirateHeadquartersSpriteV2(type)).toContain(silhouette);
+  });
+
+  it('keeps tier overlays independent of the stage foundation', () => {
+    const result = getPirateHeadquartersSpriteV2('pirate_enclave_stage_5')!;
+    expect(result).toContain('cq-tier-hidden');
+    expect(result).toContain('cq-tier-fortified');
+    expect(result).toContain('cq-tier-stronghold');
   });
 });
 

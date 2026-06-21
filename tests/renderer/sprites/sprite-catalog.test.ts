@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { UNIT_SPRITE_CATALOG, BUILDING_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
+import {
+  UNIT_SPRITE_CATALOG,
+  BUILDING_SPRITE_CATALOG,
+  PIRATE_HEADQUARTERS_SPRITE_CATALOG,
+} from '@/renderer/sprites/sprite-catalog';
 import { derivePalette } from '@/renderer/sprites/sprite-system';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -76,6 +80,21 @@ describe('sprite-catalog coverage', () => {
         expect(BUILDING_SPRITE_CATALOG[buildingId]).toBeDefined();
         expect(typeof BUILDING_SPRITE_CATALOG[buildingId]).toBe('function');
       });
+    }
+  });
+
+  it('covers every era-specific pirate headquarters with neutral production art', () => {
+    const expected = [
+      'pirate_enclave_stage_1', 'pirate_enclave_stage_2', 'pirate_enclave_stage_3',
+      'pirate_enclave_stage_4', 'pirate_enclave_stage_5',
+      'pirate_flotilla_stage_2', 'pirate_flotilla_stage_3', 'pirate_flotilla_stage_4', 'pirate_flotilla_stage_5',
+    ];
+    expect(Object.keys(PIRATE_HEADQUARTERS_SPRITE_CATALOG).sort()).toEqual(expected.sort());
+    for (const id of expected) {
+      const svg = PIRATE_HEADQUARTERS_SPRITE_CATALOG[id as keyof typeof PIRATE_HEADQUARTERS_SPRITE_CATALOG]({ svgOnly: true });
+      expect(svg).toContain('data-pirate-headquarters');
+      expect(svg).toContain('viewBox="0 0 192 192"');
+      expect(svg.length).toBeGreaterThan(900);
     }
   });
 });
