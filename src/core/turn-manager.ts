@@ -106,6 +106,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     let totalGold = 0;
 
     const resourceYieldBonus = getCivResourceYieldBonus(newState, civId);
+    const npCivBonuses = getNationalProjectCivYieldBonus(newState, civId);
 
     for (const cityId of civ.cities) {
       let city = newState.cities[cityId];
@@ -122,8 +123,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
       const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
       const yields = {
-        food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food)       * unrestMultiplier),
-        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production) * unrestMultiplier),
+        food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food       + (npCivBonuses.food       ?? 0)) * unrestMultiplier),
+        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0)) * unrestMultiplier),
         gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier),
         science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0))                                 * unrestMultiplier),
       };
@@ -227,9 +228,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const wonderCivBonuses = getLegendaryWonderCivYieldBonus(newState, civId);
     totalScience += wonderCivBonuses.science ?? 0;
     totalGold += wonderCivBonuses.gold ?? 0;
-    const npCivBonuses = getNationalProjectCivYieldBonus(newState, civId);
     totalScience += npCivBonuses.science ?? 0;
-    // NP gold handled in economy-system.ts to avoid double-counting
+    // NP food/production applied per-city above; NP gold handled in economy-system.ts to avoid double-counting
     if (civDef?.bonusEffect.type === 'allied_kingdoms') {
       const allianceCount = civ.diplomacy.treaties.filter(t => t.type === 'alliance').length;
       totalScience += allianceCount * civDef.bonusEffect.allianceYieldBonus;
