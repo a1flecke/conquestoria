@@ -1,0 +1,162 @@
+import { describe, it, expect } from 'vitest';
+import type { GameState } from '@/core/types';
+import {
+  getNationalProjectMultiplier,
+  getNationalProjectCivYieldBonus,
+  expireNationalProjects,
+} from '@/systems/national-project-system';
+
+function makeState(overrides: Partial<GameState> = {}): GameState {
+  return {
+    turn: 1,
+    era: 5,
+    currentPlayer: 'p1',
+    civilizations: {},
+    cities: {},
+    units: {},
+    map: { width: 1, height: 1, tiles: {}, wrapsHorizontally: false, rivers: [] },
+    minorCivs: {},
+    techDiscoveries: {},
+    completedLegendaryWonders: {},
+    legendaryWonderProjects: {},
+    legendaryWonderHistory: { races: {}, completions: {} },
+    diplomacyState: { relationships: {} },
+    pirateState: null,
+    tradeRoutes: {},
+    espionage: {},
+    embargoes: [],
+    defensiveLeagues: [],
+    p1: false,
+    gameOver: false,
+    winner: null,
+    settings: {} as any,
+    tribalVillages: {},
+    discoveredWonders: {},
+    wonderDiscoverers: {},
+    idCounters: { nextUnitId: 0, nextCityId: 0, nextRouteId: 0 },
+    ...overrides,
+  } as GameState;
+}
+
+describe('getNationalProjectMultiplier', () => {
+  it('returns 1 when delta === 0', () => expect(getNationalProjectMultiplier(5, 5)).toBe(1));
+  it('returns 1 when delta === 1', () => expect(getNationalProjectMultiplier(6, 5)).toBe(1));
+  it('returns 0.5 when delta === 2', () => expect(getNationalProjectMultiplier(7, 5)).toBe(0.5));
+  it('returns 0 when delta === 3', () => expect(getNationalProjectMultiplier(8, 5)).toBe(0));
+  it('returns 0 when delta > 3', () => expect(getNationalProjectMultiplier(10, 5)).toBe(0));
+});
+
+describe('getNationalProjectCivYieldBonus', () => {
+  it('returns empty object when no builtNationalProjects', () => {
+    expect(getNationalProjectCivYieldBonus(makeState(), 'p1')).toEqual({});
+  });
+
+  // royal_academy is defined in Task 9 (NP definitions) — re-enable when BUILDINGS has it
+  it.skip('sums civYieldBonus for active projects of this civ (royal_academy: science 4, era delta 0)', () => {
+    const state = makeState({
+      era: 5,
+      builtNationalProjects: {
+        'p1:royal_academy': { civId: 'p1', cityId: 'city1', eraBuilt: 5 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1').science).toBe(4);
+  });
+
+  it.skip('applies 0.5 multiplier for fading projects (era delta 2)', () => {
+    const state = makeState({
+      era: 7,
+      builtNationalProjects: {
+        'p1:royal_academy': { civId: 'p1', cityId: 'city1', eraBuilt: 5 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1').science).toBe(2); // 4 * 0.5
+  });
+
+  it('ignores expired projects (era delta >= 3)', () => {
+    const state = makeState({
+      era: 8,
+      builtNationalProjects: {
+        'p1:royal_academy': { civId: 'p1', cityId: 'city1', eraBuilt: 5 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1')).toEqual({});
+  });
+
+  it('does not count other civs projects', () => {
+    const state = makeState({
+      era: 5,
+      builtNationalProjects: {
+        'p2:royal_academy': { civId: 'p2', cityId: 'city2', eraBuilt: 5 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1')).toEqual({});
+  });
+
+  it('grand_bazaar: +1 gold per city (1 city = 1 gold)', () => {
+    const state = makeState({
+      era: 2,
+      cities: {
+        c1: {
+          id: 'c1', owner: 'p1', name: 'A', position: { q: 0, r: 0 },
+          population: 1, food: 0, foodNeeded: 10, buildings: [],
+          productionQueue: [], productionProgress: 0,
+          ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village',
+        } as any,
+      },
+      builtNationalProjects: {
+        'p1:grand_bazaar': { civId: 'p1', cityId: 'c1', eraBuilt: 2 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1').gold).toBe(1);
+  });
+
+  it('grand_bazaar: scales to 3 cities', () => {
+    const state = makeState({
+      era: 2,
+      cities: {
+        c1: { id: 'c1', owner: 'p1', name: 'A', position: { q: 0, r: 0 }, population: 1, food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village' } as any,
+        c2: { id: 'c2', owner: 'p1', name: 'B', position: { q: 1, r: 0 }, population: 1, food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village' } as any,
+        c3: { id: 'c3', owner: 'p1', name: 'C', position: { q: 2, r: 0 }, population: 1, food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village' } as any,
+      },
+      builtNationalProjects: {
+        'p1:grand_bazaar': { civId: 'p1', cityId: 'c1', eraBuilt: 2 },
+      },
+    });
+    expect(getNationalProjectCivYieldBonus(state, 'p1').gold).toBe(3);
+  });
+});
+
+describe('expireNationalProjects', () => {
+  it('returns unchanged state when nothing expires', () => {
+    const state = makeState({
+      era: 6,
+      builtNationalProjects: { 'p1:royal_academy': { civId: 'p1', cityId: 'city1', eraBuilt: 5 } },
+    });
+    const { expired } = expireNationalProjects(state, 6);
+    expect(expired).toHaveLength(0);
+  });
+
+  it('removes expired project from builtNationalProjects and city.buildings', () => {
+    const state = makeState({
+      era: 8,
+      cities: {
+        city1: {
+          id: 'city1', name: 'Rome', owner: 'p1', position: { q: 0, r: 0 },
+          population: 3, food: 0, foodNeeded: 10,
+          buildings: ['library', 'royal_academy'],
+          productionQueue: [], productionProgress: 0,
+          ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'town',
+        } as any,
+      },
+      builtNationalProjects: {
+        'p1:royal_academy': { civId: 'p1', cityId: 'city1', eraBuilt: 5 },
+      },
+    });
+    const { state: next, expired } = expireNationalProjects(state, 8);
+    expect(expired).toHaveLength(1);
+    expect(expired[0]).toEqual({ civId: 'p1', cityId: 'city1', buildingId: 'royal_academy' });
+    expect(next.builtNationalProjects?.['p1:royal_academy']).toBeUndefined();
+    expect(next.cities['city1'].buildings).not.toContain('royal_academy');
+    expect(next.cities['city1'].buildings).toContain('library');
+  });
+});
