@@ -67,7 +67,7 @@ export const CATEGORY_TINTS: Record<string, string> = {
 };
 
 const P = MATERIAL_PALETTE;
-const ANIM_CSS = `.cq-anim-idle{animation:cq-float 2s ease-in-out infinite alternate}@keyframes cq-float{from{transform:translateY(0)}to{transform:translateY(-3px)}}`;
+const ANIM_CSS = `.cq-anim-idle{animation:cq-float 2s ease-in-out infinite alternate}@keyframes cq-float{from{transform:translateY(0)}to{transform:translateY(-3px)}}.cq-muzzle-flash{animation:cq-flash 0.9s steps(1,end) infinite}@keyframes cq-flash{0%,60%{opacity:0;transform:scale(0.4)}20%{opacity:1;transform:scale(1.2)}40%{opacity:0.6;transform:scale(0.8)}}`;
 
 // --- SVG primitives ---
 

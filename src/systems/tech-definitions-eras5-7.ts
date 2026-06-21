@@ -172,7 +172,7 @@ const ERA_6_TECHS: Tech[] = [
   { id: 'land-survey', name: 'Land Survey', track: 'exploration', cost: 185,
     prerequisites: ['colonial-charter', 'renaissance-architecture'],
     unlocks: ['+1 tile yield in settled frontier cities'], era: 6 },
-  { id: 'colonial-administration', name: 'Colonial Administration Tech', track: 'exploration', cost: 180,
+  { id: 'colonial-administration', name: 'Colonial Administration', track: 'exploration', cost: 180,
     prerequisites: ['colonial-charter', 'mercantilism'],
     unlocks: ['Colonial Administration national project available'], unlocksBuildings: ['colonial_administration'], era: 6 },
 
@@ -186,7 +186,7 @@ const ERA_6_TECHS: Tech[] = [
 
   // MEDICINE (2)
   { id: 'surgical-school', name: 'Surgical School', track: 'medicine', cost: 185,
-    prerequisites: ['anatomy'],
+    prerequisites: ['anatomy', 'advanced-anatomy'],
     unlocks: ['Units in cities heal 2 additional HP per turn'], unlocksBuildings: ['surgery_guild'], era: 6 },
   { id: 'epidemic-control', name: 'Epidemic Control', track: 'medicine', cost: 180,
     prerequisites: ['herbalist-guilds'],

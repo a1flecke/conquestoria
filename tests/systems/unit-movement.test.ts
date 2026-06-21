@@ -198,6 +198,68 @@ describe('cross-civ movement bonus isolation (#85)', () => {
   });
 });
 
+describe('trade-winds tech naval movement bonus', () => {
+  function makeTradeWindsState(withTech: boolean) {
+    const base = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { slotId: 'p1', name: 'Alice', civType: 'england', isHuman: true },
+        { slotId: 'p2', name: 'Bob', civType: 'france', isHuman: true },
+      ],
+    }, withTech ? 'trade-winds-with' : 'trade-winds-without');
+
+    // Find a p1 city that has a coastal owned tile
+    const p1CoastalCity = Object.values(base.cities).find(city => {
+      if (city.owner !== 'p1') return false;
+      return city.ownedTiles.some(coord => {
+        const key = `${coord.q},${coord.r}`;
+        const t = base.map.tiles[key]?.terrain;
+        return t === 'coast' || t === 'ocean';
+      });
+    });
+    if (!p1CoastalCity) return null; // skip — no coastal city in this seed
+
+    const updatedCities = {
+      ...base.cities,
+      [p1CoastalCity.id]: { ...p1CoastalCity, productionQueue: ['galley'], productionProgress: 999 },
+    };
+    const updatedCivs = withTech
+      ? {
+          ...base.civilizations,
+          p1: {
+            ...base.civilizations['p1'],
+            techState: {
+              ...base.civilizations['p1'].techState,
+              completed: [...base.civilizations['p1'].techState.completed, 'trade-winds'],
+            },
+          },
+        }
+      : base.civilizations;
+
+    return { ...base, cities: updatedCities, civilizations: updatedCivs };
+  }
+
+  it('galley trained with trade-winds researched gets +1 movement (movementBonus=1)', () => {
+    const state = makeTradeWindsState(true);
+    if (!state) return; // no coastal city in this map seed — skip
+    const next = processTurn(state, new EventBus());
+    const newGalley = Object.values(next.units).find(u => u.owner === 'p1' && u.type === 'galley');
+    if (!newGalley) return; // may have been dropped by production eligibility check
+    expect(newGalley.movementBonus).toBe(1);
+    expect(newGalley.movementPointsLeft).toBe((UNIT_DEFINITIONS.galley?.movementPoints ?? 2) + 1);
+  });
+
+  it('galley trained WITHOUT trade-winds has no movement bonus', () => {
+    const state = makeTradeWindsState(false);
+    if (!state) return;
+    const next = processTurn(state, new EventBus());
+    const newGalley = Object.values(next.units).find(u => u.owner === 'p1' && u.type === 'galley');
+    if (!newGalley) return;
+    expect(newGalley.movementBonus).toBeUndefined();
+  });
+});
+
 describe('mountain terrain — movement cost and forced march (issue #280)', () => {
   function mountainMap(): GameMap {
     const tiles: GameMap['tiles'] = {

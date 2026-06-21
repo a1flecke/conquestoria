@@ -2127,3 +2127,53 @@ describe('AI naval warship movement', () => {
     expect(combatEvents).toHaveLength(1);
   });
 });
+
+describe('AI grenadier production priority', () => {
+  function makeGrenadierState(): GameState {
+    const state = makeAiRebelState();
+    // Give AI a city with an empty production queue
+    state.cities = {
+      'city-ai': {
+        id: 'city-ai', owner: 'ai-1', name: 'Rome',
+        position: { q: 0, r: 0 },
+        population: 3, food: 0, foodNeeded: 20,
+        buildings: ['granary', 'blacksmith'],
+        productionQueue: [], productionProgress: 0,
+        ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'town',
+      } as any,
+    };
+    state.civilizations['ai-1'].cities = ['city-ai'];
+    state.map.tiles['0,0'] = {
+      coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland',
+      resource: null, improvement: 'none', owner: 'ai-1',
+      improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    } as any;
+    return state;
+  }
+
+  it('does not queue grenadier when grenade-warfare is not researched', () => {
+    const state = makeGrenadierState();
+    state.civilizations['ai-1'].techState.completed = [];
+    processAITurn(state, 'ai-1', new EventBus());
+    expect(state.cities['city-ai'].productionQueue).not.toContain('grenadier');
+  });
+
+  it('queues grenadier as first priority when grenade-warfare is researched and none exist', () => {
+    const state = makeGrenadierState();
+    state.civilizations['ai-1'].techState.completed = ['grenade-warfare', 'iron-forging', 'swords'];
+    const result = processAITurn(state, 'ai-1', new EventBus());
+    const updatedCity = result.cities['city-ai'];
+    expect(updatedCity.productionQueue[0]).toBe('grenadier');
+  });
+
+  it('does not queue a second grenadier when one already exists', () => {
+    const state = makeGrenadierState();
+    state.civilizations['ai-1'].techState.completed = ['grenade-warfare', 'iron-forging', 'swords'];
+    const grenadier = createUnit('grenadier', 'ai-1', { q: 0, r: 0 }, mkC());
+    grenadier.id = 'unit-grenadier';
+    state.units[grenadier.id] = grenadier;
+    state.civilizations['ai-1'].units.push(grenadier.id);
+    const result = processAITurn(state, 'ai-1', new EventBus());
+    expect(result.cities['city-ai'].productionQueue[0]).not.toBe('grenadier');
+  });
+});

@@ -656,6 +656,7 @@ function drawNavigatorsCompass(options: LegendaryWonderBespokeDrawOptions): void
   ctx.fill();
 }
 
+// TODO(art): Replace with a grand baroque palace: symmetrical wings, golden dome, formal gardens in foreground, sun-ray spires on rooftop. Use generate-sprite-prompt skill.
 function drawPalaceOfTheSun(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius, metadata } = options;
   markBespoke(ctx, 'palace-of-the-sun-bespoke');
@@ -689,6 +690,7 @@ function drawPalaceOfTheSun(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fill();
 }
 
+// TODO(art): Replace with a sprawling state arsenal: long brick warehouse sheds, cannon rows on foreground docks, belching foundry chimneys, military galleys being fitted in slips. Use generate-sprite-prompt skill.
 function drawIronArsenal(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, metadata } = options;
   const r = options.radius;
@@ -728,6 +730,7 @@ function drawIronArsenal(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.fill();
 }
 
+// TODO(art): Replace with a harbor admiralty office: columned waterfront building, tall-masted ships at quay, heraldic anchor above arched entrance, signal lanterns on roof masts. Use generate-sprite-prompt skill.
 function drawMerchantAdmiralty(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, metadata } = options;
   const r = options.radius;

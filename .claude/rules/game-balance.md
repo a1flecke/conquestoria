@@ -44,7 +44,6 @@ Movement bonuses are the most easily broken stat — small integers stack to pro
 | Source | Type | Applies to | Bonus | Era active |
 |---|---|---|---|---|
 | `trade-winds` tech | tech | naval units | +1 move | era 6+ |
-| `naval-supremacy` tech | tech | naval units | +1 move | era 7+ |
 | Navigator's Compass wonder | wonder (special) | naval units | +1 move | era 5+ (permanent) |
 | Road Corps national project | national project | — | (road construction speed, no movement) | era 3–5 |
 | National Railway national project | national project | — | (trade route gold, no movement) | era 7–9 |
