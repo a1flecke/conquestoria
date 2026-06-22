@@ -17,12 +17,14 @@ const PRODUCTION_OUTPUT_BY_ERA: Record<number, number> = {
   3: 8,
   4: 10,
   5: 12,
+  6: 14,
+  7: 16,
 };
 
 export function getProductionOutputProfileForEra(era: number): number {
   const numericEra = Number.isFinite(era) ? era : 1;
   const normalized = Math.max(1, Math.floor(numericEra));
-  return PRODUCTION_OUTPUT_BY_ERA[Math.min(5, normalized)];
+  return PRODUCTION_OUTPUT_BY_ERA[Math.min(7, normalized)];
 }
 
 export function getTargetTurnWindow(input: { era: number; band: PacingBand; contentType: PacingContentType }): { min: number; max: number } {
@@ -45,7 +47,9 @@ export interface ResearchOutputProfile {
     | 'era-2-established'
     | 'era-3-established'
     | 'era-4-established'
-    | 'era-5-established';
+    | 'era-5-established'
+    | 'era-6-established'
+    | 'era-7-established';
   outputPerTurn: number;
 }
 
@@ -55,6 +59,8 @@ const RESEARCH_OUTPUT_BY_ERA: Record<number, ResearchOutputProfile> = {
   3: { name: 'era-3-established', outputPerTurn: 7 },
   4: { name: 'era-4-established', outputPerTurn: 10 },
   5: { name: 'era-5-established', outputPerTurn: 13 },
+  6: { name: 'era-6-established', outputPerTurn: 16 },
+  7: { name: 'era-7-established', outputPerTurn: 19 },
 };
 
 export const OPENING_SCIENCE_INVESTED_PROFILE: ResearchOutputProfile = {
@@ -74,7 +80,7 @@ function clamp(value: number, min: number, max: number): number {
 function normalizeEra(era: number): number {
   const numericEra = Number.isFinite(era) ? era : 1;
   const normalized = Math.max(1, Math.floor(numericEra));
-  return Math.min(5, normalized);
+  return Math.min(7, normalized);
 }
 
 function findTech(techId: string, techs: Tech[]): Tech | undefined {
