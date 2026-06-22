@@ -41,7 +41,9 @@ describe('research pacing model', () => {
     expect(getResearchOutputProfileForEra(1)).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });
     expect(getResearchOutputProfileForEra(2)).toEqual({ name: 'era-2-established', outputPerTurn: 4 });
     expect(getResearchOutputProfileForEra(5)).toEqual({ name: 'era-5-established', outputPerTurn: 13 });
-    expect(getResearchOutputProfileForEra(99)).toEqual({ name: 'era-5-established', outputPerTurn: 13 });
+    expect(getResearchOutputProfileForEra(6)).toEqual({ name: 'era-6-established', outputPerTurn: 16 });
+    expect(getResearchOutputProfileForEra(7)).toEqual({ name: 'era-7-established', outputPerTurn: 19 });
+    expect(getResearchOutputProfileForEra(99)).toEqual({ name: 'era-7-established', outputPerTurn: 19 });
   });
 
   it('classifies starter prerequisites structurally from era, prerequisites, and pacing band', () => {

@@ -257,8 +257,131 @@ const ERA_6_TECHS: Tech[] = [
     unlocks: ['Missionaries spread religion to conquered cities faster'], era: 6 },
 ];
 
+const ERA_7_TECHS: Tech[] = [
+  // MILITARY (2)
+  { id: 'rifled-infantry', name: 'Rifled Infantry', track: 'military', cost: 195,
+    prerequisites: ['rifle-tactics', 'precision-casting'],
+    unlocks: ['Rifleman replaces musketeer-class infantry — accurate long-range unit'], unlocksUnits: ['rifleman'], era: 7 },
+  { id: 'mass-mobilization', name: 'Mass Mobilization', track: 'military', cost: 205,
+    prerequisites: ['rifle-tactics', 'parliamentary-reform'],
+    unlocks: ['Grand Arsenal national project available'], unlocksBuildings: ['grand_arsenal'], era: 7 },
+
+  // ECONOMY (2)
+  { id: 'steam-power', name: 'Steam Power', track: 'economy', cost: 200,
+    prerequisites: ['joint-stock-companies', 'precision-casting'],
+    unlocks: ['Factory unlocked — steam-driven industrial production building'], unlocksBuildings: ['factory'], era: 7 },
+  { id: 'mass-production', name: 'Mass Production', track: 'economy', cost: 210,
+    prerequisites: ['mercantilism', 'aqueduct-expansion'],
+    unlocks: ['+10% production empire-wide; unit training costs reduced 5%'], era: 7 },
+
+  // SCIENCE (2)
+  { id: 'industrialization', name: 'Industrialization', track: 'science', cost: 200,
+    prerequisites: ['natural-history', 'hydraulics'],
+    unlocks: ['+2 science empire-wide; Peoples University national project available'], unlocksBuildings: ['peoples_university'], era: 7 },
+  { id: 'applied-chemistry', name: 'Applied Chemistry', track: 'science', cost: 210,
+    prerequisites: ['natural-history', 'precision-casting'],
+    unlocks: ['+1 science per metallurgy or construction building empire-wide'], era: 7 },
+
+  // CIVICS (2)
+  { id: 'nationalism', name: 'Nationalism', track: 'civics', cost: 195,
+    prerequisites: ['separation-of-powers', 'parliamentary-reform'],
+    unlocks: ['Census Office unlocked'], unlocksBuildings: ['census_office'], era: 7 },
+  { id: 'social-reform', name: 'Social Reform', track: 'civics', cost: 205,
+    prerequisites: ['parliamentary-reform', 'enlightenment'],
+    unlocks: ['+1 happiness in all cities with a market or guildhall'], era: 7 },
+
+  // EXPLORATION (2)
+  { id: 'colonial-railways', name: 'Colonial Railways', track: 'exploration', cost: 200,
+    prerequisites: ['land-survey', 'courier-network'],
+    unlocks: ['+2 gold per city connected by road to capital; railway construction speeds up settler founding'], era: 7 },
+  { id: 'manifest-destiny', name: 'Manifest Destiny', track: 'exploration', cost: 210,
+    prerequisites: ['colonial-administration', 'land-survey'],
+    unlocks: ['Settlers cost 20% less production; frontier cities founded with +5 food bonus'], era: 7 },
+
+  // AGRICULTURE (2)
+  { id: 'mechanized-farming', name: 'Mechanized Farming', track: 'agriculture', cost: 195,
+    prerequisites: ['improved-agriculture', 'hydraulics'],
+    unlocks: ['Farms yield +1 production in addition to food; granaries add +1 additional food'], era: 7 },
+  { id: 'agricultural-machinery', name: 'Agricultural Machinery', track: 'agriculture', cost: 205,
+    prerequisites: ['improved-agriculture', 'tobacco-trade'],
+    unlocks: ['+2 food per farm improvement; removes food production caps from early buildings'], era: 7 },
+
+  // MEDICINE (2)
+  { id: 'field-hospitals', name: 'Field Hospitals', track: 'medicine', cost: 195,
+    prerequisites: ['surgical-school', 'epidemic-control'],
+    unlocks: ['Field Hospital unlocked — frontline unit healing facility'], unlocksBuildings: ['field_hospital'], era: 7 },
+  { id: 'germ-theory', name: 'Germ Theory', track: 'medicine', cost: 205,
+    prerequisites: ['epidemic-control', 'enlightenment'],
+    unlocks: ['Units heal +2 HP when idle in friendly territory; cities immune to plague population loss'], era: 7 },
+
+  // PHILOSOPHY (2)
+  { id: 'utilitarianism', name: 'Utilitarianism', track: 'philosophy', cost: 200,
+    prerequisites: ['enlightenment', 'social-contract'],
+    unlocks: ['+1 happiness per 3 city population empire-wide; civic policies more effective'], era: 7 },
+  { id: 'positivism', name: 'Positivism', track: 'philosophy', cost: 210,
+    prerequisites: ['enlightenment', 'natural-history'],
+    unlocks: ['+2 science empire-wide; universities generate +1 additional science'], era: 7 },
+
+  // ARTS (2)
+  { id: 'romanticism', name: 'Romanticism', track: 'arts', cost: 195,
+    prerequisites: ['baroque-music', 'portrait-art'],
+    unlocks: ['+2 culture empire-wide; culture buildings each generate +1 gold'], era: 7 },
+  { id: 'industrial-realism', name: 'Industrial Realism', track: 'arts', cost: 205,
+    prerequisites: ['baroque-music', 'newspaper-press'],
+    unlocks: ['+1 gold per specialist slot in cities; culture buildings add +1 production'], era: 7 },
+
+  // MARITIME (2)
+  { id: 'ironclad-warships', name: 'Ironclad Warships', track: 'maritime', cost: 210,
+    prerequisites: ['frigate-construction', 'steel-plate-armor'],
+    unlocks: ['Ironclad replaces frigate — armored steam-powered warship'], unlocksUnits: ['ironclad'], era: 7 },
+  { id: 'steam-navigation', name: 'Steam Navigation', track: 'maritime', cost: 200,
+    prerequisites: ['trade-winds', 'joint-stock-companies'],
+    unlocks: ['Naval trade routes yield +2 gold; coastal cities gain +1 production from harbours'], era: 7 },
+
+  // METALLURGY (2)
+  { id: 'steel-production', name: 'Steel Production', track: 'metallurgy', cost: 200,
+    prerequisites: ['steel-plate-armor', 'blast-furnace-tech'],
+    unlocks: ['Steel Mill unlocked — advanced iron processing building'], unlocksBuildings: ['steel_mill'], era: 7 },
+  { id: 'railway-expansion', name: 'Railway Expansion', track: 'metallurgy', cost: 215,
+    prerequisites: ['precision-casting', 'fortification-engineering'],
+    unlocks: ['Land units move ×2 on road tiles; National Railway national project available'], unlocksBuildings: ['national_railway'], era: 7 },
+
+  // CONSTRUCTION (2)
+  { id: 'urban-planning', name: 'Urban Planning', track: 'construction', cost: 200,
+    prerequisites: ['fortification-engineering', 'aqueduct-expansion'],
+    unlocks: ['+2 production in cities with 3 or more buildings'], era: 7 },
+  { id: 'iron-bridges', name: 'Iron Bridges', track: 'construction', cost: 210,
+    prerequisites: ['aqueduct-expansion', 'steel-plate-armor'],
+    unlocks: ['River crossing no longer costs extra movement; +1 gold per river city'], era: 7 },
+
+  // COMMUNICATION (2)
+  { id: 'popular-press', name: 'Popular Press', track: 'communication', cost: 195,
+    prerequisites: ['newspaper-press', 'baroque-music'],
+    unlocks: ['Print Shop unlocked — mass literacy and news distribution building'], unlocksBuildings: ['print_shop'], era: 7 },
+  { id: 'electric-telegraph', name: 'Electric Telegraph', track: 'communication', cost: 210,
+    prerequisites: ['courier-network', 'newspaper-press'],
+    unlocks: ['+1 gold per road connection in trade network; diplomatic vision range increased'], era: 7 },
+
+  // ESPIONAGE (2)
+  { id: 'covert-operations', name: 'Covert Operations', track: 'espionage', cost: 200,
+    prerequisites: ['counter-espionage', 'propaganda'],
+    unlocks: ['+2 spy slots empire-wide; covert missions have +15% success rate'], era: 7 },
+  { id: 'secret-police', name: 'Secret Police', track: 'espionage', cost: 210,
+    prerequisites: ['counter-espionage', 'separation-of-powers'],
+    unlocks: ['Enemy spy missions in your cities have -30% success rate; spy detection bonus'], era: 7 },
+
+  // SPIRITUALITY (2)
+  { id: 'secularism', name: 'Secularism', track: 'spirituality', cost: 195,
+    prerequisites: ['ecumenical-council', 'enlightenment'],
+    unlocks: ['+2 science in cities without a temple; government buildings yield +1 science'], era: 7 },
+  { id: 'social-gospel', name: 'Social Gospel', track: 'spirituality', cost: 205,
+    prerequisites: ['missionary-zeal', 'social-contract'],
+    unlocks: ['+1 food and +1 gold in cities with a temple; unit healing in cities improved'], era: 7 },
+];
+
 export const TECH_TREE_ERAS_5_7: Tech[] = [
   ...RELOCATED_STUBS,
   ...ERA_5_TECHS,
   ...ERA_6_TECHS,
+  ...ERA_7_TECHS,
 ];
