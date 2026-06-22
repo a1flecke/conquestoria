@@ -10,6 +10,7 @@ import {
   AxemanSprite, SpearmanSprite, HorsemanSprite, CavalrySprite, KnightSprite,
   CrossbowmanSprite, CatapultSprite, BallistaSprite, CannonSprite, GrenadierSprite,
   RiflemanSprite, IroncladSprite,
+  MachineGunnerSprite, PreDreadnoughtSprite,
   CaravanSprite, ExpeditionSprite,
   CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
 } from './units';
@@ -28,6 +29,10 @@ import {
   MilitaryAcademySprite, GrandCipherBureauSprite, ColonialAdministrationSprite,
   FactorySprite, SteelMillSprite, FieldHospitalSprite, PrintShopSprite, CensusOfficeSprite,
   NationalRailwaySprite, GrandArsenalSprite, PeoplesUniversitySprite,
+  SteelFoundrySprite, TelephoneExchangeSprite, LaborHallSprite, OperaHouseSprite,
+  BacteriologyLabSprite, StockExchangeTowerSprite, SanatoriumSprite,
+  PowerStationSprite, ExhibitionHallSprite,
+  WorldFairSprite, NationalArchivesBuildingSprite, ImperialGeneralStaffSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
@@ -76,6 +81,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   grenadier: 'humanoid',
   rifleman: 'humanoid',
   ironclad: 'naval',
+  machine_gunner: 'humanoid',
+  pre_dreadnought: 'naval',
   caravan: 'humanoid',
   expedition: 'humanoid',
   beast_boar: 'animal',
@@ -153,8 +160,10 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   cannon:         withMotion('cannon', CannonSprite),
   grenadier:      withMotion('grenadier', GrenadierSprite),
   rifleman:       withMotion('rifleman', RiflemanSprite),
-  ironclad:       withMotion('ironclad', IroncladSprite),
-  caravan:        withMotion('caravan', CaravanSprite),
+  ironclad:          withMotion('ironclad', IroncladSprite),
+  machine_gunner:    withMotion('machine_gunner', MachineGunnerSprite),
+  pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
+  caravan:           withMotion('caravan', CaravanSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
   beast_boar:         withMotion('beast_boar', GiantBoarSprite),
   beast_wolf:         withMotion('beast_wolf', DireWolfSprite),
@@ -254,6 +263,20 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   national_railway:       NationalRailwaySprite,
   grand_arsenal:          GrandArsenalSprite,
   peoples_university:     PeoplesUniversitySprite,
+  // Era 8 regular buildings
+  steel_foundry:          SteelFoundrySprite,
+  telephone_exchange:     TelephoneExchangeSprite,
+  labor_hall:             LaborHallSprite,
+  opera_house:            OperaHouseSprite,
+  bacteriology_lab:       BacteriologyLabSprite,
+  stock_exchange_tower:   StockExchangeTowerSprite,
+  sanatorium:             SanatoriumSprite,
+  power_station:          PowerStationSprite,
+  exhibition_hall:        ExhibitionHallSprite,
+  // Era 8 national projects
+  world_fair:                     WorldFairSprite,
+  national_archives_building:     NationalArchivesBuildingSprite,
+  imperial_general_staff:         ImperialGeneralStaffSprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;

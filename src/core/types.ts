@@ -293,6 +293,7 @@ export type UnitType =
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
   | 'axeman' | 'spearman' | 'horseman' | 'cavalry' | 'knight'
   | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'rifleman' | 'ironclad'
+  | 'machine_gunner' | 'pre_dreadnought'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound'
   | 'caravan'

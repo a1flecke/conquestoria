@@ -20,26 +20,26 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the legacy shape after adding era-5, era-6, and era-7 nodes', () => {
+  it('keeps the legacy shape after adding era-5, era-6, era-7, and era-8 nodes', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      // Era 5, 6, 7 each add 2 techs per track. Espionage had 2 stubs → 16 total.
-      // Economy/science/communication/maritime/exploration had 9 era1-4 each + 6 (era5+era6+era7) = 15.
-      // Other tracks had 8 era1-4 + 6 (era5+era6+era7) = 14.
+      // Era 5, 6, 7, 8 each add 2 techs per track. Espionage had 2 stubs → 18 total.
+      // Economy/science/communication/maritime/exploration had 9 era1-4 each + 8 (era5-8) = 17.
+      // Other tracks had 8 era1-4 + 8 (era5-8) = 16.
       const expectedCount = track === 'espionage'
-        ? 16
+        ? 18
         : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-          ? 15
-          : 14;
+          ? 17
+          : 16;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 217 techs total after adding 30 era-5, 30 era-6, and 30 era-7 tech definitions', () => {
-    expect(TECH_TREE.length).toBe(217);
+  it('has 247 techs total after adding 30 era-5, 30 era-6, 30 era-7, and 30 era-8 tech definitions', () => {
+    expect(TECH_TREE.length).toBe(247);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -57,9 +57,9 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('techs span eras 1-7', () => {
+  it('techs span eras 1-8', () => {
     const eras = new Set(TECH_TREE.map(t => t.era));
-    expect(eras.size).toBe(7);
+    expect(eras.size).toBe(8);
     expect(eras).toContain(1);
     expect(eras).toContain(2);
     expect(eras).toContain(3);
@@ -67,6 +67,7 @@ describe('expanded tech tree', () => {
     expect(eras).toContain(5);
     expect(eras).toContain(6);
     expect(eras).toContain(7);
+    expect(eras).toContain(8);
   });
 
   it('unlocks the new late-era nodes only after their era-4 prerequisites are complete', () => {

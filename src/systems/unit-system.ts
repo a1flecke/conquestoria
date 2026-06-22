@@ -218,6 +218,20 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'naval',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
   },
+  machine_gunner: {
+    type: 'machine_gunner', name: 'Machine Gunner', movementPoints: 2,
+    visionRange: 2, strength: 44, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 145,
+    domain: 'land',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+  },
+  pre_dreadnought: {
+    type: 'pre_dreadnought', name: 'Pre-Dreadnought', movementPoints: 4,
+    visionRange: 2, strength: 50, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 175,
+    domain: 'naval',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+  },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -410,8 +424,10 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   ballista:    'Long-range bolt-thrower effective against massed units. Requires Iron.',
   cannon:      'Gunpowder siege weapon. High bombard damage against cities and fortifications at range 2. Slow movement.',
   grenadier:   'Grenade-throwing infantry. Bombard range 1, strong vs fortifications and city walls. Good vs entrenched defenders.',
-  rifleman:    'Rifled-musket infantry. Accurate ranged unit. Replaces musketeer-class; excels at holding defensive positions.',
-  ironclad:    'Armored steam warship. Strongest naval unit of the industrial era. High strength, replaces frigate in fleet roles.',
+  rifleman:        'Rifled-musket infantry. Accurate ranged unit. Replaces musketeer-class; excels at holding defensive positions.',
+  ironclad:        'Armored steam warship. Strongest naval unit of the industrial era. High strength, replaces frigate in fleet roles.',
+  machine_gunner:  'Tripod-mounted machine gun crew. Suppressive fire from entrenched positions. High ranged strength; replaces the rifle-era fire support role.',
+  pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '

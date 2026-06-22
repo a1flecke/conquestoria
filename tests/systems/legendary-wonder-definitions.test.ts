@@ -11,8 +11,8 @@ describe('legendary-wonder-definitions', () => {
     const shipped = getLegendaryWonderDefinitions().map(w => w.id);
 
     expect(shipped).toEqual(approved);
-    expect(approved).toHaveLength(24);
-    expect(approved).toEqual(expect.arrayContaining(['manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass', 'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress']));
+    expect(approved).toHaveLength(27);
+    expect(approved).toEqual(expect.arrayContaining(['manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass', 'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress', 'eiffel-tower', 'brooklyn-bridge', 'trans-siberian-railway']));
   });
 
   it('supports the new Slice 4 quest-step patterns in the expanded catalog', () => {

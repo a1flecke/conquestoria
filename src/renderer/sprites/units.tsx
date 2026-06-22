@@ -1203,3 +1203,58 @@ export function ExpeditionSprite({ palette, svgOnly = false }: UnitSpriteProps):
     </SpriteFrame>
   );
 }
+
+/* === MACHINE GUNNER === */
+// TODO(art): Replace with era-8 machine gunner: prone crew pair + tripod-mounted Maxim gun, sandbag emplacement, industrial-era uniforms, belt-feed ammo box beside tripod.
+export function MachineGunnerSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={102} rx={32} ry={6} />
+      {/* sandbag emplacement */}
+      <ellipse cx="64" cy="100" rx="38" ry="8" fill={P.ground.dirt} stroke={P.ink.line} strokeWidth="1" />
+      <ellipse cx="64" cy="96" rx="28" ry="6" fill="#b8a070" stroke={P.ink.line} strokeWidth="0.8" />
+      {/* tripod legs */}
+      <line x1="64" y1="72" x2="44" y2="96" stroke={P.metal.iron} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="64" y1="72" x2="84" y2="96" stroke={P.metal.iron} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="64" y1="72" x2="64" y2="96" stroke={P.metal.iron} strokeWidth="2" strokeLinecap="round" />
+      {/* gun barrel */}
+      <rect x="44" y="68" width="50" height="8" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="88" y="70" width="20" height="4" rx="1.5" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* gunner — prone/crouching silhouette */}
+      <Humanoid cx={46} cy={84} scale={0.72} cloth={palette.dark} pants={palette.dark} accent={palette.mid} skin={P.skin.warm} hair="#2a1a0a" />
+      <Banner x={100} y={30} palette={palette} scale={0.65} />
+    </SpriteFrame>
+  );
+}
+
+/* === PRE-DREADNOUGHT === */
+// TODO(art): Replace with era-8 pre-dreadnought: wide steel battleship profile, two revolving turrets fore and aft, tall tripod mast, painted waterline hull, coal smoke from stacks.
+export function PreDreadnoughtSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={104} rx={42} ry={7} />
+      {/* armored hull — wide battleship profile */}
+      <path d="M14,92 L24,80 L104,80 L114,92 L114,104 L14,104 Z"
+        fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.5" />
+      {/* belt armor stripe */}
+      <rect x="14" y="88" width="100" height="4" fill={P.metal.iron} opacity="0.5" />
+      {/* fore turret */}
+      <rect x="28" y="70" width="24" height="12" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="26" y="74" width="14" height="5" rx="1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.7" />
+      {/* aft turret */}
+      <rect x="76" y="70" width="24" height="12" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="88" y="74" width="14" height="5" rx="1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.7" />
+      {/* twin smokestacks */}
+      <rect x="52" y="48" width="8" height="34" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="68" y="48" width="8" height="34" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      {/* smoke plume */}
+      <path d="M56,46 Q52,36 54,28" fill="none" stroke="#c8c0b0" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+      <path d="M72,46 Q76,36 74,30" fill="none" stroke="#c8c0b0" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
+      {/* tripod mast */}
+      <line x1="64" y1="78" x2="64" y2="36" stroke={P.metal.iron} strokeWidth="2" />
+      <line x1="64" y1="50" x2="54" y2="58" stroke={P.metal.iron} strokeWidth="1.2" />
+      <line x1="64" y1="50" x2="74" y2="58" stroke={P.metal.iron} strokeWidth="1.2" />
+      <Banner x={60} y={22} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}

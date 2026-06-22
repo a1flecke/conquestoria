@@ -536,6 +536,95 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { science: 4, gold: 2 },
     },
   },
+  'eiffel-tower': {
+    id: 'eiffel-tower',
+    name: 'Eiffel Tower',
+    era: 8,
+    productionCost: 295,
+    requiredTechs: ['structural-engineering', 'engineering-exhibition'],
+    requiredResources: ['iron'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'engineering-research',
+        type: 'research_count',
+        track: 'metallurgy',
+        targetCount: 4,
+        description: 'Complete 4 metallurgy technologies.',
+      },
+      {
+        id: 'modern-city',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 2,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 8,
+        description: 'Develop 2 cities to at least 8 buildings each.',
+      },
+    ],
+    reward: {
+      summary: '+5 gold and +1 production empire-wide each turn. A monument to industrial ambition.',
+      civYieldBonus: { gold: 5, production: 1 },
+    },
+  },
+  'brooklyn-bridge': {
+    id: 'brooklyn-bridge',
+    name: 'Brooklyn Bridge',
+    era: 8,
+    productionCost: 290,
+    requiredTechs: ['reinforced-concrete', 'bessemer-steel'],
+    requiredResources: ['iron'],
+    cityRequirement: 'river',
+    questSteps: [
+      {
+        id: 'construction-research',
+        type: 'research_count',
+        track: 'construction',
+        targetCount: 4,
+        description: 'Complete 4 construction technologies.',
+      },
+      {
+        id: 'trade-network',
+        type: 'trade-routes-established',
+        targetCount: 3,
+        routeRequirement: 'any',
+        description: 'Establish 3 active trade routes.',
+      },
+    ],
+    reward: {
+      summary: '+4 production and +2 food empire-wide each turn. The bridge that united a city and inspired a nation.',
+      civYieldBonus: { production: 4, food: 2 },
+    },
+  },
+  'trans-siberian-railway': {
+    id: 'trans-siberian-railway',
+    name: 'Trans-Siberian Railway',
+    era: 8,
+    productionCost: 300,
+    requiredTechs: ['transcontinental-rail', 'general-mobilization'],
+    requiredResources: [],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'exploration-research',
+        type: 'research_count',
+        track: 'exploration',
+        targetCount: 4,
+        description: 'Complete 4 exploration technologies.',
+      },
+      {
+        id: 'sprawling-empire',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 5,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 4,
+        description: 'Develop 5 cities to at least 4 buildings each.',
+      },
+    ],
+    reward: {
+      summary: '+6 production empire-wide each turn. The iron spine of a continental empire.',
+      civYieldBonus: { production: 6 },
+    },
+  },
 };
 
 export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = getApprovedM4LegendaryWonderRoster().map(entry => {

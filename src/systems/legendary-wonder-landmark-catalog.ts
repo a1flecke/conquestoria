@@ -37,6 +37,10 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'crystal-palace': landmark('crystal-palace', 'hall', 'wide', 'knowledge', '#2d3f5a', '#8ecfff', '#f0f8ff', 1.05, 'dedicationGlow', 'glint', 'scaffold', 'crystal-palace-bespoke'),
   'suez-canal': landmark('suez-canal', 'waterworks', 'wide', 'canal', '#c4a47a', '#3da0d0', '#b8e8ff', 1.06, 'civicAura', 'glint', 'foundation', 'suez-canal-bespoke'),
   'continental-congress': landmark('continental-congress', 'archive', 'wide', 'knowledge', '#3d2820', '#d4a86a', '#fff0c8', 1.0, 'civicAura', 'pulse', 'outline', 'continental-congress-bespoke'),
+  // Era 8 wonders (Nationalist Era)
+  'eiffel-tower': landmark('eiffel-tower', 'spire', 'wide', 'trade', '#5a4830', '#c8a44a', '#fff4c8', 1.08, 'dedicationGlow', 'glint', 'scaffold', 'eiffel-tower-bespoke'),
+  'brooklyn-bridge': landmark('brooklyn-bridge', 'gateway', 'wide', 'trade', '#2a3a4a', '#6080a0', '#c8dce8', 1.05, 'foundationPulse', 'pulse', 'foundation', 'brooklyn-bridge-bespoke'),
+  'trans-siberian-railway': landmark('trans-siberian-railway', 'network', 'wide', 'trade', '#2a3020', '#889860', '#d8e0b0', 1.0, 'civicAura', 'pulse', 'outline', 'trans-siberian-railway-bespoke'),
 };
 
 function landmark(

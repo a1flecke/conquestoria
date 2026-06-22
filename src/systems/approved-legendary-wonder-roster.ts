@@ -31,5 +31,9 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
     { id: 'crystal-palace', name: 'Crystal Palace' },
     { id: 'suez-canal', name: 'Suez Canal' },
     { id: 'continental-congress', name: 'Continental Congress' },
+    // Era 8 wonders (Nationalist Era)
+    { id: 'eiffel-tower', name: 'Eiffel Tower' },
+    { id: 'brooklyn-bridge', name: 'Brooklyn Bridge' },
+    { id: 'trans-siberian-railway', name: 'Trans-Siberian Railway' },
   ] as const;
 }

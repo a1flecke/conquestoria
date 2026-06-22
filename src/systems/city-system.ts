@@ -525,6 +525,91 @@ export const BUILDINGS: Record<string, Building> = {
     uniquePerEmpire: true, nationalProject: { homeEra: 7 },
     civYieldBonus: { science: 5 },
   },
+
+  // ERA 8 NATIONAL PROJECTS — homeEra 8, available during era 8 and 9
+  world_fair: {
+    id: 'world_fair', name: 'World Fair', category: 'economy',
+    yields: { food: 0, production: 0, gold: 6, science: 0 }, productionCost: 252,
+    description: 'International industrial exhibition. Draws global commerce prestige. +6 gold empire-wide.',
+    techRequired: 'engineering-exhibition',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 8 },
+    civYieldBonus: { gold: 6 },
+  },
+  national_archives_building: {
+    id: 'national_archives_building', name: 'National Archives', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 5 }, productionCost: 252,
+    description: 'Central repository of state knowledge and imperial records. +5 science empire-wide.',
+    techRequired: 'public-records',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.5, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 8 },
+    civYieldBonus: { science: 5 },
+  },
+  imperial_general_staff: {
+    id: 'imperial_general_staff', name: 'Imperial General Staff', category: 'military',
+    yields: { food: 0, production: 4, gold: 0, science: 0 }, productionCost: 252,
+    description: 'Unified military command. Coordinates empire-wide industrial production. +4 production empire-wide.',
+    techRequired: 'general-mobilization',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 8 },
+    civYieldBonus: { production: 4 },
+  },
+
+  // ERA 8 REGULAR BUILDINGS — costs calibrated to era-8 production rate of ~18/turn
+  steel_foundry: {
+    id: 'steel_foundry', name: 'Steel Foundry', category: 'production',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 175,
+    description: 'Iron smelting via Bessemer process. +3 production, reduces iron unit costs.',
+    techRequired: 'bessemer-steel',
+  },
+  telephone_exchange: {
+    id: 'telephone_exchange', name: 'Telephone Exchange', category: 'economy',
+    yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 155,
+    description: 'Telegraph and telephone hub. +2 gold, +1 science per turn.',
+    techRequired: 'telephony',
+  },
+  labor_hall: {
+    id: 'labor_hall', name: 'Labor Hall', category: 'production',
+    yields: { food: 0, production: 2, gold: 1, science: 0 }, productionCost: 135,
+    description: "Workers' assembly hall. +2 production, +1 gold per turn.",
+    techRequired: 'labor-rights',
+  },
+  opera_house: {
+    id: 'opera_house', name: 'Opera House', category: 'culture',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 150,
+    description: 'Grand opera theater. +3 gold per turn.',
+    techRequired: 'grand-opera',
+  },
+  bacteriology_lab: {
+    id: 'bacteriology_lab', name: 'Bacteriology Lab', category: 'science',
+    yields: { food: 1, production: 0, gold: 0, science: 3 }, productionCost: 160,
+    description: 'Medical research facility. +3 science, +1 food per turn.',
+    techRequired: 'germ-biology',
+  },
+  stock_exchange_tower: {
+    id: 'stock_exchange_tower', name: 'Stock Exchange Tower', category: 'economy',
+    yields: { food: 0, production: 0, gold: 4, science: 0 }, productionCost: 170,
+    description: 'Central stock market tower. +4 gold per turn.',
+    techRequired: 'industrial-monopoly',
+  },
+  sanatorium: {
+    id: 'sanatorium', name: 'Sanatorium', category: 'science',
+    yields: { food: 1, production: 0, gold: 0, science: 2 }, productionCost: 160,
+    description: 'Public health facility. +2 science, +1 food per turn.',
+    techRequired: 'public-health-service',
+  },
+  power_station: {
+    id: 'power_station', name: 'Power Station', category: 'production',
+    yields: { food: 0, production: 4, gold: 0, science: 0 }, productionCost: 175,
+    description: 'Electrical power grid. +4 production per turn.',
+    techRequired: 'structural-engineering',
+  },
+  exhibition_hall: {
+    id: 'exhibition_hall', name: 'Exhibition Hall', category: 'culture',
+    yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 150,
+    description: 'Industrial exhibition center. +2 gold, +1 science per turn.',
+    techRequired: 'engineering-exhibition',
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -553,10 +638,12 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'crossbowman',  name: 'Crossbowman',  cost: 75,  techRequired: 'tactics',          resourceRequired: ['copper'],  obsoletedByTech: 'rifled-infantry',        pacing: { band: 'power-spike', role: 'precision-ranged',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
   { type: 'catapult',     name: 'Catapult',     cost: 110, techRequired: 'siege-warfare',    resourceRequired: ['stone'],   obsoletedByTech: 'black-powder',                      pacing: { band: 'power-spike', role: 'siege-bombardment',    impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'ballista',     name: 'Ballista',     cost: 100, techRequired: 'siege-warfare',    resourceRequired: ['iron'],    obsoletedByTech: 'black-powder',                      pacing: { band: 'power-spike', role: 'anti-unit-siege',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.15, unlockBreadth: 1 } },
-  { type: 'cannon',       name: 'Cannon',       cost: 120, techRequired: 'black-powder',                                                                            pacing: { band: 'power-spike', role: 'gunpowder-siege',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'cannon',       name: 'Cannon',       cost: 120, techRequired: 'black-powder',                                      obsoletedByTech: 'mass-firepower',    pacing: { band: 'power-spike', role: 'gunpowder-siege',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'grenadier',    name: 'Grenadier',    cost: 130, techRequired: 'grenade-warfare',                                                                          pacing: { band: 'power-spike', role: 'anti-fortification',   impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.3,  unlockBreadth: 1 } },
   { type: 'rifleman',     name: 'Rifleman',     cost: 145, techRequired: 'rifled-infantry',                                                                           pacing: { band: 'power-spike', role: 'ranged-infantry',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
-  { type: 'ironclad',     name: 'Ironclad',     cost: 160, techRequired: 'ironclad-warships', coastalRequired: true,                                                        pacing: { band: 'power-spike', role: 'naval-superiority',    impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.2,  situationality: 1.4,  unlockBreadth: 1 } },
+  { type: 'ironclad',     name: 'Ironclad',     cost: 160, techRequired: 'ironclad-warships', coastalRequired: true,         obsoletedByTech: 'naval-armor',       pacing: { band: 'power-spike', role: 'naval-superiority',    impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.2,  situationality: 1.4,  unlockBreadth: 1 } },
+  { type: 'machine_gunner', name: 'Machine Gunner', cost: 145, techRequired: 'mass-firepower',                                                                      pacing: { band: 'power-spike', role: 'ranged-suppression',  impact: 1.35, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
+  { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true,                                                pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -778,6 +865,23 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   national_railway:     '🚂',
   grand_arsenal:        '🔫',
   peoples_university:   '📖',
+  // era 8 national projects
+  world_fair:                  '🎪',
+  national_archives_building:  '📚',
+  imperial_general_staff:      '⚔️',
+  // era 8 regular buildings
+  steel_foundry:        '🏭',
+  telephone_exchange:   '📞',
+  labor_hall:           '✊',
+  opera_house:          '🎭',
+  bacteriology_lab:     '🔬',
+  stock_exchange_tower: '🏢',
+  sanatorium:           '🏥',
+  power_station:        '⚡',
+  exhibition_hall:      '🏛️',
+  // era 8 units
+  machine_gunner:  '🔫',
+  pre_dreadnought: '🚢',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';
