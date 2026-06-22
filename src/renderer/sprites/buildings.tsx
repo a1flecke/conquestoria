@@ -1387,6 +1387,208 @@ export function GrandCipherBureauSprite({ palette, svgOnly = false }: BuildingSp
   );
 }
 
+// ERA 7 BUILDINGS
+
+// TODO(art): Replace with a factory: brick industrial building, tall chimney stack with smoke, large gear or flywheel visible, iron-framed windows, steam exhaust pipes along roof.
+export function FactorySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Factory" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={152} />
+      {/* main factory hall */}
+      <rect x="28" y="80" width="136" height="60" rx="2" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* chimney */}
+      <rect x="88" y="36" width="16" height="46" rx="2" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      {/* smoke */}
+      <circle cx="96" cy="30" r="8" fill="#888" opacity="0.5" />
+      <circle cx="100" cy="22" r="6" fill="#888" opacity="0.4" />
+      {/* iron-framed windows */}
+      <rect x="40" y="92" width="24" height="20" rx="1" fill={palette.bright} stroke={P.metal.iron} strokeWidth="1.2" />
+      <rect x="76" y="92" width="24" height="20" rx="1" fill={palette.bright} stroke={P.metal.iron} strokeWidth="1.2" />
+      <rect x="112" y="92" width="24" height="20" rx="1" fill={palette.bright} stroke={P.metal.iron} strokeWidth="1.2" />
+      {/* large gear on facade */}
+      <circle cx="96" cy="118" r="10" fill="none" stroke={P.metal.iron} strokeWidth="2" />
+      <circle cx="96" cy="118" r="3" fill={P.metal.iron} />
+      {/* main door */}
+      <rect x="80" y="116" width="32" height="24" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={152} y={24} palette={palette} scale={0.85} />
+    </BuildingFrame>
+  );
+}
+
+// TODO(art): Replace with a steel mill: sprawling iron-clad building, blast furnace glowing orange, molten steel ladle crane visible above, heavy industrial smoke rising.
+export function SteelMillSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Steel Mill" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={156} />
+      {/* main mill building */}
+      <rect x="24" y="84" width="144" height="56" rx="2" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* blast furnace cone */}
+      <path d="M56,84 L56,52 L80,52 L80,84 Z" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      {/* furnace glow */}
+      <ellipse cx="68" cy="84" rx="14" ry="4" fill="#f97316" opacity="0.7" />
+      {/* second chimney */}
+      <rect x="110" y="44" width="14" height="42" rx="1" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      {/* steel ladle/crane arm */}
+      <line x1="130" y1="60" x2="160" y2="44" stroke={P.metal.bright} strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="160" cy="44" r="5" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="1" />
+      {/* iron plating detail */}
+      <line x1="24" y1="100" x2="168" y2="100" stroke={P.metal.bright} strokeWidth="0.8" opacity="0.5" />
+      <line x1="24" y1="116" x2="168" y2="116" stroke={P.metal.bright} strokeWidth="0.8" opacity="0.5" />
+      {/* main gate */}
+      <rect x="76" y="116" width="40" height="24" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={154} y={24} palette={palette} scale={0.85} />
+    </BuildingFrame>
+  );
+}
+
+// TODO(art): Replace with a field hospital: white canvas tent or timber building with red cross banner, stretchers visible, medical lanterns hanging outside.
+export function FieldHospitalSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Field Hospital" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={140} />
+      {/* main tent structure */}
+      <path d="M36,140 L36,84 L96,48 L156,84 L156,140 Z"
+        fill="#f5f0e8" stroke={P.ink.line} strokeWidth="1.2" />
+      {/* tent ridge pole */}
+      <line x1="96" y1="48" x2="96" y2="140" stroke={P.stone.dark} strokeWidth="1.5" strokeDasharray="4,2" />
+      {/* red cross banner */}
+      <rect x="78" y="60" width="36" height="36" rx="2" fill="white" stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="88" y="64" width="16" height="28" rx="1" fill="#e03030" />
+      <rect x="82" y="70" width="28" height="16" rx="1" fill="#e03030" />
+      {/* entrance flap */}
+      <path d="M72,140 L80,100 L96,96 L112,100 L120,140" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* medical lanterns */}
+      <circle cx="48" cy="90" r="6" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="144" cy="90" r="6" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={148} y={22} palette={palette} scale={0.82} />
+    </BuildingFrame>
+  );
+}
+
+// TODO(art): Replace with a print shop: large letter-press machine visible through window, stacked papers and pamphlets, ink-stained aprons hanging, newspaper headlines posted.
+export function PrintShopSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Print Shop" category="culture" svgOnly={svgOnly}>
+      <BuildingPlinth w={136} />
+      {/* shop building */}
+      <rect x="32" y="76" width="128" height="64" rx="2" fill={P.wood.light} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* TileRoof */}
+      <TileRoof d="M24,76 L96,44 L168,76 Z" color={palette.mid} />
+      {/* large window with press machine silhouette */}
+      <rect x="48" y="88" width="48" height="36" rx="1" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="60" y="96" width="24" height="20" rx="1" fill={P.ink.line} opacity="0.3" />
+      {/* hanging newspaper sign */}
+      <rect x="110" y="80" width="36" height="24" rx="1" fill="#f5f0e8" stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="116" y1="88" x2="140" y2="88" stroke={P.ink.line} strokeWidth="1" />
+      <line x1="116" y1="93" x2="136" y2="93" stroke={P.ink.line} strokeWidth="1" />
+      <line x1="116" y1="98" x2="138" y2="98" stroke={P.ink.line} strokeWidth="1" />
+      {/* main door */}
+      <rect x="76" y="116" width="40" height="24" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={152} y={22} palette={palette} scale={0.82} />
+    </BuildingFrame>
+  );
+}
+
+// TODO(art): Replace with a census office: formal government building with grand entrance stairs, official seals on pillars, clerks visible through arched windows, pigeonhole document shelves inside.
+export function CensusOfficeSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Census Office" category="economy" svgOnly={svgOnly}>
+      <BuildingPlinth w={136} />
+      {/* main neoclassical building */}
+      <rect x="32" y="80" width="128" height="60" rx="2" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* TileRoof pediment */}
+      <TileRoof d="M24,80 L96,48 L168,80 Z" color={palette.mid} />
+      {/* columns (3) */}
+      {[52, 88, 124].map(x =>
+        <rect key={x} x={x} y={80} width="8" height="60" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      ).join('')}
+      {/* government seal */}
+      <circle cx="96" cy="64" r="8" fill={palette.mid} stroke={P.metal.gold} strokeWidth="1.5" />
+      <path d="M96,58 L98,64 L104,64 L99,68 L101,74 L96,70 L91,74 L93,68 L88,64 L94,64 Z"
+        fill={P.metal.gold} />
+      {/* main door with steps */}
+      <rect x="76" y="116" width="40" height="24" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={152} y={22} palette={palette} scale={0.82} />
+    </BuildingFrame>
+  );
+}
+
+// TODO(art): Replace with a national railway hall: grand Victorian station building, iron-arched glass roof over train shed, locomotive smoke visible, passengers on platform.
+export function NationalRailwaySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="National Railway" category="economy" svgOnly={svgOnly}>
+      <BuildingPlinth w={160} />
+      {/* grand station facade */}
+      <rect x="20" y="76" width="152" height="64" rx="2" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* iron-arched glass roof */}
+      <path d="M20,76 Q96,44 172,76" fill="none" stroke={P.metal.bright} strokeWidth="3" />
+      <path d="M32,76 Q96,52 160,76" fill={palette.bright} stroke={P.metal.bright} strokeWidth="1.2" opacity="0.4" />
+      {/* clock tower */}
+      <rect x="82" y="36" width="28" height="42" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="96" cy="52" r="10" fill="#f5f0e8" stroke={P.ink.line} strokeWidth="1" />
+      <line x1="96" y1="46" x2="96" y2="52" stroke={P.ink.line} strokeWidth="1.5" />
+      <line x1="96" y1="52" x2="102" y2="56" stroke={P.ink.line} strokeWidth="1.5" />
+      {/* arched windows */}
+      {[36, 76, 116].map(x =>
+        <path key={x} d={`M${x},108 L${x},92 Q${x + 16},80 ${x + 32},92 L${x + 32},108 Z`}
+          fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      ).join('')}
+      <Banner x={158} y={22} palette={palette} scale={0.88} />
+    </BuildingFrame>
+  );
+}
+
+// TODO(art): Replace with a grand arsenal: fortified warehouse complex, stacked cannon barrels and crates visible, military flag above gate, thick stone walls with arched munitions bays.
+export function GrandArsenalSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Grand Arsenal" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth w={160} />
+      {/* main arsenal building — thick stone walls */}
+      <rect x="20" y="72" width="152" height="68" rx="3" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1.5" />
+      {/* battlements */}
+      {[24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156].map(x =>
+        <rect key={x} x={x} y={60} width="8" height="14" rx="1" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      ).join('')}
+      {/* munitions bay arches */}
+      {[32, 76, 120].map(x =>
+        <path key={x} d={`M${x},140 L${x},108 Q${x + 20},92 ${x + 40},108 L${x + 40},140 Z`}
+          fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      ).join('')}
+      {/* cannon barrels protruding */}
+      <rect x="24" y="92" width="20" height="8" rx="2" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="148" y="92" width="20" height="8" rx="2" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* flag */}
+      <line x1="96" y1="44" x2="96" y2="60" stroke={P.ink.line} strokeWidth="1.5" />
+      <path d="M96,44 L112,50 L96,56 Z" fill={palette.bright} />
+      <Banner x={154} y={22} palette={palette} scale={0.88} />
+    </BuildingFrame>
+  );
+}
+
+// TODO(art): Replace with a people's university: grand gothic or neoclassical campus building, lecture hall with illuminated windows, academic tower with observatory dome, students in courtyard.
+export function PeoplesUniversitySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Peoples University" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={156} />
+      {/* main hall */}
+      <rect x="28" y="80" width="136" height="60" rx="2" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* TileRoof */}
+      <TileRoof d="M20,80 L96,44 L172,80 Z" color={palette.mid} />
+      {/* academic tower with dome */}
+      <rect x="74" y="36" width="44" height="46" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <ellipse cx="96" cy="36" rx="22" ry="10" fill={palette.dark} stroke={P.ink.line} strokeWidth="1" />
+      {/* illuminated windows */}
+      {[40, 72, 104, 136].map(x =>
+        <rect key={x} x={x} y={90} width="20" height="28" rx="2" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      ).join('')}
+      {/* double main door */}
+      <rect x="68" y="116" width="56" height="24" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="96" y1="116" x2="96" y2="140" stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={152} y={22} palette={palette} scale={0.88} />
+    </BuildingFrame>
+  );
+}
+
 // TODO(art): Replace with a colonial admin hall: neoclassical facade, empire flag above entrance, courier board with pinned maps, columned courtyard visible through archway.
 export function ColonialAdministrationSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const cols = [50, 76, 102, 128].map(x =>
