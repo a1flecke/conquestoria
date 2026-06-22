@@ -9,6 +9,7 @@ import {
   SpyOperativeSprite, SpyHackerSprite,
   AxemanSprite, SpearmanSprite, HorsemanSprite, CavalrySprite, KnightSprite,
   CrossbowmanSprite, CatapultSprite, BallistaSprite, CannonSprite, GrenadierSprite,
+  RiflemanSprite, IroncladSprite,
   CaravanSprite, ExpeditionSprite,
   CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
 } from './units';
@@ -25,6 +26,8 @@ import {
   CaravanseraiSprite, BankSprite, StockExchangeSprite,
   NaturalHistoryMuseumSprite, SurgeryGuildSprite, ConcertHallSprite, StarFortSprite,
   MilitaryAcademySprite, GrandCipherBureauSprite, ColonialAdministrationSprite,
+  FactorySprite, SteelMillSprite, FieldHospitalSprite, PrintShopSprite, CensusOfficeSprite,
+  NationalRailwaySprite, GrandArsenalSprite, PeoplesUniversitySprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
@@ -71,6 +74,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   ballista: 'humanoid',
   cannon:   'humanoid',
   grenadier: 'humanoid',
+  rifleman: 'humanoid',
+  ironclad: 'naval',
   caravan: 'humanoid',
   expedition: 'humanoid',
   beast_boar: 'animal',
@@ -147,6 +152,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   ballista:       withMotion('ballista', BallistaSprite),
   cannon:         withMotion('cannon', CannonSprite),
   grenadier:      withMotion('grenadier', GrenadierSprite),
+  rifleman:       withMotion('rifleman', RiflemanSprite),
+  ironclad:       withMotion('ironclad', IroncladSprite),
   caravan:        withMotion('caravan', CaravanSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
   beast_boar:         withMotion('beast_boar', GiantBoarSprite),
@@ -237,6 +244,16 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   surgery_guild:          SurgeryGuildSprite,
   concert_hall:           ConcertHallSprite,
   star_fort:              StarFortSprite,
+  // Era 7 regular buildings
+  factory:                FactorySprite,
+  steel_mill:             SteelMillSprite,
+  field_hospital:         FieldHospitalSprite,
+  print_shop:             PrintShopSprite,
+  census_office:          CensusOfficeSprite,
+  // Era 7 national projects
+  national_railway:       NationalRailwaySprite,
+  grand_arsenal:          GrandArsenalSprite,
+  peoples_university:     PeoplesUniversitySprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;

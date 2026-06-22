@@ -204,6 +204,20 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'land',
     attackProfile: { kind: 'bombard', range: 1, targets: ['unit', 'city'] },
   },
+  rifleman: {
+    type: 'rifleman', name: 'Rifleman', movementPoints: 2,
+    visionRange: 2, strength: 38, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 145,
+    domain: 'land',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+  },
+  ironclad: {
+    type: 'ironclad', name: 'Ironclad', movementPoints: 2,
+    visionRange: 2, strength: 42, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 160,
+    domain: 'naval',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+  },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -396,6 +410,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   ballista:    'Long-range bolt-thrower effective against massed units. Requires Iron.',
   cannon:      'Gunpowder siege weapon. High bombard damage against cities and fortifications at range 2. Slow movement.',
   grenadier:   'Grenade-throwing infantry. Bombard range 1, strong vs fortifications and city walls. Good vs entrenched defenders.',
+  rifleman:    'Rifled-musket infantry. Accurate ranged unit. Replaces musketeer-class; excels at holding defensive positions.',
+  ironclad:    'Armored steam warship. Strongest naval unit of the industrial era. High strength, replaces frigate in fleet roles.',
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '
