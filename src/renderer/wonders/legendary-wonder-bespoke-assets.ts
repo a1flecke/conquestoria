@@ -22,6 +22,9 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'palace-of-the-sun-bespoke',
   'iron-arsenal-bespoke',
   'merchant-admiralty-bespoke',
+  'crystal-palace-bespoke',
+  'suez-canal-bespoke',
+  'continental-congress-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -63,6 +66,9 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'palace-of-the-sun-bespoke': { key: 'palace-of-the-sun-bespoke', draw: drawPalaceOfTheSun },
   'iron-arsenal-bespoke': { key: 'iron-arsenal-bespoke', draw: drawIronArsenal },
   'merchant-admiralty-bespoke': { key: 'merchant-admiralty-bespoke', draw: drawMerchantAdmiralty },
+  'crystal-palace-bespoke': { key: 'crystal-palace-bespoke', draw: drawCrystalPalace },
+  'suez-canal-bespoke': { key: 'suez-canal-bespoke', draw: drawSuezCanal },
+  'continental-congress-bespoke': { key: 'continental-congress-bespoke', draw: drawContinentalCongress },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -767,6 +773,126 @@ function drawMerchantAdmiralty(options: LegendaryWonderBespokeDrawOptions): void
   // Center glow
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.12, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+// TODO(art): Replace with Victorian glass-and-iron exhibition hall: long barrel-vaulted nave of wrought-iron ribs filled with plate glass, arched transept, factory machinery and crystal exhibits visible inside. Use generate-sprite-prompt skill.
+function drawCrystalPalace(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  const r = radius;
+  markBespoke(ctx, 'crystal-palace-bespoke');
+
+  // Iron-rib barrel vault outline
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, r * 0.85, r * 0.45, 0, Math.PI, 0);
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = metadata.palette.base + 'cc';
+  ctx.fill();
+
+  // Glass pane grid — horizontal stripes
+  for (let i = 0; i < 4; i++) {
+    const y = cy - r * 0.35 + i * (r * 0.18);
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.8, y);
+    ctx.lineTo(cx + r * 0.8, y);
+    ctx.strokeStyle = metadata.palette.accent + '88';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Iron rib verticals
+  for (let i = -3; i <= 3; i++) {
+    const x = cx + i * (r * 0.22);
+    ctx.beginPath();
+    ctx.moveTo(x, cy);
+    ctx.quadraticCurveTo(x, cy - r * 0.2, cx, cy - r * 0.45);
+    ctx.strokeStyle = metadata.palette.accent;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Central glow (light flooding through)
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.1, r * 0.18, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+// TODO(art): Replace with aerial view of desert canal: massive stone lock gates, steamships queuing, Mediterranean-blue sea in distance, Egyptian palms lining banks. Use generate-sprite-prompt skill.
+function drawSuezCanal(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  const r = radius;
+  markBespoke(ctx, 'suez-canal-bespoke');
+
+  // Canal waterway (vertical blue stripe)
+  ctx.fillStyle = metadata.palette.glow + 'aa';
+  ctx.fillRect(cx - r * 0.18, cy - r, r * 0.36, r * 2);
+
+  // Desert banks either side
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fillRect(cx - r, cy - r * 0.85, r * 0.76, r * 1.7);
+  ctx.fillRect(cx + r * 0.18, cy - r * 0.85, r * 0.82, r * 1.7);
+
+  // Lock gates (horizontal lines across canal)
+  for (const yOff of [-r * 0.35, r * 0.2]) {
+    ctx.fillStyle = metadata.palette.accent;
+    ctx.fillRect(cx - r * 0.22, cy + yOff, r * 0.44, r * 0.08);
+  }
+
+  // Small steamship silhouette
+  ctx.fillStyle = '#333';
+  ctx.fillRect(cx - r * 0.1, cy - r * 0.12, r * 0.2, r * 0.06);
+  ctx.fillRect(cx - r * 0.03, cy - r * 0.2, r * 0.06, r * 0.1);
+
+  // Gold accent — wealth of trade
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.55, r * 0.1, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+// TODO(art): Replace with grand domed congress hall: neoclassical facade with ionic columns, central dome above circular debating chamber, national flags flanking entrance, cobblestone plaza. Use generate-sprite-prompt skill.
+function drawContinentalCongress(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  const r = radius;
+  markBespoke(ctx, 'continental-congress-bespoke');
+
+  // Dome
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.15, r * 0.42, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fill();
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Lantern on dome
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.55, r * 0.1, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fill();
+
+  // Columned portico
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fillRect(cx - r * 0.5, cy - r * 0.15, r, r * 0.45);
+  const colPositions = [-0.36, -0.18, 0, 0.18, 0.36];
+  for (const xOff of colPositions) {
+    ctx.fillStyle = metadata.palette.accent + 'aa';
+    ctx.fillRect(cx + xOff * r - r * 0.04, cy - r * 0.15, r * 0.07, r * 0.45);
+  }
+
+  // Steps at base
+  ctx.fillStyle = metadata.palette.accent + '66';
+  ctx.fillRect(cx - r * 0.55, cy + r * 0.28, r * 1.1, r * 0.08);
+  ctx.fillRect(cx - r * 0.6, cy + r * 0.35, r * 1.2, r * 0.06);
+
+  // Central glow
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.05, r * 0.1, 0, Math.PI * 2);
   ctx.fillStyle = metadata.palette.glow;
   ctx.fill();
 }

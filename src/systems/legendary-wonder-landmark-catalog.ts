@@ -33,6 +33,10 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'palace-of-the-sun': landmark('palace-of-the-sun', 'hall', 'tall', 'sun', '#5e3000', '#f0c040', '#fff8c0', 1.08, 'dedicationGlow', 'glint', 'scaffold', 'palace-of-the-sun-bespoke'),
   'iron-arsenal': landmark('iron-arsenal', 'bastion', 'wide', 'forge', '#2a2a2a', '#b05020', '#f0905a', 1.05, 'civicAura', 'spark', 'outline', 'iron-arsenal-bespoke'),
   'merchant-admiralty': landmark('merchant-admiralty', 'drydock', 'wide', 'horizon', '#0a2a4a', '#40a0d8', '#b8e8ff', 1.05, 'civicAura', 'glint', 'foundation', 'merchant-admiralty-bespoke'),
+  // Era 7 wonders (Industrial Revolution)
+  'crystal-palace': landmark('crystal-palace', 'hall', 'wide', 'knowledge', '#2d3f5a', '#8ecfff', '#f0f8ff', 1.05, 'dedicationGlow', 'glint', 'scaffold', 'crystal-palace-bespoke'),
+  'suez-canal': landmark('suez-canal', 'waterworks', 'wide', 'canal', '#c4a47a', '#3da0d0', '#b8e8ff', 1.06, 'civicAura', 'glint', 'foundation', 'suez-canal-bespoke'),
+  'continental-congress': landmark('continental-congress', 'archive', 'wide', 'knowledge', '#3d2820', '#d4a86a', '#fff0c8', 1.0, 'civicAura', 'pulse', 'outline', 'continental-congress-bespoke'),
 };
 
 function landmark(

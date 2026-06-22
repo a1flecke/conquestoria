@@ -102,6 +102,9 @@ describe('legendary wonder landmark catalog', () => {
       ['palace-of-the-sun', 'palace-of-the-sun-bespoke'],
       ['iron-arsenal', 'iron-arsenal-bespoke'],
       ['merchant-admiralty', 'merchant-admiralty-bespoke'],
+      ['crystal-palace', 'crystal-palace-bespoke'],
+      ['suez-canal', 'suez-canal-bespoke'],
+      ['continental-congress', 'continental-congress-bespoke'],
     ]);
   });
 

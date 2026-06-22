@@ -27,5 +27,9 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
     { id: 'palace-of-the-sun', name: 'Palace of the Sun' },
     { id: 'iron-arsenal', name: 'Iron Arsenal' },
     { id: 'merchant-admiralty', name: 'Merchant Admiralty' },
+    // Era 7 wonders (Industrial Revolution)
+    { id: 'crystal-palace', name: 'Crystal Palace' },
+    { id: 'suez-canal', name: 'Suez Canal' },
+    { id: 'continental-congress', name: 'Continental Congress' },
   ] as const;
 }
