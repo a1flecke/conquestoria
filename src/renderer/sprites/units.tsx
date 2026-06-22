@@ -1071,7 +1071,7 @@ export function RiflemanSprite({ palette, svgOnly = false }: UnitSpriteProps): s
       <rect x="72" y="38" width="5" height="52" rx="1.5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
       <rect x="73" y="36" width="3" height="10" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
       {/* bayonet */}
-      <line x1="74.5" y1="36" x2="74.5" y2="22" stroke={P.metal.bright} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="74.5" y1="36" x2="74.5" y2="22" stroke={P.metal.shine} strokeWidth="2.5" strokeLinecap="round" />
       <Banner x={100} y={28} palette={palette} scale={0.7} />
     </SpriteFrame>
   );
@@ -1087,16 +1087,16 @@ export function IroncladSprite({ palette, svgOnly = false }: UnitSpriteProps): s
       <path d="M18,90 L28,80 L100,80 L110,90 L110,100 L18,100 Z"
         fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.5" />
       {/* riveted iron plating lines */}
-      <line x1="18" y1="84" x2="110" y2="84" stroke={P.metal.dark} strokeWidth="0.8" opacity="0.6" />
-      <line x1="18" y1="88" x2="110" y2="88" stroke={P.metal.dark} strokeWidth="0.8" opacity="0.6" />
+      <line x1="18" y1="84" x2="110" y2="84" stroke={P.metal.iron} strokeWidth="0.8" opacity="0.6" />
+      <line x1="18" y1="88" x2="110" y2="88" stroke={P.metal.iron} strokeWidth="0.8" opacity="0.6" />
       {/* smokestack with steam */}
-      <rect x="58" y="56" width="12" height="26" rx="2" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="1.2" />
-      <ellipse cx="64" cy="54" rx="8" ry="4" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="58" y="56" width="12" height="26" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      <ellipse cx="64" cy="54" rx="8" ry="4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
       <path d="M60,52 Q55,42 58,36 Q63,30 60,24" fill="none" stroke="#d8d0c0" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
       <path d="M68,50 Q72,40 70,34 Q67,28 70,22" fill="none" stroke="#d8d0c0" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
       {/* gun turret / cannon port */}
-      <rect x="30" y="74" width="18" height="8" rx="1" fill={P.metal.bright} stroke={P.ink.line} strokeWidth="0.8" />
-      <rect x="82" y="74" width="18" height="8" rx="1" fill={P.metal.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="30" y="74" width="18" height="8" rx="1" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="82" y="74" width="18" height="8" rx="1" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.8" />
       <Banner x={100} y={30} palette={palette} scale={0.7} />
     </SpriteFrame>
   );
