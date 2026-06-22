@@ -54,3 +54,26 @@ describe('national project yield ceilings', () => {
     });
   }
 });
+
+describe('era 7 national project coverage', () => {
+  const era7NPs = nationalProjects.filter(np => np.nationalProject?.homeEra === 7);
+
+  it('has exactly 3 era 7 national projects', () => {
+    expect(era7NPs).toHaveLength(3);
+  });
+
+  it('grand_arsenal has single production civYieldBonus', () => {
+    const np = era7NPs.find(np => np.id === 'grand_arsenal');
+    expect(np?.civYieldBonus).toEqual({ production: 5 });
+  });
+
+  it('peoples_university has single science civYieldBonus', () => {
+    const np = era7NPs.find(np => np.id === 'peoples_university');
+    expect(np?.civYieldBonus).toEqual({ science: 5 });
+  });
+
+  it('national_railway has single gold civYieldBonus', () => {
+    const np = era7NPs.find(np => np.id === 'national_railway');
+    expect(np?.civYieldBonus).toEqual({ gold: 4 });
+  });
+});

@@ -59,6 +59,29 @@ describe('era <= 7 wonders do not reference relocated tech stubs', () => {
   }
 });
 
+describe('era 7 legendary wonder coverage', () => {
+  const era7 = ALL_WONDER_DEFINITIONS.filter(w => w.era === 7);
+
+  it('has exactly 3 era 7 legendary wonders', () => {
+    expect(era7).toHaveLength(3);
+  });
+
+  it('crystal-palace civYieldBonus matches definition', () => {
+    const w = era7.find(w => w.id === 'crystal-palace');
+    expect(w?.reward.civYieldBonus).toEqual({ production: 5, science: 1 });
+  });
+
+  it('suez-canal civYieldBonus matches definition', () => {
+    const w = era7.find(w => w.id === 'suez-canal');
+    expect(w?.reward.civYieldBonus).toEqual({ gold: 6 });
+  });
+
+  it('continental-congress civYieldBonus matches definition', () => {
+    const w = era7.find(w => w.id === 'continental-congress');
+    expect(w?.reward.civYieldBonus).toEqual({ science: 4, gold: 2 });
+  });
+});
+
 describe('wonder yield ceilings', () => {
   for (const w of ALL_WONDER_DEFINITIONS) {
     it(`${w.id} civYieldBonus single key <= 6`, () => {
