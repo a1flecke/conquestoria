@@ -105,6 +105,9 @@ describe('legendary wonder landmark catalog', () => {
       ['crystal-palace', 'crystal-palace-bespoke'],
       ['suez-canal', 'suez-canal-bespoke'],
       ['continental-congress', 'continental-congress-bespoke'],
+      ['eiffel-tower', 'eiffel-tower-bespoke'],
+      ['brooklyn-bridge', 'brooklyn-bridge-bespoke'],
+      ['trans-siberian-railway', 'trans-siberian-railway-bespoke'],
     ]);
   });
 

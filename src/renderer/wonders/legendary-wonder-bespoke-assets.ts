@@ -25,6 +25,9 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'crystal-palace-bespoke',
   'suez-canal-bespoke',
   'continental-congress-bespoke',
+  'eiffel-tower-bespoke',
+  'brooklyn-bridge-bespoke',
+  'trans-siberian-railway-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -69,6 +72,9 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'crystal-palace-bespoke': { key: 'crystal-palace-bespoke', draw: drawCrystalPalace },
   'suez-canal-bespoke': { key: 'suez-canal-bespoke', draw: drawSuezCanal },
   'continental-congress-bespoke': { key: 'continental-congress-bespoke', draw: drawContinentalCongress },
+  'eiffel-tower-bespoke': { key: 'eiffel-tower-bespoke', draw: drawEiffelTower },
+  'brooklyn-bridge-bespoke': { key: 'brooklyn-bridge-bespoke', draw: drawBrooklynBridge },
+  'trans-siberian-railway-bespoke': { key: 'trans-siberian-railway-bespoke', draw: drawTransSiberianRailway },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -894,5 +900,159 @@ function drawContinentalCongress(options: LegendaryWonderBespokeDrawOptions): vo
   ctx.beginPath();
   ctx.arc(cx, cy - r * 0.05, r * 0.1, 0, Math.PI * 2);
   ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+// TODO(art): Replace with Eiffel Tower: tall iron-lattice pyramid tapering to needle spire, four arched base legs, observation platform visible, Parisian skyline hint. Use generate-sprite-prompt skill.
+function drawEiffelTower(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  const r = radius;
+  markBespoke(ctx, 'eiffel-tower-bespoke');
+
+  // Four leg arches (two visible from front)
+  for (const xOff of [-0.32, 0.32]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + xOff * r, cy + r * 0.4);
+    ctx.quadraticCurveTo(cx + xOff * r * 0.5, cy + r * 0.05, cx, cy - r * 0.05);
+    ctx.strokeStyle = metadata.palette.accent;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Central shaft
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.05);
+  ctx.lineTo(cx, cy - r * 0.8);
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // First platform
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fillRect(cx - r * 0.22, cy + r * 0.03, r * 0.44, r * 0.06);
+
+  // Second platform
+  ctx.fillRect(cx - r * 0.12, cy - r * 0.3, r * 0.24, r * 0.05);
+
+  // Needle tip
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.8);
+  ctx.lineTo(cx, cy - r * 1.0);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Glow at apex
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 1.0, r * 0.06, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+// TODO(art): Replace with Brooklyn Bridge: twin Gothic stone towers with pointed arches, suspension cables curving down to roadway, East River below, ferry boats and tugboats in the water. Use generate-sprite-prompt skill.
+function drawBrooklynBridge(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  const r = radius;
+  markBespoke(ctx, 'brooklyn-bridge-bespoke');
+
+  // River
+  ctx.fillStyle = metadata.palette.glow + '44';
+  ctx.fillRect(cx - r, cy + r * 0.1, r * 2, r * 0.5);
+
+  // Roadway (horizontal span)
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fillRect(cx - r * 0.9, cy + r * 0.02, r * 1.8, r * 0.08);
+
+  // Two Gothic towers
+  for (const xOff of [-0.35, 0.35]) {
+    // Tower body
+    ctx.fillStyle = metadata.palette.base;
+    ctx.fillRect(cx + xOff * r - r * 0.1, cy - r * 0.5, r * 0.2, r * 0.52);
+    // Pointed arch opening
+    ctx.beginPath();
+    ctx.moveTo(cx + xOff * r - r * 0.07, cy - r * 0.1);
+    ctx.quadraticCurveTo(cx + xOff * r, cy - r * 0.25, cx + xOff * r + r * 0.07, cy - r * 0.1);
+    ctx.strokeStyle = metadata.palette.glow + 'aa';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Tower top
+    ctx.fillStyle = metadata.palette.accent;
+    ctx.fillRect(cx + xOff * r - r * 0.1, cy - r * 0.6, r * 0.2, r * 0.1);
+  }
+
+  // Main suspension cables
+  for (const xBase of [-0.35, 0.35]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + xBase * r, cy - r * 0.5);
+    ctx.quadraticCurveTo(cx, cy - r * 0.2, cx - xBase * r, cy - r * 0.5);
+    ctx.strokeStyle = metadata.palette.accent;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Central glow
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.1, r * 0.08, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+// TODO(art): Replace with Trans-Siberian Railway: long perspective of iron rail lines vanishing into steppe horizon, steam locomotive, birch trees flanking the track, distant snow-capped peaks. Use generate-sprite-prompt skill.
+function drawTransSiberianRailway(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  const r = radius;
+  markBespoke(ctx, 'trans-siberian-railway-bespoke');
+
+  // Steppe ground plane
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fillRect(cx - r, cy + r * 0.05, r * 2, r * 0.55);
+
+  // Perspective rail lines
+  for (const xOff of [-0.15, 0.15]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + xOff * r, cy + r * 0.5);
+    ctx.lineTo(cx + xOff * r * 0.12, cy - r * 0.4);
+    ctx.strokeStyle = metadata.palette.accent;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+
+  // Rail ties (horizontal)
+  for (let i = 0; i < 7; i++) {
+    const t = i / 7;
+    const y = cy + r * 0.5 - t * r * 0.9;
+    const halfW = r * (0.15 - t * 0.12) + 0.01;
+    ctx.fillStyle = metadata.palette.accent + 'cc';
+    ctx.fillRect(cx - halfW, y, halfW * 2, r * 0.04);
+  }
+
+  // Locomotive silhouette (left of vanishing point)
+  ctx.fillStyle = '#333';
+  ctx.fillRect(cx - r * 0.35, cy - r * 0.25, r * 0.28, r * 0.14);
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.22, cy - r * 0.11, r * 0.07, 0, Math.PI * 2);
+  ctx.fill();
+  // Smokestack
+  ctx.fillRect(cx - r * 0.3, cy - r * 0.35, r * 0.06, r * 0.12);
+
+  // Steam puff
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.27, cy - r * 0.42, r * 0.08, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow + '55';
+  ctx.fill();
+
+  // Birch tree silhouettes
+  for (const xOff of [-0.7, 0.7]) {
+    ctx.fillStyle = metadata.palette.accent + '88';
+    ctx.fillRect(cx + xOff * r - r * 0.03, cy - r * 0.2, r * 0.06, r * 0.35);
+    ctx.beginPath();
+    ctx.arc(cx + xOff * r, cy - r * 0.25, r * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Distant glow (horizon)
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.4, r * 0.12, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow + '44';
   ctx.fill();
 }

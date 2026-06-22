@@ -808,6 +808,24 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         };
         continue;
       }
+      // Prioritise machine_gunner when mass-firepower is researched and civ has none
+      const hasMachineGunner = (civ.units ?? []).some(id => newState.units[id]?.type === 'machine_gunner');
+      if (civ.techState.completed.includes('mass-firepower') && !hasMachineGunner && trainableUnits.includes('machine_gunner')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['machine_gunner'] } },
+        };
+        continue;
+      }
+      // Prioritise pre_dreadnought when naval-armor is researched and civ has none (coastal cities only)
+      const hasPreDreadnought = (civ.units ?? []).some(id => newState.units[id]?.type === 'pre_dreadnought');
+      if (civ.techState.completed.includes('naval-armor') && !hasPreDreadnought && trainableUnits.includes('pre_dreadnought')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['pre_dreadnought'] } },
+        };
+        continue;
+      }
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {
