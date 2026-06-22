@@ -790,6 +790,24 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         };
         continue;
       }
+      // Prioritise rifleman when rifled-infantry is researched and civ has none
+      const hasRifleman = (civ.units ?? []).some(id => newState.units[id]?.type === 'rifleman');
+      if (civ.techState.completed.includes('rifled-infantry') && !hasRifleman && trainableUnits.includes('rifleman')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['rifleman'] } },
+        };
+        continue;
+      }
+      // Prioritise ironclad when ironclad-warships is researched and civ has no ironclad (coastal cities only)
+      const hasIronclad = (civ.units ?? []).some(id => newState.units[id]?.type === 'ironclad');
+      if (civ.techState.completed.includes('ironclad-warships') && !hasIronclad && trainableUnits.includes('ironclad')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['ironclad'] } },
+        };
+        continue;
+      }
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {

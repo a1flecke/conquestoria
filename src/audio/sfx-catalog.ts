@@ -219,6 +219,8 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   ballista:      'humanoid',
   cannon:        'humanoid',
   grenadier:     'humanoid',
+  rifleman:      'humanoid',
+  ironclad:      'naval',
   caravan:       'humanoid',
   expedition:    'humanoid',
   beast_boar:    'animal',

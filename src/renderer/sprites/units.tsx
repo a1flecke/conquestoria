@@ -1054,6 +1054,54 @@ export function GrenadierSprite({ palette, svgOnly = false }: UnitSpriteProps): 
   );
 }
 
+/* === RIFLEMAN === */
+// TODO(art): Replace with industrial-era rifleman: peaked shako hat, dark uniform coat, rifled musket held at carry, cartridge box on belt, unit stands at attention.
+export function RiflemanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={100} rx={22} ry={5} />
+      <Humanoid
+        cx={56} cy={82} scale={1.0}
+        cloth={palette.dark} pants={P.cloth.wool} accent={palette.mid} skin={P.skin.warm} hair="#2a1a0a"
+      />
+      {/* shako hat */}
+      <rect x="44" y="26" width="26" height="16" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="42" y="40" width="30" height="3" rx="1" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* rifled musket — held vertically at carry */}
+      <rect x="72" y="38" width="5" height="52" rx="1.5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="73" y="36" width="3" height="10" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* bayonet */}
+      <line x1="74.5" y1="36" x2="74.5" y2="22" stroke={P.metal.bright} strokeWidth="2.5" strokeLinecap="round" />
+      <Banner x={100} y={28} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}
+
+/* === IRONCLAD === */
+// TODO(art): Replace with industrial ironclad warship: riveted iron hull with steam smokestack, gun ports along sides, paddle wheels or screw propeller visible at stern, low profile silhouette.
+export function IroncladSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={102} rx={36} ry={6} />
+      {/* armored hull */}
+      <path d="M18,90 L28,80 L100,80 L110,90 L110,100 L18,100 Z"
+        fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.5" />
+      {/* riveted iron plating lines */}
+      <line x1="18" y1="84" x2="110" y2="84" stroke={P.metal.dark} strokeWidth="0.8" opacity="0.6" />
+      <line x1="18" y1="88" x2="110" y2="88" stroke={P.metal.dark} strokeWidth="0.8" opacity="0.6" />
+      {/* smokestack with steam */}
+      <rect x="58" y="56" width="12" height="26" rx="2" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <ellipse cx="64" cy="54" rx="8" ry="4" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M60,52 Q55,42 58,36 Q63,30 60,24" fill="none" stroke="#d8d0c0" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
+      <path d="M68,50 Q72,40 70,34 Q67,28 70,22" fill="none" stroke="#d8d0c0" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
+      {/* gun turret / cannon port */}
+      <rect x="30" y="74" width="18" height="8" rx="1" fill={P.metal.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="82" y="74" width="18" height="8" rx="1" fill={P.metal.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={100} y={30} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}
+
 /* === CARAVAN === */
 
 export function CaravanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {

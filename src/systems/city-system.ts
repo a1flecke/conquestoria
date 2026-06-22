@@ -463,6 +463,68 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Angled bastion fortress. +3 production. City walls gain +5 garrison defense.',
     techRequired: 'fortification-engineering',
   },
+
+  // ERA 7 REGULAR BUILDINGS — costs calibrated to era-7 production rate of ~15/turn
+  // infrastructure band [8,13]: 120–195; power-spike band [9,14]: 135–210
+  factory: {
+    id: 'factory', name: 'Factory', category: 'production',
+    yields: { food: 0, production: 3, gold: 0, science: 1 }, productionCost: 155,
+    description: 'Steam-powered industrial works. +3 production, +1 science.',
+    techRequired: 'steam-power',
+  },
+  steel_mill: {
+    id: 'steel_mill', name: 'Steel Mill', category: 'production',
+    yields: { food: 0, production: 4, gold: 0, science: 0 }, productionCost: 160,
+    description: 'High-output steel smelting plant. +4 production. Requires iron.',
+    techRequired: 'steel-production', resourceRequired: ['iron'],
+  },
+  field_hospital: {
+    id: 'field_hospital', name: 'Field Hospital', category: 'science',
+    yields: { food: 1, production: 0, gold: 0, science: 0 }, productionCost: 140,
+    description: 'Frontline medical facility. +1 food. Units garrisoned here heal +2 HP per turn.',
+    techRequired: 'field-hospitals',
+  },
+  print_shop: {
+    id: 'print_shop', name: 'Print Shop', category: 'culture',
+    yields: { food: 0, production: 0, gold: 1, science: 2 }, productionCost: 140,
+    description: 'Mass-print press and news distribution. +2 science, +1 gold.',
+    techRequired: 'popular-press',
+  },
+  census_office: {
+    id: 'census_office', name: 'Census Office', category: 'economy',
+    yields: { food: 0, production: 0, gold: 1, science: 1 }, productionCost: 130,
+    description: 'Government bureau tracking population and resources. +1 gold, +1 science.',
+    techRequired: 'nationalism',
+  },
+
+  // ERA 7 NATIONAL PROJECTS — homeEra 7, available during era 7 and 8
+  national_railway: {
+    id: 'national_railway', name: 'National Railway', category: 'economy',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 195,
+    description: 'Empire-wide rail network. +4 gold empire-wide from expanded trade capacity.',
+    techRequired: 'railway-expansion',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 7 },
+    civYieldBonus: { gold: 4 },
+  },
+  grand_arsenal: {
+    id: 'grand_arsenal', name: 'Grand Arsenal', category: 'military',
+    yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 195,
+    description: 'Central weapons manufacturing complex. +5 production empire-wide.',
+    techRequired: 'mass-mobilization',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 7 },
+    civYieldBonus: { production: 5 },
+  },
+  peoples_university: {
+    id: 'peoples_university', name: "People's University", category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 195,
+    description: 'Public institution of higher learning. +5 science empire-wide.',
+    techRequired: 'industrialization',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.5, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 7 },
+    civYieldBonus: { science: 5 },
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -493,6 +555,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'ballista',     name: 'Ballista',     cost: 100, techRequired: 'siege-warfare',    resourceRequired: ['iron'],    obsoletedByTech: 'black-powder',                      pacing: { band: 'power-spike', role: 'anti-unit-siege',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.15, unlockBreadth: 1 } },
   { type: 'cannon',       name: 'Cannon',       cost: 120, techRequired: 'black-powder',                                                                            pacing: { band: 'power-spike', role: 'gunpowder-siege',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'grenadier',    name: 'Grenadier',    cost: 130, techRequired: 'grenade-warfare',                                                                          pacing: { band: 'power-spike', role: 'anti-fortification',   impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.3,  unlockBreadth: 1 } },
+  { type: 'rifleman',     name: 'Rifleman',     cost: 145, techRequired: 'rifled-infantry',                                                                           pacing: { band: 'power-spike', role: 'ranged-infantry',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'ironclad',     name: 'Ironclad',     cost: 160, techRequired: 'ironclad-warships', coastalRequired: true,                                                        pacing: { band: 'power-spike', role: 'naval-superiority',    impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.2,  situationality: 1.4,  unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -651,6 +715,8 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   ballista:    '🔩',
   cannon:      '💣',
   grenadier:   '🧨',
+  rifleman:    '🎯',
+  ironclad:    '⚓',
   // S4b — new building icons
   'bronze-workshop': '🔧',
   armory:            '⚔️',
@@ -702,6 +768,16 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   surgery_guild:        '⚕️',
   concert_hall:         '🎻',
   star_fort:            '⭐',
+  // era 7 regular buildings
+  factory:              '🏭',
+  steel_mill:           '⚙️',
+  field_hospital:       '🏥',
+  print_shop:           '📰',
+  census_office:        '📋',
+  // era 7 national projects
+  national_railway:     '🚂',
+  grand_arsenal:        '🔫',
+  peoples_university:   '🎓',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';
