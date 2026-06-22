@@ -147,5 +147,8 @@ During implementation, add a row for every codex entry using this shape:
 | `palace-of-the-sun` | `loc-about` | `image-sun-tower` | `/images/wonders/codex/sun-tower.jpg` | CC BY-SA 3.0 | Z22 / CC BY-SA 3.0 |
 | `iron-arsenal` | `loc-about` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
 | `merchant-admiralty` | `noaa-maritime-heritage` | `image-drydock` | `/images/wonders/codex/drydock.jpeg` | public domain | Asahel Curtis / public domain |
+| `crystal-palace` | `loc-about` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
+| `suez-canal` | `noaa-maritime-heritage` | `image-drydock` | `/images/wonders/codex/drydock.jpeg` | public domain | Asahel Curtis / public domain |
+| `continental-congress` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
 
 The final implementation PR must include one completed row per codex entry. Contract tests must fail if a final codex entry references missing fact source IDs, missing image source IDs, missing local image paths, or placeholder attribution text.

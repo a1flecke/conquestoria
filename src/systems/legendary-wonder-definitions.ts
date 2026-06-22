@@ -445,6 +445,97 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { gold: 6 },
     },
   },
+
+  // ERA 7 LEGENDARY WONDERS
+  'crystal-palace': {
+    id: 'crystal-palace',
+    name: 'Crystal Palace',
+    era: 7,
+    productionCost: 285,
+    requiredTechs: ['industrialization', 'steel-production'],
+    requiredResources: ['iron'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'industrial-research',
+        type: 'research_count',
+        track: 'science',
+        targetCount: 4,
+        description: 'Complete 4 science technologies.',
+      },
+      {
+        id: 'factories-built',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 3,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 6,
+        description: 'Develop 3 cities to at least 6 buildings each.',
+      },
+    ],
+    reward: {
+      summary: '+5 production and +1 science empire-wide each turn. Emblem of the industrial age.',
+      civYieldBonus: { production: 5, science: 1 },
+    },
+  },
+  'suez-canal': {
+    id: 'suez-canal',
+    name: 'Suez Canal',
+    era: 7,
+    productionCost: 290,
+    requiredTechs: ['ironclad-warships', 'colonial-railways'],
+    requiredResources: [],
+    cityRequirement: 'coastal',
+    questSteps: [
+      {
+        id: 'maritime-research',
+        type: 'research_count',
+        track: 'maritime',
+        targetCount: 4,
+        description: 'Complete 4 maritime technologies.',
+      },
+      {
+        id: 'trade-routes-ocean',
+        type: 'trade-routes-established',
+        targetCount: 4,
+        routeRequirement: 'coastal',
+        description: 'Establish 4 coastal or overseas trade routes.',
+      },
+    ],
+    reward: {
+      summary: '+6 gold empire-wide each turn. The canal that connected two seas.',
+      civYieldBonus: { gold: 6 },
+    },
+  },
+  'continental-congress': {
+    id: 'continental-congress',
+    name: 'Continental Congress',
+    era: 7,
+    productionCost: 280,
+    requiredTechs: ['nationalism', 'popular-press'],
+    requiredResources: [],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'civic-research',
+        type: 'research_count',
+        track: 'civics',
+        targetCount: 4,
+        description: 'Complete 4 civics technologies.',
+      },
+      {
+        id: 'large-empire',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 4,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 4,
+        description: 'Develop 4 cities to at least 4 buildings each.',
+      },
+    ],
+    reward: {
+      summary: '+4 science and +2 gold empire-wide each turn. A unified voice of enlightened governance.',
+      civYieldBonus: { science: 4, gold: 2 },
+    },
+  },
 };
 
 export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = getApprovedM4LegendaryWonderRoster().map(entry => {
