@@ -685,6 +685,40 @@ git commit -m "feat(wonders): add 3 era 7 wonders; complete PR3 balance test sui
 
 ---
 
+---
+
+## Task 22 — Placeholder Art & Sound Replacement (Post-PR3 Follow-Up)
+
+All sprites and bespoke assets added in PR3 use `TODO(art)` placeholder shapes generated at runtime. This task tracks replacing each with finished artwork via the `generate-sprite-prompt` skill.
+
+### Era 7 Unit Sprites (src/renderer/sprites/units.tsx)
+
+- [ ] **RiflemanSprite** — Replace TODO(art) placeholder with: industrial-era infantryman in dark-grey uniform with brass buttons, bolt-action rifle at shoulder, peaked cap, brown leather boots. Posed in a firing stance, 192×192 canvas, humanoid motion class.
+- [ ] **IroncladSprite** — Replace TODO(art) placeholder with: low-profile armored warship, iron-plated hull with rivet lines, single smokestack emitting black smoke, gun ports along sides, paddle wheels visible, flying a faction pennant. 192×192 canvas, naval motion class.
+
+### Era 7 Building Sprites (src/renderer/sprites/buildings.tsx)
+
+- [ ] **FactorySprite** — Replace TODO(art) with: brick industrial mill with tall chimney stack, arched windows, conveyor belt loading dock, steam escaping from vents.
+- [ ] **SteelMillSprite** — Replace TODO(art) with: tall blast furnace with slag chutes, iron ore hoppers at base, orange glow from crucible vents, iron beams stacked nearby.
+- [ ] **FieldHospitalSprite** — Replace TODO(art) with: white canvas field tent with red cross pennant, cots visible inside, medic's lantern at entrance, triage flag.
+- [ ] **PrintShopSprite** — Replace TODO(art) with: shop-front printing press behind large window, moveable type blocks visible, paper rolls stacked, ink-stained apron hanging by door.
+- [ ] **CensusOfficeSprite** — Replace TODO(art) with: neoclassical government bureau with columns, ledger books stacked in windows, census form nailed to bulletin board outside.
+- [ ] **NationalRailwaySprite** — Replace TODO(art) with: Victorian railway terminus, arched iron-and-glass roof, steam locomotive on tracks, passenger platform with benches.
+- [ ] **GrandArsenalSprite** — Replace TODO(art) with: fortress-like weapons warehouse, iron gate, cannon barrels stacked in courtyard, guard tower, regimental banner.
+- [ ] **PeoplesUniversitySprite** — Replace TODO(art) with: grand public hall with ionic columns, students gathered on steps, illuminated reading rooms visible through windows, clock tower.
+
+### Era 7 Wonder Bespoke Assets (src/renderer/wonders/legendary-wonder-bespoke-assets.ts)
+
+- [ ] **drawCrystalPalace** — Replace TODO(art) with: Victorian glass-and-iron exhibition hall — long barrel-vaulted nave of wrought-iron ribs filled with plate glass, arched transept, factory machinery and crystal exhibits visible inside. Use `generate-sprite-prompt` skill.
+- [ ] **drawSuezCanal** — Replace TODO(art) with: aerial view of desert canal — massive stone lock gates, steamships queuing to pass through, Mediterranean-blue sea in distance, Egyptian palms lining the banks. Use `generate-sprite-prompt` skill.
+- [ ] **drawContinentalCongress** — Replace TODO(art) with: grand domed congress hall — neoclassical facade with ionic columns, central dome above circular debating chamber, national flags flanking entrance, cobblestone plaza with delegates. Use `generate-sprite-prompt` skill.
+
+### Era 7 SFX Notes
+
+No new SFX files are needed for era 7. Rifleman inherits `humanoid` SFX class (same as musketeer/grenadier); ironclad inherits `naval` SFX class (same as galleon/steamship). If a future audio pass distinguishes rifle fire from musket fire, add `rifleman` to the SFX catalog explicitly.
+
+---
+
 ## PR3 Verification Gate
 
 ```bash
