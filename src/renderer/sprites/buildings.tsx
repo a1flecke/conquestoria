@@ -1421,7 +1421,7 @@ export function SteelMillSprite({ palette, svgOnly = false }: BuildingSpriteProp
     <BuildingFrame label="Steel Mill" category="production" svgOnly={svgOnly}>
       <BuildingPlinth w={156} />
       {/* main mill building */}
-      <rect x="24" y="84" width="144" height="56" rx="2" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="24" y="84" width="144" height="56" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
       {/* blast furnace cone */}
       <path d="M56,84 L56,52 L80,52 L80,84 Z" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
       {/* furnace glow */}
@@ -1429,11 +1429,11 @@ export function SteelMillSprite({ palette, svgOnly = false }: BuildingSpriteProp
       {/* second chimney */}
       <rect x="110" y="44" width="14" height="42" rx="1" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
       {/* steel ladle/crane arm */}
-      <line x1="130" y1="60" x2="160" y2="44" stroke={P.metal.bright} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="130" y1="60" x2="160" y2="44" stroke={P.metal.shine} strokeWidth="2.5" strokeLinecap="round" />
       <circle cx="160" cy="44" r="5" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="1" />
       {/* iron plating detail */}
-      <line x1="24" y1="100" x2="168" y2="100" stroke={P.metal.bright} strokeWidth="0.8" opacity="0.5" />
-      <line x1="24" y1="116" x2="168" y2="116" stroke={P.metal.bright} strokeWidth="0.8" opacity="0.5" />
+      <line x1="24" y1="100" x2="168" y2="100" stroke={P.metal.shine} strokeWidth="0.8" opacity="0.5" />
+      <line x1="24" y1="116" x2="168" y2="116" stroke={P.metal.shine} strokeWidth="0.8" opacity="0.5" />
       {/* main gate */}
       <rect x="76" y="116" width="40" height="24" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
       <Banner x={154} y={24} palette={palette} scale={0.85} />
@@ -1521,8 +1521,8 @@ export function NationalRailwaySprite({ palette, svgOnly = false }: BuildingSpri
       {/* grand station facade */}
       <rect x="20" y="76" width="152" height="64" rx="2" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
       {/* iron-arched glass roof */}
-      <path d="M20,76 Q96,44 172,76" fill="none" stroke={P.metal.bright} strokeWidth="3" />
-      <path d="M32,76 Q96,52 160,76" fill={palette.bright} stroke={P.metal.bright} strokeWidth="1.2" opacity="0.4" />
+      <path d="M20,76 Q96,44 172,76" fill="none" stroke={P.metal.shine} strokeWidth="3" />
+      <path d="M32,76 Q96,52 160,76" fill={palette.bright} stroke={P.metal.shine} strokeWidth="1.2" opacity="0.4" />
       {/* clock tower */}
       <rect x="82" y="36" width="28" height="42" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
       <circle cx="96" cy="52" r="10" fill="#f5f0e8" stroke={P.ink.line} strokeWidth="1" />
@@ -1555,8 +1555,8 @@ export function GrandArsenalSprite({ palette, svgOnly = false }: BuildingSpriteP
           fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
       ).join('')}
       {/* cannon barrels protruding */}
-      <rect x="24" y="92" width="20" height="8" rx="2" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="0.8" />
-      <rect x="148" y="92" width="20" height="8" rx="2" fill={P.metal.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="24" y="92" width="20" height="8" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="148" y="92" width="20" height="8" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
       {/* flag */}
       <line x1="96" y1="44" x2="96" y2="60" stroke={P.ink.line} strokeWidth="1.5" />
       <path d="M96,44 L112,50 L96,56 Z" fill={palette.bright} />
