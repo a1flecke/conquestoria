@@ -232,6 +232,20 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'naval',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
   },
+  tank: {
+    type: 'tank', name: 'Tank', movementPoints: 3,
+    visionRange: 2, strength: 58, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 185,
+    domain: 'land',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+  },
+  submarine: {
+    type: 'submarine', name: 'Submarine', movementPoints: 4,
+    visionRange: 2, strength: 52, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 180,
+    domain: 'naval',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+  },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -428,6 +442,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   ironclad:        'Armored steam warship. Strongest naval unit of the industrial era. High strength, replaces frigate in fleet roles.',
   machine_gunner:  'Tripod-mounted machine gun crew. Suppressive fire from entrenched positions. High ranged strength; replaces the rifle-era fire support role.',
   pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
+  tank:       'Armored fighting vehicle. Breaks entrenched positions, high strength, range-1 attack. Obsoletes the machine gunner era of infantry firepower.',
+  submarine:  'Undersea warship. Long-range torpedoes (range 2), high naval strength, stealth approach. Replaces pre-dreadnought surface-fleet dominance.',
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '

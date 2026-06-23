@@ -223,6 +223,8 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   ironclad:       'naval',
   machine_gunner: 'humanoid',
   pre_dreadnought: 'naval',
+  tank:       'humanoid',
+  submarine:  'naval',
   caravan:        'humanoid',
   expedition:    'humanoid',
   beast_boar:    'animal',

@@ -826,6 +826,24 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         };
         continue;
       }
+      // Prioritise tank when tank-warfare is researched and civ has none
+      const hasTank = (civ.units ?? []).some(id => newState.units[id]?.type === 'tank');
+      if (civ.techState.completed.includes('tank-warfare') && !hasTank && trainableUnits.includes('tank')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['tank'] } },
+        };
+        continue;
+      }
+      // Prioritise submarine when submarine-warfare is researched and civ has none (coastal cities only)
+      const hasSubmarine = (civ.units ?? []).some(id => newState.units[id]?.type === 'submarine');
+      if (civ.techState.completed.includes('submarine-warfare') && !hasSubmarine && trainableUnits.includes('submarine')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['submarine'] } },
+        };
+        continue;
+      }
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {

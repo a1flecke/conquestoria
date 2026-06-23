@@ -28,6 +28,9 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'eiffel-tower-bespoke',
   'brooklyn-bridge-bespoke',
   'trans-siberian-railway-bespoke',
+  'panama-canal-bespoke',
+  'empire-state-building-bespoke',
+  'hoover-dam-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -75,6 +78,9 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'eiffel-tower-bespoke': { key: 'eiffel-tower-bespoke', draw: drawEiffelTower },
   'brooklyn-bridge-bespoke': { key: 'brooklyn-bridge-bespoke', draw: drawBrooklynBridge },
   'trans-siberian-railway-bespoke': { key: 'trans-siberian-railway-bespoke', draw: drawTransSiberianRailway },
+  'panama-canal-bespoke':           { key: 'panama-canal-bespoke',           draw: drawPanamaCanal },
+  'empire-state-building-bespoke':  { key: 'empire-state-building-bespoke',  draw: drawEmpireStateBuilding },
+  'hoover-dam-bespoke':             { key: 'hoover-dam-bespoke',             draw: drawHooverDam },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -1055,4 +1061,134 @@ function drawTransSiberianRailway(options: LegendaryWonderBespokeDrawOptions): v
   ctx.arc(cx, cy - r * 0.4, r * 0.12, 0, Math.PI * 2);
   ctx.fillStyle = metadata.palette.glow + '44';
   ctx.fill();
+}
+
+
+// TODO(art): Replace panama-canal draw: aerial view of the canal locks, ships queuing, jungle banks, Pacific/Atlantic horizon at each end.
+function drawPanamaCanal(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius: r, metadata } = options;
+  markBespoke(ctx, 'panama-canal-bespoke');
+  const sky = ctx.createLinearGradient(cx, cy - r, cx, cy);
+  sky.addColorStop(0, '#1a3a5c');
+  sky.addColorStop(1, '#2e7da8');
+  ctx.fillStyle = sky;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  // Water channel
+  ctx.fillStyle = '#1a6090';
+  ctx.fillRect(cx - r * 0.18, cy - r * 0.85, r * 0.36, r * 1.7);
+  // Canal lock walls
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fillRect(cx - r * 0.28, cy - r * 0.3, r * 0.1, r * 0.6);
+  ctx.fillRect(cx + r * 0.18, cy - r * 0.3, r * 0.1, r * 0.6);
+  // Ship silhouette
+  ctx.fillStyle = '#1a2030';
+  ctx.fillRect(cx - r * 0.14, cy - r * 0.15, r * 0.28, r * 0.12);
+  ctx.fillRect(cx - r * 0.08, cy - r * 0.27, r * 0.04, r * 0.12);
+  // Jungle banks
+  for (let i = 0; i < 7; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#2a5e20' : '#1e4a18';
+    ctx.beginPath();
+    ctx.arc(cx - r * 0.65 + i * r * 0.08, cy + r * 0.1, r * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + r * 0.35 + i * r * 0.08, cy + r * 0.1, r * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Glow on water
+  ctx.fillStyle = metadata.palette.glow + '44';
+  ctx.fillRect(cx - r * 0.18, cy - r * 0.1, r * 0.36, r * 0.25);
+}
+
+// TODO(art): Replace empire-state-building draw: art-deco skyscraper with mooring mast, stepped setbacks, city grid below, dawn light.
+function drawEmpireStateBuilding(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius: r, metadata } = options;
+  markBespoke(ctx, 'empire-state-building-bespoke');
+  const sky = ctx.createLinearGradient(cx, cy - r, cx, cy);
+  sky.addColorStop(0, '#1a1a2e');
+  sky.addColorStop(0.5, '#c05020');
+  sky.addColorStop(1, '#e07030');
+  ctx.fillStyle = sky;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  // City grid silhouette
+  ctx.fillStyle = '#101018';
+  ctx.fillRect(cx - r, cy + r * 0.2, r * 2, r * 0.8);
+  for (let i = -4; i <= 4; i++) {
+    const h = r * (0.15 + Math.abs(i % 3) * 0.1);
+    ctx.fillRect(cx + i * r * 0.22 - r * 0.08, cy + r * 0.2 - h, r * 0.14, h);
+  }
+  // Building setbacks (wide to narrow)
+  const stepW = [r * 0.34, r * 0.26, r * 0.18, r * 0.12, r * 0.07];
+  const stepH = [r * 0.55, r * 0.7, r * 0.82, r * 0.9, r * 0.96];
+  for (let i = 0; i < stepW.length; i++) {
+    ctx.fillStyle = i === 0 ? metadata.palette.accent : metadata.palette.base;
+    ctx.fillRect(cx - stepW[i], cy + r * 0.2 - stepH[i], stepW[i] * 2, stepH[i]);
+  }
+  // Mooring mast
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = r * 0.025;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + r * 0.2 - r * 0.96);
+  ctx.lineTo(cx, cy + r * 0.2 - r * 1.18);
+  ctx.stroke();
+  ctx.fillStyle = metadata.palette.glow + 'cc';
+  ctx.beginPath();
+  ctx.arc(cx, cy + r * 0.2 - r * 1.18, r * 0.04, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// TODO(art): Replace hoover-dam draw: massive concrete arch dam at dusk, canyon walls, reservoir behind, white water below.
+function drawHooverDam(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius: r, metadata } = options;
+  markBespoke(ctx, 'hoover-dam-bespoke');
+  const sky = ctx.createLinearGradient(cx, cy - r, cx, cy);
+  sky.addColorStop(0, '#1a1228');
+  sky.addColorStop(0.6, '#c04810');
+  sky.addColorStop(1, '#e06820');
+  ctx.fillStyle = sky;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  // Reservoir
+  ctx.fillStyle = '#1a4a6e';
+  ctx.fillRect(cx - r, cy - r * 0.6, r * 2, r * 0.45);
+  // Canyon walls
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.beginPath();
+  ctx.moveTo(cx - r, cy - r * 0.6);
+  ctx.lineTo(cx - r * 0.32, cy - r * 0.6);
+  ctx.lineTo(cx - r * 0.26, cy + r * 0.35);
+  ctx.lineTo(cx - r, cy + r * 0.35);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx + r, cy - r * 0.6);
+  ctx.lineTo(cx + r * 0.32, cy - r * 0.6);
+  ctx.lineTo(cx + r * 0.26, cy + r * 0.35);
+  ctx.lineTo(cx + r, cy + r * 0.35);
+  ctx.fill();
+  // Dam face
+  ctx.fillStyle = metadata.palette.base;
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.32, cy - r * 0.6);
+  ctx.lineTo(cx + r * 0.32, cy - r * 0.6);
+  ctx.lineTo(cx + r * 0.26, cy + r * 0.35);
+  ctx.lineTo(cx - r * 0.26, cy + r * 0.35);
+  ctx.fill();
+  // Penstock tubes
+  for (let i = -1; i <= 1; i++) {
+    ctx.strokeStyle = metadata.palette.glow + '88';
+    ctx.lineWidth = r * 0.03;
+    ctx.beginPath();
+    ctx.moveTo(cx + i * r * 0.12, cy - r * 0.05);
+    ctx.lineTo(cx + i * r * 0.12, cy + r * 0.35);
+    ctx.stroke();
+  }
+  // Churning water below
+  ctx.fillStyle = '#7ab8d8';
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(cx - r * 0.28, cy + r * 0.35, r * 0.56, r * 0.2);
+  ctx.globalAlpha = 1;
 }

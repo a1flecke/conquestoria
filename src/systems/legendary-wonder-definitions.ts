@@ -624,6 +624,97 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { production: 6 },
     },
   },
+
+  'panama-canal': {
+    id: 'panama-canal',
+    name: 'Panama Canal',
+    era: 9,
+    productionCost: 310,
+    requiredTechs: ['transcontinental-rail', 'hydroelectric-power'],
+    requiredResources: ['iron'],
+    cityRequirement: 'coastal',
+    questSteps: [
+      {
+        id: 'maritime-mastery',
+        type: 'trade-routes-established',
+        targetCount: 3,
+        description: 'Establish 3 active trade routes.',
+      },
+      {
+        id: 'naval-tradition',
+        type: 'research_count',
+        track: 'maritime',
+        targetCount: 3,
+        description: 'Complete 3 maritime technologies.',
+      },
+    ],
+    reward: {
+      summary: '+6 gold empire-wide each turn. The canal halves the world.',
+      civYieldBonus: { gold: 6 },
+    },
+  },
+
+  'empire-state-building': {
+    id: 'empire-state-building',
+    name: 'Empire State Building',
+    era: 9,
+    productionCost: 315,
+    requiredTechs: ['steel-skyscrapers', 'mass-production'],
+    requiredResources: ['iron'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'urban-density',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 4,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 6,
+        description: 'Develop 4 cities to at least 6 buildings each.',
+      },
+      {
+        id: 'industrial-era-science',
+        type: 'research_count',
+        track: 'science',
+        targetCount: 3,
+        description: 'Complete 3 era-9 science technologies.',
+      },
+    ],
+    reward: {
+      summary: '+4 production, +3 gold empire-wide. The city that never sleeps.',
+      civYieldBonus: { production: 4, gold: 3 },
+    },
+  },
+
+  'hoover-dam': {
+    id: 'hoover-dam',
+    name: 'Hoover Dam',
+    era: 9,
+    productionCost: 320,
+    requiredTechs: ['hydroelectric-power', 'quantum-theory'],
+    requiredResources: ['stone'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'infrastructure-push',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 5,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 5,
+        description: 'Develop 5 cities to at least 5 buildings each.',
+      },
+      {
+        id: 'engineering-mastery',
+        type: 'research_count',
+        track: 'construction',
+        targetCount: 3,
+        description: 'Complete 3 construction technologies.',
+      },
+    ],
+    reward: {
+      summary: '+4 food, +3 production empire-wide. Power tamed from a river.',
+      civYieldBonus: { food: 4, production: 3 },
+    },
+  },
 };
 
 export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = getApprovedM4LegendaryWonderRoster().map(entry => {

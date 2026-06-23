@@ -1258,3 +1258,53 @@ export function PreDreadnoughtSprite({ palette, svgOnly = false }: UnitSpritePro
     </SpriteFrame>
   );
 }
+
+// TODO(art): Replace tank: low-profile WWI-era rhomboid hull with tracks wrapping sides, riveted armor plates, forward cannon sponson, commander hatch open.
+export function TankSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={106} rx={44} ry={6} />
+      {/* rhomboid hull */}
+      <path d="M10,90 L24,68 L104,68 L118,90 L118,106 L10,106 Z"
+        fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.5" />
+      {/* track sponsons */}
+      <ellipse cx="30" cy="96" rx="20" ry="12" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      <ellipse cx="98" cy="96" rx="20" ry="12" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* track tread marks */}
+      {[16, 24, 32, 40].map(x =>
+        <rect key={x} x={x} y={90} width="4" height="12" rx="1" fill={P.metal.steel} opacity="0.5" />
+      ).join('')}
+      {[84, 92, 100, 108].map(x =>
+        <rect key={x} x={x} y={90} width="4" height="12" rx="1" fill={P.metal.steel} opacity="0.5" />
+      ).join('')}
+      {/* forward sponson cannon */}
+      <rect x="8" y="78" width="28" height="10" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="2" y="80" width="12" height="6" rx="1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* commander hatch */}
+      <ellipse cx="76" cy="68" rx="10" ry="4" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <Banner x={74} y={46} palette={palette} scale={0.72} />
+    </SpriteFrame>
+  );
+}
+
+// TODO(art): Replace submarine: cigar-shaped pressure hull, conning tower with periscope, hydroplane fins, foamy wake at bow.
+export function SubmarineSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={104} rx={48} ry={6} />
+      {/* pressure hull — cigar shape */}
+      <ellipse cx="64" cy="94" rx="52" ry="14" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.5" />
+      {/* waterline stripe */}
+      <ellipse cx="64" cy="94" rx="52" ry="6" fill={P.metal.iron} opacity="0.35" />
+      {/* conning tower */}
+      <rect x="50" y="70" width="28" height="26" rx="4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* periscope */}
+      <rect x="60" y="48" width="4" height="24" rx="1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="56" y="46" width="12" height="4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* hydroplane fins */}
+      <path d="M14,88 L6,80 L18,88" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+      <path d="M114,88 L122,80 L110,88" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+      <Banner x={60} y={48} palette={palette} scale={0.65} />
+    </SpriteFrame>
+  );
+}

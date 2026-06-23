@@ -35,5 +35,8 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
     { id: 'eiffel-tower', name: 'Eiffel Tower' },
     { id: 'brooklyn-bridge', name: 'Brooklyn Bridge' },
     { id: 'trans-siberian-railway', name: 'Trans-Siberian Railway' },
+    { id: 'panama-canal', name: 'Panama Canal' },
+    { id: 'empire-state-building', name: 'Empire State Building' },
+    { id: 'hoover-dam', name: 'Hoover Dam' },
   ] as const;
 }
