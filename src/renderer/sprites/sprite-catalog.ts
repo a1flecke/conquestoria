@@ -10,7 +10,7 @@ import {
   AxemanSprite, SpearmanSprite, HorsemanSprite, CavalrySprite, KnightSprite,
   CrossbowmanSprite, CatapultSprite, BallistaSprite, CannonSprite, GrenadierSprite,
   RiflemanSprite, IroncladSprite,
-  MachineGunnerSprite, PreDreadnoughtSprite,
+  MachineGunnerSprite, PreDreadnoughtSprite, TankSprite, SubmarineSprite,
   CaravanSprite, ExpeditionSprite,
   CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
 } from './units';
@@ -33,6 +33,10 @@ import {
   BacteriologyLabSprite, StockExchangeTowerSprite, SanatoriumSprite,
   PowerStationSprite, ExhibitionHallSprite,
   WorldFairSprite, NationalArchivesBuildingSprite, ImperialGeneralStaffSprite,
+  OilRefinerySprite, AssemblyLineSprite, RadioStationSprite, AirfieldSprite,
+  FilmStudioSprite, NationalInsuranceSprite, HydroelectricDamSprite,
+  ResearchInstituteSprite, TankDepotSprite,
+  MobilizationActSprite, StateBroadcastingSprite, NationalCensusSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
@@ -83,6 +87,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   ironclad: 'naval',
   machine_gunner: 'humanoid',
   pre_dreadnought: 'naval',
+  tank:       'humanoid',
+  submarine:  'naval',
   caravan: 'humanoid',
   expedition: 'humanoid',
   beast_boar: 'animal',
@@ -163,6 +169,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   ironclad:          withMotion('ironclad', IroncladSprite),
   machine_gunner:    withMotion('machine_gunner', MachineGunnerSprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
+  tank:              withMotion('tank', TankSprite),
+  submarine:         withMotion('submarine', SubmarineSprite),
   caravan:           withMotion('caravan', CaravanSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
   beast_boar:         withMotion('beast_boar', GiantBoarSprite),
@@ -277,6 +285,20 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   world_fair:                     WorldFairSprite,
   national_archives_building:     NationalArchivesBuildingSprite,
   imperial_general_staff:         ImperialGeneralStaffSprite,
+  // era-9 regular buildings
+  oil_refinery:                   OilRefinerySprite,
+  assembly_line:                  AssemblyLineSprite,
+  radio_station:                  RadioStationSprite,
+  airfield:                       AirfieldSprite,
+  film_studio:                    FilmStudioSprite,
+  national_insurance:             NationalInsuranceSprite,
+  hydroelectric_dam:              HydroelectricDamSprite,
+  research_institute:             ResearchInstituteSprite,
+  tank_depot:                     TankDepotSprite,
+  // era-9 national projects
+  mobilization_act:               MobilizationActSprite,
+  state_broadcasting:             StateBroadcastingSprite,
+  national_census:                NationalCensusSprite,
 };
 
 export const UNIT_SPRITE_SIZE = 128;

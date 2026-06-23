@@ -610,6 +610,91 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Industrial exhibition center. +2 gold, +1 science per turn.',
     techRequired: 'engineering-exhibition',
   },
+
+  /* === ERA 9 REGULAR BUILDINGS === */
+  oil_refinery: {
+    id: 'oil_refinery', name: 'Oil Refinery', category: 'production',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 185,
+    description: 'Petroleum extraction and refining. +3 production per turn.',
+    techRequired: 'petroleum-industry',
+  },
+  assembly_line: {
+    id: 'assembly_line', name: 'Assembly Line', category: 'production',
+    yields: { food: 0, production: 4, gold: 0, science: 0 }, productionCost: 195,
+    description: 'Mass-production factory. +4 production per turn.',
+    techRequired: 'fordist-manufacturing',
+  },
+  radio_station: {
+    id: 'radio_station', name: 'Radio Station', category: 'economy',
+    yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 160,
+    description: 'Broadcast tower reaches every household. +2 gold, +1 science per turn.',
+    techRequired: 'radio-broadcast',
+  },
+  airfield: {
+    id: 'airfield', name: 'Airfield', category: 'military',
+    yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 175,
+    description: 'Aviation base. +2 production per turn; enables air support in this city.',
+    techRequired: 'aviation',
+  },
+  film_studio: {
+    id: 'film_studio', name: 'Film Studio', category: 'culture',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 160,
+    description: 'Moving picture studio. +3 gold per turn.',
+    techRequired: 'cinema',
+  },
+  national_insurance: {
+    id: 'national_insurance', name: 'National Insurance', category: 'economy',
+    yields: { food: 2, production: 0, gold: 1, science: 0 }, productionCost: 145,
+    description: 'State welfare office. +2 food, +1 gold per turn.',
+    techRequired: 'welfare-state',
+  },
+  hydroelectric_dam: {
+    id: 'hydroelectric_dam', name: 'Hydroelectric Dam', category: 'production',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 185,
+    description: 'River dam generating electricity. +3 production per turn.',
+    techRequired: 'hydroelectric-power',
+  },
+  research_institute: {
+    id: 'research_institute', name: 'Research Institute', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 4 }, productionCost: 170,
+    description: 'Modern research campus. +4 science per turn.',
+    techRequired: 'quantum-theory',
+  },
+  tank_depot: {
+    id: 'tank_depot', name: 'Tank Depot', category: 'military',
+    yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 165,
+    description: 'Armored vehicle maintenance base. +2 production per turn.',
+    techRequired: 'tank-warfare',
+  },
+
+  /* === ERA 9 NATIONAL PROJECTS === */
+  mobilization_act: {
+    id: 'mobilization_act', name: 'Mobilization Act', category: 'military',
+    yields: { food: 0, production: 5, gold: 0, science: 0 }, productionCost: 280,
+    description: 'Total war mobilization decree. +5 production empire-wide.',
+    techRequired: 'armored-tactics',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 9 },
+    civYieldBonus: { production: 5 },
+  },
+  state_broadcasting: {
+    id: 'state_broadcasting', name: 'State Broadcasting', category: 'economy',
+    yields: { food: 0, production: 0, gold: 6, science: 0 }, productionCost: 280,
+    description: 'National radio network under state control. +6 gold empire-wide.',
+    techRequired: 'propaganda-campaigns',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 9 },
+    civYieldBonus: { gold: 6 },
+  },
+  national_census: {
+    id: 'national_census', name: 'National Census', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 5 }, productionCost: 280,
+    description: 'Modern statistical survey of the empire. +5 science empire-wide.',
+    techRequired: 'welfare-state',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.5, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 9 },
+    civYieldBonus: { science: 5 },
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -642,8 +727,10 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'grenadier',    name: 'Grenadier',    cost: 130, techRequired: 'grenade-warfare',                                                                          pacing: { band: 'power-spike', role: 'anti-fortification',   impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.3,  unlockBreadth: 1 } },
   { type: 'rifleman',     name: 'Rifleman',     cost: 145, techRequired: 'rifled-infantry',                                                                           pacing: { band: 'power-spike', role: 'ranged-infantry',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'ironclad',     name: 'Ironclad',     cost: 160, techRequired: 'ironclad-warships', coastalRequired: true,         obsoletedByTech: 'naval-armor',       pacing: { band: 'power-spike', role: 'naval-superiority',    impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.2,  situationality: 1.4,  unlockBreadth: 1 } },
-  { type: 'machine_gunner', name: 'Machine Gunner', cost: 145, techRequired: 'mass-firepower',                                                                      pacing: { band: 'power-spike', role: 'ranged-suppression',  impact: 1.35, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
-  { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true,                                                pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
+  { type: 'machine_gunner', name: 'Machine Gunner', cost: 145, techRequired: 'mass-firepower',   obsoletedByTech: 'armored-tactics',                               pacing: { band: 'power-spike', role: 'ranged-suppression',  impact: 1.35, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
+  { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true, obsoletedByTech: 'submarine-warfare',         pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
+  { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare',                                                                                  pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'submarine', name: 'Submarine', cost: 180, techRequired: 'submarine-warfare', coastalRequired: true,                                                      pacing: { band: 'power-spike', role: 'naval-stealth',        impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -882,6 +969,23 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 8 units
   machine_gunner:  '🔫',
   pre_dreadnought: '🚢',
+  // era 9 buildings
+  oil_refinery:         '🛢️',
+  assembly_line:        '🏭',
+  radio_station:        '📻',
+  airfield:             '✈️',
+  film_studio:          '🎬',
+  national_insurance:   '🏥',
+  hydroelectric_dam:    '⚡',
+  research_institute:   '🔬',
+  tank_depot:           '🛡️',
+  // era 9 national projects
+  mobilization_act:     '⚔️',
+  state_broadcasting:   '📡',
+  national_census:      '📊',
+  // era 9 units
+  tank:       '🛡️',
+  submarine:  '🌊',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';

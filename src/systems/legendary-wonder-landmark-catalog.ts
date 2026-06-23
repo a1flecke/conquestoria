@@ -41,6 +41,10 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'eiffel-tower': landmark('eiffel-tower', 'spire', 'wide', 'trade', '#5a4830', '#c8a44a', '#fff4c8', 1.08, 'dedicationGlow', 'glint', 'scaffold', 'eiffel-tower-bespoke'),
   'brooklyn-bridge': landmark('brooklyn-bridge', 'gateway', 'wide', 'trade', '#2a3a4a', '#6080a0', '#c8dce8', 1.05, 'foundationPulse', 'pulse', 'foundation', 'brooklyn-bridge-bespoke'),
   'trans-siberian-railway': landmark('trans-siberian-railway', 'network', 'wide', 'trade', '#2a3020', '#889860', '#d8e0b0', 1.0, 'civicAura', 'pulse', 'outline', 'trans-siberian-railway-bespoke'),
+  // Era 9 wonders (Modern Era)
+  'panama-canal':          landmark('panama-canal',          'waterworks', 'wide', 'canal',     '#1a3a1a', '#3da0d0', '#b8e8ff', 1.06, 'civicAura',     'glint', 'foundation', 'panama-canal-bespoke'),
+  'empire-state-building': landmark('empire-state-building', 'spire',      'wide', 'trade',     '#2a2030', '#c09840', '#fff0c0', 1.1,  'dedicationGlow','glint', 'scaffold',   'empire-state-building-bespoke'),
+  'hoover-dam':            landmark('hoover-dam',            'bastion',    'wide', 'tide',      '#3a3020', '#a07840', '#e0d0b0', 1.05, 'foundationPulse','pulse','foundation', 'hoover-dam-bespoke'),
 };
 
 function landmark(

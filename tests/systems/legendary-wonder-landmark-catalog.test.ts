@@ -108,6 +108,9 @@ describe('legendary wonder landmark catalog', () => {
       ['eiffel-tower', 'eiffel-tower-bespoke'],
       ['brooklyn-bridge', 'brooklyn-bridge-bespoke'],
       ['trans-siberian-railway', 'trans-siberian-railway-bespoke'],
+      ['panama-canal', 'panama-canal-bespoke'],
+      ['empire-state-building', 'empire-state-building-bespoke'],
+      ['hoover-dam', 'hoover-dam-bespoke'],
     ]);
   });
 

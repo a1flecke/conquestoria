@@ -28,6 +28,8 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   ironclad:       '⚓',
   machine_gunner: '🔫',
   pre_dreadnought: '🚢',
+  tank:       '🛡️',
+  submarine:  '🌊',
   galley: '⛵',
   trireme: '🚢',
   transport: '🛶',

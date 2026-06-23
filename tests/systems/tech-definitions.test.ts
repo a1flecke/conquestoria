@@ -8,26 +8,26 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
-  it('has exactly 247 techs after adding 30 era-5, 30 era-6, 30 era-7, and 30 era-8 tech definitions', () => {
-    expect(TECH_TREE.length).toBe(247);
+  it('has exactly 277 techs after adding 30 era-5, 30 era-6, 30 era-7, 30 era-8, and 30 era-9 tech definitions', () => {
+    expect(TECH_TREE.length).toBe(277);
   });
 
-  it('keeps 15 tracks while expanding to era 8 (2 new techs per track per era)', () => {
+  it('keeps 15 tracks while expanding to era 9 (2 new techs per track per era)', () => {
     const tracks = new Map<string, number>();
     for (const tech of TECH_TREE) {
       tracks.set(tech.track, (tracks.get(tech.track) ?? 0) + 1);
     }
     expect(tracks.size).toBe(15);
     for (const [track, count] of tracks) {
-      // Era 5, 6, 7, 8 each add 2 techs per track.
-      // Espionage had 10 (8 era1-4 + 2 stubs) + 8 (2+2+2+2) = 18.
-      // Economy/science/communication/maritime/exploration had 9 (era1-4) + 8 = 17.
-      // Other 8 tracks had 8 era1-4 + 8 = 16.
+      // Era 5, 6, 7, 8, 9 each add 2 techs per track.
+      // Espionage had 10 (8 era1-4 + 2 stubs) + 10 (2×5 eras) = 20.
+      // Economy/science/communication/maritime/exploration had 9 (era1-4) + 10 = 19.
+      // Other 8 tracks had 8 era1-4 + 10 = 18.
       const expected = track === 'espionage'
-        ? 18
+        ? 20
         : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-          ? 17
-          : 16;
+          ? 19
+          : 18;
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });
