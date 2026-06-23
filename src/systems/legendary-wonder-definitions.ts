@@ -586,7 +586,6 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         id: 'trade-network',
         type: 'trade-routes-established',
         targetCount: 3,
-        routeRequirement: 'any',
         description: 'Establish 3 active trade routes.',
       },
     ],

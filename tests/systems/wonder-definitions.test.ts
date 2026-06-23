@@ -48,8 +48,8 @@ const RELOCATED_STUB_IDS = new Set([
   'digital-surveillance', 'cyber-warfare', 'amphibious-warfare',
 ]);
 
-describe('era <= 7 wonders do not reference relocated tech stubs', () => {
-  const activeWonders = ALL_WONDER_DEFINITIONS.filter(w => w.era <= 7);
+describe('era <= 8 wonders do not reference relocated tech stubs', () => {
+  const activeWonders = ALL_WONDER_DEFINITIONS.filter(w => w.era <= 8);
   for (const w of activeWonders) {
     it(`${w.id} uses no relocated tech IDs`, () => {
       for (const techId of w.requiredTechs) {
@@ -79,6 +79,29 @@ describe('era 7 legendary wonder coverage', () => {
   it('continental-congress civYieldBonus matches definition', () => {
     const w = era7.find(w => w.id === 'continental-congress');
     expect(w?.reward.civYieldBonus).toEqual({ science: 4, gold: 2 });
+  });
+});
+
+describe('era 8 legendary wonder coverage', () => {
+  const era8 = ALL_WONDER_DEFINITIONS.filter(w => w.era === 8);
+
+  it('has exactly 3 era 8 legendary wonders', () => {
+    expect(era8).toHaveLength(3);
+  });
+
+  it('eiffel-tower civYieldBonus matches definition', () => {
+    const w = era8.find(w => w.id === 'eiffel-tower');
+    expect(w?.reward.civYieldBonus).toEqual({ gold: 5, production: 1 });
+  });
+
+  it('brooklyn-bridge civYieldBonus matches definition', () => {
+    const w = era8.find(w => w.id === 'brooklyn-bridge');
+    expect(w?.reward.civYieldBonus).toEqual({ production: 4, food: 2 });
+  });
+
+  it('trans-siberian-railway civYieldBonus matches definition', () => {
+    const w = era8.find(w => w.id === 'trans-siberian-railway');
+    expect(w?.reward.civYieldBonus).toEqual({ production: 6 });
   });
 });
 
