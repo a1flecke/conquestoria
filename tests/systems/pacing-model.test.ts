@@ -33,6 +33,13 @@ describe('pacing-model', () => {
   it('uses Era 1 production assumptions when the era is invalid', () => {
     expect(getProductionOutputProfileForEra(Number.NaN)).toBe(4);
   });
+
+  it('returns correct production output per era', () => {
+    expect(getProductionOutputProfileForEra(1)).toBe(4);
+    expect(getProductionOutputProfileForEra(7)).toBe(16);
+    expect(getProductionOutputProfileForEra(8)).toBe(18);
+    expect(getProductionOutputProfileForEra(99)).toBe(18);
+  });
 });
 
 describe('research pacing model', () => {
