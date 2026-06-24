@@ -8,8 +8,8 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
-  it('has exactly 278 techs after adding balloon-corps (era-7) and air-superiority (era-9) to military track', () => {
-    expect(TECH_TREE.length).toBe(278);
+  it('has exactly 279 techs after adding balloon-corps (era-7) and air-superiority (era-9) to military track', () => {
+    expect(TECH_TREE.length).toBe(279);
   });
 
   it('keeps 15 tracks while expanding to era 9 (2 new techs per track per era)', () => {
@@ -22,15 +22,13 @@ describe('tech definitions', () => {
       // Era 5, 6, 7, 8, 9 each add 2 techs per track.
       // Espionage had 10 (8 era1-4 + 2 stubs) + 10 (2×5 eras) = 20.
       // Economy/science/communication/maritime/exploration had 9 (era1-4) + 10 = 19.
-      // Military gets +1 from balloon-corps (era 7) → 19; will be 20 after air-superiority (era 9).
+      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 20.
       // Other 7 tracks had 8 era1-4 + 10 = 18.
-      const expected = track === 'espionage'
+      const expected = track === 'espionage' || track === 'military'
         ? 20
-        : track === 'military'
+        : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
           ? 19
-          : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-            ? 19
-            : 18;
+          : 18;
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });

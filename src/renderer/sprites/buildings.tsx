@@ -2135,6 +2135,30 @@ export function StateBroadcastingSprite({ palette, svgOnly = false }: BuildingSp
   );
 }
 
+// TODO(art): Replace with: Ring-mounted Krupp flak cannon on sandbag emplacement, four crew members at elevation and traverse wheels, brass shell casings at base, searchlight beam sweeping above.
+export function AntiAirBatterySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Anti-Air Battery" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth w={120} />
+      {/* sandbag emplacement ring */}
+      <ellipse cx="96" cy="118" rx="52" ry="14" fill={P.ground.sand} stroke={P.ink.line} strokeWidth="1.2" />
+      <ellipse cx="96" cy="112" rx="48" ry="10" fill={P.ground.sand} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* cannon barrel pointing up-right */}
+      <rect x="92" y="64" width="10" height="52" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2"
+        transform="rotate(-30 96 100)" />
+      {/* cannon base pivot */}
+      <circle cx="96" cy="108" r="12" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* crew silhouettes */}
+      <ellipse cx="70" cy="106" rx="6" ry="10" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <ellipse cx="122" cy="106" rx="6" ry="10" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* searchlight beam */}
+      <path d="M140,80 L168,40 L178,56 L148,88 Z" fill={P.metal.gold} opacity="0.3" />
+      <circle cx="140" cy="84" r="8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.8" />
+      <Banner x={60} y={50} palette={palette} scale={0.7} />
+    </BuildingFrame>
+  );
+}
+
 // TODO(art): Replace national census: bureaucratic civic hall, filing cabinet stacks visible through windows, long queuing desk inside, official census poster outside.
 export function NationalCensusSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const cols = [40, 66, 92, 118, 144].map(x =>

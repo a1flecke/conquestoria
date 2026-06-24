@@ -36,7 +36,7 @@ import {
   WorldFairSprite, NationalArchivesBuildingSprite, ImperialGeneralStaffSprite,
   OilRefinerySprite, AssemblyLineSprite, RadioStationSprite, AirfieldSprite,
   FilmStudioSprite, NationalInsuranceSprite, HydroelectricDamSprite,
-  ResearchInstituteSprite, TankDepotSprite,
+  ResearchInstituteSprite, TankDepotSprite, AntiAirBatterySprite,
   MobilizationActSprite, StateBroadcastingSprite, NationalCensusSprite,
 } from './buildings';
 import {
@@ -330,6 +330,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   hydroelectric_dam:              HydroelectricDamSprite,
   research_institute:             ResearchInstituteSprite,
   tank_depot:                     TankDepotSprite,
+  anti_air_battery:               AntiAirBatterySprite,
   // era-9 national projects
   mobilization_act:               MobilizationActSprite,
   state_broadcasting:             StateBroadcastingSprite,

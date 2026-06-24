@@ -10,6 +10,11 @@ const ERA_9_TECHS: Tech[] = [
     prerequisites: ['tank-warfare', 'general-mobilization'],
     unlocks: ['Combined-arms doctrine; tanks gain +5 strength; machine gunners obsolete'],
     unlocksBuildings: ['mobilization_act'], era: 9 },
+  { id: 'air-superiority', name: 'Air Superiority', track: 'military', cost: 275,
+    prerequisites: ['aviation', 'general-mobilization'],
+    unlocks: ['Biplane fighters can attack land and naval units; anti-aircraft batteries protect ground forces'],
+    unlocksUnits: ['biplane'],
+    unlocksBuildings: ['anti_air_battery'], era: 9 },
 
   // ECONOMY (2)
   { id: 'petroleum-industry', name: 'Petroleum Industry', track: 'economy', cost: 265,

@@ -45,6 +45,7 @@ export interface CombatContext {
   attackerBonus?: CivBonusEffect;
   defenderBonus?: CivBonusEffect;
   defenderInFortifiedCity?: boolean;
+  defenderCityHasAntiAir?: boolean;
 }
 
 export interface CombatStrengthBreakdown {
@@ -90,6 +91,11 @@ export function calculateCombatStrengths(
 
   if (defender.isFortified) {
     defenderStrength *= 1.25;
+  }
+
+  // Anti-air battery: +8 flat defense against air attacker domain
+  if (context?.defenderCityHasAntiAir && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
+    defenderStrength += 8;
   }
 
   if (
