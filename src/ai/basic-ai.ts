@@ -1048,6 +1048,20 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         };
         continue;
       }
+      // Queue one observation balloon per civ — pure recon, no multiples needed early
+      const civUnits = (civ.units ?? []).map(id => newState.units[id]).filter(Boolean);
+      if (
+        civ.techState.completed.includes('balloon-corps') &&
+        !civUnits.some(u => u?.type === 'observation_balloon') &&
+        trainableUnits.includes('observation_balloon') &&
+        city.productionQueue.length === 0
+      ) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['observation_balloon'] } },
+        };
+        continue;
+      }
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {

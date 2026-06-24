@@ -265,6 +265,10 @@ const ERA_7_TECHS: Tech[] = [
   { id: 'mass-mobilization', name: 'Mass Mobilization', track: 'military', cost: 205,
     prerequisites: ['rifle-tactics', 'parliamentary-reform'],
     unlocks: ['Grand Arsenal national project available'], unlocksBuildings: ['grand_arsenal'], era: 7 },
+  { id: 'balloon-corps', name: 'Balloon Corps', track: 'military', cost: 215,
+    prerequisites: ['rifle-tactics', 'applied-chemistry'],
+    unlocks: ['Observation balloon provides +3 vision radius over enemy territory'],
+    unlocksUnits: ['observation_balloon'], era: 7 },
 
   // ECONOMY (2)
   { id: 'steam-power', name: 'Steam Power', track: 'economy', cost: 200,
