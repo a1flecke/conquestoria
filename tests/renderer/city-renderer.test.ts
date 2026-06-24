@@ -11,7 +11,7 @@ const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1
 
 class MockCanvasContext {
   operations: string[] = [];
-  fillTextCalls: Array<{ text: string; x: number; y: number }> = [];
+  fillTextCalls: Array<{ text: string; x: number; y: number; maxWidth?: number }> = [];
   fillStyle = '';
   strokeStyle = '';
   lineWidth = 0;
@@ -29,8 +29,8 @@ class MockCanvasContext {
   closePath(): void { this.operations.push('closePath'); }
   fill(): void { this.operations.push(`fill:${this.fillStyle}`); }
   stroke(): void { this.operations.push(`stroke:${this.strokeStyle}`); }
-  fillText(text: string, x: number, y: number): void {
-    this.fillTextCalls.push({ text, x, y });
+  fillText(text: string, x: number, y: number, maxWidth?: number): void {
+    this.fillTextCalls.push({ text, x, y, maxWidth });
     this.operations.push(`text:${text}`);
   }
   drawImage(): void {

@@ -252,7 +252,7 @@ export function drawCityLandmarkPass(ctx: CanvasRenderingContext2D, item: CityRe
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f8e7af';
-    ctx.fillText(`+${selection.completedOverflowCount}`, x + radius * 0.72, y + radius * 0.72);
+    ctx.fillText(`+${selection.completedOverflowCount}`, x + radius * 0.72, y + radius * 0.72, radius * 1.4);
   }
 }
 
@@ -276,7 +276,7 @@ export function drawCityLabelPass(ctx: CanvasRenderingContext2D, item: CityRende
   ctx.fillStyle = getCityBannerTextColor(item.ownerColor);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, item.screen.x, bannerY + bannerHeight / 2);
+  ctx.fillText(label, item.screen.x, bannerY + bannerHeight / 2, bannerWidth * 0.92);
 }
 
 export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
