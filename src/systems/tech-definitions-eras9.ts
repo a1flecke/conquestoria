@@ -14,7 +14,7 @@ const ERA_9_TECHS: Tech[] = [
     prerequisites: ['aviation', 'general-mobilization'],
     unlocks: ['Biplane fighters can attack land and naval units; anti-aircraft batteries protect ground forces'],
     unlocksUnits: ['biplane'],
-    unlocksBuildings: ['anti_air_battery'], era: 9 },
+    unlocksBuildings: ['anti_air_battery', 'air_force_command'], era: 9 },
 
   // ECONOMY (2)
   { id: 'petroleum-industry', name: 'Petroleum Industry', track: 'economy', cost: 265,

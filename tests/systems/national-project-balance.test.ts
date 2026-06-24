@@ -77,3 +77,18 @@ describe('era 7 national project coverage', () => {
     expect(np?.civYieldBonus).toEqual({ gold: 4 });
   });
 });
+
+describe('era 9 national project coverage', () => {
+  const era9NPs = nationalProjects.filter(np => np.nationalProject?.homeEra === 9);
+
+  it('has exactly 4 era 9 national projects', () => {
+    expect(era9NPs).toHaveLength(4);
+  });
+
+  it('air_force_command has dual production+science civYieldBonus within era-9 ceiling', () => {
+    const np = era9NPs.find(np => np.id === 'air_force_command');
+    expect(np?.civYieldBonus).toEqual({ production: 3, science: 2 });
+    // Each key ≤ 3, total 5 ≤ 9 (era 9 ceiling)
+    expect((np?.civYieldBonus?.production ?? 0) + (np?.civYieldBonus?.science ?? 0)).toBeLessThanOrEqual(9);
+  });
+});
