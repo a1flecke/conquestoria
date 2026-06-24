@@ -482,6 +482,22 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'Food and Foundations',
     'Its reward fits a civilization that is transforming wilderness into civilization through scale and will.',
   ),
+  legendary(
+    'wright-flyer',
+    'Wright Flyer',
+    'Twelve seconds at Kitty Hawk; a century followed.',
+    'On the morning of December 17th, 1903, a 600-pound canvas-and-wood contraption lifted off a sand dune on the Carolina coast and stayed airborne for twelve seconds. Orville Wright flew 120 feet. His brother Wilbur ran alongside. Neither fully grasped that they had just divided human history into two eras: before flight, and after. The world\'s militaries had not been told yet, but they would figure it out within a decade.',
+    'The Flyer\'s four flights that morning covered less distance than the wingspan of a modern airliner. Yet the principles it demonstrated — lift, thrust, control — were sufficient to make the airplane the defining technology of the 20th century: freight, passenger travel, global warfare, and eventually space exploration all trace their lineage to a bicycle shop in Dayton and a windy beach in North Carolina.',
+    'ingenuity',
+    ['science', 'production', 'military', 'engineering', 'modern'],
+    ['loc-about'],
+    'image-foundry',
+    ['science', 'production', 'engineering'],
+    'The Gravity of It',
+    'A civilization that mastered flight did not merely move faster — it changed what was possible.',
+    'Science and Momentum',
+    'Its reward fits a civilization that has invested in aviation research and now reaps the strategic fruits of aerial mastery.',
+  ),
 ] satisfies WonderCodexContent[];
 
 function legendary(
