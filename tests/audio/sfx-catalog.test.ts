@@ -28,7 +28,7 @@ const RANGED_TYPES: UnitType[] = ['archer', 'crossbowman'];
 const SIEGE_TYPES: UnitType[] = ['catapult', 'ballista'];
 const NON_COMBAT_TYPES: UnitType[] = ['settler', 'worker', 'caravan', 'scout', 'expedition', 'transport'];
 const SPY_TYPES: UnitType[] = ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker'];
-const ALL_LOCOMOTION_CLASSES: LocomotionClass[] = ['humanoid', 'animal', 'naval'];
+const ALL_LOCOMOTION_CLASSES: LocomotionClass[] = ['humanoid', 'animal', 'naval', 'air'];
 const PIRATE_TYPES: PirateUnitType[] = [
   'pirate_galley', 'pirate_corsair', 'pirate_frigate', 'pirate_ironclad',
   'pirate_fast_attack_craft', 'pirate_mothership',
@@ -106,12 +106,14 @@ describe('sfx-catalog completeness', () => {
     ]);
   });
 
-  it('allSfxEntries returns exactly 125 entries', () => {
+  it('allSfxEntries returns exactly 126 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
     // + 4 new transport death (carrack, galleon, steamship, troop_transport) + 2 transport load/unload = 76
     // + 16 beast SFX (8 beasts × 2: attack-swing + death) = 92
-    expect(allSfxEntries()).toHaveLength(125);
+    // + 33 pirate movement/combat/headquarters/strategic entries = 125
+    // + 1 air locomotion move-step = 126
+    expect(allSfxEntries()).toHaveLength(126);
   });
 
   it('no two entries share the same ID', () => {

@@ -65,7 +65,7 @@ export type PirateHeadquartersSpriteId =
   | 'pirate_flotilla_stage_2' | 'pirate_flotilla_stage_3'
   | 'pirate_flotilla_stage_4' | 'pirate_flotilla_stage_5';
 
-type UnitMotionStyle = 'humanoid' | 'animal' | 'naval';
+type UnitMotionStyle = 'humanoid' | 'animal' | 'naval' | 'air';
 
 const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   settler: 'humanoid',
@@ -114,8 +114,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   pre_dreadnought: 'naval',
   tank:       'humanoid',
   submarine:  'naval',
-  observation_balloon: 'humanoid',
-  biplane:    'humanoid',
+  observation_balloon: 'air',
+  biplane:    'air',
   caravan: 'humanoid',
   expedition: 'humanoid',
   beast_boar: 'animal',
@@ -139,6 +139,12 @@ function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): stri
     return motion === 'move-a'
       ? 'translate(-2 1) rotate(-1 64 82)'
       : 'translate(2 -1) rotate(1 64 82)';
+  }
+  // air: gentle drift — horizontal sway with subtle altitude bob
+  if (style === 'air') {
+    return motion === 'move-a'
+      ? 'translate(-3 -3)'
+      : 'translate(3 0)';
   }
   return motion === 'move-a'
     ? 'translate(0 -2) rotate(-2 64 70)'

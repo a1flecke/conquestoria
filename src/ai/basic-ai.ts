@@ -891,6 +891,13 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     }
   }
 
+  // Computed once before the city loop — civUnits reflects already-trained units,
+  // which is stable within the loop (production-queued items aren't in units[] yet).
+  const civUnitsForAir = (civ.units ?? []).map(id => newState.units[id]).filter(Boolean);
+  const hasBalloon = civUnitsForAir.some(u => u?.type === 'observation_balloon');
+  const hasBiplane = civUnitsForAir.some(u => u?.type === 'biplane');
+  const hasAirSuperiorityTech = civ.techState.completed.includes('air-superiority');
+
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
     if (city && city.productionQueue.length === 0) {
@@ -1048,11 +1055,22 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         };
         continue;
       }
+      // Build anti_air_battery when air-superiority is unlocked (city not already protected)
+      if (
+        hasAirSuperiorityTech &&
+        !city.buildings.includes('anti_air_battery') &&
+        !city.productionQueue.includes('anti_air_battery')
+      ) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['anti_air_battery'] } },
+        };
+        continue;
+      }
       // Queue one observation balloon per civ — pure recon, no multiples needed early
-      const civUnits = (civ.units ?? []).map(id => newState.units[id]).filter(Boolean);
       if (
         civ.techState.completed.includes('balloon-corps') &&
-        !civUnits.some(u => u?.type === 'observation_balloon') &&
+        !hasBalloon &&
         trainableUnits.includes('observation_balloon') &&
         city.productionQueue.length === 0
       ) {
@@ -1064,8 +1082,8 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       }
       // Queue one biplane per civ when air-superiority is researched
       if (
-        civ.techState.completed.includes('air-superiority') &&
-        !civUnits.some(u => u?.type === 'biplane') &&
+        hasAirSuperiorityTech &&
+        !hasBiplane &&
         trainableUnits.includes('biplane') &&
         city.productionQueue.length === 0
       ) {

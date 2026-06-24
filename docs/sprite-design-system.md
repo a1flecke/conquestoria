@@ -43,6 +43,16 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 | spy_hacker | ✅ sprite | spy |
 | caravan | ✅ sprite | civilian |
 | expedition | ✅ sprite | civilian |
+| cannon | ✅ sprite | siege |
+| grenadier | ✅ sprite | melee |
+| rifleman | ✅ sprite | ranged |
+| ironclad | ✅ sprite | naval |
+| machine_gunner | ✅ sprite | ranged |
+| pre_dreadnought | ✅ sprite | naval |
+| tank | ✅ sprite | melee |
+| submarine | ✅ sprite | naval |
+| observation_balloon | ⚠️ placeholder | air |
+| biplane | ⚠️ placeholder | air |
 
 ### Legendary Beasts — `src/renderer/sprites/beasts.tsx`
 Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
@@ -97,6 +107,8 @@ Registered in `BUILDING_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.
 | caravanserai | ✅ sprite | gold |
 | bank | ✅ sprite | gold |
 | stock_exchange | ✅ sprite | gold |
+| anti_air_battery | ⚠️ placeholder | military |
+| air_force_command | ⚠️ placeholder | military |
 
 ### Terrain Tiles — `src/renderer/terrain/terrain-tiles.ts` (not yet created)
 13 terrain types × 4 variants each = 52 tiles. Variant chosen by `Math.abs(q*7 + r*13) % 4`.
@@ -134,6 +146,16 @@ Canvas-drawn emoji icons. Target: replace with proper SVG marker images.
 
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`
 No map sprites yet. Production queue falls back to `'🏗️'`. Codex images exist in `public/images/wonders/codex/*.jpg` (lore art only, not map sprites).
+
+Building-sprite placeholders exist for these wonders (registered in `BUILDING_SPRITE_CATALOG`):
+
+| Wonder | Sprite status | Era | Bespoke canvas draw |
+|--------|---------------|-----|---------------------|
+| pyramids | ✅ SVG sprite | 1 | — |
+| colosseum | ✅ SVG sprite | 3 | — |
+| great_library | ✅ SVG sprite | 2 | — |
+| lighthouse | ✅ SVG sprite | 4 | — |
+| wright-flyer | ⚠️ placeholder SVG + bespoke canvas | 9 | `drawWrightFlyer` in `legendary-wonder-bespoke-assets.ts` |
 
 ---
 
@@ -280,6 +302,21 @@ Terrain tiles use inline SVG `<animate>` / `<animateTransform>` — **not** CSS 
 
 ### Phase desync
 Every sprite instance should set `style="--phase: X"` where X ∈ [0, 1) — a value derived from the unit's ID hash. This prevents all units of the same type from breathing/walking in lockstep. The renderer handles this automatically.
+
+---
+
+## Replacement Plan — PR6 Placeholder Assets
+
+Assets added in PR6 that need bespoke replacements (invoke `generate-sprite-prompt` skill before commissioning):
+
+| Asset | File | Replacement brief |
+|-------|------|-------------------|
+| `observation_balloon` (unit) | `units.tsx` | Tethered hydrogen envelope — oval gas bag, faction-colored panels, rope net, wicker gondola, observer with binoculars. |
+| `biplane` (unit) | `units.tsx` | WWI biplane — double canvas wings, radial engine cowling, open cockpit with goggled pilot, faction roundel on upper wing, propeller blur. |
+| `anti_air_battery` (building) | `buildings.tsx` | Ring-mounted Krupp flak cannon, sandbag emplacement, four crew members, brass shell casings, searchlight beam sweeping above. |
+| `air_force_command` (building) | `buildings.tsx` | Neoclassical military HQ, stone eagle over portico, aviation wing crest, biplanes in formation silhouetted through arched window, parade ground. |
+| `wright-flyer` (wonder, SVG + canvas) | `wonders.tsx` + `legendary-wonder-bespoke-assets.ts` | Open dunes at Kitty Hawk, canvas-and-wood biplane on launch rail, two period-dressed figures watching, pale blue sky, wind streaks. |
+| `air-move-step.ogg` (SFX) | `public/audio/sfx/` | Wind-whoosh / propeller sound. Currently uses `humanoid-move-step.ogg` as placeholder. |
 
 ---
 
