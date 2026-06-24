@@ -267,7 +267,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['Grand Arsenal national project available'], unlocksBuildings: ['grand_arsenal'], era: 7 },
   { id: 'balloon-corps', name: 'Balloon Corps', track: 'military', cost: 215,
     prerequisites: ['rifle-tactics', 'applied-chemistry'],
-    unlocks: ['Observation balloon provides +3 vision radius over enemy territory'],
+    unlocks: ['Observation balloon with 4-hex vision range — double the range of any ground unit'],
     unlocksUnits: ['observation_balloon'], era: 7 },
 
   // ECONOMY (2)

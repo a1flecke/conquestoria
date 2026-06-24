@@ -7,7 +7,7 @@ export type SfxClass =
   | 'siege-fire' | 'siege-impact';
 
 // Mirrors UnitMotionStyle in src/renderer/sprites/sprite-catalog.ts — keep in sync.
-export type LocomotionClass = 'humanoid' | 'animal' | 'naval';
+export type LocomotionClass = 'humanoid' | 'animal' | 'naval' | 'air';
 export type PirateUnitType = Extract<UnitType, `pirate_${string}`>;
 
 function real(id: string, file: string, loopEnd: number, key = 'impact'): TrackEntry {
@@ -19,6 +19,7 @@ export const MOVEMENT_SFX: Record<LocomotionClass, TrackEntry> = {
   humanoid: real('sfx-humanoid-move-step', 'audio/sfx/humanoid-move-step.ogg', 0.778, 'movement'),
   animal:   real('sfx-animal-move-step',   'audio/sfx/animal-move-step.ogg',   0.274, 'movement'),
   naval:    real('sfx-naval-move-step',    'audio/sfx/naval-move-step.ogg',    0.266, 'movement'),
+  air:      real('sfx-air-move-step',      'audio/sfx/air-move-step.ogg',      0.380, 'movement'),
 };
 
 export const PIRATE_MOVEMENT_SFX: Record<PirateUnitType, TrackEntry> = {
@@ -287,8 +288,8 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   pre_dreadnought: 'naval',
   tank:       'humanoid',
   submarine:  'naval',
-  observation_balloon: 'humanoid',
-  biplane:    'humanoid',
+  observation_balloon: 'air',
+  biplane:    'air',
   caravan:        'humanoid',
   expedition:    'humanoid',
   beast_boar:    'animal',
