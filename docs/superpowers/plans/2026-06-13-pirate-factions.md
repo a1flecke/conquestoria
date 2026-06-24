@@ -1446,7 +1446,7 @@ git add tests/systems/pirate-end-to-end.test.ts tests/systems/pirate-balance.tes
 git commit -m "test(pirates): complete end-to-end and balance coverage"
 ```
 
-Execution note: committed as `ad78c8c`.
+Execution note: committed as `59130ea` after the final rebase.
 
 ---
 
@@ -1458,7 +1458,7 @@ Execution note: committed as `ad78c8c`.
 
 Reproduce the worktree path failure that interrupted this effort, fix the owning scripts so commands resolve the active worktree rather than assuming the primary checkout, and add a regression that runs from an isolated worktree. This must be complete before the final PR.
 
-Execution note: `scripts/run-with-mise.sh` now preserves linked-worktree cwd and focused test arguments, and routes `dev`, `preview`, `build:tauri`, and `test:web-smoke` to the active worktree. `tests/hooks/run-with-mise-worktree.test.sh` passes from the isolated worktree. The initial repair was committed as `675bac1`; Task 18 added the named-script coverage after sequential artifact inspection exposed the remaining Tauri route.
+Execution note: `scripts/run-with-mise.sh` now preserves linked-worktree cwd and focused test arguments, and routes `dev`, `preview`, `build:tauri`, and `test:web-smoke` to the active worktree. `tests/hooks/run-with-mise-worktree.test.sh` passes from the isolated worktree. The initial repair was committed as `8b20bc4`; Task 18 added the named-script coverage after sequential artifact inspection exposed the remaining Tauri route. The final CI/local Playwright command split is committed as `6082ef2`.
 
 - [ ] **Step 1: Prove the asset inventory has zero open rows**
 
@@ -1488,7 +1488,7 @@ scripts/check-src-rule-violations.sh $(git diff --name-only origin/main...HEAD -
 
 If shell glob/path behavior makes this unreliable, pass the changed source files explicitly. Fix every violation; do not weaken rules.
 
-Execution note: all 70 changed `src` files were passed explicitly to `scripts/check-src-rule-violations.sh`; the check completed with no findings.
+Execution note: all 68 changed `src` files in the rebased branch were passed to `scripts/check-src-rule-violations.sh`; the check completed with no findings.
 
 - [x] **Step 5: Run targeted suites, full suite, and build**
 
@@ -1500,9 +1500,9 @@ Execution note: all 70 changed `src` files were passed explicitly to `scripts/ch
 ./scripts/run-with-mise.sh yarn test:web-smoke
 ```
 
-Execution note: 132 focused tests and 4,033 full-suite tests pass. Web and Tauri builds pass; sequential artifact inspection confirms `/conquestoria/` web assets and relative `./assets/` Tauri assets. Five Chromium web-smoke tests pass after installing the pinned Playwright browser runtime.
+Execution note (2026-06-24): after rebasing all 21 existing commits onto `origin/main` at `772a3bc`, 132 focused pirate tests pass and the full suite passes with 293 files, 4,310 tests passed, and 2 skipped. Web and Tauri builds pass; sequential artifact inspection confirms `/conquestoria/` web assets and relative `./assets/` Tauri assets. Five Chromium web-smoke tests pass.
 
-- [ ] **Step 6: Inspect committed and uncommitted diffs**
+- [x] **Step 6: Inspect committed and uncommitted diffs**
 
 ```bash
 git diff --stat origin/main...HEAD
@@ -1513,6 +1513,8 @@ git status --short --branch
 ```
 
 Confirm no unrelated changes, no generated churn outside the planned catalogs, no stale source/generated sprite mismatch, and no missing credits.
+
+Execution note (2026-06-24): reviewed the 159-file committed delta against `origin/main` plus the local uncommitted delta. The review covered save migration idempotence and malformed cleanup, stage reinforcement and Stage 5 hull retirement, viewer-scoped intel, reduced-motion information preservation, worktree routing, generated sprite/audio catalogs, credits, and both distribution bases. It found one privacy defect: rumor-level dossiers derived live tribute and contract quotes, leaking hidden behavior/stage eligibility. A failing regression reproduced the leak, and `3190943` now gates rumor actions behind generic intel-required copy. No unrelated or uncommitted changes remained before this plan-note update.
 
 - [ ] **Step 7: Final commit**
 
