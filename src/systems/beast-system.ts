@@ -137,7 +137,10 @@ export function processBeasts(
   const attackOrders: BeastAttackOrder[] = [];
 
   const occupied = new Map<string, string>();
-  for (const u of [...beastUnits, ...intruderUnits]) occupied.set(hexKey(u.position), u.id);
+  // Air units hover above ground — they don't block spawn or beast movement
+  for (const u of [...beastUnits, ...intruderUnits]) {
+    if (UNIT_DEFINITIONS[u.type]?.domain !== 'air') occupied.set(hexKey(u.position), u.id);
+  }
 
   for (const lair of lairs) {
     const def = BEAST_DEFINITIONS[lair.beastId];

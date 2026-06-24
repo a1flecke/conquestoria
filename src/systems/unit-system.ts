@@ -544,9 +544,10 @@ export function getMovementCost(terrain: string): number {
 
 export function getMovementCostForUnit(
   terrain: string,
-  domain: 'land' | 'naval',
+  domain: 'land' | 'naval' | 'air',
   terrainCostOverrides?: Partial<Record<string, number>>,
 ): number {
+  if (domain === 'air') return 1;
   if (domain === 'naval') {
     return (terrain === 'ocean' || terrain === 'coast') ? 1 : Infinity;
   }
@@ -579,6 +580,8 @@ export function getMovementCostForUnitInContext(
   const definition = UNIT_DEFINITIONS[unit.type];
   const domain = definition?.domain ?? 'land';
 
+  if (domain === 'air') return 1;
+
   if (domain === 'naval') {
     if (terrain !== 'ocean' && terrain !== 'coast') return Infinity;
     if (unit.type !== 'transport') return 1;
@@ -608,7 +611,7 @@ export function getMovementStepCost(
   if (terrainCost === Infinity) return Infinity;
 
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-  const crossesUnbridgedRiver = domain !== 'naval'
+  const crossesUnbridgedRiver = domain !== 'naval' && domain !== 'air'
     && !context.completedTechs?.includes('bridge-building')
     && isRiverBetween(map, from, to);
   return terrainCost + (crossesUnbridgedRiver ? 1 : 0);
@@ -616,7 +619,7 @@ export function getMovementStepCost(
 
 function isPassableForUnit(
   terrain: string,
-  domain: 'land' | 'naval',
+  domain: 'land' | 'naval' | 'air',
   terrainCostOverrides?: Partial<Record<string, number>>,
 ): boolean {
   return getMovementCostForUnit(terrain, domain, terrainCostOverrides) < Infinity;
@@ -793,7 +796,7 @@ export function findPath(
   from: HexCoord,
   to: HexCoord,
   map: GameMap,
-  domain: 'land' | 'naval' = 'land',
+  domain: 'land' | 'naval' | 'air' = 'land',
   options: UnitMovementContext & { unit?: Unit } = {},
 ): HexCoord[] | null {
   const toKey = hexKey(to);
