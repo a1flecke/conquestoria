@@ -27,21 +27,19 @@ describe('TECH_TREE', () => {
       // Era 5, 6, 7, 8, 9 each add 2 techs per track. Espionage had 2 stubs → 20 total.
       // Economy/science/communication/maritime/exploration had 9 era1-4 each + 10 (era5-9) = 19.
       // Other tracks had 8 era1-4 + 10 (era5-9) = 18.
-      const expectedCount = track === 'espionage'
+      const expectedCount = track === 'espionage' || track === 'military'
         ? 20
-        : track === 'military'
+        : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
           ? 19
-          : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-            ? 19
-            : 18;
+          : 18;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 278 techs total after adding balloon-corps (era 7) to military track', () => {
-    expect(TECH_TREE.length).toBe(278);
+  it('has 279 techs total after adding balloon-corps (era 7) and air-superiority (era 9) to military track', () => {
+    expect(TECH_TREE.length).toBe(279);
   });
 
   it('supports cross-track prerequisites', () => {

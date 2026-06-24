@@ -2370,12 +2370,16 @@ function executeAttack(attackerId: string, targetKey: string): void {
   // Capture route IDs before combat (units may be removed from state after)
   const attackerRouteId = attacker.committedToRouteId;
   const defenderRouteId = defender.committedToRouteId;
+  const defenderKey = hexKey(defender.position);
+  const defenderCityHasAntiAir = Object.values(gameState.cities).some(
+    c => hexKey(c.position) === defenderKey && c.buildings.includes('anti_air_battery'),
+  );
   const result = resolveCombat(
     attacker,
     gameState.units[defenderId] ?? defender,
     gameState.map,
     seed,
-    { attackerBonus, defenderBonus },
+    { attackerBonus, defenderBonus, defenderCityHasAntiAir },
     gameState.era,
   );
   bus.emit('combat:resolved', { result });

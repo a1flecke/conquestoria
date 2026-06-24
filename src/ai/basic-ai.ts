@@ -1062,6 +1062,19 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         };
         continue;
       }
+      // Queue one biplane per civ when air-superiority is researched
+      if (
+        civ.techState.completed.includes('air-superiority') &&
+        !civUnits.some(u => u?.type === 'biplane') &&
+        trainableUnits.includes('biplane') &&
+        city.productionQueue.length === 0
+      ) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['biplane'] } },
+        };
+        continue;
+      }
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {
