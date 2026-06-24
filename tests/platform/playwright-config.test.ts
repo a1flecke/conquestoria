@@ -13,7 +13,7 @@ describe('playwright config', () => {
   });
 
   it('uses the worktree-aware wrapper for local browser tests', () => {
-    expect(resolvePlaywrightDevCommand(undefined))
+    expect(resolvePlaywrightDevCommand(''))
       .toBe('./scripts/run-with-mise.sh yarn dev --host 127.0.0.1');
   });
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { createPirateWatersPanel } from '@/ui/pirate-waters-panel';
+import { closePirateWatersPanels, createPirateWatersPanel } from '@/ui/pirate-waters-panel';
 
 function presentation() {
   return {
@@ -46,6 +46,8 @@ describe('Pirate Waters panel', () => {
     (panel.querySelector('[data-action="focus-headquarters"]') as HTMLButtonElement).click();
     expect(callbacks.onFocus).toHaveBeenCalledWith(expect.objectContaining({ kind: 'headquarters', current: false }));
     (panel.querySelector('[data-action="pay-tribute"]') as HTMLButtonElement).click();
+    expect(callbacks.onPayTribute).not.toHaveBeenCalled();
+    (panel.querySelector('[data-action="confirm-pay-tribute"]') as HTMLButtonElement).click();
     expect(callbacks.onPayTribute).toHaveBeenCalledWith('pirate-1');
     (panel.querySelector('[aria-label="Close Pirate Waters"]') as HTMLButtonElement).click();
     expect(callbacks.onClose).toHaveBeenCalledOnce();
@@ -68,6 +70,9 @@ describe('Pirate Waters panel', () => {
     expect([...target.options].map(option => option.textContent)).toEqual(['Rome', 'Egypt']);
     target.value = 'ai-2';
     (panel.querySelector('[data-action="hire-flotilla"]') as HTMLButtonElement).click();
+    expect(callbacks.onHireFlotilla).not.toHaveBeenCalled();
+    expect(panel.textContent).toContain('100 gold');
+    (panel.querySelector('[data-action="confirm-hire-flotilla"]') as HTMLButtonElement).click();
     expect(callbacks.onHireFlotilla).toHaveBeenCalledWith('pirate-2', 'ai-2');
   });
 
@@ -79,6 +84,25 @@ describe('Pirate Waters panel', () => {
     } as any);
     expect(panel.dataset.layout).toBe('bottom-sheet');
     expect(panel.textContent).toContain('The Red Wake');
+    expect(panel.querySelector<HTMLElement>('[data-layout="pirate-waters-content"]')?.style.gridTemplateColumns)
+      .toBe('minmax(0,1fr)');
+  });
+
+  it('labels the management surface and closes all pirate panels for hot-seat privacy', () => {
+    const container = document.createElement('div');
+    const panel = createPirateWatersPanel(container, presentation(), {
+      onClose: vi.fn(), onSelectFaction: vi.fn(), onFocus: vi.fn(), onPayTribute: vi.fn(),
+      onHireFlotilla: vi.fn(), onOpenAssault: vi.fn(),
+    } as any);
+    const assault = document.createElement('section');
+    assault.id = 'pirate-headquarters-assault-panel';
+    container.appendChild(assault);
+
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-labelledby')).toBe('pirate-waters-title');
+    closePirateWatersPanels(container);
+    expect(container.querySelector('#pirate-waters-panel')).toBeNull();
+    expect(container.querySelector('#pirate-headquarters-assault-panel')).toBeNull();
   });
 
   it('rerenders from fresh state after tribute so a stale action cannot repeat', () => {
@@ -100,6 +124,7 @@ describe('Pirate Waters panel', () => {
 
     const staleButton = container.querySelector('[data-action="pay-tribute"]') as HTMLButtonElement;
     staleButton.click();
+    (container.querySelector('[data-action="confirm-pay-tribute"]') as HTMLButtonElement).click();
     staleButton.click();
 
     expect(payments).toBe(1);
@@ -149,6 +174,7 @@ describe('Pirate Waters panel', () => {
 
     const staleButton = container.querySelector('[data-action="hire-flotilla"]') as HTMLButtonElement;
     staleButton.click();
+    (container.querySelector('[data-action="confirm-hire-flotilla"]') as HTMLButtonElement).click();
     staleButton.click();
 
     expect(hires).toBe(1);

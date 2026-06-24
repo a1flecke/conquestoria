@@ -103,9 +103,9 @@ export class SfxDirector {
     }
   }
 
-  private handleUnitMove(unitId: string, to: HexCoord, path: HexCoord[]): void {
+  private handleUnitMove(unitId: string, _to: HexCoord, path: HexCoord[]): void {
     const unitType = this.unitTypeCache.get(unitId);
-    if (!unitType || !this.isVisible(to)) return;
+    if (!unitType || !path.some(coord => this.isVisible(coord))) return;
 
     const stepCount = path.length - 1;
     if (stepCount <= 0) return;
