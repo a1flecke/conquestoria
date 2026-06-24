@@ -45,6 +45,7 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'panama-canal':          landmark('panama-canal',          'waterworks', 'wide', 'canal',     '#1a3a1a', '#3da0d0', '#b8e8ff', 1.06, 'civicAura',     'glint', 'foundation', 'panama-canal-bespoke'),
   'empire-state-building': landmark('empire-state-building', 'spire',      'wide', 'trade',     '#2a2030', '#c09840', '#fff0c0', 1.1,  'dedicationGlow','glint', 'scaffold',   'empire-state-building-bespoke'),
   'hoover-dam':            landmark('hoover-dam',            'bastion',    'wide', 'tide',      '#3a3020', '#a07840', '#e0d0b0', 1.05, 'foundationPulse','pulse','foundation', 'hoover-dam-bespoke'),
+  'wright-flyer':          landmark('wright-flyer',          'bastion',    'wide', 'trade',     '#3a3828', '#c8b860', '#fff8d0', 1.04, 'dedicationGlow', 'glint','scaffold',   'wright-flyer-bespoke'),
 };
 
 function landmark(

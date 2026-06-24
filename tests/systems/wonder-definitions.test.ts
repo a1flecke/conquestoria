@@ -109,8 +109,8 @@ describe('era 8 legendary wonder coverage', () => {
 describe('era 9 legendary wonder coverage', () => {
   const era9 = ALL_WONDER_DEFINITIONS.filter(w => w.era === 9);
 
-  it('has exactly 4 era 9 legendary wonders (3 new + storm-signal-spire)', () => {
-    expect(era9).toHaveLength(4);
+  it('has exactly 5 era 9 legendary wonders (4 new + storm-signal-spire)', () => {
+    expect(era9).toHaveLength(5);
   });
 
   it('panama-canal civYieldBonus matches definition', () => {
@@ -126,6 +126,11 @@ describe('era 9 legendary wonder coverage', () => {
   it('hoover-dam civYieldBonus matches definition', () => {
     const w = era9.find(w => w.id === 'hoover-dam');
     expect(w?.reward.civYieldBonus).toEqual({ food: 4, production: 3 });
+  });
+
+  it('wright-flyer civYieldBonus matches definition', () => {
+    const w = era9.find(w => w.id === 'wright-flyer');
+    expect(w?.reward.civYieldBonus).toEqual({ science: 4, production: 2 });
   });
 });
 

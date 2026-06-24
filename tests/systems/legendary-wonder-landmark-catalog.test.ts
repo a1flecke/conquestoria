@@ -111,6 +111,7 @@ describe('legendary wonder landmark catalog', () => {
       ['panama-canal', 'panama-canal-bespoke'],
       ['empire-state-building', 'empire-state-building-bespoke'],
       ['hoover-dam', 'hoover-dam-bespoke'],
+      ['wright-flyer', 'wright-flyer-bespoke'],
     ]);
   });
 

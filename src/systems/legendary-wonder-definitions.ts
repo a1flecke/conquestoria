@@ -715,6 +715,37 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { food: 4, production: 3 },
     },
   },
+  'wright-flyer': {
+    id: 'wright-flyer',
+    name: 'Wright Flyer',
+    era: 9,
+    productionCost: 330,
+    requiredTechs: ['aviation', 'aluminium-smelting'],
+    requiredResources: ['iron'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'aviation-infrastructure',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 2,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 5,
+        description: 'Develop 2 cities with aviation infrastructure.',
+      },
+      {
+        id: 'science-breakthrough',
+        type: 'research_count',
+        track: 'science',
+        targetCount: 3,
+        description: 'Complete 3 science technologies.',
+      },
+    ],
+    reward: {
+      summary: '+4 science, +2 production empire-wide. The age of flight begins here.',
+      // civYieldBonus: each key ≤ 6; science 4 ≤ 6, production 2 ≤ 6; total 2 keys ✓
+      civYieldBonus: { science: 4, production: 2 },
+    },
+  },
 };
 
 export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = getApprovedM4LegendaryWonderRoster().map(entry => {

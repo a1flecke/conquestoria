@@ -31,6 +31,7 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'panama-canal-bespoke',
   'empire-state-building-bespoke',
   'hoover-dam-bespoke',
+  'wright-flyer-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -81,6 +82,7 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'panama-canal-bespoke':           { key: 'panama-canal-bespoke',           draw: drawPanamaCanal },
   'empire-state-building-bespoke':  { key: 'empire-state-building-bespoke',  draw: drawEmpireStateBuilding },
   'hoover-dam-bespoke':             { key: 'hoover-dam-bespoke',             draw: drawHooverDam },
+  'wright-flyer-bespoke':           { key: 'wright-flyer-bespoke',           draw: drawWrightFlyer },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -1191,4 +1193,53 @@ function drawHooverDam(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.globalAlpha = 0.5;
   ctx.fillRect(cx - r * 0.28, cy + r * 0.35, r * 0.56, r * 0.2);
   ctx.globalAlpha = 1;
+}
+
+// TODO(art): Replace wright-flyer draw: open dunes at Kitty Hawk, canvas-and-wood biplane on rail, two figures watching, pale blue sky with wind-streaks.
+function drawWrightFlyer(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius: r, metadata } = options;
+  markBespoke(ctx, 'wright-flyer-bespoke');
+  // Sky
+  const sky = ctx.createLinearGradient(cx, cy - r, cx, cy + r * 0.1);
+  sky.addColorStop(0, '#b0d8f8');
+  sky.addColorStop(1, '#e8f4ff');
+  ctx.fillStyle = sky;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  // Sandy ground
+  ctx.fillStyle = '#d4b878';
+  ctx.fillRect(cx - r, cy + r * 0.1, r * 2, r * 0.9);
+  // Launch rail
+  ctx.strokeStyle = '#5a4a30';
+  ctx.lineWidth = r * 0.04;
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.7, cy + r * 0.08);
+  ctx.lineTo(cx + r * 0.7, cy + r * 0.08);
+  ctx.stroke();
+  // Fuselage
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.fillRect(cx - r * 0.12, cy - r * 0.12, r * 0.32, r * 0.1);
+  // Lower wing
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fillRect(cx - r * 0.5, cy - r * 0.06, r, r * 0.05);
+  // Upper wing
+  ctx.fillRect(cx - r * 0.42, cy - r * 0.22, r * 0.85, r * 0.05);
+  // Vertical struts
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.lineWidth = r * 0.02;
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.28, cy - r * 0.06);
+  ctx.lineTo(cx - r * 0.24, cy - r * 0.22);
+  ctx.moveTo(cx + r * 0.28, cy - r * 0.06);
+  ctx.lineTo(cx + r * 0.22, cy - r * 0.22);
+  ctx.stroke();
+  // Observer silhouettes
+  ctx.fillStyle = '#3a2a1a';
+  ctx.beginPath();
+  ctx.ellipse(cx - r * 0.7, cy + r * 0.06, r * 0.05, r * 0.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + r * 0.72, cy + r * 0.06, r * 0.04, r * 0.09, 0, 0, Math.PI * 2);
+  ctx.fill();
 }

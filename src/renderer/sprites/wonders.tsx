@@ -317,3 +317,42 @@ export function LighthouseSprite({ palette, svgOnly = false }: WonderSpriteProps
     </BuildingFrame>
   );
 }
+
+/* === WRIGHT FLYER === */
+// TODO(art): Replace: open-air wooden hangar at Kitty Hawk, canvas-and-spruce biplane on launching rail, dunes and ocean in background, two figures in period dress watching the first flight.
+export function WrightFlyerSprite({ palette, svgOnly = false }: WonderSpriteProps): string {
+  return (
+    <BuildingFrame label="Wright Flyer" sub="Wonder · Legendary" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth w={160} />
+      {/* sandy ground */}
+      <rect x="16" y="130" width="160" height="20" fill={P.ground.sand} />
+      {/* hangar structure */}
+      <rect x="30" y="80" width="100" height="52" rx="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* hangar roof arch */}
+      <path d="M30,80 Q80,52 130,80" fill={P.thatch.shadow} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* hangar door opening */}
+      <rect x="64" y="98" width="40" height="34" fill={P.ink.soft} opacity="0.5" />
+      {/* biplane on launching rail */}
+      {/* lower wing */}
+      <rect x="38" y="102" width="90" height="4" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* upper wing */}
+      <rect x="44" y="90" width="80" height="4" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* fuselage */}
+      <rect x="74" y="91" width="30" height="16" rx="3" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* propeller */}
+      <rect x="72" y="92" width="2" height="14" rx="1" fill={P.wood.dark} />
+      {/* vertical struts between wings */}
+      <rect x="54" y="91" width="2" height="12" fill={P.wood.mid} />
+      <rect x="108" y="91" width="2" height="12" fill={P.wood.mid} />
+      {/* rail */}
+      <rect x="36" y="118" width="96" height="3" rx="1" fill={P.metal.iron} />
+      {/* observer figures */}
+      <ellipse cx="155" cy="124" rx="4" ry="8" fill={P.ink.line} />
+      <ellipse cx="20" cy="125" rx="4" ry="7" fill={P.ink.line} />
+      {/* sky birds */}
+      <path d="M140,70 Q144,66 148,70" fill="none" stroke={P.ink.soft} strokeWidth="1" />
+      <path d="M152,60 Q156,56 160,60" fill="none" stroke={P.ink.soft} strokeWidth="1" />
+      <Banner x={96} y={22} palette={palette} scale={0.72} />
+    </BuildingFrame>
+  );
+}
