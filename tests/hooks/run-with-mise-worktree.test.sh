@@ -38,7 +38,7 @@ if ! grep -q 'playwright test --config "\$CURRENT_ROOT/playwright.config.ts"' "$
   echo "web smoke does not target the active worktree config"
   exit 1
 fi
-if ! grep -q "command: './scripts/run-with-mise.sh yarn dev" "$ROOT/playwright.config.ts"; then
-  echo "Playwright web server bypasses the worktree-aware command wrapper"
+if ! grep -q "'./scripts/run-with-mise.sh yarn dev" "$ROOT/playwright.config.ts"; then
+  echo "Playwright local web server bypasses the worktree-aware command wrapper"
   exit 1
 fi
