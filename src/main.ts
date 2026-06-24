@@ -2374,12 +2374,14 @@ function executeAttack(attackerId: string, targetKey: string): void {
   const defenderCityHasAntiAir = Object.values(gameState.cities).some(
     c => hexKey(c.position) === defenderKey && c.buildings.includes('anti_air_battery'),
   );
+  const attackerCivCities = Object.values(gameState.cities).filter(c => c.owner === attacker.owner);
+  const attackerHasAirForceCommand = attackerCivCities.some(c => c.buildings.includes('air_force_command'));
   const result = resolveCombat(
     attacker,
     gameState.units[defenderId] ?? defender,
     gameState.map,
     seed,
-    { attackerBonus, defenderBonus, defenderCityHasAntiAir },
+    { attackerBonus, defenderBonus, defenderCityHasAntiAir, attackerHasAirForceCommand },
     gameState.era,
   );
   bus.emit('combat:resolved', { result });

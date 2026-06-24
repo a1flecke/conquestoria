@@ -46,6 +46,7 @@ export interface CombatContext {
   defenderBonus?: CivBonusEffect;
   defenderInFortifiedCity?: boolean;
   defenderCityHasAntiAir?: boolean;
+  attackerHasAirForceCommand?: boolean;
 }
 
 export interface CombatStrengthBreakdown {
@@ -96,6 +97,11 @@ export function calculateCombatStrengths(
   // Anti-air battery: +8 flat defense against air attacker domain
   if (context?.defenderCityHasAntiAir && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
     defenderStrength += 8;
+  }
+
+  // Air Force Command NP: air units gain +4 attack strength
+  if (context?.attackerHasAirForceCommand && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
+    attackerStrength += 4;
   }
 
   if (

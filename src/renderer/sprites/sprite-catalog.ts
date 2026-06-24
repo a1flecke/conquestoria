@@ -37,7 +37,7 @@ import {
   OilRefinerySprite, AssemblyLineSprite, RadioStationSprite, AirfieldSprite,
   FilmStudioSprite, NationalInsuranceSprite, HydroelectricDamSprite,
   ResearchInstituteSprite, TankDepotSprite, AntiAirBatterySprite,
-  MobilizationActSprite, StateBroadcastingSprite, NationalCensusSprite,
+  MobilizationActSprite, StateBroadcastingSprite, NationalCensusSprite, AirForceCommandSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite,
@@ -335,6 +335,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   mobilization_act:               MobilizationActSprite,
   state_broadcasting:             StateBroadcastingSprite,
   national_census:                NationalCensusSprite,
+  air_force_command:              AirForceCommandSprite,
 };
 
 export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<PirateHeadquartersSpriteId, LandmarkSpriteComponent> = {

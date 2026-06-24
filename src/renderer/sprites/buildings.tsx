@@ -2159,6 +2159,34 @@ export function AntiAirBatterySprite({ palette, svgOnly = false }: BuildingSprit
   );
 }
 
+// TODO(art): Replace air force command: neoclassical military HQ, stone eagle with spread wings over portico, aviation wing crest carved above entrance, biplanes in formation silhouetted through tall arched window, parade ground in foreground.
+export function AirForceCommandSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Air Force Command" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth w={140} />
+      {/* main building body */}
+      <rect x="28" y="50" width="136" height="80" rx="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.5" />
+      {/* portico columns */}
+      <rect x="50" y="50" width="8" height="80" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="80" y="50" width="8" height="80" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="104" y="50" width="8" height="80" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="134" y="50" width="8" height="80" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* pediment */}
+      <path d="M28,50 L96,18 L164,50 Z" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* eagle crest in pediment */}
+      <ellipse cx="96" cy="38" rx="12" ry="8" fill={palette.dark} />
+      <path d="M84,36 L70,28 L82,34 Z" fill={palette.dark} />
+      <path d="M108,36 L122,28 L110,34 Z" fill={palette.dark} />
+      {/* arched window */}
+      <path d="M72,60 L72,108 L120,108 L120,60 Q96,42 72,60 Z" fill={P.ground.water} opacity="0.4" stroke={P.ink.line} strokeWidth="0.8" />
+      {/* biplane silhouettes in window */}
+      <rect x="78" y="80" width="36" height="3" rx="1" fill={P.ink.soft} opacity="0.7" />
+      <rect x="84" y="87" width="24" height="2" rx="1" fill={P.ink.soft} opacity="0.5" />
+      <Banner x={96} y={20} palette={palette} scale={0.75} />
+    </BuildingFrame>
+  );
+}
+
 // TODO(art): Replace national census: bureaucratic civic hall, filing cabinet stacks visible through windows, long queuing desk inside, official census poster outside.
 export function NationalCensusSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const cols = [40, 66, 92, 118, 144].map(x =>
