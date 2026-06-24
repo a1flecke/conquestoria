@@ -62,7 +62,7 @@ import { createCouncilPanel } from '@/ui/council-panel';
 import { createGameShell } from '@/ui/game-shell';
 import { createContextMenu } from '@/ui/context-menu';
 import { createNotificationLogPanel } from '@/ui/notification-log-panel';
-import { createPirateWatersPanel } from '@/ui/pirate-waters-panel';
+import { closePirateWatersPanels, createPirateWatersPanel } from '@/ui/pirate-waters-panel';
 import { createGameButton } from '@/ui/ui-kit';
 import { getPirateWatersPresentation, type PirateFocusTarget } from '@/systems/pirate-presentation';
 import { hirePirateFlotilla, payPirateTribute, type PirateActionResult } from '@/systems/pirate-actions';
@@ -3161,6 +3161,9 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       await autoSave(gameState);
 
       // Show handoff screen
+      closePirateWatersPanels(uiLayer);
+      renderLoop.setSelectedPirateFactionId(null);
+      audio.stopPirateAmbience('player-changed');
       setBlockingOverlay('turn-handoff');
       showTurnHandoff(uiLayer, gameState, nextSlotId, nextPlayer?.name ?? 'Player', {
         onReady: () => {
@@ -3605,32 +3608,6 @@ bus.on('threat:barbarian-resurgence', ({ civId, isBanditLord, banditLordName }) 
   SFX.barbarianResurgence?.();
 });
 
-bus.on('threat:pirate-fleet-spawned', ({ civId }) => {
-  appendToCivLog(civId, 'A pirate fleet has been spotted in your waters!', 'warning');
-  SFX.seaHorn?.();
-});
-
-bus.on('threat:pirate-plunder', ({ cityId, goldStolen }) => {
-  const city = gameState.cities[cityId];
-  const civId = city?.owner ?? '';
-  const cityName = city?.name ?? cityId;
-  appendToCivLog(civId, `Pirates plundered ${cityName} — ${goldStolen} gold stolen!`, 'warning');
-  SFX.piratePlunder?.();
-});
-
-bus.on('threat:pirate-siege', ({ cityId, hpLost }) => {
-  const city = gameState.cities[cityId];
-  const civId = city?.owner ?? '';
-  const cityName = city?.name ?? cityId;
-  appendToCivLog(civId, `Pirates bombard ${cityName} for ${hpLost} damage!`, 'warning');
-  SFX.piratePlunder?.();
-});
-
-bus.on('threat:pirate-fleet-destroyed', ({ civId }) => {
-  appendToCivLog(civId, 'A pirate fleet in your waters has been driven off!', 'info');
-  SFX.pirateDestroyed?.();
-});
-
 bus.on('barbarian:city-attacked', ({ cityId, hpLost }) => {
   const city = gameState.cities[cityId];
   if (!city) return;
@@ -4020,12 +3997,6 @@ function migrateLegacySave(): void {
   }
   if (!gameState.resurgentCampCooldownByCivLandmass) {
     (gameState as any).resurgentCampCooldownByCivLandmass = {};
-  }
-  if (!gameState.pirateFleets) {
-    (gameState as any).pirateFleets = {};
-  }
-  if (!gameState.pirateFleetCooldownByCivLandmass) {
-    (gameState as any).pirateFleetCooldownByCivLandmass = {};
   }
 }
 

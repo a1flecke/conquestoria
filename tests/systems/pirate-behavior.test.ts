@@ -167,6 +167,19 @@ describe('pirate raids and blockades', () => {
     expect(raids.reduce((sum, raid) => sum + raid.amount, 0)).toBe(7);
   });
 
+  it('does not report a successful economic raid when no gold can be plundered', () => {
+    const state = stateWithMap(oceanGrid());
+    state.civilizations.player.gold = 0;
+    city(state, 'port', 'player', { q: 5, r: 5 });
+    state.map.tiles['5,5'] = { ...state.map.tiles['5,5'], terrain: 'plains' };
+    addUnit(state, unit('pirate', 'pirate_galley', 'pirate-1', { q: 5, r: 4 }));
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'raiding', {
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, ['pirate']);
+
+    expect(derivePirateRaids(state, { movements: [], attacks: [], transportKills: [] })).toEqual([]);
+  });
+
   it('uses every maritime-stage plunder cap and skips protected victims', () => {
     const expectedCaps = [5, 8, 12, 16, 20];
     for (const [index, expected] of expectedCaps.entries()) {

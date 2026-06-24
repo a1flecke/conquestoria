@@ -423,6 +423,7 @@ export function derivePirateRaids(
     if (!victimCivId) continue;
     const available = remainingTreasury.get(victimCivId) ?? 0;
     const amount = Math.min(PIRATE_PLUNDER_CAP[faction.maritimeStage], available);
+    if (amount <= 0) continue;
     remainingTreasury.set(victimCivId, available - amount);
     raids.push({
       factionId: faction.id,

@@ -225,6 +225,36 @@ describe('SfxDirector', () => {
     }
   });
 
+  it('plays one pirate movement cue when any part of the movement path is visible', async () => {
+    vi.useFakeTimers();
+    try {
+      const units = { p1: makeUnit('p1', 'pirate_corsair', 'pirate-1', 0) };
+      const state = {
+        currentPlayer: 'player',
+        units,
+        civilizations: {
+          player: {
+            visibility: {
+              tiles: { '0,0': 'visible', '1,0': 'fog' },
+              lastSeen: {},
+            },
+          },
+        },
+      } as unknown as GameState;
+      director.start(units, busHelper.bus, () => state);
+      busHelper.emit('unit:move', {
+        unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+      });
+      await vi.runAllTimersAsync();
+
+      expect(mixer.playOneShot).toHaveBeenCalledTimes(1);
+      expect(loader.get).toHaveBeenCalledWith(PIRATE_MOVEMENT_SFX.pirate_corsair.file);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps off-screen pirate movement and combat silent', async () => {
     vi.useFakeTimers();
     try {

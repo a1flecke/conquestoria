@@ -51,10 +51,13 @@ describe('pirate feature completion gate', () => {
   it('contains no runtime readiness flag and disables the retired legacy pirate loop', () => {
     const definitions = readFileSync(resolve(PROJECT_ROOT, 'src/systems/pirate-definitions.ts'), 'utf8');
     const turns = readFileSync(resolve(PROJECT_ROOT, 'src/core/turn-manager.ts'), 'utf8');
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     expect(definitions).not.toContain('PIRATE_IMPLEMENTATION_READY');
     expect(turns).not.toContain('PIRATE_IMPLEMENTATION_READY');
     expect(turns).toContain('includeLegacyPirates: false');
     expect(turns).not.toContain('processPirateFleets(');
+    expect(main).not.toContain("bus.on('threat:pirate-");
+    expect(main).not.toContain('(gameState as any).pirateFleets');
   });
 });
 
