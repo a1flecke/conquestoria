@@ -158,6 +158,7 @@ export function refreshPirateIntel(state: GameState, viewerId: string): GameStat
 function presentFaction(state: GameState, viewerId: string, intel: PirateFactionIntel): PirateFactionPresentation {
   const faction = state.pirates?.factions[intel.factionId];
   const isRumor = intel.level === 'rumor';
+  const intelRequiredReason = 'More intelligence is required before negotiating with this faction.';
   const actualHeadquartersPosition = headquartersPosition(state, intel.factionId);
   const lastKnown = !isRumor && intel.lastKnownHeadquarters
     ? {
@@ -178,19 +179,25 @@ function presentFaction(state: GameState, viewerId: string, intel: PirateFaction
   const direction = intel.level === 'tracked' && activeRelocationDirection(state, intel.factionId)
     ? intel.plannedRelocationDirection
     : undefined;
-  const tributeQuote = getPirateTributeQuote(state, intel.factionId, viewerId);
-  const contractTargets = Object.entries(state.civilizations)
-    .filter(([targetId]) => targetId !== viewerId)
-    .map(([targetId, civilization]) => ({ targetId, civilization, quote: getPirateContractQuote(state, intel.factionId, viewerId, targetId) }))
-    .filter(candidate => candidate.quote.available)
-    .map(candidate => ({
-      civId: candidate.targetId,
-      name: candidate.civilization.name,
-      cost: candidate.quote.cost,
-      durationRounds: candidate.quote.durationRounds ?? 0,
-    }));
+  const tributeQuote = isRumor
+    ? { available: false, reason: intelRequiredReason, cost: 0 }
+    : getPirateTributeQuote(state, intel.factionId, viewerId);
+  const contractTargets = isRumor
+    ? []
+    : Object.entries(state.civilizations)
+        .filter(([targetId]) => targetId !== viewerId)
+        .map(([targetId, civilization]) => ({ targetId, civilization, quote: getPirateContractQuote(state, intel.factionId, viewerId, targetId) }))
+        .filter(candidate => candidate.quote.available)
+        .map(candidate => ({
+          civId: candidate.targetId,
+          name: candidate.civilization.name,
+          cost: candidate.quote.cost,
+          durationRounds: candidate.quote.durationRounds ?? 0,
+        }));
   const sampleTargetId = Object.keys(state.civilizations).find(id => id !== viewerId) ?? viewerId;
-  const sampleContractQuote = getPirateContractQuote(state, intel.factionId, viewerId, sampleTargetId);
+  const sampleContractQuote = isRumor
+    ? { available: false, reason: intelRequiredReason, cost: 0 }
+    : getPirateContractQuote(state, intel.factionId, viewerId, sampleTargetId);
   const focusTarget: PirateFocusTarget | undefined = lastKnown
     ? { kind: 'headquarters', coord: { ...lastKnown.position }, current: lastKnown.current, label: lastKnown.current ? 'Pirate headquarters' : 'Last known pirate headquarters' }
     : isRumor && intel.approximateRegion
