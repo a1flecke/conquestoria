@@ -291,6 +291,19 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'naval',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
   },
+  observation_balloon: {
+    type: 'observation_balloon', name: 'Observation Balloon',
+    movementPoints: 1, visionRange: 4, strength: 6,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 90,
+    domain: 'air',
+  },
+  biplane: {
+    type: 'biplane', name: 'Biplane',
+    movementPoints: 4, visionRange: 3, strength: 34,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 200,
+    domain: 'air',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+  },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -495,6 +508,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
   tank:       'Armored fighting vehicle. Breaks entrenched positions, high strength, range-1 attack. Obsoletes the machine gunner era of infantry firepower.',
   submarine:  'Undersea warship. Long-range torpedoes (range 2), high naval strength, stealth approach. Replaces pre-dreadnought surface-fleet dominance.',
+  observation_balloon: 'Tethered hydrogen balloon used for aerial reconnaissance. Cannot attack. Provides unmatched long-range vision over enemy territory. Extremely fragile.',
+  biplane:    'WWI-era fabric-and-wood fighter aircraft. Fast air unit that can attack land and naval targets from altitude. Vulnerable to dedicated anti-air batteries. Obsoleted by monoplane fighters.',
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '

@@ -731,6 +731,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true, obsoletedByTech: 'submarine-warfare',         pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare',                                                                                  pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'submarine', name: 'Submarine', cost: 180, techRequired: 'submarine-warfare', coastalRequired: true,                                                      pacing: { band: 'power-spike', role: 'naval-stealth',        impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
+  { type: 'observation_balloon', name: 'Observation Balloon', cost: 90,  techRequired: 'balloon-corps',   pacing: { band: 'power-spike', role: 'air-recon',  impact: 1.2, scope: 'military', snowball: 1.0, urgency: 1.0, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -986,6 +987,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 9 units
   tank:       '🛡️',
   submarine:  '🌊',
+  observation_balloon: '🎈',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';

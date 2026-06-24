@@ -29,17 +29,19 @@ describe('TECH_TREE', () => {
       // Other tracks had 8 era1-4 + 10 (era5-9) = 18.
       const expectedCount = track === 'espionage'
         ? 20
-        : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
+        : track === 'military'
           ? 19
-          : 18;
+          : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
+            ? 19
+            : 18;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 277 techs total after adding 30 era-5, 30 era-6, 30 era-7, 30 era-8, and 30 era-9 tech definitions', () => {
-    expect(TECH_TREE.length).toBe(277);
+  it('has 278 techs total after adding balloon-corps (era 7) to military track', () => {
+    expect(TECH_TREE.length).toBe(278);
   });
 
   it('supports cross-track prerequisites', () => {

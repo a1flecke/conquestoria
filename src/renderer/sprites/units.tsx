@@ -1308,3 +1308,52 @@ export function SubmarineSprite({ palette, svgOnly = false }: UnitSpriteProps): 
     </SpriteFrame>
   );
 }
+
+// TODO(art): Replace with: Tethered hydrogen envelope — oval gas bag with faction-colored panels, rope net holding wicker gondola basket, observer with binoculars leaning out, tether line descending off-canvas.
+export function ObservationBalloonSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      {/* envelope — oval hydrogen bag */}
+      <ellipse cx="64" cy="52" rx="38" ry="46" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.5" />
+      {/* panel lines */}
+      <line x1="64" y1="6" x2="64" y2="98" stroke={P.ink.soft} strokeWidth="0.8" opacity="0.5" />
+      <line x1="26" y1="52" x2="102" y2="52" stroke={P.ink.soft} strokeWidth="0.8" opacity="0.5" />
+      {/* rope net */}
+      <ellipse cx="64" cy="52" rx="38" ry="46" fill="none" stroke={P.wood.dark} strokeWidth="0.9" strokeDasharray="4 6" />
+      {/* gondola basket */}
+      <rect x="48" y="96" width="32" height="18" rx="3" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      <line x1="48" y1="102" x2="80" y2="102" stroke={P.wood.dark} strokeWidth="0.7" />
+      {/* tether lines from basket to ground */}
+      <line x1="56" y1="114" x2="52" y2="124" stroke={P.ink.soft} strokeWidth="0.8" />
+      <line x1="72" y1="114" x2="76" y2="124" stroke={P.ink.soft} strokeWidth="0.8" />
+      <Banner x={64} y={10} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}
+
+// TODO(art): Replace with: WWI biplane — double canvas wings with wooden strut bracing and taut wire, round radial engine cowling, open cockpit with goggled pilot, roundel in faction color on upper wing, propeller motion blur.
+export function BiplaneSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={110} rx={52} ry={5} />
+      {/* fuselage */}
+      <rect x="48" y="54" width="32" height="16" rx="5" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* upper wing */}
+      <rect x="8" y="48" width="112" height="10" rx="3" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* lower wing */}
+      <rect x="18" y="68" width="92" height="8" rx="3" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      {/* struts */}
+      <line x1="36" y1="58" x2="32" y2="68" stroke={P.wood.mid} strokeWidth="1.5" />
+      <line x1="92" y1="58" x2="96" y2="68" stroke={P.wood.mid} strokeWidth="1.5" />
+      {/* engine cowling */}
+      <circle cx="64" cy="62" r="10" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* propeller */}
+      <rect x="60" y="38" width="8" height="28" rx="2" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* tail */}
+      <path d="M80,60 L112,54 L112,70 L80,66 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+      {/* rudder */}
+      <path d="M108,44 L116,44 L116,76 L108,76 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.9" />
+      <Banner x={64} y={20} palette={palette} scale={0.65} />
+    </SpriteFrame>
+  );
+}
