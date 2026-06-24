@@ -41,6 +41,22 @@ function fixture(): GameState {
 describe('pirate waters presentation privacy', () => {
   it('exposes only an approximate region for rumor-level intel', () => {
     const state = fixture();
+    const faction = state.pirates!.factions['pirate-1'];
+    faction.headquarters = {
+      kind: 'deep-sea-flotilla',
+      flagshipUnitId: 'visible-ship',
+      relocation: { planned: null, lastRelocatedRound: null },
+    };
+    faction.maritimeStage = 5;
+    faction.demandByCiv.player = { demandedRound: 20, lastReminderRound: 20, quotedCost: 70 };
+    state.civilizations.player.gold = 500;
+    state.civilizations['ai-1'].cities = ['hidden-port'];
+    state.cities['hidden-port'] = {
+      id: 'hidden-port', name: 'Hidden Port', owner: 'ai-1', position: { q: 4, r: 4 }, population: 2,
+      food: 0, foodNeeded: 15, buildings: [], productionQueue: [], productionProgress: 0,
+      ownedTiles: [{ q: 4, r: 4 }], workedTiles: [], focus: 'balanced', maturity: 'town',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    };
     state.pirates!.intelByCiv.player = {
       'pirate-1': {
         factionId: 'pirate-1', level: 'rumor', discoveredRound: 10, lastUpdatedRound: 10,
@@ -58,8 +74,18 @@ describe('pirate waters presentation privacy', () => {
     expect(entry.behavior).toBeUndefined();
     expect(entry.maritimeStage).toBeUndefined();
     expect(entry.observedUnitIds).toEqual([]);
+    expect(entry.tributeQuote).toEqual({
+      available: false,
+      reason: 'More intelligence is required before negotiating with this faction.',
+      cost: 0,
+    });
+    expect(entry.contractTargets).toEqual([]);
+    expect(entry.contractUnavailableReason)
+      .toBe('More intelligence is required before negotiating with this faction.');
     expect(JSON.stringify(entry)).not.toContain('secret-city');
     expect(JSON.stringify(entry)).not.toContain('The Red Wake');
+    expect(JSON.stringify(entry)).not.toContain('Hidden Port');
+    expect(JSON.stringify(entry)).not.toContain('70');
   });
 
   it('renders sighted intel from its saved snapshot rather than richer live faction state', () => {
