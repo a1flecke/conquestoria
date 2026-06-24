@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
+export function resolvePlaywrightDevCommand(ci = process.env.CI): string {
+  return ci
+    ? 'yarn dev --host 127.0.0.1'
+    : './scripts/run-with-mise.sh yarn dev --host 127.0.0.1';
+}
+
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30_000,
@@ -7,7 +13,7 @@ export default defineConfig({
     timeout: 5_000,
   },
   webServer: {
-    command: './scripts/run-with-mise.sh yarn dev --host 127.0.0.1',
+    command: resolvePlaywrightDevCommand(),
     url: 'http://127.0.0.1:5173/conquestoria/',
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
