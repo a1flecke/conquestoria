@@ -92,9 +92,76 @@ export function getCityDioramaBounds(size: number): { width: number; height: num
   return { width: size * 1.22, height: size * 0.96 };
 }
 
-export function formatCityBannerLabel(name: string, population: number, maxNameLength = 14): string {
-  const trimmed = name.length > maxNameLength ? `${name.slice(0, Math.max(1, maxNameLength - 1))}…` : name;
-  return `${trimmed} (${population})`;
+function truncateTextToWidth(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  const characters = [...text];
+  for (let length = characters.length - 1; length >= 1; length--) {
+    const candidate = `${characters.slice(0, length).join('')}…`;
+    if (ctx.measureText(candidate).width <= maxWidth) return candidate;
+  }
+  return ctx.measureText('…').width <= maxWidth ? '…' : '';
+}
+
+export function fitCityBannerLabel(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  population: number,
+  maxWidth: number,
+  showPopulation: boolean,
+): string {
+  const normalizedName = name.trim() || 'City';
+  if (!showPopulation) return truncateTextToWidth(ctx, normalizedName, maxWidth);
+
+  const populationSuffix = ` (${population})`;
+  const fullLabel = `${normalizedName}${populationSuffix}`;
+  if (ctx.measureText(fullLabel).width <= maxWidth) return fullLabel;
+
+  const suffixWidth = ctx.measureText(populationSuffix).width;
+  const nameWidth = maxWidth - suffixWidth;
+  if (nameWidth > 0) {
+    const fittedName = truncateTextToWidth(ctx, normalizedName, nameWidth);
+    if (fittedName) {
+      const fittedLabel = `${fittedName}${populationSuffix}`;
+      if (ctx.measureText(fittedLabel).width <= maxWidth) return fittedLabel;
+    }
+  }
+
+  return truncateTextToWidth(ctx, normalizedName, maxWidth);
+}
+
+function setFittedFont(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxFontSize: number,
+  minFontSize: number,
+  weight = '',
+): void {
+  let fontSize = maxFontSize;
+  const prefix = weight ? `${weight} ` : '';
+  ctx.font = `${prefix}${fontSize}px system-ui`;
+  while (fontSize > minFontSize && ctx.measureText(text).width > maxWidth) {
+    fontSize = Math.max(minFontSize, fontSize - 0.5);
+    ctx.font = `${prefix}${fontSize}px system-ui`;
+  }
+}
+
+function drawFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  maxFontSize: number,
+  minFontSize = 5,
+  weight = '',
+): void {
+  setFittedFont(ctx, text, maxWidth, maxFontSize, minFontSize, weight);
+  ctx.fillText(text, x, y);
 }
 
 export function getCityBannerTextColor(backgroundColor: string): string {
@@ -208,11 +275,17 @@ export function drawCityIconPass(ctx: CanvasRenderingContext2D, item: CityRender
   }
 
   if (item.isMinorCiv && !item.lowZoom) {
-    ctx.font = `${item.size * 0.18}px system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
-    ctx.fillText(item.minorCivIcon ?? '📜', item.screen.x, item.screen.y + item.size * 0.03);
+    drawFittedText(
+      ctx,
+      item.minorCivIcon ?? '📜',
+      item.screen.x,
+      item.screen.y + item.size * 0.03,
+      item.size * 0.28,
+      item.size * 0.18,
+    );
   }
 }
 
@@ -248,18 +321,25 @@ export function drawCityLandmarkPass(ctx: CanvasRenderingContext2D, item: CityRe
     nowMs: item.nowMs,
   });
   if (selection.completedOverflowCount > 0 && !item.lowZoom) {
-    ctx.font = `bold ${Math.max(8, item.size * 0.13)}px system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f8e7af';
-    ctx.fillText(`+${selection.completedOverflowCount}`, x + radius * 0.72, y + radius * 0.72, radius * 1.4);
+    drawFittedText(
+      ctx,
+      `+${selection.completedOverflowCount}`,
+      x + radius * 0.72,
+      y + radius * 0.72,
+      radius * 1.4,
+      Math.max(8, item.size * 0.13),
+      5,
+      'bold',
+    );
   }
 }
 
 export function drawCityLabelPass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
   if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'label');
-  const label = formatCityBannerLabel(item.projection.name, item.projection.population);
   const bannerWidth = item.size * 1.22;
   const bannerHeight = Math.max(13, item.size * 0.27);
   const bannerY = item.screen.y + item.size * 0.27;
@@ -272,11 +352,30 @@ export function drawCityLabelPass(ctx: CanvasRenderingContext2D, item: CityRende
     item.ownerColor,
     'rgba(255,255,255,0.82)',
   );
-  ctx.font = `bold ${Math.max(9, item.size * 0.18)}px system-ui`;
+  const availableTextWidth = bannerWidth * 0.92;
+  const preferredFontSize = Math.max(9, item.size * 0.18);
+  const desiredLabel = item.lowZoom
+    ? item.projection.name
+    : `${item.projection.name} (${item.projection.population})`;
+  setFittedFont(
+    ctx,
+    desiredLabel,
+    availableTextWidth,
+    preferredFontSize,
+    8,
+    'bold',
+  );
+  const label = fitCityBannerLabel(
+    ctx,
+    item.projection.name,
+    item.projection.population,
+    availableTextWidth,
+    !item.lowZoom,
+  );
   ctx.fillStyle = getCityBannerTextColor(item.ownerColor);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, item.screen.x, bannerY + bannerHeight / 2, bannerWidth * 0.92);
+  ctx.fillText(label, item.screen.x, bannerY + bannerHeight / 2);
 }
 
 export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
@@ -293,11 +392,17 @@ export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: Cit
         : null;
   if (!statusText) return;
 
-  ctx.font = `${item.size * 0.28}px system-ui`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';
-  ctx.fillText(statusText, item.screen.x + item.size * 0.48, item.screen.y - item.size * 0.42);
+  drawFittedText(
+    ctx,
+    statusText,
+    item.screen.x + item.size * 0.48,
+    item.screen.y - item.size * 0.42,
+    item.size * 0.28,
+    item.size * 0.28,
+  );
 }
 
 export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
@@ -307,11 +412,17 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
 
   const buildIcon = getProductionBadgeIcon(item.city);
   if (!buildIcon) return;
-  ctx.font = `${item.size * 0.28}px system-ui`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';
-  ctx.fillText(buildIcon, item.screen.x - item.size * 0.48, item.screen.y - item.size * 0.42);
+  drawFittedText(
+    ctx,
+    buildIcon,
+    item.screen.x - item.size * 0.48,
+    item.screen.y - item.size * 0.42,
+    item.size * 0.28,
+    item.size * 0.28,
+  );
 }
 
 export function drawCityIdleBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
@@ -328,11 +439,17 @@ export function drawCityIdleBadgePass(ctx: CanvasRenderingContext2D, item: CityR
   }
 
   const idleIcon = item.city.idleProduction === 'gold' ? '💰' : '🔬';
-  ctx.font = `${item.size * 0.28}px system-ui`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';
-  ctx.fillText(idleIcon, item.screen.x - item.size * 0.48, item.screen.y - item.size * 0.42);
+  drawFittedText(
+    ctx,
+    idleIcon,
+    item.screen.x - item.size * 0.48,
+    item.screen.y - item.size * 0.42,
+    item.size * 0.28,
+    item.size * 0.28,
+  );
 }
 
 export function drawCityIntelBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
@@ -354,10 +471,16 @@ export function drawCityIntelBadgePass(ctx: CanvasRenderingContext2D, item: City
     ctx.arc(badge.x, y, item.size * 0.14, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(20,24,30,0.86)';
     ctx.fill();
-    ctx.font = `${item.size * 0.2}px system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(badge.text, badge.x, y);
+    drawFittedText(
+      ctx,
+      badge.text,
+      badge.x,
+      y,
+      item.size * 0.28,
+      item.size * 0.2,
+    );
   }
 }
 

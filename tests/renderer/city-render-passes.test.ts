@@ -1,12 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import {
+  drawCityIconPass,
+  drawCityIdleBadgePass,
+  drawCityIntelBadgePass,
   drawCityLabelPass,
-  formatCityBannerLabel,
+  drawCityLandmarkPass,
+  drawCityProductionBadgePass,
+  drawCityStatusBadgePass,
+  fitCityBannerLabel,
   type CityRenderItem,
 } from '@/renderer/city-render-passes';
+import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
+import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
 
 class MockCtx {
-  fillTextCalls: Array<{ text: string; x: number; y: number; maxWidth?: number }> = [];
+  fillTextCalls: Array<{ text: string; x: number; y: number; font: string; measuredWidth: number; maxWidth?: number }> = [];
   font = '';
   fillStyle = '';
   strokeStyle = '';
@@ -15,7 +23,24 @@ class MockCtx {
   textBaseline: CanvasTextBaseline = 'alphabetic';
 
   fillText(text: string, x: number, y: number, maxWidth?: number): void {
-    this.fillTextCalls.push({ text, x, y, maxWidth });
+    this.fillTextCalls.push({
+      text,
+      x,
+      y,
+      font: this.font,
+      measuredWidth: this.measureText(text).width,
+      maxWidth,
+    });
+  }
+  measureText(text: string): TextMetrics {
+    const fontSize = Number.parseFloat(/(\d+(?:\.\d+)?)px/.exec(this.font)?.[1] ?? '10');
+    const width = [...text].reduce((sum, character) => {
+      if (character === 'i' || character === 'l' || character === ' ') return sum + fontSize * 0.28;
+      if (character === 'W' || character === 'M') return sum + fontSize * 0.92;
+      if (character.codePointAt(0)! > 0xffff) return sum + fontSize;
+      return sum + fontSize * 0.58;
+    }, 0);
+    return { width } as TextMetrics;
   }
   beginPath(): void {}
   rect(): void {}
@@ -63,50 +88,74 @@ function makeItem(overrides: Partial<CityRenderItem> = {}): CityRenderItem {
   };
 }
 
-describe('formatCityBannerLabel', () => {
-  it('returns name + population for short names', () => {
-    expect(formatCityBannerLabel('Rome', 3)).toBe('Rome (3)');
+describe('fitCityBannerLabel', () => {
+  it('keeps the full label when its measured width fits', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    ctx.font = 'bold 12px system-ui';
+
+    expect(fitCityBannerLabel(ctx, 'Rome', 3, 100, true)).toBe('Rome (3)');
   });
 
-  it('truncates names longer than 14 chars and appends ellipsis', () => {
-    const label = formatCityBannerLabel('Constantinopolis', 5);
-    expect(label).toBe('Constantinopo… (5)');
+  it('fits by measured glyph width instead of a fixed character count', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    ctx.font = 'bold 12px system-ui';
+
+    const narrow = fitCityBannerLabel(ctx, 'iiiiiiiiiiiiiiii', 7, 80, true);
+    const wide = fitCityBannerLabel(ctx, 'WWWWWWWWWWWWWWWW', 7, 80, true);
+
+    expect(narrow).toBe('iiiiiiiiiiiiiiii (7)');
+    expect(wide.length).toBeLessThan(narrow.length);
+    expect(wide).toContain('…');
+    expect(ctx.measureText(wide).width).toBeLessThanOrEqual(80);
   });
 
-  it('respects custom maxNameLength', () => {
-    const label = formatCityBannerLabel('Alexandroupolis', 4, 8);
-    expect(label).toContain('…');
-    expect(label.indexOf('…')).toBeLessThanOrEqual(8);
+  it('reserves measured width for the complete population suffix', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    ctx.font = 'bold 12px system-ui';
+
+    const singleDigit = fitCityBannerLabel(ctx, 'Alexandroupolis', 7, 90, true);
+    const tripleDigit = fitCityBannerLabel(ctx, 'Alexandroupolis', 123, 90, true);
+
+    expect(tripleDigit.length).toBeLessThan(singleDigit.length + 2);
+    expect(tripleDigit).toMatch(/\(123\)$/);
+    expect(ctx.measureText(tripleDigit).width).toBeLessThanOrEqual(90);
+  });
+
+  it('omits population at low zoom and spends the width on the city name', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    ctx.font = 'bold 9px system-ui';
+
+    const label = fitCityBannerLabel(ctx, 'Constantinopolis', 12, 55, false);
+
+    expect(label).not.toContain('(12)');
+    expect(ctx.measureText(label).width).toBeLessThanOrEqual(55);
   });
 });
 
 describe('drawCityLabelPass', () => {
-  it('passes maxWidth to fillText so long labels cannot overflow the banner', () => {
+  it('renders a measured label that fits without Canvas horizontal compression', () => {
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
     const item = makeItem();
 
     drawCityLabelPass(ctx, item);
 
-    const bannerWidth = item.size * 1.22;
-    const labelCall = (ctx as unknown as MockCtx).fillTextCalls.find(c =>
-      c.text.startsWith('Alexandroup'),
-    );
+    const availableWidth = item.size * 1.22 * 0.92;
+    const labelCall = (ctx as unknown as MockCtx).fillTextCalls.at(-1);
     expect(labelCall).toBeDefined();
-    expect(labelCall!.maxWidth).toBeCloseTo(bannerWidth * 0.92, 5);
+    expect(labelCall!.maxWidth).toBeUndefined();
+    expect(labelCall!.measuredWidth).toBeLessThanOrEqual(availableWidth);
   });
 
-  it('passes maxWidth at small zoom sizes too', () => {
+  it('hides population and fits the name at low zoom', () => {
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
-    const item = makeItem({ size: 20 });
+    const item = makeItem({ size: 20, lowZoom: true });
 
     drawCityLabelPass(ctx, item);
 
-    const bannerWidth = item.size * 1.22;
-    const labelCall = (ctx as unknown as MockCtx).fillTextCalls.find(c =>
-      c.text.includes('('),
-    );
+    const labelCall = (ctx as unknown as MockCtx).fillTextCalls.at(-1);
     expect(labelCall).toBeDefined();
-    expect(labelCall!.maxWidth).toBeCloseTo(bannerWidth * 0.92, 5);
+    expect(labelCall!.text).not.toContain('(7)');
+    expect(labelCall!.measuredWidth).toBeLessThanOrEqual(item.size * 1.22 * 0.92);
   });
 
   it('skips render when renderMode is landmark-only', () => {
@@ -125,5 +174,70 @@ describe('drawCityLabelPass', () => {
     drawCityLabelPass(ctx, item);
 
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+  });
+});
+
+describe('city icon and badge text bounds', () => {
+  it('fits minor-civ, status, production, idle, and intel glyphs to their containers', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1',
+      owner: 'player',
+      productionQueue: ['warrior'],
+      idleProduction: null,
+      unrestLevel: 2,
+    } as CityRenderItem['city'];
+    const item = makeItem({
+      city,
+      isMinorCiv: true,
+      minorCivIcon: '🏛️',
+      intel: { hasEmbeddedSpy: true, hasInfiltratedSpy: true },
+    });
+
+    drawCityIconPass(ctx, item);
+    drawCityStatusBadgePass(ctx, item);
+    drawCityProductionBadgePass(ctx, item);
+    drawCityIntelBadgePass(ctx, item);
+
+    item.city = { ...city, productionQueue: [], idleProduction: 'gold' } as CityRenderItem['city'];
+    drawCityIdleBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(6);
+    for (const call of (ctx as unknown as MockCtx).fillTextCalls) {
+      expect(call.maxWidth).toBeUndefined();
+      expect(call.measuredWidth).toBeLessThanOrEqual(item.size * 0.28);
+    }
+  });
+
+  it('fits the legendary-wonder overflow count without Canvas horizontal compression', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const landmark: LegendaryWonderMapEntry = {
+      wonderId: 'test-wonder',
+      cityId: 'city-1',
+      coord: { q: 0, r: 0 },
+      ownerId: 'player',
+      relationship: 'owned',
+      state: 'under-construction',
+      turnCompleted: 0,
+      label: 'Test Wonder',
+      visual: {} as LegendaryWonderMapEntry['visual'],
+      metadata: getLegendaryWonderLandmarkMetadata('test-wonder'),
+      progressRatio: 0.8,
+    };
+    const item = makeItem({
+      presentation: {
+        ...makeItem().presentation,
+        primaryWonder: landmark,
+        completedWonderOverflowCount: 123,
+      },
+      landmarkEntries: [landmark],
+    });
+
+    drawCityLandmarkPass(ctx, item);
+
+    const overflowCall = (ctx as unknown as MockCtx).fillTextCalls.find(call => call.text === '+123');
+    expect(overflowCall).toBeDefined();
+    expect(overflowCall!.maxWidth).toBeUndefined();
+    expect(overflowCall!.measuredWidth).toBeLessThanOrEqual(item.size * 0.16 * 1.4);
   });
 });
