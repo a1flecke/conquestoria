@@ -896,6 +896,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   const civUnitsForAir = (civ.units ?? []).map(id => newState.units[id]).filter(Boolean);
   const hasBalloon = civUnitsForAir.some(u => u?.type === 'observation_balloon');
   const hasBiplane = civUnitsForAir.some(u => u?.type === 'biplane');
+  const hasJetFighter = civUnitsForAir.some(u => u?.type === 'jet_fighter');
   const hasAirSuperiorityTech = civ.techState.completed.includes('air-superiority');
 
   for (const cityId of civ.cities) {
@@ -1090,6 +1091,28 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         newState = {
           ...newState,
           cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['biplane'] } },
+        };
+        continue;
+      }
+      // Queue one jet_fighter per civ when jet-aviation is researched
+      if (
+        civ.techState.completed.includes('jet-aviation') &&
+        !hasJetFighter &&
+        trainableUnits.includes('jet_fighter') &&
+        city.productionQueue.length === 0
+      ) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['jet_fighter'] } },
+        };
+        continue;
+      }
+      // Queue one carrier per civ when carrier-warfare is researched (coastal cities only)
+      const hasCarrier = (civ.units ?? []).some(id => newState.units[id]?.type === 'carrier');
+      if (civ.techState.completed.includes('carrier-warfare') && !hasCarrier && trainableUnits.includes('carrier')) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['carrier'] } },
         };
         continue;
       }

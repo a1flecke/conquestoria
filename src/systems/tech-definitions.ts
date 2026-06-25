@@ -3,17 +3,20 @@ import { TECH_TREE_ERAS_1_4 } from './tech-definitions-eras1-4';
 import { TECH_TREE_ERAS_5_7 } from './tech-definitions-eras5-7';
 import { TECH_TREE_ERAS_8 } from './tech-definitions-eras8';
 import { TECH_TREE_ERAS_9 } from './tech-definitions-eras9';
+import { TECH_TREE_ERAS_10 } from './tech-definitions-eras10';
 
 export { TECH_TREE_ERAS_1_4 } from './tech-definitions-eras1-4';
 export { TECH_TREE_ERAS_5_7 } from './tech-definitions-eras5-7';
 export { TECH_TREE_ERAS_8 } from './tech-definitions-eras8';
 export { TECH_TREE_ERAS_9 } from './tech-definitions-eras9';
+export { TECH_TREE_ERAS_10 } from './tech-definitions-eras10';
 
 export const TECH_TREE: Tech[] = [
   ...TECH_TREE_ERAS_1_4,
   ...TECH_TREE_ERAS_5_7,
   ...TECH_TREE_ERAS_8,
   ...TECH_TREE_ERAS_9,
+  ...TECH_TREE_ERAS_10,
 ];
 
 export function getEraAdvancementTechs(era: number): Tech[] {

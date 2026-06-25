@@ -711,6 +711,106 @@ export const BUILDINGS: Record<string, Building> = {
     uniquePerEmpire: true, nationalProject: { homeEra: 9 },
     civYieldBonus: { production: 3, science: 2 },
   },
+
+  /* === ERA 10 REGULAR BUILDINGS === */
+  nuclear_arsenal: {
+    id: 'nuclear_arsenal', name: 'Nuclear Arsenal', category: 'military',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 195,
+    description: 'Atomic weapon stockpile. +3 production per turn. City siege operations gain a decisive edge.',
+    techRequired: 'nuclear-weapons',
+  },
+  central_bank: {
+    id: 'central_bank', name: 'Central Bank', category: 'economy',
+    yields: { food: 0, production: 0, gold: 4, science: 0 }, productionCost: 190,
+    description: 'National reserve bank. +4 gold per turn. State investment cycles stabilise the economy.',
+    techRequired: 'keynesian-economics',
+  },
+  atomic_laboratory: {
+    id: 'atomic_laboratory', name: 'Atomic Laboratory', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 4 }, productionCost: 195,
+    description: 'Nuclear research facility. +4 science per turn. Atomic science reaches critical mass.',
+    techRequired: 'nuclear-physics',
+  },
+  radar_station: {
+    id: 'radar_station', name: 'Radar Station', category: 'military',
+    yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 180,
+    description: 'Early-warning radar array. +2 science per turn. Accelerates navigation and threat detection.',
+    techRequired: 'radar-systems',
+  },
+  un_delegation: {
+    id: 'un_delegation', name: 'UN Delegation', category: 'economy',
+    yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 185,
+    description: 'Permanent mission to international bodies. +2 gold, +1 science per turn.',
+    techRequired: 'international-institutions',
+  },
+  rocket_program: {
+    id: 'rocket_program', name: 'Rocket Program', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 3 }, productionCost: 190,
+    description: 'Early rocketry research centre. +3 science per turn. Points toward the upper atmosphere.',
+    techRequired: 'rocketry',
+  },
+  public_hospital: {
+    id: 'public_hospital', name: 'Public Hospital', category: 'food',
+    yields: { food: 3, production: 0, gold: 0, science: 0 }, productionCost: 185,
+    description: 'Publicly funded clinic. +3 food per turn. Raises life expectancy across the empire.',
+    techRequired: 'universal-healthcare',
+  },
+  chemical_plant: {
+    id: 'chemical_plant', name: 'Chemical Plant', category: 'production',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 185,
+    description: 'Industrial polymer facility. +3 production per turn. Plastics replace scarce natural materials.',
+    techRequired: 'synthetic-polymers',
+  },
+  nuclear_power_plant: {
+    id: 'nuclear_power_plant', name: 'Nuclear Power Plant', category: 'production',
+    yields: { food: 0, production: 5, gold: 0, science: 0 }, productionCost: 200,
+    description: 'Atomic reactor generating electricity without fuel costs. +5 production per turn.',
+    techRequired: 'nuclear-power',
+  },
+  television_station: {
+    id: 'television_station', name: 'Television Station', category: 'culture',
+    yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 180,
+    description: 'Broadcast studio reaching every living room. +3 gold per turn.',
+    techRequired: 'television',
+  },
+  signals_bureau: {
+    id: 'signals_bureau', name: 'Signals Bureau', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 1, science: 2 }, productionCost: 185,
+    description: 'Signals intercept facility. +2 science, +1 gold per turn. Enemy spy missions suffer -20% success.',
+    techRequired: 'signals-intelligence',
+  },
+
+  /* === ERA 10 NATIONAL PROJECTS === */
+  manhattan_project: {
+    id: 'manhattan_project', name: 'Manhattan Project', category: 'military',
+    // Single key: production 6 ≤ 9 (era 7+ ceiling) ✓
+    yields: { food: 0, production: 6, gold: 0, science: 0 }, productionCost: 310,
+    description: 'Total war weapons programme. +6 production empire-wide.',
+    techRequired: 'nuclear-weapons',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 10 },
+    civYieldBonus: { production: 6 },
+  },
+  postwar_reconstruction: {
+    id: 'postwar_reconstruction', name: 'Postwar Reconstruction', category: 'economy',
+    // Two keys: gold 3 ≤ 3, food 3 ≤ 3; total 6 ≤ 9 ✓
+    yields: { food: 3, production: 0, gold: 3, science: 0 }, productionCost: 310,
+    description: 'Marshall-plan reconstruction effort. +3 gold and +3 food empire-wide.',
+    techRequired: 'keynesian-economics',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 10 },
+    civYieldBonus: { gold: 3, food: 3 },
+  },
+  space_program_initiative: {
+    id: 'space_program_initiative', name: 'Space Program Initiative', category: 'science',
+    // Single key: science 6 ≤ 9 (era 7+ ceiling) ✓
+    yields: { food: 0, production: 0, gold: 0, science: 6 }, productionCost: 310,
+    description: 'National rocketry and space exploration programme. +6 science empire-wide.',
+    techRequired: 'rocketry',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 10 },
+    civYieldBonus: { science: 6 },
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -749,6 +849,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'submarine', name: 'Submarine', cost: 180, techRequired: 'submarine-warfare', coastalRequired: true,                                                      pacing: { band: 'power-spike', role: 'naval-stealth',        impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'observation_balloon', name: 'Observation Balloon', cost: 90,  techRequired: 'balloon-corps',   pacing: { band: 'power-spike', role: 'air-recon',  impact: 1.2, scope: 'military', snowball: 1.0, urgency: 1.0, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'air-superiority', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'carrier',             name: 'Carrier',             cost: 220, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-projection', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -1008,6 +1110,24 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   submarine:  '🌊',
   observation_balloon: '🎈',
   biplane:    '✈️',
+  jet_fighter: '🛩️',
+  carrier:    '🛳️',
+  // era 10 regular buildings
+  nuclear_arsenal: '☢️',
+  central_bank: '🏦',
+  atomic_laboratory: '⚛️',
+  radar_station: '📡',
+  un_delegation: '🕊️',
+  rocket_program: '🚀',
+  public_hospital: '🏥',
+  chemical_plant: '🧪',
+  nuclear_power_plant: '⚡',
+  television_station: '📺',
+  signals_bureau: '📻',
+  // era 10 national projects
+  manhattan_project: '💣',
+  postwar_reconstruction: '🏗️',
+  space_program_initiative: '🚀',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';

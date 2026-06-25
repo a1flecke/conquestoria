@@ -290,6 +290,8 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   submarine:  'naval',
   observation_balloon: 'air',
   biplane:    'air',
+  jet_fighter: 'air',
+  carrier:    'naval',
   caravan:        'humanoid',
   expedition:    'humanoid',
   beast_boar:    'animal',

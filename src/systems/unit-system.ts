@@ -304,6 +304,20 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'air',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
   },
+  jet_fighter: {
+    type: 'jet_fighter', name: 'Jet Fighter',
+    movementPoints: 6, visionRange: 3, strength: 50,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 300,
+    domain: 'air',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+  },
+  carrier: {
+    type: 'carrier', name: 'Carrier',
+    movementPoints: 4, visionRange: 3, strength: 30,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 220,
+    domain: 'naval',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+  },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -510,6 +524,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   submarine:  'Undersea warship. Long-range torpedoes (range 2), high naval strength, stealth approach. Replaces pre-dreadnought surface-fleet dominance.',
   observation_balloon: 'Tethered hydrogen balloon used for aerial reconnaissance. Cannot attack. Provides unmatched long-range vision over enemy territory. Extremely fragile.',
   biplane:    'WWI-era fabric-and-wood fighter aircraft. Fast air unit that can attack land and naval targets from altitude. Vulnerable to dedicated anti-air batteries. Obsoleted by monoplane fighters.',
+  jet_fighter: 'WWII-era swept-wing jet fighter. Faster and stronger than the biplane; dominates air-to-air and ground-attack roles. Faction roundel on fuselage; afterburner glow marks its passage.',
+  carrier:     'Fleet aircraft carrier. Projects air power across oceans from a mobile flight deck. Requires a coastal city to build. High vision range; moderate naval strength.',
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '

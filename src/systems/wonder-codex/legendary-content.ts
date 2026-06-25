@@ -498,6 +498,22 @@ export const LEGENDARY_WONDER_CODEX_CONTENT = [
     'Science and Momentum',
     'Its reward fits a civilization that has invested in aviation research and now reaps the strategic fruits of aerial mastery.',
   ),
+  legendary(
+    'united-nations',
+    'United Nations',
+    'Fifty nations signed in San Francisco; the world held its breath.',
+    'In the ruins of 1945, representatives of fifty nations gathered in San Francisco and signed a charter declaring that international disputes would henceforth be settled through negotiation rather than war. The optimism was enormous. So was the skepticism. The League of Nations had tried and failed within a generation. Yet the UN survived the Cold War, decolonisation, proxy conflicts, and the collapse of its founding superpower bloc — because enough nations found it useful enough to keep alive.',
+    'The building on the East River in New York is not a world government. It has no army, no power of arrest, no treasury of its own. What it has is a room where adversaries must sit together, and a set of procedures that slow conflict long enough for second thoughts. The General Assembly has passed resolutions that changed nothing. The Security Council has blocked action that might have changed everything. And in the middle of it all, peacekeeping missions, refugee agencies, and humanitarian convoys have operated in places no national government was willing to send its own forces.',
+    'prosperity',
+    ['gold', 'knowledge', 'modern', 'science', 'trade'],
+    ['loc-about'],
+    'image-archive',
+    ['gold', 'trade'],
+    'The Room That Stays Open',
+    'A civilization that built the United Nations chose process over power — and kept the door open even when it was inconvenient.',
+    'Gold and Influence',
+    'Its reward fits a civilization that has invested in civic institutions and now projects economic and intellectual influence across the world.',
+  ),
 ] satisfies WonderCodexContent[];
 
 function legendary(

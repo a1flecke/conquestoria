@@ -112,6 +112,7 @@ describe('legendary wonder landmark catalog', () => {
       ['empire-state-building', 'empire-state-building-bespoke'],
       ['hoover-dam', 'hoover-dam-bespoke'],
       ['wright-flyer', 'wright-flyer-bespoke'],
+      ['united-nations', 'united-nations-bespoke'],
     ]);
   });
 
