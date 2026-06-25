@@ -33,6 +33,8 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   submarine:  '🌊',
   observation_balloon: '🎈',
   biplane:    '✈️',
+  jet_fighter: '🛩️',
+  carrier:    '🛳️',
   galley: '⛵',
   trireme: '🚢',
   transport: '🛶',

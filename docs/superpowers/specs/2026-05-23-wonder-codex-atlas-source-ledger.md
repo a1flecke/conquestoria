@@ -157,5 +157,6 @@ During implementation, add a row for every codex entry using this shape:
 | `empire-state-building` | `loc-about` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
 | `hoover-dam` | `loc-about` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
 | `wright-flyer` | `loc-about` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
+| `united-nations` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
 
 The final implementation PR must include one completed row per codex entry. Contract tests must fail if a final codex entry references missing fact source IDs, missing image source IDs, missing local image paths, or placeholder attribution text.

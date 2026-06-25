@@ -32,6 +32,7 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'empire-state-building-bespoke',
   'hoover-dam-bespoke',
   'wright-flyer-bespoke',
+  'united-nations-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -83,6 +84,7 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'empire-state-building-bespoke':  { key: 'empire-state-building-bespoke',  draw: drawEmpireStateBuilding },
   'hoover-dam-bespoke':             { key: 'hoover-dam-bespoke',             draw: drawHooverDam },
   'wright-flyer-bespoke':           { key: 'wright-flyer-bespoke',           draw: drawWrightFlyer },
+  'united-nations-bespoke':         { key: 'united-nations-bespoke',         draw: drawUnitedNations },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -1242,4 +1244,43 @@ function drawWrightFlyer(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.beginPath();
   ctx.ellipse(cx + r * 0.72, cy + r * 0.06, r * 0.04, r * 0.09, 0, 0, Math.PI * 2);
   ctx.fill();
+}
+
+function drawUnitedNations(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius: r } = options;
+  // Sky background
+  ctx.fillStyle = '#1a2a4a';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, r, r * 0.9, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // UN globe symbol — circle with latitude/longitude lines
+  const globe = r * 0.45;
+  ctx.strokeStyle = '#4080c0';
+  ctx.lineWidth = r * 0.025;
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.05, globe, 0, Math.PI * 2);
+  ctx.stroke();
+  // Horizontal bands (latitude)
+  for (const band of [-0.3, 0, 0.3]) {
+    const bandY = cy - r * 0.05 + globe * band;
+    const halfW = Math.sqrt(Math.max(0, globe * globe - (globe * band) * (globe * band)));
+    ctx.beginPath();
+    ctx.moveTo(cx - halfW, bandY);
+    ctx.lineTo(cx + halfW, bandY);
+    ctx.stroke();
+  }
+  // Vertical line (meridian)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.05 - globe);
+  ctx.lineTo(cx, cy - r * 0.05 + globe);
+  ctx.stroke();
+  // Building silhouette
+  ctx.fillStyle = '#c0d8f0';
+  ctx.fillRect(cx - r * 0.12, cy + r * 0.35, r * 0.24, r * 0.25);
+  // Flags
+  for (let i = -2; i <= 2; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#4080c0' : '#c0d8f0';
+    ctx.fillRect(cx + i * r * 0.14 - r * 0.01, cy + r * 0.18, r * 0.02, r * 0.12);
+    ctx.fillRect(cx + i * r * 0.14 + r * 0.01, cy + r * 0.18, r * 0.06, r * 0.04);
+  }
 }

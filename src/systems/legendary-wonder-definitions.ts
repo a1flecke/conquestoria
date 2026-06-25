@@ -715,6 +715,37 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { food: 4, production: 3 },
     },
   },
+  'united-nations': {
+    id: 'united-nations',
+    name: 'United Nations',
+    era: 10,
+    productionCost: 350,
+    requiredTechs: ['international-institutions'],
+    requiredResources: [],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'civics-techs',
+        type: 'research_count',
+        track: 'civics',
+        targetCount: 2,
+        description: 'Complete 2 era-10 civics technologies.',
+      },
+      {
+        id: 'diplomatic-cities',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 3,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 4,
+        description: 'Develop 3 cities into diplomatic centres.',
+      },
+    ],
+    reward: {
+      summary: '+5 gold and +1 science empire-wide each turn. First permanent intergovernmental peacekeeping body.',
+      // civYieldBonus: gold 5 ≤ 6, science 1 ≤ 6; two keys ✓
+      civYieldBonus: { gold: 5, science: 1 },
+    },
+  },
   'wright-flyer': {
     id: 'wright-flyer',
     name: 'Wright Flyer',

@@ -20,26 +20,27 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the legacy shape after adding era-5, era-6, era-7, era-8, and era-9 nodes', () => {
+  it('keeps the legacy shape after adding era-5 through era-10 nodes', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      // Era 5, 6, 7, 8, 9 each add 2 techs per track. Espionage had 2 stubs → 20 total.
-      // Economy/science/communication/maritime/exploration had 9 era1-4 each + 10 (era5-9) = 19.
-      // Other tracks had 8 era1-4 + 10 (era5-9) = 18.
+      // Era 5-10 each add 2 techs per track. Espionage had 2 stubs → 22 total.
+      // Economy/science/communication/maritime/exploration had 9 era1-4 + 12 (era5-10) = 21.
+      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 22.
+      // Other tracks had 8 era1-4 + 12 (era5-10) = 20.
       const expectedCount = track === 'espionage' || track === 'military'
-        ? 20
+        ? 22
         : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-          ? 19
-          : 18;
+          ? 21
+          : 20;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 279 techs total after adding balloon-corps (era 7) and air-superiority (era 9) to military track', () => {
-    expect(TECH_TREE.length).toBe(279);
+  it('has 309 techs total after adding era-10 (30 new techs across 15 tracks)', () => {
+    expect(TECH_TREE.length).toBe(309);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -57,18 +58,12 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('techs span eras 1-9', () => {
+  it('techs span eras 1-10', () => {
     const eras = new Set(TECH_TREE.map(t => t.era));
-    expect(eras.size).toBe(9);
-    expect(eras).toContain(1);
-    expect(eras).toContain(2);
-    expect(eras).toContain(3);
-    expect(eras).toContain(4);
-    expect(eras).toContain(5);
-    expect(eras).toContain(6);
-    expect(eras).toContain(7);
-    expect(eras).toContain(8);
-    expect(eras).toContain(9);
+    expect(eras.size).toBe(10);
+    for (let era = 1; era <= 10; era++) {
+      expect(eras).toContain(era);
+    }
   });
 
   it('unlocks the new late-era nodes only after their era-4 prerequisites are complete', () => {

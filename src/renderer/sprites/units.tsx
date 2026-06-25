@@ -1357,3 +1357,50 @@ export function BiplaneSprite({ palette, svgOnly = false }: UnitSpriteProps): st
     </SpriteFrame>
   );
 }
+
+// Placeholder — bespoke design prompt pending (see docs/sprite-design-system.md era 10 section)
+export function JetFighterSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={110} rx={48} ry={4} />
+      {/* fuselage — sleek tapered body */}
+      <path d="M64,30 L72,58 L70,80 L58,80 L56,58 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* swept wings */}
+      <path d="M64,55 L8,78 L12,88 L64,68 L116,88 L120,78 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
+      {/* tail fins */}
+      <path d="M58,80 L40,100 L56,94 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.9" />
+      <path d="M70,80 L88,100 L72,94 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* nose cone */}
+      <path d="M64,30 L60,44 L68,44 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      {/* cockpit */}
+      <ellipse cx="64" cy="52" rx="6" ry="8" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="1" />
+      {/* afterburner glow */}
+      <ellipse cx="64" cy="88" rx="5" ry="10" fill="#ff6600" opacity="0.7" />
+      <Banner x={64} y={16} palette={palette} scale={0.6} />
+    </SpriteFrame>
+  );
+}
+
+// Placeholder — bespoke design prompt pending (see docs/sprite-design-system.md era 10 section)
+export function CarrierSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={108} rx={58} ry={6} />
+      {/* hull */}
+      <path d="M10,85 L118,85 L110,100 L18,100 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* flight deck */}
+      <rect x="8" y="68" width="112" height="18" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      {/* island superstructure */}
+      <rect x="88" y="44" width="22" height="26" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="1" />
+      {/* radar mast */}
+      <line x1="99" y1="44" x2="99" y2="30" stroke={P.metal.iron} strokeWidth="1.5" />
+      <circle cx="99" cy="29" r="5" fill="none" stroke={P.metal.iron} strokeWidth="1.2" />
+      {/* spotted aircraft silhouettes */}
+      <path d="M22,72 L34,72 L28,68 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.7" />
+      <path d="M48,74 L60,74 L54,70 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.7" />
+      {/* wake */}
+      <path d="M10,102 Q64,110 118,102" stroke="white" strokeWidth="1.5" fill="none" opacity="0.5" />
+      <Banner x={99} y={20} palette={palette} scale={0.55} />
+    </SpriteFrame>
+  );
+}
