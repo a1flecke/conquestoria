@@ -5,7 +5,6 @@ import { foundCity } from '@/systems/city-system';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import {
-  formatCityBannerLabel,
   getCityBannerTextColor,
   getCityDioramaBounds,
 } from '@/renderer/city-render-passes';
@@ -174,10 +173,6 @@ describe('city map presentation', () => {
     const bounds = getCityDioramaBounds(size);
 
     expect(bounds.width).toBeLessThanOrEqual(Math.sqrt(3) * size * 0.75);
-  });
-
-  it('truncates long names while preserving population in the owner banner', () => {
-    expect(formatCityBannerLabel('A Very Long Capital Name', 12, 10)).toBe('A Very Lo… (12)');
   });
 
   it('chooses readable banner text for light and dark civilization colors', () => {

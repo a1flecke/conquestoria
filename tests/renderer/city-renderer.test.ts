@@ -33,6 +33,10 @@ class MockCanvasContext {
     this.fillTextCalls.push({ text, x, y, maxWidth });
     this.operations.push(`text:${text}`);
   }
+  measureText(text: string): TextMetrics {
+    const fontSize = Number.parseFloat(/(\d+(?:\.\d+)?)px/.exec(this.font)?.[1] ?? '10');
+    return { width: [...text].length * fontSize * 0.48 } as TextMetrics;
+  }
   drawImage(): void {
     this.operations.push('drawImage');
   }
