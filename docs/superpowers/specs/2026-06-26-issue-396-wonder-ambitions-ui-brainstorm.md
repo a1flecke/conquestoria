@@ -14,7 +14,7 @@ The current Wonder Ambitions panel reads like an unstyled rules dump. It uses ba
 
 ![Option A guided cards](assets/issue-396-wonder-ambitions-option-a-guided-cards.svg)
 
-Make the screen a guided decision surface. The top area answers “what should I do now?” and the primary card uses a status chip, quest checklist, reward summary, race context, and nearby CTA. Lower-ranked ambitions remain reachable as smaller cards.
+Make the screen a guided decision surface. The top area answers “what is the best move right now?” and the primary card uses a status chip, quest checklist, reward summary, race context, and nearby CTA. Lower-ranked ambitions remain reachable as smaller cards.
 
 Why it is promising:
 
