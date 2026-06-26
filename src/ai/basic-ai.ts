@@ -897,7 +897,10 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   const hasBalloon = civUnitsForAir.some(u => u?.type === 'observation_balloon');
   const hasBiplane = civUnitsForAir.some(u => u?.type === 'biplane');
   const hasJetFighter = civUnitsForAir.some(u => u?.type === 'jet_fighter');
+  const hasCarrier = (civ.units ?? []).some(id => newState.units[id]?.type === 'carrier');
+  let hasQueuedCarrierThisTurn = false;
   const hasAirSuperiorityTech = civ.techState.completed.includes('air-superiority');
+  const hasJetAviationTech = civ.techState.completed.includes('jet-aviation');
 
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
@@ -1096,7 +1099,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       }
       // Queue one jet_fighter per civ when jet-aviation is researched
       if (
-        civ.techState.completed.includes('jet-aviation') &&
+        hasJetAviationTech &&
         !hasJetFighter &&
         trainableUnits.includes('jet_fighter') &&
         city.productionQueue.length === 0
@@ -1107,9 +1110,14 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         };
         continue;
       }
-      // Queue one carrier per civ when carrier-warfare is researched (coastal cities only)
-      const hasCarrier = (civ.units ?? []).some(id => newState.units[id]?.type === 'carrier');
-      if (civ.techState.completed.includes('carrier-warfare') && !hasCarrier && trainableUnits.includes('carrier')) {
+      // Queue one carrier per civ when carrier-warfare is researched
+      if (
+        civ.techState.completed.includes('carrier-warfare') &&
+        !hasCarrier && !hasQueuedCarrierThisTurn &&
+        trainableUnits.includes('carrier') &&
+        city.productionQueue.length === 0
+      ) {
+        hasQueuedCarrierThisTurn = true;
         newState = {
           ...newState,
           cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['carrier'] } },

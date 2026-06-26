@@ -1381,26 +1381,38 @@ export function JetFighterSprite({ palette, svgOnly = false }: UnitSpriteProps):
   );
 }
 
-// Placeholder — bespoke design prompt pending (see docs/sprite-design-system.md era 10 section)
 export function CarrierSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={64} cy={108} rx={58} ry={6} />
-      {/* hull */}
-      <path d="M10,85 L118,85 L110,100 L18,100 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
-      {/* flight deck */}
-      <rect x="8" y="68" width="112" height="18" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
-      {/* island superstructure */}
-      <rect x="88" y="44" width="22" height="26" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="1" />
+      <Shadow cx={64} cy={108} rx={60} ry={7} />
+      {/* hull — tapered bow/stern */}
+      <path d="M6,90 L14,80 L114,80 L122,90 L114,104 L14,104 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.4" />
+      {/* waterline stripe */}
+      <path d="M10,96 L118,96" stroke={palette.bright} strokeWidth="1.2" opacity="0.6" />
+      {/* flight deck — wide flat surface */}
+      <rect x="6" y="62" width="116" height="20" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* deck edge markings — port and starboard yellow lines */}
+      <line x1="6" y1="64" x2="122" y2="64" stroke="#ffd700" strokeWidth="1" />
+      <line x1="6" y1="80" x2="122" y2="80" stroke="#ffd700" strokeWidth="1" />
+      {/* island superstructure (to starboard — right side) */}
+      <rect x="90" y="38" width="26" height="26" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="92" y="44" width="22" height="8" rx="1" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.7" />
       {/* radar mast */}
-      <line x1="99" y1="44" x2="99" y2="30" stroke={P.metal.iron} strokeWidth="1.5" />
-      <circle cx="99" cy="29" r="5" fill="none" stroke={P.metal.iron} strokeWidth="1.2" />
-      {/* spotted aircraft silhouettes */}
-      <path d="M22,72 L34,72 L28,68 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.7" />
-      <path d="M48,74 L60,74 L54,70 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.7" />
-      {/* wake */}
-      <path d="M10,102 Q64,110 118,102" stroke="white" strokeWidth="1.5" fill="none" opacity="0.5" />
-      <Banner x={99} y={20} palette={palette} scale={0.55} />
+      <line x1="103" y1="38" x2="103" y2="20" stroke={P.metal.iron} strokeWidth="2" />
+      {/* radar dish */}
+      <path d="M95,22 L111,22 Q111,30 103,33 Q95,30 95,22 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* rotating radar bar */}
+      <line x1="90" y1="24" x2="116" y2="24" stroke={P.metal.iron} strokeWidth="1" />
+      {/* 3 aircraft silhouettes on deck */}
+      <path d="M18,68 L30,68 L24,63 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M40,70 L52,70 L46,65 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M62,67 L74,67 L68,62 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* bow wake */}
+      <path d="M6,92 Q10,98 20,102" stroke="white" strokeWidth="1.5" fill="none" opacity="0.6" />
+      <path d="M6,96 Q10,102 18,106" stroke="white" strokeWidth="1" fill="none" opacity="0.4" />
+      {/* stern wake */}
+      <path d="M122,92 Q118,99 110,104" stroke="white" strokeWidth="1.5" fill="none" opacity="0.6" />
+      <Banner x={103} y={12} palette={palette} scale={0.52} />
     </SpriteFrame>
   );
 }
