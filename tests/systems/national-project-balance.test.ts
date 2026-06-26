@@ -28,10 +28,10 @@ describe('national project structural invariants', () => {
 });
 
 describe('national project yield ceilings', () => {
-  const ERA_CEILINGS: Record<number, number> = { 1: 2, 2: 2, 3: 5, 4: 5, 5: 7, 6: 7, 7: 9, 8: 9, 9: 9 };
+  const ERA_CEILINGS: Record<number, number> = { 1: 2, 2: 2, 3: 5, 4: 5, 5: 7, 6: 7, 7: 9, 8: 9, 9: 9, 10: 9 };
 
-  it('ceiling table covers eras 1–9', () => {
-    expect(Object.keys(ERA_CEILINGS).map(Number).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  it('ceiling table covers eras 1–10', () => {
+    expect(Object.keys(ERA_CEILINGS).map(Number).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
   for (const np of nationalProjects) {
@@ -90,5 +90,29 @@ describe('era 9 national project coverage', () => {
     expect(np?.civYieldBonus).toEqual({ production: 3, science: 2 });
     // Each key ≤ 3, total 5 ≤ 9 (era 9 ceiling)
     expect((np?.civYieldBonus?.production ?? 0) + (np?.civYieldBonus?.science ?? 0)).toBeLessThanOrEqual(9);
+  });
+});
+
+describe('era 10 national project coverage', () => {
+  const era10NPs = nationalProjects.filter(np => np.nationalProject?.homeEra === 10);
+
+  it('has exactly 3 era 10 national projects', () => {
+    expect(era10NPs).toHaveLength(3);
+  });
+
+  it('manhattan_project has single production civYieldBonus', () => {
+    const np = era10NPs.find(np => np.id === 'manhattan_project');
+    expect(np?.civYieldBonus).toEqual({ production: 6 });
+  });
+
+  it('postwar_reconstruction has dual gold+food civYieldBonus within era-10 ceiling', () => {
+    const np = era10NPs.find(np => np.id === 'postwar_reconstruction');
+    expect(np?.civYieldBonus).toEqual({ gold: 3, food: 3 });
+    expect((np?.civYieldBonus?.gold ?? 0) + (np?.civYieldBonus?.food ?? 0)).toBeLessThanOrEqual(9);
+  });
+
+  it('space_program_initiative has single science civYieldBonus', () => {
+    const np = era10NPs.find(np => np.id === 'space_program_initiative');
+    expect(np?.civYieldBonus).toEqual({ science: 6 });
   });
 });

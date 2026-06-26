@@ -1248,39 +1248,114 @@ function drawWrightFlyer(options: LegendaryWonderBespokeDrawOptions): void {
 
 function drawUnitedNations(options: LegendaryWonderBespokeDrawOptions): void {
   const { ctx, cx, cy, radius: r } = options;
-  // Sky background
-  ctx.fillStyle = '#1a2a4a';
+
+  // Gradient sky
+  const sky = ctx.createLinearGradient(cx - r, cy - r, cx - r, cy + r);
+  sky.addColorStop(0, '#0d1f3c');
+  sky.addColorStop(1, '#1e3a6e');
+  ctx.fillStyle = sky;
   ctx.beginPath();
   ctx.ellipse(cx, cy, r, r * 0.9, 0, 0, Math.PI * 2);
   ctx.fill();
-  // UN globe symbol — circle with latitude/longitude lines
-  const globe = r * 0.45;
-  ctx.strokeStyle = '#4080c0';
-  ctx.lineWidth = r * 0.025;
-  ctx.beginPath();
-  ctx.arc(cx, cy - r * 0.05, globe, 0, Math.PI * 2);
-  ctx.stroke();
-  // Horizontal bands (latitude)
-  for (const band of [-0.3, 0, 0.3]) {
-    const bandY = cy - r * 0.05 + globe * band;
-    const halfW = Math.sqrt(Math.max(0, globe * globe - (globe * band) * (globe * band)));
+
+  // UN Secretariat glass tower (tall slab, right of centre)
+  const towerX = cx + r * 0.08;
+  const towerTop = cy - r * 0.55;
+  const towerW = r * 0.28;
+  const towerH = r * 0.75;
+  ctx.fillStyle = '#c8dff0';
+  ctx.fillRect(towerX - towerW / 2, towerTop, towerW, towerH);
+  ctx.strokeStyle = '#6090b0';
+  ctx.lineWidth = r * 0.012;
+  for (let row = 0; row < 8; row++) {
+    const y = towerTop + (towerH / 8) * row;
     ctx.beginPath();
-    ctx.moveTo(cx - halfW, bandY);
-    ctx.lineTo(cx + halfW, bandY);
+    ctx.moveTo(towerX - towerW / 2, y);
+    ctx.lineTo(towerX + towerW / 2, y);
     ctx.stroke();
   }
-  // Vertical line (meridian)
   ctx.beginPath();
-  ctx.moveTo(cx, cy - r * 0.05 - globe);
-  ctx.lineTo(cx, cy - r * 0.05 + globe);
+  ctx.moveTo(towerX, towerTop);
+  ctx.lineTo(towerX, towerTop + towerH);
   ctx.stroke();
-  // Building silhouette
-  ctx.fillStyle = '#c0d8f0';
-  ctx.fillRect(cx - r * 0.12, cy + r * 0.35, r * 0.24, r * 0.25);
-  // Flags
-  for (let i = -2; i <= 2; i++) {
-    ctx.fillStyle = i % 2 === 0 ? '#4080c0' : '#c0d8f0';
-    ctx.fillRect(cx + i * r * 0.14 - r * 0.01, cy + r * 0.18, r * 0.02, r * 0.12);
-    ctx.fillRect(cx + i * r * 0.14 + r * 0.01, cy + r * 0.18, r * 0.06, r * 0.04);
+  ctx.fillStyle = '#a0b8cc';
+  ctx.fillRect(towerX - towerW / 2 - r * 0.05, towerTop + towerH - r * 0.06, towerW + r * 0.1, r * 0.06);
+
+  // Globe on pedestal (left of centre)
+  const gx = cx - r * 0.2;
+  const gy = cy + r * 0.05;
+  const gr = r * 0.28;
+  const globeGrad = ctx.createRadialGradient(gx - gr * 0.2, gy - gr * 0.2, gr * 0.1, gx, gy, gr);
+  globeGrad.addColorStop(0, '#2060a8');
+  globeGrad.addColorStop(1, '#0d2b5e');
+  ctx.fillStyle = globeGrad;
+  ctx.beginPath();
+  ctx.arc(gx, gy, gr, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#4090d0';
+  ctx.lineWidth = r * 0.018;
+  ctx.stroke();
+  ctx.lineWidth = r * 0.012;
+  for (const frac of [-0.5, 0, 0.5]) {
+    const latY = gy + gr * frac;
+    const hw = Math.sqrt(Math.max(0, gr * gr - (gr * frac) * (gr * frac)));
+    ctx.beginPath();
+    ctx.moveTo(gx - hw, latY);
+    ctx.lineTo(gx + hw, latY);
+    ctx.stroke();
+  }
+  ctx.save();
+  ctx.translate(gx, gy);
+  for (const xScale of [0.35, 0.7]) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, gr * xScale, gr, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // golden aura ring
+  ctx.strokeStyle = '#d4a13c';
+  ctx.lineWidth = r * 0.03;
+  ctx.beginPath();
+  ctx.arc(gx, gy, gr + r * 0.05, 0, Math.PI * 2);
+  ctx.stroke();
+  // pedestal
+  ctx.fillStyle = '#8a9aaa';
+  ctx.fillRect(gx - r * 0.08, gy + gr, r * 0.16, r * 0.12);
+  ctx.fillRect(gx - r * 0.12, gy + gr + r * 0.12, r * 0.24, r * 0.04);
+
+  // Flagpoles fanned across the base
+  const flagY = cy + r * 0.32;
+  const flagColors = ['#4080c0', '#c0d8f0', '#4080c0', '#c0d8f0', '#4080c0'];
+  for (let i = 0; i < 5; i++) {
+    const fx = cx - r * 0.55 + i * r * 0.28;
+    ctx.strokeStyle = '#8898a8';
+    ctx.lineWidth = r * 0.015;
+    ctx.beginPath();
+    ctx.moveTo(fx, flagY);
+    ctx.lineTo(fx, flagY - r * 0.22);
+    ctx.stroke();
+    ctx.fillStyle = flagColors[i];
+    ctx.fillRect(fx, flagY - r * 0.22, r * 0.11, r * 0.07);
+  }
+
+  // Olive branches framing the globe
+  ctx.strokeStyle = '#6a8a40';
+  ctx.lineWidth = r * 0.02;
+  ctx.beginPath();
+  ctx.arc(gx, gy, gr + r * 0.18, Math.PI * 0.6, Math.PI * 1.0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(gx, gy, gr + r * 0.18, Math.PI * 0, Math.PI * 0.4);
+  ctx.stroke();
+  ctx.fillStyle = '#6a8a40';
+  for (let a = 0.65; a <= 0.95; a += 0.1) {
+    ctx.beginPath();
+    ctx.arc(gx + (gr + r * 0.18) * Math.cos(Math.PI * a), gy + (gr + r * 0.18) * Math.sin(Math.PI * a), r * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (let a = 0.05; a <= 0.35; a += 0.1) {
+    ctx.beginPath();
+    ctx.arc(gx + (gr + r * 0.18) * Math.cos(Math.PI * a), gy + (gr + r * 0.18) * Math.sin(Math.PI * a), r * 0.025, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
