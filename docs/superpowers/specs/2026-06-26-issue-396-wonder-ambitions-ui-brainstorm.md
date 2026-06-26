@@ -1,6 +1,6 @@
 # Issue #396 Wonder Ambitions UI Brainstorm
 
-Status: draft visual brainstorm, not an approved implementation spec.
+Status: visual brainstorm. The selected implementation direction is captured in `2026-06-26-issue-396-wonder-ambitions-ui-design.md`.
 
 Issue: <https://github.com/a1flecke/conquestoria/issues/396>
 
@@ -53,7 +53,7 @@ Why it is promising:
 
 Tradeoff: least atmospheric, and row density may be awkward on phones.
 
-## Recommended direction
+## Selected direction
 
 Use Option A as the primary design and borrow two pieces from the others:
 
@@ -62,11 +62,6 @@ Use Option A as the primary design and borrow two pieces from the others:
 
 This keeps the screen player-guiding, visually consistent with the rest of the game, and testable without turning it into a dense spreadsheet.
 
-## First question for review
+## Review decision
 
-Should the implementation target:
-
-1. **Option A hybrid** — guided cards with compact lower-ranked cards. Recommended.
-2. **Option B immersive** — richer journal/timeline experience.
-3. **Option C dashboard** — compact comparison-first surface.
-
+The selected target is **Option A hybrid**: guided cards with compact lower-ranked cards, a lightweight quest checklist/timeline, and a complete all-ambitions surface.
