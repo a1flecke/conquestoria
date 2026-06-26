@@ -168,16 +168,16 @@ The executor maintains this table in the plan while working. No row may remain `
 
 | ID | Production deliverable | Replacement/verification task | Status |
 |---|---|---|---|
-| ART-U1..U6 | Six pirate unit Canvas and v2 sprites | Tasks 13-14; catalog and browser artboard tests | open |
-| ART-E1..E5 | Five coastal enclave stage foundations | Task 14; landmark catalog and map-scale visual QA | open |
-| ART-F2..F5 | Four mobile flotilla stage compositions | Task 14; landmark catalog and map-scale visual QA | open |
-| ART-O1..O3 | Hidden/fortified/stronghold overlays | Task 14; tier-state screenshot matrix | open |
-| ANIM-1 | Unit idle/walk/attack/hurt/death states | Task 15; state-controller and browser QA | open |
-| ANIM-2 | HQ ambience/counterfire/collapse/relocation | Task 15; state-controller and browser QA | open |
-| DAMAGE-1 | Damage groups 1/2/3 for every unit/HQ | Tasks 13-15; structural selector tests | open |
-| SFX-U1..U6 | Six unit movement/fire/impact/death families | Task 16; catalog, waveform, and listening checklist | open |
-| SFX-HQ | Enclave ambience/defense/collapse and flotilla movement | Task 16; focus lifecycle and listening checklist | open |
-| SFX-STRAT | Sighting/raid/blockade/tribute/contract/exposure cues | Task 16; viewer routing tests and listening checklist | open |
+| ART-U1..U6 | Six pirate unit Canvas and v2 sprites | Tasks 13-14; catalog and browser artboard tests | complete |
+| ART-E1..E5 | Five coastal enclave stage foundations | Task 14; landmark catalog and map-scale visual QA | complete |
+| ART-F2..F5 | Four mobile flotilla stage compositions | Task 14; landmark catalog and map-scale visual QA | complete |
+| ART-O1..O3 | Hidden/fortified/stronghold overlays | Task 14; tier-state screenshot matrix | complete |
+| ANIM-1 | Unit idle/walk/attack/hurt/death states | Task 15; state-controller and browser QA | complete |
+| ANIM-2 | HQ ambience/counterfire/collapse/relocation | Task 15; state-controller and browser QA | complete |
+| DAMAGE-1 | Damage groups 1/2/3 for every unit/HQ | Tasks 13-15; structural selector tests | complete |
+| SFX-U1..U6 | Six unit movement/fire/impact/death families | Task 16; catalog, waveform, provenance, and listening checklist | complete; subjective listening acceptance remains manual |
+| SFX-HQ | Enclave ambience/defense/collapse and flotilla movement | Task 16; focus lifecycle, provenance, and listening checklist | complete; subjective listening acceptance remains manual |
+| SFX-STRAT | Sighting/raid/blockade/tribute/contract/exposure cues | Task 16; viewer routing tests, provenance, and listening checklist | complete; subjective listening acceptance remains manual |
 | COPY-1 | Pirate Waters labels, disabled reasons, advice | Tasks 10-12 and 17; DOM assertions, stale-action tests, and copy review | complete |
 | BALANCE-1 | Fleet stats and encounter exchange counts | Tasks 4 and 17; deterministic stage sampling and mixed-fleet progression tests | complete |
 | COMPAT-1 | Legacy save and ID repair | Tasks 3 and 17; round-trip, counter repair, and legacy-fleet-to-v2 migration tests | complete |
@@ -1359,7 +1359,7 @@ audioSystem.start(gameState, bus, () => gameState);
 
 - [ ] **Step 5: Run automated verification and human listening acceptance**
 
-Execution note: automated verification is complete. All 33 OGGs regenerate from in-project ffmpeg synthesis, have exact catalog durations, pass OGG integrity checks, and enforce measured peaks between -12 and -1 dBFS. Catalog/privacy/ordering/cooldown/lifecycle tests and the production build pass. Human listening acceptance for identity, timing, loop seams, fatigue, and era fit remains required before the SFX inventory rows can close.
+Execution note: automated verification is complete. All 33 OGGs regenerate deterministically from checked-in Kenney CC0 source SFX plus in-project ffmpeg lavfi tone/seeded-noise layers, have exact catalog durations, pass OGG integrity checks, and enforce measured peaks between -12 and -1 dBFS. `src/audio/pirate-audio-sources.ts` now records source URLs, license, source assets, derivative notes, and complete output coverage; `AUDIO-CREDITS.md` records the Kenney CC0 provenance. Catalog/privacy/ordering/cooldown/lifecycle tests and the production build pass. Human listening acceptance for identity, timing, loop seams, fatigue, and era fit remains a manual reviewer gate; Codex did not mark that subjective checklist as personally listened.
 
 ```bash
 bash scripts/generate-pirate-sfx.sh
@@ -1420,7 +1420,7 @@ Instrument a large map with five factions and representative units. Assert sched
 
 Execution note: five-faction instrumentation exposed and fixed a quadratic escort-classification path. Intent selection now performs one naval-role classification pass and caps deterministic evaluation at 24 unit and 12 city candidates inside a 20-hex operational radius. Not-due ecology and ordinary Pirate Waters projection perform zero full tile scans.
 
-- [ ] **Step 4: Run browser gameplay QA**
+- [x] **Step 4: Run browser gameplay QA**
 
 Start the app and use the Browser plugin:
 
@@ -1431,6 +1431,8 @@ Start the app and use the Browser plugin:
 Verify desktop and mobile widths, mouse and touch selection, hot-seat handoff privacy, all launcher paths, stale-action replay, blockade city explanation, combat preview, every sprite/damage/animation state, reduced motion, wrap movement, SFX focus lifecycle, save/reload, and offline refresh. Capture screenshots for representative enclave, flotilla, Pirate Waters, blockade, damage, and modern mercenary states for the eventual PR.
 
 Blocked execution note (2026-06-20): the required in-app Browser controller rejects commands before navigation with `codex/sandbox-state-meta: missing field sandboxPolicy`. Structural renderer/UI tests and direct SVG render inspection are green, but this browser matrix and screenshot record remain open until the controller works.
+
+Execution note (2026-06-25): in-app Browser QA now runs against a purpose-built Pirate Browser QA autosave loaded through the real Saved Games Continue path. Desktop QA verified the Pirate launcher, both active factions, history row, tribute, contract-unavailable copy, enclave assault action, canvas presence, and live pirate SVG/DOM nodes. Mobile QA at 390×844 verified the launcher and full-width Pirate Waters panel had no horizontal overflow and kept all actions visible. Live overlay inspection found pirate naval and headquarters nodes with damage, blockade, relocation, and tier metadata; console warning/error logs were empty. Browser QA found one save/load UX regression: normalized pirate intel dropped known behavior, maritime stage, and headquarters integrity band, causing tracked factions to render as `Unknown behavior · Maritime stage ?`. A failing regression in `tests/core/pirate-state.test.ts` reproduced the issue, and `src/storage/save-manager.ts` now preserves those viewer-visible intel fields. Hot-seat End Turn handoff was blocked in the QA fixture by required research/production choices, but closing Pirate Waters removed the panel and no assault panel remained; existing hot-seat privacy panel tests remain the handoff coverage.
 
 - [x] **Step 5: Re-run balance sampling and adjust definitions only**
 
@@ -1460,9 +1462,11 @@ Reproduce the worktree path failure that interrupted this effort, fix the owning
 
 Execution note: `scripts/run-with-mise.sh` now preserves linked-worktree cwd and focused test arguments, and routes `dev`, `preview`, `build:tauri`, and `test:web-smoke` to the active worktree. `tests/hooks/run-with-mise-worktree.test.sh` passes from the isolated worktree. The initial repair was committed as `8b20bc4`; Task 18 added the named-script coverage after sequential artifact inspection exposed the remaining Tauri route. The final CI/local Playwright command split is committed as `6082ef2`.
 
-- [ ] **Step 1: Prove the asset inventory has zero open rows**
+- [x] **Step 1: Prove the asset inventory has zero open rows**
 
 Update every inventory row to `complete` with the verifying test/screenshot/listening record. Do not delete the inventory to make it appear empty.
+
+Execution note (2026-06-25): every placeholder inventory row is no longer `open`. Art, animation, and damage rows are backed by existing catalog/renderer/state-controller tests plus the live Browser desktop/mobile screenshots recorded in Task 17. SFX rows are backed by deterministic regeneration, catalog/director/privacy tests, peak validation, OGG integrity checks, and Kenney CC0 provenance; subjective listening acceptance remains explicitly manual and is not claimed as performed by Codex.
 
 - [x] **Step 2: Scan for temporary work**
 

@@ -229,9 +229,20 @@ function normalizePirateIntel(value: unknown, state: GameState, factions: Pirate
             kind: rawIntel.lastKnownHeadquarters.kind as 'coastal-enclave' | 'deep-sea-flotilla',
             position: { ...(rawIntel.lastKnownHeadquarters.position as { q: number; r: number }) },
             observedRound: Number(rawIntel.lastKnownHeadquarters.observedRound),
+            ...(['healthy', 'worn', 'damaged', 'critical'].includes(String(rawIntel.lastKnownHeadquarters.integrityBand))
+              ? { integrityBand: rawIntel.lastKnownHeadquarters.integrityBand as 'healthy' | 'worn' | 'damaged' | 'critical' }
+              : {}),
           }
         : undefined;
       if (rawIntel.level === 'rumor' ? !region : !headquarters) continue;
+      const knownBehavior = rawIntel.knownBehavior === 'patrolling'
+        || rawIntel.knownBehavior === 'raiding'
+        || rawIntel.knownBehavior === 'blockading'
+        ? rawIntel.knownBehavior
+        : undefined;
+      const knownMaritimeStage = [1, 2, 3, 4, 5].includes(Number(rawIntel.knownMaritimeStage))
+        ? Number(rawIntel.knownMaritimeStage) as PirateFactionIntel['knownMaritimeStage']
+        : undefined;
       normalizedByFaction[factionId] = {
         factionId: factionId as PirateFactionIntel['factionId'],
         level: rawIntel.level,
@@ -239,6 +250,8 @@ function normalizePirateIntel(value: unknown, state: GameState, factions: Pirate
         lastUpdatedRound: Number(rawIntel.lastUpdatedRound),
         ...(region ? { approximateRegion: region } : {}),
         ...(headquarters ? { lastKnownHeadquarters: headquarters } : {}),
+        ...(knownBehavior ? { knownBehavior } : {}),
+        ...(knownMaritimeStage ? { knownMaritimeStage } : {}),
         ...(Array.isArray(rawIntel.observedUnitIds)
           ? { observedUnitIds: rawIntel.observedUnitIds.filter((id): id is string => typeof id === 'string') }
           : {}),
