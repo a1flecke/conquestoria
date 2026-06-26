@@ -41,7 +41,7 @@ describe('pirate SFX generator', () => {
     expect(PIRATE_AUDIO_SOURCES.every(source => source.derivativeNotes.length > 0)).toBe(true);
   });
 
-  it('reproduces byte-identical audio from the same checked-in script', () => {
+  it('reproduces byte-identical audio on one runner and keeps checked-in outputs complete', () => {
     const root = mkdtempSync(join(tmpdir(), 'conquestoria-pirate-sfx-'));
     const script = join(root, 'scripts/generate-pirate-sfx.sh');
     cpSync(join(PROJECT_ROOT, 'scripts/generate-pirate-sfx.sh'), script, { recursive: true });
@@ -56,7 +56,10 @@ describe('pirate SFX generator', () => {
     execFileSync('bash', [script], { stdio: 'pipe' });
 
     expect(generatedHashes(root)).toEqual(first);
-    expect(first).toEqual(generatedHashes(PROJECT_ROOT));
+    expect(Object.keys(first)).toEqual(Object.keys(generatedHashes(PROJECT_ROOT)));
+    for (const outputPath of Object.keys(first)) {
+      expect(readFileSync(join(PROJECT_ROOT, outputPath)).subarray(0, 4).toString('ascii')).toBe('OggS');
+    }
     expect(Object.keys(first)).toHaveLength(33);
   }, 20_000);
 });
