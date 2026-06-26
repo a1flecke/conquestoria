@@ -166,6 +166,41 @@ describe('pirate state', () => {
     expect(normalized.pirates.intelByCiv.player['pirate-1'].plannedRelocationDirection).toBe('south-east');
   });
 
+  it('preserves player-visible pirate intel details across save normalization', () => {
+    const state = createNewGame(undefined, 'pirate-intel-detail-save', 'small') as any;
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'blockading', maritimeStage: 4,
+      notoriety: 60, shipIds: ['ship-1'],
+      headquarters: { kind: 'coastal-enclave', position: { q: 4, r: 4 }, integrity: 35, maxIntegrity: 100 },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+    state.pirates.intelByCiv.player = {
+      'pirate-1': {
+        factionId: 'pirate-1', level: 'tracked', discoveredRound: 2, lastUpdatedRound: 8,
+        approximateRegion: { center: { q: 4, r: 4 }, radius: 3 },
+        lastKnownHeadquarters: {
+          kind: 'coastal-enclave', position: { q: 4, r: 4 }, observedRound: 8,
+          integrityBand: 'damaged',
+        },
+        knownBehavior: 'blockading',
+        knownMaritimeStage: 4,
+        observedUnitIds: ['ship-1'],
+        plannedRelocationDirection: 'north-east',
+      },
+    };
+
+    const normalized = normalizeLoadedStateForTest(state);
+    expect(normalized.pirates.intelByCiv.player['pirate-1']).toMatchObject({
+      knownBehavior: 'blockading',
+      knownMaritimeStage: 4,
+      observedUnitIds: ['ship-1'],
+      plannedRelocationDirection: 'north-east',
+      lastKnownHeadquarters: { integrityBand: 'damaged' },
+    });
+  });
+
   it('resolves a missing flotilla flagship into one historical destruction record across repeated normalization', () => {
     const state = createNewGame(undefined, 'pirate-missing-flagship', 'small') as any;
     state.pirates = createEmptyPirateState();

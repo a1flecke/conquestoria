@@ -5,6 +5,7 @@ export interface PirateAudioSource {
   sourceUrl: string;
   license: 'CC0' | 'CC-BY' | 'in-project';
   creditText: string;
+  sourceAssetFiles?: string[];
   localFiles: string[];
   derivativeNotes: string;
 }
@@ -21,12 +22,29 @@ export const PIRATE_AUDIO_FILES = [
 ] as const;
 
 export const PIRATE_AUDIO_SOURCES: PirateAudioSource[] = [{
-  id: 'conquestoria-pirate-synthesis-v1',
-  title: 'Conquestoria Pirate Sound Family',
-  creator: 'Conquestoria project',
-  sourceUrl: 'scripts/generate-pirate-sfx.sh',
-  license: 'in-project',
-  creditText: 'Original procedural synthesis created for Conquestoria.',
+  id: 'kenney-impact-rpg-audio-cc0',
+  title: 'Kenney Impact Sounds and RPG Audio',
+  creator: 'Kenney',
+  sourceUrl: 'https://kenney.nl/assets/impact-sounds and https://kenney.nl/assets/rpg-audio',
+  license: 'CC0',
+  creditText: 'Impact Sounds and RPG Audio by Kenney, CC0 1.0 Universal.',
+  sourceAssetFiles: [
+    'audio/sfx/naval-move-step.ogg',
+    'audio/sfx/galley-attack-swing.ogg',
+    'audio/sfx/galley-attack-impact.ogg',
+    'audio/sfx/trireme-attack-swing.ogg',
+    'audio/sfx/trireme-attack-impact.ogg',
+    'audio/sfx/catapult-siege-fire.ogg',
+    'audio/sfx/catapult-siege-impact.ogg',
+    'audio/sfx/ballista-siege-fire.ogg',
+    'audio/sfx/ballista-siege-impact.ogg',
+    'audio/sfx/carrack-death.ogg',
+    'audio/sfx/galleon-death.ogg',
+    'audio/sfx/steamship-death.ogg',
+    'audio/sfx/transport-death.ogg',
+    'audio/sfx/transport-load.ogg',
+    'audio/sfx/transport-unload.ogg',
+  ],
   localFiles: [...PIRATE_AUDIO_FILES],
-  derivativeNotes: 'Generated from ffmpeg lavfi tone and noise sources; no external recordings.',
+  derivativeNotes: 'Layered, filtered, and re-encoded by scripts/generate-pirate-sfx.sh with deterministic in-project lavfi tones and seeded noise for pirate-specific movement, cannon, hull impact, collapse, ambience, and strategic cues.',
 }];

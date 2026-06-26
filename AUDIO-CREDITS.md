@@ -184,7 +184,13 @@ All Stage 2H natural wonder audio is by Eric Matyas / Soundimage.org and convert
 
 ## Pirate Audio
 
-All 33 pirate movement, fire, impact, death, headquarters, and strategic cue files are original in-project procedural synthesis. They are generated from ffmpeg `lavfi` tone and noise sources by `scripts/generate-pirate-sfx.sh`; no external recordings or third-party samples are used. Exact output coverage and provenance are recorded in `src/audio/pirate-audio-sources.ts`.
+All 33 pirate movement, fire, impact, death, headquarters, and strategic cue files are deterministic derivatives of existing Kenney CC0 source SFX already carried in `public/audio/sfx/`.
+`scripts/generate-pirate-sfx.sh` layers those source files with in-project ffmpeg `lavfi` tone and seeded noise, then filters and re-encodes the results to OGG Vorbis. Exact output coverage, source file paths, license, and derivative notes are recorded in `src/audio/pirate-audio-sources.ts`.
+
+Source (Impact Sounds): https://kenney.nl/assets/impact-sounds
+Source (RPG Audio):     https://kenney.nl/assets/rpg-audio
+License: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
+Author: Kenney (kenney.nl)
 
 - `audio/wonders/great-volcano-stinger.ogg` — "Underwater Rumble" by Eric Matyas, Soundimage.org.
   Source: https://soundimage.org/wp-content/uploads/2019/11/Underwater-Rumble.mp3
