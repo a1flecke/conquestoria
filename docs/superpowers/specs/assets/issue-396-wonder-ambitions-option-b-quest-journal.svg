@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1050" viewBox="0 0 1440 1050">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#10111f"/>
+      <stop offset="1" stop-color="#1d160c"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#000" flood-opacity=".40"/>
+    </filter>
+    <style>
+      .title { font: 800 39px Inter, ui-sans-serif, system-ui, sans-serif; fill: #fff3d1; }
+      .sub { font: 18px Inter, ui-sans-serif, system-ui, sans-serif; fill: #cfc7b5; }
+      .h { font: 800 23px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f4d188; }
+      .body { font: 16px Inter, ui-sans-serif, system-ui, sans-serif; fill: #e8e0cf; }
+      .small { font: 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #bdb4a2; }
+      .chip { font: 700 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f8f1df; }
+      .button { font: 800 17px Inter, ui-sans-serif, system-ui, sans-serif; fill: #23180a; }
+    </style>
+  </defs>
+  <rect width="1440" height="1050" fill="url(#bg)"/>
+  <rect x="58" y="48" width="1324" height="954" rx="30" fill="rgba(13,15,25,.90)" stroke="rgba(232,193,112,.22)" filter="url(#shadow)"/>
+
+  <text x="98" y="116" class="title">📜 Wonder Ambitions Journal</text>
+  <text x="98" y="151" class="sub">Turn city goals into a story of discovery, rivalry, and reward.</text>
+  <rect x="1204" y="78" width="106" height="46" rx="12" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.20)"/>
+  <text x="1234" y="107" class="body">Close</text>
+
+  <rect x="98" y="194" width="806" height="690" rx="26" fill="rgba(255,255,255,.045)" stroke="rgba(232,193,112,.28)"/>
+  <text x="138" y="250" class="h">🔮 Oracle of Delphi</text>
+  <text x="138" y="285" class="body">A sacred hill calls for omens. Complete the rites, then race the world to raise the temple.</text>
+
+  <line x1="168" y1="346" x2="168" y2="646" stroke="rgba(232,193,112,.38)" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="168" cy="354" r="19" fill="#7ad88f"/>
+  <text x="210" y="360" class="body">Discovered a natural wonder</text>
+  <text x="210" y="385" class="small">The oracle’s myth has a place in the world.</text>
+  <circle cx="168" cy="454" r="19" fill="#7ad88f"/>
+  <text x="210" y="460" class="body">Shrine consecrated in Athens</text>
+  <text x="210" y="485" class="small">The city has a ritual foundation.</text>
+  <circle cx="168" cy="554" r="19" fill="#d7ad58"/>
+  <text x="210" y="560" class="body">Pilgrimages almost complete</text>
+  <text x="210" y="585" class="small">2 turns of research remain before construction unlocks.</text>
+  <circle cx="168" cy="654" r="19" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.34)" stroke-width="2"/>
+  <text x="210" y="660" class="body">Begin construction race</text>
+  <text x="210" y="685" class="small">Build before rivals finish. Recovery applies if you lose.</text>
+
+  <rect x="138" y="728" width="292" height="52" rx="26" fill="#e8c170"/>
+  <text x="186" y="761" class="button">Open Tech Path</text>
+  <rect x="452" y="728" width="244" height="52" rx="26" fill="rgba(255,255,255,.08)" stroke="rgba(232,193,112,.45)"/>
+  <text x="500" y="761" class="body">View reward</text>
+
+  <rect x="944" y="194" width="398" height="310" rx="24" fill="rgba(232,193,112,.08)" stroke="rgba(232,193,112,.30)"/>
+  <text x="978" y="246" class="h">Current chapter</text>
+  <rect x="978" y="276" width="168" height="34" rx="17" fill="rgba(215,173,88,.20)" stroke="rgba(215,173,88,.55)"/>
+  <text x="1000" y="298" class="chip">Quest in progress</text>
+  <text x="978" y="350" class="body">Next: finish Pilgrimages.</text>
+  <text x="978" y="385" class="body">Why: unlocks Oracle construction.</text>
+  <text x="978" y="420" class="body">Risk: no rival construction detected.</text>
+
+  <rect x="944" y="536" width="398" height="348" rx="24" fill="rgba(255,255,255,.045)" stroke="rgba(255,255,255,.14)"/>
+  <text x="978" y="588" class="h">Why this helps</text>
+  <text x="978" y="632" class="body">• Explains what to do next.</text>
+  <text x="978" y="670" class="body">• Makes quests feel like ambitions.</text>
+  <text x="978" y="708" class="body">• Great for onboarding and flavor.</text>
+  <text x="978" y="770" class="small">Tradeoff: less compact for players scanning many wonders.</text>
+</svg>
