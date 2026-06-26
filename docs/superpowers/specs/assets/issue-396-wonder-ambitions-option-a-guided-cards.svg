@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1050" viewBox="0 0 1440 1050">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.58" stop-color="#141629"/>
+      <stop offset="1" stop-color="#20170d"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3d88b"/>
+      <stop offset="1" stop-color="#d69d38"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity="0.42"/>
+    </filter>
+    <style>
+      .title { font: 700 40px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f7eedc; }
+      .subtitle { font: 18px Inter, ui-sans-serif, system-ui, sans-serif; fill: #cfc6b3; }
+      .small { font: 15px Inter, ui-sans-serif, system-ui, sans-serif; fill: #cfc6b3; }
+      .tiny { font: 13px Inter, ui-sans-serif, system-ui, sans-serif; fill: #b9b0a1; }
+      .section { font: 700 20px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f6dfaa; }
+      .cardTitle { font: 800 28px Inter, ui-sans-serif, system-ui, sans-serif; fill: #fff7e6; }
+      .label { font: 700 13px Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; fill: #2a1f0d; }
+      .chipText { font: 700 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f7eedc; }
+      .button { font: 800 17px Inter, ui-sans-serif, system-ui, sans-serif; fill: #20160a; }
+      .mutedLine { stroke: rgba(255,255,255,.16); stroke-width: 1; }
+      .done { fill: #7ad88f; }
+      .pending { fill: #d7ad58; }
+      .blocked { fill: #e07272; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="1050" fill="url(#bg)"/>
+  <rect x="52" y="42" width="1336" height="966" rx="28" fill="rgba(15,15,25,.86)" stroke="rgba(232,193,112,.28)" filter="url(#softShadow)"/>
+
+  <text x="92" y="102" class="title">🏛️ Legendary Wonders</text>
+  <text x="92" y="138" class="subtitle">Athens · choose a wonder ambition with clear next steps</text>
+  <rect x="1188" y="70" width="128" height="48" rx="12" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.22)"/>
+  <text x="1229" y="100" class="small">Close</text>
+
+  <rect x="92" y="172" width="1256" height="82" rx="18" fill="rgba(232,193,112,.10)" stroke="rgba(232,193,112,.28)"/>
+  <text x="122" y="207" class="section">Best move right now</text>
+  <text x="122" y="232" class="small">Start the Oracle: all quest steps are complete, reward is immediate, and no rival is ahead.</text>
+  <rect x="1014" y="191" width="282" height="44" rx="22" fill="url(#gold)"/>
+  <text x="1054" y="219" class="button">Start Construction</text>
+
+  <rect x="92" y="288" width="786" height="312" rx="22" fill="rgba(255,255,255,.065)" stroke="rgba(232,193,112,.45)"/>
+  <rect x="92" y="288" width="8" height="312" rx="4" fill="#e8c170"/>
+  <text x="128" y="334" class="cardTitle">🔮 Oracle of Delphi</text>
+  <rect x="562" y="306" width="136" height="34" rx="17" fill="rgba(122,216,143,.20)" stroke="rgba(122,216,143,.55)"/>
+  <text x="582" y="328" class="chipText">Ready to build</text>
+  <rect x="712" y="306" width="122" height="34" rx="17" fill="rgba(232,193,112,.20)" stroke="rgba(232,193,112,.55)"/>
+  <text x="734" y="328" class="chipText">Best fit</text>
+
+  <text x="128" y="375" class="small">Reward: +1 science from every shrine and faster prophet discoveries.</text>
+  <text x="128" y="410" class="section">Quest progress</text>
+  <circle cx="151" cy="452" r="13" class="done"/>
+  <text x="177" y="458" class="small">Discover a natural wonder</text>
+  <circle cx="151" cy="493" r="13" class="done"/>
+  <text x="177" y="499" class="small">Build a shrine in this city</text>
+  <circle cx="151" cy="534" r="13" class="done"/>
+  <text x="177" y="540" class="small">Reach Pilgrimages</text>
+  <rect x="522" y="424" width="296" height="128" rx="16" fill="rgba(0,0,0,.18)" stroke="rgba(255,255,255,.11)"/>
+  <text x="546" y="458" class="section">At a glance</text>
+  <text x="546" y="488" class="small">⚒ 220 production</text>
+  <text x="546" y="519" class="small">🏁 Race not started elsewhere</text>
+
+  <rect x="128" y="566" width="246" height="44" rx="22" fill="url(#gold)"/>
+  <text x="164" y="594" class="button">Start Construction</text>
+  <text x="398" y="594" class="tiny">Keeps current queue after the wonder.</text>
+
+  <rect x="916" y="288" width="432" height="312" rx="22" fill="rgba(255,255,255,.045)" stroke="rgba(255,255,255,.14)"/>
+  <text x="946" y="332" class="section">Why this helps</text>
+  <text x="946" y="372" class="small">• Status chip is visible before reading.</text>
+  <text x="946" y="408" class="small">• Quest steps look complete/incomplete.</text>
+  <text x="946" y="444" class="small">• CTA is near the explanation.</text>
+  <text x="946" y="480" class="small">• Player sees race pressure separately.</text>
+  <text x="946" y="536" class="tiny">Recommended direction: focused, readable, mobile-friendly.</text>
+
+  <text x="92" y="660" class="section">Other ambitions in this city</text>
+  <rect x="92" y="688" width="386" height="208" rx="18" fill="rgba(255,255,255,.045)" stroke="rgba(255,255,255,.13)"/>
+  <text x="122" y="728" class="section">🌊 Grand Canal</text>
+  <rect x="122" y="748" width="152" height="30" rx="15" fill="rgba(215,173,88,.20)" stroke="rgba(215,173,88,.50)"/>
+  <text x="141" y="768" class="chipText">Quest in progress</text>
+  <text x="122" y="808" class="small">2/3 steps complete</text>
+  <text x="122" y="840" class="tiny">Pending: connect two trade routes</text>
+
+  <rect x="526" y="688" width="386" height="208" rx="18" fill="rgba(255,255,255,.035)" stroke="rgba(255,255,255,.11)"/>
+  <text x="556" y="728" class="section">📚 World Archive</text>
+  <rect x="556" y="748" width="134" height="30" rx="15" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.18)"/>
+  <text x="576" y="768" class="chipText">Available soon</text>
+  <text x="556" y="808" class="small">Missing: Printing, Diplomats</text>
+  <text x="556" y="840" class="tiny">Reward: stronger research archives</text>
+
+  <rect x="962" y="688" width="386" height="208" rx="18" fill="rgba(255,255,255,.035)" stroke="rgba(255,255,255,.11)"/>
+  <text x="992" y="728" class="section">🗿 Colossus</text>
+  <rect x="992" y="748" width="98" height="30" rx="15" fill="rgba(224,114,114,.18)" stroke="rgba(224,114,114,.45)"/>
+  <text x="1014" y="768" class="chipText">Blocked</text>
+  <text x="992" y="808" class="small">Missing: coastal harbor</text>
+  <text x="992" y="840" class="tiny">Move to a coastal city to pursue.</text>
+</svg>
