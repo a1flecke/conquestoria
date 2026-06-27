@@ -179,37 +179,19 @@ function createTechNode(
     onQueueResearch: (techId: string) => void;
   },
 ): HTMLButtonElement {
-  let background = 'rgba(255,255,255,0.05)';
-  let border = 'rgba(255,255,255,0.12)';
-  let opacity = '0.62';
-
-  if (node.state === 'completed') {
-    background = 'rgba(107,155,75,0.28)'; border = '#6b9b4b'; opacity = '1';
-  } else if (node.state === 'current') {
-    background = 'rgba(232,193,112,0.22)'; border = '#e8c170'; opacity = '1';
-  } else if (node.state === 'queued') {
-    background = 'rgba(100,170,255,0.18)'; border = 'rgba(100,170,255,0.55)'; opacity = '1';
-  } else if (node.state === 'available') {
-    background = 'rgba(255,255,255,0.11)'; border = 'rgba(255,255,255,0.36)'; opacity = '1';
-  } else if (node.state === 'next-layer') {
-    background = 'rgba(232,193,112,0.1)'; border = 'rgba(232,193,112,0.28)'; opacity = '0.88';
-  }
-  if (opts.isFocused || opts.isSelected) {
-    border = '#f0d48a';
-    background = node.state === 'completed' ? 'rgba(107,155,75,0.34)' : 'rgba(232,193,112,0.18)';
-  }
+  const visualStyle = getTechNodeVisualStyle(node, opts.isFocused || opts.isSelected);
 
   const item = document.createElement('button');
   item.style.cssText = [
-    `background:${background}`,
-    `border:1px solid ${border}`,
+    `background:${visualStyle.background}`,
+    `border:1px solid ${visualStyle.border}`,
     'border-radius:8px',
     'color:white',
     'cursor:pointer',
     'display:block',
     'font:inherit',
     'min-height:84px',
-    'opacity:' + opacity,
+    `opacity:${visualStyle.opacity}`,
     'padding:10px',
     'text-align:left',
     'width:190px',
@@ -221,9 +203,7 @@ function createTechNode(
   item.dataset.techState = node.state;
   item.dataset.track = node.track;
   item.dataset.era = String(node.era);
-  if (opts.isFocused) item.dataset.focused = 'true';
-  if (opts.isSelected) item.dataset.selected = 'true';
-  if (opts.isPath) item.dataset.path = 'selected';
+  updateTechNodeSelection(item, node, opts.isFocused, opts.isSelected, opts.isPath);
 
   const title = document.createElement('div');
   title.style.cssText = 'font-weight:bold;font-size:13px;line-height:1.2;';
@@ -251,6 +231,53 @@ function createTechNode(
   });
 
   return item;
+}
+
+function getTechNodeVisualStyle(
+  node: TechProgressionNode,
+  isEmphasized: boolean,
+): { background: string; border: string; opacity: string } {
+  let background = 'rgba(255,255,255,0.05)';
+  let border = 'rgba(255,255,255,0.12)';
+  let opacity = '0.62';
+
+  if (node.state === 'completed') {
+    background = 'rgba(107,155,75,0.28)'; border = '#6b9b4b'; opacity = '1';
+  } else if (node.state === 'current') {
+    background = 'rgba(232,193,112,0.22)'; border = '#e8c170'; opacity = '1';
+  } else if (node.state === 'queued') {
+    background = 'rgba(100,170,255,0.18)'; border = 'rgba(100,170,255,0.55)'; opacity = '1';
+  } else if (node.state === 'available') {
+    background = 'rgba(255,255,255,0.11)'; border = 'rgba(255,255,255,0.36)'; opacity = '1';
+  } else if (node.state === 'next-layer') {
+    background = 'rgba(232,193,112,0.1)'; border = 'rgba(232,193,112,0.28)'; opacity = '0.88';
+  }
+  if (isEmphasized) {
+    border = '#f0d48a';
+    background = node.state === 'completed' ? 'rgba(107,155,75,0.34)' : 'rgba(232,193,112,0.18)';
+  }
+
+  return { background, border, opacity };
+}
+
+function updateTechNodeSelection(
+  item: HTMLElement,
+  node: TechProgressionNode,
+  isFocused: boolean,
+  isSelected: boolean,
+  isPath: boolean,
+): void {
+  const visualStyle = getTechNodeVisualStyle(node, isFocused || isSelected);
+  item.style.background = visualStyle.background;
+  item.style.borderColor = visualStyle.border;
+  item.style.opacity = visualStyle.opacity;
+
+  if (isFocused) item.dataset.focused = 'true';
+  else delete item.dataset.focused;
+  if (isSelected) item.dataset.selected = 'true';
+  else delete item.dataset.selected;
+  if (isPath) item.dataset.path = 'selected';
+  else delete item.dataset.path;
 }
 
 function renderInspector(
@@ -621,6 +648,53 @@ export function createTechPanel(
     contentContainer.style.cssText = `position:relative;width:${contentW}px;height:${contentH}px;`;
     contentContainer.appendChild(edgeLayer);
 
+    const updateSelection = (techId: string) => {
+      selectedTechId = techId;
+      const selectedProgression = buildTechProgressionView(civ.techState, {
+        sciencePerTurn,
+        zoom,
+        selectedTechId,
+      });
+
+      mapWrap.querySelectorAll<HTMLElement>('[data-tech-id]').forEach(card => {
+        const cardTechId = card.dataset.techId;
+        if (!cardTechId) return;
+        const cardNode = selectedProgression.nodesById.get(cardTechId);
+        if (!cardNode) return;
+
+        updateTechNodeSelection(
+          card,
+          cardNode,
+          selectedProgression.focusTechId === cardTechId,
+          selectedTechId === cardTechId,
+          selectedProgression.selectedPathIds.has(cardTechId),
+        );
+      });
+
+      edgeLayer.querySelectorAll<SVGPathElement>('path').forEach(path => {
+        const fromId = path.dataset.edgeFrom;
+        const toId = path.dataset.edgeTo;
+        const isSelectedPath = Boolean(
+          fromId
+          && toId
+          && selectedProgression.selectedPathIds.has(fromId)
+          && selectedProgression.selectedPathIds.has(toId),
+        );
+        if (isSelectedPath) path.dataset.edgePath = 'selected';
+        else delete path.dataset.edgePath;
+        path.setAttribute('stroke-width', isSelectedPath ? '3' : '1.5');
+      });
+
+      renderInspector(
+        inspector,
+        selectedProgression.nodesById.get(techId),
+        civ,
+        selectedProgression.queueableIds,
+        selectedProgression.nextStepId,
+        queueResearchAndReopen,
+      );
+    };
+
     // 5. Era boundary markers
     const eraMinX = new Map<number, number>();
     for (const node of visibleNodes) {
@@ -648,7 +722,7 @@ export function createTechPanel(
         isFocused: progression.focusTechId === node.tech.id,
         isSelected: selectedTechId === node.tech.id,
         isPath: progression.selectedPathIds.has(node.tech.id),
-        onSelect: (techId) => { selectedTechId = techId; renderTree(); },
+        onSelect: updateSelection,
         onQueueResearch: queueResearchAndReopen,
       });
       card.style.position = 'absolute';

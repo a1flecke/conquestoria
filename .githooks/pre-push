@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -eu
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Project checks inspect the active and main worktrees. Do not leak the
+# repository-local environment that Git exports to hooks into those commands.
+for variable in $(git rev-parse --local-env-vars); do
+  unset "$variable"
+done
+
+cd "$REPO_ROOT"
+
+# Re-run the complete local gate at the last possible point. A commit can be
+# created with hooks disabled or from tooling that does not run Claude hooks.
+./scripts/pre-commit-checks.sh

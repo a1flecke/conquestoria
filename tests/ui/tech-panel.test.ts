@@ -195,10 +195,12 @@ describe('tech-panel', () => {
     });
 
     panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.click();
-    document.body.querySelector<HTMLElement>('[data-tech-id="medicine"]')?.click();
+    const medicineBeforeSelection = document.body.querySelector<HTMLElement>('[data-tech-id="medicine"]');
+    medicineBeforeSelection?.click();
 
     expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Philosophy');
     expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Pottery');
+    expect(document.body.querySelector('[data-tech-id="medicine"]')).toBe(medicineBeforeSelection);
     expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-path')).toBe('selected');
     expect(document.body.querySelector('[data-action="queue-selected-tech"]')).toBeFalsy();
     expect(queued).toEqual([]);
