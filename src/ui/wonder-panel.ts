@@ -149,21 +149,6 @@ export function createWonderPanel(
   const civilization = state.civilizations[state.currentPlayer];
   appendText(shell, 'p', `${civilization?.name ?? state.currentPlayer} · ${city?.name ?? cityId}`);
 
-  const appendIntroSection = (heading: string, body: string) => {
-    const section = document.createElement('section');
-    section.style.cssText = 'margin-bottom:10px;';
-    appendText(section, 'h3', heading);
-    appendText(section, 'p', body);
-    shell.appendChild(section);
-  };
-
-  appendIntroSection(
-    'Eligibility',
-    'Required techs, resources, and city conditions must still be true when construction starts.',
-  );
-  appendIntroSection('Quest', 'Complete every step before construction unlocks.');
-  appendIntroSection('Construction Race', 'Losing returns 25% coins and 25% carryover.');
-
   const cityEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, cityId);
   const rivalIntel = getLegendaryWonderIntelForViewer(state, state.currentPlayer)
     .filter((entry): entry is LegendaryWonderStartedIntelEntry => entry.kind === 'started');
