@@ -90,8 +90,9 @@ class MockDocument {
 
 export function collectText(node: unknown): string {
   const current = node as { textContent?: string; children?: ArrayLike<unknown> };
-  const childText = Array.from(current.children ?? []).map(collectText);
-  return [current.textContent, ...childText].filter(Boolean).join(' ');
+  const children = Array.from(current.children ?? []);
+  if (children.length === 0) return current.textContent ?? '';
+  return children.map(collectText).filter(Boolean).join(' ');
 }
 
 export function makeWonderPanelFixture(): { container: HTMLElement; city: City; state: GameState } {
