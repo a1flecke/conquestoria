@@ -822,6 +822,118 @@ export const BUILDINGS: Record<string, Building> = {
     uniquePerEmpire: true, nationalProject: { homeEra: 10 },
     civYieldBonus: { science: 6 },
   },
+
+  // ─── Era 11 regular buildings ───────────────────────────────────────────────
+  helicopter_base: {
+    id: 'helicopter_base', name: 'Helicopter Base', category: 'military',
+    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 210,
+    description: 'Dedicated operations base for attack helicopter wings. +3 production per turn.',
+    techRequired: 'helicopter-warfare',
+    pacing: { band: 'power-spike', role: 'air-military-production', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
+  },
+  missile_silo: {
+    id: 'missile_silo', name: 'Missile Silo', category: 'military',
+    yields: { food: 0, production: 4, gold: 0, science: 0 }, productionCost: 215,
+    description: 'Hardened underground silo housing intercontinental ballistic missiles. +4 production per turn. Acts as strategic deterrent.',
+    techRequired: 'icbm-development',
+    pacing: { band: 'power-spike', role: 'strategic-deterrent', impact: 1.5, scope: 'city', snowball: 1.4, urgency: 1.2, situationality: 1.2, unlockBreadth: 1 },
+  },
+  semiconductor_fab: {
+    id: 'semiconductor_fab', name: 'Semiconductor Fabricator', category: 'science',
+    yields: { food: 0, production: 1, gold: 0, science: 2 }, productionCost: 200,
+    description: 'Clean-room facility producing transistor wafers and integrated circuits. +2 science, +1 production per turn.',
+    techRequired: 'integrated-circuits',
+    pacing: { band: 'infrastructure', role: 'microelectronics-science', impact: 1.3, scope: 'city', snowball: 1.2, urgency: 1.0, situationality: 1.1, unlockBreadth: 1 },
+  },
+  genetic_research_lab: {
+    id: 'genetic_research_lab', name: 'Genetic Research Lab', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 4 }, productionCost: 210,
+    description: 'Molecular biology laboratory studying DNA, proteins, and cellular mechanics. +4 science per turn.',
+    techRequired: 'molecular-biology',
+    pacing: { band: 'power-spike', role: 'late-life-sciences', impact: 1.5, scope: 'city', snowball: 1.4, urgency: 1.1, situationality: 1.0, unlockBreadth: 1 },
+  },
+  environmental_agency: {
+    id: 'environmental_agency', name: 'Environmental Agency', category: 'food',
+    yields: { food: 3, production: 0, gold: 1, science: 0 }, productionCost: 200,
+    description: 'Government bureau regulating pollution and protecting natural resources. +3 food, +1 gold per turn.',
+    techRequired: 'civil-rights-legislation',
+    pacing: { band: 'infrastructure', role: 'ecology-growth', impact: 1.3, scope: 'city', snowball: 1.2, urgency: 1.0, situationality: 1.1, unlockBreadth: 1 },
+  },
+  space_center: {
+    id: 'space_center', name: 'Space Center', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 5 }, productionCost: 220,
+    description: 'Launch complex and research campus for orbital programs. +5 science per turn. Prestige structure of the space age.',
+    techRequired: 'space-exploration',
+    pacing: { band: 'marquee', role: 'space-science-apex', impact: 1.6, scope: 'city', snowball: 1.5, urgency: 1.2, situationality: 1.0, unlockBreadth: 1 },
+  },
+  agricultural_station: {
+    id: 'agricultural_station', name: 'Agricultural Research Station', category: 'food',
+    yields: { food: 4, production: 0, gold: 0, science: 0 }, productionCost: 210,
+    description: 'Research farm testing high-yield crop varieties and modern irrigation. +4 food per turn.',
+    techRequired: 'green-revolution-crops',
+    pacing: { band: 'power-spike', role: 'green-revolution-growth', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.0, situationality: 1.0, unlockBreadth: 1 },
+  },
+  transplant_hospital: {
+    id: 'transplant_hospital', name: 'Transplant Hospital', category: 'food',
+    yields: { food: 3, production: 0, gold: 0, science: 0 }, productionCost: 210,
+    description: 'Specialist surgical facility performing organ transplants and advanced procedures. +3 food per turn.',
+    techRequired: 'organ-transplantation',
+    pacing: { band: 'power-spike', role: 'late-medical-growth', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.0, situationality: 1.0, unlockBreadth: 1 },
+  },
+  container_port: {
+    id: 'container_port', name: 'Container Port', category: 'economy',
+    yields: { food: 0, production: 0, gold: 5, science: 0 }, productionCost: 200,
+    description: 'Deep-water port with intermodal container facilities. +5 gold per turn. Standardised steel boxes slash freight costs. Requires coastal city.',
+    techRequired: 'container-shipping',
+    coastalRequired: true,
+    pacing: { band: 'infrastructure', role: 'coastal-trade-gold', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.0, situationality: 1.4, unlockBreadth: 1 },
+  },
+  research_network: {
+    id: 'research_network', name: 'Research Network', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 4 }, productionCost: 210,
+    description: 'University-linked packet-switched grid connecting research institutions. +4 science per turn. Early internet accelerates collaboration.',
+    techRequired: 'arpanet',
+    pacing: { band: 'power-spike', role: 'internet-science', impact: 1.5, scope: 'city', snowball: 1.4, urgency: 1.1, situationality: 1.0, unlockBreadth: 1 },
+  },
+  surveillance_agency: {
+    id: 'surveillance_agency', name: 'Surveillance Agency', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 1, science: 2 }, productionCost: 200,
+    description: 'Signals intelligence bureau monitoring communications via satellite intercepts. +2 science, +1 gold per turn. Enemy spy missions -15% success.',
+    techRequired: 'satellite-surveillance',
+    pacing: { band: 'infrastructure', role: 'signals-intel-science', impact: 1.3, scope: 'city', snowball: 1.2, urgency: 1.0, situationality: 1.3, unlockBreadth: 1 },
+  },
+
+  // ─── Era 11 national projects ────────────────────────────────────────────────
+  arms_control_treaty: {
+    id: 'arms_control_treaty', name: 'Arms Control Treaty', category: 'economy',
+    // Single key: gold 5 ≤ 9 (era 7+ ceiling) ✓
+    yields: { food: 0, production: 0, gold: 5, science: 0 }, productionCost: 210,
+    description: 'Superpower arms limitation agreement. +5 gold empire-wide. Diplomatic prestige reduces tensions globally.',
+    techRequired: 'arms-control-negotiations',
+    pacing: { band: 'power-spike', role: 'national-project', impact: 1.4, scope: 'empire', snowball: 1.3, urgency: 1.0, situationality: 1.1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 11 },
+    civYieldBonus: { gold: 5 },
+  },
+  green_revolution_program: {
+    id: 'green_revolution_program', name: 'Green Revolution Program', category: 'food',
+    // Single key: food 5 ≤ 9 (era 7+ ceiling) ✓
+    yields: { food: 5, production: 0, gold: 0, science: 0 }, productionCost: 210,
+    description: 'Empire-wide adoption of high-yield crop strains and modern irrigation. +5 food empire-wide.',
+    techRequired: 'green-revolution-crops',
+    pacing: { band: 'power-spike', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.1, situationality: 1.0, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 11 },
+    civYieldBonus: { food: 5 },
+  },
+  strategic_air_command: {
+    id: 'strategic_air_command', name: 'Strategic Air Command', category: 'military',
+    // Single key: production 6 ≤ 9 (era 7+ ceiling) ✓
+    yields: { food: 0, production: 6, gold: 0, science: 0 }, productionCost: 215,
+    description: 'Unified command structure for intercontinental nuclear and conventional air forces. +6 production empire-wide.',
+    techRequired: 'icbm-development',
+    pacing: { band: 'power-spike', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.2, situationality: 1.2, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 11 },
+    civYieldBonus: { production: 6 },
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -862,6 +974,9 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'air-superiority', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'carrier',             name: 'Carrier',             cost: 220, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-projection', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
+  // Era 11 units
+  { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -1139,6 +1254,25 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   manhattan_project: '💣',
   postwar_reconstruction: '🏗️',
   space_program_initiative: '🚀',
+  // era 11 regular buildings
+  helicopter_base: '🚁',
+  missile_silo: '🚀',
+  semiconductor_fab: '💻',
+  genetic_research_lab: '🔬',
+  environmental_agency: '🌿',
+  space_center: '🛸',
+  agricultural_station: '🌾',
+  transplant_hospital: '🏥',
+  container_port: '🚢',
+  research_network: '🌐',
+  surveillance_agency: '🛰️',
+  // era 11 national projects
+  arms_control_treaty: '🕊️',
+  green_revolution_program: '🌾',
+  strategic_air_command: '✈️',
+  // era 11 units
+  attack_helicopter: '🚁',
+  missile_submarine: '🌊',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';

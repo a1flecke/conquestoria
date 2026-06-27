@@ -31,6 +31,7 @@ export const CODEX_TAGS = [
   'science',
   'sea',
   'sky',
+  'space',
   'stone',
   'storm',
   'trade',

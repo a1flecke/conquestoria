@@ -318,6 +318,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'naval',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
   },
+  // Era 11 units
+  attack_helicopter: {
+    type: 'attack_helicopter', name: 'Attack Helicopter',
+    movementPoints: 5, visionRange: 3, strength: 40,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 230,
+    domain: 'air',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+  },
+  missile_submarine: {
+    type: 'missile_submarine', name: 'Missile Submarine',
+    movementPoints: 5, visionRange: 3, strength: 45,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 250,
+    domain: 'naval',
+    attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
+  },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -526,6 +541,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   biplane:    'WWI-era fabric-and-wood fighter aircraft. Fast air unit that can attack land and naval targets from altitude. Vulnerable to dedicated anti-air batteries. Obsoleted by monoplane fighters.',
   jet_fighter: 'WWII-era swept-wing jet fighter. Faster and stronger than the biplane; dominates air-to-air and ground-attack roles. Faction roundel on fuselage; afterburner glow marks its passage.',
   carrier:     'Fleet aircraft carrier. Projects air power across oceans from a mobile flight deck. Requires a coastal city to build. High vision range; moderate naval strength.',
+  attack_helicopter: 'Cold War attack helicopter. Combines close air support with anti-armour missiles; faster than jet fighters but more vulnerable to ground fire. Ranged air unit.',
+  missile_submarine: 'Nuclear-powered ballistic missile submarine. Long-range submarine-launched missiles threaten any city from the deep. Requires a coastal city to build. Longest range of any unit.',
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '

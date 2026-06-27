@@ -33,6 +33,7 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'hoover-dam-bespoke',
   'wright-flyer-bespoke',
   'united-nations-bespoke',
+  'apollo-program-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -85,6 +86,7 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'hoover-dam-bespoke':             { key: 'hoover-dam-bespoke',             draw: drawHooverDam },
   'wright-flyer-bespoke':           { key: 'wright-flyer-bespoke',           draw: drawWrightFlyer },
   'united-nations-bespoke':         { key: 'united-nations-bespoke',         draw: drawUnitedNations },
+  'apollo-program-bespoke':         { key: 'apollo-program-bespoke',         draw: drawApolloProgram },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -1358,4 +1360,125 @@ function drawUnitedNations(options: LegendaryWonderBespokeDrawOptions): void {
     ctx.arc(gx + (gr + r * 0.18) * Math.cos(Math.PI * a), gy + (gr + r * 0.18) * Math.sin(Math.PI * a), r * 0.025, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+function drawApolloProgram(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius: r } = options;
+  markBespoke(ctx, 'apollo-program-bespoke');
+
+  // Deep space background
+  const space = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  space.addColorStop(0, '#0a0a20');
+  space.addColorStop(1, '#000008');
+  ctx.fillStyle = space;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, r, r * 0.9, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Stars scattered across the background
+  ctx.fillStyle = '#ffffff';
+  const starPositions = [[-0.6,-0.65],[0.55,-0.7],[-0.4,-0.5],[0.3,-0.55],[-0.7,-0.2],[0.65,-0.3],
+    [-0.5, 0.1],[0.7,0.05],[-0.35,-0.75],[0.5,-0.2],[0.15,-0.7],[-0.75,-0.45]];
+  for (const [sx, sy] of starPositions) {
+    ctx.beginPath();
+    ctx.arc(cx + sx * r, cy + sy * r, r * 0.012, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Moon surface (lower left quadrant) — grey crater-pocked disc
+  const moonX = cx - r * 0.32;
+  const moonY = cy + r * 0.25;
+  const moonR = r * 0.38;
+  const moonGrad = ctx.createRadialGradient(moonX - moonR * 0.2, moonY - moonR * 0.25, moonR * 0.1, moonX, moonY, moonR);
+  moonGrad.addColorStop(0, '#c8c8c0');
+  moonGrad.addColorStop(0.6, '#9898a0');
+  moonGrad.addColorStop(1, '#606068');
+  ctx.fillStyle = moonGrad;
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
+  ctx.fill();
+  // crater rings
+  ctx.strokeStyle = '#808088';
+  ctx.lineWidth = r * 0.012;
+  for (const [kx, ky, kr] of [[-0.08, 0.08, 0.07],[ 0.15,-0.1, 0.05],[-0.18,-0.1, 0.04]] as number[][]) {
+    ctx.beginPath();
+    ctx.arc(moonX + kx * moonR * 2, moonY + ky * moonR * 2, kr * moonR * 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Saturn V rocket on the right — tall, white, multi-stage
+  const rocketCX = cx + r * 0.38;
+  const rocketBase = cy + r * 0.6;
+  const rocketH = r * 1.05;
+  const rocketW = r * 0.14;
+  // S-IC booster (bottom stage, widest)
+  ctx.fillStyle = '#e8e8e8';
+  ctx.fillRect(rocketCX - rocketW * 0.7, rocketBase - rocketH * 0.42, rocketW * 1.4, rocketH * 0.42);
+  // S-II stage (middle)
+  ctx.fillStyle = '#f0f0f0';
+  ctx.fillRect(rocketCX - rocketW * 0.55, rocketBase - rocketH * 0.72, rocketW * 1.1, rocketH * 0.3);
+  // S-IVB stage (upper)
+  ctx.fillStyle = '#f8f8f8';
+  ctx.fillRect(rocketCX - rocketW * 0.45, rocketBase - rocketH * 0.9, rocketW * 0.9, rocketH * 0.18);
+  // Service Module
+  ctx.fillStyle = '#d0d8e8';
+  ctx.fillRect(rocketCX - rocketW * 0.35, rocketBase - rocketH * 1.0, rocketW * 0.7, rocketH * 0.1);
+  // Command Module cone
+  ctx.fillStyle = '#c0b870';
+  ctx.beginPath();
+  ctx.moveTo(rocketCX - rocketW * 0.28, rocketBase - rocketH);
+  ctx.lineTo(rocketCX + rocketW * 0.28, rocketBase - rocketH);
+  ctx.lineTo(rocketCX, rocketBase - rocketH * 1.1);
+  ctx.closePath();
+  ctx.fill();
+  // Escape tower atop cone
+  ctx.strokeStyle = '#c0b870';
+  ctx.lineWidth = r * 0.02;
+  ctx.beginPath();
+  ctx.moveTo(rocketCX, rocketBase - rocketH * 1.1);
+  ctx.lineTo(rocketCX, rocketBase - rocketH * 1.2);
+  ctx.stroke();
+  // Stage separation bands
+  ctx.fillStyle = '#404050';
+  ctx.fillRect(rocketCX - rocketW * 0.7, rocketBase - rocketH * 0.42 - r * 0.015, rocketW * 1.4, r * 0.015);
+  ctx.fillRect(rocketCX - rocketW * 0.55, rocketBase - rocketH * 0.72 - r * 0.012, rocketW * 1.1, r * 0.012);
+  // F-1 engine nozzles at base
+  ctx.fillStyle = '#b0a898';
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.moveTo(rocketCX + i * rocketW * 0.4 - rocketW * 0.12, rocketBase - r * 0.04);
+    ctx.lineTo(rocketCX + i * rocketW * 0.4 + rocketW * 0.12, rocketBase - r * 0.04);
+    ctx.lineTo(rocketCX + i * rocketW * 0.4 + rocketW * 0.15, rocketBase);
+    ctx.lineTo(rocketCX + i * rocketW * 0.4 - rocketW * 0.15, rocketBase);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Launch flame plume
+  const flame = ctx.createLinearGradient(rocketCX, rocketBase, rocketCX, rocketBase + r * 0.3);
+  flame.addColorStop(0, '#ffffc0');
+  flame.addColorStop(0.4, '#ff8000');
+  flame.addColorStop(1, 'rgba(255,60,0,0)');
+  ctx.fillStyle = flame;
+  ctx.beginPath();
+  ctx.moveTo(rocketCX - rocketW * 0.5, rocketBase);
+  ctx.lineTo(rocketCX + rocketW * 0.5, rocketBase);
+  ctx.lineTo(rocketCX + rocketW * 0.25, rocketBase + r * 0.3);
+  ctx.lineTo(rocketCX - rocketW * 0.25, rocketBase + r * 0.3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Footprint on moon surface — Neil Armstrong's boot print silhouette
+  const fpX = moonX + r * 0.05;
+  const fpY = moonY + moonR * 0.4;
+  ctx.fillStyle = '#707078';
+  ctx.beginPath();
+  ctx.ellipse(fpX, fpY, r * 0.065, r * 0.032, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // "APOLLO" text label at bottom
+  ctx.fillStyle = '#c8c8c0';
+  ctx.font = `bold ${r * 0.085}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('APOLLO', cx, cy + r * 0.82);
+  ctx.textAlign = 'left';
 }

@@ -1416,3 +1416,67 @@ export function CarrierSprite({ palette, svgOnly = false }: UnitSpriteProps): st
     </SpriteFrame>
   );
 }
+
+// Era 11 units
+export function AttackHelicopterSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={112} rx={50} ry={5} />
+      {/* fuselage — stubby armored body */}
+      <path d="M46,54 L48,42 L80,42 L82,54 L82,90 L80,96 L48,96 L46,90 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* cockpit bubble — front */}
+      <path d="M48,54 L48,70 L64,76 L80,70 L80,54 Z" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="1" opacity="0.85" />
+      {/* main rotor mast */}
+      <rect x="62" y="28" width="4" height="14" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* main rotor blades — span the full width */}
+      <path d="M4,34 L64,30 L124,34" stroke={P.metal.steel} strokeWidth="3" strokeLinecap="round" fill="none" />
+      <path d="M64,30 L64,10" stroke={P.metal.steel} strokeWidth="3" strokeLinecap="round" />
+      {/* tail boom */}
+      <path d="M80,76 L118,82 L118,88 L80,90 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="1" />
+      {/* tail rotor */}
+      <line x1="118" y1="76" x2="118" y2="96" stroke={P.metal.steel} strokeWidth="2.5" />
+      {/* stub wings with missile pylons */}
+      <rect x="28" y="68" width="20" height="6" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.9" />
+      <rect x="80" y="68" width="20" height="6" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* missiles on pylons */}
+      <rect x="26" y="72" width="8" height="3" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="36" y="72" width="8" height="3" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="80" y="72" width="8" height="3" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="90" y="72" width="8" height="3" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* exhaust vents */}
+      <rect x="78" y="44" width="6" height="4" rx="1" fill="#cc5500" opacity="0.75" />
+      <Banner x={64} y={16} palette={palette} scale={0.52} />
+    </SpriteFrame>
+  );
+}
+
+export function MissileSubmarineSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={106} rx={58} ry={6} />
+      {/* hull — smooth teardrop submarine body */}
+      <path d="M8,78 Q6,86 8,94 Q32,110 64,110 Q96,110 120,94 Q122,86 120,78 Q96,66 64,66 Q32,66 8,78 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.4" />
+      {/* waterline stripe */}
+      <path d="M10,87 Q64,92 118,87" stroke={palette.bright} strokeWidth="1.2" opacity="0.55" />
+      {/* sail / conning tower */}
+      <rect x="52" y="50" width="24" height="22" rx="3" fill={palette.dark} stroke={P.ink.line} strokeWidth="1.2" />
+      <rect x="56" y="44" width="16" height="8" rx="2" fill={palette.dark} stroke={P.ink.line} strokeWidth="1" />
+      {/* periscope */}
+      <line x1="66" y1="30" x2="66" y2="44" stroke={P.metal.iron} strokeWidth="2" />
+      <rect x="62" y="28" width="8" height="5" rx="1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* SLBM missile silos on hull — 3 silos */}
+      <rect x="28" y="66" width="7" height="10" rx="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+      <rect x="40" y="66" width="7" height="10" rx="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+      <rect x="83" y="66" width="7" height="10" rx="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* torpedo tubes at bow */}
+      <circle cx="16" cy="82" r="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="16" cy="90" r="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* bow wake bubbles */}
+      <path d="M8,80 Q4,86 8,92" stroke="white" strokeWidth="1.4" fill="none" opacity="0.55" />
+      {/* stern propeller */}
+      <path d="M114,80 Q122,86 114,92" stroke={P.metal.iron} strokeWidth="2" fill="none" />
+      <path d="M114,83 Q110,86 114,90" stroke={P.metal.iron} strokeWidth="2.5" fill="none" />
+      <Banner x={64} y={32} palette={palette} scale={0.52} />
+    </SpriteFrame>
+  );
+}

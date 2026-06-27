@@ -28,10 +28,10 @@ describe('national project structural invariants', () => {
 });
 
 describe('national project yield ceilings', () => {
-  const ERA_CEILINGS: Record<number, number> = { 1: 2, 2: 2, 3: 5, 4: 5, 5: 7, 6: 7, 7: 9, 8: 9, 9: 9, 10: 9 };
+  const ERA_CEILINGS: Record<number, number> = { 1: 2, 2: 2, 3: 5, 4: 5, 5: 7, 6: 7, 7: 9, 8: 9, 9: 9, 10: 9, 11: 9 };
 
-  it('ceiling table covers eras 1–10', () => {
-    expect(Object.keys(ERA_CEILINGS).map(Number).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  it('ceiling table covers eras 1–11', () => {
+    expect(Object.keys(ERA_CEILINGS).map(Number).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
 
   for (const np of nationalProjects) {
@@ -114,5 +114,28 @@ describe('era 10 national project coverage', () => {
   it('space_program_initiative has single science civYieldBonus', () => {
     const np = era10NPs.find(np => np.id === 'space_program_initiative');
     expect(np?.civYieldBonus).toEqual({ science: 6 });
+  });
+});
+
+describe('era 11 national project coverage', () => {
+  const era11NPs = nationalProjects.filter(np => np.nationalProject?.homeEra === 11);
+
+  it('has exactly 3 era 11 national projects', () => {
+    expect(era11NPs).toHaveLength(3);
+  });
+
+  it('arms_control_treaty has single gold civYieldBonus', () => {
+    const np = era11NPs.find(np => np.id === 'arms_control_treaty');
+    expect(np?.civYieldBonus).toEqual({ gold: 5 });
+  });
+
+  it('green_revolution_program has single food civYieldBonus', () => {
+    const np = era11NPs.find(np => np.id === 'green_revolution_program');
+    expect(np?.civYieldBonus).toEqual({ food: 5 });
+  });
+
+  it('strategic_air_command has single production civYieldBonus', () => {
+    const np = era11NPs.find(np => np.id === 'strategic_air_command');
+    expect(np?.civYieldBonus).toEqual({ production: 6 });
   });
 });

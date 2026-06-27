@@ -47,6 +47,7 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'hoover-dam':            landmark('hoover-dam',            'bastion',    'wide', 'tide',      '#3a3020', '#a07840', '#e0d0b0', 1.05, 'foundationPulse','pulse','foundation', 'hoover-dam-bespoke'),
   'wright-flyer':          landmark('wright-flyer',          'bastion',    'wide', 'trade',     '#3a3828', '#c8b860', '#fff8d0', 1.04, 'dedicationGlow', 'glint','scaffold',   'wright-flyer-bespoke'),
   'united-nations':        landmark('united-nations',        'hall',       'wide', 'horizon',   '#1a2a3a', '#4080c0', '#c0d8f0', 1.06, 'civicAura',      'glint','scaffold',   'united-nations-bespoke'),
+  'apollo-program':        landmark('apollo-program',        'spire',      'wide', 'cosmos',    '#0a0a1a', '#c0c8e0', '#ffffff', 1.12, 'dedicationGlow', 'glint','scaffold',   'apollo-program-bespoke'),
 };
 
 function landmark(

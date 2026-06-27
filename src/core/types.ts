@@ -299,6 +299,7 @@ export type UnitType =
   | 'machine_gunner' | 'pre_dreadnought'
   | 'observation_balloon' | 'biplane' | 'jet_fighter'
   | 'tank' | 'submarine' | 'carrier'
+  | 'attack_helicopter' | 'missile_submarine'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound'
   | 'caravan'

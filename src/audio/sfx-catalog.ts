@@ -292,6 +292,8 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   biplane:    'air',
   jet_fighter: 'air',
   carrier:    'naval',
+  attack_helicopter: 'air',
+  missile_submarine: 'naval',
   caravan:        'humanoid',
   expedition:    'humanoid',
   beast_boar:    'animal',
