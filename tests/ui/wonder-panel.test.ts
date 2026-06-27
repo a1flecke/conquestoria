@@ -225,6 +225,26 @@ describe('wonder-panel', () => {
     expect(text).toContain('Normal production has resumed.');
   });
 
+  it('shows active build progress, ETA, and queue continuity from presentation data', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    city.productionQueue = ['legendary:oracle-of-delphi', 'library', 'warrior'];
+    city.productionProgress = 72;
+    city.focus = 'production';
+
+    const panel = createWonderPanel(container, state, city.id, {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const card = panel.querySelector('[data-project-card="oracle-of-delphi"]');
+
+    expect(card?.textContent).toContain('Under construction');
+    expect(card?.textContent).toContain('Race status: 72/120 production invested.');
+    expect(card?.textContent).toMatch(/ETA: \d+ turns\./);
+    expect(card?.textContent).toContain('Queue resumes after this wonder.');
+    expect(card?.querySelector('[data-wonder-start-build]')).toBeNull();
+  });
+
   it('shows only the current players selected-city projects in hot seat', () => {
     const { container, state } = makeWonderPanelFixture();
 
