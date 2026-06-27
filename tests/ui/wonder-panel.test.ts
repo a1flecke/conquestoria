@@ -2,6 +2,7 @@
 
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
+import { getLegendaryWonderPresentationForCity } from '@/systems/legendary-wonder-presentation';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { appendGuidanceStrip } from '@/ui/wonder-panel-view';
 import {
@@ -187,7 +188,7 @@ describe('wonder-panel', () => {
     expect(card.disabled).toBe(true);
   });
 
-  it('shows eligibility, quest steps, build city, and race compensation text', () => {
+  it('teaches wonder rules through contextual cards instead of glossary blocks', () => {
     const { container, state } = makeWonderPanelFixture();
 
     const panel = createWonderPanel(container, state, 'city-river', {
@@ -196,11 +197,11 @@ describe('wonder-panel', () => {
     });
 
     const rendered = collectText(panel);
-    expect(rendered).toContain('Eligibility');
-    expect(rendered).toContain('Quest');
-    expect(rendered).toContain('Construction Race');
-    expect(rendered).toContain('25% coins');
-    expect(rendered).toContain('25% carryover');
+    expect(rendered).not.toContain('Eligibility Required techs, resources');
+    expect(rendered).not.toContain('Construction Race Losing returns');
+    expect(rendered).toContain('Missing:');
+    expect(rendered).toContain('Quest steps:');
+    expect(rendered).toContain('Reward:');
     expect(rendered).toContain('Discover a natural wonder');
   });
 
@@ -354,6 +355,54 @@ describe('wonder-panel', () => {
 
     expect(panel.querySelectorAll('[data-project-card]').length).toBe(cityProjectCount);
     expect(panel.querySelectorAll('[data-section="all-city-wonders"]').length).toBe(1);
+  });
+
+  it('renders every canonical selected-city entry exactly once across both sections', () => {
+    const { container, state } = makeWonderPanelFixture();
+    const expected = getLegendaryWonderPresentationForCity(state, 'player', 'city-river');
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    const cards = Array.from(panel.querySelectorAll<HTMLElement>('[data-project-card]'));
+    const renderedIds = cards.map(card => card.dataset.projectCard);
+    expect(renderedIds).toHaveLength(expected.length);
+    expect(new Set(renderedIds).size).toBe(expected.length);
+    expect(new Set(renderedIds)).toEqual(new Set(expected.map(entry => entry.wonderId)));
+    expect(panel.querySelectorAll('[data-recommended-project="true"]').length).toBeLessThanOrEqual(3);
+
+    const recommendedIds = new Set(
+      Array.from(panel.querySelectorAll<HTMLElement>('[data-recommended-project="true"]'))
+        .map(card => card.dataset.projectCard),
+    );
+    const catalogIds = new Set(
+      Array.from(panel.querySelectorAll<HTMLElement>('[data-section="all-city-wonders"] [data-project-card]'))
+        .map(card => card.dataset.projectCard),
+    );
+    for (const entry of expected) {
+      expect(recommendedIds.has(entry.wonderId) || catalogIds.has(entry.wonderId)).toBe(true);
+    }
+    expect(catalogIds.has('manhattan-project')).toBe(true);
+  });
+
+  it('keeps catalog cards compact while preserving required decision data', () => {
+    const { container, state } = makeWonderPanelFixture();
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const catalogCards = Array.from(
+      panel.querySelectorAll<HTMLElement>('[data-section="all-city-wonders"] [data-project-card]'),
+    );
+
+    for (const card of catalogCards) {
+      expect(card.querySelector('[data-wonder-status-chip]')).not.toBeNull();
+      expect(card.querySelector('[data-wonder-reward-summary]')).not.toBeNull();
+      expect(card.querySelector('[data-wonder-quest-list]')).not.toBeNull();
+      expect(card.querySelectorAll('[data-wonder-quest-step]').length).toBeLessThanOrEqual(1);
+      expect(card.textContent).toMatch(/Missing:|Next:|All quest steps complete/);
+    }
   });
 
   it('shows current progress immediately for a newly seeded wonder that is already ready', () => {
