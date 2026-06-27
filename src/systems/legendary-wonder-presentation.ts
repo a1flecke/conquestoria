@@ -200,6 +200,9 @@ function getVisibleState(
     return canStartBuild ? 'ready' : 'blocked';
   }
   if (project?.phase === 'questing') {
+    if (missingRequirements.length > 0) {
+      return isNearEligible(state, missingRequirements, era) ? 'near' : 'blocked';
+    }
     return 'questing';
   }
   return isNearEligible(state, missingRequirements, era) ? 'near' : 'blocked';
