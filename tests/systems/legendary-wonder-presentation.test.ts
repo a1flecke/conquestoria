@@ -73,6 +73,30 @@ describe('legendary-wonder-presentation', () => {
     expect(oracle?.missingRequirements).toContain('Stone');
   });
 
+  it('does not present seeded project shells as questing before requirements are reachable', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'pilgrimages'],
+      resources: ['stone'],
+    });
+    state.era = 4;
+    state.legendaryWonderProjects = undefined;
+
+    const entries = getLegendaryWonderPresentationForCity(state, 'player', 'city-river');
+
+    expect(entries.find(entry => entry.wonderId === 'oracle-of-delphi')).toMatchObject({
+      visibleState: 'questing',
+      eligibilityState: 'near',
+    });
+    expect(entries.find(entry => entry.wonderId === 'starvault-observatory')).toMatchObject({
+      visibleState: 'near',
+      eligibilityState: 'near',
+    });
+    expect(entries.find(entry => entry.wonderId === 'manhattan-project')).toMatchObject({
+      visibleState: 'blocked',
+      eligibilityState: 'blocked',
+    });
+  });
+
   it('keeps far-future blocked wonders out of the compact build-list surface', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     state.era = 1;
