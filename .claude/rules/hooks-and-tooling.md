@@ -39,3 +39,39 @@ paths:
 - [ ] Returns exit 2 on the deny path with a clear stderr message
 - [ ] Has matching `tests/hooks/<name>.test.sh` covering pass and block paths
 - [ ] Registered in `.claude/settings.json` under the correct `matcher` for the tool it cares about
+
+## Pre-push gate: what it runs and how long it takes
+
+`require-green-before-push.sh` fires only for `git push`, `gh pr create`, and `gh pr merge` — not for `git commit`.
+
+**From a worktree** (the common case for all Claude sessions):
+- `yarn install --immutable` — serial, ~3s
+- `tsc` + `vitest run --root <worktree>` — **parallel**, wall-clock ~25s (vitest dominates)
+- Shell hook smoke tests — serial after vitest, ~5s
+- **Total: ~35–45 seconds**
+
+**From the main tree:**
+- `yarn build` (tsc + vite bundle) then `yarn test` — sequential, ~50s total
+
+**Set Bash tool timeout to match the command, not the hook:**
+- `git commit` — **30 000 ms**. No hook runs tests; the commit itself takes < 1s.
+- `git push` / `gh pr create` / `gh pr merge` — **120 000 ms**. The hook runs tsc + vitest.
+- A 360 000 ms timeout on `git commit` papers over the wrong symptom. Match the timeout to what the command actually does.
+
+## Vitest cache config
+
+`cacheDir` in `vite.config.ts` is pinned to `node_modules/.vite/vitest` in the main worktree. Without this, `vitest --root /worktree/path` looked for Vite's dependency optimizer cache inside the worktree where `node_modules/` doesn't exist.
+
+**What this fixes:** Vite's dependency pre-bundling cache is shared across all worktrees.
+
+**What this does NOT change:** esbuild TypeScript transforms (~17s cumulative / ~2–3s wall-clock). That time is proportional to suite size (~300 files × 8 workers) and is inherent to every run. The ~26s floor is the cost of running the suite, not a cache miss.
+
+## Worktree setup: trust mise before the first push
+
+Every new worktree has its own `mise.toml`. The `run-with-mise-worktree.test.sh` smoke test will fail with `mise ERROR Config files ... are not trusted` until you run:
+
+```bash
+mise trust /path/to/worktree/mise.toml
+```
+
+Run this immediately after creating a worktree, before the first push attempt. The `EnterWorktree` tool does not do this automatically.

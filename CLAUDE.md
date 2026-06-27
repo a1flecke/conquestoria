@@ -12,6 +12,7 @@ Civilization-building strategy game. TypeScript + Canvas 2D + Vite.
 1. Check if already in a worktree (`git worktree list`).
 2. If not, create one via `EnterWorktree` tool BEFORE writing any code.
 3. Never write code on `main` or on a feature branch in the main working tree — always use a worktree.
+4. After creating a new worktree, run `mise trust <worktree-path>/mise.toml` before the first push — otherwise the `run-with-mise-worktree.test.sh` smoke test will block the push.
 
 This is enforced by the user and is not optional.
 
@@ -23,6 +24,11 @@ This is enforced by the user and is not optional.
 - `bash scripts/run-with-mise.sh yarn build` — Production build
 - `bash scripts/run-with-mise.sh yarn test` — Run vitest + hook smoke tests. DOES NOT type-check — `yarn build` is the only path that runs `tsc`. Before any `git push`, `gh pr create`, or `gh pr merge`, run `yarn build` and `yarn test` and confirm both exit 0. The `require-green-before-push` hook enforces this, but catching it locally is faster.
 - `bash scripts/run-with-mise.sh yarn test:watch` — Run tests in watch mode
+
+**Bash tool timeout guidance** — set `timeout` to match what the command actually does:
+- `git commit` → **30 000 ms** (commit itself < 1s; no hook runs tests on commit)
+- `git push` / `gh pr create` / `gh pr merge` → **120 000 ms** (pre-push hook runs tsc + vitest in parallel, ~35–45s from a worktree)
+- Using a 360 000 ms timeout for commits papers over the root cause; the correct fix is matching the timeout to the command's expected duration.
 
 ## Rules Index
 
