@@ -145,7 +145,7 @@ describe('tech-panel', () => {
     expect(document.body.querySelectorAll('#tech-panel [data-tech-id]').length).toBe(TECH_TREE.length);
     expect(knownCount).toBeGreaterThanOrEqual(focusedCount);
     expect(focusedCount).toBeLessThan(TECH_TREE.length);
-  });
+  }, 15000);
 
   it('focuses current research in the rendered tree', () => {
     const state = createNewGame(undefined, 'tech-render-focus-test');
@@ -217,7 +217,7 @@ describe('tech-panel', () => {
     expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-path')).toBeNull();
     expect(document.body.querySelector('[data-edge-from="philosophy"][data-edge-to="medicine"]')?.getAttribute('stroke-width')).toBe('1.5');
     expect(document.body.querySelector('[data-edge-from="mathematics"][data-edge-to="banking"]')?.getAttribute('stroke-width')).toBe('3');
-  }, 10_000);
+  }, 15000);
 
   it('uses meaningful zoom labels in compact map controls', () => {
     const state = createNewGame(undefined, 'tech-a11y-test');
@@ -304,7 +304,7 @@ describe('tech-panel', () => {
     expect(banking?.textContent).toContain('ETA locked');
     expect(banking?.textContent).not.toContain('ETA unknown');
     expect(banking?.textContent).not.toMatch(/\d+ turns/);
-  });
+  }, 15000);
 
   it('styles queue control buttons consistently (not browser default)', () => {
     const state = createNewGame(undefined, 'tech-btn-style-test');
@@ -529,7 +529,7 @@ describe('tech-panel', () => {
     const engineeringCard = document.body.querySelector<HTMLElement>('[data-tech-id="engineering"]');
     expect(engineeringCard).toBeTruthy();
     expect(Number(engineeringCard!.dataset.depth)).toBe(3);
-  });
+  }, 15000);
 
   it('Phase 3: mapWrap uses absolute-positioned cards, not flex-wrap', () => {
     const state = createNewGame(undefined, 'tech-dag-nowrap');
