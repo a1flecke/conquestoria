@@ -38,15 +38,15 @@ EVENTS = [
 ]
 
 SILENCE_THRESHOLD_DB = "-35dB"
-SILENCE_MIN_DURATION  = 1.5   # seconds — gaps shorter than this are ignored
+SILENCE_MIN_DURATION  = 1.5   # seconds — override with --min-silence
 
 
-def detect_silences(input_path: str) -> list[tuple[float, float]]:
+def detect_silences(input_path: str, min_duration: float = SILENCE_MIN_DURATION) -> list[tuple[float, float]]:
     """Return list of (start, end) silence intervals in seconds."""
     result = subprocess.run(
         [
             "ffmpeg", "-i", input_path,
-            "-af", f"silencedetect=noise={SILENCE_THRESHOLD_DB}:d={SILENCE_MIN_DURATION}",
+            "-af", f"silencedetect=noise={SILENCE_THRESHOLD_DB}:d={min_duration}",
             "-f", "null", "-",
         ],
         capture_output=True, text=True,
@@ -74,22 +74,30 @@ def get_duration(input_path: str) -> float:
 
 def extract_segment(input_path: str, start: float, end: float, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", input_path,
-        "-ss", str(start),
-        "-to", str(end),
-        "-vn", "-c:a", "libvorbis", "-q:a", "4",
-        str(out_path),
-    ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    # Two-pass via WAV: direct MP3→OGG produces incorrect Vorbis granule positions
+    # that cause Web Audio API to report wrong duration and cut playback short.
+    wav_path = out_path.with_suffix('.wav')
+    subprocess.run([
+        "ffmpeg", "-y", "-i", input_path,
+        "-ss", str(start), "-to", str(end),
+        "-af", "apad=pad_dur=0.5", "-ar", "44100", str(wav_path),
+    ], check=True, capture_output=True)
+    subprocess.run([
+        "ffmpeg", "-y", "-i", str(wav_path),
+        "-c:a", "libvorbis", "-q:a", "4", str(out_path),
+    ], check=True, capture_output=True)
+    wav_path.unlink(missing_ok=True)
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python scripts/split-elevenlabs.py <pack> <input.mp3>")
-
-    pack, input_path = sys.argv[1], sys.argv[2]
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("pack")
+    parser.add_argument("input_path")
+    parser.add_argument("--min-silence", type=float, default=SILENCE_MIN_DURATION,
+                        help=f"Min silence gap in seconds (default: {SILENCE_MIN_DURATION})")
+    args = parser.parse_args()
+    pack, input_path = args.pack, args.input_path
 
     if pack not in ("egypt", "rome", "china", "england", "france",
                     "viking", "zulu", "aztec", "mongolia", "gondor"):
@@ -99,7 +107,7 @@ def main() -> None:
         sys.exit(f"File not found: {input_path}")
 
     print(f"Analysing {input_path}…")
-    silences = detect_silences(input_path)
+    silences = detect_silences(input_path, min_duration=args.min_silence)
     duration = get_duration(input_path)
 
     print(f"  Duration:       {duration:.2f}s")
