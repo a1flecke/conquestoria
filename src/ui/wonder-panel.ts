@@ -93,7 +93,11 @@ export function createWonderPanel(
     'padding-bottom:80px',
   ].join(';');
   panel.addEventListener('keydown', event => {
-    if (event.key === 'Escape') callbacks.onClose();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      callbacks.onClose();
+    }
   });
   const pendingStarts = new Set<string>();
   const startOnce: StartWonderAction = wonderId => {

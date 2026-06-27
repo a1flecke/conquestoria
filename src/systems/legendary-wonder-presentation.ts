@@ -36,6 +36,12 @@ export type LegendaryWonderMilestoneLabel =
   | 'Final works'
   | 'Nearly complete';
 
+const HARD_BLOCKING_REQUIREMENTS = new Set([
+  'Already completed elsewhere',
+  'Already under construction in another city',
+  'Requirements unavailable',
+]);
+
 export interface LegendaryWonderPresentationEntry {
   wonderId: string;
   queueItemId: string;
@@ -76,7 +82,7 @@ export function getLegendaryWonderConstructionMilestone(
 
 function titleCaseId(value: string): string {
   return value
-    .split('-')
+    .split(/[-_]/)
     .filter(Boolean)
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
@@ -166,6 +172,9 @@ function getMissingRequirements(state: GameState, civId: string, cityId: string,
 }
 
 function isNearEligible(state: GameState, missingRequirements: string[], era: number): boolean {
+  if (missingRequirements.some(requirement => HARD_BLOCKING_REQUIREMENTS.has(requirement))) {
+    return false;
+  }
   const currentEra = typeof state.era === 'number' ? state.era : 1;
   return era <= currentEra + 1 && missingRequirements.length <= 2;
 }
