@@ -22,6 +22,7 @@ import { resolveFromCity } from '@/systems/trade-system';
 import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';
 import { calculateCivUnitMaintenance } from '@/systems/economy-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -308,6 +309,16 @@ export function renderSelectedUnitInfo(
       const knownResource = tile ? getKnownTileResourceForWorkerAction(tile, completedTechs) : null;
       const workerEligibilityOptions = { isCityTile, knownResource };
       const workerActions = getAvailableWorkerActions(tile, completedTechs, unit.owner, workerEligibilityOptions);
+      if (knownResource) {
+        const rd = RESOURCE_DEFINITIONS.find(r => r.id === knownResource);
+        if (rd) {
+          const resourceInfoDiv = document.createElement('div');
+          resourceInfoDiv.style.cssText = 'font-size:12px;color:#e8c170;margin-bottom:4px;';
+          const effectStr = rd.effect ? ` · +${rd.effect.amount} ${rd.effect.type}` : '';
+          resourceInfoDiv.textContent = `${rd.icon} ${rd.name} (${rd.type})${effectStr} — harvest with: ${getImprovementDisplayName(rd.requiredImprovement)}`;
+          wrapper.appendChild(resourceInfoDiv);
+        }
+      }
       for (const action of workerActions) {
         const color = action === 'farm'
           ? '#6b9b4b'
@@ -320,9 +331,16 @@ export function renderSelectedUnitInfo(
                 : action === 'drain_swamp'
                   ? '#4a7c59'
                   : '#64748b';
-        const label = action === 'drain_swamp'
+        let label = action === 'drain_swamp'
           ? 'Drain Swamp (→ Grassland, +1 🌾)'
           : getWorkerActionLabel(action);
+        if (knownResource && action !== 'drain_swamp') {
+          const rd = RESOURCE_DEFINITIONS.find(r => r.id === knownResource && r.requiredImprovement === action);
+          if (rd) {
+            const yieldLabel = formatImprovementYieldLabel(action);
+            label = `Build ${getImprovementDisplayName(action)} → ${rd.icon} ${rd.name}${yieldLabel ? ` ${yieldLabel}` : ''}`;
+          }
+        }
         actionsDiv.appendChild(makeButton(label, color, () => callbacks.onWorkerAction!(action)));
       }
       if (workerActions.length === 0) {

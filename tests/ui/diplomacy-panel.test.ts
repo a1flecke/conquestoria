@@ -178,6 +178,24 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(rendered).not.toContain('Outsider');
   });
 
+  it('hides an eliminated civ (isEliminated flag) from the diplomacy panel', () => {
+    const { container, state } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeThirdCiv: true,
+    });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.outsider.knownCivilizations = ['player'];
+    state.civilizations.outsider.isEliminated = true;
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).not.toContain('Outsider');
+  });
+
   it('keeps a rival named in diplomacy after brief scouting contact is recorded', () => {
     const { container, state } = makeDiplomacyFixture({
       currentPlayer: 'player',
