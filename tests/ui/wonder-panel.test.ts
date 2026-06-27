@@ -4,7 +4,7 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
 import { getLegendaryWonderPresentationForCity } from '@/systems/legendary-wonder-presentation';
 import { createWonderPanel } from '@/ui/wonder-panel';
-import { appendGuidanceStrip } from '@/ui/wonder-panel-view';
+import { appendGuidanceStrip, appendWonderEmptyState } from '@/ui/wonder-panel-view';
 import {
   makeWonderPanelFixture,
   makeWonderPresentationEntry,
@@ -525,6 +525,34 @@ describe('wonder-panel', () => {
     expect(panel.querySelectorAll('[data-section="rival-wonders"]').length).toBe(0);
   });
 
+  it('renders every viewer-safe started report without exposing live project detail', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderIntel = {
+      player: ['grand-canal', 'sun-spire', 'world-archive', 'moonwell-gardens'].map((wonderId, index) => ({
+        projectKey: `${wonderId}-rival`,
+        wonderId,
+        civId: 'rival',
+        civName: 'Rival',
+        cityId: `rival-city-${index}`,
+        cityName: `Known Rival City ${index + 1}`,
+        revealedTurn: 40 + index,
+        intelLevel: 'started' as const,
+      })),
+    };
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const rivalSection = panel.querySelector('[data-section="rival-wonders"]');
+
+    expect(rivalSection?.querySelectorAll('[data-rival-intel-card]')).toHaveLength(4);
+    expect(rivalSection?.textContent).toContain('Known Rival City 4');
+    expect(rivalSection?.textContent).toContain('Current progress unknown without fresh infiltration.');
+    expect(rivalSection?.textContent).not.toContain('production invested');
+    expect(rivalSection?.textContent).not.toContain('Quest steps:');
+  });
+
   it('shows only rival wonder races revealed to the current player', () => {
     const { container, state } = makeWonderPanelFixture();
     state.legendaryWonderIntel = {
@@ -641,6 +669,58 @@ describe('wonder-panel', () => {
     expect(panel.querySelector('[data-section="rival-wonders"]')).toBeNull();
     expect(panel.textContent).not.toContain('Rival is pursuing this');
     expect(panel.textContent).not.toContain('Rival completed Grand Canal');
+  });
+
+  it('renders the no-ambitions state as an explanatory card', () => {
+    const host = document.createElement('div');
+    appendWonderEmptyState(
+      host,
+      'No known wonder ambitions in this city',
+      'Keep exploring, researching, or meeting city conditions to reveal new ambitions.',
+    );
+    const empty = host.querySelector('[data-wonder-empty-state]');
+    expect(empty?.textContent).toContain('No known wonder ambitions in this city');
+    expect(empty?.textContent).toContain('Keep exploring, researching');
+  });
+
+  it('renders fallback context and no actions for a missing city', () => {
+    const { container, state } = makeWonderPanelFixture();
+    const panel = createWonderPanel(container, state, 'missing-city', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Player · missing-city');
+    expect(panel.querySelector('[data-wonder-error-state]')).not.toBeNull();
+    expect(panel.querySelector('[data-wonder-start-target]')).toBeNull();
+    expect(panel.querySelector('[data-wonder-panel-close="top"]')).not.toBeNull();
+    expect(panel.querySelector('[data-wonder-panel-close="bottom"]')).not.toBeNull();
+  });
+
+  it('does not render current-player ambitions against a foreign selected city', () => {
+    const { container, state } = makeWonderPanelFixture();
+    const panel = createWonderPanel(container, state, 'city-rival', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-wonder-error-state]')).not.toBeNull();
+    expect(panel.querySelector('[data-project-card]')).toBeNull();
+    expect(panel.querySelector('[data-wonder-start-target]')).toBeNull();
+  });
+
+  it('renders fallback IDs without crashing when the current civilization is missing', () => {
+    const { container, state } = makeWonderPanelFixture();
+    delete state.civilizations.player;
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('player · city-river');
+    expect(panel.querySelector('[data-wonder-error-state]')).not.toBeNull();
+    expect(panel.querySelector('[data-project-card]')).toBeNull();
+    expect(panel.querySelector('[data-wonder-start-target]')).toBeNull();
   });
 
   it('Start Construction and Close buttons have styled background and color', () => {

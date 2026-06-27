@@ -1,3 +1,5 @@
+import type { LegendaryWonderStartedIntelEntry } from '@/core/types';
+import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import type {
   LegendaryWonderPresentationEntry,
   LegendaryWonderVisibleState,
@@ -216,6 +218,39 @@ export function appendGuidanceStrip(
     strip.appendChild(button);
   }
   parent.appendChild(strip);
+}
+
+export function appendWonderEmptyState(parent: HTMLElement, heading: string, body: string): void {
+  const empty = document.createElement('section');
+  empty.dataset.wonderEmptyState = 'true';
+  empty.style.cssText = COMPACT_CARD_STYLE;
+  appendText(empty, 'h3', heading, 'margin:0 0 8px;');
+  appendText(empty, 'p', body, 'margin:0;line-height:1.4;');
+  parent.appendChild(empty);
+}
+
+export function appendWonderErrorState(parent: HTMLElement, body: string): void {
+  const error = document.createElement('section');
+  error.dataset.wonderErrorState = 'true';
+  error.style.cssText = COMPACT_CARD_STYLE;
+  appendText(error, 'h3', 'Wonder ambitions unavailable', 'margin:0 0 8px;');
+  appendText(error, 'p', body, 'margin:0;line-height:1.4;');
+  parent.appendChild(error);
+}
+
+export function appendRivalIntelCard(
+  intel: LegendaryWonderStartedIntelEntry,
+  grid: HTMLElement,
+): void {
+  const definition = getLegendaryWonderDefinition(intel.wonderId);
+  const article = document.createElement('article');
+  article.dataset.rivalIntelCard = intel.wonderId;
+  article.style.cssText = COMPACT_CARD_STYLE;
+  appendText(article, 'h4', definition?.name ?? intel.wonderId, 'margin:0 0 8px;');
+  appendText(article, 'p', `${intel.civName} is pursuing this in ${intel.cityName}.`);
+  appendText(article, 'p', `Spy report from turn ${intel.revealedTurn}.`);
+  appendText(article, 'p', 'Current progress unknown without fresh infiltration.');
+  grid.appendChild(article);
 }
 
 export function createWonderCardGrid(kind: 'recommended' | 'catalog' | 'rival'): HTMLElement {

@@ -3,12 +3,14 @@ import {
   getLegendaryWonderPresentationForCity,
   type LegendaryWonderPresentationEntry,
 } from '@/systems/legendary-wonder-presentation';
-import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import {
   appendGuidanceStrip,
   appendProjectCard,
+  appendRivalIntelCard,
+  appendWonderEmptyState,
+  appendWonderErrorState,
   createWonderCardGrid,
   type StartWonderAction,
   type WonderCardMode,
@@ -24,23 +26,6 @@ function appendText(parent: HTMLElement, tagName: keyof HTMLElementTagNameMap, t
   element.textContent = text;
   parent.appendChild(element);
   return element;
-}
-
-function appendRivalIntelCard(
-  intel: LegendaryWonderStartedIntelEntry,
-  section: HTMLElement,
-): void {
-  const definition = getLegendaryWonderDefinition(intel.wonderId);
-  const article = document.createElement('article');
-  article.dataset.rivalIntelCard = intel.wonderId;
-  article.style.cssText = 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:12px;margin-bottom:10px;';
-
-  appendText(article, 'h3', definition?.name ?? intel.wonderId);
-  appendText(article, 'p', `${intel.civName} is pursuing this in ${intel.cityName}.`);
-  appendText(article, 'p', `Spy report from turn ${intel.revealedTurn}.`);
-  appendText(article, 'p', 'Current progress unknown without fresh infiltration.');
-
-  section.appendChild(article);
 }
 
 function appendProjectSection(
@@ -68,26 +53,21 @@ function appendProjectSection(
 }
 
 function appendRivalIntelSection(
-  panel: HTMLElement,
-  heading: string,
-  dataSection: string,
+  shell: HTMLElement,
   entries: LegendaryWonderStartedIntelEntry[],
 ): void {
-  if (entries.length === 0) {
-    return;
-  }
+  if (entries.length === 0) return;
 
   const section = document.createElement('section');
-  section.dataset.section = dataSection;
-  section.style.cssText = 'margin-top:16px;';
+  section.dataset.section = 'rival-wonders';
+  section.style.cssText = 'margin-top:16px;min-width:0;';
 
-  appendText(section, 'h3', heading);
+  appendText(section, 'h3', 'In progress elsewhere');
+  const grid = createWonderCardGrid('rival');
+  for (const entry of entries) appendRivalIntelCard(entry, grid);
+  section.appendChild(grid);
 
-  for (const entry of entries) {
-    appendRivalIntelCard(entry, section);
-  }
-
-  panel.appendChild(section);
+  shell.appendChild(section);
 }
 
 export function createWonderPanel(
@@ -149,42 +129,56 @@ export function createWonderPanel(
   const civilization = state.civilizations[state.currentPlayer];
   appendText(shell, 'p', `${civilization?.name ?? state.currentPlayer} · ${city?.name ?? cityId}`);
 
-  const cityEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, cityId);
-  const rivalIntel = getLegendaryWonderIntelForViewer(state, state.currentPlayer)
-    .filter((entry): entry is LegendaryWonderStartedIntelEntry => entry.kind === 'started');
+  const selectedCityIsOwned = city?.owner === state.currentPlayer;
+  if (!civilization || !city || !selectedCityIsOwned) {
+    appendWonderErrorState(
+      shell,
+      !city
+        ? `City ${cityId} could not be found. Close this panel and select one of your cities.`
+        : `City ${city.name} is not available to ${civilization?.name ?? state.currentPlayer}.`,
+    );
+  } else {
+    const cityEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, cityId);
+    if (cityEntries.length === 0) {
+      appendWonderEmptyState(
+        shell,
+        'No known wonder ambitions in this city',
+        'Keep exploring, researching, or meeting city conditions to reveal new ambitions.',
+      );
+    } else {
+      const recommendedEntries = cityEntries
+        .filter(entry => entry.visibleState !== 'blocked' && entry.visibleState !== 'completed')
+        .slice(0, 3);
+      const recommendedIds = new Set(recommendedEntries.map(entry => entry.wonderId));
+      const laterEntries = cityEntries.filter(entry => !recommendedIds.has(entry.wonderId));
+      if (recommendedEntries.length > 0) {
+        appendGuidanceStrip(shell, recommendedEntries[0], startOnce);
+      }
+      appendProjectSection(
+        shell,
+        'Best fits right now',
+        'recommended-wonders',
+        recommendedEntries,
+        startOnce,
+        'recommended',
+      );
+      appendProjectSection(
+        shell,
+        'All ambitions in this city',
+        'all-city-wonders',
+        laterEntries,
+        startOnce,
+        'compact',
+      );
+    }
 
-  if (cityEntries.length === 0) {
-    appendText(shell, 'p', 'No legendary wonders are available in this city yet.');
+    const rivalIntel = getLegendaryWonderIntelForViewer(state, state.currentPlayer)
+      .filter((entry): entry is LegendaryWonderStartedIntelEntry => entry.kind === 'started');
+    appendRivalIntelSection(shell, rivalIntel);
   }
-
-  const recommendedEntries = cityEntries
-    .filter(entry => entry.visibleState !== 'blocked' && entry.visibleState !== 'completed')
-    .slice(0, 3);
-  const recommendedIds = new Set(recommendedEntries.map(entry => entry.wonderId));
-  const laterEntries = cityEntries.filter(entry => !recommendedIds.has(entry.wonderId));
-  if (recommendedEntries.length > 0) {
-    appendGuidanceStrip(shell, recommendedEntries[0], startOnce);
-  }
-
-  appendProjectSection(
-    shell,
-    'Best fits right now',
-    'recommended-wonders',
-    recommendedEntries,
-    startOnce,
-    'recommended',
-  );
-  appendProjectSection(
-    shell,
-    'All ambitions in this city',
-    'all-city-wonders',
-    laterEntries,
-    startOnce,
-    'compact',
-  );
-  appendRivalIntelSection(shell, 'In progress elsewhere', 'rival-wonders', rivalIntel.slice(0, 3));
 
   const bottomClose = createGameButton('Close', 'ghost');
+  bottomClose.dataset.wonderPanelClose = 'bottom';
   bottomClose.addEventListener('click', () => callbacks.onClose());
   shell.appendChild(bottomClose);
 
