@@ -113,6 +113,7 @@ describe('legendary wonder landmark catalog', () => {
       ['hoover-dam', 'hoover-dam-bespoke'],
       ['wright-flyer', 'wright-flyer-bespoke'],
       ['united-nations', 'united-nations-bespoke'],
+      ['apollo-program', 'apollo-program-bespoke'],
     ]);
   });
 

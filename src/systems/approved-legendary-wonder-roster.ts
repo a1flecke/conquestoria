@@ -41,5 +41,7 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
     { id: 'wright-flyer', name: 'Wright Flyer' },
     // Era 10 wonders (World War & Cold War)
     { id: 'united-nations', name: 'United Nations' },
+    // Era 11 wonders (Space Race & Détente)
+    { id: 'apollo-program', name: 'Apollo Program' },
   ] as const;
 }

@@ -37,6 +37,7 @@ export const LEGENDARY_LANDMARK_MOTIFS = [
   'signal',
   'atom',
   'network',
+  'cosmos',
 ] as const;
 export type LegendaryLandmarkMotif = typeof LEGENDARY_LANDMARK_MOTIFS[number];
 

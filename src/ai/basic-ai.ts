@@ -897,10 +897,15 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   const hasBalloon = civUnitsForAir.some(u => u?.type === 'observation_balloon');
   const hasBiplane = civUnitsForAir.some(u => u?.type === 'biplane');
   const hasJetFighter = civUnitsForAir.some(u => u?.type === 'jet_fighter');
+  const hasAttackHelicopter = civUnitsForAir.some(u => u?.type === 'attack_helicopter');
   const hasCarrier = (civ.units ?? []).some(id => newState.units[id]?.type === 'carrier');
+  const hasMissileSubmarine = (civ.units ?? []).some(id => newState.units[id]?.type === 'missile_submarine');
   let hasQueuedCarrierThisTurn = false;
+  let hasQueuedMissileSubThisTurn = false;
   const hasAirSuperiorityTech = civ.techState.completed.includes('air-superiority');
   const hasJetAviationTech = civ.techState.completed.includes('jet-aviation');
+  const hasHelicopterWarfareTech = civ.techState.completed.includes('helicopter-warfare');
+  const hasNuclearSubsTech = civ.techState.completed.includes('nuclear-submarines');
 
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
@@ -1121,6 +1126,33 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         newState = {
           ...newState,
           cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['carrier'] } },
+        };
+        continue;
+      }
+      // Queue one attack_helicopter per civ when helicopter-warfare is researched
+      if (
+        hasHelicopterWarfareTech &&
+        !hasAttackHelicopter &&
+        trainableUnits.includes('attack_helicopter') &&
+        city.productionQueue.length === 0
+      ) {
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['attack_helicopter'] } },
+        };
+        continue;
+      }
+      // Queue one missile_submarine per civ when nuclear-submarines is researched (coastal only)
+      if (
+        hasNuclearSubsTech &&
+        !hasMissileSubmarine && !hasQueuedMissileSubThisTurn &&
+        trainableUnits.includes('missile_submarine') &&
+        city.productionQueue.length === 0
+      ) {
+        hasQueuedMissileSubThisTurn = true;
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['missile_submarine'] } },
         };
         continue;
       }

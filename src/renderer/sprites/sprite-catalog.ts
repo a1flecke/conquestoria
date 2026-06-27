@@ -12,6 +12,7 @@ import {
   RiflemanSprite, IroncladSprite,
   MachineGunnerSprite, PreDreadnoughtSprite, TankSprite, SubmarineSprite,
   ObservationBalloonSprite, BiplaneSprite, JetFighterSprite, CarrierSprite,
+  AttackHelicopterSprite, MissileSubmarineSprite,
   CaravanSprite, ExpeditionSprite,
   CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
 } from './units';
@@ -43,6 +44,11 @@ import {
   UnDelegationSprite, RocketProgramSprite, PublicHospitalSprite, ChemicalPlantSprite,
   NuclearPowerPlantSprite, TelevisionStationSprite, SignalsBureauSprite,
   ManhattanProjectSprite, PostwarReconstructionSprite, SpaceProgramInitiativeSprite,
+  // era 11
+  HelicopterBaseSprite, MissileSiloSprite, SemiconductorFabSprite, GeneticResearchLabSprite,
+  EnvironmentalAgencySprite, SpaceCenterSprite, AgriculturalStationSprite, TransplantHospitalSprite,
+  ContainerPortSprite, ResearchNetworkSprite, SurveillanceAgencySprite,
+  ArmsControlTreatySprite, GreenRevolutionProgramSprite, StrategicAirCommandSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite, WrightFlyerSprite,
@@ -123,6 +129,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   biplane:    'air',
   jet_fighter: 'air',
   carrier:    'naval',
+  attack_helicopter: 'air',
+  missile_submarine: 'naval',
   caravan: 'humanoid',
   expedition: 'humanoid',
   beast_boar: 'animal',
@@ -221,6 +229,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   biplane:           withMotion('biplane', BiplaneSprite),
   jet_fighter:       withMotion('jet_fighter', JetFighterSprite),
   carrier:           withMotion('carrier', CarrierSprite),
+  attack_helicopter: withMotion('attack_helicopter', AttackHelicopterSprite),
+  missile_submarine: withMotion('missile_submarine', MissileSubmarineSprite),
   caravan:           withMotion('caravan', CaravanSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
   beast_boar:         withMotion('beast_boar', GiantBoarSprite),
@@ -368,6 +378,22 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   manhattan_project:              ManhattanProjectSprite,
   postwar_reconstruction:         PostwarReconstructionSprite,
   space_program_initiative:       SpaceProgramInitiativeSprite,
+  // era 11 buildings
+  helicopter_base:                HelicopterBaseSprite,
+  missile_silo:                   MissileSiloSprite,
+  semiconductor_fab:              SemiconductorFabSprite,
+  genetic_research_lab:           GeneticResearchLabSprite,
+  environmental_agency:           EnvironmentalAgencySprite,
+  space_center:                   SpaceCenterSprite,
+  agricultural_station:           AgriculturalStationSprite,
+  transplant_hospital:            TransplantHospitalSprite,
+  container_port:                 ContainerPortSprite,
+  research_network:               ResearchNetworkSprite,
+  surveillance_agency:            SurveillanceAgencySprite,
+  // era 11 national projects
+  arms_control_treaty:            ArmsControlTreatySprite,
+  green_revolution_program:       GreenRevolutionProgramSprite,
+  strategic_air_command:          StrategicAirCommandSprite,
 };
 
 export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<PirateHeadquartersSpriteId, LandmarkSpriteComponent> = {

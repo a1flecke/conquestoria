@@ -777,6 +777,37 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { science: 4, production: 2 },
     },
   },
+  'apollo-program': {
+    id: 'apollo-program',
+    name: 'Apollo Program',
+    era: 11,
+    productionCost: 380,
+    requiredTechs: ['space-exploration'],
+    requiredResources: [],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'achieve-orbit',
+        type: 'research_count',
+        track: 'science',
+        targetCount: 3,
+        description: 'Complete 3 era-11 science technologies to achieve orbital capability.',
+      },
+      {
+        id: 'lunar-landing',
+        type: 'buildings-in-multiple-cities',
+        targetCount: 2,
+        cityScope: 'empire',
+        minimumBuildingsPerCity: 5,
+        description: 'Develop 2 advanced cities capable of supporting the moon mission.',
+      },
+    ],
+    reward: {
+      summary: '+6 science empire-wide each turn. Humanity steps beyond Earth; science is forever changed.',
+      // civYieldBonus: single key science 6 ≤ 6 ceiling ✓
+      civYieldBonus: { science: 6 },
+    },
+  },
 };
 
 export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = getApprovedM4LegendaryWonderRoster().map(entry => {

@@ -20,27 +20,27 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the legacy shape after adding era-5 through era-10 nodes', () => {
+  it('keeps the legacy shape after adding era-5 through era-11 nodes', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      // Era 5-10 each add 2 techs per track. Espionage had 2 stubs → 22 total.
-      // Economy/science/communication/maritime/exploration had 9 era1-4 + 12 (era5-10) = 21.
-      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 22.
-      // Other tracks had 8 era1-4 + 12 (era5-10) = 20.
+      // Era 5-11 each add 2 techs per track. Espionage had 2 stubs → 24 total.
+      // Economy/science/communication/maritime/exploration had 9 era1-4 + 14 (era5-11) = 23.
+      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 24.
+      // Other tracks had 8 era1-4 + 14 (era5-11) = 22.
       const expectedCount = track === 'espionage' || track === 'military'
-        ? 22
+        ? 24
         : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-          ? 21
-          : 20;
+          ? 23
+          : 22;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 309 techs total after adding era-10 (30 new techs across 15 tracks)', () => {
-    expect(TECH_TREE.length).toBe(309);
+  it('has 339 techs total after adding era-11 (30 new techs across 15 tracks)', () => {
+    expect(TECH_TREE.length).toBe(339);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -58,10 +58,10 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('techs span eras 1-10', () => {
+  it('techs span eras 1-11', () => {
     const eras = new Set(TECH_TREE.map(t => t.era));
-    expect(eras.size).toBe(10);
-    for (let era = 1; era <= 10; era++) {
+    expect(eras.size).toBe(11);
+    for (let era = 1; era <= 11; era++) {
       expect(eras).toContain(era);
     }
   });
