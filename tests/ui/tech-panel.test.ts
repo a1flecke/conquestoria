@@ -196,15 +196,28 @@ describe('tech-panel', () => {
 
     panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.click();
     const medicineBeforeSelection = document.body.querySelector<HTMLElement>('[data-tech-id="medicine"]');
+    const bankingBeforeSelection = document.body.querySelector<HTMLElement>('[data-tech-id="banking"]');
     medicineBeforeSelection?.click();
 
     expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Philosophy');
     expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Pottery');
     expect(document.body.querySelector('[data-tech-id="medicine"]')).toBe(medicineBeforeSelection);
+    expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-selected')).toBe('true');
     expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-path')).toBe('selected');
+    expect(document.body.querySelector('[data-edge-from="philosophy"][data-edge-to="medicine"]')?.getAttribute('stroke-width')).toBe('3');
     expect(document.body.querySelector('[data-action="queue-selected-tech"]')).toBeFalsy();
     expect(queued).toEqual([]);
-  });
+
+    bankingBeforeSelection?.click();
+
+    expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Banking');
+    expect(document.body.querySelector('[data-tech-id="banking"]')).toBe(bankingBeforeSelection);
+    expect(document.body.querySelector('[data-tech-id="banking"]')?.getAttribute('data-selected')).toBe('true');
+    expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-selected')).toBeNull();
+    expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-path')).toBeNull();
+    expect(document.body.querySelector('[data-edge-from="philosophy"][data-edge-to="medicine"]')?.getAttribute('stroke-width')).toBe('1.5');
+    expect(document.body.querySelector('[data-edge-from="mathematics"][data-edge-to="banking"]')?.getAttribute('stroke-width')).toBe('3');
+  }, 10_000);
 
   it('uses meaningful zoom labels in compact map controls', () => {
     const state = createNewGame(undefined, 'tech-a11y-test');
