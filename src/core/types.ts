@@ -795,6 +795,7 @@ export interface Civilization {
   satelliteSurveillanceTargets?: Record<string, number>;
   breakaway?: BreakawayMetadata;
   nearDefeat?: boolean;   // true when cities.length <= 1; used by audio system
+  isEliminated?: boolean; // true once all cities are captured; hides civ from diplomacy
   lastCombatTurnByLandmass?: Record<string, number>; // landmassId → turn of last combat
 }
 

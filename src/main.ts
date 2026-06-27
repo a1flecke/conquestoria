@@ -511,7 +511,7 @@ function updateHUD(): void {
 
   const goldBtn = document.createElement('button');
   goldBtn.style.cssText =
-    'background:transparent;color:inherit;border:none;font-size:inherit;padding:0;cursor:pointer;min-height:44px;';
+    'background:transparent;color:inherit;border:none;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;';
   goldBtn.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
   goldBtn.addEventListener('click', () => drawer?.toggle());
   yieldsRow.appendChild(goldBtn);
@@ -2293,6 +2293,13 @@ function finalizePendingCityCaptureChoice(
     if (prevCivAfterCapture) {
       const prevCityCount = prevCivAfterCapture.cities.length;
       if (prevCityCount === 0) {
+        gameState = {
+          ...gameState,
+          civilizations: {
+            ...gameState.civilizations,
+            [previousOwner]: { ...prevCivAfterCapture, isEliminated: true },
+          },
+        };
         bus.emit('civ:eliminated', { civId: previousOwner, eliminatedBy: gameState.currentPlayer });
       } else if (prevCivAfterCapture.nearDefeat) {
         // nearDefeat was just set to true by resolveMajorCityCapture (just entered near-defeat)

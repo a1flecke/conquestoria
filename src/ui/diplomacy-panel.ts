@@ -79,6 +79,7 @@ export function createDiplomacyPanel(
   let civIdx = 0;
   for (const [civId, civ] of Object.entries(state.civilizations)) {
     if (civId === state.currentPlayer) continue;
+    if (civ.isEliminated) continue;
     if (!shouldListMajorCivForViewer(state, state.currentPlayer, civId)) continue;
 
     const civDef = resolveCivDefinition(state, civ.civType ?? '');
