@@ -3,6 +3,14 @@
 set -eu
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Git exports GIT_DIR and related repository-local variables to hooks. Clear
+# them before project scripts inspect other worktrees; otherwise `git -C`
+# resolves every directory against this worktree and run-with-mise recurses.
+for variable in $(git rev-parse --local-env-vars); do
+  unset "$variable"
+done
+
 cd "$REPO_ROOT"
 
 ./scripts/pre-commit-checks.sh
