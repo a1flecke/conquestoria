@@ -3,7 +3,12 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
 import { createWonderPanel } from '@/ui/wonder-panel';
-import { makeWonderPanelFixture, collectText } from './helpers/wonder-panel-fixture';
+import { appendGuidanceStrip } from '@/ui/wonder-panel-view';
+import {
+  makeWonderPanelFixture,
+  makeWonderPresentationEntry,
+  collectText,
+} from './helpers/wonder-panel-fixture';
 
 describe('wonder-panel', () => {
   afterEach(() => {
@@ -109,6 +114,77 @@ describe('wonder-panel', () => {
     expect(document.activeElement).toBe(topClose);
     panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('prioritizes missing requirements over quest advice for near guidance', () => {
+    const host = document.createElement('div');
+    appendGuidanceStrip(host, makeWonderPresentationEntry({
+      visibleState: 'near',
+      missingRequirements: ['Printing', 'Stone'],
+    }), () => {});
+
+    expect(host.textContent).toContain('Missing Printing, Stone');
+    expect(host.textContent).not.toContain('next step');
+    expect(host.querySelector('[data-wonder-guidance-start-build]')).toBeNull();
+  });
+
+  it('renders guidance CTA only when buildability and action label are both present', () => {
+    const start = vi.fn();
+    const readyHost = document.createElement('div');
+    appendGuidanceStrip(readyHost, makeWonderPresentationEntry({
+      visibleState: 'ready',
+      eligibilityState: 'buildable',
+      phase: 'ready_to_build',
+      canStartBuild: true,
+      startActionLabel: 'Start Construction',
+      questCompleted: 2,
+    }), start);
+    readyHost.querySelector<HTMLButtonElement>('[data-wonder-guidance-start-build]')!.click();
+    expect(start).toHaveBeenCalledWith('oracle-of-delphi');
+
+    for (const visibleState of ['questing', 'building', 'completed', 'recovered', 'near', 'blocked'] as const) {
+      const host = document.createElement('div');
+      appendGuidanceStrip(host, makeWonderPresentationEntry({
+        visibleState,
+        canStartBuild: false,
+        startActionLabel: null,
+      }), start);
+      expect(host.querySelector('[data-wonder-guidance-start-build]')).toBeNull();
+    }
+
+    const missingLabelHost = document.createElement('div');
+    appendGuidanceStrip(missingLabelHost, makeWonderPresentationEntry({
+      visibleState: 'ready',
+      canStartBuild: true,
+      startActionLabel: null,
+    }), start);
+    expect(missingLabelHost.querySelector('[data-wonder-guidance-start-build]')).toBeNull();
+  });
+
+  it('allows only one start callback across duplicate guidance and card CTAs', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+    const onStartBuild = vi.fn();
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild,
+      onClose: () => {},
+    });
+
+    const guidance = panel.querySelector<HTMLButtonElement>(
+      '[data-wonder-guidance-start-build="oracle-of-delphi"]',
+    )!;
+    const card = panel.querySelector<HTMLButtonElement>(
+      '[data-wonder-start-build="oracle-of-delphi"]',
+    )!;
+
+    guidance.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    guidance.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(onStartBuild).toHaveBeenCalledTimes(1);
+    expect(onStartBuild).toHaveBeenCalledWith('city-river', 'oracle-of-delphi');
+    expect(guidance.disabled).toBe(true);
+    expect(card.disabled).toBe(true);
   });
 
   it('shows eligibility, quest steps, build city, and race compensation text', () => {
