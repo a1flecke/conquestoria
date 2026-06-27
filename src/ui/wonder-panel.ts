@@ -5,8 +5,9 @@ import {
 } from '@/systems/legendary-wonder-presentation';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
-import { createGameButton } from '@/ui/ui-kit';
+import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import {
+  appendGuidanceStrip,
   appendProjectCard,
   createWonderCardGrid,
   type StartWonderAction,
@@ -114,6 +115,15 @@ export function createWonderPanel(
   panel.addEventListener('keydown', event => {
     if (event.key === 'Escape') callbacks.onClose();
   });
+  const pendingStarts = new Set<string>();
+  const startOnce: StartWonderAction = wonderId => {
+    if (pendingStarts.has(wonderId)) return;
+    pendingStarts.add(wonderId);
+    for (const button of panel.querySelectorAll<HTMLButtonElement>('[data-wonder-start-target]')) {
+      if (button.dataset.wonderStartTarget === wonderId) setButtonDisabled(button, true);
+    }
+    callbacks.onStartBuild(cityId, wonderId);
+  };
 
   const shell = document.createElement('div');
   shell.dataset.wonderLayout = 'responsive-shell';
@@ -167,14 +177,16 @@ export function createWonderPanel(
     .slice(0, 3);
   const recommendedIds = new Set(recommendedEntries.map(entry => entry.wonderId));
   const laterEntries = cityEntries.filter(entry => !recommendedIds.has(entry.wonderId));
-  const startWonder: StartWonderAction = wonderId => callbacks.onStartBuild(cityId, wonderId);
+  if (recommendedEntries.length > 0) {
+    appendGuidanceStrip(shell, recommendedEntries[0], startOnce);
+  }
 
   appendProjectSection(
     shell,
     'Best fits right now',
     'recommended-wonders',
     recommendedEntries,
-    startWonder,
+    startOnce,
     'recommended',
   );
   appendProjectSection(
@@ -182,7 +194,7 @@ export function createWonderPanel(
     'All ambitions in this city',
     'all-city-wonders',
     laterEntries,
-    startWonder,
+    startOnce,
     'compact',
   );
   appendRivalIntelSection(shell, 'In progress elsewhere', 'rival-wonders', rivalIntel.slice(0, 3));

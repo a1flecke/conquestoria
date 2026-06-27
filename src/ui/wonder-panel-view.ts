@@ -166,6 +166,58 @@ function appendRequirementsOrNextStep(parent: HTMLElement, entry: LegendaryWonde
   );
 }
 
+function getGuidanceCopy(entry: LegendaryWonderPresentationEntry): string {
+  if (entry.canStartBuild && entry.startActionLabel) {
+    return `${entry.name} is ready. Starting now begins construction while preserving queued production.`;
+  }
+  if (entry.visibleState === 'building') return `${entry.name}: construction is already underway.`;
+  if (entry.visibleState === 'completed') return `${entry.name}: reward is already active.`;
+  if (entry.visibleState === 'recovered') {
+    return `${entry.name}: race lost, but recovered effort remains available.`;
+  }
+  if (entry.missingRequirements.length > 0) {
+    return `${entry.name}: Missing ${entry.missingRequirements.join(', ')}.`;
+  }
+  const pending = entry.questSteps.find(step => !step.completed);
+  if (pending) return `${entry.name}: next step — ${pending.description}`;
+  return `${entry.name}: review the card below for the next step.`;
+}
+
+export function appendGuidanceStrip(
+  parent: HTMLElement,
+  entry: LegendaryWonderPresentationEntry,
+  onStart: StartWonderAction,
+): void {
+  const strip = document.createElement('section');
+  strip.dataset.wonderGuidance = entry.wonderId;
+  strip.style.cssText = [
+    'display:grid',
+    'grid-template-columns:repeat(auto-fit,minmax(min(100%, 260px),1fr))',
+    'align-items:center',
+    'gap:12px',
+    'background:rgba(232,193,112,0.10)',
+    'border:1px solid rgba(232,193,112,0.28)',
+    'border-radius:14px',
+    'padding:12px',
+    'margin-bottom:14px',
+    'min-width:0',
+  ].join(';');
+
+  const copy = document.createElement('div');
+  appendText(copy, 'h3', 'Best move right now', 'margin:0 0 6px;');
+  appendText(copy, 'p', getGuidanceCopy(entry), 'margin:0;line-height:1.4;');
+  strip.appendChild(copy);
+
+  if (entry.canStartBuild && entry.startActionLabel) {
+    const button = createGameButton(entry.startActionLabel, 'primary');
+    button.dataset.wonderGuidanceStartBuild = entry.wonderId;
+    button.dataset.wonderStartTarget = entry.wonderId;
+    button.addEventListener('click', () => onStart(entry.wonderId));
+    strip.appendChild(button);
+  }
+  parent.appendChild(strip);
+}
+
 export function createWonderCardGrid(kind: 'recommended' | 'catalog' | 'rival'): HTMLElement {
   const grid = document.createElement('div');
   grid.dataset.wonderCardGrid = kind;
