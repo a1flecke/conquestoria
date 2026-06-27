@@ -239,6 +239,52 @@ describe('era 11 AI queuing', () => {
     expect(city.productionQueue).not.toContain('attack_helicopter');
   });
 
+  it('AI queues attack_helicopter in at most one city across multiple cities in the same turn', () => {
+    // Two inland cities with empty queues and no helicopter yet.
+    // Without the hasQueuedAttackHelicopterThisTurn guard both cities would queue it.
+    const counters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    const map = {
+      width: 8, height: 8, wrapsHorizontally: false, rivers: [],
+      tiles: {
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland' as const, elevation: 'lowland' as const, resource: null, improvement: 'none' as const, owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        '5,0': { coord: { q: 5, r: 0 }, terrain: 'grassland' as const, elevation: 'lowland' as const, resource: null, improvement: 'none' as const, owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+      },
+    };
+    const city1 = foundCity('ai-1', { q: 0, r: 0 }, map, counters);
+    const city2 = foundCity('ai-1', { q: 5, r: 0 }, map, counters);
+    const state = {
+      turn: 11, era: 11, currentPlayer: 'ai-1', gameOver: false, winner: null,
+      map, units: {},
+      cities: { [city1.id]: city1, [city2.id]: city2 },
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1', name: 'AI', color: '#d94a4a', isHuman: false, civType: 'generic',
+          cities: [city1.id, city2.id], units: [],
+          techState: { completed: ['helicopter-warfare'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 100, visibility: { tiles: {} }, score: 0, knownCivilizations: [],
+          diplomacy: { relationships: {}, atWarWith: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 2, peakMilitary: 0 } },
+        },
+      },
+      barbarianCamps: {}, minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
+      embargoes: [], defensiveLeagues: [],
+      idCounters: counters,
+      pendingDiplomacyRequests: [], legendaryWonderIntel: {},
+      legendaryWonderHistory: { destroyedStrongholds: [], discoveredSites: [] },
+      legendaryWonderProjects: {},
+      builtNationalProjects: {},
+      espionage: {},
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const result = processAITurn(state, 'ai-1', bus);
+    const helicopterCities = Object.values(result.cities).filter(
+      c => c.owner === 'ai-1' && c.productionQueue.includes('attack_helicopter')
+    );
+    expect(helicopterCities.length).toBeLessThanOrEqual(1);
+  });
+
   it('AI queues missile_submarine when nuclear-submarines is researched, city is coastal, none exists', () => {
     const state = makeAi11State({ completedTechs: ['nuclear-submarines'], coastal: true });
     const bus = new EventBus();

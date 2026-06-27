@@ -901,6 +901,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   const hasCarrier = (civ.units ?? []).some(id => newState.units[id]?.type === 'carrier');
   const hasMissileSubmarine = (civ.units ?? []).some(id => newState.units[id]?.type === 'missile_submarine');
   let hasQueuedCarrierThisTurn = false;
+  let hasQueuedAttackHelicopterThisTurn = false;
   let hasQueuedMissileSubThisTurn = false;
   const hasAirSuperiorityTech = civ.techState.completed.includes('air-superiority');
   const hasJetAviationTech = civ.techState.completed.includes('jet-aviation');
@@ -1132,10 +1133,11 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       // Queue one attack_helicopter per civ when helicopter-warfare is researched
       if (
         hasHelicopterWarfareTech &&
-        !hasAttackHelicopter &&
+        !hasAttackHelicopter && !hasQueuedAttackHelicopterThisTurn &&
         trainableUnits.includes('attack_helicopter') &&
         city.productionQueue.length === 0
       ) {
+        hasQueuedAttackHelicopterThisTurn = true;
         newState = {
           ...newState,
           cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['attack_helicopter'] } },

@@ -898,7 +898,7 @@ export const BUILDINGS: Record<string, Building> = {
   surveillance_agency: {
     id: 'surveillance_agency', name: 'Surveillance Agency', category: 'espionage',
     yields: { food: 0, production: 0, gold: 1, science: 2 }, productionCost: 200,
-    description: 'Signals intelligence bureau monitoring communications via satellite intercepts. +2 science, +1 gold per turn. Enemy spy missions -15% success.',
+    description: 'Signals intelligence bureau monitoring communications via satellite intercepts. +2 science, +1 gold per turn. Satellite data sharpens counter-intelligence operations.',
     techRequired: 'satellite-surveillance',
     pacing: { band: 'infrastructure', role: 'signals-intel-science', impact: 1.3, scope: 'city', snowball: 1.2, urgency: 1.0, situationality: 1.3, unlockBreadth: 1 },
   },
