@@ -1,33 +1,64 @@
 #!/usr/bin/env bash
-# Smoke test: require-green-before-push.sh
-# - Non-matching commands: exit 0
-# - Matching command + REQUIRE_GREEN_TEST_MODE=fail: exit 2
-# - Matching command + REQUIRE_GREEN_TEST_MODE=pass: exit 0
-set -u
-HOOK="$(cd "$(dirname "$0")/../.." && pwd)/.claude/hooks/require-green-before-push.sh"
-fail=0
+# Functional tests for the Claude push gate's canonical verifier delegation.
 
-run() {
-  local payload="$1" mode="${2:-}"
-  REQUIRE_GREEN_TEST_MODE="$mode" bash "$HOOK" <<<"$payload" >/dev/null 2>&1
-  echo "rc=$?"
+set -eu
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+HOOK="$ROOT/.claude/hooks/require-green-before-push.sh"
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+mkdir -p "$tmpdir/scripts"
+
+marker="$tmpdir/verifier-ran"
+cat > "$tmpdir/scripts/verify-before-push.sh" <<'EOF'
+#!/bin/sh
+set -eu
+printf 'ran\n' >> "$VERIFY_MARKER"
+exit "${VERIFY_STUB_STATUS:-0}"
+EOF
+chmod +x "$tmpdir/scripts/verify-before-push.sh"
+
+run_hook() {
+  payload="$1"
+  verifier_status="${2:-0}"
+  rm -f "$marker"
+  set +e
+  VERIFY_MARKER="$marker" \
+    VERIFY_STUB_STATUS="$verifier_status" \
+    CLAUDE_PROJECT_DIR="$tmpdir" \
+    bash "$HOOK" <<<"$payload" >/dev/null 2>&1
+  hook_status=$?
+  set -e
 }
 
-# Non-matching commands pass without running build
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}')"             = "rc=0" ] || { echo "expected allow on ls"; fail=1; }
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"git status"}}')"         = "rc=0" ] || { echo "expected allow on git status"; fail=1; }
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"git commit -m foo"}}')"  = "rc=0" ] || { echo "expected allow on git commit"; fail=1; }
+run_hook '{"tool_name":"Bash","tool_input":{"command":"git status"}}'
+[ "$hook_status" -eq 0 ] || {
+  echo "Claude push gate blocked a non-push command"
+  exit 1
+}
+[ ! -f "$marker" ] || {
+  echo "Claude push gate verified a non-push command"
+  exit 1
+}
 
-# Matching commands run the gate
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"git push"}}'            fail)" = "rc=2" ] || { echo "expected block on git push (fail mode)"; fail=1; }
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"git push origin HEAD"}}' fail)" = "rc=2" ] || { echo "expected block on git push origin (fail mode)"; fail=1; }
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"gh pr create --fill"}}' fail)" = "rc=2" ] || { echo "expected block on gh pr create (fail mode)"; fail=1; }
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"gh pr merge 124"}}'     fail)" = "rc=2" ] || { echo "expected block on gh pr merge (fail mode)"; fail=1; }
+run_hook "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $tmpdir && git push origin HEAD\"}}"
+[ "$hook_status" -eq 0 ] || {
+  echo "Claude push gate rejected a passing canonical verifier"
+  exit 1
+}
+[ -f "$marker" ] || {
+  echo "Claude push gate did not invoke the canonical verifier"
+  exit 1
+}
 
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"git push"}}'            pass)" = "rc=0" ] || { echo "expected allow on git push (pass mode)"; fail=1; }
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"gh pr create"}}'        pass)" = "rc=0" ] || { echo "expected allow on gh pr create (pass mode)"; fail=1; }
+run_hook "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $tmpdir && gh pr create --fill\"}}" 17
+[ "$hook_status" -eq 2 ] || {
+  echo "Claude push gate did not block verifier failure: $hook_status"
+  exit 1
+}
 
-# Word-boundary: "pushing" as substring must not match
-[ "$(run '{"tool_name":"Bash","tool_input":{"command":"echo pushing"}}'        fail)" = "rc=0" ] || { echo "expected allow on non-git push substring"; fail=1; }
-
-exit "$fail"
+run_hook '{"tool_name":"Bash","tool_input":{"command":"echo pushing"}}' 17
+[ "$hook_status" -eq 0 ] || {
+  echo "Claude push gate matched a push substring"
+  exit 1
+}

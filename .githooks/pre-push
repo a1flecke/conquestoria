@@ -3,15 +3,41 @@
 set -eu
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-
-# Project checks inspect the active and main worktrees. Do not leak the
-# repository-local environment that Git exports to hooks into those commands.
-for variable in $(git rev-parse --local-env-vars); do
-  unset "$variable"
-done
+UPDATES_FILE="$(mktemp)"
+trap 'rm -f "$UPDATES_FILE"' EXIT
+cat > "$UPDATES_FILE"
 
 cd "$REPO_ROOT"
 
-# Re-run the complete local gate at the last possible point. A commit can be
-# created with hooks disabled or from tooling that does not run Claude hooks.
-./scripts/pre-commit-checks.sh
+HEAD_SHA="$(git rev-parse HEAD)"
+HAS_BRANCH_UPDATE=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "${local_ref:-}" ] || continue
+  case "$remote_ref" in
+    refs/heads/*)
+      case "$local_sha" in
+        *[!0]*) ;;
+        *) continue ;;
+      esac
+      HAS_BRANCH_UPDATE=1
+      if [ "$local_sha" != "$HEAD_SHA" ]; then
+        echo "ERROR: refusing to verify $local_ref -> $remote_ref at $local_sha while this worktree is at $HEAD_SHA." >&2
+        echo "Check out the branch being pushed, make the worktree clean, and push again." >&2
+        exit 1
+      fi
+      ;;
+  esac
+done < "$UPDATES_FILE"
+
+if [ "$HAS_BRANCH_UPDATE" -eq 0 ]; then
+  exit 0
+fi
+
+if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+  echo "ERROR: refusing to verify a dirty worktree." >&2
+  echo "Commit, stash, or remove local changes before pushing." >&2
+  exit 1
+fi
+
+./scripts/verify-before-push.sh

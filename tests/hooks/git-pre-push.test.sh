@@ -1,46 +1,109 @@
 #!/usr/bin/env bash
-# Smoke test: repository Git hooks delegate to the complete local gate without
-# leaking Git's repository-local environment into worktree-aware commands.
+# Functional tests for the repository pre-push hook.
 
-set -u
+set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-PRE_COMMIT_HOOK="$ROOT/.githooks/pre-commit"
-PRE_PUSH_HOOK="$ROOT/.githooks/pre-push"
+HOOK="$ROOT/.githooks/pre-push"
 
-if [ ! -x "$PRE_PUSH_HOOK" ]; then
+[ -x "$HOOK" ] || {
   echo "repository pre-push hook is missing or not executable"
   exit 1
-fi
-
-if ! grep -Fq './scripts/pre-commit-checks.sh' "$PRE_PUSH_HOOK"; then
-  echo "repository pre-push hook does not run the complete local gate"
-  exit 1
-fi
+}
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
 git init -q "$tmpdir"
+git -C "$tmpdir" config user.name Test
+git -C "$tmpdir" config user.email test@example.com
+printf 'base\n' > "$tmpdir/base.txt"
+git -C "$tmpdir" add base.txt
+git -C "$tmpdir" commit -q -m base
 mkdir -p "$tmpdir/scripts"
-printf '%s\n' \
-  '#!/bin/sh' \
-  'set -eu' \
-  'expected="$(git rev-parse --show-toplevel)"' \
-  'actual="$(git -C "$expected/scripts" rev-parse --show-toplevel)"' \
-  '[ "$actual" = "$expected" ]' \
-  > "$tmpdir/scripts/pre-commit-checks.sh"
-chmod +x "$tmpdir/scripts/pre-commit-checks.sh"
 
-run_hook_with_git_environment() {
-  hook="$1"
+marker="$tmpdir/verifier-ran"
+cat > "$tmpdir/scripts/verify-before-push.sh" <<'EOF'
+#!/bin/sh
+set -eu
+printf 'ran\n' >> "$VERIFY_MARKER"
+exit "${VERIFY_STUB_STATUS:-0}"
+EOF
+chmod +x "$tmpdir/scripts/verify-before-push.sh"
+git -C "$tmpdir" add scripts
+git -C "$tmpdir" commit -q -m "add verification stubs"
+
+head_sha="$(git -C "$tmpdir" rev-parse HEAD)"
+zero_sha="$(printf '0%.0s' {1..40})"
+
+run_hook() {
+  payload="$1"
+  verifier_status="${2:-0}"
+  rm -f "$marker"
+  set +e
   (
-    cd "$tmpdir" || exit 1
-    GIT_DIR="$tmpdir/.git" \
-      GIT_INDEX_FILE="$tmpdir/.git/index" \
-      bash "$hook"
-  )
+    cd "$tmpdir"
+    printf '%s\n' "$payload" |
+      VERIFY_MARKER="$marker" \
+      VERIFY_STUB_STATUS="$verifier_status" \
+      bash "$HOOK" origin unused
+  ) >/dev/null 2>&1
+  hook_status=$?
+  set -e
 }
 
-run_hook_with_git_environment "$PRE_COMMIT_HOOK"
-run_hook_with_git_environment "$PRE_PUSH_HOOK"
+run_hook "refs/heads/main $head_sha refs/heads/main $zero_sha"
+[ "$hook_status" -eq 0 ] || {
+  echo "pre-push rejected a clean HEAD push"
+  exit 1
+}
+[ -f "$marker" ] || {
+  echo "pre-push did not invoke the canonical verifier"
+  exit 1
+}
+
+run_hook "HEAD $head_sha refs/heads/from-head $zero_sha"
+[ "$hook_status" -eq 0 ] || {
+  echo "pre-push rejected a clean HEAD refspec"
+  exit 1
+}
+[ -f "$marker" ] || {
+  echo "pre-push skipped verification for a HEAD refspec"
+  exit 1
+}
+
+printf 'dirty\n' > "$tmpdir/dirty.txt"
+run_hook "refs/heads/main $head_sha refs/heads/main $zero_sha"
+[ "$hook_status" -ne 0 ] || {
+  echo "pre-push accepted a dirty worktree"
+  exit 1
+}
+rm -f "$tmpdir/dirty.txt"
+
+previous_sha="$(git -C "$tmpdir" rev-parse HEAD)"
+printf 'second\n' > "$tmpdir/second.txt"
+git -C "$tmpdir" add second.txt
+git -C "$tmpdir" commit -q -m second
+head_sha="$(git -C "$tmpdir" rev-parse HEAD)"
+
+run_hook "refs/heads/other $previous_sha refs/heads/other $zero_sha"
+[ "$hook_status" -ne 0 ] || {
+  echo "pre-push verified the current worktree while pushing another SHA"
+  exit 1
+}
+
+run_hook "refs/tags/v1 $head_sha refs/tags/v1 $zero_sha"
+[ "$hook_status" -eq 0 ] || {
+  echo "pre-push rejected a tag-only update"
+  exit 1
+}
+[ ! -f "$marker" ] || {
+  echo "pre-push ran the full verifier for a tag-only update"
+  exit 1
+}
+
+run_hook "refs/heads/main $head_sha refs/heads/main $zero_sha" 19
+[ "$hook_status" -eq 19 ] || {
+  echo "pre-push did not propagate verifier failure: expected 19, got $hook_status"
+  exit 1
+}
