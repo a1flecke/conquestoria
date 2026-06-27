@@ -88,11 +88,27 @@ class MockDocument {
   }
 }
 
-export function collectText(node: unknown): string {
-  const current = node as { textContent?: string; children?: ArrayLike<unknown> };
+function collectRawText(node: unknown): string {
+  const current = node as {
+    textContent?: string;
+    children?: ArrayLike<unknown>;
+    childNodes?: ArrayLike<unknown>;
+  };
+  if (current.childNodes) {
+    return Array.from(current.childNodes)
+      .map(child => {
+        const candidate = child as { nodeType?: number; textContent?: string };
+        return candidate.nodeType === 3 ? candidate.textContent ?? '' : collectRawText(child);
+      })
+      .filter(Boolean)
+      .join('');
+  }
   const children = Array.from(current.children ?? []);
-  if (children.length === 0) return current.textContent ?? '';
-  return children.map(collectText).filter(Boolean).join(' ');
+  return [current.textContent, ...children.map(collectRawText)].filter(Boolean).join('');
+}
+
+export function collectText(node: unknown): string {
+  return collectRawText(node).replace(/\s+/g, ' ').trim();
 }
 
 export function makeWonderPanelFixture(): { container: HTMLElement; city: City; state: GameState } {
