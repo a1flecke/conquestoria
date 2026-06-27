@@ -28,6 +28,13 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'node',
       exclude: ['**/node_modules/**', '**/.worktrees/**', '**/.claude/worktrees/**', 'tests/e2e/**'],
+      // Pin Vite's dependency optimizer cache to the main worktree's node_modules so
+      // secondary worktrees (which have no node_modules/) can find it. Without this,
+      // `vitest --root /worktree/path` looks for the cache inside the worktree and
+      // falls back to re-optimizing deps on every run. Note: esbuild's TypeScript
+      // transform time (~17s cumulative) is inherent to 300+ test files and 8 workers
+      // and is NOT reduced by this cache — that time is fixed by the suite size.
+      cacheDir: resolve(__dirname, 'node_modules/.vite/vitest'),
     },
   };
 });

@@ -62,54 +62,85 @@ fi
 IN_WORKTREE=0
 [ "$PROJECT_DIR" != "$MAIN_WORKTREE" ] && IN_WORKTREE=1
 
-BUILD_LOG=$(mktemp)
-TEST_LOG=$(mktemp)
-trap 'rm -f "$BUILD_LOG" "$TEST_LOG"' EXIT
+# Shared temp files; individual branches add more as needed.
+INSTALL_LOG=$(mktemp)
+trap 'rm -f "$INSTALL_LOG"' EXIT
 
 # Ensure dependencies are installed before building/testing
-(cd "$MAIN_WORKTREE" && "$RUN" yarn install --immutable) >"$BUILD_LOG" 2>&1 || true
+(cd "$MAIN_WORKTREE" && "$RUN" yarn install --immutable) >"$INSTALL_LOG" 2>&1 || true
 
-# Type-check: when in a worktree, run tsc against that worktree's tsconfig so
-# we gate the feature branch's types, not the main branch's.  On the main tree
-# run the full build (tsc + vite bundle) as before.
-build_failed=0
 if [ "$IN_WORKTREE" -eq 1 ]; then
+  # Worktree gate: run tsc and vitest in parallel — they don't depend on each other.
+  # This cuts wall-clock time from ~40s (sequential) to ~25s (vitest-dominated).
+  # The vitest transform cache is shared via node_modules/.vite/vitest in the main
+  # worktree (set in vite.config.ts cacheDir), so repeated runs are faster still.
+  TSC_LOG=$(mktemp)
+  VITEST_LOG=$(mktemp)
+  trap 'rm -f "$INSTALL_LOG" "$TSC_LOG" "$VITEST_LOG"' EXIT
+
   (cd "$MAIN_WORKTREE" && "$RUN" yarn tsc --project "$PROJECT_DIR/tsconfig.json" --noEmit) \
-    >>"$BUILD_LOG" 2>&1 || build_failed=1
-else
-  (cd "$MAIN_WORKTREE" && "$RUN" yarn build) >>"$BUILD_LOG" 2>&1 || build_failed=1
-fi
+    >"$TSC_LOG" 2>&1 &
+  TSC_PID=$!
 
-if [ "$build_failed" -ne 0 ]; then
-  {
-    echo "ERROR: type-check failed — fix type/build errors before pushing."
-    echo "--- last 30 lines of build output ---"
-    tail -n 30 "$BUILD_LOG"
-  } >&2
-  exit 2
-fi
-
-# Tests: when in a worktree, run vitest with --root pointing at the worktree so
-# test files and @/ aliases resolve against the feature branch's source, not main.
-# Hook smoke tests run from the worktree too (they find their sibling scripts via
-# relative paths from tests/hooks/).  On the main tree, run the combined yarn test
-# script as before.
-tests_failed=0
-if [ "$IN_WORKTREE" -eq 1 ]; then
   (cd "$MAIN_WORKTREE" && "$RUN" yarn vitest run --root "$PROJECT_DIR") \
-    >"$TEST_LOG" 2>&1 || tests_failed=1
-  bash "$PROJECT_DIR/tests/hooks/run.sh" >>"$TEST_LOG" 2>&1 || tests_failed=1
-else
-  (cd "$MAIN_WORKTREE" && "$RUN" yarn test) >"$TEST_LOG" 2>&1 || tests_failed=1
-fi
+    >"$VITEST_LOG" 2>&1 &
+  VITEST_PID=$!
 
-if [ "$tests_failed" -ne 0 ]; then
-  {
-    echo "ERROR: tests failed — fix failing tests before pushing."
-    echo "--- last 30 lines of test output ---"
-    tail -n 30 "$TEST_LOG"
-  } >&2
-  exit 2
+  wait "$TSC_PID"; tsc_exit=$?
+  wait "$VITEST_PID"; vitest_exit=$?
+
+  # Shell hook smoke tests are fast (~5s); run after vitest completes so their
+  # output appends cleanly to the same log without interleaving.
+  shell_exit=0
+  bash "$PROJECT_DIR/tests/hooks/run.sh" >>"$VITEST_LOG" 2>&1 || shell_exit=1
+
+  if [ "$tsc_exit" -ne 0 ]; then
+    {
+      echo "ERROR: type-check failed — fix type/build errors before pushing."
+      echo "--- last 20 lines of tsc output ---"
+      tail -n 20 "$TSC_LOG"
+    } >&2
+    exit 2
+  fi
+
+  if [ "$vitest_exit" -ne 0 ] || [ "$shell_exit" -ne 0 ]; then
+    {
+      echo "ERROR: tests failed — fix failing tests before pushing."
+      echo "--- last 30 lines of test output ---"
+      tail -n 30 "$VITEST_LOG"
+    } >&2
+    exit 2
+  fi
+
+else
+  # Main tree: full build (tsc + vite bundle) then tests, sequential as before.
+  BUILD_LOG=$(mktemp)
+  TEST_LOG=$(mktemp)
+  trap 'rm -f "$INSTALL_LOG" "$BUILD_LOG" "$TEST_LOG"' EXIT
+
+  build_failed=0
+  (cd "$MAIN_WORKTREE" && "$RUN" yarn build) >"$BUILD_LOG" 2>&1 || build_failed=1
+
+  if [ "$build_failed" -ne 0 ]; then
+    {
+      echo "ERROR: type-check failed — fix type/build errors before pushing."
+      echo "--- last 30 lines of build output ---"
+      tail -n 30 "$BUILD_LOG"
+    } >&2
+    exit 2
+  fi
+
+  tests_failed=0
+  (cd "$MAIN_WORKTREE" && "$RUN" yarn test) >"$TEST_LOG" 2>&1 || tests_failed=1
+
+  if [ "$tests_failed" -ne 0 ]; then
+    {
+      echo "ERROR: tests failed — fix failing tests before pushing."
+      echo "--- last 30 lines of test output ---"
+      tail -n 30 "$TEST_LOG"
+    } >&2
+    exit 2
+  fi
 fi
 
 exit 0
