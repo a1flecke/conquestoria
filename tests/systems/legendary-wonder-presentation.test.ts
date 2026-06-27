@@ -97,6 +97,60 @@ describe('legendary-wonder-presentation', () => {
     });
   });
 
+  it('keeps globally completed wonders blocked rather than available soon', () => {
+    const completedState = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'pilgrimages'],
+      resources: ['stone'],
+    });
+    completedState.completedLegendaryWonders = {
+      'oracle-of-delphi': { ownerId: 'rival', cityId: 'city-rival', turnCompleted: 39 },
+    };
+
+    const completedOracle = getLegendaryWonderPresentationForCity(completedState, 'player', 'city-river')
+      .find(entry => entry.wonderId === 'oracle-of-delphi');
+    expect(completedOracle).toMatchObject({
+      visibleState: 'blocked',
+      eligibilityState: 'blocked',
+    });
+    expect(completedOracle?.missingRequirements).toContain('Already completed elsewhere');
+  });
+
+  it('keeps same-owner active wonders blocked in other cities', () => {
+    const activeState = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'pilgrimages'],
+      resources: ['stone'],
+    });
+    activeState.cities['city-second'] = {
+      ...activeState.cities['city-river'],
+      id: 'city-second',
+      name: 'Second City',
+      position: { q: 3, r: 2 },
+    };
+    activeState.legendaryWonderProjects!['oracle-second'] = {
+      ...activeState.legendaryWonderProjects!['oracle-of-delphi'],
+      cityId: 'city-second',
+      phase: 'building',
+    };
+
+    const activeOracle = getLegendaryWonderPresentationForCity(activeState, 'player', 'city-river')
+      .find(entry => entry.wonderId === 'oracle-of-delphi');
+    expect(activeOracle).toMatchObject({
+      visibleState: 'blocked',
+      eligibilityState: 'blocked',
+    });
+    expect(activeOracle?.missingRequirements).toContain('Already under construction in another city');
+  });
+
+  it('formats underscore-backed resource identifiers for player-facing requirements', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+
+    const palace = getLegendaryWonderPresentationForCity(state, 'player', 'city-river')
+      .find(entry => entry.wonderId === 'palace-of-the-sun');
+
+    expect(palace?.missingRequirements).toContain('Gold Resource');
+    expect(palace?.missingRequirements).not.toContain('Gold_resource');
+  });
+
   it('keeps far-future blocked wonders out of the compact build-list surface', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     state.era = 1;

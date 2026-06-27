@@ -113,8 +113,13 @@ describe('wonder-panel', () => {
 
     const topClose = panel.querySelector<HTMLButtonElement>('[data-wonder-panel-close="top"]');
     expect(document.activeElement).toBe(topClose);
-    panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    const bubbledKeydown = vi.fn();
+    container.addEventListener('keydown', bubbledKeydown);
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    panel.dispatchEvent(escape);
     expect(onClose).toHaveBeenCalledOnce();
+    expect(escape.defaultPrevented).toBe(true);
+    expect(bubbledKeydown).not.toHaveBeenCalled();
   });
 
   it('prioritizes missing requirements over quest advice for near guidance', () => {
