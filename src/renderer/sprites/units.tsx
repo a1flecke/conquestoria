@@ -1358,7 +1358,6 @@ export function BiplaneSprite({ palette, svgOnly = false }: UnitSpriteProps): st
   );
 }
 
-// Placeholder — bespoke design prompt pending (see docs/sprite-design-system.md era 10 section)
 export function JetFighterSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>

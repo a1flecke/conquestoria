@@ -2209,9 +2209,6 @@ export function NationalCensusSprite({ palette, svgOnly = false }: BuildingSprit
   );
 }
 
-/* === ERA 10 PLACEHOLDER BUILDING SPRITES === */
-
-// Placeholder — bespoke replacement brief in docs/sprite-design-system.md era 10 section
 export function NuclearArsenalSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="Nuclear Arsenal" category="military" svgOnly={svgOnly}>
