@@ -1,11 +1,116 @@
 // @vitest-environment jsdom
 
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { makeWonderPanelFixture, collectText } from './helpers/wonder-panel-fixture';
 
 describe('wonder-panel', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it('renders the seven visible states on their exact project cards', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('printing', 'diplomats');
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'ready_to_build';
+    state.legendaryWonderProjects!['grand-canal'].phase = 'building';
+    state.legendaryWonderProjects!['world-archive'] = {
+      wonderId: 'world-archive',
+      ownerId: 'player',
+      cityId: city.id,
+      phase: 'questing',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: [{ id: 'archive-step', description: 'Collect records.', completed: false }],
+    };
+    state.legendaryWonderProjects!['sun-spire'] = {
+      wonderId: 'sun-spire',
+      ownerId: 'player',
+      cityId: city.id,
+      phase: 'lost_race',
+      investedProduction: 80,
+      transferableProduction: 20,
+      questSteps: [],
+    };
+    state.completedLegendaryWonders = {
+      'moonwell-gardens': { ownerId: 'player', cityId: city.id, turnCompleted: state.turn },
+    };
+
+    const panel = createWonderPanel(container, state, city.id, {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const expectState = (wonderId: string, visibleState: string, label: string) => {
+      const card = panel.querySelector(`[data-project-card="${wonderId}"]`);
+      const chip = card?.querySelector(`[data-wonder-status-chip="${visibleState}"]`);
+      expect(chip?.textContent).toContain(label);
+    };
+
+    expectState('oracle-of-delphi', 'ready', 'Ready to build');
+    expectState('world-archive', 'questing', 'Quest in progress');
+    expectState('grand-canal', 'building', 'Under construction');
+    expectState('moonwell-gardens', 'completed', 'Completed');
+    expectState('sun-spire', 'recovered', 'Race lost');
+    expectState('starvault-observatory', 'near', 'Available soon');
+    expectState('manhattan-project', 'blocked', 'Blocked');
+  });
+
+  it('labels quest rows with visible and machine-readable completion semantics', () => {
+    const { container, state } = makeWonderPanelFixture();
+    state.legendaryWonderProjects!['oracle-of-delphi'].questSteps = [
+      { id: 'discover-natural-wonder', description: 'Discover a natural wonder.', completed: true },
+      { id: 'complete-pilgrimage-route', description: 'Establish a pilgrimage trade route.', completed: false },
+    ];
+
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const rows = Array.from(
+      panel.querySelectorAll<HTMLElement>('[data-wonder-quest-list="oracle-of-delphi"] [data-wonder-quest-step]'),
+    );
+
+    expect(rows.map(row => row.dataset.wonderQuestStep)).toEqual(['completed', 'pending']);
+    expect(rows[0].textContent).toContain('✓ Complete: Discover a natural wonder.');
+    expect(rows[1].textContent).toContain('○ Pending: Establish a pilgrimage trade route.');
+    expect(rows.some(row => row.dataset.wonderQuestStep === 'blocked')).toBe(false);
+  });
+
+  it('renders a labelled dialog with responsive phone and laptop layout invariants', () => {
+    const { container, state } = makeWonderPanelFixture();
+    const onClose = vi.fn();
+    const panel = createWonderPanel(container, state, 'city-river', {
+      onStartBuild: () => {},
+      onClose,
+    });
+
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+    expect(panel.getAttribute('aria-labelledby')).toBe('wonder-panel-title');
+    expect(panel.querySelector('#wonder-panel-title')?.textContent).toBe('🏛️ Legendary Wonders');
+    expect(panel.textContent).toContain('Player · city-river');
+    expect(panel.style.boxSizing).toBe('border-box');
+    expect(panel.style.overflowX).toBe('hidden');
+
+    const shell = panel.querySelector<HTMLElement>('[data-wonder-layout="responsive-shell"]');
+    expect(shell?.style.width).toBe('100%');
+    expect(shell?.style.maxWidth).toBe('1120px');
+    expect(shell?.style.margin).toBe('0px auto');
+
+    const header = panel.querySelector<HTMLElement>('[data-wonder-layout="header"]');
+    expect(header?.style.flexWrap).toBe('wrap');
+    for (const grid of panel.querySelectorAll<HTMLElement>('[data-wonder-card-grid]')) {
+      expect(grid.style.gridTemplateColumns).toContain('auto-fit');
+      expect(grid.style.gridTemplateColumns).toContain('min(100%,');
+    }
+
+    const topClose = panel.querySelector<HTMLButtonElement>('[data-wonder-panel-close="top"]');
+    expect(document.activeElement).toBe(topClose);
+    panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('shows eligibility, quest steps, build city, and race compensation text', () => {
     const { container, state } = makeWonderPanelFixture();
 

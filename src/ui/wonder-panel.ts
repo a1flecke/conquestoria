@@ -2,34 +2,20 @@ import type { GameState, LegendaryWonderStartedIntelEntry } from '@/core/types';
 import {
   getLegendaryWonderPresentationForCity,
   type LegendaryWonderPresentationEntry,
-  type LegendaryWonderVisibleState,
 } from '@/systems/legendary-wonder-presentation';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 import { createGameButton } from '@/ui/ui-kit';
+import {
+  appendProjectCard,
+  createWonderCardGrid,
+  type StartWonderAction,
+  type WonderCardMode,
+} from '@/ui/wonder-panel-view';
 
 export interface WonderPanelCallbacks {
   onStartBuild: (cityId: string, wonderId: string) => void;
   onClose: () => void;
-}
-
-function getVisibleStateLabel(state: LegendaryWonderVisibleState): string {
-  switch (state) {
-    case 'ready':
-      return 'Ready to build';
-    case 'questing':
-      return 'Quest in progress';
-    case 'building':
-      return 'Under construction';
-    case 'completed':
-      return 'Completed';
-    case 'recovered':
-      return 'Race lost';
-    case 'near':
-      return 'Available soon';
-    case 'blocked':
-      return 'Blocked';
-  }
 }
 
 function appendText(parent: HTMLElement, tagName: keyof HTMLElementTagNameMap, text: string): HTMLElement {
@@ -37,60 +23,6 @@ function appendText(parent: HTMLElement, tagName: keyof HTMLElementTagNameMap, t
   element.textContent = text;
   parent.appendChild(element);
   return element;
-}
-
-function appendProjectCard(
-  entry: LegendaryWonderPresentationEntry,
-  section: HTMLElement,
-  callbacks: WonderPanelCallbacks,
-  cityId: string,
-  options: { recommended?: boolean } = {},
-): void {
-  const article = document.createElement('article');
-  article.dataset.projectCard = entry.wonderId;
-  article.style.cssText = 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:12px;margin-bottom:10px;';
-  if (options.recommended) {
-    article.dataset.recommendedProject = 'true';
-  }
-
-  appendText(article, 'h3', entry.name);
-  appendText(article, 'p', getVisibleStateLabel(entry.visibleState));
-  appendText(article, 'p', `Requires ${entry.productionCost} production.`);
-  appendText(article, 'p', entry.missingRequirements.length > 0
-    ? `Missing: ${entry.missingRequirements.join(', ')}.`
-    : 'Missing: none.');
-  appendText(article, 'p', `Quest steps: ${entry.questCompleted}/${entry.questTotal} complete.`);
-
-  for (const step of entry.questSteps) {
-    appendText(article, 'p', `${step.completed ? 'Done' : 'Pending'}: ${step.description}`);
-  }
-
-  appendText(article, 'p', `Reward: ${entry.rewardSummary}`);
-  if (entry.milestoneLabel) appendText(article, 'p', `Construction: ${entry.milestoneLabel}.`);
-  if (entry.turnsRemaining !== null) appendText(article, 'p', `${entry.turnsRemaining} turns remaining.`);
-  if (entry.raceTensionLabel) appendText(article, 'p', entry.raceTensionLabel);
-  if (entry.productionResumedLabel) appendText(article, 'p', entry.productionResumedLabel);
-  if (entry.visibleState === 'completed') appendText(article, 'p', 'Reward active.');
-  if (entry.recoveryLabel) appendText(article, 'p', entry.recoveryLabel);
-
-  if (entry.visibleState === 'building') {
-    appendText(article, 'p', `Race status: ${entry.investedProduction}/${entry.productionCost} production invested.`);
-  } else if (entry.visibleState === 'completed') {
-    appendText(article, 'p', 'Race status: won.');
-  } else if (entry.visibleState === 'recovered') {
-    appendText(article, 'p', `Race status: lost. ${entry.transferableProduction} carryover remains in this city.`);
-  } else {
-    appendText(article, 'p', 'Race status: not yet in construction.');
-  }
-
-  if (entry.canStartBuild && entry.startActionLabel) {
-    appendText(article, 'p', 'Starting now makes this the active production; current queue continues after this wonder.');
-    const startBuild = createGameButton(entry.startActionLabel, 'primary');
-    startBuild.addEventListener('click', () => callbacks.onStartBuild(cityId, entry.wonderId));
-    article.appendChild(startBuild);
-  }
-
-  section.appendChild(article);
 }
 
 function appendRivalIntelCard(
@@ -111,29 +43,27 @@ function appendRivalIntelCard(
 }
 
 function appendProjectSection(
-  panel: HTMLElement,
+  shell: HTMLElement,
   heading: string,
   dataSection: string,
   entries: LegendaryWonderPresentationEntry[],
-  callbacks: WonderPanelCallbacks,
-  cityId: string,
-  options: { recommended?: boolean } = {},
+  onStart: StartWonderAction,
+  mode: WonderCardMode,
 ): void {
-  if (entries.length === 0) {
-    return;
-  }
+  if (entries.length === 0) return;
 
   const section = document.createElement('section');
   section.dataset.section = dataSection;
-  section.style.cssText = 'margin-top:16px;';
+  section.style.cssText = 'margin-top:16px;min-width:0;';
 
   appendText(section, 'h3', heading);
-
+  const grid = createWonderCardGrid(mode === 'recommended' ? 'recommended' : 'catalog');
   for (const entry of entries) {
-    appendProjectCard(entry, section, callbacks, cityId, options);
+    appendProjectCard(entry, grid, onStart, mode);
   }
+  section.appendChild(grid);
 
-  panel.appendChild(section);
+  shell.appendChild(section);
 }
 
 function appendRivalIntelSection(
@@ -167,12 +97,35 @@ export function createWonderPanel(
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.id = 'wonder-panel';
-  panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:31;overflow-y:auto;padding:16px;padding-bottom:80px;';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.setAttribute('aria-labelledby', 'wonder-panel-title');
+  panel.style.cssText = [
+    'position:absolute',
+    'inset:0',
+    'box-sizing:border-box',
+    'background:rgba(15,15,25,0.97)',
+    'z-index:31',
+    'overflow-y:auto',
+    'overflow-x:hidden',
+    'padding:clamp(12px,2vw,24px)',
+    'padding-bottom:80px',
+  ].join(';');
+  panel.addEventListener('keydown', event => {
+    if (event.key === 'Escape') callbacks.onClose();
+  });
+
+  const shell = document.createElement('div');
+  shell.dataset.wonderLayout = 'responsive-shell';
+  shell.style.cssText = 'width:100%;max-width:1120px;margin:0 auto;';
+  panel.appendChild(shell);
 
   const header = document.createElement('div');
-  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;';
+  header.dataset.wonderLayout = 'header';
+  header.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;';
   const title = document.createElement('h2');
-  title.textContent = 'Legendary Wonders';
+  title.id = 'wonder-panel-title';
+  title.textContent = '🏛️ Legendary Wonders';
   title.style.margin = '0';
   header.appendChild(title);
 
@@ -180,20 +133,18 @@ export function createWonderPanel(
   topClose.dataset.wonderPanelClose = 'top';
   topClose.addEventListener('click', () => callbacks.onClose());
   header.appendChild(topClose);
-  panel.appendChild(header);
+  shell.appendChild(header);
 
   const city = state.cities[cityId];
   const civilization = state.civilizations[state.currentPlayer];
-  if (city || civilization) {
-    appendText(panel, 'p', `${civilization?.name ?? state.currentPlayer} - ${city?.name ?? cityId}`);
-  }
+  appendText(shell, 'p', `${civilization?.name ?? state.currentPlayer} · ${city?.name ?? cityId}`);
 
   const appendIntroSection = (heading: string, body: string) => {
     const section = document.createElement('section');
     section.style.cssText = 'margin-bottom:10px;';
     appendText(section, 'h3', heading);
     appendText(section, 'p', body);
-    panel.appendChild(section);
+    shell.appendChild(section);
   };
 
   appendIntroSection(
@@ -208,7 +159,7 @@ export function createWonderPanel(
     .filter((entry): entry is LegendaryWonderStartedIntelEntry => entry.kind === 'started');
 
   if (cityEntries.length === 0) {
-    appendText(panel, 'p', 'No legendary wonders are available in this city yet.');
+    appendText(shell, 'p', 'No legendary wonders are available in this city yet.');
   }
 
   const recommendedEntries = cityEntries
@@ -216,17 +167,31 @@ export function createWonderPanel(
     .slice(0, 3);
   const recommendedIds = new Set(recommendedEntries.map(entry => entry.wonderId));
   const laterEntries = cityEntries.filter(entry => !recommendedIds.has(entry.wonderId));
+  const startWonder: StartWonderAction = wonderId => callbacks.onStartBuild(cityId, wonderId);
 
-  appendProjectSection(panel, 'Best fits right now', 'recommended-wonders', recommendedEntries, callbacks, cityId, {
-    recommended: true,
-  });
-  appendProjectSection(panel, 'All ambitions in this city', 'all-city-wonders', laterEntries, callbacks, cityId);
-  appendRivalIntelSection(panel, 'In progress elsewhere', 'rival-wonders', rivalIntel.slice(0, 3));
+  appendProjectSection(
+    shell,
+    'Best fits right now',
+    'recommended-wonders',
+    recommendedEntries,
+    startWonder,
+    'recommended',
+  );
+  appendProjectSection(
+    shell,
+    'All ambitions in this city',
+    'all-city-wonders',
+    laterEntries,
+    startWonder,
+    'compact',
+  );
+  appendRivalIntelSection(shell, 'In progress elsewhere', 'rival-wonders', rivalIntel.slice(0, 3));
 
   const bottomClose = createGameButton('Close', 'ghost');
   bottomClose.addEventListener('click', () => callbacks.onClose());
-  panel.appendChild(bottomClose);
+  shell.appendChild(bottomClose);
 
   container.appendChild(panel);
+  topClose.focus();
   return panel;
 }

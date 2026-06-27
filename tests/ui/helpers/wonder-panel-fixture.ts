@@ -1,4 +1,5 @@
 import type { City, GameState } from '@/core/types';
+import type { LegendaryWonderPresentationEntry } from '@/systems/legendary-wonder-presentation';
 import { makeLegendaryWonderFixture } from '../../systems/helpers/legendary-wonder-fixture';
 
 class MockElement {
@@ -113,5 +114,40 @@ export function makeWonderPanelFixture(): { container: HTMLElement; city: City; 
     container,
     city,
     state,
+  };
+}
+
+export function makeWonderPresentationEntry(
+  overrides: Partial<LegendaryWonderPresentationEntry> = {},
+): LegendaryWonderPresentationEntry {
+  return {
+    wonderId: 'oracle-of-delphi',
+    queueItemId: 'legendary:oracle-of-delphi',
+    name: 'Oracle of Delphi',
+    era: 3,
+    productionCost: 120,
+    rewardSummary: '+60 research immediately.',
+    visibleState: 'questing',
+    eligibilityState: 'near',
+    phase: 'questing',
+    questCompleted: 0,
+    questTotal: 2,
+    questSteps: [
+      { id: 'first', description: 'Discover a natural wonder.', completed: false },
+      { id: 'second', description: 'Establish a pilgrimage route.', completed: false },
+    ],
+    investedProduction: 0,
+    transferableProduction: 0,
+    missingRequirements: [],
+    canStartBuild: false,
+    startActionLabel: null,
+    progressPercent: 0,
+    turnsRemaining: null,
+    milestoneLabel: null,
+    queueContinuityLabel: null,
+    productionResumedLabel: null,
+    recoveryLabel: null,
+    raceTensionLabel: null,
+    ...overrides,
   };
 }
