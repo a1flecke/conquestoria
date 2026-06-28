@@ -37,7 +37,7 @@ This contract is intentionally minimal for era 12. Future specialist units (Prop
 
 ### Cyber Defense Center — probabilistic defense
 
-The Cyber Defense Center (CDC) does **not** provide automatic immunity. Each relevant game tick the engine rolls via seeded RNG:
+The Cyber Defense Center (CDC) does **not** provide automatic immunity. Once per turn, for each active threat, the engine rolls via seeded RNG (one roll per Cyber Unit adjacent to the city, one roll per spy Market Manipulation attempt, one roll per turn to maintain the mass-surveillance bubble):
 
 | Threat | Base block chance | With Signals Hub (+10%) |
 |---|---|---|
@@ -192,13 +192,13 @@ id: 'digital-art'             cost: 380   prereqs: [pop-art, counterculture]
   unlocks: ['Each wonder you control spreads +1 gold/turn to trade route partners']
 
 id: 'video-games'             cost: 385   prereqs: [pop-art, consumer-boom]
-  unlocks: ['Entertainment buildings generate ×1.5 gold']
+  unlocks: ['Entertainment buildings generate ×1.5 gold (entertainment buildings = any BUILDINGS entry with category: "entertainment" — e.g. music_hall, amphitheater, stadium)']
 ```
 
 ### Spirituality
 ```
 id: 'mindfulness-movement'    cost: 380   prereqs: [ecumenical-movement, new-age-spirituality]
-  unlocks: ['Units heal at 1.5× rate in friendly territory (stacks additively with telemedicine)']
+  unlocks: ['Friendly territory heals units at 1.5× rate (applies to base territory heal rate; telemedicine +1 HP/turn is added after: combined = base_heal × 1.5 + 1)']
 
 id: 'new-secularism'          cost: 380   prereqs: [new-age-spirituality, ecumenical-movement]
   unlocks: ['Science buildings each generate +1 gold']
@@ -391,6 +391,8 @@ Special: each trade route connecting to a civ you are not at war with generates
 Per-route scaling allowlist entry: era 12 trade route slots are capped by building
 investment; maximum realistic gain ≈ +8 gold (8 routes × 1). Rewards diplomatic
 play; naturally reduced by war.
+Implementation note: add to the NP per-route allowlist in .claude/rules/game-balance.md
+with this justification before merging.
 Thematic: digital infrastructure investment across partner states
 ```
 
