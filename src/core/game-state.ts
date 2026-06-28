@@ -1,4 +1,4 @@
-import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig, MapScript, GameMap, HexCoord } from './types';
+import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig, MapScript, GameMap, HexCoord, OpponentChallenge } from './types';
 import { generateMap, findStartPositions, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import { EARTH_TILES, EARTH_START_POSITIONS, EARTH_RIVERS } from '@/systems/earth-map-data';
@@ -23,6 +23,7 @@ import { placeBeastLairs } from '@/systems/beast-system';
 import { placeMinorCivs } from '@/systems/minor-civ-system';
 import { initializeEspionage } from '@/systems/espionage-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import { createEmptyOpponentAIState } from './opponent-ai-state';
 
 function hashSeed(s: string): number {
   let h = 0;
@@ -96,6 +97,7 @@ function normalizeSoloSetupConfig(
       settingsOverrides: arg1.settingsOverrides,
       customCivilizations: arg1.customCivilizations,
       mapScript: arg1.mapScript,
+      opponentChallenge: arg1.opponentChallenge,
     };
   }
 
@@ -270,6 +272,8 @@ export function createNewGame(
     era: 1,
     gameId: createGameId(gameSeed),
     gameTitle: resolvedGameTitle,
+    opponentChallenge: config.opponentChallenge ?? 'standard',
+    opponentAI: createEmptyOpponentAIState(),
     civilizations,
     map,
     units,
@@ -314,7 +318,12 @@ export function createNewGame(
   return state;
 }
 
-export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitle?: string): GameState {
+export function createHotSeatGame(
+  config: HotSeatConfig,
+  seed?: string,
+  gameTitle?: string,
+  opponentChallenge: OpponentChallenge = 'standard',
+): GameState {
   const idCounters = emptyIdCounters();
 
   const gameSeed = seed ?? `hotseat-${Date.now()}`;
@@ -421,6 +430,8 @@ export function createHotSeatGame(config: HotSeatConfig, seed?: string, gameTitl
     era: 1,
     gameId: createGameId(gameSeed),
     gameTitle: resolvedGameTitle,
+    opponentChallenge,
+    opponentAI: createEmptyOpponentAIState(),
     civilizations,
     map,
     units,
