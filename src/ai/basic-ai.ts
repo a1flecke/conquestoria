@@ -78,6 +78,7 @@ import {
   payPirateTribute,
 } from '@/systems/pirate-actions';
 import { derivePirateBlockades } from '@/systems/pirate-behavior';
+import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -376,10 +377,11 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
     if (adjacentPirate) {
       const seed = Math.max(1, nextState.turn * 16807 + warship.id.length * 97 + adjacentPirate.id.length);
       const combat = resolveCombat(warship, adjacentPirate, nextState.map, seed, undefined, nextState.era);
+      const combatPresentation = buildCombatPresentation(nextState, combat, warship, adjacentPirate);
       const applied = applyCombatOutcomeToState(nextState, combat, seed);
       nextState = applied.state;
       emitMinorCivQuestTransitions(bus, applied.questTransitions, nextState);
-      bus.emit('combat:resolved', { result: combat });
+      bus.emit('combat:resolved', { result: combat, ...combatPresentation });
       for (const reward of applied.rewards) bus.emit('combat:reward-earned', { reward });
       continue;
     }
@@ -665,6 +667,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
             { attackerBonus, defenderBonus },
             newState.era,
           );
+          const combatPresentation = buildCombatPresentation(newState, result, unit, occupant);
           const applied = applyCombatOutcomeToState(newState, result, seed);
           newState = applied.state;
           emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
@@ -679,7 +682,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
               }
             }
           }
-          bus.emit('combat:resolved', { result });
+          bus.emit('combat:resolved', { result, ...combatPresentation });
           for (const reward of applied.rewards) {
             bus.emit('combat:reward-earned', { reward });
           }

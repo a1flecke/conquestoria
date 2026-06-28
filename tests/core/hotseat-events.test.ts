@@ -25,9 +25,10 @@ describe('hotseat-events', () => {
       'player-1': [{ type: 'test', message: 'hi', turn: 1 }],
       'player-2': [{ type: 'test', message: 'yo', turn: 1 }],
     };
-    clearEventsForPlayer(pending, 'player-1');
-    expect(pending['player-1']).toHaveLength(0);
-    expect(pending['player-2']).toHaveLength(1);
+    const next = clearEventsForPlayer(pending, 'player-1');
+    expect(next['player-1']).toHaveLength(0);
+    expect(next['player-2']).toEqual(pending['player-2']);
+    expect(pending['player-1']).toHaveLength(1);
   });
 
   it('generateSummary produces summary from game state', () => {

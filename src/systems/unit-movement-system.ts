@@ -18,6 +18,7 @@ import { isAtWar } from '@/systems/diplomacy-system';
 import { removeRouteForUnit } from '@/systems/trade-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
+import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 
 export interface ExecuteUnitMoveOptions {
   actor: 'player' | 'automation' | 'ai';
@@ -106,6 +107,8 @@ export function executeUnitMove(
 
   const unit = state.units[unitId]!;
   const from = { ...unit.position };
+  const movePath = validation.path;
+  const presentationByViewer = buildMovePresentationByViewer(state, unit, movePath);
   state.units = {
     ...state.units,
     [unitId]: moveUnit(unit, validation.to, validation.cost),
@@ -114,8 +117,13 @@ export function executeUnitMove(
     const synced = syncTransportCargoPositions(state, unitId);
     state.units = synced.units;
   }
-  const movePath = validation.path;
-  options.bus?.emit('unit:move', { unitId, from, to: validation.to, path: movePath });
+  options.bus?.emit('unit:move', {
+    unitId,
+    from,
+    to: validation.to,
+    path: movePath,
+    presentationByViewer,
+  });
 
   let villageOutcome: Extract<ExecuteUnitMoveResult, { ok: true }>['villageOutcome'];
   const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(validation.to));
@@ -390,7 +398,17 @@ export function advanceRouteRunners(state: GameState, bus?: EventBus): GameState
         [caravan.id]: { ...newState.units[caravan.id]!, position: nextStep },
       },
     };
-    bus?.emit('unit:move', { unitId: caravan.id, from, to: nextStep, path: [from, nextStep] });
+    bus?.emit('unit:move', {
+      unitId: caravan.id,
+      from,
+      to: nextStep,
+      path: [from, nextStep],
+      presentationByViewer: buildMovePresentationByViewer(
+        newState,
+        { ...caravan, position: from },
+        [from, nextStep],
+      ),
+    });
 
     if (nextStep.q === targetCity.position.q && nextStep.r === targetCity.position.r) {
       const movedCaravan = newState.units[caravan.id];

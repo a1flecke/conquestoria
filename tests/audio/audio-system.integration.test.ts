@@ -91,6 +91,18 @@ describe('AudioSystem integration', () => {
     expect(ctx.transcript.some(e => e.op === 'linearRampToValueAtTime')).toBe(true);
   });
 
+  it('suppresses immediate audio event presentation while the round gate is active', () => {
+    system.start(makeState(), busHelper.bus, undefined, () => true);
+    const before = ctx.transcript.length;
+    busHelper.emit('diplomacy:war-declared', {
+      attackerId: 'rome',
+      defenderId: 'egypt',
+      opponentKind: 'major',
+    });
+
+    expect(ctx.transcript.length).toBe(before);
+  });
+
   // Flow E: peace signed (last war)
   it('Flow E: peace:made with warCount=1 transitions to peace', () => {
     system.start(makeState(), busHelper.bus);

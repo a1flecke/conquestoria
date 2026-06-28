@@ -32,8 +32,11 @@ export function getEventsForPlayer(
 export function clearEventsForPlayer(
   pending: Record<string, GameEvent[]>,
   civId: string,
-): void {
-  pending[civId] = [];
+): Record<string, GameEvent[]> {
+  return {
+    ...pending,
+    [civId]: [],
+  };
 }
 
 export interface TurnSummary {
@@ -44,7 +47,6 @@ export interface TurnSummary {
   units: number;
   currentResearch: string | null;
   researchProgress: number;
-  sciencePerTurn: number;
   atWarWith: string[];
   allies: string[];
   events: GameEvent[];
@@ -69,7 +71,6 @@ export function generateSummary(
     units: civ?.units.length ?? 0,
     currentResearch: civ?.techState.currentResearch ?? null,
     researchProgress: civ?.techState.researchProgress ?? 0,
-    sciencePerTurn: 0, // calculated at render time from city yields
     atWarWith: civ?.diplomacy?.atWarWith ?? [],
     allies,
     events: pending[civId] ?? [],

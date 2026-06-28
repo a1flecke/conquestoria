@@ -1386,7 +1386,16 @@ export interface GameSettings {
 export interface GameEvents {
   'turn:start': { turn: number; playerId: string };
   'turn:end': { turn: number; playerId: string };
-  'unit:move': { unitId: string; from: HexCoord; to: HexCoord; path: HexCoord[] };
+  'unit:move': {
+    unitId: string;
+    from: HexCoord;
+    to: HexCoord;
+    path: HexCoord[];
+    presentationByViewer: Record<string, {
+      unit: Unit;
+      visibleSegments: HexCoord[][];
+    }>;
+  };
   'unit:created': { unit: Unit };
   'unit:destroyed': { unitId: string; position: HexCoord };
   'pirate:faction-spawned': {
@@ -1427,7 +1436,12 @@ export interface GameEvents {
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
   'economy:treasury-strain': { civId: string; level: Exclude<TreasuryStrainLevel, 'none'>; netGoldPerTurn: number; unpaidMaintenance: number };
-  'combat:resolved': { result: CombatResult };
+  'combat:resolved': {
+    result: CombatResult;
+    visibleToViewerIds: string[];
+    attackerType: UnitType;
+    defenderType: UnitType;
+  };
   'combat:reward-earned': { reward: CombatRewardNotification };
   'tech:completed': { civId: string; techId: string };
   'tech:started': { civId: string; techId: string };

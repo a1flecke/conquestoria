@@ -31,6 +31,10 @@ import {
   type PirateNotificationEvent,
 } from './pirate-notifications';
 import { createUnit, getMovementStepCost, moveUnit, resetUnitTurn, UNIT_DEFINITIONS } from './unit-system';
+import {
+  buildCombatPresentation,
+  buildMovePresentationByViewer,
+} from './viewer-event-presentation';
 
 export const PIRATE_ROUND_TRACE = [
   'normalize',
@@ -139,11 +143,17 @@ function attackTarget(
   state: GameState,
   attacker: Unit,
   targetUnitId: string | undefined,
-): { state: GameState; result: CombatResult | null; transportKill: PirateRoundFacts['transportKills'][number] | null; events: PirateActionEvent[] } {
+): {
+  state: GameState;
+  result: CombatResult | null;
+  presentation: NonNullable<PirateRoundFacts['attackPresentations']>[number] | null;
+  transportKill: PirateRoundFacts['transportKills'][number] | null;
+  events: PirateActionEvent[];
+} {
   const defender = targetUnitId ? state.units[targetUnitId] : undefined;
-  if (!defender || !isMajorCivOwner(defender.owner)) return { state, result: null, transportKill: null, events: [] };
+  if (!defender || !isMajorCivOwner(defender.owner)) return { state, result: null, presentation: null, transportKill: null, events: [] };
   if (!canUnitAttackTarget(state, attacker, defender.position, { requireVisibility: false }).ok) {
-    return { state, result: null, transportKill: null, events: [] };
+    return { state, result: null, presentation: null, transportKill: null, events: [] };
   }
   const seed = Math.max(1, state.turn * 7919 + attacker.id.length * 97 + defender.id.length);
   const result = resolveCombat(attacker, defender, state.map, seed, undefined, state.era);
@@ -151,7 +161,13 @@ function attackTarget(
   const transportKill = !result.defenderSurvived && UNIT_DEFINITIONS[defender.type]?.cargoCapacity !== undefined
     ? { factionId: attacker.owner as `pirate-${number}`, victimCivId: defender.owner, unitId: defender.id }
     : null;
-  return { state: applied.state, result, transportKill, events: applied.pirateEvents };
+  return {
+    state: applied.state,
+    result,
+    presentation: buildCombatPresentation(state, result, attacker, defender),
+    transportKill,
+    events: applied.pirateEvents,
+  };
 }
 
 function processMovementAndCombat(state: GameState, relocated: Set<string>): {
@@ -160,7 +176,12 @@ function processMovementAndCombat(state: GameState, relocated: Set<string>): {
   events: PirateActionEvent[];
 } {
   let nextState = state;
-  const facts: PirateRoundFacts = { movements: [], attacks: [], transportKills: [] };
+  const facts: PirateRoundFacts = {
+    movements: [],
+    attacks: [],
+    transportKills: [],
+    attackPresentations: [],
+  };
   const events: PirateActionEvent[] = [];
   for (const factionId of Object.keys(state.pirates?.factions ?? {}).sort()) {
     let faction = nextState.pirates?.factions[factionId];
@@ -181,21 +202,36 @@ function processMovementAndCombat(state: GameState, relocated: Set<string>): {
       if (attack.result) {
         nextState = attack.state;
         facts.attacks.push(attack.result);
+        facts.attackPresentations!.push(attack.presentation!);
         if (attack.transportKill) facts.transportKills.push(attack.transportKill);
         events.push(...attack.events);
         continue;
       }
       if (target) {
         const from = unit.position;
+        const beforeMove = nextState;
         const moved = moveOneStepToward(nextState, unit, target);
         nextState = moved.state;
-        if (moved.path.length > 0) facts.movements.push({ unitId, from, to: moved.path.at(-1)!, path: moved.path });
+        if (moved.path.length > 0) {
+          facts.movements.push({
+            unitId,
+            from,
+            to: moved.path.at(-1)!,
+            path: moved.path,
+            presentationByViewer: buildMovePresentationByViewer(
+              beforeMove,
+              unit,
+              [from, ...moved.path],
+            ),
+          });
+        }
       }
       unit = nextState.units[unitId];
       attack = unit ? attackTarget(nextState, unit, intent?.targetUnitId) : attack;
       if (attack.result) {
         nextState = attack.state;
         facts.attacks.push(attack.result);
+        facts.attackPresentations!.push(attack.presentation!);
         if (attack.transportKill) facts.transportKills.push(attack.transportKill);
         events.push(...attack.events);
       }
@@ -357,11 +393,22 @@ export function processPiratesForCompletedRound(state: GameState, bus: EventBus)
         };
       }
     }
+    const beforeRelocation = nextState;
     const result = applyPlannedRelocation(nextState, factionId);
     nextState = result.state;
     for (const movement of result.facts.movements) {
       relocated.add(movement.unitId);
-      relocationFacts.push(movement);
+      const unit = beforeRelocation.units[movement.unitId];
+      relocationFacts.push({
+        ...movement,
+        ...(unit ? {
+          presentationByViewer: buildMovePresentationByViewer(
+            beforeRelocation,
+            unit,
+            [movement.from, ...movement.path],
+          ),
+        } : { presentationByViewer: {} }),
+      });
     }
     if (result.facts.relocation.status === 'moved') events.push({ type: 'relocated', factionId });
   }
@@ -371,6 +418,7 @@ export function processPiratesForCompletedRound(state: GameState, bus: EventBus)
     movements: [...relocationFacts, ...processed.facts.movements],
     attacks: processed.facts.attacks,
     transportKills: processed.facts.transportKills,
+    attackPresentations: processed.facts.attackPresentations,
   };
   events.push(...processed.events.map(event => ({ type: event.type, factionId: event.factionId })));
   const raids = derivePirateRaids(nextState, facts);
@@ -436,10 +484,13 @@ export function processPiratesForCompletedRound(state: GameState, bus: EventBus)
     bus.emit('unit:move', {
       ...movement,
       path: [movement.from, ...movement.path],
+      presentationByViewer: movement.presentationByViewer ?? {},
     });
   }
-  for (const result of facts.attacks) {
-    bus.emit('combat:resolved', { result });
+  for (const [index, result] of facts.attacks.entries()) {
+    const presentation = facts.attackPresentations?.[index];
+    if (!presentation) continue;
+    bus.emit('combat:resolved', { result, ...presentation });
   }
   return { state: nextState, economyModifiers, events, facts, trace };
 }
