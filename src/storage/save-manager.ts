@@ -1,4 +1,4 @@
-import { QUEST_TYPES, type City, type CityFocus, type CityMaturity, type GameState, type QuestTarget, type SaveSlotMeta } from '@/core/types';
+import { QUEST_TYPES, type City, type CityFocus, type CityMaturity, type GameState, type OpponentChallenge, type QuestTarget, type SaveSlotMeta } from '@/core/types';
 import { drawNextCityName } from '@/systems/city-name-system';
 import { isCityCoastal, BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from '@/systems/city-maturity-system';
@@ -24,6 +24,8 @@ import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
 import { getPirateStageDefinition, PIRATE_NOTORIETY, PIRATE_PRESSURE } from '@/systems/pirate-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { isOpponentChallenge } from '@/core/opponent-challenge';
+import { createEmptyOpponentAIState, normalizeOpponentAIState } from '@/core/opponent-ai-state';
 
 const SAVE_PREFIX = 'save:';
 const META_PREFIX = 'meta:';
@@ -721,9 +723,15 @@ export function normalizeLoadedState(state: GameState): NormalizedGameState {
   normalizedCityState.pirates = normalizePirateState(normalizedCityState);
   normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog);
   normalizedCityState.idCounters = normalizeIdCounters(normalizedCityState);
+  if (!isOpponentChallenge(normalizedCityState.opponentChallenge)) {
+    delete normalizedCityState.opponentChallenge;
+  }
+  if (!isOpponentChallenge(normalizedCityState.pendingOpponentChallenge)) {
+    delete normalizedCityState.pendingOpponentChallenge;
+  }
   if (!normalizedCityState.map?.tiles) {
     normalizedCityState.pendingDiplomacyRequests ??= [];
-    return normalizedCityState as NormalizedGameState;
+    return normalizeOpponentAIState(normalizedCityState) as NormalizedGameState;
   }
   const territoryNormalized = recalculateTerritory(normalizedCityState, {
     reason: 'load',
@@ -744,7 +752,7 @@ export function normalizeLoadedState(state: GameState): NormalizedGameState {
       }
     }
   }
-  return normalized as NormalizedGameState;
+  return normalizeOpponentAIState(normalized) as NormalizedGameState;
 }
 
 export const normalizeLoadedStateForTest = normalizeLoadedState;
@@ -889,6 +897,16 @@ function getSaveStorageKey(id: string, kind: 'manual' | 'autosave'): string {
   return kind === 'autosave' ? id : `${SAVE_PREFIX}${id}`;
 }
 
+export interface SaveEntrySource {
+  id: string;
+  kind: 'manual' | 'autosave';
+}
+
+export interface LoadedSaveEntry {
+  state: NormalizedGameState;
+  source: SaveEntrySource;
+}
+
 function getMetaStorageKey(id: string): string {
   return `${META_PREFIX}${id}`;
 }
@@ -910,7 +928,7 @@ async function listPersistedMetas(): Promise<SaveSlotMeta[]> {
   return metas.sort(compareSaveMeta);
 }
 
-async function loadLegacyAutoSave(): Promise<GameState | undefined> {
+async function loadLegacyAutoSave(): Promise<NormalizedGameState | undefined> {
   const idbSave = await dbGet<GameState>(LEGACY_AUTO_SAVE_KEY);
   if (idbSave) {
     return normalizeLoadedState(idbSave);
@@ -1009,18 +1027,59 @@ export async function autoSave(state: GameState): Promise<void> {
   await syncLocalStorageBackup(resolved);
 }
 
+export async function loadSaveEntry(source: SaveEntrySource): Promise<LoadedSaveEntry | undefined> {
+  if (source.kind === 'autosave' && source.id === LEGACY_AUTO_SAVE_KEY) {
+    const state = await loadLegacyAutoSave();
+    return state ? { state, source: { ...source } } : undefined;
+  }
+
+  const state = await dbGet<GameState>(getSaveStorageKey(source.id, source.kind));
+  return state
+    ? { state: normalizeLoadedState(state), source: { ...source } }
+    : undefined;
+}
+
+export async function loadMostRecentAutoSaveEntry(): Promise<LoadedSaveEntry | undefined> {
+  const newestMeta = await getMostRecentAutosaveMeta();
+  if (newestMeta) {
+    await retireLegacyAutosaveIfRealAutosavesExist();
+    return loadSaveEntry({ id: newestMeta.id, kind: 'autosave' });
+  }
+
+  const state = await loadLegacyAutoSave();
+  return state
+    ? { state, source: { id: LEGACY_AUTO_SAVE_KEY, kind: 'autosave' } }
+    : undefined;
+}
+
+export async function rewriteLoadedSaveEntry(
+  source: SaveEntrySource,
+  state: GameState,
+): Promise<void> {
+  const resolved = normalizeLoadedState(structuredClone(state));
+
+  if (source.kind === 'autosave' && source.id === LEGACY_AUTO_SAVE_KEY) {
+    await dbPut(LEGACY_AUTO_SAVE_KEY, resolved);
+    await syncLocalStorageBackup(resolved);
+    return;
+  }
+
+  const storageKey = getSaveStorageKey(source.id, source.kind);
+  if (!await dbGet<GameState>(storageKey)) {
+    throw new Error('Save entry no longer exists.');
+  }
+
+  await dbPut(storageKey, resolved);
+  if (source.kind === 'autosave') {
+    const newestMeta = await getMostRecentAutosaveMeta();
+    if (newestMeta?.id === source.id) {
+      await syncLocalStorageBackup(resolved);
+    }
+  }
+}
+
 export async function loadMostRecentAutoSave(): Promise<GameState | undefined> {
-  const retiredLegacy = await retireLegacyAutosaveIfRealAutosavesExist();
-  const persistedAutoSave = await loadMostRecentPersistedAutosave();
-  if (persistedAutoSave) {
-    return persistedAutoSave;
-  }
-
-  if (retiredLegacy) {
-    return undefined;
-  }
-
-  return loadLegacyAutoSave();
+  return (await loadMostRecentAutoSaveEntry())?.state;
 }
 
 export async function loadAutoSave(): Promise<GameState | undefined> {
@@ -1071,6 +1130,20 @@ export async function loadGame(slotId: string): Promise<GameState | undefined> {
 
   const save = await dbGet<GameState>(getSaveStorageKey(slotId, 'manual'));
   return save ? normalizeLoadedState(save) : undefined;
+}
+
+export function initializeLegacyOpponentChallenge(
+  state: GameState,
+  challenge: OpponentChallenge,
+): NormalizedGameState {
+  const migrated = structuredClone(state) as NormalizedGameState;
+  migrated.opponentChallenge = challenge;
+  delete migrated.pendingOpponentChallenge;
+  migrated.opponentAI = {
+    ...createEmptyOpponentAIState(),
+    migrationGraceRoundsRemaining: 2,
+  };
+  return migrated;
 }
 
 export async function deleteSaveEntry(entryId: string, kind: 'manual' | 'autosave'): Promise<void> {

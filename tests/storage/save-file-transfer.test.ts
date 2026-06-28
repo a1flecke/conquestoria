@@ -24,7 +24,17 @@ function makeState(turn: number = 7): any {
     },
     cities: {},
     units: {},
-    map: { width: 1, height: 1, tiles: [], wrapsHorizontally: false },
+    map: {
+      width: 1,
+      height: 1,
+      tiles: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'grassland',
+        },
+      },
+      wrapsHorizontally: false,
+    },
   };
 }
 
@@ -55,6 +65,15 @@ describe('save-file-transfer', () => {
     }
   });
 
+  it('parses a real generated game save', async () => {
+    const { createNewGame } = await import('@/core/game-state');
+    const state = createNewGame(undefined, 'real-save-shape', 'small');
+
+    const parsed = parseSaveFile(serializeSaveFile(state));
+
+    expect(parsed.status).toBe('success');
+  });
+
   it('rejects invalid JSON with a clear error', () => {
     expect(parseSaveFile('{not-json')).toEqual({
       status: 'error',
@@ -78,6 +97,29 @@ describe('save-file-transfer', () => {
       status: 'error',
       message: 'Invalid save file: missing required game state fields.',
     });
+  });
+
+  it('rejects legacy array-shaped map tiles', () => {
+    const state = makeState();
+    state.map.tiles = [];
+
+    expect(parseSaveFile(JSON.stringify(state)).status).toBe('error');
+  });
+
+  it('rejects non-finite turns and malformed map dimensions', () => {
+    const infiniteTurn = makeState(Number.POSITIVE_INFINITY);
+    const missingDimensions = makeState();
+    delete missingDimensions.map.width;
+
+    expect(parseSaveFile(JSON.stringify(infiniteTurn)).status).toBe('error');
+    expect(parseSaveFile(JSON.stringify(missingDimensions)).status).toBe('error');
+  });
+
+  it('rejects a current player missing from civilizations', () => {
+    const state = makeState();
+    state.currentPlayer = 'missing';
+
+    expect(parseSaveFile(JSON.stringify(state)).status).toBe('error');
   });
 
   it('exports the most recent autosave through the injected adapter', async () => {

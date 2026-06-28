@@ -12,18 +12,30 @@ export type SaveFileImportResult =
   | { status: 'error'; message: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isGameStateShape(value: unknown): value is GameState {
-  return isRecord(value)
-    && typeof value.turn === 'number'
-    && typeof value.currentPlayer === 'string'
-    && isRecord(value.civilizations)
-    && isRecord(value.cities)
-    && isRecord(value.units)
-    && isRecord(value.map)
-    && Array.isArray(value.map.tiles);
+  if (
+    !isRecord(value)
+    || !Number.isFinite(value.turn)
+    || typeof value.currentPlayer !== 'string'
+    || !isRecord(value.civilizations)
+    || !isRecord(value.cities)
+    || !isRecord(value.units)
+    || !isRecord(value.map)
+  ) {
+    return false;
+  }
+  if (
+    !Number.isFinite(value.map.width)
+    || !Number.isFinite(value.map.height)
+    || typeof value.map.wrapsHorizontally !== 'boolean'
+    || !isRecord(value.map.tiles)
+  ) {
+    return false;
+  }
+  return isRecord(value.civilizations[value.currentPlayer]);
 }
 
 export function serializeSaveFile(state: GameState): string {
