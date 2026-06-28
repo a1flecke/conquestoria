@@ -19,7 +19,7 @@ function removeExistingShell(container: HTMLElement): void {
 function createHud(): HTMLDivElement {
   const hud = document.createElement('div');
   hud.id = 'hud';
-  hud.style.cssText = 'position:absolute;top:0;left:0;right:0;padding:8px 12px;background:rgba(0,0,0,0.6);display:flex;justify-content:space-between;font-size:13px;z-index:10;';
+  hud.style.cssText = 'position:absolute;top:0;left:0;right:0;min-height:60px;padding:8px 12px;background:rgba(0,0,0,0.6);display:flex;justify-content:space-between;align-items:center;font-size:13px;z-index:10;';
   return hud;
 }
 
@@ -29,7 +29,7 @@ function createFloatingButton(id: string, text: string, title: string, right: nu
   button.type = 'button';
   button.textContent = text;
   button.title = title;
-  button.style.cssText = `position:absolute;top:44px;right:${right}px;z-index:21;min-height:44px;min-width:40px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;`;
+  button.style.cssText = `position:absolute;top:60px;right:${right}px;z-index:21;min-height:44px;min-width:40px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;`;
   button.addEventListener('click', () => onClick());
   return button;
 }
