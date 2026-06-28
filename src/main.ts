@@ -499,7 +499,7 @@ function updateHUD(): void {
   hud.textContent = '';
 
   const yieldsRow = document.createElement('div');
-  yieldsRow.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
+  yieldsRow.style.cssText = 'display:flex;gap:10px;flex-wrap:nowrap;overflow:hidden;min-width:0;';
 
   const yieldSpan = document.createElement('span');
   yieldSpan.textContent = `🌾 ${totalFood}`;
@@ -518,6 +518,7 @@ function updateHUD(): void {
   drawer?.update(economyStatus, civ.gold);
 
   const sciSpan = document.createElement('span');
+  sciSpan.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
   sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
   yieldsRow.appendChild(sciSpan);
 

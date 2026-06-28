@@ -6,11 +6,13 @@ export interface CityNamingOptions {
   civName?: string;
 }
 
+// These names are intentionally disjoint from every major-civ pool so that minor
+// civs using this fallback list never block a named civ from using its own cities.
 export const DEFAULT_CITY_NAMES = [
-  'Alexandria', 'Thebes', 'Memphis', 'Carthage', 'Athens',
-  'Sparta', 'Rome', 'Babylon', 'Persepolis', 'Chang\'an',
-  'Kyoto', 'Delhi', 'Cusco', 'Tenochtitlan', 'London',
-  'Paris', 'Constantinople', 'Samarkand', 'Timbuktu', 'Angkor',
+  'Carthage', 'Constantinople', 'Samarkand', 'Timbuktu', 'Angkor',
+  'Antioch', 'Palmyra', 'Seleucia', 'Taxila', 'Kandy',
+  'Malacca', 'Zanzibar', 'Machu Picchu', 'Pataliputra', 'Meroe',
+  'Chichen Itza', 'Adrianople', 'Sarai', 'Chang\'an', 'Cusco',
 ];
 
 export function getNamingPoolForCiv(civType: string, options: CityNamingOptions = {}): string[] {
@@ -38,6 +40,14 @@ export function drawNextCityName(
     }
   }
 
+  // Use the first name from the pool as the base for thematic fallbacks
+  const firstPoolName = pool[0] ?? (options.civName ?? getCivDefinition(civType)?.name ?? 'City');
+  const prefixes = ['New', 'Old', 'Greater', 'North', 'South', 'East', 'West', 'Upper', 'Lower', 'Inner'];
+  for (const prefix of prefixes) {
+    const candidate = `${prefix} ${firstPoolName}`;
+    if (!usedNames.has(candidate)) return candidate;
+  }
+  // Last resort: numbered suffix
   const civName = options.civName ?? getCivDefinition(civType)?.name ?? 'City';
   let suffix = 2;
   let fallback = `${civName} ${suffix}`;
