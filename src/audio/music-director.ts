@@ -25,6 +25,7 @@ export interface CityFoundedPayload {
 export interface PlayerChangedPayload {
   civId: string;   // civ ID (e.g. 'player', 'cpu-1') — used to filter mid-game events
   civType: string; // civ type (e.g. 'rome') — used for accent/era track selection
+  era: number;
   atWar: boolean;
   unrestCityCount: number;
   nearDefeat: boolean;
@@ -102,10 +103,14 @@ export class MusicDirector {
     if (entry) {
       const captured = entry;
       const snapshotAtDispatch = snapshot;
+      const eraAtDispatch = era;
       void this.loader.get(captured.file).then(buf => {
         // Stale-check: if the snapshot changed while the load was in flight, skip the source swap.
         // This prevents the wrong adaptive layer from being set after a rapid state transition.
-        if (this.resolveSnapshot() !== snapshotAtDispatch) return;
+        if (
+          this.resolveSnapshot() !== snapshotAtDispatch
+          || resolveEra(this.currentEra) !== eraAtDispatch
+        ) return;
         this.mixer.setBusSource('adaptive', buf, true, captured.loop, ADAPTIVE_CROSSFADE_MS);
       });
     } else {
@@ -193,6 +198,7 @@ export class MusicDirector {
 
   handlePlayerChanged(p: PlayerChangedPayload): void {
     this.currentCivId = p.civId;
+    this.currentEra = p.era;
     // Reset all flags from the authoritative payload — prevents hot-seat drift
     this.atWar = p.atWar;
     this.unrestCityCount = p.unrestCityCount;

@@ -183,7 +183,6 @@ import {
   formatEconomyTreasuryStrainMessage,
   routeBarbarianSpawned,
   routeCombatRewardEarned,
-  routeCombatResolved,
   routeEconomyTreasuryStrain,
   routeEraAdvanced,
   routeFactionTransition,
@@ -221,7 +220,9 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import { runCompletedRound } from '@/core/completed-round-orchestrator';
+import { createCompletedRoundHandoffTransaction } from '@/core/completed-round-handoff';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
+import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
 
 // --- App State ---
 let gameState: GameState;
@@ -3164,6 +3165,20 @@ function runCurrentCompletedRound(state: GameState) {
   });
 }
 
+function emitCurrentPlayerAudioSnapshot(civId: string): void {
+  const civ = gameState.civilizations[civId];
+  const cities = Object.values(gameState.cities).filter(city => city.owner === civId);
+  bus.emit('currentPlayer:changed-after-handoff', {
+    civId,
+    civType: civ?.civType ?? civId,
+    era: gameState.era,
+    atWarCount: civ?.diplomacy?.atWarWith?.length ?? 0,
+    unrestCityCount: cities.filter(city => city.unrestLevel > 0).length,
+    nearDefeat: civ?.nearDefeat ?? false,
+    inBeastTerritory: isCivUnitInBeastTerritory(gameState, civId),
+  });
+}
+
 function releaseHandoffToViewer(nextSlotId: string): void {
   centerOnCurrentPlayer();
   renderLoop.setGameState(gameState);
@@ -3173,15 +3188,7 @@ function releaseHandoffToViewer(nextSlotId: string): void {
   roundPresentationGate.resume();
   audio.setMasterVolume(currentMasterVolume);
   setBlockingOverlay(null);
-  const nextCiv = gameState.civilizations[nextSlotId];
-  const nextCivCities = Object.values(gameState.cities).filter(c => c.owner === nextSlotId);
-  bus.emit('currentPlayer:changed-after-handoff', {
-    civId: nextSlotId,
-    atWarCount: nextCiv?.diplomacy?.atWarWith?.length ?? 0,
-    unrestCityCount: nextCivCities.filter(c => c.unrestLevel > 0).length,
-    nearDefeat: nextCiv?.nearDefeat ?? false,
-    inBeastTerritory: isCivUnitInBeastTerritory(gameState, nextSlotId),
-  });
+  emitCurrentPlayerAudioSnapshot(nextSlotId);
   handleVictoryIfNeeded();
 }
 
@@ -3230,11 +3237,71 @@ async function beginHotSeatHandoff(
     window.location.reload();
   };
 
-  const persistCompletedHandoff = async (): Promise<void> => {
+  const persistIntermediateHandoff = async (): Promise<void> => {
     try {
       await autoSave(gameState);
       controller.setReady(gameState);
     } catch {
+      controller.setError(
+        'The turn handoff could not be saved. Retry saving before opening the next turn.',
+        {
+          onRetry: () => void persistIntermediateHandoff(),
+          onReturnToSaves: returnToSaves,
+        },
+      );
+    }
+  };
+
+  if (!completesRound) {
+    gameState = { ...preSimulationState, currentPlayer: nextSlotId };
+    void persistIntermediateHandoff();
+    return;
+  }
+
+  const transaction = createCompletedRoundHandoffTransaction({
+    initialState: preSimulationState,
+    runCompletedRound: runCurrentCompletedRound,
+    prepareCompletedState: state => ({ ...state, currentPlayer: nextSlotId }),
+    eventTarget: bus,
+    adoptState: state => {
+      gameState = state;
+    },
+    persistState: autoSave,
+    onCommitErrors: errors => {
+      if (errors.length > 0) {
+        console.error('[handoff] Buffered presentation events failed to dispatch.', errors);
+      }
+    },
+  });
+
+  const persistCompletedHandoff = async (): Promise<void> => {
+    const outcome = await transaction.persistCompletedRoundHandoff();
+    if (outcome.status === 'ready') {
+      controller.setReady(outcome.state);
+      return;
+    }
+    controller.setError(
+      'The round finished, but the handoff could not be saved. Retry saving before opening the next turn.',
+      {
+        onRetry: () => void persistCompletedHandoff(),
+        onReturnToSaves: returnToSaves,
+      },
+    );
+  };
+
+  const simulate = async (): Promise<void> => {
+    const outcome = await transaction.runCompletedRoundSimulation();
+    if (outcome.status === 'simulation-failed') {
+      controller.setError(
+        'The round could not be completed. Your turn is unchanged and was not autosaved.',
+        {
+          onRetry: () => void simulate(),
+          onReturnToSaves: returnToSaves,
+        },
+      );
+      return;
+    }
+    if (outcome.status === 'persistence-failed') {
       controller.setError(
         'The round finished, but the handoff could not be saved. Retry saving before opening the next turn.',
         {
@@ -3242,32 +3309,11 @@ async function beginHotSeatHandoff(
           onReturnToSaves: returnToSaves,
         },
       );
-    }
-  };
-
-  const simulate = (): void => {
-    if (!completesRound) {
-      gameState = { ...preSimulationState, currentPlayer: nextSlotId };
-      void persistCompletedHandoff();
       return;
     }
-    const result = runCurrentCompletedRound(preSimulationState);
-    if (!result.ok) {
-      gameState = preSimulationState;
-      controller.setError(
-        'The round could not be completed. Your turn is unchanged and was not autosaved.',
-        {
-          onRetry: simulate,
-          onReturnToSaves: returnToSaves,
-        },
-      );
-      return;
-    }
-    gameState = { ...result.state, currentPlayer: nextSlotId };
-    result.events.commitTo(bus);
-    void persistCompletedHandoff();
+    controller.setReady(outcome.state);
   };
-  simulate();
+  void simulate();
 }
 
 async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
@@ -3654,13 +3700,12 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
 // its visibility covers any raider from a given camp.
 const notifiedBarbarianCampsPerCiv = new Map<string, Set<string>>();
 
-bus.on('combat:resolved', ({ result, visibleToViewerIds }) => {
-  if (
-    roundPresentationGate.isSuppressed()
-    || !visibleToViewerIds.includes(gameState.currentPlayer)
-  ) return;
-  renderLoop.applyCombatVisual(result);
-  routeCombatResolved(gameState, result, appendToCivLog);
+bus.on('combat:resolved', event => {
+  handleCombatResolvedEvent(gameState, event, {
+    isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
+    applyVisual: result => renderLoop.applyCombatVisual(result),
+    appendNotification: appendToCivLog,
+  });
 });
 
 bus.on('combat:reward-earned', ({ reward }) => {
@@ -3972,15 +4017,6 @@ function enterCampaign(
         roundPresentationGate.resume();
         setBlockingOverlay(null);
         startGame();
-        const viewerCiv = gameState.civilizations[viewerId];
-        const viewerCities = Object.values(gameState.cities).filter(city => city.owner === viewerId);
-        bus.emit('currentPlayer:changed-after-handoff', {
-          civId: viewerId,
-          atWarCount: viewerCiv?.diplomacy?.atWarWith?.length ?? 0,
-          unrestCityCount: viewerCities.filter(city => city.unrestLevel > 0).length,
-          nearDefeat: viewerCiv?.nearDefeat ?? false,
-          inBeastTerritory: isCivUnitInBeastTerritory(gameState, viewerId),
-        });
         audio.setMasterVolume(currentMasterVolume);
         showNotification(message, 'info');
       },
@@ -4352,6 +4388,7 @@ function startGame(): void {
   );
   audio.setMasterVolume(currentMasterVolume);
   routeSfxThrough(audio.getSfxRoutingNode());
+  emitCurrentPlayerAudioSnapshot(gameState.currentPlayer);
 
   // Prevent zoom-out duplication: ensure the camera cannot zoom past one full
   // map-width. hexToPixel({q: width, r:0}).x equals the wrapSpan used in

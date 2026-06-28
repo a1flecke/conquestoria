@@ -1042,8 +1042,15 @@ export async function loadSaveEntry(source: SaveEntrySource): Promise<LoadedSave
 export async function loadMostRecentAutoSaveEntry(): Promise<LoadedSaveEntry | undefined> {
   const newestMeta = await getMostRecentAutosaveMeta();
   if (newestMeta) {
+    const loaded = await loadSaveEntry({ id: newestMeta.id, kind: 'autosave' });
+    if (!loaded) {
+      const legacyState = await loadLegacyAutoSave();
+      return legacyState
+        ? { state: legacyState, source: { id: LEGACY_AUTO_SAVE_KEY, kind: 'autosave' } }
+        : undefined;
+    }
     await retireLegacyAutosaveIfRealAutosavesExist();
-    return loadSaveEntry({ id: newestMeta.id, kind: 'autosave' });
+    return loaded;
   }
 
   const state = await loadLegacyAutoSave();

@@ -1441,6 +1441,8 @@ export interface GameEvents {
     visibleToViewerIds: string[];
     attackerType: UnitType;
     defenderType: UnitType;
+    attackerOwnerId: string;
+    defenderOwnerId: string;
   };
   'combat:reward-earned': { reward: CombatRewardNotification };
   'tech:completed': { civId: string; techId: string };
@@ -1480,6 +1482,8 @@ export interface GameEvents {
   'era:advanced': { era: number };
   'currentPlayer:changed-after-handoff': {
     civId: string;
+    civType: string;
+    era: number;
     atWarCount: number;    // exact war count so AudioSystem can track remainingWars precisely
     unrestCityCount: number;
     nearDefeat: boolean;

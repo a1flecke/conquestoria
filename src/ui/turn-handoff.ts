@@ -121,7 +121,11 @@ export function showTurnHandoff(
     const focusable = Array.from(
       overlay.querySelectorAll<HTMLElement>('button:not(:disabled), [tabindex]:not([tabindex="-1"])'),
     );
-    if (focusable.length === 0) return;
+    if (focusable.length === 0) {
+      event.preventDefault();
+      overlay.querySelector<HTMLElement>('#turn-handoff-title')?.focus();
+      return;
+    }
     const first = focusable[0]!;
     const last = focusable.at(-1)!;
     if (event.shiftKey && document.activeElement === first) {
@@ -209,6 +213,12 @@ export function showTurnHandoff(
     }
     card.appendChild(events);
 
+    const openError = document.createElement('p');
+    openError.setAttribute('role', 'alert');
+    openError.hidden = true;
+    openError.style.cssText = 'margin:0 0 8px;color:#ffb4ab;font-size:12px;font-weight:600;';
+    card.appendChild(openError);
+
     const start = createGameButton('Start Turn', 'primary');
     start.id = 'handoff-start';
     start.style.width = '100%';
@@ -216,8 +226,18 @@ export function showTurnHandoff(
       if (start.disabled) return;
       setButtonDisabled(start, true);
       start.textContent = 'Opening turn…';
-      await options.onReady(summary);
-      remove();
+      openError.replaceChildren();
+      openError.hidden = true;
+      try {
+        await options.onReady(summary);
+        remove();
+      } catch {
+        openError.textContent = 'Could not open the turn. Please try again.';
+        openError.hidden = false;
+        start.textContent = 'Try Again';
+        setButtonDisabled(start, false);
+        start.focus();
+      }
     });
     card.appendChild(start);
     start.focus();

@@ -33,6 +33,7 @@ export class AudioSystem {
   private iosResumeListeners: Array<() => void> = [];
   private gestureResumeHandler: (() => void) | null = null;
   private isPresentationSuppressed: () => boolean = () => false;
+  private loopLoadRequestId = 0;
 
   constructor(private readonly ctx: AudioContext) {
     this.loader = new AudioLoader(ctx);
@@ -64,32 +65,23 @@ export class AudioSystem {
     getState: () => GameState = () => state,
     isPresentationSuppressed: () => boolean = () => false,
   ): void {
-    if (this.started) return;
-    this.started = true;
-    this.currentPlayerId = state.currentPlayer;
-    this.stateProvider = getState;
-    this.isPresentationSuppressed = isPresentationSuppressed;
-
-    // Snapshot civType lookup — civ identities are fixed for a game's lifetime
-    for (const [id, civ] of Object.entries(state.civilizations ?? {})) {
-      this.civTypeById[id] = (civ as { civType: string }).civType;
+    if (this.started) {
+      this.rebindCampaign(state, getState, isPresentationSuppressed);
+      return;
     }
-    this.currentCivType = this.civTypeById[this.currentPlayerId] ?? this.currentPlayerId;
+    this.started = true;
+    this.bindCampaignState(state, getState, isPresentationSuppressed);
+    this.applySettings(state);
 
-    const settings = state.settings;
-    this.mixer.setMusicEnabled(settings.musicEnabled);
-    this.mixer.setSfxEnabled(settings.soundEnabled);
-    this.mixer.setMusicVolume(settings.musicVolume);
-    this.mixer.setSfxVolume(settings.sfxVolume);
-    this.mixer.setVoiceEnabled(settings.voiceEnabled ?? true);
-    this.mixer.setVoiceVolume(settings.voiceVolume ?? 1.0);
-    this.mixer.setStingerEnabled(settings.stingerEnabled ?? true);
-    this.mixer.setStingerVolume(settings.stingerVolume ?? 1.0);
-
-    this.wireEvents(bus, isPresentationSuppressed);
-    this.sfxDirector.start(state.units, bus, getState, isPresentationSuppressed);
+    this.wireEvents(bus);
+    this.sfxDirector.start(
+      state.units,
+      bus,
+      getState,
+      () => this.isPresentationSuppressed(),
+    );
     this.pirateAudioDirector.start(bus);
-    routeSfxComponents(this.mixer, this.loader, isPresentationSuppressed);
+    routeSfxComponents(this.mixer, this.loader, () => this.isPresentationSuppressed());
     this.armIosResume();
 
     void this.preloadForEra(state.era, this.currentCivType);
@@ -198,17 +190,81 @@ export class AudioSystem {
     this.civTypeById = {};
     this.stateProvider = null;
     this.isPresentationSuppressed = () => false;
+    this.loopLoadRequestId += 1;
     this.started = false;
   }
 
-  private wireEvents(sourceBus: EventBus, isPresentationSuppressed: () => boolean): void {
+  private bindCampaignState(
+    state: GameState,
+    getState: () => GameState,
+    isPresentationSuppressed: () => boolean,
+  ): void {
+    this.currentPlayerId = state.currentPlayer;
+    this.stateProvider = getState;
+    this.isPresentationSuppressed = isPresentationSuppressed;
+    this.civTypeById = {};
+    for (const [id, civ] of Object.entries(state.civilizations ?? {})) {
+      this.civTypeById[id] = civ.civType;
+    }
+    this.currentCivType = this.civTypeById[this.currentPlayerId] ?? this.currentPlayerId;
+  }
+
+  private applySettings(state: GameState): void {
+    const settings = state.settings;
+    this.mixer.setMusicEnabled(settings.musicEnabled);
+    this.mixer.setSfxEnabled(settings.soundEnabled);
+    this.mixer.setMusicVolume(settings.musicVolume);
+    this.mixer.setSfxVolume(settings.sfxVolume);
+    this.mixer.setVoiceEnabled(settings.voiceEnabled ?? true);
+    this.mixer.setVoiceVolume(settings.voiceVolume ?? 1.0);
+    this.mixer.setStingerEnabled(settings.stingerEnabled ?? true);
+    this.mixer.setStingerVolume(settings.stingerVolume ?? 1.0);
+  }
+
+  private rebindCampaign(
+    state: GameState,
+    getState: () => GameState,
+    isPresentationSuppressed: () => boolean,
+  ): void {
+    this.bindCampaignState(state, getState, isPresentationSuppressed);
+    this.applySettings(state);
+    this.sfxDirector.replaceUnits(
+      state.units,
+      getState,
+      () => this.isPresentationSuppressed(),
+    );
+    this.naturalWonderDirector.stopAmbient('player-changed');
+    this.pirateAudioDirector.stopAmbience('player-changed');
+    this.voiceDirector.stop();
+    this.voiceDirector.setVoicePack(this.currentCivType);
+    void this.preloadVoicePack(this.currentCivType);
+
+    const civ = state.civilizations[this.currentPlayerId];
+    this.warCount = civ?.diplomacy?.atWarWith?.length ?? 0;
+    const unrestCityCount = Object.values(state.cities ?? {})
+      .filter(city => city.owner === this.currentPlayerId && city.unrestLevel > 0)
+      .length;
+    this.director.handlePlayerChanged({
+      civId: this.currentPlayerId,
+      civType: this.currentCivType,
+      era: state.era,
+      atWar: this.warCount > 0,
+      unrestCityCount,
+      nearDefeat: civ?.nearDefeat ?? false,
+      inBeastTerritory: false,
+    });
+    void this.preloadForEra(state.era, this.currentCivType);
+  }
+
+  private wireEvents(sourceBus: EventBus): void {
+    const isSuppressed = (): boolean => this.isPresentationSuppressed();
     const bus = {
       on<K extends keyof GameEvents>(
         event: K,
         listener: (payload: GameEvents[K]) => void,
       ): () => void {
         return sourceBus.on(event, payload => {
-          if (!isPresentationSuppressed()) listener(payload);
+          if (!isSuppressed()) listener(payload);
         });
       },
     } as EventBus;
@@ -242,21 +298,28 @@ export class AudioSystem {
       }),
 
       bus.on('currentPlayer:changed-after-handoff', p => {
+        const currentState = this.stateProvider?.();
+        const era = p.era ?? currentState?.era ?? 1;
         this.currentPlayerId = p.civId;
-        this.currentCivType = this.civTypeById[p.civId] ?? p.civId;
+        this.currentCivType = p.civType
+          ?? this.civTypeById[p.civId]
+          ?? currentState?.civilizations[p.civId]?.civType
+          ?? p.civId;
         // Reset warCount to exact count from payload so remainingWars stays precise
         this.warCount = p.atWarCount;
         this.naturalWonderDirector.stopAmbient('player-changed');
         this.director.handlePlayerChanged({
           civId: this.currentPlayerId,
           civType: this.currentCivType,
+          era,
           atWar: p.atWarCount > 0,
           unrestCityCount: p.unrestCityCount,
           nearDefeat: p.nearDefeat,
           inBeastTerritory: p.inBeastTerritory,
         });
-        // Swap in the new civ's accent track; era + adaptive buses keep their current sources
-        void this.reloadAccent(this.currentCivType);
+        // Hidden round processing may have advanced the era. Rewire all loop buses
+        // from the authoritative handoff snapshot without replaying the era stinger.
+        void this.preloadForEra(era, this.currentCivType);
         // Spec 3: hot-seat voice privacy — stop any in-progress voice line from outgoing player
         this.voiceDirector.stop();
         this.voiceDirector.setVoicePack(this.currentCivType);
@@ -413,13 +476,6 @@ export class AudioSystem {
     }
   }
 
-  private async reloadAccent(civType: string): Promise<void> {
-    const family = getFamilyForCiv(civType);
-    const accentEntry = ACCENT[family];
-    const buffer = await this.loader.get(accentEntry.file);
-    this.mixer.setBusSource('accent', buffer, true, accentEntry.loop, 500);
-  }
-
   private preloadSfx(): Promise<void> {
     return this.loader.preload(allSfxEntries().map(e => e.file));
   }
@@ -438,6 +494,7 @@ export class AudioSystem {
   }
 
   private async preloadForEra(era: number, civType: string): Promise<void> {
+    const requestId = ++this.loopLoadRequestId;
     const eraId = resolveEra(era);
     const family = getFamilyForCiv(civType);
 
@@ -450,6 +507,7 @@ export class AudioSystem {
       this.loader.get(warEntry.file),
       this.loader.get(accentEntry.file),
     ]);
+    if (requestId !== this.loopLoadRequestId) return;
 
     // Wire all three loop buses — the snapshot (peace/at-war/silent) controls which
     // are audible; the adaptive (war) bus runs silently in peace and fades up on war.

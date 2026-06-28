@@ -60,6 +60,24 @@ export class SfxDirector {
     this.started = false;
   }
 
+  replaceUnits(
+    units: Record<string, Unit>,
+    getState?: () => GameState,
+    isPresentationSuppressed?: () => boolean,
+  ): void {
+    for (const id of this.pendingTimeouts) clearTimeout(id);
+    this.pendingTimeouts = [];
+    this.unitTypeCache.clear();
+    this.deathPlayed.clear();
+    for (const [id, unit] of Object.entries(units)) {
+      this.unitTypeCache.set(id, unit.type);
+    }
+    if (getState) this.getState = getState;
+    if (isPresentationSuppressed) {
+      this.isPresentationSuppressed = isPresentationSuppressed;
+    }
+  }
+
   private canPresentTo(viewerIds?: string[]): boolean {
     if (this.isPresentationSuppressed()) return false;
     if (!viewerIds) return true;
@@ -149,8 +167,9 @@ export class SfxDirector {
     if (!unitType) return;
     const viewerId = this.getState?.().currentPlayer;
     const presentation = viewerId ? presentationByViewer?.[viewerId] : undefined;
-    const visibleSegments = presentation?.visibleSegments
-      ?? (path.some(coord => this.isVisible(coord)) ? [path] : []);
+    const visibleSegments = presentationByViewer
+      ? (presentation?.visibleSegments ?? [])
+      : (path.some(coord => this.isVisible(coord)) ? [path] : []);
     if (visibleSegments.length === 0) return;
     const viewerIds = viewerId ? [viewerId] : undefined;
 

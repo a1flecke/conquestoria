@@ -135,6 +135,85 @@ describe('SfxDirector', () => {
     }
   });
 
+  it('does not fall back to final fog when the event-time viewer was omitted', async () => {
+    vi.useFakeTimers();
+    try {
+      const units = { u1: makeUnit('u1', 'warrior') };
+      director.start(units, busHelper.bus, stateProvider(units, 'visible'));
+
+      busHelper.emit('unit:move', {
+        unitId: 'u1',
+        from: { q: 0, r: 0 },
+        to: { q: 1, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+        presentationByViewer: {},
+      });
+      await vi.runAllTimersAsync();
+
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rebinds the viewer state when a new campaign replaces the active units', async () => {
+    vi.useFakeTimers();
+    try {
+      const oldUnits = { old: makeUnit('old', 'warrior') };
+      const newUnits = { fresh: makeUnit('fresh', 'archer') };
+      const newState = stateProvider(newUnits)();
+      newState.currentPlayer = 'new-player';
+      director.start(oldUnits, busHelper.bus, stateProvider(oldUnits));
+      director.replaceUnits(newUnits, () => newState);
+
+      busHelper.emit('unit:move', {
+        unitId: 'fresh',
+        from: { q: 0, r: 0 },
+        to: { q: 1, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+        presentationByViewer: {
+          'new-player': {
+            unit: newUnits.fresh,
+            visibleSegments: [[{ q: 0, r: 0 }, { q: 1, r: 0 }]],
+          },
+        },
+      });
+      await vi.runAllTimersAsync();
+
+      expect(mixer.playOneShot).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels delayed movement sounds from the previous campaign on rebind', async () => {
+    vi.useFakeTimers();
+    try {
+      const oldUnits = { old: makeUnit('old', 'warrior') };
+      const nextUnits = { fresh: makeUnit('fresh', 'archer') };
+      director.start(oldUnits, busHelper.bus, stateProvider(oldUnits));
+      busHelper.emit('unit:move', {
+        unitId: 'old',
+        from: { q: 0, r: 0 },
+        to: { q: 3, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 3, r: 0 }],
+        presentationByViewer: {
+          player: {
+            unit: oldUnits.old,
+            visibleSegments: [[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 3, r: 0 }]],
+          },
+        },
+      });
+
+      director.replaceUnits(nextUnits, stateProvider(nextUnits));
+      await vi.runAllTimersAsync();
+
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('melee attacker plays attack-swing buffer', async () => {
     const units = { a1: makeUnit('a1', 'warrior'), d1: makeUnit('d1', 'swordsman') };
     director.start(units, busHelper.bus);
