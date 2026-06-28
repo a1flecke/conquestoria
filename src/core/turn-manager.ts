@@ -22,6 +22,7 @@ import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import { hexKey } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
+import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getCivResourceYieldBonus } from '@/systems/resource-acquisition-system';
 import type { HexCoord } from './types';
@@ -594,6 +595,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     const defenderRouteId = defender.committedToRouteId;
     const defenderPosBarbarian = { ...defender.position };
     const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
+    const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
     const applied = applyCombatOutcomeToState(newState, result, combatSeed);
     newState = applied.state;
     if (newState.civilizations[defender.owner]?.isHuman) {
@@ -607,7 +609,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     if (applied.defenderDefeated && defenderRouteId) {
       newState = removeRouteForUnit(newState, result.defenderId, bus, 'unit-died', defenderRouteId);
     }
-    bus.emit('combat:resolved', { result });
+    bus.emit('combat:resolved', { result, ...combatPresentation });
     for (const reward of applied.rewards) {
       bus.emit('combat:reward-earned', { reward });
     }
@@ -765,6 +767,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       const combatSeed = beastSeed ^ order.attackerUnitId.charCodeAt(0);
       const defenderPosBeast = { ...defender.position };
       const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
+      const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
       const applied = applyCombatOutcomeToState(newState, result, combatSeed);
       newState = applied.state;
       if (newState.civilizations[defender.owner]?.isHuman) {
@@ -778,7 +781,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
         if (slain) bus.emit('beast:slain', slain);
       }
       // If the intruder died, no hoard — the beast attacked, not the player
-      bus.emit('combat:resolved', { result });
+      bus.emit('combat:resolved', { result, ...combatPresentation });
       for (const reward of applied.rewards) {
         bus.emit('combat:reward-earned', { reward });
       }

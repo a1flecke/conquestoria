@@ -9,7 +9,11 @@ import '@/assets/roc-animations.css';
 import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
-import { resolveOpponentChallenge, setPendingOpponentChallenge } from '@/core/opponent-challenge';
+import {
+  applyPendingOpponentChallenge,
+  resolveOpponentChallenge,
+  setPendingOpponentChallenge,
+} from '@/core/opponent-challenge';
 import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { processTurn } from '@/core/turn-manager';
 import { processAITurn } from '@/ai/basic-ai';
@@ -42,7 +46,7 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
-import { applyWorkerAction, clearCompletedWorkerTasksForImprovement } from '@/systems/worker-action-system';
+import { applyWorkerAction } from '@/systems/worker-action-system';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn, isCivUnitInBeastTerritory } from '@/systems/beast-system';
@@ -114,7 +118,7 @@ import { getAvailableTechs } from '@/systems/tech-system';
 import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
-import { collectCouncilInterrupt, collectEvent } from '@/core/hotseat-events';
+import { clearEventsForPlayer, collectCouncilInterrupt, collectEvent } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
@@ -132,6 +136,7 @@ import {
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
 import { resolveWonderAtlasIntent } from '@/input/wonder-atlas-intent';
 import { resolveNaturalWonderAudioFocus } from '@/input/natural-wonder-audio-focus';
+import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import {
   initializeLegendaryWonderProjectsForCity,
@@ -218,6 +223,9 @@ import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift, setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
+import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
+import { runCompletedRound } from '@/core/completed-round-orchestrator';
+import { processImprovementTurns } from '@/systems/improvement-turn-system';
 
 // --- App State ---
 let gameState: GameState;
@@ -268,6 +276,7 @@ function currentCivDef() {
 const bus = new EventBus();
 const audioCtx = new AudioContext();
 const audio = new AudioSystem(audioCtx);
+const roundPresentationGate = new RoundPresentationGate();
 // Master volume is not persisted (no GameSettings field) — tracked in memory only
 // so the pause menu slider shows the correct current value on re-open.
 let currentMasterVolume = 1.0;
@@ -586,6 +595,7 @@ function enqueueToast(
   type: NotificationEntry['type'],
   target?: NotificationEntry['target'],
 ): void {
+  if (roundPresentationGate.isSuppressed()) return;
   notificationQueue.push({ message, type, target });
   if (!isShowingNotification) displayNextNotification();
 }
@@ -2402,7 +2412,10 @@ function executeAttack(attackerId: string, targetKey: string): void {
     { attackerBonus, defenderBonus, defenderCityHasAntiAir, attackerHasAirForceCommand },
     gameState.era,
   );
-  bus.emit('combat:resolved', { result });
+  bus.emit('combat:resolved', {
+    result,
+    ...buildCombatPresentation(gameState, result, attacker, defender),
+  });
 
   const applied = applyCombatOutcomeToState(gameState, result, seed);
   gameState = applied.state;
@@ -3108,15 +3121,22 @@ function handleVictoryIfNeeded(): boolean {
   return true;
 }
 
-type AIMoveRecord = { unit: Unit; path: HexCoord[] };
+type AIMoveRecord = {
+  unit: Unit;
+  viewerId: string;
+  visibleSegments: HexCoord[][];
+};
 
 function captureAIMoves(fn: () => void): AIMoveRecord[] {
   const moves: AIMoveRecord[] = [];
-  const unsub = bus.on('unit:move', ({ unitId, from, path }) => {
-    // executeUnitMove mutates state.units before emitting, so the unit is already
-    // at `to` when this fires. Override position: from so animation starts correctly.
-    const unit = gameState.units[unitId];
-    if (unit) moves.push({ unit: { ...unit, position: from }, path });
+  const unsub = bus.on('unit:move', ({ presentationByViewer }) => {
+    for (const [viewerId, presentation] of Object.entries(presentationByViewer)) {
+      moves.push({
+        unit: structuredClone(presentation.unit),
+        viewerId,
+        visibleSegments: structuredClone(presentation.visibleSegments),
+      });
+    }
   });
   fn();
   unsub();
@@ -3124,16 +3144,156 @@ function captureAIMoves(fn: () => void): AIMoveRecord[] {
 }
 
 async function replayAIMoves(moves: AIMoveRecord[]): Promise<void> {
-  const playerVis = gameState.civilizations[gameState.currentPlayer]?.visibility;
+  if (roundPresentationGate.isSuppressed()) return;
   const visibleMoves = moves
-    .filter(({ path }) => {
-      const dest = path[path.length - 1];
-      return dest && playerVis && getVisibility(playerVis, dest) !== 'unexplored';
-    })
+    .filter(move => move.viewerId === gameState.currentPlayer)
     .slice(0, 6);
-  for (const { unit, path } of visibleMoves) {
-    await new Promise<void>(resolve => renderLoop.animateUnitMove(unit, path, resolve));
+  for (const { unit, visibleSegments } of visibleMoves) {
+    for (const path of visibleSegments.filter(segment => segment.length >= 2)) {
+      if (roundPresentationGate.isSuppressed() || gameState.currentPlayer !== visibleMoves[0]?.viewerId) return;
+      await new Promise<void>(resolve => renderLoop.animateUnitMove(
+        { ...unit, position: path[0]! },
+        path,
+        resolve,
+      ));
+    }
   }
+}
+
+function finalizeCompletedRoundState(state: GameState): GameState {
+  let next = applyPendingOpponentChallenge(state);
+  if ((next.opponentAI?.migrationGraceRoundsRemaining ?? 0) > 0) {
+    next = {
+      ...next,
+      opponentAI: {
+        ...next.opponentAI!,
+        migrationGraceRoundsRemaining: next.opponentAI!.migrationGraceRoundsRemaining - 1,
+      },
+    };
+  }
+  return next;
+}
+
+function runCurrentCompletedRound(state: GameState, hotSeat: NonNullable<GameState['hotSeat']> | undefined) {
+  return runCompletedRound(state, bus, {
+    improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
+    majors: (current, eventBus) => {
+      let next = current;
+      const aiIds = hotSeat ? getAIPlayers(hotSeat).map(player => player.slotId) : ['ai-1'];
+      for (const aiId of aiIds) {
+        if (next.civilizations[aiId] && !next.civilizations[aiId].isEliminated) {
+          next = processAITurn(next, aiId, eventBus);
+        }
+      }
+      return next;
+    },
+    world: (current, eventBus) => processTurn(current, eventBus),
+    postprocess: (_before, current) => finalizeCompletedRoundState(current),
+  });
+}
+
+function releaseHandoffToViewer(nextSlotId: string): void {
+  centerOnCurrentPlayer();
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  scanBeastSightings();
+  maybeShowPendingHoardChoice();
+  roundPresentationGate.resume();
+  setBlockingOverlay(null);
+  const nextCiv = gameState.civilizations[nextSlotId];
+  const nextCivCities = Object.values(gameState.cities).filter(c => c.owner === nextSlotId);
+  bus.emit('currentPlayer:changed-after-handoff', {
+    civId: nextSlotId,
+    atWarCount: nextCiv?.diplomacy?.atWarWith?.length ?? 0,
+    unrestCityCount: nextCivCities.filter(c => c.unrestLevel > 0).length,
+    nearDefeat: nextCiv?.nearDefeat ?? false,
+    inBeastTerritory: isCivUnitInBeastTerritory(gameState, nextSlotId),
+  });
+  handleVictoryIfNeeded();
+}
+
+async function beginHotSeatHandoff(
+  hotSeat: NonNullable<GameState['hotSeat']>,
+  completesRound: boolean,
+): Promise<void> {
+  const preSimulationState = gameState;
+  const nextSlotId = getNextPlayer(hotSeat, preSimulationState.currentPlayer);
+  const nextPlayer = hotSeat.players.find(player => player.slotId === nextSlotId);
+  closePirateWatersPanels(uiLayer);
+  renderLoop.setSelectedPirateFactionId(null);
+  audio.stopPirateAmbience('player-changed');
+  setBlockingOverlay('turn-handoff');
+  roundPresentationGate.suppress();
+  const controller = showTurnHandoff(
+    uiLayer,
+    preSimulationState,
+    nextSlotId,
+    nextPlayer?.name ?? 'Player',
+    {
+      initiallyReady: false,
+      preparingLabel: 'Preparing next turn…',
+      onReady: async () => {
+        gameState = {
+          ...gameState,
+          pendingEvents: clearEventsForPlayer(gameState.pendingEvents ?? {}, nextSlotId),
+        };
+        let acknowledgementFailed = false;
+        try {
+          await autoSave(gameState);
+        } catch {
+          acknowledgementFailed = true;
+        }
+        releaseHandoffToViewer(nextSlotId);
+        if (acknowledgementFailed) {
+          showNotification('Turn opened, but its summary may repeat after reload.', 'warning');
+        }
+      },
+    },
+  );
+
+  const returnToSaves = (): void => {
+    roundPresentationGate.resume();
+    window.location.reload();
+  };
+
+  const persistCompletedHandoff = async (): Promise<void> => {
+    try {
+      await autoSave(gameState);
+      controller.setReady(gameState);
+    } catch {
+      controller.setError(
+        'The round finished, but the handoff could not be saved. Retry saving before opening the next turn.',
+        {
+          onRetry: () => void persistCompletedHandoff(),
+          onReturnToSaves: returnToSaves,
+        },
+      );
+    }
+  };
+
+  const simulate = (): void => {
+    if (!completesRound) {
+      gameState = { ...preSimulationState, currentPlayer: nextSlotId };
+      void persistCompletedHandoff();
+      return;
+    }
+    const result = runCurrentCompletedRound(preSimulationState, hotSeat);
+    if (!result.ok) {
+      gameState = preSimulationState;
+      controller.setError(
+        'The round could not be completed. Your turn is unchanged and was not autosaved.',
+        {
+          onRetry: simulate,
+          onReturnToSaves: returnToSaves,
+        },
+      );
+      return;
+    }
+    gameState = { ...result.state, currentPlayer: nextSlotId };
+    result.events.commitTo(bus);
+    void persistCompletedHandoff();
+  };
+  simulate();
 }
 
 async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
@@ -3154,77 +3314,20 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
     const hotSeat = gameState.hotSeat;
 
     if (hotSeat) {
-      // --- Hot Seat Mode ---
-      if (isRoundComplete(hotSeat, gameState.currentPlayer)) {
-        // Last human player finished — process improvements, AI, and round end
-        processImprovements();
-
-        const hotSeatAIMoves: AIMoveRecord[] = [];
-        for (const ai of getAIPlayers(hotSeat)) {
-          hotSeatAIMoves.push(...captureAIMoves(() => {
-            gameState = processAITurn(gameState, ai.slotId, bus);
-          }));
-        }
-
-        const hotSeatRoundMoves = captureAIMoves(() => {
-          gameState = processTurn(gameState, bus);
-        });
-
-        if (handleVictoryIfNeeded()) return;
-
-        renderLoop.setGameState(gameState);
-        await replayAIMoves([...hotSeatAIMoves, ...hotSeatRoundMoves]);
-
-      }
-
-      // Advance to next human player
-      const nextSlotId = getNextPlayer(hotSeat, gameState.currentPlayer);
-      gameState.currentPlayer = nextSlotId;
-      const nextPlayer = hotSeat.players.find(p => p.slotId === nextSlotId);
-
-      await autoSave(gameState);
-
-      // Show handoff screen
-      closePirateWatersPanels(uiLayer);
-      renderLoop.setSelectedPirateFactionId(null);
-      audio.stopPirateAmbience('player-changed');
-      setBlockingOverlay('turn-handoff');
-      showTurnHandoff(uiLayer, gameState, nextSlotId, nextPlayer?.name ?? 'Player', {
-        onReady: () => {
-          setBlockingOverlay(null);
-          centerOnCurrentPlayer();
-          renderLoop.setGameState(gameState);
-          updateHUD();
-          // Scan for beast sightings at turn start (units may have gained vision from prior turns)
-          scanBeastSightings();
-          maybeShowPendingHoardChoice();
-          // Compute audio-state snapshot for the incoming player (Spec 3 hot-seat drift fix)
-          const nextCiv = gameState.civilizations[nextSlotId];
-          const nextCivCities = Object.values(gameState.cities).filter(c => c.owner === nextSlotId);
-          bus.emit('currentPlayer:changed-after-handoff', {
-            civId: nextSlotId,
-            atWarCount: nextCiv?.diplomacy?.atWarWith?.length ?? 0,
-            unrestCityCount: nextCivCities.filter(c => c.unrestLevel > 0).length,
-            nearDefeat: nextCiv?.nearDefeat ?? false,
-            inBeastTerritory: isCivUnitInBeastTerritory(gameState, nextSlotId),
-          });
-        },
-      });
+      await beginHotSeatHandoff(hotSeat, isRoundComplete(hotSeat, gameState.currentPlayer));
     } else {
       // --- Solo Mode ---
-      processImprovements();
-
-      const soloAIMoves = captureAIMoves(() => {
-        gameState = processAITurn(gameState, 'ai-1', bus);
-      });
-      const soloRoundMoves = captureAIMoves(() => {
-        gameState = processTurn(gameState, bus);
+      const result = runCurrentCompletedRound(gameState, undefined);
+      if (!result.ok) throw result.error;
+      gameState = result.state;
+      const soloMoves = captureAIMoves(() => {
+        result.events.commitTo(bus);
       });
 
       if (handleVictoryIfNeeded()) return;
 
       renderLoop.setGameState(gameState);
-      await replayAIMoves([...soloAIMoves, ...soloRoundMoves]);
+      await replayAIMoves(soloMoves);
       updateHUD();
 
       showNotification(`Turn ${gameState.turn}`, 'info');
@@ -3236,27 +3339,6 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
   } catch (err) {
     console.error('endTurn error:', err);
     showNotification('Error processing turn!', 'warning');
-  }
-}
-
-function processImprovements(): void {
-  for (const tile of Object.values(gameState.map.tiles)) {
-    if (tile.improvementTurnsLeft > 0) {
-      tile.improvementTurnsLeft--;
-      if (tile.improvementTurnsLeft === 0) {
-        bus.emit('improvement:completed', { coord: tile.coord, type: tile.improvement });
-        gameState = clearCompletedWorkerTasksForImprovement(gameState, tile.coord);
-        if (tile.improvementOwner) {
-          appendToCivLog(
-            tile.improvementOwner,
-            `${getImprovementDisplayName(tile.improvement)} completed!`,
-            'success',
-            { kind: 'map', coord: { ...tile.coord }, label: getImprovementDisplayName(tile.improvement) },
-          );
-          tile.improvementOwner = undefined;
-        }
-      }
-    }
   }
 }
 
@@ -3598,7 +3680,11 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
 // its visibility covers any raider from a given camp.
 const notifiedBarbarianCampsPerCiv = new Map<string, Set<string>>();
 
-bus.on('combat:resolved', ({ result }) => {
+bus.on('combat:resolved', ({ result, visibleToViewerIds }) => {
+  if (
+    roundPresentationGate.isSuppressed()
+    || !visibleToViewerIds.includes(gameState.currentPlayer)
+  ) return;
   renderLoop.applyCombatVisual(result);
   routeCombatResolved(gameState, result, appendToCivLog);
 });
@@ -3872,15 +3958,72 @@ async function init(): Promise<void> {
   await showStartSavePanel();
 }
 
-async function showStartSavePanel(): Promise<void> {
-  const enterCampaign = (state: GameState, message: string): void => {
-    document.getElementById('save-panel')?.remove();
-    gameState = state;
-    migrateLegacySave();
+function enterCampaign(
+  state: GameState,
+  message: string,
+  persistBeforeReady: boolean = false,
+): void {
+  document.getElementById('save-panel')?.remove();
+  gameState = state;
+  migrateLegacySave();
+  if (!gameState.hotSeat) {
     startGame();
     showNotification(message, 'info');
-  };
+    return;
+  }
 
+  const player = gameState.hotSeat.players.find(candidate => candidate.slotId === gameState.currentPlayer);
+  setBlockingOverlay('turn-handoff');
+  roundPresentationGate.suppress();
+  const controller = showTurnHandoff(
+    uiLayer,
+    gameState,
+    gameState.currentPlayer,
+    player?.name ?? 'Player',
+    {
+      initiallyReady: !persistBeforeReady,
+      preparingLabel: 'Saving campaign…',
+      onReady: async () => {
+        const viewerId = gameState.currentPlayer;
+        gameState = {
+          ...gameState,
+          pendingEvents: clearEventsForPlayer(gameState.pendingEvents ?? {}, viewerId),
+        };
+        try {
+          await autoSave(gameState);
+        } catch {
+          // Entry persistence already succeeded; acknowledgement may safely retry later.
+        }
+        roundPresentationGate.resume();
+        setBlockingOverlay(null);
+        startGame();
+        showNotification(message, 'info');
+      },
+    },
+  );
+
+  if (!persistBeforeReady) return;
+  const persist = async (): Promise<void> => {
+    try {
+      await autoSave(gameState);
+      controller.setReady(gameState);
+    } catch {
+      controller.setError(
+        'The campaign could not be saved. Retry before opening the first turn.',
+        {
+          onRetry: () => void persist(),
+          onReturnToSaves: () => {
+            roundPresentationGate.resume();
+            window.location.reload();
+          },
+        },
+      );
+    }
+  };
+  void persist();
+}
+
+async function showStartSavePanel(): Promise<void> {
   await createSavePanel(uiLayer, {
     onNewGame: () => {
       showGameModeSelection();
@@ -4113,8 +4256,11 @@ function showGameModeSelection(): void {
           if (persistedSettings?.councilTalkLevel) {
             gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
           }
-          startGame();
-          showNotification(`Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`, 'info');
+          enterCampaign(
+            gameState,
+            `Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`,
+            true,
+          );
         },
         onCustomCivilizationsChanged: (customCivilizations) => {
           updatePersistedCustomCivilizations(customCivilizations);
@@ -4213,7 +4359,12 @@ function startGame(): void {
     inputInitialized = true;
   }
 
-  audio.start(gameState, bus, () => gameState);
+  audio.start(
+    gameState,
+    bus,
+    () => gameState,
+    () => roundPresentationGate.isSuppressed(),
+  );
   routeSfxThrough(audio.getSfxRoutingNode());
 
   // Prevent zoom-out duplication: ensure the camera cannot zoom past one full

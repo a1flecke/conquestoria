@@ -1,4 +1,4 @@
-import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import type {
   PirateFactionId,
   PirateIntentState,
@@ -30,6 +30,11 @@ export interface PirateRoundFacts {
   movements: PirateMovementFact[];
   attacks: CombatResult[];
   transportKills: PirateTransportKillFact[];
+  attackPresentations?: Array<{
+    visibleToViewerIds: string[];
+    attackerType: UnitType;
+    defenderType: UnitType;
+  }>;
 }
 
 export interface PirateRaid {
@@ -51,6 +56,10 @@ export interface PirateMovementFact {
   from: HexCoord;
   to: HexCoord;
   path: HexCoord[];
+  presentationByViewer?: Record<string, {
+    unit: Unit;
+    visibleSegments: HexCoord[][];
+  }>;
 }
 
 export interface PirateMutationResult {

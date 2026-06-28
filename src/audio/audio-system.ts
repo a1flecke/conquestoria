@@ -13,6 +13,7 @@ import { allSfxEntries } from './sfx-catalog';
 import { SfxDirector } from './sfx-director';
 import { routeSfxComponents } from './sfx';
 import { PirateAudioDirector, type PirateAmbientStopReason } from './pirate-audio-director';
+import type { GameEvents } from '@/core/types';
 
 export class AudioSystem {
   private loader: AudioLoader;
@@ -55,7 +56,12 @@ export class AudioSystem {
     );
   }
 
-  start(state: GameState, bus: EventBus, getState: () => GameState = () => state): void {
+  start(
+    state: GameState,
+    bus: EventBus,
+    getState: () => GameState = () => state,
+    isPresentationSuppressed: () => boolean = () => false,
+  ): void {
     if (this.started) return;
     this.started = true;
     this.currentPlayerId = state.currentPlayer;
@@ -77,8 +83,8 @@ export class AudioSystem {
     this.mixer.setStingerEnabled(settings.stingerEnabled ?? true);
     this.mixer.setStingerVolume(settings.stingerVolume ?? 1.0);
 
-    this.wireEvents(bus);
-    this.sfxDirector.start(state.units, bus, getState);
+    this.wireEvents(bus, isPresentationSuppressed);
+    this.sfxDirector.start(state.units, bus, getState, isPresentationSuppressed);
     this.pirateAudioDirector.start(bus);
     routeSfxComponents(this.mixer, this.loader);
     this.armIosResume();
@@ -191,7 +197,17 @@ export class AudioSystem {
     this.started = false;
   }
 
-  private wireEvents(bus: EventBus): void {
+  private wireEvents(sourceBus: EventBus, isPresentationSuppressed: () => boolean): void {
+    const bus = {
+      on<K extends keyof GameEvents>(
+        event: K,
+        listener: (payload: GameEvents[K]) => void,
+      ): () => void {
+        return sourceBus.on(event, payload => {
+          if (!isPresentationSuppressed()) listener(payload);
+        });
+      },
+    } as EventBus;
     this.unsubscribers.push(
       bus.on('era:advanced', p => {
         void this.preloadForEra(p.era, this.currentCivType);

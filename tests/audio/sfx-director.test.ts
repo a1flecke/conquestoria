@@ -83,6 +83,58 @@ describe('SfxDirector', () => {
 
   // === Combat ===
 
+  it('suppresses immediate and delayed SFX while presentation is gated', async () => {
+    vi.useFakeTimers();
+    try {
+      let suppressed = true;
+      const units = { u1: makeUnit('u1', 'warrior') };
+      director.start(units, busHelper.bus, stateProvider(units), () => suppressed);
+      busHelper.emit('unit:move', {
+        unitId: 'u1',
+        from: { q: 0, r: 0 },
+        to: { q: 1, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+        presentationByViewer: {
+          player: {
+            unit: units.u1,
+            visibleSegments: [[{ q: 0, r: 0 }, { q: 1, r: 0 }]],
+          },
+        },
+      });
+      await vi.runAllTimersAsync();
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+      suppressed = false;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('uses event-time viewers and rechecks current identity before delayed playback', async () => {
+    vi.useFakeTimers();
+    try {
+      const units = { u1: makeUnit('u1', 'warrior') };
+      const state = stateProvider(units)();
+      director.start(units, busHelper.bus, () => state);
+      busHelper.emit('unit:move', {
+        unitId: 'u1',
+        from: { q: 0, r: 0 },
+        to: { q: 1, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+        presentationByViewer: {
+          player: {
+            unit: units.u1,
+            visibleSegments: [[{ q: 0, r: 0 }, { q: 1, r: 0 }]],
+          },
+        },
+      });
+      state.currentPlayer = 'other';
+      await vi.runAllTimersAsync();
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('melee attacker plays attack-swing buffer', async () => {
     const units = { a1: makeUnit('a1', 'warrior'), d1: makeUnit('d1', 'swordsman') };
     director.start(units, busHelper.bus);
