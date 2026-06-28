@@ -3,6 +3,8 @@ import { MockAudioContext } from '../helpers/mock-audio-context';
 import { AudioSystem } from '../../src/audio/audio-system';
 import type { EventBus } from '../../src/core/event-bus';
 import type { GameState } from '../../src/core/types';
+import { ACCENT, ERA_BASE, WAR_LAYER, resolveEra } from '../../src/audio/audio-catalog';
+import { getFamilyForCiv } from '../../src/audio/civ-audio-family';
 
 // Flush microtask queue so async loader/stinger chains complete
 const flushPromises = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
@@ -210,8 +212,72 @@ describe('AudioSystem integration', () => {
     busHelper.emit('currentPlayer:changed-after-handoff', { civId: 'egypt' });
     await flushPromises();
     const startsAfter = ctx.transcript.filter(e => e.op === 'start').length;
-    // accent bus source restarted for egypt
-    expect(startsAfter - startsBefore).toBe(1);
+    // The authoritative handoff snapshot rewires era, adaptive, and accent buses.
+    expect(startsAfter - startsBefore).toBe(3);
+  });
+
+  it('synchronizes the incoming viewer to an era reached during hidden processing', async () => {
+    system.start(makeState({ currentPlayer: 'rome', era: 1 }), busHelper.bus);
+    await flushPromises();
+    vi.mocked(fetch).mockClear();
+
+    busHelper.emit('currentPlayer:changed-after-handoff', {
+      civId: 'egypt',
+      civType: 'egypt',
+      era: 4,
+      atWarCount: 0,
+      unrestCityCount: 0,
+      nearDefeat: false,
+      inBeastTerritory: false,
+    });
+    await flushPromises();
+
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining(ERA_BASE[resolveEra(4)].file));
+  });
+
+  it('rebinds audio state when a new campaign starts in the same app session', async () => {
+    system.start(makeState({ currentPlayer: 'rome', era: 1 }), busHelper.bus);
+    await flushPromises();
+    vi.mocked(fetch).mockClear();
+
+    system.start(makeState({ currentPlayer: 'egypt', era: 4 }), busHelper.bus);
+    await flushPromises();
+
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining(ERA_BASE[resolveEra(4)].file));
+  });
+
+  it('ignores stale loop loads from the previous campaign', async () => {
+    const internals = system as unknown as {
+      loader: { get: (path: string) => Promise<AudioBuffer> };
+      mixer: { setBusSource: (...args: unknown[]) => void };
+    };
+    const loopPaths = new Set([
+      ERA_BASE[resolveEra(1)].file,
+      WAR_LAYER[resolveEra(1)].file,
+      ACCENT[getFamilyForCiv('rome')].file,
+      ERA_BASE[resolveEra(4)].file,
+      WAR_LAYER[resolveEra(4)].file,
+      ACCENT[getFamilyForCiv('egypt')].file,
+    ]);
+    const pending: Array<{ path: string; resolve: (buffer: AudioBuffer) => void }> = [];
+    internals.loader.get = vi.fn((path: string) => {
+      if (!loopPaths.has(path)) return Promise.resolve({} as AudioBuffer);
+      return new Promise<AudioBuffer>(resolve => pending.push({ path, resolve }));
+    });
+    const setBusSource = vi.spyOn(internals.mixer, 'setBusSource');
+
+    system.start(makeState({ currentPlayer: 'rome', era: 1 }), busHelper.bus);
+    const firstCampaignRequests = pending.splice(0);
+    system.start(makeState({ currentPlayer: 'egypt', era: 4 }), busHelper.bus);
+    const secondCampaignRequests = pending.splice(0);
+
+    for (const request of secondCampaignRequests) request.resolve({} as AudioBuffer);
+    await flushPromises();
+    setBusSource.mockClear();
+    for (const request of firstCampaignRequests) request.resolve({} as AudioBuffer);
+    await flushPromises();
+
+    expect(setBusSource).not.toHaveBeenCalled();
   });
 
   // warCount clamping

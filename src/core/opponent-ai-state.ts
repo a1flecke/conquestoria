@@ -16,6 +16,53 @@ const PLAN_PHASES = new Set([
   'complete',
   'abandoned',
 ]);
+const PLAN_OBJECTIVES = new Set([
+  'defend',
+  'recover',
+  'expand',
+  'secure-resource',
+  'raid',
+  'blockade',
+  'repel',
+  'capture',
+  'support-ally',
+]);
+const PLAN_REASONS = new Set([
+  'urgent-defense',
+  'nearby-opportunity',
+  'retaliate-recent-attack',
+  'continue-active-war',
+  'alliance-obligation',
+  'critical-resource',
+  'no-local-alternative',
+  'homeland-secure',
+  'recover-damaged-force',
+  'modernization-gap',
+  'camp-defense',
+  'opportunistic-raid',
+]);
+const STRATEGIC_ROLES = new Set([
+  'capture',
+  'frontline',
+  'ranged',
+  'siege',
+  'mobile',
+  'air-combat',
+  'naval-combat',
+  'transport',
+  'escort',
+  'recon',
+  'detection',
+  'settlement',
+  'worker',
+  'resource-expedition',
+  'trade',
+  'espionage',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
 
 function isFiniteCoord(value: unknown): value is { q: number; r: number } {
   if (!value || typeof value !== 'object') return false;
@@ -44,26 +91,45 @@ function normalizePlan(
   actorId: string,
   value: unknown,
 ): AIStrategicPlan | null {
-  if (!value || typeof value !== 'object') return null;
-  const plan = value as AIStrategicPlan;
+  if (!isRecord(value)) return null;
+  const plan = value as unknown as AIStrategicPlan;
   if (
     typeof plan.id !== 'string'
+    || plan.id.length === 0
     || plan.actorId !== actorId
-    || typeof plan.objective !== 'string'
+    || !PLAN_OBJECTIVES.has(plan.objective)
     || !isTarget(plan.target)
     || !PLAN_PHASES.has(plan.phase)
+    || typeof plan.theaterId !== 'string'
+    || !Number.isFinite(plan.createdTurn)
+    || !Number.isFinite(plan.reconsiderAfterTurn)
+    || !Number.isFinite(plan.expiresAfterTurn)
+    || !Number.isFinite(plan.lastProgressTurn)
   ) {
     return null;
+  }
+
+  const requiredRoles: AIStrategicPlan['requiredRoles'] = {};
+  if (isRecord(plan.requiredRoles)) {
+    for (const [role, count] of Object.entries(plan.requiredRoles)) {
+      if (STRATEGIC_ROLES.has(role) && Number.isFinite(count) && Number(count) > 0) {
+        requiredRoles[role as keyof typeof requiredRoles] = Math.floor(Number(count));
+      }
+    }
   }
 
   return {
     ...plan,
     target: structuredClone(plan.target),
-    reasonCodes: Array.isArray(plan.reasonCodes) ? [...plan.reasonCodes] : [],
+    reasonCodes: Array.isArray(plan.reasonCodes)
+      ? plan.reasonCodes.filter(reason => PLAN_REASONS.has(reason))
+      : [],
     commitment: Math.max(0, Math.min(1, Number.isFinite(plan.commitment) ? plan.commitment : 0)),
-    requiredRoles: plan.requiredRoles && typeof plan.requiredRoles === 'object'
-      ? { ...plan.requiredRoles }
-      : {},
+    createdTurn: Math.max(0, Math.floor(plan.createdTurn)),
+    reconsiderAfterTurn: Math.max(0, Math.floor(plan.reconsiderAfterTurn)),
+    expiresAfterTurn: Math.max(0, Math.floor(plan.expiresAfterTurn)),
+    lastProgressTurn: Math.max(0, Math.floor(plan.lastProgressTurn)),
+    requiredRoles,
     assignedUnitIds: Array.isArray(plan.assignedUnitIds)
       ? [...new Set(plan.assignedUnitIds.filter(unitId => state.units[unitId]?.owner === actorId))]
       : [],
@@ -88,13 +154,17 @@ function normalizePortfolio(
 
   const upgradeRoutesByUnitId: MajorCivPlanPortfolio['upgradeRoutesByUnitId'] = {};
   for (const [unitId, route] of Object.entries(portfolio.upgradeRoutesByUnitId ?? {})) {
+    if (!isRecord(route) || typeof route.cityId !== 'string') continue;
     const city = state.cities[route.cityId];
     if (
       state.units[unitId]?.owner === actorId
       && city?.owner === actorId
       && Number.isFinite(route.createdTurn)
     ) {
-      upgradeRoutesByUnitId[unitId] = { cityId: route.cityId, createdTurn: route.createdTurn };
+      upgradeRoutesByUnitId[unitId] = {
+        cityId: String(route.cityId),
+        createdTurn: Math.max(0, Math.floor(Number(route.createdTurn))),
+      };
     }
   }
 
@@ -136,11 +206,14 @@ export function normalizeOpponentAIState(state: GameState): GameState {
   }
 
   const opponentAI = createEmptyOpponentAIState();
-  opponentAI.migrationGraceRoundsRemaining = Math.max(
-    0,
-    Number.isFinite(source.migrationGraceRoundsRemaining)
-      ? Math.floor(source.migrationGraceRoundsRemaining)
-      : 0,
+  opponentAI.migrationGraceRoundsRemaining = Math.min(
+    2,
+    Math.max(
+      0,
+      Number.isFinite(source.migrationGraceRoundsRemaining)
+        ? Math.floor(source.migrationGraceRoundsRemaining)
+        : 0,
+    ),
   );
   opponentAI.lastPlannedRound = Number.isFinite(source.lastPlannedRound)
     ? source.lastPlannedRound

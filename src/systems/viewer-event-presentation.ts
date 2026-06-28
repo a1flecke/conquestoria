@@ -73,6 +73,8 @@ export function buildCombatPresentation(
   visibleToViewerIds: string[];
   attackerType: Unit['type'];
   defenderType: Unit['type'];
+  attackerOwnerId: string;
+  defenderOwnerId: string;
 } {
   return {
     visibleToViewerIds: getLivingHumanViewerIds(state).filter(viewerId =>
@@ -81,5 +83,7 @@ export function buildCombatPresentation(
     ),
     attackerType: attacker.type,
     defenderType: defender.type,
+    attackerOwnerId: attacker.owner,
+    defenderOwnerId: defender.owner,
   };
 }

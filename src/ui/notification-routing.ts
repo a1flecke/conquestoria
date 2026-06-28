@@ -246,19 +246,26 @@ export function routeCombatResolved(
   state: GameState,
   result: CombatResult,
   sink: NotificationSink,
+  facts?: Pick<
+    GameEvents['combat:resolved'],
+    'attackerOwnerId' | 'defenderOwnerId' | 'defenderType'
+  >,
 ): void {
   const defender = state.units[result.defenderId];
-  if (!defender) return;
   const attacker = state.units[result.attackerId];
-  const attackerOwner = attacker?.owner ?? 'Unknown';
+  const defenderOwner = facts?.defenderOwnerId ?? defender?.owner;
+  if (!defenderOwner) return;
+  const attackerOwner = facts?.attackerOwnerId ?? attacker?.owner ?? 'Unknown';
   const attackerLabel = attackerOwner === 'barbarian'
     ? 'Barbarians'
     : (state.civilizations[attackerOwner]?.name ?? attackerOwner);
-  const defenderType = UNIT_DEFINITIONS[defender.type]?.name ?? defender.type;
+  const defenderTypeId = facts?.defenderType ?? defender?.type;
+  if (!defenderTypeId) return;
+  const defenderType = UNIT_DEFINITIONS[defenderTypeId]?.name ?? defenderTypeId;
   const msg = result.defenderSurvived
     ? `${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`
     : `${defenderType} was destroyed by ${attackerLabel}!`;
-  sink(defender.owner, msg, 'warning');
+  sink(defenderOwner, msg, 'warning');
 }
 
 export function routeCombatRewardEarned(

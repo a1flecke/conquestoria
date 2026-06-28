@@ -158,9 +158,50 @@ describe('MusicDirector', () => {
   it('reloads current music context without changing snapshot', () => {
     director.handleEraAdvanced({ era: 1, civType: 'rome' });
     vi.mocked(mixer.setSnapshot).mockClear();
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: 1, atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     // Snapshot re-applied to reload the correct accent track for the new civ
     expect(mixer.setSnapshot).toHaveBeenCalledWith('peace', expect.any(Number));
+  });
+
+  it('does not let an old-era adaptive load overwrite the incoming handoff era', async () => {
+    const requests: Array<{ resolve: (buffer: AudioBuffer) => void }> = [];
+    vi.mocked(loader.get).mockImplementation(() => new Promise<AudioBuffer>(resolve => {
+      requests.push({ resolve });
+    }));
+    director.handlePlayerChanged({
+      civId: 'rome',
+      civType: 'rome',
+      era: 1,
+      atWar: true,
+      unrestCityCount: 0,
+      nearDefeat: false,
+      inBeastTerritory: false,
+    });
+    const oldEraRequest = requests[0]!;
+    director.handlePlayerChanged({
+      civId: 'egypt',
+      civType: 'egypt',
+      era: 4,
+      atWar: true,
+      unrestCityCount: 0,
+      nearDefeat: false,
+      inBeastTerritory: false,
+    });
+    const newEraRequest = requests[1]!;
+
+    oldEraRequest.resolve({} as AudioBuffer);
+    await flushPromises();
+    expect(mixer.setBusSource).not.toHaveBeenCalled();
+
+    newEraRequest.resolve(fakeBuffer);
+    await flushPromises();
+    expect(mixer.setBusSource).toHaveBeenCalledWith(
+      'adaptive',
+      fakeBuffer,
+      true,
+      expect.anything(),
+      expect.any(Number),
+    );
   });
 
   // --- handleGameEnded ---
@@ -256,7 +297,7 @@ import {
 // catch comparisons that accidentally use one where the other is required.
 function makeDirectorWithPlayer(civType: string, atWar = false, unrestCityCount = 0, nearDefeat = false): MusicDirector {
   const d = new MusicDirector(makeMixer(), makeLoader());
-  d.handlePlayerChanged({ civId: `civ-${civType}`, civType, atWar, unrestCityCount, nearDefeat, inBeastTerritory: false });
+  d.handlePlayerChanged({ civId: `civ-${civType}`, civType, era: 1, atWar, unrestCityCount, nearDefeat, inBeastTerritory: false });
   return d;
 }
 
@@ -287,17 +328,17 @@ describe('resolveSnapshot — priority chain (Spec 3)', () => {
   });
   it('beastTerritory alone → beast-territory', () => {
     const d = new MusicDirector(makeMixer(), makeLoader());
-    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: 1, atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
     expect(d.resolveSnapshot()).toBe('beast-territory');
   });
   it('beastTerritory + atWar → at-war (atWar wins over beastTerritory)', () => {
     const d = new MusicDirector(makeMixer(), makeLoader());
-    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: 1, atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: true });
     expect(d.resolveSnapshot()).toBe('at-war');
   });
   it('beastTerritory + inUnrest → unrest (inUnrest wins over beastTerritory)', () => {
     const d = new MusicDirector(makeMixer(), makeLoader());
-    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: true });
+    d.handlePlayerChanged({ civId: civId('rome'), civType: 'rome', era: 1, atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: true });
     expect(d.resolveSnapshot()).toBe('unrest');
   });
   it('all flags false → peace', () => {
@@ -356,24 +397,24 @@ describe('handlePlayerChanged — hot-seat drift reset (Spec 3)', () => {
   });
 
   it('handoff with atWar:true resets to at-war', () => {
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: 1, atWar: true, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('at-war');
   });
 
   it('handoff with nearDefeat:true resets to brink-of-defeat', () => {
-    director.handlePlayerChanged({ civId: civId('viking'), civType: 'viking', atWar: false, unrestCityCount: 0, nearDefeat: true, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('viking'), civType: 'viking', era: 1, atWar: false, unrestCityCount: 0, nearDefeat: true, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('brink-of-defeat');
   });
 
   it('handoff clears prior unrest for incoming player at peace', () => {
     director.handleUnrestStarted({ owner: civId('rome') });
     director.handleUnrestStarted({ owner: civId('rome') });
-    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('egypt'), civType: 'egypt', era: 1, atWar: false, unrestCityCount: 0, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('peace');
   });
 
   it('handoff with unrestCityCount:2 resolves to unrest', () => {
-    director.handlePlayerChanged({ civId: civId('aztec'), civType: 'aztec', atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: false });
+    director.handlePlayerChanged({ civId: civId('aztec'), civType: 'aztec', era: 1, atWar: false, unrestCityCount: 2, nearDefeat: false, inBeastTerritory: false });
     expect(director.resolveSnapshot()).toBe('unrest');
   });
 });

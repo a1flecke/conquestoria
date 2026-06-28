@@ -118,4 +118,20 @@ describe('opponent AI state normalization', () => {
     expect(normalized.opponentChallenge).toBe('explorer');
     expect(normalized.opponentAI).toEqual(createEmptyOpponentAIState());
   });
+
+  it('rejects malformed plan enums and unsafe upgrade-route records', () => {
+    const state = makeState();
+    state.opponentAI!.majorCivs['ai-1'].primaryPlan = makePlan({
+      objective: 'teleport' as AIStrategicPlan['objective'],
+    });
+    (state.opponentAI!.majorCivs['ai-1'].upgradeRoutesByUnitId as Record<string, unknown>)
+      .broken = null;
+    state.opponentAI!.migrationGraceRoundsRemaining = 999;
+
+    expect(() => normalizeOpponentAIState(state)).not.toThrow();
+    const normalized = normalizeOpponentAIState(state);
+    expect(normalized.opponentAI!.majorCivs['ai-1'].primaryPlan).toBeNull();
+    expect(normalized.opponentAI!.majorCivs['ai-1'].upgradeRoutesByUnitId).toEqual({});
+    expect(normalized.opponentAI!.migrationGraceRoundsRemaining).toBe(2);
+  });
 });

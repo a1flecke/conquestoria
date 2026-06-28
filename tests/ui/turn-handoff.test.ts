@@ -54,6 +54,47 @@ describe('turn handoff', () => {
     expect(shell.hasAttribute('aria-hidden')).toBe(false);
   });
 
+  it('keeps keyboard focus inside the opaque handoff while no action is enabled', () => {
+    const { state, layer } = makeFixture();
+    showTurnHandoff(layer, state, 'player-2', 'Bob', {
+      initiallyReady: false,
+      onReady: vi.fn(),
+    });
+    const title = document.querySelector<HTMLElement>('#turn-handoff-title')!;
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+
+    document.querySelector<HTMLElement>('#turn-handoff')!.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(document.activeElement).toBe(title);
+  });
+
+  it('recovers when opening the turn rejects instead of leaving a dead-end button', async () => {
+    const { state, layer } = makeFixture();
+    const onReady = vi.fn().mockRejectedValueOnce(new Error('temporary failure'));
+    showTurnHandoff(layer, state, 'player-2', 'Bob', {
+      initiallyReady: true,
+      onReady,
+    });
+    document.querySelector<HTMLButtonElement>('#handoff-confirm')!.click();
+    expect(document.querySelector<HTMLElement>('[role="alert"]')?.hidden).toBe(true);
+    document.querySelector<HTMLButtonElement>('#handoff-start')!.click();
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="alert"]')?.textContent)
+        .toContain('Could not open the turn');
+    });
+    const retry = document.querySelector<HTMLButtonElement>('#handoff-start')!;
+    expect(retry.disabled).toBe(false);
+    expect(retry.textContent).toBe('Try Again');
+    expect(document.querySelector('#turn-handoff')).not.toBeNull();
+  });
+
   it('keeps errors opaque and exposes retry and return controls', () => {
     const { state, layer } = makeFixture();
     const onRetry = vi.fn();

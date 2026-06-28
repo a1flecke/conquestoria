@@ -31,6 +31,7 @@ import {
 import { appendNotification } from '@/core/notification-log';
 import type { CustomCivDefinition } from '@/core/types';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
+import { dbGet } from '@/storage/db';
 
 const customCiv: CustomCivDefinition = {
   id: 'custom-sunfolk',
@@ -130,6 +131,42 @@ describe('save-manager autosave listing', () => {
       id: 'autosave:game-source-aware:7',
       kind: 'autosave',
     });
+  });
+
+  it('loads the concrete Continue payload before retiring the legacy fallback', async () => {
+    const concrete = createNewGame(undefined, 'concurrent-concrete', 'small');
+    concrete.gameId = 'concurrent';
+    concrete.turn = 7;
+    await autoSave(concrete);
+    const legacy = createNewGame(undefined, 'concurrent-legacy', 'small');
+    dbState.set('autosave', legacy);
+    localStorage.setItem('conquestoria-autosave', JSON.stringify(legacy));
+
+    const originalDbGet = vi.mocked(dbGet).getMockImplementation()!;
+    let concreteReads = 0;
+    vi.mocked(dbGet).mockImplementation(async key => {
+      if (key === 'autosave:concurrent:7') {
+        concreteReads += 1;
+        if (concreteReads === 3) {
+          dbState.delete(key);
+          return undefined;
+        }
+      }
+      return dbState.get(key);
+    });
+
+    try {
+      const loaded = await loadMostRecentAutoSaveEntry();
+
+      expect(loaded?.source).toEqual({
+        id: 'autosave:concurrent:7',
+        kind: 'autosave',
+      });
+      expect(loaded?.state.gameId).toBe('concurrent');
+      expect(dbState.has('autosave')).toBe(true);
+    } finally {
+      vi.mocked(dbGet).mockImplementation(originalDbGet);
+    }
   });
 
   it('rewrites the legacy autosave payload and localStorage backup', async () => {

@@ -34,6 +34,8 @@ export interface PirateRoundFacts {
     visibleToViewerIds: string[];
     attackerType: UnitType;
     defenderType: UnitType;
+    attackerOwnerId: string;
+    defenderOwnerId: string;
   }>;
 }
 
