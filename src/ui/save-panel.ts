@@ -1,14 +1,21 @@
 import type { SaveSlotMeta, GameState } from '@/core/types';
-import { listSaves, listSaveEpics, deleteSaveEntry, hasAutoSave, type SaveEpic } from '@/storage/save-manager';
+import {
+  listSaves,
+  listSaveEpics,
+  deleteSaveEntry,
+  hasAutoSave,
+  type SaveEntrySource,
+  type SaveEpic,
+} from '@/storage/save-manager';
 import { getSaveFileAdapter } from '@/platform/save-file-adapter';
 import { exportMostRecentAutoSave, importSaveFromFile } from '@/storage/save-file-transfer';
 
-interface SavePanelCallbacks {
+export interface SavePanelCallbacks {
   onNewGame: () => void;
-  onContinue: () => void;
-  onLoadSlot: (slotId: string) => void;
-  onSaveToSlot?: (slotId: string, name: string) => void;
-  onImportSave?: (state: GameState) => void;
+  onContinue: (invoker: HTMLButtonElement) => Promise<void> | void;
+  onLoadEntry: (source: SaveEntrySource, invoker: HTMLButtonElement) => Promise<void> | void;
+  onSaveToSlot?: (slotId: string, name: string) => Promise<void> | void;
+  onImportSave?: (state: GameState, invoker: HTMLButtonElement) => Promise<void> | void;
 }
 
 export async function createSavePanel(
@@ -108,6 +115,27 @@ export async function createSavePanel(
       status.textContent = message;
     }
   };
+  const runStartAction = async (
+    invoker: HTMLButtonElement,
+    action: () => Promise<void> | void,
+  ): Promise<void> => {
+    if (invoker.disabled) return;
+    invoker.disabled = true;
+    invoker.setAttribute('aria-busy', 'true');
+    setStatus('');
+    try {
+      await action();
+    } catch {
+      if (panel.isConnected) {
+        setStatus('Could not load this campaign. Please try again.');
+      }
+    } finally {
+      if (invoker.isConnected) {
+        invoker.disabled = false;
+        invoker.removeAttribute('aria-busy');
+      }
+    }
+  };
 
   // Bind events
   panel.querySelector('#btn-new-game')?.addEventListener('click', () => {
@@ -115,9 +143,9 @@ export async function createSavePanel(
     callbacks.onNewGame();
   });
 
-  panel.querySelector('#btn-continue')?.addEventListener('click', () => {
-    panel.remove();
-    callbacks.onContinue();
+  panel.querySelector<HTMLButtonElement>('#btn-continue')?.addEventListener('click', event => {
+    const invoker = event.currentTarget as HTMLButtonElement;
+    void runStartAction(invoker, () => callbacks.onContinue(invoker));
   });
 
   // Save to new slot
@@ -140,19 +168,20 @@ export async function createSavePanel(
   });
 
   // Import save
-  panel.querySelector('#btn-import-save')?.addEventListener('click', async () => {
-    setStatus('');
-    const adapter = await getSaveFileAdapter();
-    const result = await importSaveFromFile(adapter);
-    if (result.status === 'cancelled') {
-      return;
-    }
-    if (result.status === 'error') {
-      setStatus(result.message);
-      return;
-    }
-    panel.remove();
-    callbacks.onImportSave?.(result.state);
+  panel.querySelector<HTMLButtonElement>('#btn-import-save')?.addEventListener('click', event => {
+    const invoker = event.currentTarget as HTMLButtonElement;
+    void runStartAction(invoker, async () => {
+      const adapter = await getSaveFileAdapter();
+      const result = await importSaveFromFile(adapter);
+      if (result.status === 'cancelled') {
+        return;
+      }
+      if (result.status === 'error') {
+        setStatus(result.message);
+        return;
+      }
+      await callbacks.onImportSave?.(result.state, invoker);
+    });
   });
 
   panel.addEventListener('click', async event => {
@@ -176,12 +205,10 @@ export async function createSavePanel(
     }
 
     if (role === 'load-slot' && slotId && slotKind) {
-      panel.remove();
-      if (slotKind === 'autosave' && slotId === 'autosave') {
-        callbacks.onContinue();
-        return;
-      }
-      callbacks.onLoadSlot(slotId);
+      await runStartAction(
+        target,
+        () => callbacks.onLoadEntry({ id: slotId, kind: slotKind }, target),
+      );
       return;
     }
 

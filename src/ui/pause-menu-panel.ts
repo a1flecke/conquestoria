@@ -256,7 +256,7 @@ function buildMainView(
     void createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
       onSaveToSlot: async (slotId, name) => {
         await callbacks.onSave(slotId, name);
         document.getElementById('save-panel')?.remove();

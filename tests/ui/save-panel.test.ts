@@ -87,7 +87,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
     });
 
     expect(document.querySelectorAll('#save-panel [data-save-epic-card="true"]')).toHaveLength(1);
@@ -124,7 +124,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
       onSaveToSlot: () => {},
     }, 'save');
 
@@ -160,7 +160,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
     });
 
     (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
@@ -172,7 +172,7 @@ describe('save-panel', () => {
   it('loads the clicked autosave row instead of routing through continue', async () => {
     const container = mountContainer();
     const onContinue = vi.fn();
-    const onLoadSlot = vi.fn();
+    const onLoadEntry = vi.fn();
     mocks.hasAutoSave.mockResolvedValue(true);
     mocks.listSaveEpics.mockResolvedValue([
       {
@@ -199,14 +199,91 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue,
-      onLoadSlot,
+      onLoadEntry,
     });
 
     (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="load-slot"]') as HTMLButtonElement).click();
 
-    expect(onLoadSlot).toHaveBeenCalledWith('autosave:game-1:9');
+    const invoker = document.querySelector<HTMLButtonElement>(
+      '[data-role="load-slot"][data-slot-id="autosave:game-1:9"]',
+    )!;
+    expect(onLoadEntry).toHaveBeenCalledWith(
+      { id: 'autosave:game-1:9', kind: 'autosave' },
+      invoker,
+    );
     expect(onContinue).not.toHaveBeenCalled();
+  });
+
+  it('passes the Continue invoker and keeps the panel mounted until entry completes', async () => {
+    const container = mountContainer();
+    let finish!: () => void;
+    const onContinue = vi.fn(() => new Promise<void>(resolve => {
+      finish = resolve;
+    }));
+    mocks.hasAutoSave.mockResolvedValue(true);
+    mocks.listSaveEpics.mockResolvedValue([]);
+
+    await createSavePanel(container, {
+      onNewGame: vi.fn(),
+      onContinue,
+      onLoadEntry: vi.fn(),
+    });
+    const invoker = document.querySelector<HTMLButtonElement>('#btn-continue')!;
+    invoker.click();
+
+    expect(onContinue).toHaveBeenCalledWith(invoker);
+    expect(invoker.disabled).toBe(true);
+    expect(document.querySelector('#save-panel')).not.toBeNull();
+
+    finish();
+    await vi.waitFor(() => expect(invoker.disabled).toBe(false));
+  });
+
+  it('keeps the panel mounted and passes exact source plus invoker while a row load is pending', async () => {
+    const container = mountContainer();
+    let finish!: () => void;
+    const onLoadEntry = vi.fn(() => new Promise<void>(resolve => {
+      finish = resolve;
+    }));
+    mocks.hasAutoSave.mockResolvedValue(true);
+    mocks.listSaveEpics.mockResolvedValue([{
+      gameId: 'game-1',
+      title: 'Desert Run',
+      latestTurn: 9,
+      latestPlayed: '2026-04-08T12:00:00.000Z',
+      gameMode: 'solo',
+      saves: [{
+        id: 'autosave:game-1:9',
+        name: 'Autosave Turn 9',
+        civType: 'egypt',
+        turn: 9,
+        lastPlayed: '2026-04-08T12:00:00.000Z',
+        kind: 'autosave',
+        gameMode: 'solo',
+        gameTitle: 'Desert Run',
+      }],
+    }]);
+
+    await createSavePanel(container, {
+      onNewGame: vi.fn(),
+      onContinue: vi.fn(),
+      onLoadEntry,
+    });
+    (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
+    const invoker = document.querySelector<HTMLButtonElement>('[data-role="load-slot"]')!;
+    invoker.click();
+
+    expect(onLoadEntry).toHaveBeenCalledWith(
+      { id: 'autosave:game-1:9', kind: 'autosave' },
+      invoker,
+    );
+    expect(document.querySelector('#save-panel')).not.toBeNull();
+    expect(invoker.disabled).toBe(true);
+    expect(invoker.getAttribute('aria-busy')).toBe('true');
+
+    finish();
+    await vi.waitFor(() => expect(invoker.disabled).toBe(false));
   });
 
   it('rerenders the list after deleting one row and keeps the remaining rows visible', async () => {
@@ -269,7 +346,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
     });
 
     (document.querySelector('[data-role="open-epic"]') as HTMLButtonElement).click();
@@ -310,7 +387,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
     });
 
     expect(document.getElementById('evil-save')).toBeNull();
@@ -353,7 +430,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
     });
 
     expect(document.getElementById('evil-player')).toBeNull();
@@ -369,7 +446,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
     });
 
     (document.querySelector('#btn-export-save') as HTMLButtonElement).click();
@@ -388,7 +465,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
     });
 
     (document.querySelector('#btn-import-save') as HTMLButtonElement).click();
@@ -410,7 +487,7 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
     });
 
     (document.querySelector('#btn-import-save') as HTMLButtonElement).click();
@@ -420,7 +497,7 @@ describe('save-panel', () => {
     expect(document.body.textContent).toContain('Invalid save file: missing required game state fields.');
   });
 
-  it('imports a valid save through the shared callback and closes the panel', async () => {
+  it('passes a valid import and invoker to the shared callback without preemptively closing', async () => {
     const container = mountContainer();
     const onImportSave = vi.fn();
     const importedState = {
@@ -435,15 +512,18 @@ describe('save-panel', () => {
     await createSavePanel(container, {
       onNewGame: () => {},
       onContinue: () => {},
-      onLoadSlot: () => {},
+      onLoadEntry: () => {},
       onImportSave,
     });
 
     (document.querySelector('#btn-import-save') as HTMLButtonElement).click();
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(onImportSave).toHaveBeenCalledWith(importedState);
-    expect(document.querySelector('#save-panel')).toBeNull();
+    expect(onImportSave).toHaveBeenCalledWith(
+      importedState,
+      document.querySelector('#btn-import-save'),
+    );
+    expect(document.querySelector('#save-panel')).not.toBeNull();
   });
 
   it('shows epics first and opens a turn list for the selected epic', async () => {
@@ -472,9 +552,9 @@ describe('save-panel', () => {
         ],
       },
     ]);
-    const onLoadSlot = vi.fn();
+    const onLoadEntry = vi.fn();
 
-    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadSlot });
+    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadEntry });
 
     expect(document.body.textContent).toContain('Daddy Alex');
     expect(document.body.textContent).toContain('Tiny Epic');
@@ -489,7 +569,7 @@ describe('save-panel', () => {
 
   it('loads an exact save id from the opened epic detail', async () => {
     const container = mountContainer();
-    const onLoadSlot = vi.fn();
+    const onLoadEntry = vi.fn();
     mocks.hasAutoSave.mockResolvedValue(true);
     mocks.listSaveEpics.mockResolvedValue([
       {
@@ -504,11 +584,14 @@ describe('save-panel', () => {
       },
     ]);
 
-    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadSlot });
+    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadEntry });
     (document.querySelector('[data-role="open-epic"][data-game-id="game-a"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="load-slot"][data-slot-id="autosave:game-a:9"]') as HTMLButtonElement).click();
 
-    expect(onLoadSlot).toHaveBeenCalledWith('autosave:game-a:9');
+    expect(onLoadEntry).toHaveBeenCalledWith(
+      { id: 'autosave:game-a:9', kind: 'autosave' },
+      expect.any(HTMLButtonElement),
+    );
   });
 
   it('returns from an epic detail to the campaign list', async () => {
@@ -523,7 +606,7 @@ describe('save-panel', () => {
       ] },
     ]);
 
-    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadSlot: vi.fn() });
+    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadEntry: vi.fn() });
     (document.querySelector('[data-role="open-epic"][data-game-id="game-a"]') as HTMLButtonElement).click();
     expect(document.body.textContent).toContain('Back to campaigns');
 
@@ -550,7 +633,7 @@ describe('save-panel', () => {
         ] },
       ]);
 
-    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadSlot: vi.fn() });
+    await createSavePanel(container, { onNewGame: vi.fn(), onContinue: vi.fn(), onLoadEntry: vi.fn() });
     (document.querySelector('[data-role="open-epic"][data-game-id="game-a"]') as HTMLButtonElement).click();
     (document.querySelector('[data-role="delete-slot"][data-slot-id="autosave:game-a:9"]') as HTMLButtonElement).click();
     await new Promise(resolve => setTimeout(resolve, 0));
