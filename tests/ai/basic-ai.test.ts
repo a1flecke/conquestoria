@@ -1224,6 +1224,44 @@ describe('processAITurn', () => {
     expect(result.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
   });
 
+  it('counts visible rival combined arms instead of only rival warriors', () => {
+    const state = createNewGame(undefined, 'ai-symmetric-visible-strength');
+    state.turn = 20;
+    state.civilizations['ai-1'].civType = 'rome';
+    state.civilizations['ai-1'].knownCivilizations = ['player'];
+    state.civilizations.player.knownCivilizations = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.relationships.player = -60;
+    state.civilizations.player.diplomacy.relationships['ai-1'] = -60;
+
+    const anchor = state.civilizations['ai-1'].units
+      .map(id => state.units[id])
+      .find(Boolean)!.position;
+    const rivalPosition = {
+      q: (anchor.q + 2) % state.map.width,
+      r: anchor.r,
+    };
+    for (const type of ['swordsman', 'swordsman'] as const) {
+      const unit = createUnit(type, 'ai-1', anchor, state.idCounters);
+      unit.id = `ai-${type}-${state.civilizations['ai-1'].units.length}`;
+      unit.movementPointsLeft = 0;
+      state.units[unit.id] = unit;
+      state.civilizations['ai-1'].units.push(unit.id);
+    }
+    for (const type of ['tank', 'jet_fighter'] as const) {
+      const unit = createUnit(type, 'player', rivalPosition, state.idCounters);
+      unit.id = `player-${type}`;
+      state.units[unit.id] = unit;
+      state.civilizations.player.units.push(unit.id);
+    }
+    for (const id of state.civilizations['ai-1'].units) {
+      if (state.units[id]) state.units[id].movementPointsLeft = 0;
+    }
+
+    const result = processAITurn(state, 'ai-1', new EventBus());
+
+    expect(result.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
+  });
+
   it('AI settler founds a city when possible', () => {
     const state = createNewGame(undefined, 'ai-test');
     const bus = new EventBus();

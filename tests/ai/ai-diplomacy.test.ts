@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy } from '@/ai/ai-diplomacy';
 import type { PersonalityTraits, GameState, MinorCivState, DiplomacyState } from '@/core/types';
+import type { MilitaryStrengthEstimate } from '@/ai/ai-strength';
+
+function strength(midpoint: number): MilitaryStrengthEstimate {
+  return {
+    exactVisible: midpoint,
+    remembered: 0,
+    uncertaintyLower: midpoint,
+    uncertaintyUpper: midpoint,
+    midpoint,
+  };
+}
 
 function makeDiplomacy(overrides: Partial<DiplomacyState> = {}): DiplomacyState {
   return {
@@ -102,12 +113,42 @@ describe('evaluateDiplomacy', () => {
       makeDiplomacy({ relationships: { player: -60 } }),
       [],
       1,
-      { player: 10 },
-      100,
+      { player: strength(10) },
+      strength(100),
       1,
       { player: { hasMet: false, hasBorderPressure: false } },
     );
 
     expect(decisions.find(d => d.action === 'declare_war')).toBeUndefined();
+  });
+
+  it('treats a missing perception context as unmet', () => {
+    const decisions = evaluateDiplomacy(
+      aggressivePersonality,
+      makeDiplomacy({ relationships: { player: -100 } }),
+      [],
+      4,
+      { player: strength(10) },
+      strength(100),
+      20,
+      {},
+    );
+
+    expect(decisions.find(decision => decision.action === 'declare_war')).toBeUndefined();
+  });
+
+  it('compares both civilizations through the same midpoint contract', () => {
+    const decisions = evaluateDiplomacy(
+      aggressivePersonality,
+      makeDiplomacy({ relationships: { player: -60 } }),
+      [],
+      4,
+      { player: strength(120) },
+      strength(40),
+      20,
+      { player: { hasMet: true, hasBorderPressure: true } },
+    );
+
+    expect(decisions.find(decision => decision.action === 'declare_war')).toBeUndefined();
   });
 });

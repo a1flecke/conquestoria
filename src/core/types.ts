@@ -276,6 +276,15 @@ export interface LastSeenCityPresentation {
   population: number;
 }
 
+export type LastSeenHealthBand = 'healthy' | 'damaged' | 'critical';
+
+export interface LastSeenUnitPresentation {
+  id: string;
+  owner: string;
+  type: UnitType;
+  healthBand: LastSeenHealthBand;
+}
+
 export interface LastSeenTilePresentation {
   coord: HexCoord;
   terrain: TerrainType;
@@ -287,6 +296,9 @@ export interface LastSeenTilePresentation {
   hasRiver: boolean;
   wonder: string | null;
   city?: LastSeenCityPresentation;
+  observedTurn?: number;
+  source?: 'observed' | 'legacy-reconstructed';
+  units?: LastSeenUnitPresentation[];
 }
 
 // --- Units ---

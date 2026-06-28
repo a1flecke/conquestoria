@@ -79,6 +79,11 @@ import {
 } from '@/systems/pirate-actions';
 import { derivePirateBlockades } from '@/systems/pirate-behavior';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
+import {
+  buildDiplomaticStrengthEstimates,
+  buildMajorCivPerception,
+} from './ai-perception';
+import { hasAICombatRole } from './ai-unit-roles';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -1193,37 +1198,43 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
   // --- Handle diplomacy ---
   if (civ.diplomacy) {
-    const selfStrength = militaryUnits.reduce((sum, u) => {
-      const def = newState.units[u.id];
-      return sum + (def?.health ?? 0);
-    }, 0);
-
-    const otherStrengths: Record<string, number> = {};
+    updateAndRefreshVisibility(newState, civId);
+    for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
+      bus.emit('civilization:first-contact', contact);
+    }
+    civ = newState.civilizations[civId];
+    const perception = buildMajorCivPerception(newState, civId);
+    const {
+      self: selfStrength,
+      others: otherStrengths,
+    } = buildDiplomaticStrengthEstimates(perception, newState.era);
     const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean }> = {};
-    for (const [otherId, otherCiv] of Object.entries(newState.civilizations)) {
-      if (otherId === civId) continue;
-      const otherMil = otherCiv.units
-        .map(id => newState.units[id])
-        .filter((u): u is Unit => u !== undefined && u.type === 'warrior');
-      otherStrengths[otherId] = otherMil.reduce((sum, u) => sum + u.health, 0);
-
-      const otherCities = otherCiv.cities
-        .map(id => newState.cities[id])
-        .filter((city): city is City => city !== undefined);
+    for (const otherId of perception.knownCivIds) {
+      const otherCities = perception.knownCities
+        .filter(city => city.owner === otherId && city.position !== null);
       const ownCities = civ.cities
         .map(id => newState.cities[id])
         .filter((city): city is City => city !== undefined);
       const ownUnits = civ.units
         .map(id => newState.units[id])
         .filter((unit): unit is Unit => unit !== undefined);
-      const otherUnits = otherCiv.units
-        .map(id => newState.units[id])
-        .filter((unit): unit is Unit => unit !== undefined);
+      const otherUnits = perception.units
+        .filter(unit => unit.owner === otherId && unit.position !== null);
 
       const hasBorderPressure = ownUnits.some(unit =>
-        otherCities.some(city => hexDistance(unit.position, city.position) <= 3),
+        otherCities.some(city => {
+          const distance = newState.map.wrapsHorizontally
+            ? wrappedHexDistance(unit.position, city.position!, newState.map.width)
+            : hexDistance(unit.position, city.position!);
+          return distance <= 3;
+        }),
       ) || otherUnits.some(unit =>
-        ownCities.some(city => hexDistance(unit.position, city.position) <= 3),
+        ownCities.some(city => {
+          const distance = newState.map.wrapsHorizontally
+            ? wrappedHexDistance(unit.position!, city.position, newState.map.width)
+            : hexDistance(unit.position!, city.position);
+          return distance <= 3;
+        }),
       );
 
       diplomacyContext[otherId] = {
@@ -1284,7 +1295,10 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
     // AI vassalage: offer vassalage if very weak
     const currentCities = civ.cities.length;
-    const currentMilitary = militaryUnits.length;
+    const currentMilitary = civ.units
+      .map(unitId => newState.units[unitId])
+      .filter((unit): unit is Unit => Boolean(unit) && !unit.transportId && hasAICombatRole(unit.type))
+      .length;
     const vassalageDecision = evaluateVassalage(
       personality, civ.diplomacy, newState.era, selfStrength,
       currentCities, currentMilitary, otherStrengths,

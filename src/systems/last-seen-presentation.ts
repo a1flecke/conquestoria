@@ -1,11 +1,54 @@
-import type { GameState, HexCoord, HexTile, LastSeenTilePresentation, Unit } from '@/core/types';
-import { getVisibility, updateVisibility } from '@/systems/fog-of-war';
-import { hexKey, parseHexKey } from '@/systems/hex-utils';
+import type {
+  GameState,
+  HexCoord,
+  HexTile,
+  LastSeenHealthBand,
+  LastSeenTilePresentation,
+  LastSeenUnitPresentation,
+  Unit,
+} from '@/core/types';
+import { getVisibility, isForestConcealedUnit, updateVisibility } from '@/systems/fog-of-war';
+import { hexKey, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
+import { canInspectUnitForViewer } from './viewer-intel';
 
-export function createLastSeenTilePresentation(
+function healthBand(health: number): LastSeenHealthBand {
+  if (health >= 70) return 'healthy';
+  if (health >= 30) return 'damaged';
+  return 'critical';
+}
+
+function visibleUnitsByTile(
   state: GameState,
-  _viewerId: string,
+  viewerId: string,
+): Map<string, LastSeenUnitPresentation[]> {
+  const byTile = new Map<string, LastSeenUnitPresentation[]>();
+  for (const unit of Object.values(state.units)
+    .filter(unit => !unit.transportId)
+    .filter(unit => canInspectUnitForViewer(state, viewerId, unit.id))
+    .filter(unit => !isForestConcealedUnit(state, viewerId, unit))) {
+    const position = state.map.wrapsHorizontally
+      ? wrapHexCoord(unit.position, state.map.width)
+      : unit.position;
+    const key = hexKey(position);
+    const presentations = byTile.get(key) ?? [];
+    presentations.push({
+      id: unit.id,
+      owner: unit.owner,
+      type: unit.type,
+      healthBand: healthBand(unit.health),
+    });
+    byTile.set(key, presentations);
+  }
+  for (const presentations of byTile.values()) {
+    presentations.sort((left, right) => left.id.localeCompare(right.id));
+  }
+  return byTile;
+}
+
+function createTilePresentation(
+  state: GameState,
   tile: HexTile,
+  units: LastSeenUnitPresentation[],
 ): LastSeenTilePresentation {
   const tileKey = hexKey(tile.coord);
   const city = Object.values(state.cities).find(candidate => hexKey(candidate.position) === tileKey);
@@ -22,7 +65,22 @@ export function createLastSeenTilePresentation(
     city: city
       ? { id: city.id, name: city.name, owner: city.owner, population: city.population }
       : undefined,
+    observedTurn: state.turn,
+    source: 'observed',
+    units,
   };
+}
+
+export function createLastSeenTilePresentation(
+  state: GameState,
+  viewerId: string,
+  tile: HexTile,
+): LastSeenTilePresentation {
+  return createTilePresentation(
+    state,
+    tile,
+    visibleUnitsByTile(state, viewerId).get(hexKey(tile.coord)) ?? [],
+  );
 }
 
 export function refreshLastSeenPresentationsForCiv(state: GameState, viewerId: string): void {
@@ -30,10 +88,15 @@ export function refreshLastSeenPresentationsForCiv(state: GameState, viewerId: s
   if (!civ?.visibility) return;
 
   civ.visibility.lastSeen ??= {};
+  const unitsByTile = visibleUnitsByTile(state, viewerId);
   for (const [key, tile] of Object.entries(state.map.tiles)) {
     const coord = tile.coord ?? parseHexKey(key);
     if (getVisibility(civ.visibility, coord) !== 'visible') continue;
-    civ.visibility.lastSeen[key] = createLastSeenTilePresentation(state, viewerId, { ...tile, coord });
+    civ.visibility.lastSeen[key] = createTilePresentation(
+      state,
+      { ...tile, coord },
+      unitsByTile.get(key) ?? [],
+    );
   }
 }
 
@@ -51,7 +114,15 @@ export function reconstructLastSeenFromMap(state: GameState, civId: string): voi
     if (civ.visibility.tiles[key] !== 'fog') continue;
     if (civ.visibility.lastSeen[key]) continue;
     const coord = tile.coord ?? parseHexKey(key);
-    civ.visibility.lastSeen[key] = createLastSeenTilePresentation(state, civId, { ...tile, coord });
+    const {
+      observedTurn: _observedTurn,
+      units: _units,
+      ...presentation
+    } = createTilePresentation(state, { ...tile, coord }, []);
+    civ.visibility.lastSeen[key] = {
+      ...presentation,
+      source: 'legacy-reconstructed',
+    };
   }
 }
 
