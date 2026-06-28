@@ -1,20 +1,24 @@
-import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer, MapScript } from '@/core/types';
+import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer, MapScript, OpponentChallenge } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { createCivSelectPanel } from './civ-select';
 import { createCustomCivPanel } from './custom-civ-panel';
 import { createDefaultSettings } from '@/core/game-state';
 import { getPlayableCivDefinitions } from '@/systems/civ-registry';
 import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions } from '@/systems/custom-civ-system';
 import { loadSettings, saveSettings } from '@/storage/save-manager';
+import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
+import { createGameButton } from '@/ui/ui-kit';
 
-interface HotSeatSetupCallbacks {
-  onComplete: (config: HotSeatConfig) => void;
+export interface HotSeatSetupCallbacks {
+  onComplete: (config: HotSeatConfig, opponentChallenge?: OpponentChallenge) => void;
   onCancel: () => void;
   onCustomCivilizationsChanged?: (customCivilizations: CustomCivDefinition[]) => void;
 }
 
-interface HotSeatSetupOptions {
+export interface HotSeatSetupOptions {
   initialCustomCivilizations?: CustomCivDefinition[];
+  purposefulAIEnabled?: boolean;
 }
 
 export function showHotSeatSetup(
@@ -24,6 +28,7 @@ export function showHotSeatSetup(
 ): void {
   const existing = document.getElementById('hotseat-setup');
   if (existing) existing.remove();
+  const purposefulAIEnabled = options?.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
 
   const panel = document.createElement('div');
   panel.id = 'hotseat-setup';
@@ -31,6 +36,7 @@ export function showHotSeatSetup(
 
   let selectedMapSize: 'small' | 'medium' | 'large' | null = null;
   let selectedMapScript: MapScript = 'earth';
+  let selectedOpponentChallenge: OpponentChallenge = 'standard';
   let playerCount = 0;
   const players: HotSeatPlayer[] = [];
   const chosenCivs: string[] = [];
@@ -213,10 +219,56 @@ export function showHotSeatSetup(
     nextBtn.id = 'hs-map-type-next';
     nextBtn.style.cssText = 'padding:10px 24px;min-height:44px;background:rgba(232,193,112,0.3);border:2px solid #e8c170;border-radius:8px;color:#e8c170;cursor:pointer;font-size:14px;font-weight:bold;';
     nextBtn.textContent = 'Next';
-    nextBtn.addEventListener('click', () => showPlayerCountStage());
+    nextBtn.addEventListener('click', () => {
+      if (purposefulAIEnabled) {
+        showOpponentChallengeStage();
+      } else {
+        showPlayerCountStage();
+      }
+    });
 
     nav.appendChild(backBtn);
     nav.appendChild(nextBtn);
+    panel.appendChild(nav);
+  }
+
+  function showOpponentChallengeStage() {
+    panel.replaceChildren();
+
+    const title = document.createElement('h1');
+    title.textContent = 'Choose Opponent Challenge';
+    title.style.cssText = 'font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;';
+    panel.appendChild(title);
+
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Choose together before private player setup begins.';
+    subtitle.style.cssText = 'font-size:13px;opacity:0.72;margin:0 0 20px;text-align:center;';
+    panel.appendChild(subtitle);
+
+    const selector = createOpponentChallengeSelector({
+      selected: selectedOpponentChallenge,
+      mode: 'new-game',
+      onSelect: challenge => {
+        selectedOpponentChallenge = challenge;
+      },
+    });
+    selector.style.maxWidth = '840px';
+    panel.appendChild(selector);
+
+    const fairness = document.createElement('p');
+    fairness.textContent = 'This choice applies to computer-controlled opponents for everyone in this campaign.';
+    fairness.style.cssText = 'font-size:12px;opacity:0.78;margin:14px 0 0;text-align:center;line-height:1.45;';
+    panel.appendChild(fairness);
+
+    const nav = document.createElement('div');
+    nav.style.cssText = 'margin-top:20px;display:flex;gap:12px;';
+    const backButton = createGameButton('Back', 'ghost');
+    backButton.id = 'hs-challenge-back';
+    backButton.addEventListener('click', () => showMapTypeStage());
+    const nextButton = createGameButton('Next', 'primary');
+    nextButton.id = 'hs-challenge-next';
+    nextButton.addEventListener('click', () => showPlayerCountStage());
+    nav.append(backButton, nextButton);
     panel.appendChild(nav);
   }
 
@@ -409,6 +461,10 @@ export function showHotSeatSetup(
     };
 
     panel.remove();
-    callbacks.onComplete(config);
+    if (purposefulAIEnabled) {
+      callbacks.onComplete(config, selectedOpponentChallenge);
+    } else {
+      callbacks.onComplete(config);
+    }
   }
 }

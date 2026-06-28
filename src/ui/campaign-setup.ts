@@ -1,5 +1,6 @@
-import type { BeastsMode, CustomCivDefinition, SoloSetupConfig, MapScript } from '@/core/types';
+import type { BeastsMode, CustomCivDefinition, SoloSetupConfig, MapScript, OpponentChallenge } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createCustomCivPanel } from '@/ui/custom-civ-panel';
 import { getPlayableCivDefinitions } from '@/systems/civ-registry';
@@ -8,6 +9,7 @@ import { createDefaultSettings } from '@/core/game-state';
 import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { createSetupSection, createSetupShell } from '@/ui/setup-shell';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
+import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
 
 export interface CampaignSetupCallbacks {
   onStartSolo: (config: SoloSetupConfig) => void;
@@ -18,6 +20,7 @@ export interface CampaignSetupCallbacks {
 
 export interface CampaignSetupOptions {
   initialCustomCivilizations?: CustomCivDefinition[];
+  purposefulAIEnabled?: boolean;
 }
 
 function createLabeledSelect(labelText: string, id: string): { wrapper: HTMLDivElement; select: HTMLSelectElement } {
@@ -63,6 +66,7 @@ function syncChoiceButtonState(button: HTMLButtonElement, selected: boolean): vo
 
 export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSetupCallbacks, options?: CampaignSetupOptions): HTMLElement {
   container.querySelector('#campaign-setup')?.remove();
+  const purposefulAIEnabled = options?.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
 
   const shell = createSetupShell({
     panelId: 'campaign-setup',
@@ -326,6 +330,23 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     syncMapSizeCards();
   });
 
+  let selectedOpponentChallenge: OpponentChallenge = 'standard';
+  if (purposefulAIEnabled) {
+    const challengeSection = createSetupSection({
+      title: 'Opponent Challenge',
+      description: 'Choose how computer rivals and roaming threats plan and coordinate.',
+    });
+    challengeSection.section.dataset.opponentChallengeSection = '';
+    hero.appendChild(challengeSection.section);
+    challengeSection.content.appendChild(createOpponentChallengeSelector({
+      selected: selectedOpponentChallenge,
+      mode: 'new-game',
+      onSelect: challenge => {
+        selectedOpponentChallenge = challenge;
+      },
+    }));
+  }
+
   // Legendary Beasts mode section
   let beastsModeSelected: BeastsMode = 'wild';
 
@@ -479,6 +500,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       gameTitle,
       customCivilizations,
       mapScript: mapScriptSelect.value as MapScript,
+      ...(purposefulAIEnabled ? { opponentChallenge: selectedOpponentChallenge } : {}),
       settingsOverrides: { beastsMode: beastsModeSelected },
     });
   });

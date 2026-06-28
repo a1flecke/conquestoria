@@ -1,5 +1,11 @@
 import { createSavePanel } from '@/ui/save-panel';
 import { createGameButton } from '@/ui/ui-kit';
+import type { OpponentChallenge } from '@/core/types';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
+import {
+  OPPONENT_CHALLENGE_COPY,
+  createOpponentChallengeSelector,
+} from '@/ui/opponent-challenge-selector';
 
 export interface AudioSettingsSnapshot {
   masterVolume: number;
@@ -24,6 +30,18 @@ export interface PauseMenuCallbacks {
   // Spec 3: per-channel audio settings
   audioSettings: AudioSettingsSnapshot;
   onAudioSettingChange: (key: keyof AudioSettingsSnapshot, value: number | boolean) => void;
+  opponentChallenge: OpponentChallenge;
+  pendingOpponentChallenge?: OpponentChallenge;
+  onOpponentChallengeChange: (challenge: OpponentChallenge) => void;
+}
+
+export interface PauseMenuOptions {
+  purposefulAIEnabled?: boolean;
+}
+
+interface PauseMenuViewState {
+  announcement?: string;
+  focusChallenge?: OpponentChallenge;
 }
 
 function buildHeader(turn: number, civName: string): HTMLElement {
@@ -154,11 +172,71 @@ function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
   return section;
 }
 
+function buildOpponentChallengeSettings(
+  callbacks: PauseMenuCallbacks,
+  announcement: string,
+  onSelect: (challenge: OpponentChallenge) => void,
+): HTMLElement {
+  const section = document.createElement('section');
+  section.dataset.opponentChallengeSettings = '';
+  section.style.cssText = [
+    'border-top:1px solid rgba(255,255,255,0.1)',
+    'padding-top:12px',
+    'margin-top:12px',
+  ].join(';');
+
+  const heading = document.createElement('p');
+  heading.textContent = 'Opponent Challenge';
+  heading.style.cssText = [
+    'margin:0 0 8px',
+    'font-size:11px',
+    'text-transform:uppercase',
+    'letter-spacing:0.08em',
+    'opacity:0.65',
+  ].join(';');
+  section.appendChild(heading);
+
+  const active = document.createElement('p');
+  active.dataset.challengeActive = callbacks.opponentChallenge;
+  active.textContent = `${OPPONENT_CHALLENGE_COPY[callbacks.opponentChallenge].label} active`;
+  active.style.cssText = 'margin:0 0 4px;font-size:13px;font-weight:700;color:#e8c170;';
+  section.appendChild(active);
+
+  if (callbacks.pendingOpponentChallenge) {
+    const pending = document.createElement('p');
+    pending.dataset.challengePending = callbacks.pendingOpponentChallenge;
+    pending.textContent = `${OPPONENT_CHALLENGE_COPY[callbacks.pendingOpponentChallenge].label} next round`;
+    pending.style.cssText = 'margin:0 0 10px;font-size:12px;color:rgba(244,241,232,0.78);';
+    section.appendChild(pending);
+  }
+
+  section.appendChild(createOpponentChallengeSelector({
+    selected: callbacks.pendingOpponentChallenge ?? callbacks.opponentChallenge,
+    mode: 'settings',
+    onSelect,
+  }));
+
+  const status = document.createElement('p');
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  status.textContent = announcement;
+  status.style.cssText = 'min-height:1.3em;margin:8px 0 0;font-size:12px;color:#d9c58b;';
+  section.appendChild(status);
+  return section;
+}
+
+interface PauseMenuMainViewOptions {
+  purposefulAIEnabled: boolean;
+  announcement: string;
+  onOpponentChallengeSelect: (challenge: OpponentChallenge) => void;
+}
+
 function buildMainView(
   panel: HTMLElement,
   body: HTMLElement,
   container: HTMLElement,
   callbacks: PauseMenuCallbacks,
+  options: PauseMenuMainViewOptions,
 ): void {
   body.textContent = '';
 
@@ -198,8 +276,16 @@ function buildMainView(
 
   const newGameBtn = createGameButton('New Game…', 'secondary');
   newGameBtn.style.width = '100%';
-  newGameBtn.addEventListener('click', () => buildConfirmView(panel, body, container, callbacks));
+  newGameBtn.addEventListener('click', () => buildConfirmView(panel, body, container, callbacks, options));
   body.appendChild(newGameBtn);
+
+  if (options.purposefulAIEnabled) {
+    body.appendChild(buildOpponentChallengeSettings(
+      callbacks,
+      options.announcement,
+      options.onOpponentChallengeSelect,
+    ));
+  }
 
   // Spec 3: per-channel audio settings at bottom of pause menu
   body.appendChild(buildAudioSettings(callbacks));
@@ -210,6 +296,7 @@ function buildConfirmView(
   body: HTMLElement,
   container: HTMLElement,
   callbacks: PauseMenuCallbacks,
+  options: PauseMenuMainViewOptions,
 ): void {
   body.textContent = '';
 
@@ -245,12 +332,18 @@ function buildConfirmView(
 
   const cancelBtn = createGameButton('Cancel', 'ghost');
   cancelBtn.style.width = '100%';
-  cancelBtn.addEventListener('click', () => buildMainView(panel, body, container, callbacks));
+  cancelBtn.addEventListener('click', () => buildMainView(panel, body, container, callbacks, options));
   body.appendChild(cancelBtn);
 }
 
-export function showPauseMenu(container: HTMLElement, callbacks: PauseMenuCallbacks): HTMLElement {
+function renderPauseMenu(
+  container: HTMLElement,
+  callbacks: PauseMenuCallbacks,
+  options: PauseMenuOptions,
+  viewState: PauseMenuViewState,
+): HTMLElement {
   document.getElementById('pause-menu')?.remove();
+  const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
 
   const overlay = document.createElement('div');
   overlay.id = 'pause-menu';
@@ -270,7 +363,9 @@ export function showPauseMenu(container: HTMLElement, callbacks: PauseMenuCallba
     border: '1px solid rgba(255,255,255,0.2)',
     borderRadius: '12px',
     padding: '20px',
-    width: '280px',
+    width: purposefulAIEnabled ? 'min(760px, calc(100vw - 32px))' : '280px',
+    maxHeight: 'min(90dvh, 760px)',
+    overflowY: 'auto',
     color: '#f4f1e8',
   });
 
@@ -281,7 +376,41 @@ export function showPauseMenu(container: HTMLElement, callbacks: PauseMenuCallba
   overlay.appendChild(panel);
   container.appendChild(overlay);
 
-  buildMainView(overlay, body, container, callbacks);
+  buildMainView(overlay, body, container, callbacks, {
+    purposefulAIEnabled,
+    announcement: viewState.announcement ?? '',
+    onOpponentChallengeSelect: challenge => {
+      callbacks.onOpponentChallengeChange(challenge);
+      const pendingOpponentChallenge = challenge === callbacks.opponentChallenge
+        ? undefined
+        : challenge;
+      renderPauseMenu(
+        container,
+        { ...callbacks, pendingOpponentChallenge },
+        options,
+        {
+          announcement: pendingOpponentChallenge
+            ? `${OPPONENT_CHALLENGE_COPY[challenge].label} will apply next round`
+            : `${OPPONENT_CHALLENGE_COPY[challenge].label} remains active`,
+          focusChallenge: challenge,
+        },
+      );
+    },
+  });
+
+  if (viewState.focusChallenge) {
+    overlay.querySelector<HTMLButtonElement>(
+      `[data-challenge="${viewState.focusChallenge}"]`,
+    )?.focus();
+  }
 
   return overlay;
+}
+
+export function showPauseMenu(
+  container: HTMLElement,
+  callbacks: PauseMenuCallbacks,
+  options: PauseMenuOptions = {},
+): HTMLElement {
+  return renderPauseMenu(container, callbacks, options, {});
 }

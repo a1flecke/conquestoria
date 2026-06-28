@@ -9,6 +9,7 @@ import '@/assets/roc-animations.css';
 import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
+import { resolveOpponentChallenge, setPendingOpponentChallenge } from '@/core/opponent-challenge';
 import { processTurn } from '@/core/turn-manager';
 import { processAITurn } from '@/ai/basic-ai';
 import { RenderLoop } from '@/renderer/render-loop';
@@ -369,6 +370,11 @@ function createUI(): void {
         onNewGame: () => showGameModeSelection(),
         autoSave: () => autoSave(gameState),
         onOpenBestiary: () => openBestiary(),
+        opponentChallenge: resolveOpponentChallenge(gameState),
+        pendingOpponentChallenge: gameState.pendingOpponentChallenge,
+        onOpponentChallengeChange: (challenge) => {
+          gameState = setPendingOpponentChallenge(gameState, challenge);
+        },
         // Spec 3: per-channel audio settings
         audioSettings: {
           masterVolume:   currentMasterVolume,   // tracked in memory across menu reopens
@@ -4037,6 +4043,8 @@ function showGameModeSelection(): void {
             // Merge: persisted A/V settings first, then per-game setup choices (e.g. beastsMode) win
             settingsOverrides: { ...getPersistedSettingsOverrides(), ...config.settingsOverrides },
             customCivilizations: config.customCivilizations,
+            mapScript: config.mapScript,
+            opponentChallenge: config.opponentChallenge,
           });
           if (persistedSettings?.councilTalkLevel) {
             gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
@@ -4056,8 +4064,8 @@ function showGameModeSelection(): void {
       const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
       modePanel.remove();
       showHotSeatSetup(uiLayer, {
-        onComplete: (config) => {
-          gameState = createHotSeatGame(config, undefined, title);
+        onComplete: (config, opponentChallenge) => {
+          gameState = createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard');
           if (persistedSettings?.councilTalkLevel) {
             gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
           }
