@@ -9,6 +9,7 @@ import type {
 } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { targetStableKey } from './ai-objective-scoring';
+import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 
 export interface AIPlanCandidate {
   objective: AIStrategicObjective;
@@ -69,15 +70,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 export function createEmptyMajorCivPortfolio(): MajorCivPlanPortfolio {
-  return {
-    primaryPlan: null,
-    defensePlansByCityId: {},
-    upgradeRoutesByUnitId: {},
-    modernizationDemand: 0,
-    researchTargetTechId: null,
-    lastPlannedTurn: -1,
-    lastExecutedTurn: -1,
-  };
+  return createEmptyMajorCivPlanPortfolio();
 }
 
 function planMatchesCandidate(

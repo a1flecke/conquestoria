@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import {
   createEmptyOpponentAIState,
+  createEmptyMajorCivPlanPortfolio,
   normalizeOpponentAIState,
 } from '@/core/opponent-ai-state';
 import type { AIStrategicPlan, GameState } from '@/core/types';
@@ -69,6 +70,21 @@ describe('opponent AI state normalization', () => {
       lastProcessedRound: null,
       lastFinalizedRound: null,
     });
+  });
+
+  it('creates compact portfolio state without transient planner data', () => {
+    const portfolio = createEmptyMajorCivPlanPortfolio();
+
+    expect(portfolio).toEqual({
+      primaryPlan: null,
+      defensePlansByCityId: {},
+      upgradeRoutesByUnitId: {},
+      modernizationDemand: 0,
+      researchTargetTechId: null,
+      lastPlannedTurn: -1,
+      lastExecutedTurn: -1,
+    });
+    expect((portfolio as typeof portfolio & { traces?: unknown }).traces).toBeUndefined();
   });
 
   it('removes dead or wrong-owner assignments without mutating the loaded object', () => {

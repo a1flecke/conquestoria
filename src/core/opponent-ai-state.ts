@@ -199,6 +199,18 @@ export function createEmptyOpponentAIState(): OpponentAIState {
   };
 }
 
+export function createEmptyMajorCivPlanPortfolio(): MajorCivPlanPortfolio {
+  return {
+    primaryPlan: null,
+    defensePlansByCityId: {},
+    upgradeRoutesByUnitId: {},
+    modernizationDemand: 0,
+    researchTargetTechId: null,
+    lastPlannedTurn: -1,
+    lastExecutedTurn: -1,
+  };
+}
+
 export function normalizeOpponentAIState(state: GameState): GameState {
   const source = state.opponentAI;
   if (!source || source.version !== 1) {
