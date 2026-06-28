@@ -174,24 +174,31 @@ function planCandidates(
   candidates: readonly AIObjectiveCandidate[],
   choice: AIObjectiveChoice,
 ): AIPlanCandidate[] {
-  if (!choice.plan) return [];
-  const selected = candidates.find(candidate =>
-    candidate.objective === choice.plan!.objective
-    && targetStableKey(candidate.target) === targetStableKey(choice.plan!.target));
-  if (!selected) return [];
-  return [{
-    objective: selected.objective,
-    target: selected.target,
-    theaterId: selected.theaterId,
-    score: scoreObjectiveCandidate(selected),
-    reasonCodes: [...choice.plan.reasonCodes],
-    requiredRoles: { ...selected.requiredRoles },
-    commitment: 0.25,
-    targetValid: Number.isFinite(selected.travelTurns),
-    reasonValid: true,
-    expectedLossRatio: selected.expectedLossRatio,
-    progress: false,
-  }];
+  const eligibleIds = new Set(choice.eligibleCandidateIds);
+  return candidates.flatMap(candidate => {
+    const id = `${candidate.objective}:${targetStableKey(candidate.target)}`;
+    if (!eligibleIds.has(id)) return [];
+    const selected = choice.plan
+      && candidate.objective === choice.plan.objective
+      && targetStableKey(candidate.target) === targetStableKey(choice.plan.target);
+    return [{
+      objective: candidate.objective,
+      target: candidate.target,
+      theaterId: candidate.theaterId,
+      score: scoreObjectiveCandidate(candidate),
+      reasonCodes: selected
+        ? [...choice.plan!.reasonCodes]
+        : candidate.explicitDistantReasons.length > 0
+          ? [...candidate.explicitDistantReasons]
+          : ['nearby-opportunity'],
+      requiredRoles: { ...candidate.requiredRoles },
+      commitment: 0.25,
+      targetValid: Number.isFinite(candidate.travelTurns),
+      reasonValid: true,
+      expectedLossRatio: candidate.expectedLossRatio,
+      progress: false,
+    }];
+  });
 }
 
 function cityThreats(

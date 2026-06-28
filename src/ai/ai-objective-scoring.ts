@@ -45,6 +45,7 @@ export interface AIObjectiveChoice {
     score: number;
   } | null;
   demands: AIStrategicRole[];
+  eligibleCandidateIds: string[];
   trace: AIDecisionTrace;
 }
 
@@ -87,6 +88,9 @@ function candidateId(candidate: AIObjectiveCandidate): string {
 }
 
 export function scoreObjectiveCandidate(candidate: AIObjectiveCandidate): number {
+  if (!Number.isFinite(candidate.travelTurns) || candidate.travelTurns < 0) {
+    return -Number.MAX_VALUE;
+  }
   const travelTurns = finiteClamped(candidate.travelTurns, 0, Number.MAX_SAFE_INTEGER);
   const strategicValue = finiteClamped(candidate.strategicValue, 0, 100);
   const expectedLossRatio = finiteClamped(candidate.expectedLossRatio, 0, 2);
@@ -280,6 +284,9 @@ export function choosePrimaryObjective(
         }
       : null,
     demands: [...demands].sort(),
+    eligibleCandidateIds: ranked
+      .filter(entry => entry.eligible)
+      .map(entry => entry.id),
     trace,
   };
 }
