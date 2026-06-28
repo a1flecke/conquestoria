@@ -1,4 +1,4 @@
-import { processTurn } from '@/core/turn-manager';
+import { finalizeOpponentRoundState, processTurn } from '@/core/turn-manager';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import type { CustomCivDefinition, GameState, HexCoord, Unit, UnitType } from '@/core/types';
@@ -883,6 +883,24 @@ describe('processTurn', () => {
     const remaining = result.marketplace?.purchasedResources ?? [];
     expect(remaining.some(e => e.resource === 'silk')).toBe(false); // expired → removed
     expect(remaining.some(e => e.resource === 'wine')).toBe(true);  // active → kept
+  });
+});
+
+describe('opponent round finalization', () => {
+  it('applies pending challenge and decrements migration grace once per completed round', () => {
+    const state = createNewGame(undefined, 'opponent-finalize', 'small');
+    state.pendingOpponentChallenge = 'explorer';
+    state.opponentAI!.migrationGraceRoundsRemaining = 2;
+
+    const first = finalizeOpponentRoundState(state);
+    const duplicate = finalizeOpponentRoundState(first);
+    const nextRound = finalizeOpponentRoundState({ ...first, turn: first.turn + 1 });
+
+    expect(first.opponentChallenge).toBe('explorer');
+    expect(first.pendingOpponentChallenge).toBeUndefined();
+    expect(first.opponentAI?.migrationGraceRoundsRemaining).toBe(1);
+    expect(duplicate).toBe(first);
+    expect(nextRound.opponentAI?.migrationGraceRoundsRemaining).toBe(0);
   });
 });
 

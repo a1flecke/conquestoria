@@ -9,14 +9,10 @@ import '@/assets/roc-animations.css';
 import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
-import {
-  applyPendingOpponentChallenge,
-  resolveOpponentChallenge,
-  setPendingOpponentChallenge,
-} from '@/core/opponent-challenge';
+import { resolveOpponentChallenge, setPendingOpponentChallenge } from '@/core/opponent-challenge';
 import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { processTurn } from '@/core/turn-manager';
-import { processAITurn } from '@/ai/basic-ai';
+import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { RenderLoop } from '@/renderer/render-loop';
 import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
@@ -115,7 +111,7 @@ import { visitVillage } from '@/systems/village-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getAvailableTechs } from '@/systems/tech-system';
-import { getNextPlayer, getAIPlayers, isRoundComplete } from '@/core/turn-cycling';
+import { getNextPlayer, isRoundComplete } from '@/core/turn-cycling';
 import { showTurnHandoff } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { clearEventsForPlayer, collectCouncilInterrupt, collectEvent } from '@/core/hotseat-events';
@@ -3160,35 +3156,11 @@ async function replayAIMoves(moves: AIMoveRecord[]): Promise<void> {
   }
 }
 
-function finalizeCompletedRoundState(state: GameState): GameState {
-  let next = applyPendingOpponentChallenge(state);
-  if ((next.opponentAI?.migrationGraceRoundsRemaining ?? 0) > 0) {
-    next = {
-      ...next,
-      opponentAI: {
-        ...next.opponentAI!,
-        migrationGraceRoundsRemaining: next.opponentAI!.migrationGraceRoundsRemaining - 1,
-      },
-    };
-  }
-  return next;
-}
-
-function runCurrentCompletedRound(state: GameState, hotSeat: NonNullable<GameState['hotSeat']> | undefined) {
+function runCurrentCompletedRound(state: GameState) {
   return runCompletedRound(state, bus, {
     improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
-    majors: (current, eventBus) => {
-      let next = current;
-      const aiIds = hotSeat ? getAIPlayers(hotSeat).map(player => player.slotId) : ['ai-1'];
-      for (const aiId of aiIds) {
-        if (next.civilizations[aiId] && !next.civilizations[aiId].isEliminated) {
-          next = processAITurn(next, aiId, eventBus);
-        }
-      }
-      return next;
-    },
+    majors: (current, eventBus) => processNonHumanMajorRound(current, eventBus).state,
     world: (current, eventBus) => processTurn(current, eventBus),
-    postprocess: (_before, current) => finalizeCompletedRoundState(current),
   });
 }
 
@@ -3277,7 +3249,7 @@ async function beginHotSeatHandoff(
       void persistCompletedHandoff();
       return;
     }
-    const result = runCurrentCompletedRound(preSimulationState, hotSeat);
+    const result = runCurrentCompletedRound(preSimulationState);
     if (!result.ok) {
       gameState = preSimulationState;
       controller.setError(
@@ -3317,7 +3289,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       await beginHotSeatHandoff(hotSeat, isRoundComplete(hotSeat, gameState.currentPlayer));
     } else {
       // --- Solo Mode ---
-      const result = runCurrentCompletedRound(gameState, undefined);
+      const result = runCurrentCompletedRound(gameState);
       if (!result.ok) throw result.error;
       gameState = result.state;
       const soloMoves = captureAIMoves(() => {

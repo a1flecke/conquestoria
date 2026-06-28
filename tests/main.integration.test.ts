@@ -22,6 +22,17 @@ describe('campaign entry wiring', () => {
   });
 });
 
+describe('completed-round AI wiring', () => {
+  it('uses one shared non-human scheduler for solo and hot-seat completed rounds', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+
+    expect(main.match(/processNonHumanMajorRound\(current, eventBus\)/g)).toHaveLength(1);
+    expect(main).not.toContain('processAITurn(');
+    expect(main).not.toContain("getAIPlayers(");
+    expect(main).not.toContain("'ai-1'");
+  });
+});
+
 function makeSink() {
   const calls: Array<{ civId: string; message: string; type: string }> = [];
   const sink: NotificationSink = (civId, message, type) => calls.push({ civId, message, type });

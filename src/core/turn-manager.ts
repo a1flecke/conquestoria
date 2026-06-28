@@ -56,6 +56,8 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
 import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
+import { applyPendingOpponentChallenge } from '@/core/opponent-challenge';
+import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
@@ -78,6 +80,23 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
+
+export function finalizeOpponentRoundState(state: GameState): GameState {
+  const normalized = normalizeOpponentAIState(state);
+  if (normalized.opponentAI!.lastFinalizedRound === normalized.turn) return state;
+  const withChallenge = applyPendingOpponentChallenge(normalized);
+  return {
+    ...withChallenge,
+    opponentAI: {
+      ...withChallenge.opponentAI!,
+      migrationGraceRoundsRemaining: Math.max(
+        0,
+        withChallenge.opponentAI!.migrationGraceRoundsRemaining - 1,
+      ),
+      lastFinalizedRound: state.turn,
+    },
+  };
+}
 
 export function processTurn(state: GameState, bus: EventBus): GameState {
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
@@ -1091,6 +1110,8 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     newState = applyEconomyTurn(newState, civId, grossGoldByCiv[civId] ?? 0, pirateEconomyModifiers);
     emitEconomyStrainIfNeeded(previousEconomyStatusByCiv[civId], newState.economyStatusByCiv![civId], bus, civId);
   }
+
+  newState = finalizeOpponentRoundState(newState);
 
   // --- Advance turn ---
   newState.turn += 1;
