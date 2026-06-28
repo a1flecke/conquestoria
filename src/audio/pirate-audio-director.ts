@@ -20,6 +20,7 @@ export class PirateAudioDirector {
     private readonly loader: Pick<AudioLoader, 'get'>,
     private readonly playStinger: (path: string) => Promise<void>,
     private readonly getState: () => GameState,
+    private readonly isPresentationSuppressed: () => boolean = () => false,
   ) {}
 
   start(bus: EventBus): void {
@@ -27,12 +28,12 @@ export class PirateAudioDirector {
     this.unsubscribers.push(
       bus.on('pirate:audio-cue', event => {
         const state = this.getState();
-        if (!this.enabled || !event.viewerIds.includes(state.currentPlayer)) return;
+        if (this.isPresentationSuppressed() || !this.enabled || !event.viewerIds.includes(state.currentPlayer)) return;
         void this.playStinger(PIRATE_STRATEGIC_SFX[event.cue].file).catch(() => {});
       }),
       bus.on('pirate:headquarters-destroyed', event => {
         const state = this.getState();
-        if (!this.enabled || !event.viewerIds.includes(state.currentPlayer)) return;
+        if (this.isPresentationSuppressed() || !this.enabled || !event.viewerIds.includes(state.currentPlayer)) return;
         void this.playStinger(PIRATE_HEADQUARTERS_SFX.collapse.file).catch(() => {});
       }),
       bus.on('currentPlayer:changed-after-handoff', () => this.stopAmbience('player-changed')),
@@ -41,7 +42,7 @@ export class PirateAudioDirector {
   }
 
   async startHeadquartersAmbience(factionId: string): Promise<boolean> {
-    if (!this.enabled) return this.rejectAmbience();
+    if (this.isPresentationSuppressed() || !this.enabled) return this.rejectAmbience();
     const state = this.getState();
     const faction = state.pirates?.factions[factionId];
     if (!faction || faction.headquarters.kind !== 'coastal-enclave') return this.rejectAmbience();
@@ -56,7 +57,7 @@ export class PirateAudioDirector {
     } catch {
       return this.rejectAmbience();
     }
-    if (requestId !== this.requestId || !this.enabled) return false;
+    if (requestId !== this.requestId || this.isPresentationSuppressed() || !this.enabled) return false;
     this.mixer.setAmbienceLoop(buffer, PIRATE_HEADQUARTERS_SFX.ambience.loop, 350, 0.28);
     this.activeFactionId = factionId;
     return true;

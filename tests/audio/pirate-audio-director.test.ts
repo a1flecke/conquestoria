@@ -64,6 +64,37 @@ describe('PirateAudioDirector', () => {
     expect(playStinger).toHaveBeenCalledWith(PIRATE_STRATEGIC_SFX.blockade.file);
   });
 
+  it('suppresses strategic cues and async ambience completion during handoff', async () => {
+    let suppressed = true;
+    let resolveBuffer!: (buffer: AudioBuffer) => void;
+    loader.get = vi.fn(() => new Promise<AudioBuffer>(resolve => {
+      resolveBuffer = resolve;
+    }));
+    const director = new PirateAudioDirector(
+      mixer,
+      loader,
+      playStinger,
+      () => state,
+      () => suppressed,
+    );
+    director.start(bus.bus);
+
+    bus.emit('pirate:audio-cue', {
+      cue: 'raid',
+      factionId: 'pirate-1',
+      viewerIds: ['player'],
+    });
+    expect(playStinger).not.toHaveBeenCalled();
+    expect(await director.startHeadquartersAmbience('pirate-1')).toBe(false);
+
+    suppressed = false;
+    const pending = director.startHeadquartersAmbience('pirate-1');
+    suppressed = true;
+    resolveBuffer({} as AudioBuffer);
+    await expect(pending).resolves.toBe(false);
+    expect(mixer.setAmbienceLoop).not.toHaveBeenCalled();
+  });
+
   it('starts enclave ambience only for a currently visible focused headquarters', async () => {
     const director = new PirateAudioDirector(mixer, loader, playStinger, () => state);
 

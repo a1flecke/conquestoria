@@ -32,6 +32,7 @@ export class AudioSystem {
   private started = false;
   private iosResumeListeners: Array<() => void> = [];
   private gestureResumeHandler: (() => void) | null = null;
+  private isPresentationSuppressed: () => boolean = () => false;
 
   constructor(private readonly ctx: AudioContext) {
     this.loader = new AudioLoader(ctx);
@@ -53,6 +54,7 @@ export class AudioSystem {
       this.loader,
       path => this.director.playStingerWithDuck(path),
       () => this.stateProvider!(),
+      () => this.isPresentationSuppressed(),
     );
   }
 
@@ -66,6 +68,7 @@ export class AudioSystem {
     this.started = true;
     this.currentPlayerId = state.currentPlayer;
     this.stateProvider = getState;
+    this.isPresentationSuppressed = isPresentationSuppressed;
 
     // Snapshot civType lookup — civ identities are fixed for a game's lifetime
     for (const [id, civ] of Object.entries(state.civilizations ?? {})) {
@@ -194,6 +197,7 @@ export class AudioSystem {
     this.currentCivType = '';
     this.civTypeById = {};
     this.stateProvider = null;
+    this.isPresentationSuppressed = () => false;
     this.started = false;
   }
 
