@@ -13,7 +13,21 @@ vi.mock('@/storage/db', () => ({
 }));
 
 import { createDefaultSettings, createNewGame } from '@/core/game-state';
-import { autoSave, deleteSaveEntry, listSaveEpics, listSaves, loadGame, loadMostRecentAutoSave, loadSettings, normalizeLoadedStateForTest, saveGame, saveSettings } from '@/storage/save-manager';
+import {
+  autoSave,
+  deleteSaveEntry,
+  listSaveEpics,
+  listSaves,
+  loadGame,
+  loadMostRecentAutoSave,
+  loadMostRecentAutoSaveEntry,
+  loadSaveEntry,
+  loadSettings,
+  normalizeLoadedStateForTest,
+  rewriteLoadedSaveEntry,
+  saveGame,
+  saveSettings,
+} from '@/storage/save-manager';
 import { appendNotification } from '@/core/notification-log';
 import type { CustomCivDefinition } from '@/core/types';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
@@ -70,6 +84,82 @@ describe('save-manager autosave listing', () => {
     const autoLoaded = await loadMostRecentAutoSave();
     expect(autoLoaded?.pirates).toEqual(state.pirates);
     expect(autoLoaded?.notificationLog).toEqual(state.notificationLog);
+  });
+
+  it('loads and rewrites an exact manual source without changing metadata', async () => {
+    const state = createNewGame(undefined, 'source-aware-manual', 'small');
+    delete state.opponentChallenge;
+    await saveGame('slot-legacy', 'Old Campaign', state);
+    const source = { id: 'slot-legacy', kind: 'manual' } as const;
+    const beforeMeta = structuredClone(dbState.get('meta:slot-legacy'));
+
+    const loaded = await loadSaveEntry(source);
+    expect(loaded?.source).toEqual(source);
+    expect(loaded?.state.opponentChallenge).toBeUndefined();
+
+    await rewriteLoadedSaveEntry(source, {
+      ...loaded!.state,
+      opponentChallenge: 'explorer',
+    });
+
+    expect(dbState.get('meta:slot-legacy')).toEqual(beforeMeta);
+    expect((await loadSaveEntry(source))?.state.opponentChallenge).toBe('explorer');
+  });
+
+  it('rejects rewriting a normal source that disappeared after loading', async () => {
+    const state = createNewGame(undefined, 'source-disappears', 'small');
+    await saveGame('gone', 'Gone', state);
+    const source = { id: 'gone', kind: 'manual' } as const;
+    const loaded = await loadSaveEntry(source);
+    dbState.delete('save:gone');
+
+    await expect(rewriteLoadedSaveEntry(source, loaded!.state))
+      .rejects.toThrow('Save entry no longer exists');
+    expect(dbState.has('save:gone')).toBe(false);
+  });
+
+  it('returns the concrete newest autosave source for Continue', async () => {
+    const state = createNewGame(undefined, 'source-aware-auto', 'small');
+    state.gameId = 'game-source-aware';
+    state.turn = 7;
+    await autoSave(state);
+
+    const loaded = await loadMostRecentAutoSaveEntry();
+
+    expect(loaded?.source).toEqual({
+      id: 'autosave:game-source-aware:7',
+      kind: 'autosave',
+    });
+  });
+
+  it('rewrites the legacy autosave payload and localStorage backup', async () => {
+    const state = createNewGame(undefined, 'source-aware-legacy', 'small');
+    delete state.opponentChallenge;
+    dbState.set('autosave', state);
+    localStorage.setItem('conquestoria-autosave', JSON.stringify(state));
+
+    const loaded = await loadMostRecentAutoSaveEntry();
+    expect(loaded?.source).toEqual({ id: 'autosave', kind: 'autosave' });
+
+    await rewriteLoadedSaveEntry(loaded!.source, {
+      ...loaded!.state,
+      opponentChallenge: 'standard',
+    });
+
+    expect((dbState.get('autosave') as GameState).opponentChallenge).toBe('standard');
+    expect(JSON.parse(localStorage.getItem('conquestoria-autosave')!).opponentChallenge)
+      .toBe('standard');
+  });
+
+  it('loads a localStorage-only legacy autosave with explicit source identity', async () => {
+    const state = createNewGame(undefined, 'local-only-legacy', 'small');
+    delete state.opponentChallenge;
+    localStorage.setItem('conquestoria-autosave', JSON.stringify(state));
+
+    const loaded = await loadMostRecentAutoSaveEntry();
+
+    expect(loaded?.source).toEqual({ id: 'autosave', kind: 'autosave' });
+    expect(loaded?.state.opponentChallenge).toBeUndefined();
   });
 
   it('normalizes malformed persisted notification IDs without duplicating them', () => {
