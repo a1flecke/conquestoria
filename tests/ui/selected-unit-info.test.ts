@@ -644,6 +644,45 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     expect(buttons.some(l => l.toLowerCase().includes('mine'))).toBe(true);
   });
 
+  it('shows resource info div when knownResource is present (tech researched)', () => {
+    const state = makeWorkerState({ terrain: 'grassland', resource: 'silk' });
+    (state.civilizations.player.techState.completed as string[]) = ['irrigation'];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Silk');
+    expect(text).toContain('luxury');
+    expect(text).toContain('Plantation');
+  });
+
+  it('does not show resource info div when tech is not yet researched', () => {
+    const state = makeWorkerState({ terrain: 'grassland', resource: 'silk' });
+    // No tech completed — silk is hidden
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const text = collectAllText(container).join(' ');
+    expect(text).not.toContain('Silk');
+    expect(text).not.toContain('luxury');
+  });
+
+  it('plantation button label includes resource name when silk is known', () => {
+    const state = makeWorkerState({ terrain: 'grassland', resource: 'silk' });
+    (state.civilizations.player.techState.completed as string[]) = ['irrigation'];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: vi.fn(),
+    });
+    const buttons = findButtons(container).map(b => b.textContent ?? '');
+    const plantationBtn = buttons.find(l => l.includes('Plantation'));
+    expect(plantationBtn).toBeDefined();
+    expect(plantationBtn).toContain('Silk');
+    expect(plantationBtn).toContain('→');
+  });
+
   it('replacement button labels include yield information for the new improvement', () => {
     // grassland tile with farm already built; worker on it with onReplaceImprovement
     const state = makeWorkerState({ terrain: 'grassland', improvement: 'farm', hasRiver: true });
