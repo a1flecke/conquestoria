@@ -37,4 +37,16 @@ describe('city name rosters', () => {
       expect(overlap, `${civ.id} shares names with DEFAULT: ${overlap.join(', ')}`).toEqual([]);
     }
   });
+
+  it('no two named-civ pools share a city name (first-founder global dedup would block the other)', () => {
+    const seen = new Map<string, string>(); // name → first civId that claimed it
+    for (const civ of CIV_DEFINITIONS) {
+      if (!civ.cityNames) continue;
+      for (const name of civ.cityNames) {
+        const prior = seen.get(name);
+        expect(prior, `"${name}" appears in both ${prior} and ${civ.id}`).toBeUndefined();
+        seen.set(name, civ.id);
+      }
+    }
+  });
 });

@@ -62,7 +62,7 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
 
   const notificationArea = document.createElement('div');
   notificationArea.id = 'notifications';
-  notificationArea.style.cssText = 'position:absolute;top:40px;left:12px;right:80px;z-index:20;display:flex;flex-direction:column;gap:8px;';
+  notificationArea.style.cssText = 'position:absolute;top:64px;left:12px;right:80px;z-index:20;display:flex;flex-direction:column;gap:8px;';
   shell.appendChild(notificationArea);
 
   const infoPanel = document.createElement('div');
