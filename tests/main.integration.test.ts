@@ -1,8 +1,26 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { NotificationEntry } from '@/core/notification-log';
 import { routeEraAdvanced, type NotificationSink } from '@/ui/notification-routing';
 import { hexKey } from '@/systems/hex-utils';
 import type { HexCoord } from '@/core/types';
+
+const PROJECT_ROOT = resolve(__dirname, '..');
+
+describe('campaign entry wiring', () => {
+  it('routes Continue, exact save rows, and imports through the shared entry gate', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+
+    expect(main).toContain('async function showStartSavePanel()');
+    expect(main).toContain('loadMostRecentAutoSaveEntry()');
+    expect(main).toContain('loadSaveEntry(source)');
+    expect(main).toContain("{ kind: 'import', state }");
+    expect(main.match(/await beginCampaignEntry\(/g)).toHaveLength(3);
+    expect(main).not.toContain('loadAutoSave()');
+    expect(main).not.toContain('loadGame(slotId)');
+  });
+});
 
 function makeSink() {
   const calls: Array<{ civId: string; message: string; type: string }> = [];

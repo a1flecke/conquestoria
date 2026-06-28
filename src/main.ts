@@ -10,6 +10,7 @@ import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
 import { resolveOpponentChallenge, setPendingOpponentChallenge } from '@/core/opponent-challenge';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { processTurn } from '@/core/turn-manager';
 import { processAITurn } from '@/ai/basic-ai';
 import { RenderLoop } from '@/renderer/render-loop';
@@ -51,7 +52,15 @@ import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/bea
 import { showBeastSightingBanner } from '@/ui/beast-sighting-banner';
 import { showBeastSlayCeremony } from '@/ui/beast-slay-ceremony';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
-import { autoSave, loadAutoSave, saveGame, loadGame, listSaves, loadSettings, normalizeLoadedState, saveSettings } from '@/storage/save-manager';
+import {
+  autoSave,
+  loadMostRecentAutoSaveEntry,
+  loadSaveEntry,
+  loadSettings,
+  rewriteLoadedSaveEntry,
+  saveGame,
+  saveSettings,
+} from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
 import { SFX, routeSfxThrough } from '@/audio/sfx';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
@@ -193,6 +202,8 @@ import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
 import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
+import { beginCampaignEntry } from '@/ui/campaign-entry-flow';
+import { showLegacyOpponentChallengePrompt } from '@/ui/legacy-opponent-challenge-prompt';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, rushBuyActiveProduction } from '@/systems/economy-system';
 import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
@@ -3858,34 +3869,67 @@ async function init(): Promise<void> {
   createUI();
   persistedSettings = await loadSettings();
 
-  // Show save panel on start
+  await showStartSavePanel();
+}
+
+async function showStartSavePanel(): Promise<void> {
+  const enterCampaign = (state: GameState, message: string): void => {
+    document.getElementById('save-panel')?.remove();
+    gameState = state;
+    migrateLegacySave();
+    startGame();
+    showNotification(message, 'info');
+  };
+
   await createSavePanel(uiLayer, {
     onNewGame: () => {
       showGameModeSelection();
     },
-    onContinue: async () => {
-      const saved = await loadAutoSave();
-      if (saved) {
-        gameState = saved;
-        migrateLegacySave();
-        startGame();
-        showNotification(`Welcome back! Turn ${gameState.turn}`, 'info');
-      }
+    onContinue: async invoker => {
+      const loaded = await loadMostRecentAutoSaveEntry();
+      if (!loaded) throw new Error('Autosave no longer exists.');
+      await beginCampaignEntry(
+        { kind: 'stored', loaded },
+        invoker,
+        {
+          purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED,
+          persistStoredChoice: rewriteLoadedSaveEntry,
+          persistImport: autoSave,
+          showChallengePrompt: showLegacyOpponentChallengePrompt,
+          onReady: state => enterCampaign(state, `Welcome back! Turn ${state.turn}`),
+        },
+      );
     },
-    onLoadSlot: async (slotId) => {
-      const saved = await loadGame(slotId);
-      if (saved) {
-        gameState = saved;
-        migrateLegacySave();
-        startGame();
-        showNotification(`Game loaded! Turn ${gameState.turn}`, 'info');
-      }
+    onLoadEntry: async (source, invoker) => {
+      const loaded = await loadSaveEntry(source);
+      if (!loaded) throw new Error('Save no longer exists.');
+      await beginCampaignEntry(
+        { kind: 'stored', loaded },
+        invoker,
+        {
+          purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED,
+          persistStoredChoice: rewriteLoadedSaveEntry,
+          persistImport: autoSave,
+          showChallengePrompt: showLegacyOpponentChallengePrompt,
+          onReady: state => enterCampaign(state, `Game loaded! Turn ${state.turn}`),
+        },
+      );
     },
-    onImportSave: (state) => {
-      gameState = normalizeLoadedState(state);
-      migrateLegacySave();
-      startGame();
-      showNotification(`Save imported! Turn ${gameState.turn}`, 'info');
+    onImportSave: async (state, invoker) => {
+      await beginCampaignEntry(
+        { kind: 'import', state },
+        invoker,
+        {
+          purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED,
+          persistStoredChoice: rewriteLoadedSaveEntry,
+          persistImport: autoSave,
+          showChallengePrompt: showLegacyOpponentChallengePrompt,
+          onReady: readyState => enterCampaign(
+            readyState,
+            `Save imported! Turn ${readyState.turn}`,
+          ),
+        },
+      );
     },
   });
 }
