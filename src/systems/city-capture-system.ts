@@ -162,6 +162,7 @@ export function resolveMajorCityCapture(
             // nearDefeat flag: true when previous owner now has ≤ 1 city
             // Used by audio system and handoff payload computation
             nearDefeat: previousOwner.cities.filter(id => id !== cityId).length <= 1,
+            isEliminated: previousOwner.cities.filter(id => id !== cityId).length === 0,
           },
         } : {}),
         [newOwnerId]: {
@@ -195,6 +196,7 @@ export function resolveMajorCityCapture(
         diplomacy: modifyRelationship(previousOwner.diplomacy, newOwnerId, -40),
         // nearDefeat flag: true when previous owner now has ≤ 1 city (raze path)
         nearDefeat: previousOwner.cities.filter(id => id !== cityId).length <= 1,
+        isEliminated: previousOwner.cities.filter(id => id !== cityId).length === 0,
       },
     } : {}),
     [newOwnerId]: {

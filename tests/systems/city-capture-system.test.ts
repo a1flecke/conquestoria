@@ -258,4 +258,41 @@ describe('city-capture-system', () => {
     // Workers must not exceed halved population
     expect(captured!.workedTiles.length).toBeLessThanOrEqual(captured!.population);
   });
+
+  it('sets isEliminated on the previous owner when their last city is occupied', () => {
+    const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+    // ai-1 starts with only 'athens'
+    expect(state.civilizations['ai-1'].cities).toEqual(['athens']);
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(result.state.civilizations['ai-1'].isEliminated).toBe(true);
+  });
+
+  it('sets isEliminated on the previous owner when their last city is razed', () => {
+    const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
+
+    expect(result.state.civilizations['ai-1'].isEliminated).toBe(true);
+  });
+
+  it('does not set isEliminated when the previous owner still has other cities', () => {
+    const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+    // Give ai-1 a second city so they survive this capture
+    state.civilizations['ai-1'].cities = ['athens', 'sparta'];
+    state.cities.sparta = {
+      ...foundCity('ai-1', { q: 3, r: 0 }, state.map, mkC()),
+      id: 'sparta',
+      name: 'Sparta',
+      owner: 'ai-1',
+      position: { q: 3, r: 0 },
+      population: 3,
+      buildings: [],
+    };
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(result.state.civilizations['ai-1'].isEliminated).toBeFalsy();
+  });
 });

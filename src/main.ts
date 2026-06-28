@@ -2293,13 +2293,6 @@ function finalizePendingCityCaptureChoice(
     if (prevCivAfterCapture) {
       const prevCityCount = prevCivAfterCapture.cities.length;
       if (prevCityCount === 0) {
-        gameState = {
-          ...gameState,
-          civilizations: {
-            ...gameState.civilizations,
-            [previousOwner]: { ...prevCivAfterCapture, isEliminated: true },
-          },
-        };
         bus.emit('civ:eliminated', { civId: previousOwner, eliminatedBy: gameState.currentPlayer });
       } else if (prevCivAfterCapture.nearDefeat) {
         // nearDefeat was just set to true by resolveMajorCityCapture (just entered near-defeat)
