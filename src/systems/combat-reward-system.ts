@@ -8,6 +8,7 @@ import {
   destroyPirateFaction,
   type PirateActionEvent,
 } from '@/systems/pirate-actions';
+import { recordMilitaryAttack } from './diplomacy-system';
 
 export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
 
@@ -235,6 +236,22 @@ export function applyCombatOutcomeToState(
   let units = { ...state.units };
   let civilizations = { ...state.civilizations };
   let espionage = state.espionage ? { ...state.espionage } : state.espionage;
+
+  const defenderCiv = civilizations[defenderBefore.owner];
+  if (
+    attackerBefore.owner !== defenderBefore.owner
+    && civilizations[attackerBefore.owner]
+    && defenderCiv?.diplomacy
+  ) {
+    civilizations[defenderBefore.owner] = {
+      ...defenderCiv,
+      diplomacy: recordMilitaryAttack(
+        defenderCiv.diplomacy,
+        attackerBefore.owner,
+        state.turn,
+      ),
+    };
+  }
 
   if (result.attackerSurvived) {
     units[result.attackerId] = {

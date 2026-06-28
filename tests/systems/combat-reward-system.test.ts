@@ -204,6 +204,57 @@ function makeRewardState(): GameState {
 }
 
 describe('applyCombatOutcomeToState', () => {
+  it.each([
+    ['player', 'ai-1'],
+    ['ai-1', 'player'],
+  ])('records a %s attack in the defending major civilization history', (attackerOwner, defenderOwner) => {
+    const state = makeRewardState();
+    state.units.attacker.owner = attackerOwner;
+    state.units.defender.owner = defenderOwner;
+    state.civilizations.player.units = attackerOwner === 'player' ? ['attacker'] : ['defender'];
+    state.civilizations['ai-1'].units = attackerOwner === 'ai-1' ? ['attacker'] : ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 5,
+      defenderDamage: 5,
+      attackerSurvived: true,
+      defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.civilizations[defenderOwner].diplomacy.events).toContainEqual({
+      type: 'military_attacked',
+      turn: state.turn,
+      otherCiv: attackerOwner,
+      weight: 1,
+    });
+  });
+
+  it('does not create major-civilization attack history for world actors', () => {
+    const state = makeRewardState();
+    state.units.attacker.owner = 'barbarian';
+    state.civilizations.player.units = [];
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 5,
+      defenderDamage: 5,
+      attackerSurvived: true,
+      defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.civilizations['ai-1'].diplomacy.events)
+      .not.toContainEqual(expect.objectContaining({ type: 'military_attacked' }));
+  });
+
   it('removes the defeated unit, spends the attacker, and applies XP, healing, and gold', () => {
     const state = makeRewardState();
     const result: CombatResult = {

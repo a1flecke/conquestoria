@@ -12,6 +12,7 @@ import {
   proposeTreaty,
   breakTreaty,
   processRelationshipDrift,
+  recordMilitaryAttack,
   decayEvents,
   getAvailableActions,
   isAtWar,
@@ -78,6 +79,40 @@ describe('diplomacy-system', () => {
       state = declareWar(state, 'ai-egypt', 5);
       expect(state.events).toHaveLength(1);
       expect(state.events[0].type).toBe('war_declared');
+    });
+  });
+
+  describe('recordMilitaryAttack', () => {
+    it('coalesces attacks from the same civilization in one turn', () => {
+      let state = createDiplomacyState(civIds, 'player');
+      state = recordMilitaryAttack(state, 'ai-egypt', 8);
+      state = recordMilitaryAttack(state, 'ai-egypt', 8);
+
+      expect(state.events.filter(event => event.type === 'military_attacked')).toEqual([{
+        type: 'military_attacked',
+        turn: 8,
+        otherCiv: 'ai-egypt',
+        weight: 1,
+      }]);
+    });
+
+    it('retains the newest twelve attacks without rewriting unrelated history', () => {
+      let state = createDiplomacyState(civIds, 'player');
+      state.events.push({ type: 'peace_made', turn: 1, otherCiv: 'ai-rome', weight: 0.5 });
+      for (let turn = 1; turn <= 14; turn++) {
+        state = recordMilitaryAttack(state, `attacker-${turn}`, turn);
+      }
+
+      expect(state.events.find(event => event.type === 'peace_made')).toEqual({
+        type: 'peace_made',
+        turn: 1,
+        otherCiv: 'ai-rome',
+        weight: 0.5,
+      });
+      const attacks = state.events.filter(event => event.type === 'military_attacked');
+      expect(attacks).toHaveLength(12);
+      expect(attacks[0].turn).toBe(3);
+      expect(attacks.at(-1)?.turn).toBe(14);
     });
   });
 

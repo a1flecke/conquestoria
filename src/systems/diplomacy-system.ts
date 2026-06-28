@@ -67,6 +67,29 @@ export function modifyRelationship(
   return newState;
 }
 
+export function recordMilitaryAttack(
+  state: DiplomacyState,
+  attackerCivId: string,
+  turn: number,
+): DiplomacyState {
+  const unrelated = state.events.filter(event => event.type !== 'military_attacked');
+  const attacks = state.events
+    .filter(event => event.type === 'military_attacked')
+    .filter(event => !(event.otherCiv === attackerCivId && event.turn === turn));
+  attacks.push({
+    type: 'military_attacked',
+    turn,
+    otherCiv: attackerCivId,
+    weight: 1,
+  });
+  attacks.sort((left, right) =>
+    left.turn - right.turn || left.otherCiv.localeCompare(right.otherCiv));
+  return {
+    ...state,
+    events: [...unrelated, ...attacks.slice(-12)],
+  };
+}
+
 export function isAtWar(state: DiplomacyState, civId: string): boolean {
   return state.atWarWith.includes(civId);
 }
