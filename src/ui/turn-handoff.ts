@@ -18,6 +18,8 @@ export interface TurnHandoffController {
   remove(): void;
 }
 
+let activeHandoffController: TurnHandoffController | null = null;
+
 function appendText(
   parent: HTMLElement,
   tagName: keyof HTMLElementTagNameMap,
@@ -36,11 +38,12 @@ export function showTurnHandoff(
   playerName: string,
   options: TurnHandoffOptions,
 ): TurnHandoffController {
-  document.getElementById('turn-handoff')?.remove();
+  activeHandoffController?.remove();
 
   let currentState = state;
   let ready = options.initiallyReady;
   let removed = false;
+  let controller: TurnHandoffController;
   const civ = state.civilizations[nextCivId];
   const civDef = resolveCivDefinition(state, civ?.civType ?? '');
   const color = civ?.color ?? civDef?.color ?? '#e8c170';
@@ -110,6 +113,7 @@ export function showTurnHandoff(
     removed = true;
     overlay.remove();
     restoreAccessibility();
+    if (activeHandoffController === controller) activeHandoffController = null;
   };
 
   const trapFocus = (event: KeyboardEvent): void => {
@@ -231,12 +235,24 @@ export function showTurnHandoff(
     appendText(card, 'p', message).style.cssText = 'margin:0 0 16px;line-height:1.45;';
     const actions = document.createElement('div');
     actions.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;';
+    let actionStarted = false;
     const retry = createGameButton('Retry', 'primary');
     retry.dataset.action = 'retry-handoff';
-    retry.addEventListener('click', callbacks.onRetry);
+    retry.addEventListener('click', () => {
+      if (actionStarted) return;
+      actionStarted = true;
+      setButtonDisabled(retry, true);
+      setButtonDisabled(returnButton, true);
+      retry.textContent = 'Retrying…';
+      callbacks.onRetry();
+    });
     const returnButton = createGameButton('Return to Saves', 'ghost');
     returnButton.dataset.action = 'return-to-saves';
     returnButton.addEventListener('click', () => {
+      if (actionStarted) return;
+      actionStarted = true;
+      setButtonDisabled(retry, true);
+      setButtonDisabled(returnButton, true);
       remove();
       callbacks.onReturnToSaves();
     });
@@ -249,7 +265,7 @@ export function showTurnHandoff(
   mount.appendChild(overlay);
   renderPassTo();
 
-  return {
+  controller = {
     setReady(updatedState) {
       currentState = updatedState;
       ready = true;
@@ -264,4 +280,6 @@ export function showTurnHandoff(
     setError,
     remove,
   };
+  activeHandoffController = controller;
+  return controller;
 }

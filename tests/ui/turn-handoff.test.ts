@@ -64,11 +64,32 @@ describe('turn handoff', () => {
     });
 
     controller.setError('The round could not be completed.', { onRetry, onReturnToSaves });
-    document.querySelector<HTMLButtonElement>('[data-action="retry-handoff"]')!.click();
+    const retry = document.querySelector<HTMLButtonElement>('[data-action="retry-handoff"]')!;
+    retry.click();
+    retry.click();
     expect(onRetry).toHaveBeenCalledOnce();
+    expect(onReturnToSaves).not.toHaveBeenCalled();
+    controller.setError('Still unavailable.', { onRetry, onReturnToSaves });
     document.querySelector<HTMLButtonElement>('[data-action="return-to-saves"]')!.click();
     expect(onReturnToSaves).toHaveBeenCalledOnce();
     expect(document.querySelector('#turn-handoff')).toBeNull();
+  });
+
+  it('reopening removes the prior controller and restores accessibility after the new handoff', () => {
+    const { state, shell, layer } = makeFixture();
+    showTurnHandoff(layer, state, 'player-2', 'Bob', {
+      initiallyReady: true,
+      onReady: vi.fn(),
+    });
+    const second = showTurnHandoff(layer, state, 'player-1', 'Alice', {
+      initiallyReady: true,
+      onReady: vi.fn(),
+    });
+
+    expect(document.querySelectorAll('#turn-handoff')).toHaveLength(1);
+    second.remove();
+    expect(shell.inert).toBe(false);
+    expect(shell.hasAttribute('aria-hidden')).toBe(false);
   });
 
   it('uses bounded scrollable layout and touch-sized controls for phone and laptop viewports', () => {
