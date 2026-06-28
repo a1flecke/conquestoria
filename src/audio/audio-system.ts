@@ -86,7 +86,7 @@ export class AudioSystem {
     this.wireEvents(bus, isPresentationSuppressed);
     this.sfxDirector.start(state.units, bus, getState, isPresentationSuppressed);
     this.pirateAudioDirector.start(bus);
-    routeSfxComponents(this.mixer, this.loader);
+    routeSfxComponents(this.mixer, this.loader, isPresentationSuppressed);
     this.armIosResume();
 
     void this.preloadForEra(state.era, this.currentCivType);

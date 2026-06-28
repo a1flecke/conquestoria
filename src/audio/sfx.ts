@@ -6,6 +6,7 @@ let audioContext: AudioContext | null = null;
 let sfxDestination: AudioNode | null = null;
 let _mixer: AudioMixer | null = null;
 let _loader: AudioLoader | null = null;
+let _isPresentationSuppressed: () => boolean = () => false;
 
 export function routeSfxThrough(node: AudioNode): void {
   sfxDestination = node;
@@ -16,9 +17,14 @@ export function routeSfxThrough(node: AudioNode): void {
  * Wire OGG-backed load/unload sounds. Call from AudioSystem.start() after
  * the mixer and loader are initialised so real files play instead of oscillator fallbacks.
  */
-export function routeSfxComponents(mixer: AudioMixer, loader: AudioLoader): void {
+export function routeSfxComponents(
+  mixer: AudioMixer,
+  loader: AudioLoader,
+  isPresentationSuppressed: () => boolean = () => false,
+): void {
   _mixer = mixer;
   _loader = loader;
+  _isPresentationSuppressed = isPresentationSuppressed;
 }
 
 function getContext(): AudioContext {
@@ -29,6 +35,7 @@ function getContext(): AudioContext {
 }
 
 function playTone(frequency: number, duration: number, volume: number, type: OscillatorType = 'sine'): void {
+  if (_isPresentationSuppressed()) return;
   try {
     const ctx = getContext();
     const osc = ctx.createOscillator();
@@ -85,18 +92,24 @@ export const SFX = {
     setTimeout(() => playTone(349, 0.25, 0.15), 300);
   },
   transportLoad: () => {
+    if (_isPresentationSuppressed()) return;
     if (_loader && _mixer) {
       void _loader.get(TRANSPORT_SFX.load.file)
-        .then(buf => _mixer!.playOneShot('sfx', buf));
+        .then(buf => {
+          if (!_isPresentationSuppressed()) return _mixer!.playOneShot('sfx', buf);
+        });
     } else {
       playTone(330, 0.08, 0.12, 'triangle');
       setTimeout(() => playTone(440, 0.1, 0.12, 'triangle'), 80);
     }
   },
   transportUnload: () => {
+    if (_isPresentationSuppressed()) return;
     if (_loader && _mixer) {
       void _loader.get(TRANSPORT_SFX.unload.file)
-        .then(buf => _mixer!.playOneShot('sfx', buf));
+        .then(buf => {
+          if (!_isPresentationSuppressed()) return _mixer!.playOneShot('sfx', buf);
+        });
     } else {
       playTone(440, 0.08, 0.12, 'triangle');
       setTimeout(() => playTone(330, 0.1, 0.12, 'triangle'), 80);
@@ -104,6 +117,7 @@ export const SFX = {
   },
 
   seaHorn: () => {
+    if (_isPresentationSuppressed()) return;
     try {
       const ctx = getContext();
       const now = ctx.currentTime;
@@ -124,6 +138,7 @@ export const SFX = {
   },
 
   piratePlunder: () => {
+    if (_isPresentationSuppressed()) return;
     try {
       const ctx = getContext();
       const now = ctx.currentTime;
@@ -161,6 +176,7 @@ export const SFX = {
   },
 
   pirateDestroyed: () => {
+    if (_isPresentationSuppressed()) return;
     try {
       const ctx = getContext();
       const now = ctx.currentTime;
@@ -179,6 +195,7 @@ export const SFX = {
   },
 
   barbarianResurgence: () => {
+    if (_isPresentationSuppressed()) return;
     try {
       const ctx = getContext();
       const now = ctx.currentTime;
