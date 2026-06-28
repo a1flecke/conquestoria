@@ -84,6 +84,45 @@ beforeEach(() => {
 });
 
 describe('hotseat-setup', () => {
+  it('keeps opponent challenge controls hidden while purposeful AI is disabled', () => {
+    showHotSeatSetup(document.body, {
+      onComplete: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    click('[data-size="small"]');
+    advanceThroughMapType();
+
+    expect(document.querySelector('[data-opponent-challenge-selector]')).toBeNull();
+    expect(document.body.textContent).toContain('How Many Players?');
+  });
+
+  it('chooses challenge as a group before private hot-seat setup and returns it separately', () => {
+    const onComplete = vi.fn();
+    showHotSeatSetup(
+      document.body,
+      { onComplete, onCancel: vi.fn() },
+      { purposefulAIEnabled: true },
+    );
+
+    click('[data-size="small"]');
+    click('#hs-map-type-next');
+    expect(document.body.textContent).toContain('Choose Opponent Challenge');
+    expect(document.body.textContent).not.toContain('Player Names');
+    click('[data-challenge="explorer"]');
+    click('#hs-challenge-next');
+    click('[data-count="2"]');
+    click('#hs-names-next');
+    chooseCiv('egypt');
+    click('#hs-civ-ready');
+    chooseCiv('rome');
+
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.not.objectContaining({ opponentChallenge: expect.anything() }),
+      'explorer',
+    );
+  });
+
   it('explains that supported map sizes use balanced starts before player-count selection', () => {
     showHotSeatSetup(
       document.body,

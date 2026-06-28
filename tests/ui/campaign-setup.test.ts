@@ -102,6 +102,35 @@ describe('campaign-setup', () => {
     expect(startButton.dataset.ready).toBe('true');
   });
 
+  it('keeps opponent challenge controls hidden while purposeful AI is disabled', () => {
+    showCampaignSetup(document.body, {
+      onStartSolo: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(document.querySelector('[data-opponent-challenge-selector]')).toBeNull();
+  });
+
+  it('passes the selected challenge from enabled solo setup', () => {
+    const onStartSolo = vi.fn();
+    const panel = showCampaignSetup(
+      document.body,
+      { onStartSolo, onCancel: vi.fn() },
+      { purposefulAIEnabled: true },
+    );
+
+    panel.querySelector<HTMLButtonElement>('[data-challenge="explorer"]')!.click();
+    clickButtonWithText('Choose civilization');
+    (document.querySelector('.civ-card') as HTMLElement)
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    (document.querySelector('#civ-start') as HTMLButtonElement).click();
+    clickButtonWithText('Start Campaign');
+
+    expect(onStartSolo).toHaveBeenCalledWith(expect.objectContaining({
+      opponentChallenge: 'explorer',
+    }));
+  });
+
   it('updates the visible map-size and opponent cards together, preserving valid counts and snapping invalid ones', () => {
     showCampaignSetup(document.body, {
       onStartSolo: () => {},

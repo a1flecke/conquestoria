@@ -18,6 +18,9 @@ function makeCallbacks(overrides: Partial<Parameters<typeof showPauseMenu>[1]> =
     onNewGame: vi.fn(),
     autoSave: vi.fn(async () => {}),
     onOpenBestiary: vi.fn(),
+    opponentChallenge: 'standard',
+    pendingOpponentChallenge: undefined,
+    onOpponentChallengeChange: vi.fn(),
     audioSettings: { ...DEFAULT_TEST_AUDIO },
     onAudioSettingChange: vi.fn(),
     ...overrides,
@@ -35,6 +38,49 @@ beforeEach(() => {
 });
 
 describe('pause-menu-panel', () => {
+  it('keeps opponent challenge controls hidden while purposeful AI is disabled', () => {
+    showPauseMenu(document.body, makeCallbacks());
+
+    expect(document.querySelector('[data-opponent-challenge-selector]')).toBeNull();
+  });
+
+  it('shows active and pending challenge without claiming pending is active', () => {
+    const panel = showPauseMenu(
+      document.body,
+      makeCallbacks({
+        opponentChallenge: 'standard',
+        pendingOpponentChallenge: 'explorer',
+      }),
+      { purposefulAIEnabled: true },
+    );
+
+    expect(panel.textContent).toContain('Standard active');
+    expect(panel.textContent).toContain('Explorer next round');
+    expect(panel.textContent).not.toContain('Explorer active');
+  });
+
+  it('rerenders pending challenge immediately, announces it, and restores card focus', () => {
+    const onOpponentChallengeChange = vi.fn();
+    showPauseMenu(
+      document.body,
+      makeCallbacks({
+        opponentChallenge: 'standard',
+        onOpponentChallengeChange,
+      }),
+      { purposefulAIEnabled: true },
+    );
+
+    document.querySelector<HTMLButtonElement>('[data-challenge="explorer"]')!.click();
+
+    expect(onOpponentChallengeChange).toHaveBeenCalledWith('explorer');
+    expect(document.body.textContent).toContain('Standard active');
+    expect(document.body.textContent).toContain('Explorer next round');
+    expect(document.querySelector('[role="status"]')?.textContent)
+      .toContain('Explorer will apply next round');
+    expect(document.activeElement)
+      .toBe(document.querySelector('[data-challenge="explorer"]'));
+  });
+
   it('renders with correct turn number and civ name in header', () => {
     showPauseMenu(document.body, makeCallbacks());
     expect(document.body.textContent).toContain('Turn 14');
