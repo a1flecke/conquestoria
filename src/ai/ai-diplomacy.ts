@@ -6,6 +6,7 @@ import {
   canOfferVassalage,
 } from '@/systems/diplomacy-system';
 import { shouldDeclareWar } from './ai-personality';
+import type { MilitaryStrengthEstimate } from './ai-strength';
 
 export interface DiplomaticDecision {
   action: DiplomaticAction;
@@ -22,8 +23,8 @@ export function evaluateDiplomacy(
   diplomacy: DiplomacyState,
   completedTechs: string[],
   era: number,
-  militaryStrengths: Record<string, number>,
-  selfStrength: number,
+  militaryStrengths: Record<string, MilitaryStrengthEstimate>,
+  selfStrength: MilitaryStrengthEstimate,
   currentTurn: number,
   contextByCiv: Record<string, DiplomaticContext>,
 ): DiplomaticDecision[] {
@@ -32,9 +33,10 @@ export function evaluateDiplomacy(
   for (const civId of Object.keys(diplomacy.relationships)) {
     const actions = getAvailableActions(diplomacy, civId, completedTechs, era);
     const relationship = getRelationship(diplomacy, civId);
-    const theirStrength = militaryStrengths[civId] ?? 0;
-    const advantage = selfStrength > 0 && theirStrength > 0
-      ? selfStrength / theirStrength
+    const theirStrength = militaryStrengths[civId]?.midpoint ?? 0;
+    const ownStrength = selfStrength.midpoint;
+    const advantage = ownStrength > 0 && theirStrength > 0
+      ? ownStrength / theirStrength
       : 1;
 
     if (isAtWar(diplomacy, civId)) {
@@ -42,7 +44,7 @@ export function evaluateDiplomacy(
         decisions.push({ action: 'request_peace', targetCiv: civId });
       }
     } else {
-      const context = contextByCiv[civId] ?? { hasMet: true, hasBorderPressure: false };
+      const context = contextByCiv[civId] ?? { hasMet: false, hasBorderPressure: false };
       if (actions.includes('declare_war') && shouldDeclareWar(
         personality,
         relationship,
@@ -122,10 +124,10 @@ export function evaluateVassalage(
   personality: PersonalityTraits,
   diplomacy: DiplomacyState,
   era: number,
-  selfStrength: number,
+  selfStrength: MilitaryStrengthEstimate,
   currentCities: number,
   currentMilitary: number,
-  otherStrengths: Record<string, number>,
+  otherStrengths: Record<string, MilitaryStrengthEstimate>,
 ): DiplomaticDecision | null {
   if (!canOfferVassalage(
     currentCities, diplomacy.vassalage.peakCities,
@@ -135,15 +137,16 @@ export function evaluateVassalage(
   // Find strongest non-enemy civ
   let bestTarget: string | null = null;
   let bestStrength = 0;
-  for (const [civId, strength] of Object.entries(otherStrengths)) {
+  for (const [civId, estimate] of Object.entries(otherStrengths)) {
     if (diplomacy.atWarWith.includes(civId)) continue;
+    const strength = estimate.midpoint;
     if (strength > bestStrength) {
       bestStrength = strength;
       bestTarget = civId;
     }
   }
 
-  if (bestTarget && selfStrength < bestStrength * 0.4) {
+  if (bestTarget && selfStrength.midpoint < bestStrength * 0.4) {
     return { action: 'offer_vassalage', targetCiv: bestTarget };
   }
   return null;

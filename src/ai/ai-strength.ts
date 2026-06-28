@@ -1,6 +1,8 @@
 import type { UnitType } from '@/core/types';
+import { TRAINABLE_UNITS } from '@/systems/city-system';
+import { TECH_TREE } from '@/systems/tech-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { hasAICombatRole } from './ai-unit-roles';
+import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 
 export interface AIStrengthObservation {
   type: UnitType;
@@ -80,4 +82,26 @@ export function estimateMilitaryStrength(
     uncertaintyUpper,
     midpoint: (uncertaintyLower + uncertaintyUpper) / 2,
   };
+}
+
+export function getMedianFrontlineStrengthForEra(era: number): number {
+  const boundedEra = Number.isFinite(era) ? Math.max(1, Math.floor(era)) : 1;
+  const strengths = TRAINABLE_UNITS
+    .filter(entry => {
+      const requiredEra = entry.techRequired
+        ? TECH_TREE.find(tech => tech.id === entry.techRequired)?.era ?? 1
+        : 1;
+      const roles = getAIStrategicRoles(entry.type);
+      return requiredEra <= boundedEra
+        && (roles.includes('frontline') || roles.includes('capture'))
+        && UNIT_DEFINITIONS[entry.type].strength > 0;
+    })
+    .map(entry => UNIT_DEFINITIONS[entry.type].strength)
+    .sort((left, right) => left - right);
+
+  if (strengths.length === 0) return 0;
+  const middle = Math.floor(strengths.length / 2);
+  return strengths.length % 2 === 0
+    ? (strengths[middle - 1] + strengths[middle]) / 2
+    : strengths[middle];
 }

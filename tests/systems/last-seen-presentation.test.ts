@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { createLastSeenTilePresentation, refreshLastSeenPresentationsForCiv, updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
+import { createUnit } from '@/systems/unit-system';
 
 describe('last-seen-presentation', () => {
   it('captures serializable tile presentation for visible tiles', () => {
@@ -50,6 +51,51 @@ describe('last-seen-presentation', () => {
 
     expect(state.civilizations.player.visibility.lastSeen?.['0,0']).toBeDefined();
     expect(state.civilizations['ai-1'].visibility.lastSeen?.['0,0']).toBeUndefined();
+  });
+
+  it('records trusted, coarse unit intel without transported or concealed units', () => {
+    const state = createNewGame(undefined, 'last-seen-units', 'small');
+    state.turn = 9;
+    const coord = { q: 8, r: 4 };
+    const key = '8,4';
+    state.civilizations.player.visibility.tiles = { [key]: 'visible' };
+
+    const visible = createUnit('warrior', 'ai-1', coord, state.idCounters);
+    visible.id = 'visible-unit';
+    visible.health = 45;
+    const cargo = createUnit('warrior', 'ai-1', coord, state.idCounters);
+    cargo.id = 'cargo-unit';
+    cargo.transportId = 'transport-1';
+    const concealed = createUnit('warrior', 'ai-1', coord, state.idCounters);
+    concealed.id = 'concealed-unit';
+    state.civilizations['ai-1'].civType = 'lothlorien';
+    state.map.tiles[key].terrain = 'forest';
+    state.units = {
+      ...state.units,
+      [visible.id]: visible,
+      [cargo.id]: cargo,
+      [concealed.id]: concealed,
+    };
+
+    // Keep viewer pieces away so Lothlorien's enemy unit remains concealed.
+    const playerUnit = state.civilizations.player.units
+      .map(id => state.units[id])
+      .find(Boolean)!;
+    playerUnit.position = { q: 0, r: 0 };
+    visible.owner = 'player';
+
+    refreshLastSeenPresentationsForCiv(state, 'player');
+
+    expect(state.civilizations.player.visibility.lastSeen?.[key]).toMatchObject({
+      observedTurn: 9,
+      source: 'observed',
+      units: [{
+        id: visible.id,
+        owner: 'player',
+        type: 'warrior',
+        healthBand: 'damaged',
+      }],
+    });
   });
 
   it('does not update fogged city presentation from live city changes', () => {
@@ -141,6 +187,11 @@ describe('reconstructLastSeenFromMap', () => {
     reconstructLastSeenFromMap(state, 'player');
 
     expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.terrain).toBe('desert');
+    expect(state.civilizations.player.visibility.lastSeen?.['0,0']).toMatchObject({
+      source: 'legacy-reconstructed',
+    });
+    expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.observedTurn).toBeUndefined();
+    expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.units).toBeUndefined();
   });
 
   it('does not overwrite existing lastSeen entries or snapshot unexplored tiles', () => {
