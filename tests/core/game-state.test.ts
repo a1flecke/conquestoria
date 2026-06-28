@@ -175,6 +175,32 @@ describe('createNewGame', () => {
     expect(Object.keys(state.civilizations)).toHaveLength(4);
   });
 
+  it('stores Standard opponent challenge for new solo campaigns', () => {
+    const state = createNewGame({
+      civType: 'rome',
+      seed: 'challenge-standard',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Standard Challenge',
+    });
+
+    expect(state.opponentChallenge).toBe('standard');
+    expect(state.opponentAI?.version).toBe(1);
+  });
+
+  it('stores an explicitly selected solo challenge', () => {
+    const state = createNewGame({
+      civType: 'rome',
+      seed: 'challenge-explorer',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Explorer Challenge',
+      opponentChallenge: 'explorer',
+    });
+
+    expect(state.opponentChallenge).toBe('explorer');
+  });
+
   it('can seed a new campaign from persisted app settings without re-listing defaults', () => {
     const state = createNewGame({
       civType: 'rome',
@@ -330,6 +356,14 @@ describe('createHotSeatGame', () => {
     const state = createHotSeatGame(config, 'hs-title', 'Friends Campaign');
     expect(state.gameTitle).toBe('Friends Campaign');
     expect(state.gameId).toMatch(/^game-/);
+  });
+
+  it('stores hot-seat challenge only at campaign level', () => {
+    const state = createHotSeatGame(config, 'hs-challenge', 'Friends Campaign', 'veteran');
+
+    expect(state.opponentChallenge).toBe('veteran');
+    expect(state.opponentAI?.version).toBe(1);
+    expect(state.hotSeat).not.toHaveProperty('opponentChallenge');
   });
 
   it('initializes pending diplomacy requests for hot seat games', () => {

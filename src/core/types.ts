@@ -1018,6 +1018,7 @@ export interface SoloSetupConfig {
   mapSize: 'small' | 'medium' | 'large';
   opponentCount: number;
   gameTitle: string;
+  opponentChallenge?: OpponentChallenge;
   settingsOverrides?: Partial<GameSettings>;
   seed?: string;
   customCivilizations?: CustomCivDefinition[];
@@ -1028,6 +1029,120 @@ export interface GameEvent {
   type: string;
   message: string;
   turn: number;
+}
+
+export type OpponentChallenge = 'explorer' | 'standard' | 'veteran';
+
+export type AIStrategicRole =
+  | 'capture'
+  | 'frontline'
+  | 'ranged'
+  | 'siege'
+  | 'mobile'
+  | 'air-combat'
+  | 'naval-combat'
+  | 'transport'
+  | 'escort'
+  | 'recon'
+  | 'detection'
+  | 'settlement'
+  | 'worker'
+  | 'resource-expedition'
+  | 'trade'
+  | 'espionage';
+
+export type AIStrategicObjective =
+  | 'defend'
+  | 'recover'
+  | 'expand'
+  | 'secure-resource'
+  | 'raid'
+  | 'blockade'
+  | 'repel'
+  | 'capture'
+  | 'support-ally';
+
+export type AIPlanReason =
+  | 'urgent-defense'
+  | 'nearby-opportunity'
+  | 'retaliate-recent-attack'
+  | 'continue-active-war'
+  | 'alliance-obligation'
+  | 'critical-resource'
+  | 'no-local-alternative'
+  | 'homeland-secure'
+  | 'recover-damaged-force'
+  | 'modernization-gap'
+  | 'camp-defense'
+  | 'opportunistic-raid';
+
+export type AIPlanPhase =
+  | 'scouting'
+  | 'mobilizing'
+  | 'advancing'
+  | 'attacking'
+  | 'consolidating'
+  | 'withdrawing'
+  | 'complete'
+  | 'abandoned';
+
+export type AITarget =
+  | { kind: 'city'; id: string; lastKnownPosition: HexCoord }
+  | { kind: 'unit'; id: string; lastKnownPosition: HexCoord }
+  | { kind: 'resource'; resource: ResourceType; position: HexCoord }
+  | { kind: 'camp'; id: string; lastKnownPosition: HexCoord }
+  | { kind: 'region'; id: string; anchor: HexCoord };
+
+export interface AIStrategicPlan {
+  id: string;
+  actorId: string;
+  objective: AIStrategicObjective;
+  target: AITarget;
+  theaterId: string;
+  phase: AIPlanPhase;
+  reasonCodes: AIPlanReason[];
+  commitment: number;
+  createdTurn: number;
+  reconsiderAfterTurn: number;
+  expiresAfterTurn: number;
+  lastProgressTurn: number;
+  rallyPoint?: HexCoord;
+  requiredRoles: Partial<Record<AIStrategicRole, number>>;
+  assignedUnitIds: string[];
+}
+
+export interface MajorCivPlanPortfolio {
+  primaryPlan: AIStrategicPlan | null;
+  defensePlansByCityId: Record<string, AIStrategicPlan>;
+  upgradeRoutesByUnitId: Record<string, {
+    cityId: string;
+    createdTurn: number;
+  }>;
+  modernizationDemand: number;
+  researchTargetTechId: string | null;
+  lastPlannedTurn: number;
+  lastExecutedTurn: number;
+}
+
+export interface HumanPressureLedger {
+  activeIndependentThreatIds: string[];
+  recoveryUntilTurn: number;
+  lastResolvedThreatTurn: number | null;
+  lastWarningTurnByKey: Record<string, number>;
+  lastStrategicAudioTurn: number | null;
+}
+
+export interface OpponentAIState {
+  version: 1;
+  migrationGraceRoundsRemaining: number;
+  majorCivs: Record<string, MajorCivPlanPortfolio>;
+  barbarianCamps: Record<string, AIStrategicPlan>;
+  barbarianHomeCampByUnitId: Record<string, string>;
+  minorCivs: Record<string, AIStrategicPlan>;
+  pressureByHuman: Record<string, HumanPressureLedger>;
+  lastPlannedRound: number | null;
+  lastProcessedRound: number | null;
+  lastFinalizedRound: number | null;
 }
 
 // --- Trade & Resources ---
@@ -1206,6 +1321,9 @@ export interface GameState {
   era: number;
   gameId?: string;
   gameTitle?: string;
+  opponentChallenge?: OpponentChallenge;
+  pendingOpponentChallenge?: OpponentChallenge;
+  opponentAI?: OpponentAIState;
   civilizations: Record<string, Civilization>;
   map: GameMap;
   units: Record<string, Unit>;
