@@ -3171,6 +3171,7 @@ function releaseHandoffToViewer(nextSlotId: string): void {
   scanBeastSightings();
   maybeShowPendingHoardChoice();
   roundPresentationGate.resume();
+  audio.setMasterVolume(currentMasterVolume);
   setBlockingOverlay(null);
   const nextCiv = gameState.civilizations[nextSlotId];
   const nextCivCities = Object.values(gameState.cities).filter(c => c.owner === nextSlotId);
@@ -3194,6 +3195,7 @@ async function beginHotSeatHandoff(
   closePirateWatersPanels(uiLayer);
   renderLoop.setSelectedPirateFactionId(null);
   audio.stopPirateAmbience('player-changed');
+  audio.setMasterVolume(0);
   setBlockingOverlay('turn-handoff');
   roundPresentationGate.suppress();
   const controller = showTurnHandoff(
@@ -3944,6 +3946,7 @@ function enterCampaign(
     return;
   }
 
+  audio.setMasterVolume(0);
   const player = gameState.hotSeat.players.find(candidate => candidate.slotId === gameState.currentPlayer);
   setBlockingOverlay('turn-handoff');
   roundPresentationGate.suppress();
@@ -3969,6 +3972,16 @@ function enterCampaign(
         roundPresentationGate.resume();
         setBlockingOverlay(null);
         startGame();
+        const viewerCiv = gameState.civilizations[viewerId];
+        const viewerCities = Object.values(gameState.cities).filter(city => city.owner === viewerId);
+        bus.emit('currentPlayer:changed-after-handoff', {
+          civId: viewerId,
+          atWarCount: viewerCiv?.diplomacy?.atWarWith?.length ?? 0,
+          unrestCityCount: viewerCities.filter(city => city.unrestLevel > 0).length,
+          nearDefeat: viewerCiv?.nearDefeat ?? false,
+          inBeastTerritory: isCivUnitInBeastTerritory(gameState, viewerId),
+        });
+        audio.setMasterVolume(currentMasterVolume);
         showNotification(message, 'info');
       },
     },
@@ -4337,6 +4350,7 @@ function startGame(): void {
     () => gameState,
     () => roundPresentationGate.isSuppressed(),
   );
+  audio.setMasterVolume(currentMasterVolume);
   routeSfxThrough(audio.getSfxRoutingNode());
 
   // Prevent zoom-out duplication: ensure the camera cannot zoom past one full
