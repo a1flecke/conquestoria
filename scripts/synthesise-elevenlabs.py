@@ -47,9 +47,22 @@ HEADERS = {"xi-api-key": API_KEY}
 VOICE_NAMES = {
     "egypt": "Mohamed - Optimistic, Clear and Hopeful",
     "rome":  "Luke Cala - Realistic and Direct",
+    "aztec": "Aztec Cheiftain",
 }
 
 SCRIPTS = {
+    "aztec": {
+        "era-advance":    "The sun demands tribute. We answer with a new age.",
+        "city-founded":   "The gods smile on this place. Build the temples.",
+        "war-declared":   "The sacred flowery war begins. Capture them for the sun.",
+        "tech-completed": "Our priests have unlocked new sacred knowledge.",
+        "wonder-built":   "The gods are pleased. The pyramid rises.",
+        "wonder-lost":    "They have defiled what the gods gave us.",
+        "city-lost":      "A sacred city has fallen. We will retake it.",
+        "near-defeat":    "We are still here. The sun has not abandoned us.",
+        "victory":        "The fifth sun shines on our empire. It is our time.",
+        "peace-signed":   "The war rests. For now.",
+    },
     "egypt": {
         "era-advance":    "The Nile rises. Our age is reborn.",
         "city-founded":   "Another monument to eternity is placed.",
