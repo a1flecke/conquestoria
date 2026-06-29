@@ -45,6 +45,7 @@ export function evaluateDiplomacy(
       }
     } else {
       const context = contextByCiv[civId] ?? { hasMet: false, hasBorderPressure: false };
+      if (!context.hasMet) continue;
       if (actions.includes('declare_war') && shouldDeclareWar(
         personality,
         relationship,

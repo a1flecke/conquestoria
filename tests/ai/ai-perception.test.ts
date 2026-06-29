@@ -9,6 +9,11 @@ import {
 } from '@/ai/ai-perception';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
+import {
+  createEspionageCivState,
+  createSpyFromUnit,
+  setDisguise,
+} from '@/systems/espionage-system';
 
 const ACTOR = 'ai-1';
 const RIVAL = 'player';
@@ -92,6 +97,22 @@ describe('major-civilization perception', () => {
     expect(facts.knownCities.some(city => city.owner === RIVAL)).toBe(false);
   });
 
+  it('perceives visible always-hostile world units without diplomatic contact', () => {
+    const state = makePerceptionState();
+    const barbarian = createUnit('warrior', 'barbarian', OBSERVED, state.idCounters);
+    barbarian.id = 'visible-barbarian';
+    state.units[barbarian.id] = barbarian;
+    state.civilizations[ACTOR].visibility.tiles[hexKey(OBSERVED)] = 'visible';
+
+    const facts = buildMajorCivPerception(state, ACTOR);
+
+    expect(facts.units).toContainEqual(expect.objectContaining({
+      id: barbarian.id,
+      owner: 'barbarian',
+      confidence: 'visible',
+    }));
+  });
+
   it('represents contacted but unlocated rivals as rumors without exact coordinates', () => {
     const state = makePerceptionState();
 
@@ -128,6 +149,54 @@ describe('major-civilization perception', () => {
     expect(facts.units.find(unit => unit.id === 'legacy-unit')).toBeUndefined();
   });
 
+  it('does not treat a snapshot attached to an unexplored tile as earned memory', () => {
+    const state = makePerceptionState();
+    state.civilizations[ACTOR].visibility.tiles[hexKey(OBSERVED)] = 'unexplored';
+    state.civilizations[ACTOR].visibility.lastSeen![hexKey(OBSERVED)] = makeSnapshot(state, {
+      units: [{
+        id: 'unearned-tank',
+        type: 'tank',
+        owner: RIVAL,
+        healthBand: 'healthy',
+      }],
+    });
+
+    const facts = buildMajorCivPerception(state, ACTOR);
+
+    expect(facts.units.find(unit => unit.id === 'unearned-tank')).toBeUndefined();
+  });
+
+  it('ignores malformed remembered-unit data from an untrusted save', () => {
+    const state = makePerceptionState();
+    state.civilizations[ACTOR].visibility.tiles[hexKey(OBSERVED)] = 'fog';
+    const snapshot = makeSnapshot(state);
+    (snapshot as unknown as { units: unknown }).units = {
+      id: 'not-an-array',
+    };
+    state.civilizations[ACTOR].visibility.lastSeen![hexKey(OBSERVED)] = snapshot;
+
+    expect(() => buildMajorCivPerception(state, ACTOR)).not.toThrow();
+    expect(buildMajorCivPerception(state, ACTOR).units).toEqual([]);
+  });
+
+  it('keeps only structurally valid remembered units from save data', () => {
+    const state = makePerceptionState();
+    state.civilizations[ACTOR].visibility.tiles[hexKey(OBSERVED)] = 'fog';
+    const snapshot = makeSnapshot(state);
+    (snapshot as unknown as { units: unknown }).units = [
+      null,
+      { id: 7, owner: RIVAL, type: 'tank', healthBand: 'healthy' },
+      { id: 'bad-type', owner: RIVAL, type: 'teleporter', healthBand: 'healthy' },
+      { id: 'bad-health', owner: RIVAL, type: 'tank', healthBand: 'fine' },
+      { id: 'valid', owner: RIVAL, type: 'tank', healthBand: 'damaged' },
+    ];
+    state.civilizations[ACTOR].visibility.lastSeen![hexKey(OBSERVED)] = snapshot;
+
+    expect(buildMajorCivPerception(state, ACTOR).units).toEqual([
+      expect.objectContaining({ id: 'valid', type: 'tank', healthBand: 'damaged' }),
+    ]);
+  });
+
   it('keeps own cities and units exact while returning defensive copies', () => {
     const state = makePerceptionState();
     const templateCity = Object.values(state.cities)[0];
@@ -146,6 +215,16 @@ describe('major-civilization perception', () => {
     expect(facts.ownCities[0]).not.toBe(ownCity);
   });
 
+  it('rejects stale cross-owner IDs from the actor roster', () => {
+    const state = makePerceptionState();
+    const rivalUnit = addRivalUnit(state, 'tank');
+    state.civilizations[ACTOR].units.push(rivalUnit.id);
+
+    const facts = buildMajorCivPerception(state, ACTOR);
+
+    expect(facts.ownUnits.some(unit => unit.id === rivalUnit.id)).toBe(false);
+  });
+
   it('does not count a live hidden tank as exact military strength', () => {
     const state = makePerceptionState();
     addRivalUnit(state, 'tank', { q: 12, r: 4 });
@@ -156,6 +235,28 @@ describe('major-civilization perception', () => {
     expect(strength.exactVisible).toBe(0);
     expect(strength.remembered).toBe(0);
     expect(strength.uncertaintyUpper).toBeGreaterThan(0);
+  });
+
+  it('uses the viewer-facing disguise for a currently visible spy', () => {
+    const state = makePerceptionState();
+    const spyUnit = addRivalUnit(state, 'spy_scout');
+    state.civilizations[ACTOR].visibility.tiles[hexKey(spyUnit.position)] = 'visible';
+    const created = createSpyFromUnit(
+      createEspionageCivState(),
+      spyUnit.id,
+      RIVAL,
+      'spy_scout',
+      'perception-disguise',
+    );
+    state.espionage = {
+      [RIVAL]: setDisguise(created.state, spyUnit.id, 'warrior'),
+    };
+
+    const perceived = buildMajorCivPerception(state, ACTOR)
+      .units.find(unit => unit.id === spyUnit.id);
+
+    expect(perceived).toMatchObject({ owner: RIVAL, type: 'warrior' });
+    expect(perceived?.type).not.toBe('spy_scout');
   });
 
   it('counts every visible combat role symmetrically instead of filtering rivals to warriors', () => {
@@ -192,6 +293,25 @@ describe('major-civilization perception', () => {
     expect(capabilities.inferredEraMax).toBe(8);
     expect(JSON.stringify(capabilities)).not.toContain('cyber-warfare');
     expect(JSON.stringify(capabilities)).not.toContain('jet-aviation');
+  });
+
+  it('never reports an inferred maximum era below observed capability', () => {
+    const state = makePerceptionState();
+    state.era = 1;
+    state.civilizations[ACTOR].visibility.lastSeen![hexKey(OBSERVED)] = makeSnapshot(state, {
+      units: [{
+        id: 'observed-jet',
+        type: 'jet_fighter',
+        owner: RIVAL,
+        healthBand: 'healthy',
+      }],
+    });
+    state.civilizations[ACTOR].visibility.tiles[hexKey(OBSERVED)] = 'fog';
+
+    const capabilities = buildMajorCivPerception(state, ACTOR)
+      .knownOpponentCapabilities[RIVAL];
+
+    expect(capabilities.inferredEraMax).toBeGreaterThanOrEqual(capabilities.inferredEraMin);
   });
 
   it('refreshes intel immutably and preserves a last-known position after sight is lost', () => {

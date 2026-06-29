@@ -224,6 +224,42 @@ describe('major-civilization plan portfolios', () => {
     })).portfolio.defensePlansByCityId.old).toBeUndefined();
   });
 
+  it('derives receding-defense grace from persisted progress when no counter is supplied', () => {
+    const recent = plan('defend-recent', {
+      objective: 'defend',
+      target: { kind: 'city', id: 'old', lastKnownPosition: { q: 1, r: 1 } },
+      lastProgressTurn: 9,
+    });
+    const stale = { ...recent, id: 'defend-stale', lastProgressTurn: 8 };
+    const threat: AICityThreat = {
+      cityId: 'old',
+      position: { q: 1, r: 1 },
+      theaterId: 'home',
+      travelTurns: 7,
+      alreadyAttackedTerritory: false,
+      captureRisk: 10,
+      hostileStrength: 10,
+      isCapital: false,
+      isLastCity: false,
+      threatStillValid: true,
+    };
+
+    expect(refreshMajorCivPortfolio(context({
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        defensePlansByCityId: { old: recent },
+      },
+      cityThreats: [threat],
+    })).portfolio.defensePlansByCityId.old).toBeDefined();
+    expect(refreshMajorCivPortfolio(context({
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        defensePlansByCityId: { old: stale },
+      },
+      cityThreats: [threat],
+    })).portfolio.defensePlansByCityId.old).toBeUndefined();
+  });
+
   it('uses deterministic plan IDs and clamps commitment', () => {
     const first = refreshMajorCivPortfolio(context({
       portfolio: createEmptyMajorCivPortfolio(),

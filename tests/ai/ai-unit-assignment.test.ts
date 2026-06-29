@@ -228,6 +228,10 @@ describe('AI unit assignment', () => {
     expect(result.assignmentsByPlanId.overseas).toContain('cavalry');
     expect(result.assignmentsByPlanId.overseas).not.toContain('warrior');
     expect(result.forceDemands.find(demand => demand.role === 'capture')?.missing).toBe(1);
+    expect(result.forceDemands.find(demand => demand.role === 'transport')).toMatchObject({
+      assigned: 1,
+      missing: 1,
+    });
   });
 
   it('uses stable IDs to break equal assignment ties and caps the primary force', () => {
@@ -249,5 +253,10 @@ describe('AI unit assignment', () => {
     });
 
     expect(result.assignmentsByPlanId.primary).toEqual(['unit-a', 'unit-b']);
+    expect(result.forceDemands.find(demand => demand.role === 'frontline')).toMatchObject({
+      desired: 2,
+      assigned: 2,
+      missing: 0,
+    });
   });
 });

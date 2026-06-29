@@ -137,6 +137,21 @@ describe('evaluateDiplomacy', () => {
     expect(decisions.find(decision => decision.action === 'declare_war')).toBeUndefined();
   });
 
+  it('does not sign treaties with an unmet civilization', () => {
+    const decisions = evaluateDiplomacy(
+      diplomaticPersonality,
+      makeDiplomacy({ relationships: { player: 80 } }),
+      [],
+      4,
+      { player: strength(40) },
+      strength(40),
+      20,
+      { player: { hasMet: false, hasBorderPressure: false } },
+    );
+
+    expect(decisions).toEqual([]);
+  });
+
   it('compares both civilizations through the same midpoint contract', () => {
     const decisions = evaluateDiplomacy(
       aggressivePersonality,

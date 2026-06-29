@@ -1,9 +1,41 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { createLastSeenTilePresentation, refreshLastSeenPresentationsForCiv, updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
+import {
+  createLastSeenTilePresentation,
+  isTrustedObservedLastSeenTile,
+  refreshLastSeenPresentationsForCiv,
+  updateAndRefreshVisibility,
+  reconstructLastSeenFromMap,
+} from '@/systems/last-seen-presentation';
 import { createUnit } from '@/systems/unit-system';
+import {
+  createEspionageCivState,
+  createSpyFromUnit,
+  setDisguise,
+} from '@/systems/espionage-system';
+import { hexKey } from '@/systems/hex-utils';
 
 describe('last-seen-presentation', () => {
+  it('recognizes only structurally valid observed snapshots as trusted AI intel', () => {
+    const state = createNewGame(undefined, 'trusted-last-seen', 'small');
+    const valid = createLastSeenTilePresentation(
+      state,
+      'player',
+      state.map.tiles['0,0'],
+    );
+
+    expect(isTrustedObservedLastSeenTile(valid)).toBe(true);
+    expect(isTrustedObservedLastSeenTile({
+      ...valid,
+      coord: null,
+    })).toBe(false);
+    expect(isTrustedObservedLastSeenTile({
+      ...valid,
+      source: 'legacy-reconstructed',
+      observedTurn: undefined,
+    })).toBe(false);
+  });
+
   it('captures serializable tile presentation for visible tiles', () => {
     const state = createNewGame(undefined, 'last-seen-visible', 'small');
     const tile = state.map.tiles['0,0'];
@@ -39,6 +71,7 @@ describe('last-seen-presentation', () => {
     refreshLastSeenPresentationsForCiv(state, 'player');
 
     expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.terrain).toBe('forest');
+    expect(state.civilizations.player.visibility.lastSeen?.['0,0']?.units).toBeUndefined();
     expect(state.civilizations.player.visibility.lastSeen?.['1,0']).toBeUndefined();
   });
 
@@ -96,6 +129,39 @@ describe('last-seen-presentation', () => {
         healthBand: 'damaged',
       }],
     });
+  });
+
+  it('stores the viewer-facing disguise instead of a spy true identity', () => {
+    const state = createNewGame(undefined, 'last-seen-disguise', 'small');
+    const coord = { q: 8, r: 4 };
+    const key = hexKey(coord);
+    state.civilizations.player.visibility.tiles = { [key]: 'visible' };
+    const spyUnit = createUnit('spy_scout', 'ai-1', coord, state.idCounters);
+    spyUnit.id = 'disguised-spy';
+    state.units[spyUnit.id] = spyUnit;
+    state.civilizations['ai-1'].units.push(spyUnit.id);
+    const created = createSpyFromUnit(
+      createEspionageCivState(),
+      spyUnit.id,
+      'ai-1',
+      'spy_scout',
+      'last-seen-disguise',
+    );
+    state.espionage = {
+      'ai-1': setDisguise(created.state, spyUnit.id, 'barbarian'),
+    };
+
+    refreshLastSeenPresentationsForCiv(state, 'player');
+
+    expect(state.civilizations.player.visibility.lastSeen?.[key]?.units).toContainEqual(
+      expect.objectContaining({
+        id: spyUnit.id,
+        owner: 'barbarian',
+        type: 'warrior',
+      }),
+    );
+    expect(state.civilizations.player.visibility.lastSeen?.[key]?.units)
+      .not.toContainEqual(expect.objectContaining({ type: 'spy_scout' }));
   });
 
   it('does not update fogged city presentation from live city changes', () => {

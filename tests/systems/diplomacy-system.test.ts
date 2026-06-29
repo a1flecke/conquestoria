@@ -114,6 +114,24 @@ describe('diplomacy-system', () => {
       expect(attacks[0].turn).toBe(3);
       expect(attacks.at(-1)?.turn).toBe(14);
     });
+
+    it('preserves the relative order of unrelated diplomatic history', () => {
+      let state = createDiplomacyState(civIds, 'player');
+      state.events = [
+        { type: 'war_declared', turn: 1, otherCiv: 'ai-egypt', weight: 1 },
+        { type: 'military_attacked', turn: 2, otherCiv: 'ai-egypt', weight: 1 },
+        { type: 'peace_made', turn: 3, otherCiv: 'ai-egypt', weight: 1 },
+      ];
+
+      state = recordMilitaryAttack(state, 'ai-rome', 4);
+
+      expect(state.events.map(event => event.type)).toEqual([
+        'war_declared',
+        'military_attacked',
+        'peace_made',
+        'military_attacked',
+      ]);
+    });
   });
 
   describe('makePeace', () => {

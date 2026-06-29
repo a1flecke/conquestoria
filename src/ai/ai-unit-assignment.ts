@@ -150,23 +150,31 @@ export function assignUnitsToPortfolio(
   const assignedSlotsByPlanId: Record<string, AIStrategicRole[]> = Object.fromEntries(
     plans.map(plan => [plan.id, []]),
   );
+  const desiredSlotsByPlanId: Record<string, Partial<Record<AIStrategicRole, number>>> = {};
+  const capacityBlockedPlanIds = new Set<string>();
   const rejectedByUnitId: Record<string, string[]> = {};
 
   for (const plan of plans) {
     let transportCapacity = 0;
     let cargoCapacityUsed = 0;
+    let remainingPrimarySlots = plan.id === primaryId
+      ? Math.max(0, Math.floor(context.profile.maxPrimaryForce))
+      : Number.POSITIVE_INFINITY;
     const requiredEntries = (Object.entries(plan.requiredRoles) as Array<[AIStrategicRole, number]>)
       .sort((left, right) =>
-        ROLE_ORDER.indexOf(left[0]) - ROLE_ORDER.indexOf(right[0]));
+        ROLE_ORDER.indexOf(left[0]) - ROLE_ORDER.indexOf(right[0]))
+      .map(([role, desired]) => {
+        const effectiveDesired = Math.min(
+          Math.max(0, Math.floor(desired)),
+          remainingPrimarySlots,
+        );
+        remainingPrimarySlots -= effectiveDesired;
+        return [role, effectiveDesired] as const;
+      });
+    desiredSlotsByPlanId[plan.id] = Object.fromEntries(requiredEntries);
 
     for (const [role, desired] of requiredEntries) {
-      for (let slot = 0; slot < Math.max(0, Math.floor(desired)); slot++) {
-        if (
-          plan.id === primaryId
-          && assignmentsByPlanId[plan.id].length >= context.profile.maxPrimaryForce
-        ) {
-          break;
-        }
+      for (let slot = 0; slot < desired; slot++) {
         if (
           role === 'siege'
           && !assignedSlotsByPlanId[plan.id].some(assigned =>
@@ -175,21 +183,34 @@ export function assignUnitsToPortfolio(
           continue;
         }
 
-        const candidates = context.units
+        const compatibleCandidates = context.units
           .filter(unit =>
             !usedUnitIds.has(unit.id)
             && !recovering.has(unit.id)
             && !unit.embarked
             && roleFit(unit.type, role) > 0
-            && Number.isFinite(unit.travelTurnsByPlanId[plan.id]))
-          .filter(unit => {
+            && Number.isFinite(unit.travelTurnsByPlanId[plan.id]));
+        const capacityEligibleCandidates = compatibleCandidates.filter(unit => {
             if (!context.requiresEmbarkationByPlanId[plan.id]) return true;
             const definition = UNIT_DEFINITIONS[unit.type];
             if (role === 'transport') return definition.cargoCapacity !== undefined;
             if ((definition.domain ?? 'land') !== 'land') return true;
             const cargoSize = definition.cargoSize ?? 1;
             return cargoCapacityUsed + cargoSize <= transportCapacity;
+          });
+        if (
+          capacityEligibleCandidates.length === 0
+          && compatibleCandidates.some(unit => {
+            const definition = UNIT_DEFINITIONS[unit.type];
+            return context.requiresEmbarkationByPlanId[plan.id]
+              && role !== 'transport'
+              && (definition.domain ?? 'land') === 'land'
+              && cargoCapacityUsed + (definition.cargoSize ?? 1) > transportCapacity;
           })
+        ) {
+          capacityBlockedPlanIds.add(plan.id);
+        }
+        const candidates = capacityEligibleCandidates
           .map(unit => ({
             unit,
             score: roleFit(unit.type, role) * 40
@@ -226,7 +247,7 @@ export function assignUnitsToPortfolio(
 
   const demandByRole = new Map<AIStrategicRole, AIForceDemand>();
   for (const plan of plans) {
-    for (const [role, desiredRaw] of Object.entries(plan.requiredRoles) as Array<[AIStrategicRole, number]>) {
+    for (const [role, desiredRaw] of Object.entries(desiredSlotsByPlanId[plan.id] ?? {}) as Array<[AIStrategicRole, number]>) {
       const desired = Math.max(0, Math.floor(desiredRaw));
       const assigned = assignedSlotsByPlanId[plan.id].filter(slot => slot === role).length;
       const existing = demandByRole.get(role) ?? {
@@ -244,6 +265,23 @@ export function assignUnitsToPortfolio(
       existing.sourcePlanIds.push(plan.id);
       demandByRole.set(role, existing);
     }
+  }
+  for (const planId of capacityBlockedPlanIds) {
+    const plan = plans.find(candidate => candidate.id === planId);
+    if (!plan) continue;
+    const existing = demandByRole.get('transport') ?? {
+      role: 'transport',
+      desired: 0,
+      assigned: 0,
+      missing: 0,
+      priority: 0,
+      sourcePlanIds: [],
+    };
+    existing.desired += 1;
+    existing.missing = Math.max(0, existing.desired - existing.assigned);
+    existing.priority = Math.max(existing.priority, planPriority(plan, context));
+    existing.sourcePlanIds.push(plan.id);
+    demandByRole.set('transport', existing);
   }
 
   const defensePlansByCityId = Object.fromEntries(
