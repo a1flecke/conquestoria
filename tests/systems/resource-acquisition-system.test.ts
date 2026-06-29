@@ -532,6 +532,7 @@ describe('performEstablishOutpost', () => {
     expect(tile.improvementTurnsLeft).toBe(2);
     expect(tile.owner).toBe('player');
     expect(newState.units[unitId]).toBeUndefined();
+    expect(newState.civilizations.player.units).not.toContain(unitId);
   });
 
   it('is unavailable when tile is already in civ city territory (canEstablishOutpost = false)', () => {
