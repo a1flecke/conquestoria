@@ -197,10 +197,20 @@ export function performEstablishOutpost(state: GameState, unitId: string): GameS
   };
 
   const { [unitId]: _removed, ...remainingUnits } = state.units;
+  const civilization = state.civilizations[civId];
 
   return {
     ...state,
     units: remainingUnits,
+    civilizations: civilization
+      ? {
+          ...state.civilizations,
+          [civId]: {
+            ...civilization,
+            units: civilization.units.filter(id => id !== unitId),
+          },
+        }
+      : state.civilizations,
     map: {
       ...state.map,
       tiles: {
