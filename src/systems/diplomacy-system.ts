@@ -72,21 +72,32 @@ export function recordMilitaryAttack(
   attackerCivId: string,
   turn: number,
 ): DiplomacyState {
-  const unrelated = state.events.filter(event => event.type !== 'military_attacked');
-  const attacks = state.events
-    .filter(event => event.type === 'military_attacked')
-    .filter(event => !(event.otherCiv === attackerCivId && event.turn === turn));
-  attacks.push({
+  const withoutDuplicate = state.events.filter(event =>
+    event.type !== 'military_attacked'
+    || event.otherCiv !== attackerCivId
+    || event.turn !== turn);
+  const newAttack = {
     type: 'military_attacked',
     turn,
     otherCiv: attackerCivId,
     weight: 1,
-  });
-  attacks.sort((left, right) =>
-    left.turn - right.turn || left.otherCiv.localeCompare(right.otherCiv));
+  } as const;
+  const retainedAttacks = new Set(
+    [
+      ...withoutDuplicate.filter(event => event.type === 'military_attacked'),
+      newAttack,
+    ]
+      .sort((left, right) =>
+        left.turn - right.turn || left.otherCiv.localeCompare(right.otherCiv))
+      .slice(-12),
+  );
   return {
     ...state,
-    events: [...unrelated, ...attacks.slice(-12)],
+    events: [
+      ...withoutDuplicate.filter(event =>
+        event.type !== 'military_attacked' || retainedAttacks.has(event)),
+      ...(retainedAttacks.has(newAttack) ? [newAttack] : []),
+    ],
   };
 }
 

@@ -7,12 +7,18 @@ import type {
   Unit,
   UnitType,
 } from '@/core/types';
+import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
-import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
+import {
+  isTrustedObservedLastSeenTile,
+  refreshLastSeenPresentationsForCiv,
+} from '@/systems/last-seen-presentation';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { TECH_TREE } from '@/systems/tech-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { canInspectUnitForViewer } from '@/systems/viewer-intel';
+import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
 import { decayRememberedConfidence } from '@/systems/actor-perception';
 import {
   estimateMilitaryStrength,
@@ -75,6 +81,28 @@ function isKnownResourceType(resource: string | null): resource is ResourceType 
   return resource !== null && KNOWN_RESOURCE_TYPES.has(resource);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isRememberedUnit(value: unknown): value is {
+  id: string;
+  owner: string;
+  type: UnitType;
+  healthBand: LastSeenHealthBand;
+} {
+  if (!isRecord(value)) return false;
+  return typeof value.id === 'string'
+    && typeof value.owner === 'string'
+    && typeof value.type === 'string'
+    && Object.prototype.hasOwnProperty.call(UNIT_DEFINITIONS, value.type)
+    && (
+      value.healthBand === 'healthy'
+      || value.healthBand === 'damaged'
+      || value.healthBand === 'critical'
+    );
+}
+
 function knownCivIds(state: GameState, actorId: string): string[] {
   const actor = state.civilizations[actorId];
   if (!actor) return [];
@@ -122,19 +150,24 @@ export function buildMajorCivPerception(
 
   const contacted = knownCivIds(state, actorId);
   const contactedSet = new Set(contacted);
+  const relevantOwner = (ownerId: string) =>
+    contactedSet.has(ownerId)
+    || actor.diplomacy.atWarWith.includes(ownerId)
+    || isAlwaysHostilePair(actorId, ownerId);
   const ownCities = actor.cities
     .map(id => state.cities[id])
-    .filter((city): city is City => city !== undefined)
+    .filter((city): city is City => city?.owner === actorId)
     .map(city => structuredClone(city));
   const ownUnits = actor.units
     .map(id => state.units[id])
-    .filter((unit): unit is Unit => unit !== undefined)
+    .filter((unit): unit is Unit => unit?.owner === actorId)
     .map(unit => structuredClone(unit));
 
   const unitsById = new Map<string, AIPerceivedUnit>();
-  for (const unit of Object.values(state.units)) {
+  const viewerFacingUnits = getVisibleUnitsForPlayer(state.units, state, actorId);
+  for (const unit of Object.values(viewerFacingUnits)) {
     if (
-      !contactedSet.has(unit.owner)
+      !relevantOwner(unit.owner)
       || unit.transportId
       || !canInspectUnitForViewer(state, actorId, unit.id)
       || isForestConcealedUnit(state, actorId, unit)
@@ -154,19 +187,19 @@ export function buildMajorCivPerception(
 
   const rememberedCities = new Map<string, MajorCivPerception['knownCities'][number]>();
   const rememberedResources = new Map<string, MajorCivPerception['knownResources'][number]>();
-  for (const [key, snapshot] of Object.entries(actor.visibility.lastSeen ?? {})) {
-    if (
-      snapshot.source !== 'observed'
-      || !Number.isFinite(snapshot.observedTurn)
-      || snapshot.observedTurn === undefined
-    ) {
-      continue;
-    }
+  for (const [key, value] of Object.entries(actor.visibility.lastSeen ?? {})) {
+    if (!isTrustedObservedLastSeenTile(value)) continue;
+    const snapshot = value;
     const age = state.turn - snapshot.observedTurn;
     if (age < 0 || decayRememberedConfidence(age) <= 0) continue;
-    if (getVisibility(actor.visibility, snapshot.coord) === 'visible') continue;
+    if (getVisibility(actor.visibility, snapshot.coord) !== 'fog') continue;
 
-    if (snapshot.city && contactedSet.has(snapshot.city.owner)) {
+    if (
+      isRecord(snapshot.city)
+      && typeof snapshot.city.id === 'string'
+      && typeof snapshot.city.owner === 'string'
+      && contactedSet.has(snapshot.city.owner)
+    ) {
       rememberedCities.set(snapshot.city.id, {
         id: snapshot.city.id,
         owner: snapshot.city.owner,
@@ -184,8 +217,11 @@ export function buildMajorCivPerception(
         observedTurn: snapshot.observedTurn,
       });
     }
-    for (const unit of snapshot.units ?? []) {
-      if (!contactedSet.has(unit.owner) || unitsById.has(unit.id)) continue;
+    const rememberedUnits = Array.isArray(snapshot.units)
+      ? snapshot.units.filter(isRememberedUnit)
+      : [];
+    for (const unit of rememberedUnits) {
+      if (!relevantOwner(unit.owner) || unitsById.has(unit.id)) continue;
       unitsById.set(unit.id, {
         id: unit.id,
         owner: unit.owner,
@@ -258,7 +294,11 @@ export function buildMajorCivPerception(
     knownOpponentCapabilities[civId] = {
       observedUnitTypes,
       inferredEraMin: Math.max(1, ...observedUnitTypes.map(requiredEraForUnit)),
-      inferredEraMax: Math.max(1, state.era),
+      inferredEraMax: Math.max(
+        1,
+        state.era,
+        ...observedUnitTypes.map(requiredEraForUnit),
+      ),
     };
   }
 

@@ -5,6 +5,7 @@ import {
   normalizeOpponentAIState,
 } from '@/core/opponent-ai-state';
 import type { GameState } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
 import { refreshMajorCivIntel } from './ai-perception';
 import type {
   ExecutePreparedMajorCivPlan,
@@ -42,30 +43,114 @@ export interface ProcessNonHumanRoundOptions {
 export interface ProcessNonHumanRoundResult {
   state: GameState;
   traces: AIDecisionTrace[];
+  planningErrors: Array<{
+    actorId: string;
+    phase: 'prepare';
+    message: string;
+  }>;
 }
 
-function preparedTargetIsStale(
+function planTargetIsStale(
   state: GameState,
-  prepared: PreparedMajorCivPlan,
+  civId: string,
+  plan: NonNullable<PreparedMajorCivPlan['portfolio']['primaryPlan']>,
 ): boolean {
-  const plan = prepared.portfolio.primaryPlan;
-  if (!plan) return false;
   switch (plan.target.kind) {
     case 'city': {
       const city = state.cities[plan.target.id];
-      return !city || (
-        plan.objective === 'capture'
-        && city.owner === prepared.civId
-      );
+      if (!city) return true;
+      if (plan.objective === 'defend') return city.owner !== civId;
+      return plan.objective === 'capture' && city.owner === civId;
     }
     case 'unit':
       return !Object.prototype.hasOwnProperty.call(state.units, plan.target.id);
     case 'camp':
       return state.barbarianCamps[plan.target.id] === undefined;
-    case 'resource':
+    case 'resource': {
+      const tile = state.map.tiles[hexKey(plan.target.position)];
+      if (!tile || tile.resource !== plan.target.resource) return true;
+      if (tile.owner === null) return false;
+      if (tile.owner === civId) return true;
+      return !state.civilizations[civId]?.diplomacy.atWarWith.includes(tile.owner);
+    }
     case 'region':
-      return false;
+      return state.map.tiles[hexKey(plan.target.anchor)] === undefined;
   }
+}
+
+function revalidatePreparedPlan(
+  state: GameState,
+  prepared: PreparedMajorCivPlan,
+): PreparedMajorCivPlan {
+  const primaryPlan = prepared.portfolio.primaryPlan
+    && !planTargetIsStale(state, prepared.civId, prepared.portfolio.primaryPlan)
+    ? prepared.portfolio.primaryPlan
+    : null;
+  const defensePlansByCityId = Object.fromEntries(
+    Object.entries(prepared.portfolio.defensePlansByCityId)
+      .filter(([, plan]) => !planTargetIsStale(state, prepared.civId, plan)),
+  );
+  const validPlanIds = new Set([
+    ...(primaryPlan ? [primaryPlan.id] : []),
+    ...Object.values(defensePlansByCityId).map(plan => plan.id),
+  ]);
+  const validUnitIds = new Set(
+    Object.values(state.units)
+      .filter(unit => unit.owner === prepared.civId)
+      .map(unit => unit.id),
+  );
+  const assignmentsByPlanId = Object.fromEntries(
+    Object.entries(prepared.assignments.assignmentsByPlanId)
+      .filter(([planId]) => validPlanIds.has(planId))
+      .map(([planId, unitIds]) => [
+        planId,
+        unitIds.filter(unitId => validUnitIds.has(unitId)),
+      ]),
+  );
+  const forceDemands = prepared.forceDemands.flatMap(demand => {
+    const sourcePlanIds = demand.sourcePlanIds.filter(sourceId => {
+      if (sourceId === 'objective-readiness') return true;
+      if (sourceId.startsWith('defense-overflow:')) {
+        const cityId = sourceId.slice('defense-overflow:'.length);
+        return state.cities[cityId]?.owner === prepared.civId;
+      }
+      return validPlanIds.has(sourceId);
+    });
+    return sourcePlanIds.length > 0 ? [{ ...demand, sourcePlanIds }] : [];
+  });
+  const portfolio = {
+    ...prepared.portfolio,
+    primaryPlan: primaryPlan
+      ? {
+          ...primaryPlan,
+          assignedUnitIds: primaryPlan.assignedUnitIds
+            .filter(unitId => validUnitIds.has(unitId)),
+        }
+      : null,
+    defensePlansByCityId: Object.fromEntries(
+      Object.entries(defensePlansByCityId).map(([cityId, plan]) => [
+        cityId,
+        {
+          ...plan,
+          assignedUnitIds: plan.assignedUnitIds
+            .filter(unitId => validUnitIds.has(unitId)),
+        },
+      ]),
+    ),
+  };
+  return {
+    ...prepared,
+    portfolio,
+    assignments: {
+      ...prepared.assignments,
+      portfolio,
+      assignmentsByPlanId,
+      recoveryUnitIds: prepared.assignments.recoveryUnitIds
+        .filter(unitId => validUnitIds.has(unitId)),
+      forceDemands,
+    },
+    forceDemands,
+  };
 }
 
 function writePreparedPortfolios(
@@ -120,7 +205,7 @@ export function processNonHumanMajorRound(
 ): ProcessNonHumanRoundResult {
   let working = normalizeOpponentAIState(state);
   if (working.opponentAI!.lastProcessedRound === working.turn) {
-    return { state: working, traces: [] };
+    return { state: working, traces: [], planningErrors: [] };
   }
 
   const stableActorIds = getLivingNonHumanMajorIds(working);
@@ -132,7 +217,25 @@ export function processNonHumanMajorRound(
     }
     const planningSnapshot = deepFreeze(structuredClone(refreshed));
     const prepare = options.prepare ?? prepareMajorCivStrategicPlan;
-    const preparedPlans = stableActorIds.map(civId => prepare(planningSnapshot, civId));
+    const preparedPlans: PreparedMajorCivPlan[] = [];
+    const planningErrors: ProcessNonHumanRoundResult['planningErrors'] = [];
+    for (const civId of stableActorIds) {
+      try {
+        const prepared = prepare(planningSnapshot, civId);
+        if (prepared.civId !== civId) {
+          throw new Error(
+            `Prepared actor mismatch: expected ${civId}, received ${prepared.civId}`,
+          );
+        }
+        preparedPlans.push(prepared);
+      } catch (error) {
+        planningErrors.push({
+          actorId: civId,
+          phase: 'prepare',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     const preparedByCiv = new Map(preparedPlans.map(prepared => [prepared.civId, prepared]));
     const traces = preparedPlans.flatMap(prepared => prepared.traces);
     working = writePreparedPortfolios(refreshed, preparedPlans);
@@ -151,16 +254,20 @@ export function processNonHumanMajorRound(
       ) {
         continue;
       }
-      if (preparedTargetIsStale(working, prepared)) {
-        const stalePortfolio = portfolio ?? createEmptyMajorCivPlanPortfolio();
+      const revalidated = revalidatePreparedPlan(working, prepared);
+      const hadPlan = prepared.portfolio.primaryPlan !== null
+        || Object.keys(prepared.portfolio.defensePlansByCityId).length > 0;
+      const hasPlan = revalidated.portfolio.primaryPlan !== null
+        || Object.keys(revalidated.portfolio.defensePlansByCityId).length > 0;
+      if (hadPlan && !hasPlan) {
         working = withMajorPortfolio(working, civId, {
-          ...stalePortfolio,
-          primaryPlan: null,
+          ...revalidated.portfolio,
           lastExecutedTurn: working.turn,
         });
         continue;
       }
-      working = executePrepared(working, prepared, bus).state;
+      working = withMajorPortfolio(working, civId, revalidated.portfolio);
+      working = executePrepared(working, revalidated, bus).state;
       working = normalizeOpponentAIState(working);
       const executedPortfolio = working.opponentAI!.majorCivs[civId]
         ?? createEmptyMajorCivPlanPortfolio();
@@ -181,6 +288,7 @@ export function processNonHumanMajorRound(
         },
       },
       traces,
+      planningErrors,
     };
   }
 
@@ -204,5 +312,6 @@ export function processNonHumanMajorRound(
       },
     },
     traces: [],
+    planningErrors: [],
   };
 }

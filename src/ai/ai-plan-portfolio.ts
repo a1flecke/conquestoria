@@ -239,14 +239,17 @@ function rankRetainedThreats(
   urgentCityIds: ReadonlySet<string>,
 ): AICityThreat[] {
   return [...context.cityThreats]
-    .filter(threat =>
-      !urgentCityIds.has(threat.cityId)
-      && context.portfolio.defensePlansByCityId[threat.cityId] !== undefined
-      && threat.threatStillValid
-      && (
-        threat.travelTurns <= 6
-        || (threat.consecutiveBeyondSixPhases ?? 0) < 2
-      ))
+    .filter(threat => {
+      const existing = context.portfolio.defensePlansByCityId[threat.cityId];
+      if (urgentCityIds.has(threat.cityId) || !existing || !threat.threatStillValid) {
+        return false;
+      }
+      if (threat.travelTurns <= 6) return true;
+      if (threat.consecutiveBeyondSixPhases !== undefined) {
+        return threat.consecutiveBeyondSixPhases < 2;
+      }
+      return context.turn - existing.lastProgressTurn < 2;
+    })
     .sort((left, right) =>
       left.travelTurns - right.travelTurns
       || right.captureRisk - left.captureRisk
@@ -292,6 +295,9 @@ export function refreshMajorCivPortfolio(
       existing
         ? {
             ...existing,
+            lastProgressTurn: threat.travelTurns <= 6
+              ? context.turn
+              : existing.lastProgressTurn,
             target: structuredClone(existing.target),
             reasonCodes: [...existing.reasonCodes],
             requiredRoles: { ...existing.requiredRoles },

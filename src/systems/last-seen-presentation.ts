@@ -10,6 +10,36 @@ import type {
 import { getVisibility, isForestConcealedUnit, updateVisibility } from '@/systems/fog-of-war';
 import { hexKey, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { canInspectUnitForViewer } from './viewer-intel';
+import { getVisibleUnitsForPlayer } from './espionage-stealth';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string';
+}
+
+export function isTrustedObservedLastSeenTile(
+  value: unknown,
+): value is LastSeenTilePresentation & {
+  observedTurn: number;
+  source: 'observed';
+} {
+  if (!isRecord(value) || !isRecord(value.coord)) return false;
+  return value.source === 'observed'
+    && Number.isFinite(value.observedTurn)
+    && Number.isFinite(value.coord.q)
+    && Number.isFinite(value.coord.r)
+    && typeof value.terrain === 'string'
+    && typeof value.elevation === 'string'
+    && isNullableString(value.resource)
+    && typeof value.improvement === 'string'
+    && Number.isFinite(value.improvementTurnsLeft)
+    && isNullableString(value.owner)
+    && typeof value.hasRiver === 'boolean'
+    && isNullableString(value.wonder);
+}
 
 function healthBand(health: number): LastSeenHealthBand {
   if (health >= 70) return 'healthy';
@@ -22,7 +52,8 @@ function visibleUnitsByTile(
   viewerId: string,
 ): Map<string, LastSeenUnitPresentation[]> {
   const byTile = new Map<string, LastSeenUnitPresentation[]>();
-  for (const unit of Object.values(state.units)
+  const viewerFacingUnits = getVisibleUnitsForPlayer(state.units, state, viewerId);
+  for (const unit of Object.values(viewerFacingUnits)
     .filter(unit => !unit.transportId)
     .filter(unit => canInspectUnitForViewer(state, viewerId, unit.id))
     .filter(unit => !isForestConcealedUnit(state, viewerId, unit))) {
@@ -67,7 +98,7 @@ function createTilePresentation(
       : undefined,
     observedTurn: state.turn,
     source: 'observed',
-    units,
+    ...(units.length > 0 ? { units } : {}),
   };
 }
 

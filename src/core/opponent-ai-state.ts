@@ -59,6 +59,7 @@ const STRATEGIC_ROLES = new Set([
   'trade',
   'espionage',
 ]);
+const MAX_PLAN_ROLE_REQUIREMENT = 32;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -113,14 +114,21 @@ function normalizePlan(
   if (isRecord(plan.requiredRoles)) {
     for (const [role, count] of Object.entries(plan.requiredRoles)) {
       if (STRATEGIC_ROLES.has(role) && Number.isFinite(count) && Number(count) > 0) {
-        requiredRoles[role as keyof typeof requiredRoles] = Math.floor(Number(count));
+        requiredRoles[role as keyof typeof requiredRoles] = Math.min(
+          MAX_PLAN_ROLE_REQUIREMENT,
+          Math.floor(Number(count)),
+        );
       }
     }
   }
 
   return {
-    ...plan,
+    id: plan.id,
+    actorId,
+    objective: plan.objective,
     target: structuredClone(plan.target),
+    theaterId: plan.theaterId,
+    phase: plan.phase,
     reasonCodes: Array.isArray(plan.reasonCodes)
       ? plan.reasonCodes.filter(reason => PLAN_REASONS.has(reason))
       : [],
@@ -131,7 +139,8 @@ function normalizePlan(
     lastProgressTurn: Math.max(0, Math.floor(plan.lastProgressTurn)),
     requiredRoles,
     assignedUnitIds: Array.isArray(plan.assignedUnitIds)
-      ? [...new Set(plan.assignedUnitIds.filter(unitId => state.units[unitId]?.owner === actorId))]
+      ? [...new Set(plan.assignedUnitIds.filter(unitId =>
+          typeof unitId === 'string' && state.units[unitId]?.owner === actorId))]
       : [],
     ...(isFiniteCoord(plan.rallyPoint) ? { rallyPoint: { ...plan.rallyPoint } } : { rallyPoint: undefined }),
   };
@@ -149,8 +158,15 @@ function normalizePortfolio(
   for (const [cityId, planValue] of Object.entries(portfolio.defensePlansByCityId ?? {})) {
     if (state.cities[cityId]?.owner !== actorId) continue;
     const plan = normalizePlan(state, actorId, planValue);
-    if (plan) defensePlansByCityId[cityId] = plan;
+    if (
+      plan?.objective === 'defend'
+      && plan.target.kind === 'city'
+      && plan.target.id === cityId
+    ) {
+      defensePlansByCityId[cityId] = plan;
+    }
   }
+  const normalizedPrimary = normalizePlan(state, actorId, portfolio.primaryPlan);
 
   const upgradeRoutesByUnitId: MajorCivPlanPortfolio['upgradeRoutesByUnitId'] = {};
   for (const [unitId, route] of Object.entries(portfolio.upgradeRoutesByUnitId ?? {})) {
@@ -169,7 +185,7 @@ function normalizePortfolio(
   }
 
   return {
-    primaryPlan: normalizePlan(state, actorId, portfolio.primaryPlan),
+    primaryPlan: normalizedPrimary?.objective === 'defend' ? null : normalizedPrimary,
     defensePlansByCityId,
     upgradeRoutesByUnitId,
     modernizationDemand: Math.max(
@@ -179,8 +195,12 @@ function normalizePortfolio(
     researchTargetTechId: typeof portfolio.researchTargetTechId === 'string'
       ? portfolio.researchTargetTechId
       : null,
-    lastPlannedTurn: Number.isFinite(portfolio.lastPlannedTurn) ? portfolio.lastPlannedTurn! : 0,
-    lastExecutedTurn: Number.isFinite(portfolio.lastExecutedTurn) ? portfolio.lastExecutedTurn! : 0,
+    lastPlannedTurn: Number.isFinite(portfolio.lastPlannedTurn)
+      ? Math.max(-1, Math.floor(portfolio.lastPlannedTurn!))
+      : -1,
+    lastExecutedTurn: Number.isFinite(portfolio.lastExecutedTurn)
+      ? Math.max(-1, Math.floor(portfolio.lastExecutedTurn!))
+      : -1,
   };
 }
 

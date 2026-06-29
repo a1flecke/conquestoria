@@ -19,6 +19,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { getAttackTargets } from '@/systems/attack-targeting';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
@@ -1207,7 +1208,10 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     const {
       self: selfStrength,
       others: otherStrengths,
-    } = buildDiplomaticStrengthEstimates(perception, newState.era);
+    } = buildDiplomaticStrengthEstimates(
+      perception,
+      resolveCivilizationEra(civ.techState.completed),
+    );
     const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean }> = {};
     for (const otherId of perception.knownCivIds) {
       const otherCities = perception.knownCities

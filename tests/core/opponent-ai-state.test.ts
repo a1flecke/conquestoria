@@ -150,4 +150,69 @@ describe('opponent AI state normalization', () => {
     expect(normalized.opponentAI!.majorCivs['ai-1'].upgradeRoutesByUnitId).toEqual({});
     expect(normalized.opponentAI!.migrationGraceRoundsRemaining).toBe(2);
   });
+
+  it('normalizes persisted portfolio turn markers while preserving the never-run sentinel', () => {
+    const state = makeState();
+    state.opponentAI!.majorCivs['ai-1'].lastPlannedTurn = -4.8;
+    state.opponentAI!.majorCivs['ai-1'].lastExecutedTurn = 7.9;
+
+    const portfolio = normalizeOpponentAIState(state).opponentAI!.majorCivs['ai-1'];
+
+    expect(portfolio.lastPlannedTurn).toBe(-1);
+    expect(portfolio.lastExecutedTurn).toBe(7);
+  });
+
+  it('defaults missing saved turn markers to the never-run sentinel', () => {
+    const state = makeState();
+    const saved = state.opponentAI!.majorCivs['ai-1'] as unknown as Record<string, unknown>;
+    delete saved.lastPlannedTurn;
+    delete saved.lastExecutedTurn;
+
+    const portfolio = normalizeOpponentAIState(state).opponentAI!.majorCivs['ai-1'];
+
+    expect(portfolio.lastPlannedTurn).toBe(-1);
+    expect(portfolio.lastExecutedTurn).toBe(-1);
+  });
+
+  it('bounds saved role demand and rejects mislabeled defense plans', () => {
+    const state = makeState();
+    const aiUnitId = state.civilizations['ai-1'].units[0]!;
+    const ownCity = structuredClone(Object.values(state.cities)[0]);
+    ownCity.id = 'ai-owned-city';
+    ownCity.owner = 'ai-1';
+    state.cities[ownCity.id] = ownCity;
+    state.civilizations['ai-1'].cities.push(ownCity.id);
+    state.opponentAI!.majorCivs['ai-1'].primaryPlan = makePlan({
+      requiredRoles: { frontline: Number.MAX_SAFE_INTEGER },
+      assignedUnitIds: [aiUnitId, 7 as unknown as string],
+    });
+    state.opponentAI!.majorCivs['ai-1'].defensePlansByCityId[ownCity.id] = makePlan({
+      objective: 'capture',
+      target: {
+        kind: 'city',
+        id: ownCity.id,
+        lastKnownPosition: ownCity.position,
+      },
+    });
+
+    const portfolio = normalizeOpponentAIState(state).opponentAI!.majorCivs['ai-1'];
+
+    expect(portfolio.primaryPlan?.requiredRoles.frontline).toBeLessThanOrEqual(32);
+    expect(portfolio.primaryPlan?.assignedUnitIds).toEqual([aiUnitId]);
+    expect(portfolio.defensePlansByCityId).toEqual({});
+  });
+
+  it('strips transient and unknown fields from normalized saved plans', () => {
+    const state = makeState();
+    const savedPlan = state.opponentAI!.majorCivs['ai-1'].primaryPlan as
+      AIStrategicPlan & { traces?: unknown; cachedPath?: unknown };
+    savedPlan.traces = [{ selectedId: 'private-debug-data' }];
+    savedPlan.cachedPath = [{ q: 1, r: 1 }];
+
+    const plan = normalizeOpponentAIState(state).opponentAI!.majorCivs['ai-1'].primaryPlan as
+      AIStrategicPlan & { traces?: unknown; cachedPath?: unknown };
+
+    expect(plan.traces).toBeUndefined();
+    expect(plan.cachedPath).toBeUndefined();
+  });
 });

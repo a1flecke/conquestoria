@@ -150,6 +150,26 @@ describe('AI round scheduler', () => {
       strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         const value = prepared(snapshot as typeof state, civId);
+        value.portfolio.primaryPlan = {
+          id: `plan-${civId}`,
+          actorId: civId,
+          objective: 'expand',
+          target: {
+            kind: 'region',
+            id: `region-${civId}`,
+            anchor: { q: 0, r: 0 },
+          },
+          theaterId: 'home',
+          phase: 'mobilizing',
+          reasonCodes: ['nearby-opportunity'],
+          commitment: 0.5,
+          createdTurn: state.turn,
+          reconsiderAfterTurn: state.turn + 2,
+          expiresAfterTurn: state.turn + 8,
+          lastProgressTurn: state.turn,
+          requiredRoles: { settlement: 1 },
+          assignedUnitIds: [],
+        };
         value.forceDemands = [{
           role: 'frontline',
           desired: 1,
@@ -174,7 +194,7 @@ describe('AI round scheduler', () => {
     }
   });
 
-  it('skips a prepared action when an earlier actor removes its target', () => {
+  it('drops a stale primary action while preserving valid defense work', () => {
     const state = createNewGame({
       civType: 'egypt',
       mapSize: 'medium',
@@ -189,9 +209,15 @@ describe('AI round scheduler', () => {
     const targetCity = foundCity('player', playerSettler.position, state.map, state.idCounters);
     state.cities[targetCity.id] = targetCity;
     state.civilizations.player.cities.push(targetCity.id);
-    const executed: string[] = [];
+    const aiTwoSettler = state.civilizations['ai-2'].units
+      .map(id => state.units[id])
+      .find(unit => unit?.type === 'settler')!;
+    const defendedCity = foundCity('ai-2', aiTwoSettler.position, state.map, state.idCounters);
+    state.cities[defendedCity.id] = defendedCity;
+    state.civilizations['ai-2'].cities.push(defendedCity.id);
+    const executed: PreparedMajorCivPlan[] = [];
 
-    processNonHumanMajorRound(state, new EventBus(), {
+    const result = processNonHumanMajorRound(state, new EventBus(), {
       strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         const value = prepared(snapshot as typeof state, civId);
@@ -212,11 +238,31 @@ describe('AI round scheduler', () => {
             requiredRoles: { capture: 1 },
             assignedUnitIds: [],
           };
+          value.portfolio.defensePlansByCityId[defendedCity.id] = {
+            id: 'defend-home',
+            actorId: civId,
+            objective: 'defend',
+            target: {
+              kind: 'city',
+              id: defendedCity.id,
+              lastKnownPosition: defendedCity.position,
+            },
+            theaterId: 'home',
+            phase: 'mobilizing',
+            reasonCodes: ['urgent-defense'],
+            commitment: 1,
+            createdTurn: 0,
+            reconsiderAfterTurn: 1,
+            expiresAfterTurn: 5,
+            lastProgressTurn: 0,
+            requiredRoles: { frontline: 1 },
+            assignedUnitIds: [],
+          };
         }
         return value;
       },
       executePrepared: (current, value) => {
-        executed.push(value.civId);
+        executed.push(value);
         if (value.civId === 'ai-1') {
           const next = structuredClone(current);
           delete next.cities[targetCity.id];
@@ -226,7 +272,170 @@ describe('AI round scheduler', () => {
       },
     });
 
+    expect(executed.map(value => value.civId)).toEqual(['ai-1', 'ai-2']);
+    expect(executed[1].portfolio.primaryPlan).toBeNull();
+    expect(executed[1].portfolio.defensePlansByCityId[defendedCity.id]).toBeDefined();
+    expect(result.state.opponentAI?.majorCivs['ai-2']?.primaryPlan).toBeNull();
+  });
+
+  it('removes stale defense plans before prepared execution', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'medium',
+      opponentCount: 2,
+      gameTitle: 'Stale defense',
+      seed: 'scheduler-stale-defense',
+    });
+    state.turn = 0;
+    const aiTwoSettler = state.civilizations['ai-2'].units
+      .map(id => state.units[id])
+      .find(unit => unit?.type === 'settler')!;
+    const defendedCity = foundCity('ai-2', aiTwoSettler.position, state.map, state.idCounters);
+    state.cities[defendedCity.id] = defendedCity;
+    state.civilizations['ai-2'].cities.push(defendedCity.id);
+    let executedAiTwo: PreparedMajorCivPlan | null = null;
+
+    const result = processNonHumanMajorRound(state, new EventBus(), {
+      strategicPlanningEnabled: true,
+      prepare: (snapshot, civId) => {
+        const value = prepared(snapshot as typeof state, civId);
+        if (civId === 'ai-2') {
+          value.portfolio.primaryPlan = {
+            id: 'expand-valid',
+            actorId: civId,
+            objective: 'expand',
+            target: {
+              kind: 'region',
+              id: 'safe-region',
+              anchor: aiTwoSettler.position,
+            },
+            theaterId: 'home',
+            phase: 'mobilizing',
+            reasonCodes: ['nearby-opportunity'],
+            commitment: 0.5,
+            createdTurn: 0,
+            reconsiderAfterTurn: 2,
+            expiresAfterTurn: 8,
+            lastProgressTurn: 0,
+            requiredRoles: { settlement: 1 },
+            assignedUnitIds: [],
+          };
+          value.portfolio.defensePlansByCityId[defendedCity.id] = {
+            id: 'defend-stale',
+            actorId: civId,
+            objective: 'defend',
+            target: {
+              kind: 'city',
+              id: defendedCity.id,
+              lastKnownPosition: defendedCity.position,
+            },
+            theaterId: 'home',
+            phase: 'mobilizing',
+            reasonCodes: ['urgent-defense'],
+            commitment: 1,
+            createdTurn: 0,
+            reconsiderAfterTurn: 1,
+            expiresAfterTurn: 6,
+            lastProgressTurn: 0,
+            requiredRoles: { frontline: 1 },
+            assignedUnitIds: [],
+          };
+          value.forceDemands = [{
+            role: 'frontline',
+            desired: 2,
+            assigned: 0,
+            missing: 2,
+            priority: 600,
+            sourcePlanIds: ['defend-stale', 'expand-valid'],
+          }, {
+            role: 'recon',
+            desired: 1,
+            assigned: 0,
+            missing: 1,
+            priority: 600,
+            sourcePlanIds: ['defend-stale'],
+          }];
+          value.assignments.forceDemands = value.forceDemands;
+        }
+        return value;
+      },
+      executePrepared: (current, value) => {
+        if (value.civId === 'ai-1') {
+          const next = structuredClone(current);
+          delete next.cities[defendedCity.id];
+          return { state: next };
+        }
+        executedAiTwo = value;
+        return { state: current };
+      },
+    });
+
+    expect(executedAiTwo).not.toBeNull();
+    expect(executedAiTwo!.portfolio.defensePlansByCityId).toEqual({});
+    expect(executedAiTwo!.forceDemands).toEqual([
+      expect.objectContaining({
+        role: 'frontline',
+        sourcePlanIds: ['expand-valid'],
+      }),
+    ]);
+    expect(result.state.opponentAI?.majorCivs['ai-2']?.defensePlansByCityId).toEqual({});
+  });
+
+  it('skips a resource objective claimed peacefully after preparation', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'small',
+      opponentCount: 2,
+      gameTitle: 'Stale resource',
+      seed: 'scheduler-stale-resource',
+    });
+    state.turn = 0;
+    const targetTile = Object.values(state.map.tiles)[0];
+    targetTile.resource = 'iron';
+    targetTile.owner = null;
+    const executed: string[] = [];
+
+    const result = processNonHumanMajorRound(state, new EventBus(), {
+      strategicPlanningEnabled: true,
+      prepare: (snapshot, civId) => {
+        const value = prepared(snapshot as typeof state, civId);
+        if (civId === 'ai-2') {
+          value.portfolio.primaryPlan = {
+            id: 'secure-iron',
+            actorId: civId,
+            objective: 'secure-resource',
+            target: {
+              kind: 'resource',
+              resource: 'iron',
+              position: targetTile.coord,
+            },
+            theaterId: 'resource',
+            phase: 'mobilizing',
+            reasonCodes: ['nearby-opportunity'],
+            commitment: 0.5,
+            createdTurn: 0,
+            reconsiderAfterTurn: 2,
+            expiresAfterTurn: 8,
+            lastProgressTurn: 0,
+            requiredRoles: { 'resource-expedition': 1 },
+            assignedUnitIds: [],
+          };
+        }
+        return value;
+      },
+      executePrepared: (current, value) => {
+        executed.push(value.civId);
+        if (value.civId === 'ai-1') {
+          const next = structuredClone(current);
+          next.map.tiles[`${targetTile.coord.q},${targetTile.coord.r}`].owner = 'player';
+          return { state: next };
+        }
+        return { state: current };
+      },
+    });
+
     expect(executed).toEqual(['ai-1']);
+    expect(result.state.opponentAI?.majorCivs['ai-2']?.primaryPlan).toBeNull();
   });
 
   it('keeps the existing live AI path when strategic planning is disabled', () => {
@@ -242,5 +451,65 @@ describe('AI round scheduler', () => {
 
     expect(prepare).not.toHaveBeenCalled();
     expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it('isolates a failed actor preparation and reports it without blocking peers', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'small',
+      opponentCount: 2,
+      gameTitle: 'Planner isolation',
+      seed: 'scheduler-wrong-actor',
+    });
+    const executed: string[] = [];
+
+    const result = processNonHumanMajorRound(state, new EventBus(), {
+      strategicPlanningEnabled: true,
+      prepare: (snapshot, civId) => civId === 'ai-1'
+        ? {
+            ...prepared(snapshot as typeof state, civId),
+            civId: 'player',
+          }
+        : prepared(snapshot as typeof state, civId),
+      executePrepared: (current, value) => {
+        executed.push(value.civId);
+        return { state: current };
+      },
+    });
+
+    expect(executed).toEqual(['ai-2']);
+    expect(result.planningErrors).toEqual([expect.objectContaining({
+      actorId: 'ai-1',
+      phase: 'prepare',
+      message: expect.stringMatching(/prepared actor/i),
+    })]);
+  });
+
+  it('never plans or executes additional hot-seat humans', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'medium',
+      opponentCount: 2,
+      gameTitle: 'Hot seat scheduler',
+      seed: 'scheduler-hot-seat',
+    });
+    state.civilizations['ai-2'].isHuman = true;
+    const preparedIds: string[] = [];
+    const executedIds: string[] = [];
+
+    processNonHumanMajorRound(state, new EventBus(), {
+      strategicPlanningEnabled: true,
+      prepare: (snapshot, civId) => {
+        preparedIds.push(civId);
+        return prepared(snapshot as typeof state, civId);
+      },
+      executePrepared: (current, value) => {
+        executedIds.push(value.civId);
+        return { state: current };
+      },
+    });
+
+    expect(preparedIds).toEqual(['ai-1']);
+    expect(executedIds).toEqual(['ai-1']);
   });
 });
