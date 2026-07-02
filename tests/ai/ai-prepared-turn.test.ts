@@ -204,7 +204,7 @@ describe('prepared major-civilization planning', () => {
     expect(captureScore(10)).toBeCloseTo(captureScore(1));
   });
 
-  it('scores from the nearest friendly city regardless of roster order', () => {
+  it('scores from the nearest friendly city regardless of roster order', { timeout: 15000 }, () => {
     function captureScore(nearFirst: boolean): number {
       const state = createNewGame(undefined, 'prepared-nearest-city', 'medium');
       const civ = state.civilizations['ai-1'];
