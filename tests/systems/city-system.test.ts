@@ -916,14 +916,40 @@ describe('S4b — new unit entries', () => {
     expect(withoutIron.some(u => u.type === 'swordsman')).toBe(false);
   });
 
-  it('horseman has no obsoletedByTech (cavalry dead-end guard)', () => {
+  it('horseman obsoletes at tank-warfare, not iron-forging (avoids the resource dead-end)', () => {
     const entry = TRAINABLE_UNITS.find(u => u.type === 'horseman');
-    expect(entry?.obsoletedByTech).toBeUndefined();
+    expect(entry?.obsoletedByTech).toBe('tank-warfare');
   });
 
-  it('cavalry has no obsoletedByTech (cavalry dead-end guard)', () => {
+  it('cavalry obsoletes at tank-warfare, not iron-forging (avoids the resource dead-end)', () => {
     const entry = TRAINABLE_UNITS.find(u => u.type === 'cavalry');
-    expect(entry?.obsoletedByTech).toBeUndefined();
+    expect(entry?.obsoletedByTech).toBe('tank-warfare');
+  });
+
+  it('knight obsoletes at tank-warfare', () => {
+    const entry = TRAINABLE_UNITS.find(u => u.type === 'knight');
+    expect(entry?.obsoletedByTech).toBe('tank-warfare');
+  });
+
+  it('dead-end prevention: iron-poor civ still has tank once tank-warfare completes, even though it never had cavalry or knight', () => {
+    const noIron = getTrainableUnitsForCiv(
+      ['horseback-riding', 'tank-warfare'],
+      undefined,
+      new Set<ResourceType>(['horses']),
+    );
+    expect(noIron.some(u => u.type === 'cavalry')).toBe(false);
+    expect(noIron.some(u => u.type === 'knight')).toBe(false);
+    expect(noIron.some(u => u.type === 'horseman')).toBe(false);
+    expect(noIron.some(u => u.type === 'tank')).toBe(true);
+  });
+
+  it('horseman remains trainable for an iron-poor civ all the way up to tank-warfare (no premature dead-end)', () => {
+    const midGame = getTrainableUnitsForCiv(
+      ['horseback-riding', 'iron-forging'],
+      undefined,
+      new Set<ResourceType>(['horses']),
+    );
+    expect(midGame.some(u => u.type === 'horseman')).toBe(true);
   });
 });
 
