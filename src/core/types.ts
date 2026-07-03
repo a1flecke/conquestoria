@@ -321,7 +321,8 @@ export type UnitType =
   | 'pirate_galley' | 'pirate_corsair' | 'pirate_frigate'
   | 'pirate_ironclad' | 'pirate_fast_attack_craft' | 'pirate_mothership'
   | 'beast_boar' | 'beast_wolf' | 'beast_basilisk' | 'beast_sea_serpent'
-  | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon';
+  | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon'
+  | 'cyber_unit' | 'stealth_bomber';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
@@ -367,6 +368,8 @@ export interface Unit {
   isResting: boolean;        // player explicitly chose to rest/heal this turn
   skippedTurn?: boolean;     // player chose to hold this unit out of unit cycling this turn
   isFortified?: boolean;    // unit is in defensive stance; excluded from unmoved-unit cycling, +25% defense
+  geneTherapyReady?: boolean;
+  // undefined = tech never researched; true = charged and ready; false = cooldown (must rest in city to reset)
   automation?:
     | { mode: 'auto-explore'; lastTargets: string[]; startedTurn: number }
     | { mode: 'journey'; destination: HexCoord };
@@ -426,6 +429,7 @@ export interface City {
   focus: CityFocus;
   maturity: CityMaturity;
   lastFocusReminderTurn?: number;
+  cyberMarketDisruption?: { turnsRemaining: number };
   unrestLevel: 0 | 1 | 2;     // 0=stable, 1=unrest, 2=revolt
   unrestTurns: number;         // turns spent at current unrest level (>= 1 when unrestLevel > 0)
   conquestTurn?: number;       // turn this city was captured; cleared after 15 turns
@@ -783,6 +787,7 @@ export interface TrainableUnitEntry {
   replacesUnit?: UnitType;   // hides this standard unit for the civ above
   resourceRequired?: ResourceType[];
   coastalRequired?: boolean;
+  trainedFromBuilding?: string;  // city must contain this building to train the unit
 }
 
 // --- Civilizations ---

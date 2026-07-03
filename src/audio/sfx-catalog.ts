@@ -304,6 +304,8 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   beast_roc:     'animal',
   beast_hydra:   'animal',
   beast_dragon:  'animal',
+  cyber_unit:    'humanoid',
+  stealth_bomber: 'air',
 };
 
 export function getLocomotionClass(unitType: UnitType): LocomotionClass {

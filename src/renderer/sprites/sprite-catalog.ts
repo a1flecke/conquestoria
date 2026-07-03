@@ -141,6 +141,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   beast_roc: 'animal',
   beast_hydra: 'animal',
   beast_dragon: 'animal',
+  cyber_unit:   'humanoid',
+  stealth_bomber: 'air',
 };
 
 function motionTransform(style: UnitMotionStyle, motion: UnitSpriteMotion): string {
@@ -241,6 +243,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   beast_roc:          withMotion('beast_roc', StormRocSprite),
   beast_hydra:        withMotion('beast_hydra', SwampHydraSprite),
   beast_dragon:       withMotion('beast_dragon', AncientDragonSprite),
+  cyber_unit:         withMotion('cyber_unit', SpyHackerSprite),
+  stealth_bomber:     withMotion('stealth_bomber', JetFighterSprite),
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {

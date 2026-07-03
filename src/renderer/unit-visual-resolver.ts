@@ -70,6 +70,8 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   beast_roc: '🦅',
   beast_hydra: '🐍',
   beast_dragon: '🐲',
+  cyber_unit: '💻',
+  stealth_bomber: '✈️',
 };
 
 export interface UnitVisual {
