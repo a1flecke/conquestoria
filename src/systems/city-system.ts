@@ -1382,7 +1382,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   biotech_lab: '🧬',
   broadcast_tower: '📺',
   cyber_defense_center: '🛡️',
-  data_center: '💻',
+  data_center: '🖥️',
   fintech_hub: '💳',
   gene_therapy_clinic: '🧪',
   precision_farm: '🌾',
@@ -1683,6 +1683,10 @@ export function processCity(
     }
     const headUnit = TRAINABLE_UNITS.find(unit => unit.type === newQueue[0]);
     if (headUnit?.coastalRequired && !isCityCoastal(city, map)) {
+      droppedUnit = newQueue.shift() as UnitType;
+      droppedProductionItem = droppedUnit;
+      newProgress = 0;
+    } else if (headUnit?.trainedFromBuilding && !(city.buildings ?? []).includes(headUnit.trainedFromBuilding)) {
       droppedUnit = newQueue.shift() as UnitType;
       droppedProductionItem = droppedUnit;
       newProgress = 0;

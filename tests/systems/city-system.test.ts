@@ -408,6 +408,41 @@ describe('processCity', () => {
     expect(result.city.productionProgress).toBe(0);
   });
 
+  it('processCity drops stealth_bomber from queue head when city lacks stealth_airbase', () => {
+    const map = generateMap(30, 30, 'building-gate-drop-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: [],
+      productionQueue: ['stealth_bomber'],
+      productionProgress: 50,
+    };
+
+    const result = processCity(city, map, 2, 100, undefined, ['stealth-technology']);
+
+    expect(result.droppedUnit).toBe('stealth_bomber');
+    expect(result.droppedProductionItem).toBe('stealth_bomber');
+    expect(result.city.productionQueue).not.toContain('stealth_bomber');
+    expect(result.completedUnit).toBeNull();
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('processCity does NOT drop stealth_bomber when city has stealth_airbase', () => {
+    const map = generateMap(30, 30, 'building-gate-keep-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: ['stealth_airbase'],
+      productionQueue: ['stealth_bomber'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 1, undefined, ['stealth-technology']);
+
+    expect(result.droppedUnit).toBeNull();
+    expect(result.city.productionQueue).toContain('stealth_bomber');
+  });
+
   it('processCity records unavailable resource-gated units without reporting them as coastal drops', () => {
     const map = generateMap(30, 30, 'resource-unit-drop-test');
     const city = { ...foundCity('p1', { q: 2, r: 2 }, map, mkC()), productionQueue: ['swordsman'], productionProgress: 40 };
