@@ -254,9 +254,9 @@ describe('espionage-panel', () => {
       expect(actions).toContain('assign_defensive');
     });
 
-    it('offers remote mission starts from idle spies once Stage 5 is unlocked', () => {
+    it('offers remote mission starts from idle spies once cyber-intelligence (Stage 7) is unlocked', () => {
       const state = makeEspUiState();
-      state.civilizations.player.techState.completed = ['digital-surveillance', 'cyber-warfare'];
+      state.civilizations.player.techState.completed = ['cyber-intelligence'];
       const spy = makeTestSpy('spy-1', 'player');
       state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
       const actions = getSpyActions(state, spy.id);
@@ -330,7 +330,7 @@ describe('espionage-panel', () => {
       expect(collectText(disabled)).toContain('chancellor');
     });
 
-    it('labels Stage 5 remote-capable missions clearly and does not leak other players data in hot seat', () => {
+    it('labels remote-capable missions clearly and does not leak other players data in hot seat', () => {
       const state = makeEspUiState();
       state.currentPlayer = 'player-2';
       state.civilizations['player-2'] = {
@@ -340,7 +340,7 @@ describe('espionage-panel', () => {
         isHuman: true,
         cities: ['city-player-1'],
       };
-      state.civilizations['player-2'].techState.completed = ['digital-surveillance', 'cyber-warfare'];
+      state.civilizations['player-2'].techState.completed = ['cyber-intelligence'];
       state.espionage!['player-2'] = createEspionageCivState();
 
       const panel = createEspionagePanel(state) as unknown;

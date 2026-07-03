@@ -267,13 +267,19 @@ const STAGE_1_TECHS = ['espionage-scouting'];
 const STAGE_2_TECHS = ['espionage-informants'];
 const STAGE_3_TECHS = ['spy-networks', 'sabotage'];      // either unlocks stage 3
 const STAGE_4_TECHS = ['cryptography', 'counter-intelligence']; // either unlocks stage 4
-const STAGE_5_TECHS = ['digital-surveillance', 'cyber-warfare'];
+// STAGE_5 is intentionally absent — digital-surveillance gates no missions until era-appropriate
+// missions are added in a follow-up issue. cold-war-networks resumes the ladder at era 10.
+const STAGE_5_TECHS = ['cold-war-networks'];       // era 10 — Cold War propaganda/subversion
+const STAGE_6_TECHS = ['satellite-surveillance'];   // era 11 — spy satellites
+const STAGE_7_TECHS = ['cyber-intelligence'];        // era 12 — cyber operative attacks
 
 const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
 const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
 const STAGE_3_MISSIONS: SpyMissionType[] = ['steal_tech', 'sabotage_production', 'incite_unrest'];
 const STAGE_4_MISSIONS: SpyMissionType[] = ['assassinate_advisor', 'forge_documents', 'fund_rebels', 'arms_smuggling'];
-const STAGE_5_MISSIONS: SpyMissionType[] = ['cyber_attack', 'misinformation_campaign', 'election_interference', 'satellite_surveillance'];
+const STAGE_5_MISSIONS: SpyMissionType[] = ['misinformation_campaign', 'election_interference'];
+const STAGE_6_MISSIONS: SpyMissionType[] = ['satellite_surveillance'];
+const STAGE_7_MISSIONS: SpyMissionType[] = ['cyber_attack'];
 
 export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
   const missions: SpyMissionType[] = [];
@@ -282,6 +288,8 @@ export function getAvailableMissions(completedTechs: string[]): SpyMissionType[]
   if (STAGE_3_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_3_MISSIONS);
   if (STAGE_4_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_4_MISSIONS);
   if (STAGE_5_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_5_MISSIONS);
+  if (STAGE_6_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_6_MISSIONS);
+  if (STAGE_7_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_7_MISSIONS);
   return missions;
 }
 
@@ -764,7 +772,7 @@ export function applyBuildingCI(
     ciBonus += faded ? 10 : 20;
   }
   if (city.buildings.includes('security-bureau')) {
-    const faded = completedTechs.includes('cyber-warfare');
+    const faded = completedTechs.includes('signals-intelligence');
     ciBonus += faded ? 15 : 30;
   }
   if (ciBonus === 0) return civEsp;
