@@ -129,7 +129,10 @@ import {
   finalizePlayerCityAssaultChoice,
   shouldPromptForPlayerCityCapture,
 } from '@/input/city-assault-flow';
-import { emitMajorCityCaptureEvents } from '@/systems/city-capture-system';
+import {
+  canUnitOccupyCity,
+  emitMajorCityCaptureEvents,
+} from '@/systems/city-capture-system';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
 import { resolveWonderAtlasIntent } from '@/input/wonder-atlas-intent';
 import { resolveNaturalWonderAudioFocus } from '@/input/natural-wonder-audio-focus';
@@ -2292,6 +2295,8 @@ function beginPlayerCityAssault(
 ): 'pending' | 'resolved' {
   const city = gameState.cities[cityId];
   if (!city) return 'resolved';
+  const attacker = gameState.units[attackerId];
+  if (!attacker || !canUnitOccupyCity(attacker)) return 'resolved';
 
   ensurePlayerWarState(city.owner);
   const begun = beginPlayerCityAssaultChoice(

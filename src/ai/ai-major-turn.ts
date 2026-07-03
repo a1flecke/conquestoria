@@ -1,6 +1,5 @@
 import type { EventBus } from '@/core/event-bus';
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
-import { isAlwaysHostilePair } from '@/core/owner-kind';
 import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveOpponentChallenge,
@@ -59,6 +58,7 @@ import {
   type AITacticalContext,
 } from './ai-tactics';
 import { getAIStrategicRoles } from './ai-unit-roles';
+import { isAIHostileOwner } from './ai-hostility';
 
 export interface ProcessMajorCivStrategicTurnResult {
   state: GameState;
@@ -544,20 +544,6 @@ function targetStillValid(
   }
 }
 
-function isHostileOwner(
-  state: GameState,
-  actorId: string,
-  ownerId: string,
-): boolean {
-  if (ownerId === actorId) return false;
-  if (isAlwaysHostilePair(actorId, ownerId)) return true;
-  if (ownerId.startsWith('mc-')) {
-    return isMinorCivAtWar(state, actorId, ownerId);
-  }
-  return state.civilizations[actorId]?.diplomacy.atWarWith
-    .includes(ownerId) ?? false;
-}
-
 function hasVisibleLocalCounterattack(
   state: GameState,
   plan: AIStrategicPlan,
@@ -566,7 +552,7 @@ function hasVisibleLocalCounterattack(
   const target = targetPosition(plan);
   return Object.values(state.units).some(unit =>
     !unit.transportId
-    && isHostileOwner(state, plan.actorId, unit.owner)
+    && isAIHostileOwner(state, plan.actorId, unit.owner)
     && getVisibility(visibility, unit.position) === 'visible'
     && UNIT_DEFINITIONS[unit.type].strength > 0
     && distance(state, unit.position, target) <= 4);
@@ -629,7 +615,7 @@ function shouldWithdraw(
     sum + UNIT_DEFINITIONS[unit.type].strength * (unit.health / 100), 0);
   const hostileStrength = Object.values(state.units)
     .filter(unit =>
-      isHostileOwner(state, plan.actorId, unit.owner)
+      isAIHostileOwner(state, plan.actorId, unit.owner)
       && !unit.transportId
       && getVisibility(
         state.civilizations[plan.actorId]?.visibility,
@@ -842,21 +828,19 @@ export function processMajorCivStrategicTurn(
     if (assignedUnitIds.length === 0) continue;
     const planActionStart = appliedActions.length;
     const tacticalPlan = executionPlan(working, originalPlan);
-    const tacticalContext: AITacticalContext = {
-      state: working,
-      actorId: prepared.civId,
-      plan: tacticalPlan,
-      assignedUnitIds,
-    };
     const preparingOffense = isOffensivePlan(originalPlan)
       && (
         originalPlan.phase === 'scouting'
         || originalPlan.phase === 'mobilizing'
       );
-    const selectedActions = chooseTacticalSequence(tacticalContext)
-      .filter(action =>
-        !preparingOffense
-        || action.kind !== 'attack' && action.kind !== 'capture-city');
+    const tacticalContext: AITacticalContext = {
+      state: working,
+      actorId: prepared.civId,
+      plan: tacticalPlan,
+      assignedUnitIds,
+      allowOffensiveActions: !preparingOffense,
+    };
+    const selectedActions = chooseTacticalSequence(tacticalContext);
     for (const action of selectedActions) {
       const latestContext = {
         ...tacticalContext,

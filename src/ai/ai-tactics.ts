@@ -9,7 +9,6 @@ import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
-import { isAlwaysHostilePair } from '@/core/owner-kind';
 import {
   canAttackByProfileOnMap,
   getAttackTargets,
@@ -61,6 +60,7 @@ import {
   getWorkerChargesRemaining,
 } from '@/systems/worker-action-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
+import { isAIHostileOwner } from './ai-hostility';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
@@ -80,6 +80,7 @@ export interface AITacticalContext {
   actorId: string;
   plan: AIStrategicPlan;
   assignedUnitIds: readonly string[];
+  allowOffensiveActions?: boolean;
 }
 
 export interface RankedAITacticalAction {
@@ -159,7 +160,7 @@ function sortRanked(
 function hostileOwners(state: GameState, actorId: string): Set<string> {
   const atWar = new Set(state.civilizations[actorId]?.diplomacy.atWarWith ?? []);
   for (const unit of Object.values(state.units)) {
-    if (isAlwaysHostilePair(actorId, unit.owner)) atWar.add(unit.owner);
+    if (isAIHostileOwner(state, actorId, unit.owner)) atWar.add(unit.owner);
   }
   return atWar;
 }
@@ -304,6 +305,7 @@ function rankAttacks(
   context: AITacticalContext,
   unit: Unit,
 ): RankedAITacticalAction[] {
+  if (context.allowOffensiveActions === false) return [];
   const attacks: RankedAITacticalAction[] = [];
   for (const target of getAttackTargets(context.state, unit, {
     viewerId: context.actorId,
@@ -312,6 +314,9 @@ function rankAttacks(
     if (target.result.targetType !== 'unit') continue;
     const defender = context.state.units[target.result.targetUnitId];
     if (!defender) continue;
+    if (!isAIHostileOwner(context.state, context.actorId, defender.owner)) {
+      continue;
+    }
     const strengths = calculateCombatStrengths(
       unit,
       defender,
@@ -383,7 +388,8 @@ function rankCapture(
   unit: Unit,
 ): RankedAITacticalAction[] {
   if (
-    context.plan.target.kind !== 'city'
+    context.allowOffensiveActions === false
+    || context.plan.target.kind !== 'city'
     || !getAIStrategicRoles(unit.type).includes('capture')
     || unit.hasActed
     || unit.movementPointsLeft <= 0

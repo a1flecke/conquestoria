@@ -1,5 +1,4 @@
 import type { EventBus } from '@/core/event-bus';
-import { isAlwaysHostilePair } from '@/core/owner-kind';
 import type {
   AIStrategicPlan,
   GameMap,
@@ -39,6 +38,7 @@ import {
   type AIPlanCandidate,
 } from './ai-plan-portfolio';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
+import { isAIHostileOwner } from './ai-hostility';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -300,12 +300,11 @@ function cityThreats(
 ): AICityThreat[] {
   const actor = state.civilizations[civId];
   if (!actor) return [];
-  const atWar = new Set(actor.diplomacy.atWarWith);
   return perception.ownCities.flatMap((city, index) => {
     const hostile = perception.units
       .filter(unit =>
         unit.position
-        && (atWar.has(unit.owner) || isAlwaysHostilePair(civId, unit.owner))
+        && isAIHostileOwner(state, civId, unit.owner)
         && unit.type
         && hasAICombatRole(unit.type))
       .map(unit => ({

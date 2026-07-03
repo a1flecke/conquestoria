@@ -182,6 +182,38 @@ describe('processMajorCivStrategicTurn', () => {
       .toMatch(/mobilizing|advancing/);
   });
 
+  it('still rallies when a tempting attack is illegal during mobilization', () => {
+    const state = makeState();
+    addUnit(state, 'captor', 'swordsman', AI, { q: 0, r: 0 });
+    addUnit(state, 'nearby-enemy', 'warrior', HUMAN, { q: 1, r: 0 });
+    const target = addCity(state, 'target-city', HUMAN, { q: 6, r: 0 });
+    const plan = makePlan(
+      { kind: 'city', id: target.id, lastKnownPosition: target.position },
+      ['captor'],
+      {
+        phase: 'mobilizing',
+        rallyPoint: { q: 0, r: 2 },
+        requiredRoles: { capture: 1 },
+      },
+    );
+    const bus = new EventBus();
+    const combat = vi.fn();
+    bus.on('combat:resolved', combat);
+
+    const result = processMajorCivStrategicTurn(
+      state,
+      prepared(state, plan),
+      bus,
+    );
+
+    expect(combat).not.toHaveBeenCalled();
+    expect(result.actions).toContainEqual(expect.objectContaining({
+      kind: 'move',
+      unitId: 'captor',
+    }));
+    expect(result.state.units.captor.position).not.toEqual({ q: 0, r: 0 });
+  });
+
   it('does not capture during mobilization when no rally point is available', () => {
     const state = makeState();
     addUnit(state, 'captor', 'swordsman', AI, { q: 0, r: 0 });
