@@ -1,5 +1,6 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { foundCityInState } from '@/systems/city-founding-system';
@@ -34,6 +35,7 @@ import {
   offerVassalage,
   joinEmbargo,
   inviteToLeague,
+  getAvailableActions,
   resolveOpponentKind,
 } from '@/systems/diplomacy-system';
 import {
@@ -86,7 +88,13 @@ import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import {
   buildDiplomaticStrengthEstimates,
   buildMajorCivPerception,
+  type MajorCivPerception,
 } from './ai-perception';
+import { processMajorCivStrategicTurn } from './ai-major-turn';
+import {
+  prepareMajorCivStrategicPlan,
+  type PreparedMajorCivPlan,
+} from './ai-prepared-turn';
 import { hasAICombatRole } from './ai-unit-roles';
 
 function addAlwaysHostileOwners(
@@ -507,7 +515,51 @@ function scoreLegendaryWonderOpportunity(state: GameState, civId: string, cityId
   return 100 + cityBonus + rewardBonus + techMomentum - costPenalty;
 }
 
-export function processAITurn(state: GameState, civId: string, bus: EventBus): GameState {
+export interface ProcessAITurnOptions {
+  purposefulAIEnabled?: boolean;
+}
+
+interface ProcessAITurnInternalOptions extends ProcessAITurnOptions {
+  prepared?: PreparedMajorCivPlan;
+}
+
+export function canDeclareWarForPreparedPlan(
+  state: GameState,
+  prepared: PreparedMajorCivPlan,
+  targetCivId: string,
+): boolean {
+  const plan = state.opponentAI?.majorCivs[prepared.civId]?.primaryPlan
+    ?? prepared.portfolio.primaryPlan;
+  if (
+    !plan
+    || !['capture', 'repel', 'raid'].includes(plan.objective)
+    || !['advancing', 'attacking'].includes(plan.phase)
+    || (state.opponentAI?.migrationGraceRoundsRemaining ?? 0) > 0
+    || !prepared.perception.knownCivIds.includes(targetCivId)
+  ) {
+    return false;
+  }
+  const target = plan.target;
+  if (target.kind === 'city') {
+    return prepared.perception.knownCities.some(city =>
+      city.id === target.id && city.owner === targetCivId);
+  }
+  if (target.kind === 'unit') {
+    return prepared.perception.units.some(unit =>
+      unit.id === target.id && unit.owner === targetCivId);
+  }
+  return false;
+}
+
+function processAITurnInternal(
+  state: GameState,
+  civId: string,
+  bus: EventBus,
+  options: ProcessAITurnInternalOptions = {},
+): GameState {
+  const purposefulAIEnabled = options.purposefulAIEnabled
+    ?? PURPOSEFUL_AI_FEATURE_ENABLED;
+  let preparedForTurn = options.prepared;
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
   let civ = newState.civilizations[civId];
   if (!civ) return newState;
@@ -520,7 +572,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     && !civ.diplomacy.atWarWith.includes(other.id)
   );
 
-  if (ownedBreakaway) {
+  if (ownedBreakaway && !purposefulAIEnabled) {
     newState.civilizations[civId].diplomacy = declareWar(
       civ.diplomacy,
       ownedBreakaway.id,
@@ -543,6 +595,23 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     bus.emit('wonder:legendary-lost', event);
   }
 
+  if (purposefulAIEnabled) {
+    preparedForTurn ??= prepareMajorCivStrategicPlan(
+      structuredClone(newState),
+      civId,
+    );
+    newState = processMajorCivStrategicTurn(
+      newState,
+      preparedForTurn,
+      bus,
+    ).state;
+    civ = newState.civilizations[civId];
+  }
+  const administrativePerception = purposefulAIEnabled && preparedForTurn
+    ? preparedForTurn.perception
+    : buildMajorCivPerception(newState, civId);
+
+  if (!purposefulAIEnabled) {
   // --- Handle settlers: found cities ---
   const settlers = civ.units
     .map(id => newState.units[id])
@@ -571,9 +640,11 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       civ = newState.civilizations[civId];
     }
   }
+  }
 
   const contestsBeasts = newState.settings?.aiContestsBeasts === true;
 
+  if (!purposefulAIEnabled) {
   // --- Handle transports: unload onto enemy coast, then load idle land units ---
   const transportHostileOwners = new Set<string>(['barbarian', ...(contestsBeasts ? [BEAST_OWNER] : []), ...(civ.diplomacy?.atWarWith ?? [])]);
   addAlwaysHostileOwners(newState, civId, transportHostileOwners, contestsBeasts);
@@ -632,6 +703,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       }
     }
   }
+  }
 
   newState = applyPirateAiResponse(newState, civId, bus);
   civ = newState.civilizations[civId];
@@ -643,6 +715,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     .map(id => newState.units[id])
     .filter((u): u is Unit => u !== undefined && u.type !== 'settler' && u.type !== 'worker');
 
+  if (!purposefulAIEnabled) {
   for (const unit of militaryUnits) {
     if (unit.movementPointsLeft <= 0) continue;
 
@@ -792,6 +865,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       newState.units[unit.id] = moveUnit(unit, target, 1);
     }
   }
+  }
 
   // Pursue assigned economic chain steps before discretionary spending.
   for (const minorCivId of Object.keys(newState.minorCivs).sort()) {
@@ -820,7 +894,16 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   for (const caravan of idleCaravans) {
     // Try domestic cities first (own city), then foreign
     const ownCities = civ.cities.map(id => newState.cities[id]).filter((c): c is City => !!c);
-    const foreignCities = Object.values(newState.cities).filter(c => c.owner !== civId);
+    const knownForeignCityIds = purposefulAIEnabled
+      ? new Set(
+          administrativePerception.knownCities
+            .filter(city => city.owner !== civId && city.position !== null)
+            .map(city => city.id),
+        )
+      : null;
+    const foreignCities = Object.values(newState.cities).filter(city =>
+      city.owner !== civId
+      && (!knownForeignCityIds || knownForeignCityIds.has(city.id)));
     const assignedDestinationIds = new Set(Object.values(newState.minorCivs)
       .map(minorCiv => minorCiv.activeQuests[civId])
       .flatMap(quest => quest?.target.type === 'trade_route'
@@ -844,6 +927,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   }
 
   // --- Handle expedition outpost establishment ---
+  if (!purposefulAIEnabled) {
   const idleExpeditions = (civ.units ?? [])
     .map(id => newState.units[id])
     .filter((u): u is Unit => !!u && u.type === 'expedition' && !u.hasActed && !u.hasMoved);
@@ -868,6 +952,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         }
       }
     }
+  }
   }
 
   // --- Handle research (personality-driven) ---
@@ -1176,7 +1261,14 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
           return u?.type === 'expedition' && !u.hasActed;
         });
         const cityPos = city.position;
+        const knownResourceKeys = purposefulAIEnabled
+          ? new Set(
+              administrativePerception.knownResources
+                .map(resource => hexKey(resource.position)),
+            )
+          : null;
         const hasNearbyUnownedResource = hasForagingTech && Object.values(newState.map.tiles).some(tile => {
+          if (knownResourceKeys && !knownResourceKeys.has(hexKey(tile.coord))) return false;
           if (!tile.resource || tile.owner !== null || tile.improvement !== 'none') return false;
           const resDef = RESOURCE_DEFINITIONS.find(d => d.id === tile.resource);
           if (!resDef || !civ.techState.completed.includes(resDef.tech)) return false;
@@ -1202,7 +1294,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       bus.emit('civilization:first-contact', contact);
     }
     civ = newState.civilizations[civId];
-    const perception = buildMajorCivPerception(newState, civId);
+    const perception = administrativePerception;
     const {
       self: selfStrength,
       others: otherStrengths,
@@ -1245,7 +1337,7 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       };
     }
 
-    const decisions = evaluateDiplomacy(
+    let decisions = evaluateDiplomacy(
       personality,
       civ.diplomacy,
       civ.techState.completed,
@@ -1255,6 +1347,38 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       newState.turn,
       diplomacyContext,
     );
+    if (purposefulAIEnabled && preparedForTurn) {
+      const plannedWarTarget = preparedForTurn.perception.knownCivIds
+        .find(targetCivId =>
+          canDeclareWarForPreparedPlan(
+            newState,
+            preparedForTurn,
+            targetCivId,
+          ));
+      const openingRuleAllowsWar = plannedWarTarget
+        ? newState.turn > 5
+          || decisions.some(decision =>
+            decision.action === 'declare_war'
+            && decision.targetCiv === plannedWarTarget)
+        : false;
+      decisions = decisions.filter(decision =>
+        decision.action !== 'declare_war');
+      if (
+        plannedWarTarget
+        && openingRuleAllowsWar
+        && getAvailableActions(
+          civ.diplomacy,
+          plannedWarTarget,
+          civ.techState.completed,
+          newState.era,
+        ).includes('declare_war')
+      ) {
+        decisions.push({
+          action: 'declare_war',
+          targetCiv: plannedWarTarget,
+        });
+      }
+    }
 
     for (const decision of decisions) {
       const currentDiplomacy = newState.civilizations[civId]?.diplomacy;
@@ -1263,6 +1387,19 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       }
       switch (decision.action) {
         case 'declare_war':
+          if (
+            purposefulAIEnabled
+            && (
+              !preparedForTurn
+              || !canDeclareWarForPreparedPlan(
+                newState,
+                preparedForTurn,
+                decision.targetCiv,
+              )
+            )
+          ) {
+            break;
+          }
           newState.civilizations[civId].diplomacy = declareWar(
             currentDiplomacy, decision.targetCiv, newState.turn,
           );
@@ -1428,18 +1565,31 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       .filter((u): u is Unit => !!u && isSpyUnitType(u.type) && !u.hasActed);
 
     for (const spyUnit of idleSpyUnits) {
-      const candidates = Object.values(newState.cities)
-        .filter(c => c.owner !== civId)
+      const candidates = (purposefulAIEnabled
+        ? administrativePerception.knownCities.filter(city =>
+            city.owner !== civId
+            && city.position !== null
+            && city.confidence !== 'rumored')
+        : Object.values(newState.cities)
+            .filter(city => city.owner !== civId)
+            .map(city => ({
+              id: city.id,
+              owner: city.owner,
+              position: city.position,
+              confidence: 'visible' as const,
+              observedTurn: newState.turn,
+            })))
         .sort((a, b) => {
-          const da = hexDistance(spyUnit.position, a.position);
-          const db = hexDistance(spyUnit.position, b.position);
+          const da = hexDistance(spyUnit.position, a.position!);
+          const db = hexDistance(spyUnit.position, b.position!);
           if (da !== db) return da - db;
           return a.id.localeCompare(b.id);
         });
       if (candidates.length === 0) continue;
       const target = candidates[0];
-      if (spyUnit.position.q === target.position.q && spyUnit.position.r === target.position.r) continue;
-      const path = findPath(spyUnit.position, target.position, newState.map);
+      const targetPosition = target.position!;
+      if (spyUnit.position.q === targetPosition.q && spyUnit.position.r === targetPosition.r) continue;
+      const path = findPath(spyUnit.position, targetPosition, newState.map);
       if (!path || path.length < 2) continue;
       const next = path[1];
       const nextKey = `${next.q},${next.r}`;
@@ -1546,7 +1696,11 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
       }
       const target = spy.targetCivId && spy.targetCityId
         ? { civId: spy.targetCivId, cityId: spy.targetCityId }
-        : chooseAiSpyTarget(newState, civId);
+        : chooseAiSpyTarget(
+            newState,
+            civId,
+            purposefulAIEnabled ? administrativePerception : undefined,
+          );
       if (target) {
         newState.espionage![civId] = startMission(
           newState.espionage![civId],
@@ -1686,6 +1840,28 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
   return newState;
 }
 
+export function processAITurn(
+  state: GameState,
+  civId: string,
+  bus: EventBus,
+  options: ProcessAITurnOptions = {},
+): GameState {
+  return processAITurnInternal(state, civId, bus, options);
+}
+
+export function processPreparedAITurn(
+  state: GameState,
+  prepared: PreparedMajorCivPlan,
+  bus: EventBus,
+): { state: GameState } {
+  return {
+    state: processAITurnInternal(state, prepared.civId, bus, {
+      purposefulAIEnabled: true,
+      prepared,
+    }),
+  };
+}
+
 // --- AI Espionage Decision Functions ---
 
 export function shouldAiRecruitSpy(state: GameState, aiCivId: string): boolean {
@@ -1702,6 +1878,7 @@ export function shouldAiRecruitSpy(state: GameState, aiCivId: string): boolean {
 export function chooseAiSpyTarget(
   state: GameState,
   aiCivId: string,
+  perception?: MajorCivPerception,
 ): { civId: string; cityId: string; position: HexCoord } | null {
   const aiDip = state.civilizations[aiCivId]?.diplomacy;
   if (!aiDip) return null;
@@ -1709,8 +1886,14 @@ export function chooseAiSpyTarget(
   const targets: Array<{ civId: string; score: number }> = [];
   for (const [civId, relationship] of Object.entries(aiDip.relationships)) {
     if (civId === aiCivId) continue;
-    const civ = state.civilizations[civId];
-    if (!civ || civ.cities.length === 0) continue;
+    const hasKnownCity = perception
+      ? perception.knownCities.some(city =>
+          city.owner === civId
+          && city.position !== null
+          && city.confidence !== 'rumored')
+      : state.civilizations[civId]?.cities.some(cityId =>
+          Boolean(state.cities[cityId]));
+    if (!hasKnownCity) continue;
     let score = Math.abs(Math.min(0, relationship));
     if (aiDip.atWarWith.includes(civId)) score += 100;
     targets.push({ civId, score });
@@ -1720,10 +1903,23 @@ export function chooseAiSpyTarget(
   if (targets.length === 0) return null;
 
   const bestCivId = targets[0].civId;
-  const city = getCapitalCity(state, bestCivId);
+  const city = perception
+    ? perception.knownCities
+        .filter(candidate =>
+          candidate.owner === bestCivId
+          && candidate.position !== null
+          && candidate.confidence !== 'rumored')
+        .sort((left, right) =>
+          (right.observedTurn ?? -1) - (left.observedTurn ?? -1)
+          || left.id.localeCompare(right.id))[0]
+    : getCapitalCity(state, bestCivId);
   if (!city) return null;
 
-  return { civId: bestCivId, cityId: city.id, position: city.position };
+  return {
+    civId: bestCivId,
+    cityId: city.id,
+    position: city.position!,
+  };
 }
 
 export function chooseAiMission(
