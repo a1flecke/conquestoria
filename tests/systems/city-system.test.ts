@@ -324,6 +324,26 @@ describe('getTrainableUnitsForCity', () => {
     expect(inlandTypes).not.toContain('trireme');
     expect(inlandTypes).not.toContain('transport');
   });
+
+  it('stealth_bomber is not offered by cities without a stealth_airbase', () => {
+    const cityWithoutAirbase = {
+      id: 'c1', buildings: [], ownedTiles: [], grid: [[null]],
+      food: 0, foodNeeded: 10, population: 1,
+      productionQueue: [], productionProgress: 0,
+      focus: 'balanced', maturity: 'city',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      position: { q: 0, r: 0 },
+    } as any;
+    const cityWithAirbase = { ...cityWithoutAirbase, buildings: ['stealth_airbase'] };
+    const map = { tiles: {}, width: 10, height: 10, wrap: false } as any;
+    const techs = ['stealth-technology'];
+
+    const offeredWithout = getTrainableUnitsForCity(cityWithoutAirbase, techs, map).map(u => u.type);
+    const offeredWith = getTrainableUnitsForCity(cityWithAirbase, techs, map).map(u => u.type);
+
+    expect(offeredWithout).not.toContain('stealth_bomber');
+    expect(offeredWith).toContain('stealth_bomber');
+  });
 });
 
 describe('processCity', () => {
@@ -683,6 +703,18 @@ describe('PRODUCTION_ICONS coverage', () => {
     for (const [id, icon] of Object.entries(PRODUCTION_ICONS)) {
       expect(typeof icon, `icon for "${id}" must be string`).toBe('string');
       expect(icon.length, `icon for "${id}" must be non-empty`).toBeGreaterThan(0);
+    }
+  });
+
+  it('all era-12 buildings have BUILDINGS and PRODUCTION_ICONS entries', () => {
+    const era12BuildingIds = [
+      'cyber_defense_center', 'signals_hub', 'stealth_airbase', 'data_center',
+      'biotech_lab', 'broadcast_tower', 'precision_farm', 'gene_therapy_clinic',
+      'telemedicine_hub', 'automated_port', 'smart_grid', 'fintech_hub',
+    ];
+    for (const id of era12BuildingIds) {
+      expect(BUILDINGS[id], `BUILDINGS['${id}'] missing`).toBeDefined();
+      expect(PRODUCTION_ICONS[id], `PRODUCTION_ICONS['${id}'] missing`).toBeDefined();
     }
   });
 });
