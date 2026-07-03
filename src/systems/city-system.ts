@@ -1096,6 +1096,27 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'expedition', name: 'Expedition', cost: 18, techRequired: 'foraging' },
 ];
 
+/**
+ * Combat-capable units (UNIT_DEFINITIONS[type].strength > 0) intentionally left without
+ * obsoletedByTech, with a reason each. Enforced by the completeness test in
+ * tests/systems/city-system.test.ts — a new combat unit added to TRAINABLE_UNITS without
+ * either obsoletedByTech or an entry here will fail that test.
+ */
+export const TERMINAL_COMBAT_UNITS: Partial<Record<UnitType, string>> = {
+  tank: 'current top-tier armor, no later replacement in the roster yet',
+  submarine: 'current top-tier submarine, no later replacement in the roster yet',
+  jet_fighter: 'current air-combat apex, no later replacement in the roster yet',
+  carrier: 'current top-tier naval projection, no later replacement in the roster yet',
+  attack_helicopter: 'era 11, newest air-assault unit, no later replacement yet',
+  missile_submarine: 'era 11, newest naval-deterrent unit, no later replacement yet',
+  scout: 'recon unit, strength is a self-defense stat not its primary role, no replacement chain',
+  observation_balloon: 'recon unit (air-recon role), strength is a self-defense stat, no replacement chain',
+  spy_hacker: 'terminal tier of the espionage chain (spy_operative already obsoletes into this at cyber-warfare), no further replacement yet',
+  scout_hound: 'recon/detection unit, strength is a self-defense stat, no replacement chain',
+  shadow_warden: 'civ-specific (Persia) recon/detection replacement for scout_hound, same reasoning',
+  war_hound: 'civ-specific (Rome) recon/detection replacement for scout_hound, same reasoning',
+};
+
 export const SETTLER_COST_BY_ERA: Record<number, number> = {
   1: 16,
   2: 24,

@@ -11,6 +11,7 @@ import {
   CITY_NAMES,
   TRAINABLE_UNITS,
   PRODUCTION_ICONS,
+  TERMINAL_COMBAT_UNITS,
   getCatalogProductionCost,
   getProductionDisplayName,
   getProductionIconForItem,
@@ -984,6 +985,36 @@ describe('#429 — expanded obsolescence coverage', () => {
       expect(units.some(u => u.type === c.type)).toBe(false);
     });
   }
+});
+
+describe('#429 — unit obsolescence completeness', () => {
+  const UTILITY_TYPES: UnitType[] = ['worker', 'settler', 'troop_transport', 'caravan', 'expedition'];
+
+  it('every combat-capable trainable unit has obsoletedByTech or a TERMINAL_COMBAT_UNITS entry', () => {
+    const missing: string[] = [];
+    for (const entry of TRAINABLE_UNITS) {
+      if (UTILITY_TYPES.includes(entry.type)) continue;
+      const strength = UNIT_DEFINITIONS[entry.type]?.strength ?? 0;
+      if (strength <= 0) continue;
+      if (entry.obsoletedByTech) continue;
+      if (TERMINAL_COMBAT_UNITS[entry.type]) continue;
+      missing.push(entry.type);
+    }
+    expect(missing, `combat units missing an obsolescence decision: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('every TERMINAL_COMBAT_UNITS entry has a non-empty reason', () => {
+    for (const [type, reason] of Object.entries(TERMINAL_COMBAT_UNITS)) {
+      expect(reason.length, `${type} needs a real reason, not an empty string`).toBeGreaterThan(0);
+    }
+  });
+
+  it('TERMINAL_COMBAT_UNITS does not list a unit that already has obsoletedByTech (no contradictory entries)', () => {
+    for (const type of Object.keys(TERMINAL_COMBAT_UNITS)) {
+      const entry = TRAINABLE_UNITS.find(u => u.type === type);
+      expect(entry?.obsoletedByTech, `${type} is in TERMINAL_COMBAT_UNITS but also has obsoletedByTech set`).toBeUndefined();
+    }
+  });
 });
 
 describe('S4b — unit definitions completeness', () => {
