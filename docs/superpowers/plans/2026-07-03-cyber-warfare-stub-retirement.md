@@ -107,6 +107,70 @@ Change the track count test (currently lines 22–32) — same espionage/militar
         : 24;
 ```
 
+Change the per-era espionage-5 count (currently line 51–52) — one less stub means 3 techs, not 4:
+```ts
+// FROM:
+    // and 2 extra to espionage (digital-surveillance + cyber-warfare stubs)
+    expect(trackEra.get('espionage-5'), 'espionage-5 should have 4 techs (2 stubs + 2 new)').toBe(4);
+
+// TO:
+    // and 1 extra to espionage (digital-surveillance stub only — cyber-warfare moved to era 12)
+    expect(trackEra.get('espionage-5'), 'espionage-5 should have 3 techs (1 stub + 2 new)').toBe(3);
+```
+
+Change the `'adds Stage 5 espionage techs'` test (currently lines 119–123) — `cyber-warfare` is now military track, not espionage:
+```ts
+// FROM:
+  it('adds Stage 5 espionage techs after counter-intelligence', () => {
+    const ids = TECH_TREE.filter(t => t.track === 'espionage').map(t => t.id);
+    expect(ids).toContain('digital-surveillance');
+    expect(ids).toContain('cyber-warfare');
+  });
+
+// TO:
+  it('digital-surveillance is in espionage track; cyber-warfare moved to era-12 military', () => {
+    const espionageIds = TECH_TREE.filter(t => t.track === 'espionage').map(t => t.id);
+    expect(espionageIds).toContain('digital-surveillance');
+    expect(espionageIds).not.toContain('cyber-warfare');
+    const militaryIds = TECH_TREE.filter(t => t.track === 'military').map(t => t.id);
+    expect(militaryIds).toContain('cyber-warfare');
+  });
+```
+
+Change the era-5 advancement test (currently lines 131–143) — `cyber-warfare` is era 12, count drops from 32 to 31:
+```ts
+// FROM:
+  it('era-5 advancement includes the espionage pair and all 30 new era-5 techs', () => {
+    const ids = getEraAdvancementTechs(5).map(tech => tech.id);
+    // Espionage stubs count (no countsForEraAdvancement: false), stubs with false do not
+    expect(ids).toContain('digital-surveillance');
+    expect(ids).toContain('cyber-warfare');
+    // 4 stubs have countsForEraAdvancement: false and should be absent
+    expect(ids).not.toContain('global-logistics');
+    expect(ids).not.toContain('nuclear-theory');
+    expect(ids).not.toContain('mass-media');
+    expect(ids).not.toContain('amphibious-warfare');
+    // 30 new era-5 techs all count for advancement
+    expect(ids.length).toBe(32);
+  });
+
+// TO:
+  it('era-5 advancement includes digital-surveillance stub and all 30 new era-5 techs', () => {
+    const ids = getEraAdvancementTechs(5).map(tech => tech.id);
+    // Only digital-surveillance remains as era-5 espionage stub
+    expect(ids).toContain('digital-surveillance');
+    // cyber-warfare is now era 12 — must NOT appear in era-5 advancement
+    expect(ids).not.toContain('cyber-warfare');
+    // 4 stubs have countsForEraAdvancement: false and should be absent
+    expect(ids).not.toContain('global-logistics');
+    expect(ids).not.toContain('nuclear-theory');
+    expect(ids).not.toContain('mass-media');
+    expect(ids).not.toContain('amphibious-warfare');
+    // 31 techs: 30 new era-5 techs + 1 espionage stub (digital-surveillance)
+    expect(ids.length).toBe(31);
+  });
+```
+
 - [ ] **Step 3: Update `tests/systems/era-12.test.ts`**
 
 Change the `cyber-combat` references to `cyber-warfare`:
@@ -126,7 +190,10 @@ Change the `cyber-combat` references to `cyber-warfare`:
 bash scripts/run-with-mise.sh yarn test tests/systems/tech-system.test.ts tests/systems/tech-definitions.test.ts tests/systems/era-12.test.ts
 ```
 
-Expected: all three files FAIL. `tech-system` and `tech-definitions` fail on count (368 vs 369, espionage count). `era-12` fails because `cyber-combat` still exists (no `cyber-warfare` in era 12 yet).
+Expected failures:
+- `tech-system.test.ts` — count (expected 368, got 369) and espionage shape (expected 25, got 26)
+- `tech-definitions.test.ts` — count (368 vs 369), espionage shape (25 vs 26), espionage-5 count (3 vs 4), cyber-warfare track test (asserts NOT in espionage, but currently IS), era-5 advancement count (31 vs 32) and cyber-warfare NOT present
+- `era-12.test.ts` — `cyber-combat` still exists but test looks for `cyber-warfare`
 
 ---
 
@@ -200,10 +267,32 @@ EOF
 - Modify: `tests/systems/espionage-system.test.ts`
 
 **Interfaces:**
-- Consumes: `getAvailableMissions` from `src/systems/espionage-system.ts`
-- Produces: failing tests for the three new mission gates and the inverted `digital-surveillance` assertion
+- Consumes: `getAvailableMissions`, `applyBuildingCI`, `createEspionageCivState` from `src/systems/espionage-system.ts`
+- Produces: failing tests for the three new mission gates, the inverted `digital-surveillance` assertion, and the `applyBuildingCI` CI fade redirect
 
-- [ ] **Step 1: Replace the existing Stage 5 test (lines ~272–286)**
+- [ ] **Step 1: Add `applyBuildingCI` to the import in `tests/systems/espionage-system.test.ts`**
+
+Find the import block at the top of the file (lines 9–26) and add `applyBuildingCI` to the list:
+```ts
+// FROM:
+import {
+  createEspionageCivState,
+  createSpyFromUnit,
+  ...
+  verifyAgent,
+  } from '@/systems/espionage-system';
+
+// TO: (add applyBuildingCI to the list, keeping alphabetical order is fine, just add it)
+import {
+  applyBuildingCI,
+  createEspionageCivState,
+  createSpyFromUnit,
+  ...
+  verifyAgent,
+  } from '@/systems/espionage-system';
+```
+
+- [ ] **Step 2: Replace the existing Stage 5 test (lines ~272–286) and fix the stale remote-mission test name**
 
 Find and replace the test titled `'unlocks Stage 5 missions from digital-surveillance and cyber-warfare'`:
 ```ts
@@ -217,7 +306,16 @@ Find and replace the test titled `'unlocks Stage 5 missions from digital-surveil
     });
 ```
 
-- [ ] **Step 2: Add new gate tests inside the `getAvailableMissions` describe block, after the replaced test**
+Also find and fix the stale test name at line ~311 (`startMission` describe block):
+```ts
+// FROM:
+    it('allows remote Stage 5 missions from an idle spy when a target is supplied', () => {
+
+// TO:
+    it('allows remote cyber missions (cyber_attack) from an idle spy when a target is supplied', () => {
+```
+
+- [ ] **Step 3: Add new gate tests inside the `getAvailableMissions` describe block, after the replaced test**
 
 ```ts
     it('cold-war-networks unlocks misinformation and election_interference only', () => {
@@ -254,13 +352,40 @@ Find and replace the test titled `'unlocks Stage 5 missions from digital-surveil
     });
 ```
 
-- [ ] **Step 3: Run and confirm RED**
+- [ ] **Step 4: Add CI fade test inside the `counter-intelligence` describe block (lines ~576–590)**
+
+Add this test after the existing `setCounterIntelligence` tests. `applyBuildingCI` takes `(cityId, { buildings }, civEspState, completedTechs)`:
+```ts
+    it('security-bureau CI fade triggers on signals-intelligence, not cyber-warfare', () => {
+      const base = createEspionageCivState();
+      const city = { buildings: ['security-bureau'] };
+
+      // Currently: cyber-warfare triggers the fade → gives 15. After fix: should give 30.
+      const withCyberWarfare = applyBuildingCI('city-1', city, base, ['cyber-warfare']);
+      // Currently: signals-intelligence does NOT trigger fade → gives 30. After fix: should give 15.
+      const withSignalsIntel = applyBuildingCI('city-1', city, base, ['signals-intelligence']);
+      // Neither tech: always full bonus (unchanged).
+      const withNeither = applyBuildingCI('city-1', city, base, []);
+
+      expect(withCyberWarfare.counterIntelligence['city-1']).toBe(30);   // fails until Task 4
+      expect(withSignalsIntel.counterIntelligence['city-1']).toBe(15);   // fails until Task 4
+      expect(withNeither.counterIntelligence['city-1']).toBe(30);
+    });
+```
+
+- [ ] **Step 5: Run and confirm RED**
 
 ```bash
 bash scripts/run-with-mise.sh yarn test tests/systems/espionage-system.test.ts
 ```
 
-Expected: FAIL — the replaced test now asserts `digital-surveillance` does NOT unlock the missions, but the implementation still unlocks them. The four new gate tests also fail (no new stages exist yet).
+Expected failures:
+- `'digital-surveillance alone does not unlock any former Stage-5 missions'` — asserts NOT contain, but current STAGE_5 still unlocks them via `'digital-surveillance'`
+- `'cold-war-networks unlocks misinformation and election_interference only'` — STAGE_5 with cold-war-networks doesn't exist yet
+- `'satellite-surveillance tech unlocks satellite_surveillance mission only'` — STAGE_6 doesn't exist yet
+- `'cyber-intelligence unlocks cyber_attack only'` — STAGE_7 doesn't exist yet
+- `'full era-10+ tech ladder unlocks all missions'` — none of the new stage techs gate anything yet
+- `'security-bureau CI fade triggers on signals-intelligence, not cyber-warfare'` — current code fades on cyber-warfare, not signals-intelligence
 
 ---
 
@@ -368,7 +493,13 @@ Find the `security-bureau` entry (around line 91–98):
 bash scripts/run-with-mise.sh yarn test tests/systems/espionage-system.test.ts tests/systems/tech-system.test.ts tests/systems/tech-definitions.test.ts tests/systems/era-12.test.ts tests/systems/tech-unlocks-consistency.test.ts
 ```
 
-Expected: ALL PASS.
+Expected: ALL PASS. Verify specifically:
+- `'digital-surveillance alone does not unlock any former Stage-5 missions'` → PASS
+- `'cold-war-networks unlocks misinformation and election_interference only'` → PASS
+- `'satellite-surveillance tech unlocks satellite_surveillance mission only'` → PASS
+- `'cyber-intelligence unlocks cyber_attack only'` → PASS
+- `'security-bureau CI fade triggers on signals-intelligence, not cyber-warfare'` → PASS
+- All tech count / track-shape tests → PASS
 
 - [ ] **Step 6: Run full test suite**
 
