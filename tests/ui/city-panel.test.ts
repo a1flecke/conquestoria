@@ -58,6 +58,108 @@ describe('city-panel national projects', () => {
   });
 });
 
+describe('city-panel unrest section — #436', () => {
+  it('renders no unrest section when the city has no unrest', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 0;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-appease]')).toBeNull();
+  });
+
+  it('shows the unrest level and appease cost when the city has unrest', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 2;
+    city.unrestTurns = 3;
+    city.population = 4;
+    state.civilizations[state.currentPlayer].gold = 1000;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onAppeaseFaction: vi.fn(() => state),
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('Revolt');
+    expect(rendered).toContain('60'); // getCityAppeaseCost: population(4) * 15
+    expect(rendered).toContain('production locked'); // isCityProductionLocked: true at unrestLevel 2
+  });
+
+  it('clicking appease (affordable, not yet used this turn) calls onAppeaseFaction with the city id, and does not claim production is locked at unrestLevel 1', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+    city.unrestTurns = 2;
+    city.population = 4;
+    city.appeasedOnTurn = undefined;
+    city.productionDisabledTurns = 0;
+    state.civilizations[state.currentPlayer].gold = 1000;
+    const onAppeaseFaction = vi.fn(() => state);
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onAppeaseFaction,
+    });
+
+    expect(collectText(panel)).not.toContain('production locked');
+    clickElement(panel.querySelector('[data-appease]'));
+    expect(onAppeaseFaction).toHaveBeenCalledWith(city.id);
+  });
+
+  it('disables the button and shows a gold-specific reason when unaffordable', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+    city.unrestTurns = 2;
+    city.population = 4;
+    state.civilizations[state.currentPlayer].gold = 5; // cost is 60, well short
+    const onAppeaseFaction = vi.fn(() => state);
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onAppeaseFaction,
+    });
+
+    const btn = panel.querySelector<HTMLButtonElement>('[data-appease]');
+    expect(btn?.disabled).toBe(true);
+    expect(collectText(panel)).toContain('Not enough gold');
+    clickElement(btn);
+    expect(onAppeaseFaction).not.toHaveBeenCalled();
+  });
+
+  it('disables the button and shows a turn-specific reason when already appeased this turn', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+    city.unrestTurns = 2;
+    city.population = 4;
+    city.appeasedOnTurn = state.turn; // already used this turn
+    state.civilizations[state.currentPlayer].gold = 1000; // affordable, but blocked anyway
+    const onAppeaseFaction = vi.fn(() => state);
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onAppeaseFaction,
+    });
+
+    const btn = panel.querySelector<HTMLButtonElement>('[data-appease]');
+    expect(btn?.disabled).toBe(true);
+    expect(collectText(panel)).toContain('Already appeased this turn');
+    clickElement(btn);
+    expect(onAppeaseFaction).not.toHaveBeenCalled();
+  });
+});
+
 describe('city-panel legendary wonders', () => {
   it('renders a Legendary Wonders entry point and shows carryover in the active city', () => {
     const { container, city, state } = makeWonderPanelFixture();
