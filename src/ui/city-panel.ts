@@ -13,7 +13,10 @@ import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from './ui-kit';
-import { getNationalProjectMultiplier } from '@/systems/national-project-system';
+import {
+  getNationalProjectMultiplier,
+  getReservedNationalProjectKeys,
+} from '@/systems/national-project-system';
 import {
   getCompactLegendaryWonderEntriesForCity,
   getLegendaryWonderPresentationForCity,
@@ -177,9 +180,7 @@ export function createCityPanel(
     bonusEffect: civDef?.bonusEffect,
     era: state.era,
   });
-  const builtNPKeys = new Set(
-    Object.keys(state.builtNationalProjects ?? {}).filter(k => k.startsWith(`${city.owner}:`))
-  );
+  const builtNPKeys = getReservedNationalProjectKeys(state, city.owner);
   const availableBuildings = getAvailableBuildings(
     city,
     currentCiv.techState.completed,
@@ -245,15 +246,19 @@ export function createCityPanel(
     const b = orderedBuildings[idx];
     const cost = getDisplayedCost(b.id);
     const turns = yields.production > 0 ? Math.ceil(cost / yields.production) : '∞';
+    const isNP = !!b.nationalProject;
+    const displayedYields = isNP ? b.civYieldBonus ?? b.yields : b.yields;
     const yieldParts: string[] = [];
-    if (b.yields.food) yieldParts.push(`+${b.yields.food} 🌾`);
-    if (b.yields.production) yieldParts.push(`+${b.yields.production} ⚒️`);
-    if (b.yields.gold) yieldParts.push(`+${b.yields.gold} 💰`);
-    if (b.yields.science) yieldParts.push(`+${b.yields.science} 🔬`);
-    const yieldStr = yieldParts.length > 0 ? yieldParts.join(' ') + ' · ' : '';
+    if (displayedYields.food) yieldParts.push(`+${displayedYields.food} 🌾`);
+    if (displayedYields.production) yieldParts.push(`+${displayedYields.production} ⚒️`);
+    if (displayedYields.gold) yieldParts.push(`+${displayedYields.gold} 💰`);
+    if (displayedYields.science) yieldParts.push(`+${displayedYields.science} 🔬`);
+    const yieldScope = isNP ? 'Empire-wide: ' : '';
+    const yieldStr = yieldParts.length > 0
+      ? `${yieldScope}${yieldParts.join(' ')} · `
+      : '';
     const futureUpkeep = getFutureBuildingUpkeep(b.id);
     const upkeepStr = futureUpkeep > 0 ? ` · Upkeep: -${futureUpkeep}/turn` : ' · Free support';
-    const isNP = !!b.nationalProject;
     const npBorder = isNP ? 'border:1px solid rgba(240,192,64,0.5);' : 'border:1px solid rgba(255,255,255,0.2);';
     const deadline = isNP ? ` · Era ${(b.nationalProject!.homeEra) + 1} deadline` : '';
     if (idx === nationalProjectBuildings.length && nationalProjectBuildings.length > 0) {

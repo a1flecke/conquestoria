@@ -8,6 +8,27 @@ export function getNationalProjectMultiplier(currentEra: number, eraBuilt: numbe
   return 1;
 }
 
+export function getReservedNationalProjectKeys(
+  state: GameState,
+  civId: string,
+): Set<string> {
+  const keys = new Set(
+    Object.keys(state.builtNationalProjects ?? {})
+      .filter(key => key.startsWith(`${civId}:`)),
+  );
+  const civ = state.civilizations[civId];
+  for (const cityId of civ?.cities ?? []) {
+    const city = state.cities[cityId];
+    for (const itemId of city?.productionQueue ?? []) {
+      const building = BUILDINGS[itemId];
+      if (building?.nationalProject && building.uniquePerEmpire) {
+        keys.add(`${civId}:${itemId}`);
+      }
+    }
+  }
+  return keys;
+}
+
 function addYield(acc: Partial<ResourceYield>, delta: Partial<ResourceYield>): Partial<ResourceYield> {
   return {
     food: (acc.food ?? 0) + (delta.food ?? 0),

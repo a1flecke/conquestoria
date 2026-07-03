@@ -117,6 +117,12 @@ Vitest is the test runner. Add tests beside the relevant domain under `tests/`, 
 
 When fixing a bug or implementing from a plan/spec, add at least one regression test for the exact failure mode before changing production code. If you introduce a new owner/faction or neutral hostile actor such as `rebels`, add an interaction test covering AI or player handling of that owner. If a rule in a spec is conjunctive, such as "A and B must both be true", write a negative test proving that only `A` or only `B` is insufficient.
 
+When adding or changing a trainable unit, keep AI integration catalog-driven: generic coverage must prove every trainable unit has strategic roles, enters eligible production candidates, and participates in research planning. Model upgrade chains with explicit typed `upgradesTo` metadata; never infer a target merely because units share a technology ID. Derive air, transport, and spy test sets from definitions or shared predicates instead of hardcoded rosters.
+
+When adding or changing a building or national project, generic coverage must prove every currently eligible building enters AI production candidates. Empire-unique availability must include both completed and queued projects through `getReservedNationalProjectKeys`, and tests must prove two cities cannot queue the same project. National-project effects are empire-wide: test that the host city does not receive a duplicate local yield and that the city panel labels the scope.
+
+When adding or changing a legendary wonder, keep AI selection definition-driven and test eligibility, simultaneous-investment limits, global uniqueness, and no same-civ self-competition. A new wonder must not require an ID-specific AI branch unless its typed metadata introduces genuinely new semantics.
+
 If a UI panel is the only place a player can inspect or trigger a full catalog of actions, tests must prove every actionable item remains reachable. Recommendation or prioritization may reorder the surface, but it must not silently hide lower-ranked items unless there is an explicit secondary affordance such as `Show all` that is itself tested.
 
 If a panel action changes state that the same panel renders, add a regression that performs the interaction and asserts the visible panel updates immediately. Do not treat HUD updates or underlying state mutation as sufficient proof for panel correctness.

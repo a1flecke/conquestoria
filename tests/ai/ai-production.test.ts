@@ -11,8 +11,10 @@ import type {
 import { createNewGame } from '@/core/game-state';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
+  BUILDINGS,
   TRAINABLE_UNITS,
   foundCity,
+  getAvailableBuildings,
   getTrainableUnitsForCity,
 } from '@/systems/city-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
@@ -275,6 +277,7 @@ describe('AI strategic production', () => {
   it('generates every currently trainable catalog unit including era-12 units', () => {
     const state = setupState(TECH_TREE.map(tech => tech.id));
     makeCoastal(state);
+    state.cities['city-a'].buildings.push('stealth_airbase');
     grantResources(
       state,
       RESOURCE_DEFINITIONS.map(definition => definition.id as ResourceType),
@@ -320,6 +323,86 @@ describe('AI strategic production', () => {
     expect(TRAINABLE_UNITS.map(unit => unit.type)).toContain('stealth_bomber');
     expect(generated).toContain('cyber_unit');
     expect(generated).toContain('stealth_bomber');
+  });
+
+  it('generates every currently available building without hardcoded AI branches', () => {
+    const state = setupState(TECH_TREE.map(tech => tech.id));
+    state.era = 11;
+    makeCoastal(state);
+    grantResources(
+      state,
+      RESOURCE_DEFINITIONS.map(definition => definition.id as ResourceType),
+    );
+
+    const candidates = generateAIProductionCandidates(
+      state,
+      'ai-1',
+      'city-a',
+      [],
+      aggressive,
+    );
+    const generated = new Set(
+      candidates
+        .filter(candidate => candidate.kind === 'building')
+        .map(candidate => candidate.itemId),
+    );
+    const available = getAvailableBuildings(
+      state.cities['city-a'],
+      state.civilizations['ai-1'].techState.completed,
+      state.map,
+      new Set(RESOURCE_DEFINITIONS.map(definition => definition.id as ResourceType)),
+      state.era,
+      new Set(),
+      'ai-1',
+    );
+
+    for (const building of available) {
+      expect(generated, building.id).toContain(building.id);
+    }
+  });
+
+  it('counts empire-wide national-project yields in economy scoring', () => {
+    const state = setupState(['gathering']);
+    state.era = 1;
+    const candidate = generateAIProductionCandidates(
+      state,
+      'ai-1',
+      'city-a',
+      [],
+      aggressive,
+    ).find(entry => entry.itemId === 'communal_stores');
+
+    expect(candidate?.economyScore).toBeGreaterThan(0);
+  });
+
+  it('never queues one empire-unique national project in multiple cities', () => {
+    const state = setupState(['gathering'], ['city-a', 'city-b']);
+    state.era = 1;
+    const allOtherBuildings = Object.keys(BUILDINGS)
+      .filter(buildingId => buildingId !== 'communal_stores');
+    state.cities['city-a'].buildings = [...allOtherBuildings];
+    state.cities['city-b'].buildings = [...allOtherBuildings];
+
+    const result = applyAIProduction(state, 'ai-1', [], aggressive);
+    const queued = ['city-a', 'city-b']
+      .flatMap(cityId => result.cities[cityId].productionQueue)
+      .filter(itemId => itemId === 'communal_stores');
+
+    expect(queued).toHaveLength(1);
+  });
+
+  it('fills missing capture capacity before pure siege even at lower priority', () => {
+    const state = setupState(['gathering', 'siege-warfare']);
+    grantResources(state, ['stone']);
+    state.units = {};
+    state.civilizations['ai-1'].units = [];
+
+    const result = applyAIProduction(state, 'ai-1', [
+      demand('siege', 1, 900),
+      demand('capture', 1, 100),
+    ], aggressive);
+
+    expect(result.cities['city-a'].productionQueue[0]).toBe('warrior');
   });
 
   it('lets personality affect a real tie and uses stable IDs for equal scores', () => {

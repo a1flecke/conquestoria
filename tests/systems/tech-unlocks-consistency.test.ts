@@ -73,7 +73,6 @@ describe('tech structured unlock arrays', () => {
   it('every unlocksUnits entry is a trainable unit gated by that tech', () => {
     const failures: string[] = [];
     for (const tech of TECH_TREE) {
-      if (tech.era === 12) continue; // era-12 units (cyber_unit, stealth_bomber) wired in Task 3
       for (const unitType of tech.unlocksUnits ?? []) {
         const unit = TRAINABLE_UNITS.find(u => u.type === unitType);
         if (!unit) {
@@ -93,7 +92,6 @@ describe('tech structured unlock arrays', () => {
   it('every unlocksBuildings entry is a building gated by that tech', () => {
     const failures: string[] = [];
     for (const tech of TECH_TREE) {
-      if (tech.era === 12) continue; // era-12 buildings added in Task 2
       for (const buildingId of tech.unlocksBuildings ?? []) {
         const building = BUILDINGS[buildingId];
         if (!building) {
@@ -108,6 +106,15 @@ describe('tech structured unlock arrays', () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+
+  it('has no structured building unlocks without definitions', () => {
+    const missing = TECH_TREE.flatMap(tech =>
+      (tech.unlocksBuildings ?? [])
+        .filter(buildingId => !BUILDINGS[buildingId])
+        .map(buildingId => `${tech.id}:${buildingId}`));
+
+    expect(missing).toEqual([]);
   });
 
   it('every tech-gated trainable unit appears in its tech unlocksUnits', () => {

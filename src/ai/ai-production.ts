@@ -20,6 +20,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createUnit } from '@/systems/unit-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
+import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
@@ -178,9 +179,15 @@ function projectedBuildingMaintenanceImpact(
 }
 
 function economyValue(buildingId: string): number {
-  const yields = BUILDINGS[buildingId]?.yields;
+  const building = BUILDINGS[buildingId];
+  const yields = building?.nationalProject
+    ? building.civYieldBonus ?? building.yields
+    : building?.yields;
   if (!yields) return 0;
-  return yields.food + yields.production * 1.25 + yields.gold * 1.5 + yields.science * 1.25;
+  return (yields.food ?? 0)
+    + (yields.production ?? 0) * 1.25
+    + (yields.gold ?? 0) * 1.5
+    + (yields.science ?? 0) * 1.25;
 }
 
 function reserveAllows(
@@ -225,12 +232,18 @@ function generateWithResidual(
     1,
     calculateProjectedCityYields(state, cityId, civDefinition?.bonusEffect).production,
   );
-  const builtNationalProjectKeys = new Set(
-    Object.keys(state.builtNationalProjects ?? {})
-      .filter(key => key.startsWith(`${civId}:`)),
-  );
+  const builtNationalProjectKeys = getReservedNationalProjectKeys(state, civId);
   const cargoDemand = demands.some(entry =>
     entry.missing > 0 && COMBAT_CARGO_ROLES.has(entry.role));
+  const needsCaptureCapacity = demands.some(entry =>
+    entry.missing > 0 && (entry.role === 'capture' || entry.role === 'frontline'));
+  const hasCaptureCapacity = civ.units.some(unitId => {
+    const unit = state.units[unitId];
+    if (!unit) return false;
+    const roles = getAIStrategicRoles(unit.type);
+    return roles.includes('capture') || roles.includes('frontline');
+  }) || validQueuedUnitRoles(state, civId).some(roles =>
+    roles.includes('capture') || roles.includes('frontline'));
   const candidates: AIProductionCandidate[] = [];
 
   for (const unit of getTrainableUnitsForCity(
@@ -244,6 +257,15 @@ function generateWithResidual(
     const fulfilled = matchingDemand(roles, demands);
     if (!fulfilled) continue;
     if (roles.includes('transport') && !cargoDemand) continue;
+    if (
+      needsCaptureCapacity
+      && !hasCaptureCapacity
+      && !roles.includes('capture')
+      && !roles.includes('frontline')
+      && (roles.includes('siege') || roles.includes('ranged'))
+    ) {
+      continue;
+    }
     if (
       roles.some(role => UNIQUE_SUPPORT_ROLES.has(role))
       && !roles.some(role =>

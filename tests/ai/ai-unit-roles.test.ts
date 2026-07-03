@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import type { UnitType } from '@/core/types';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
+import { isSpyUnitType } from '@/systems/espionage-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 describe('AI strategic unit roles', () => {
   it('classifies every trainable unit into at least one strategic role', () => {
@@ -22,25 +24,27 @@ describe('AI strategic unit roles', () => {
 
   it('never treats air units as capture units', () => {
     for (const unit of TRAINABLE_UNITS) {
-      if (['observation_balloon', 'biplane', 'jet_fighter', 'attack_helicopter'].includes(unit.type)) {
+      if (UNIT_DEFINITIONS[unit.type].domain === 'air') {
         expect(getAIStrategicRoles(unit.type), unit.type).not.toContain('capture');
       }
     }
   });
 
   it('keeps transports out of frontline duty', () => {
-    for (const type of ['transport', 'carrack', 'galleon', 'steamship', 'troop_transport'] as UnitType[]) {
-      expect(getAIStrategicRoles(type), type).toContain('transport');
-      expect(getAIStrategicRoles(type), type).not.toContain('frontline');
-      expect(getAIStrategicRoles(type), type).not.toContain('capture');
+    for (const unit of TRAINABLE_UNITS) {
+      if (UNIT_DEFINITIONS[unit.type].cargoCapacity === undefined) continue;
+      expect(getAIStrategicRoles(unit.type), unit.type).toContain('transport');
+      expect(getAIStrategicRoles(unit.type), unit.type).not.toContain('frontline');
+      expect(getAIStrategicRoles(unit.type), unit.type).not.toContain('capture');
     }
   });
 
   it('assigns spies to espionage rather than conventional combat', () => {
-    for (const type of ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker'] as UnitType[]) {
-      expect(getAIStrategicRoles(type), type).toContain('espionage');
-      expect(getAIStrategicRoles(type), type).not.toContain('frontline');
-      expect(getAIStrategicRoles(type), type).not.toContain('capture');
+    for (const unit of TRAINABLE_UNITS) {
+      if (!isSpyUnitType(unit.type)) continue;
+      expect(getAIStrategicRoles(unit.type), unit.type).toContain('espionage');
+      expect(getAIStrategicRoles(unit.type), unit.type).not.toContain('frontline');
+      expect(getAIStrategicRoles(unit.type), unit.type).not.toContain('capture');
     }
   });
 

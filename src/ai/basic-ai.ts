@@ -65,6 +65,7 @@ import {
   startLegendaryWonderBuild,
 } from '@/systems/legendary-wonder-system';
 import { BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
+import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
@@ -443,9 +444,7 @@ function chooseLegendaryWonderFallback(
   const civDef = resolveCivDefinition(state, civilization.civType ?? '');
   const yields = calculateProjectedCityYields(state, cityId, civDef?.bonusEffect);
   const civResources = getCivAvailableResources(state, civId);
-  const builtNPKeys = new Set(
-    Object.keys(state.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
-  );
+  const builtNPKeys = getReservedNationalProjectKeys(state, civId);
   const availableBuildings = getAvailableBuildings(
     city,
     civilization.techState.completed,
@@ -1049,9 +1048,7 @@ function processAITurnInternal(
         civ.civType,
         civAvailableResources,
       ).map(u => u.type as string);
-      const aiNPKeys = new Set(
-        Object.keys(newState.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
-      );
+      const aiNPKeys = getReservedNationalProjectKeys(newState, civId);
       const availableBuildingsList = getAvailableBuildings(
         city,
         civ.techState.completed,
