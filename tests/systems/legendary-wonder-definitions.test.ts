@@ -130,14 +130,15 @@ describe('legendary-wonder-definitions', () => {
     // flavor text must not claim otherwise.
     for (const definition of getLegendaryWonderDefinitions()) {
       for (const step of definition.questSteps) {
-        expect(step.description.toLowerCase()).not.toContain('pilgrimage');
-        expect(step.description.toLowerCase()).not.toContain('sacred');
+        const description = (step.description ?? '').toLowerCase();
+        expect(description).not.toContain('pilgrimage');
+        expect(description).not.toContain('sacred');
       }
     }
   });
 
   it('every requiredResources id exists in RESOURCE_DEFINITIONS (#432 — catches the gold_resource-style typo class)', () => {
-    const validIds = new Set(RESOURCE_DEFINITIONS.map(def => def.id));
+    const validIds = new Set<string>(RESOURCE_DEFINITIONS.map(def => def.id));
     for (const definition of getLegendaryWonderDefinitions()) {
       for (const resourceId of definition.requiredResources) {
         expect(validIds.has(resourceId), `${definition.id} requires unknown resource id "${resourceId}"`).toBe(true);

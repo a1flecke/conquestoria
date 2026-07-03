@@ -80,7 +80,7 @@ export function getLegendaryWonderConstructionMilestone(
   return 'Foundation laid';
 }
 
-function titleCaseId(value: string): string {
+export function titleCaseId(value: string): string {
   return value
     .split(/[-_]/)
     .filter(Boolean)
