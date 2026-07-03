@@ -120,18 +120,68 @@ Change it to:
     "build": "tsc && vite build && node scripts/version-sw-cache.mjs",
 ```
 
-- [ ] **Step 7: Run a real build and verify the output**
+- [ ] **Step 7: Run a real build and verify the output — expect this to fail the first time**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
+
+In a worktree (the normal case for any Claude session — check with `git worktree list`), this will very likely exit 0 **without** running the postbuild step, because `scripts/run-with-mise.sh` has a hardcoded `yarn,build)` case that expands to its own literal 2-step sequence (`tsc --noEmit` then `vite build`) instead of reading `package.json`'s actual `"build"` script string — a worktree-isolation workaround (`.pnp.cjs`/yarn state only exist in the main worktree) that predates this change and doesn't know about it. Confirm this is happening: `grep "CACHE_NAME" dist/sw.js` will show `conquestoria-dev`, not a stamped version, even though `yarn build` exited 0.
+
+If you're running from the **main working tree** (not a worktree), this step will already work correctly — `scripts/run-with-mise.sh` falls through to `exec mise exec -- "$@"` for that case, which does read the real `package.json` script. The fix in the next step is still required for the (much more common) worktree case.
+
+- [ ] **Step 8: Fix `scripts/run-with-mise.sh`'s hardcoded `yarn build` expansion**
+
+In `scripts/run-with-mise.sh`, update the header comment's mapping table:
+```
+#   yarn build         → tsc --project $CURRENT_ROOT/tsconfig.json --noEmit
+#                      + vite build $CURRENT_ROOT
+```
+to:
+```
+#   yarn build         → tsc --project $CURRENT_ROOT/tsconfig.json --noEmit
+#                      + vite build $CURRENT_ROOT
+#                      + node $CURRENT_ROOT/scripts/version-sw-cache.mjs
+#                        (this mirrors package.json's "build" script — keep both in
+#                        sync if that script's composition ever changes)
+```
+
+Then update the actual `yarn,build)` case:
+```sh
+    yarn,build)
+      # Expand so tsc targets the worktree's tsconfig; vite targets the worktree's root
+      (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn tsc --project "$CURRENT_ROOT/tsconfig.json" --noEmit) \
+        && (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn vite build "$CURRENT_ROOT")
+      exit
+      ;;
+```
+to:
+```sh
+    yarn,build)
+      # Expand so tsc targets the worktree's tsconfig; vite targets the worktree's root.
+      # Third step mirrors package.json's "build" script (tsc && vite build && node
+      # scripts/version-sw-cache.mjs) — the worktree path never reads that script
+      # string, so it must be kept in sync here by hand.
+      (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn tsc --project "$CURRENT_ROOT/tsconfig.json" --noEmit) \
+        && (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn vite build "$CURRENT_ROOT") \
+        && (cd "$CURRENT_ROOT" && node "$CURRENT_ROOT/scripts/version-sw-cache.mjs")
+      exit
+      ;;
+```
+(Leave the neighboring `yarn,build:tauri)` case untouched — the Tauri distribution never registers a service worker at all (`shouldRegisterServiceWorker` returns `false` for it), so `dist/sw.js` is dead/unused in that build; no need to version it there.)
+
+`scripts/version-sw-cache.mjs` uses only `node:fs`/`node:path`/`node:url` (no PnP-resolved dependencies), so unlike the `yarn,node)` case it does not need the `.pnp.cjs`/`.pnp.loader.mjs` injection — a plain `node` invocation from `$CURRENT_ROOT` is sufficient.
+
+- [ ] **Step 9: Re-run the build and verify the fix**
+
+Run: `rm -f dist/sw.js && bash scripts/run-with-mise.sh yarn build`
 Expected: exits 0, and prints a line like `sw.js CACHE_NAME stamped: conquestoria-<timestamp>`.
 
 Then run: `grep "CACHE_NAME" dist/sw.js`
 Expected: shows `const CACHE_NAME = 'conquestoria-<some large number>';` — NOT `conquestoria-dev` and NOT `conquestoria-v1`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add public/sw.js scripts/version-sw-cache.mjs package.json tests/scripts/version-sw-cache.test.ts
+git add public/sw.js scripts/version-sw-cache.mjs scripts/version-sw-cache.d.mts scripts/run-with-mise.sh package.json tests/scripts/version-sw-cache.test.ts
 git commit -m "feat(sw): stamp a real cache version at build time instead of a hardcoded literal (#437)
 
 CACHE_NAME was hardcoded ('conquestoria-v1') and never bumped, so the
@@ -140,7 +190,16 @@ deploy — a returning user's stale index.html/bundle could be served
 indefinitely under the cache-first fetch strategy. public/sw.js now
 uses a dev-safe default ('conquestoria-dev', valid standalone since
 yarn dev serves it unprocessed); the production build stamps in a
-real per-build version via a small, unit-tested postbuild script."
+real per-build version via a small, unit-tested postbuild script.
+
+Also fixes scripts/run-with-mise.sh, discovered by actually running
+the build rather than trusting a green exit code: in a worktree (the
+normal case for any Claude session), that wrapper hardcodes its own
+2-step yarn-build expansion (tsc --noEmit + vite build) instead of
+reading package.json's real \"build\" script string, so the new
+postbuild step would have silently never run for anyone using the
+project's own mandated build command. Added it as a third step there,
+matching the existing pattern."
 ```
 
 ---

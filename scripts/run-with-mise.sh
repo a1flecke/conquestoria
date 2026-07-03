@@ -10,6 +10,9 @@ set -eu
 #   yarn test          → vitest run --root $CURRENT_ROOT + bash tests/hooks/run.sh
 #   yarn build         → tsc --project $CURRENT_ROOT/tsconfig.json --noEmit
 #                      + vite build $CURRENT_ROOT
+#                      + node $CURRENT_ROOT/scripts/version-sw-cache.mjs
+#                        (this mirrors package.json's "build" script — keep both in
+#                        sync if that script's composition ever changes)
 #   yarn build:tauri   → same, with Vite's tauri mode at the worktree root
 #   yarn dev/preview   → vite command rooted at the active worktree
 #   yarn test:web-smoke → Playwright with the active worktree config
@@ -81,9 +84,13 @@ if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ]; then
       exit
       ;;
     yarn,build)
-      # Expand so tsc targets the worktree's tsconfig; vite targets the worktree's root
+      # Expand so tsc targets the worktree's tsconfig; vite targets the worktree's root.
+      # Third step mirrors package.json's "build" script (tsc && vite build && node
+      # scripts/version-sw-cache.mjs) — the worktree path never reads that script
+      # string, so it must be kept in sync here by hand.
       (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn tsc --project "$CURRENT_ROOT/tsconfig.json" --noEmit) \
-        && (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn vite build "$CURRENT_ROOT")
+        && (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn vite build "$CURRENT_ROOT") \
+        && (cd "$CURRENT_ROOT" && node "$CURRENT_ROOT/scripts/version-sw-cache.mjs")
       exit
       ;;
     yarn,build:tauri)
