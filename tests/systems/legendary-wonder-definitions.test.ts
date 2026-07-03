@@ -4,6 +4,7 @@ import {
   getLateEraWonderTechRequirements,
   getLegendaryWonderDefinitions,
 } from '@/systems/legendary-wonder-definitions';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 
 describe('legendary-wonder-definitions', () => {
   it('matches the full approved M4 legendary wonder roster exactly', () => {
@@ -119,6 +120,27 @@ describe('legendary-wonder-definitions', () => {
         if (step.type === 'map-discoveries') {
           expect(step.discoveryTypes?.length).toBeGreaterThan(0);
         }
+      }
+    }
+  });
+
+  it('quest step descriptions do not imply a special route mechanic that does not exist (#432)', () => {
+    // Both complete-pilgrimage-route and complete-sacred-route evaluate identically to
+    // any other generic trade_route step (legendary-wonder-system.ts:204-206) — the
+    // flavor text must not claim otherwise.
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const step of definition.questSteps) {
+        expect(step.description.toLowerCase()).not.toContain('pilgrimage');
+        expect(step.description.toLowerCase()).not.toContain('sacred');
+      }
+    }
+  });
+
+  it('every requiredResources id exists in RESOURCE_DEFINITIONS (#432 — catches the gold_resource-style typo class)', () => {
+    const validIds = new Set(RESOURCE_DEFINITIONS.map(def => def.id));
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const resourceId of definition.requiredResources) {
+        expect(validIds.has(resourceId), `${definition.id} requires unknown resource id "${resourceId}"`).toBe(true);
       }
     }
   });

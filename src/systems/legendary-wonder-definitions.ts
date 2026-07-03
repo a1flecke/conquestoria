@@ -19,7 +19,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     cityRequirement: 'any',
     questSteps: [
       { id: 'discover-natural-wonder', type: 'discover_wonder', description: 'Discover a natural wonder.' },
-      { id: 'complete-pilgrimage-route', type: 'trade_route', description: 'Establish a pilgrimage trade route.' },
+      { id: 'complete-pilgrimage-route', type: 'trade_route', description: 'Establish a trade route.' },
     ],
     reward: {
       summary: '+60 research immediately and +1 science in the host city each turn.',
@@ -53,7 +53,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: ['stone'],
     cityRequirement: 'any',
     questSteps: [
-      { id: 'complete-sacred-route', type: 'trade_route', description: 'Establish a sacred trade route.' },
+      { id: 'complete-sacred-route', type: 'trade_route', description: 'Establish a trade route.' },
       { id: 'defeat-nearby-stronghold', type: 'defeat_stronghold', scope: 'near-city', radius: 4, description: 'Clear a nearby barbarian stronghold.' },
     ],
     reward: {
@@ -364,7 +364,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     era: 6,
     productionCost: 265,
     requiredTechs: ['baroque-music', 'separation-of-powers'],
-    requiredResources: ['gold_resource'],
+    requiredResources: ['gold'],
     cityRequirement: 'any',
     questSteps: [
       {
