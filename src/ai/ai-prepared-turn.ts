@@ -39,6 +39,10 @@ import {
 } from './ai-plan-portfolio';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
+import {
+  OPPONENT_CHALLENGE_PROFILES,
+  resolveOpponentChallenge,
+} from '@/core/opponent-challenge';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -68,6 +72,12 @@ export interface PreparedForceDemandSeed {
   role: AIForceDemand['role'];
   sourceId: string;
   priority: number;
+}
+
+export function getPreparedAssignmentProfile(
+  state: Pick<GameState, 'opponentChallenge'>,
+) {
+  return OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
 }
 
 export function mergePreparedForceDemands(
@@ -428,7 +438,7 @@ export function prepareMajorCivStrategicPlan(
         ];
       })),
     })),
-    profile: { maxPrimaryForce: 8, retreatHealthPercent: 30 },
+    profile: getPreparedAssignmentProfile(state),
     defenseThreatScoreByPlanId: Object.fromEntries(
       Object.values(portfolioResult.portfolio.defensePlansByCityId)
         .map(plan => {

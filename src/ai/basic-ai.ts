@@ -98,6 +98,7 @@ import {
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
 import { hasAICombatRole } from './ai-unit-roles';
+import { applyAIProduction } from './ai-production';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -1027,6 +1028,8 @@ function processAITurnInternal(
         }
       }
 
+      if (purposefulAIEnabled) continue;
+
       const civAvailableResources = getCivAvailableResources(newState, civId);
       const trainableUnits = getTrainableUnitsForCiv(
         civ.techState.completed,
@@ -1319,6 +1322,15 @@ function processAITurnInternal(
       }
     }
   }
+  if (purposefulAIEnabled && preparedForTurn) {
+    newState = applyAIProduction(
+      newState,
+      civId,
+      preparedForTurn.forceDemands,
+      personality,
+    );
+    civ = newState.civilizations[civId];
+  }
 
   // --- Handle diplomacy ---
   if (civ.diplomacy) {
@@ -1530,7 +1542,7 @@ function processAITurnInternal(
   }
 
   // AI espionage decisions — queue spy units in cities (physical-spy model)
-  if (shouldAiRecruitSpy(newState, civId)) {
+  if (!purposefulAIEnabled && shouldAiRecruitSpy(newState, civId)) {
     const espState = newState.espionage?.[civId];
     if (espState) {
       const activeSpies = Object.values(espState.spies).filter(s => s.status !== 'captured').length;
@@ -1552,7 +1564,7 @@ function processAITurnInternal(
   }
 
   // Queue detection unit when lookouts tech researched and no detection unit already queued/deployed
-  if (civ.techState.completed.includes('lookouts')) {
+  if (!purposefulAIEnabled && civ.techState.completed.includes('lookouts')) {
     const detectionType = getDetectionUnitTypeForCiv(civ.civType);
     const hasDetectionUnit = Object.values(newState.units).some(
       u => u.owner === civId && !!UNIT_DEFINITIONS[u.type]?.spyDetectionChance,

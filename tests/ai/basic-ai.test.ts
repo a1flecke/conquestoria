@@ -2,9 +2,13 @@ import {
   canDeclareWarForPreparedPlan,
   chooseAiSpyTarget,
   processAITurn,
+  processPreparedAITurn,
 } from '@/ai/basic-ai';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
-import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
+import {
+  prepareMajorCivStrategicPlan,
+  type PreparedMajorCivPlan,
+} from '@/ai/ai-prepared-turn';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
@@ -96,6 +100,33 @@ describe('purposeful AI war gating', () => {
 });
 
 describe('purposeful AI administrative intel', () => {
+  it('uses prepared force demand instead of enabled-path one-off production', () => {
+    const state = createNewGame(undefined, 'purposeful-production-demand', 'small');
+    const civ = state.civilizations['ai-1'];
+    const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+    const city = foundCity(civ.id, settler.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    civ.techState.completed = ['gathering', 'siege-warfare'];
+    const tile = state.map.tiles[hexKey(city.position)];
+    tile.resource = 'stone';
+    tile.owner = civ.id;
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+    prepared.forceDemands = [{
+      role: 'siege',
+      desired: 1,
+      assigned: 0,
+      missing: 1,
+      priority: 200,
+      sourcePlanIds: ['primary'],
+    }];
+    prepared.assignments.forceDemands = prepared.forceDemands;
+
+    const result = processPreparedAITurn(state, prepared, new EventBus()).state;
+
+    expect(result.cities[city.id].productionQueue).toEqual(['catapult']);
+  });
+
   it('does not select a live foreign city absent from prepared perception', () => {
     const state = createNewGame(undefined, 'purposeful-hidden-spy-city', 'small');
     const aiId = 'ai-1';

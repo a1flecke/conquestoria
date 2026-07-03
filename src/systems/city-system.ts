@@ -1080,6 +1080,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 12 units (stats are placeholders — Task 3 will update to spec values)
+  { type: 'cyber_unit', name: 'Cyber Operative', cost: 280, techRequired: 'cyber-warfare', pacing: { band: 'marquee', role: 'cyber-assault', impact: 1.6, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.35, unlockBreadth: 1 } },
   { type: 'stealth_bomber', name: 'Stealth Bomber', cost: 320, techRequired: 'stealth-technology', trainedFromBuilding: 'stealth_airbase', pacing: { band: 'marquee', role: 'stealth-strike', impact: 1.7, scope: 'military', snowball: 1.5, urgency: 1.3, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -1391,6 +1392,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   stealth_airbase: '✈️',
   telemedicine_hub: '🏥',
   // Era 12 units
+  cyber_unit: '💻',
   stealth_bomber: '🛩️',
 };
 
