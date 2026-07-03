@@ -194,6 +194,52 @@ describe('AI round scheduler', () => {
     }
   });
 
+  it('executes the prepared strategic path by default when planning is enabled', () => {
+    const state = createNewGame(undefined, 'scheduler-live-strategy', 'small');
+    const settlerId = state.civilizations['ai-1'].units
+      .find(unitId => state.units[unitId]?.type === 'settler');
+    if (!settlerId) throw new Error('missing AI settler');
+    const founded = vi.fn();
+    const bus = new EventBus();
+    bus.on('city:founded', founded);
+
+    const result = processNonHumanMajorRound(state, bus, {
+      strategicPlanningEnabled: true,
+      prepare: (snapshot, civId) => {
+        const value = prepared(snapshot as typeof state, civId);
+        const settler = state.units[settlerId];
+        value.portfolio.primaryPlan = {
+          id: 'settle-home',
+          actorId: civId,
+          objective: 'expand',
+          target: {
+            kind: 'region',
+            id: 'home',
+            anchor: { ...settler.position },
+          },
+          theaterId: 'home',
+          phase: 'attacking',
+          reasonCodes: ['nearby-opportunity'],
+          commitment: 0.5,
+          createdTurn: state.turn,
+          reconsiderAfterTurn: state.turn + 2,
+          expiresAfterTurn: state.turn + 8,
+          lastProgressTurn: state.turn,
+          requiredRoles: { settlement: 1 },
+          assignedUnitIds: [settlerId],
+        };
+        value.assignments.assignmentsByPlanId = {
+          'settle-home': [settlerId],
+        };
+        return value;
+      },
+    });
+
+    expect(result.state.units[settlerId]).toBeUndefined();
+    expect(result.state.civilizations['ai-1'].cities).toHaveLength(1);
+    expect(founded).toHaveBeenCalledOnce();
+  });
+
   it('drops a stale primary action while preserving valid defense work', () => {
     const state = createNewGame({
       civType: 'egypt',
@@ -393,7 +439,10 @@ describe('AI round scheduler', () => {
     const targetTile = Object.values(state.map.tiles)[0];
     targetTile.resource = 'iron';
     targetTile.owner = null;
-    const executed: string[] = [];
+    const executed: Array<{
+      civId: string;
+      hasPrimaryPlan: boolean;
+    }> = [];
 
     const result = processNonHumanMajorRound(state, new EventBus(), {
       strategicPlanningEnabled: true,
@@ -424,7 +473,10 @@ describe('AI round scheduler', () => {
         return value;
       },
       executePrepared: (current, value) => {
-        executed.push(value.civId);
+        executed.push({
+          civId: value.civId,
+          hasPrimaryPlan: value.portfolio.primaryPlan !== null,
+        });
         if (value.civId === 'ai-1') {
           const next = structuredClone(current);
           next.map.tiles[`${targetTile.coord.q},${targetTile.coord.r}`].owner = 'player';
@@ -434,7 +486,10 @@ describe('AI round scheduler', () => {
       },
     });
 
-    expect(executed).toEqual(['ai-1']);
+    expect(executed).toEqual([
+      { civId: 'ai-1', hasPrimaryPlan: false },
+      { civId: 'ai-2', hasPrimaryPlan: false },
+    ]);
     expect(result.state.opponentAI?.majorCivs['ai-2']?.primaryPlan).toBeNull();
   });
 

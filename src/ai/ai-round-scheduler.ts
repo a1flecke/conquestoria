@@ -1,5 +1,9 @@
-import { processAITurn } from '@/ai/basic-ai';
+import {
+  processAITurn,
+  processPreparedAITurn,
+} from '@/ai/basic-ai';
 import type { EventBus } from '@/core/event-bus';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import {
   createEmptyMajorCivPlanPortfolio,
   normalizeOpponentAIState,
@@ -210,7 +214,10 @@ export function processNonHumanMajorRound(
 
   const stableActorIds = getLivingNonHumanMajorIds(working);
   const actorIds = rotateIdsForRound(stableActorIds, working.turn);
-  if (options.strategicPlanningEnabled) {
+  if (
+    options.strategicPlanningEnabled
+    ?? PURPOSEFUL_AI_FEATURE_ENABLED
+  ) {
     let refreshed = working;
     for (const civId of stableActorIds) {
       refreshed = refreshMajorCivIntel(refreshed, civId);
@@ -240,7 +247,7 @@ export function processNonHumanMajorRound(
     const traces = preparedPlans.flatMap(prepared => prepared.traces);
     working = writePreparedPortfolios(refreshed, preparedPlans);
 
-    const executePrepared = options.executePrepared ?? ((current: GameState) => ({ state: current }));
+    const executePrepared = options.executePrepared ?? processPreparedAITurn;
     for (const civId of actorIds) {
       const prepared = preparedByCiv.get(civId);
       const civ = working.civilizations[civId];
@@ -255,17 +262,6 @@ export function processNonHumanMajorRound(
         continue;
       }
       const revalidated = revalidatePreparedPlan(working, prepared);
-      const hadPlan = prepared.portfolio.primaryPlan !== null
-        || Object.keys(prepared.portfolio.defensePlansByCityId).length > 0;
-      const hasPlan = revalidated.portfolio.primaryPlan !== null
-        || Object.keys(revalidated.portfolio.defensePlansByCityId).length > 0;
-      if (hadPlan && !hasPlan) {
-        working = withMajorPortfolio(working, civId, {
-          ...revalidated.portfolio,
-          lastExecutedTurn: working.turn,
-        });
-        continue;
-      }
       working = withMajorPortfolio(working, civId, revalidated.portfolio);
       working = executePrepared(working, revalidated, bus).state;
       working = normalizeOpponentAIState(working);

@@ -1,6 +1,13 @@
-import { processAITurn } from '@/ai/basic-ai';
+import {
+  canDeclareWarForPreparedPlan,
+  chooseAiSpyTarget,
+  processAITurn,
+} from '@/ai/basic-ai';
+import { buildMajorCivPerception } from '@/ai/ai-perception';
+import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
+import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 import type { GameEvents, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
@@ -11,6 +18,99 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import type { ResourceType } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+describe('purposeful AI war gating', () => {
+  it('allows war only for the known primary target after mobilization', () => {
+    const state = createNewGame(undefined, 'purposeful-war-gate', 'small');
+    const aiId = 'ai-1';
+    const playerSettler = state.civilizations.player.units
+      .map(id => state.units[id])
+      .find(unit => unit?.type === 'settler');
+    if (!playerSettler) throw new Error('missing player settler');
+    const city = foundCity(
+      'player',
+      playerSettler.position,
+      state.map,
+      state.idCounters,
+    );
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    state.civilizations[aiId].knownCivilizations = ['player'];
+    state.civilizations[aiId].visibility.tiles[hexKey(city.position)] = 'visible';
+    const portfolio = createEmptyMajorCivPlanPortfolio();
+    portfolio.primaryPlan = {
+      id: 'capture-player',
+      actorId: aiId,
+      objective: 'capture',
+      target: {
+        kind: 'city',
+        id: city.id,
+        lastKnownPosition: city.position,
+      },
+      theaterId: 'player-front',
+      phase: 'mobilizing',
+      reasonCodes: ['continue-active-war'],
+      commitment: 0.8,
+      createdTurn: state.turn,
+      reconsiderAfterTurn: state.turn + 2,
+      expiresAfterTurn: state.turn + 8,
+      lastProgressTurn: state.turn,
+      requiredRoles: { capture: 1 },
+      assignedUnitIds: [],
+    };
+    const perception = buildMajorCivPerception(state, aiId);
+    const prepared: PreparedMajorCivPlan = {
+      civId: aiId,
+      perception,
+      portfolio,
+      assignments: {
+        portfolio,
+        assignmentsByPlanId: {},
+        recoveryUnitIds: [],
+        forceDemands: [],
+        rejectedByUnitId: {},
+      },
+      forceDemands: [],
+      traces: [],
+    };
+
+    expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
+      .toBe(false);
+    portfolio.primaryPlan.phase = 'advancing';
+    expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
+      .toBe(true);
+    expect(canDeclareWarForPreparedPlan(state, prepared, 'ai-2'))
+      .toBe(false);
+    if (!state.opponentAI) throw new Error('missing opponent AI state');
+    state.opponentAI.migrationGraceRoundsRemaining = 1;
+    expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
+      .toBe(false);
+  });
+});
+
+describe('purposeful AI administrative intel', () => {
+  it('does not select a live foreign city absent from prepared perception', () => {
+    const state = createNewGame(undefined, 'purposeful-hidden-spy-city', 'small');
+    const aiId = 'ai-1';
+    const playerSettler = state.civilizations.player.units
+      .map(id => state.units[id])
+      .find(unit => unit?.type === 'settler');
+    if (!playerSettler) throw new Error('missing player settler');
+    const city = foundCity(
+      'player',
+      playerSettler.position,
+      state.map,
+      state.idCounters,
+    );
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    state.civilizations[aiId].knownCivilizations = ['player'];
+    const perception = buildMajorCivPerception(state, aiId);
+    perception.knownCities = [];
+
+    expect(chooseAiSpyTarget(state, aiId, perception)).toBeNull();
+  });
+});
 
 function makeAiRebelState(): GameState {
   return {
