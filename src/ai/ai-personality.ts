@@ -1,4 +1,4 @@
-import type { PersonalityTraits, Tech, TechTrack } from '@/core/types';
+import type { AIStrategicRole, PersonalityTraits, Tech, TechTrack } from '@/core/types';
 
 const TRACK_WEIGHTS: Record<string, Record<TechTrack, number>> = {
   aggressive:   { military: 3, economy: 1, science: 1, civics: 0.5, exploration: 1.5, agriculture: 1, medicine: 0.5, philosophy: 0.5, arts: 0.5, maritime: 1, metallurgy: 2.5, construction: 1.5, communication: 0.5, espionage: 1.5, spirituality: 0.5 },
@@ -45,6 +45,40 @@ export function weightProductionChoice(
   }
 
   return weight;
+}
+
+const COMBAT_PRODUCTION_ROLES = new Set<AIStrategicRole>([
+  'capture',
+  'frontline',
+  'ranged',
+  'siege',
+  'mobile',
+  'air-combat',
+  'naval-combat',
+  'escort',
+]);
+
+export function weightProductionRoles(
+  personality: PersonalityTraits,
+  roles: readonly AIStrategicRole[],
+): number {
+  let score = 0;
+  if (roles.some(role => COMBAT_PRODUCTION_ROLES.has(role))) {
+    score += personality.warLikelihood * 20;
+  }
+  if (roles.includes('settlement')) {
+    score += personality.expansionDrive * 24;
+  }
+  if (roles.includes('transport') || roles.includes('recon')) {
+    score += personality.expansionDrive * 8;
+  }
+  if (roles.includes('trade')) {
+    score += personality.traits.includes('trader') ? 16 : 0;
+  }
+  if (roles.includes('espionage')) {
+    score += personality.diplomacyFocus * 4;
+  }
+  return score;
 }
 
 export function shouldDeclareWar(

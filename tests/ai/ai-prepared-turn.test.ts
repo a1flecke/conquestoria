@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getPreparedAssignmentProfile,
   mergePreparedForceDemands,
   prepareMajorCivStrategicPlan,
 } from '@/ai/ai-prepared-turn';
@@ -9,6 +10,16 @@ import { foundCity } from '@/systems/city-system';
 import { createUnit, findPath } from '@/systems/unit-system';
 
 describe('prepared major-civilization planning', () => {
+  it.each([
+    ['explorer', 4],
+    ['standard', 6],
+    ['veteran', 8],
+  ] as const)('uses the %s challenge profile force cap', (challenge, expectedCap) => {
+    const state = createNewGame(undefined, `prepared-${challenge}-cap`, 'small');
+    state.opponentChallenge = challenge;
+    expect(getPreparedAssignmentProfile(state).maxPrimaryForce).toBe(expectedCap);
+  });
+
   it('preserves objective-readiness demand when no current unit can fill the role', () => {
     const state = createNewGame(undefined, 'prepared-objective-demand', 'small');
     const civ = state.civilizations['ai-1'];
