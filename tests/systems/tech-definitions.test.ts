@@ -8,27 +8,27 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
-  it('has exactly 339 techs after adding era-11 (30 new techs across 15 tracks)', () => {
-    expect(TECH_TREE.length).toBe(339);
+  it('has exactly 368 techs after removing cyber-warfare stub and adding era-12', () => {
+    expect(TECH_TREE.length).toBe(368);
   });
 
-  it('keeps 15 tracks while expanding to era 11 (2 new techs per track per era)', () => {
+  it('keeps 15 tracks while expanding to era 12 (2 new techs per track per era)', () => {
     const tracks = new Map<string, number>();
     for (const tech of TECH_TREE) {
       tracks.set(tech.track, (tracks.get(tech.track) ?? 0) + 1);
     }
     expect(tracks.size).toBe(15);
     for (const [track, count] of tracks) {
-      // Era 5-11 each add 2 techs per track.
-      // Espionage had 10 (8 era1-4 + 2 stubs) + 14 (2×7 eras 5-11) = 24.
-      // Economy/science/communication/maritime/exploration had 9 (era1-4) + 14 = 23.
-      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 24.
-      // Other 8 tracks had 8 era1-4 + 14 = 22.
-      const expected = track === 'espionage' || track === 'military'
-        ? 24
-        : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-          ? 23
-          : 22;
+      // Era 5-12 each add 2 techs per track.
+      // cyber-warfare stub removed: espionage had 8 era1-4 + 1 stub + 16 (era5-12) = 25.
+      // Economy/science/communication/maritime/exploration had 9 (era1-4) + 16 = 25.
+      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 26.
+      // Other 8 tracks had 8 era1-4 + 16 = 24.
+      const expected = track === 'military'
+        ? 26
+        : ['economy', 'science', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
+          ? 25
+          : 24;
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });
@@ -48,8 +48,8 @@ describe('tech definitions', () => {
       }
     }
     // Era 5: each track has 2 new techs; stubs add 1 extra to economy/science/communication/maritime
-    // and 2 extra to espionage (digital-surveillance + cyber-warfare stubs)
-    expect(trackEra.get('espionage-5'), 'espionage-5 should have 4 techs (2 stubs + 2 new)').toBe(4);
+    // and 1 extra to espionage (digital-surveillance stub only — cyber-warfare moved to era 12)
+    expect(trackEra.get('espionage-5'), 'espionage-5 should have 3 techs (1 stub + 2 new)').toBe(3);
     expect(trackEra.get('economy-5'), 'economy-5 should have 3 techs (1 stub + 2 new)').toBe(3);
     expect(trackEra.get('science-5'), 'science-5 should have 3 techs (1 stub + 2 new)').toBe(3);
     expect(trackEra.get('communication-5'), 'communication-5 should have 3 techs (1 stub + 2 new)').toBe(3);
@@ -116,10 +116,12 @@ describe('tech definitions', () => {
     expect(bronzeCasting!.prerequisites).toContain('bronze-working');
   });
 
-  it('adds Stage 5 espionage techs after counter-intelligence', () => {
-    const ids = TECH_TREE.filter(t => t.track === 'espionage').map(t => t.id);
-    expect(ids).toContain('digital-surveillance');
-    expect(ids).toContain('cyber-warfare');
+  it('digital-surveillance is in espionage track; cyber-warfare moved to era-12 military', () => {
+    const espionageIds = TECH_TREE.filter(t => t.track === 'espionage').map(t => t.id);
+    expect(espionageIds).toContain('digital-surveillance');
+    expect(espionageIds).not.toContain('cyber-warfare');
+    const militaryIds = TECH_TREE.filter(t => t.track === 'military').map(t => t.id);
+    expect(militaryIds).toContain('cyber-warfare');
   });
 
   it('contains the late-era tech prerequisites for the remaining M4 wonder scaffolding', () => {
@@ -128,18 +130,19 @@ describe('tech definitions', () => {
     expect(TECH_TREE.find(t => t.id === 'nuclear-theory')).toBeDefined();
   });
 
-  it('era-5 advancement includes the espionage pair and all 30 new era-5 techs', () => {
+  it('era-5 advancement includes digital-surveillance stub and all 30 new era-5 techs', () => {
     const ids = getEraAdvancementTechs(5).map(tech => tech.id);
-    // Espionage stubs count (no countsForEraAdvancement: false), stubs with false do not
+    // Only digital-surveillance remains as era-5 espionage stub
     expect(ids).toContain('digital-surveillance');
-    expect(ids).toContain('cyber-warfare');
+    // cyber-warfare is now era 12 — must NOT appear in era-5 advancement
+    expect(ids).not.toContain('cyber-warfare');
     // 4 stubs have countsForEraAdvancement: false and should be absent
     expect(ids).not.toContain('global-logistics');
     expect(ids).not.toContain('nuclear-theory');
     expect(ids).not.toContain('mass-media');
     expect(ids).not.toContain('amphibious-warfare');
-    // 30 new era-5 techs all count for advancement
-    expect(ids.length).toBe(32);
+    // 31 techs: 30 new era-5 techs + 1 espionage stub (digital-surveillance)
+    expect(ids.length).toBe(31);
   });
 
   it('resolves civilization era through contiguous 60-percent thresholds', () => {

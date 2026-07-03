@@ -20,27 +20,27 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the legacy shape after adding era-5 through era-11 nodes', () => {
+  it('keeps the legacy shape after removing cyber-warfare stub and adding era-5 through era-12 nodes', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      // Era 5-11 each add 2 techs per track. Espionage had 2 stubs → 24 total.
-      // Economy/science/communication/maritime/exploration had 9 era1-4 + 14 (era5-11) = 23.
-      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 24.
-      // Other tracks had 8 era1-4 + 14 (era5-11) = 22.
-      const expectedCount = track === 'espionage' || track === 'military'
-        ? 24
-        : ['economy', 'science', 'communication', 'maritime', 'exploration'].includes(track)
-          ? 23
-          : 22;
+      // cyber-warfare stub removed: espionage drops from 26 to 25.
+      // Economy/science/communication/maritime/exploration/espionage: 9 era1-4 + 16 (era5-12) = 25.
+      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 26.
+      // Other tracks had 8 era1-4 + 16 (era5-12) = 24.
+      const expectedCount = track === 'military'
+        ? 26
+        : ['economy', 'science', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
+          ? 25
+          : 24;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 339 techs total after adding era-11 (30 new techs across 15 tracks)', () => {
-    expect(TECH_TREE.length).toBe(339);
+  it('has 368 techs total after removing cyber-warfare stub and adding era-12 (29 net new techs)', () => {
+    expect(TECH_TREE.length).toBe(368);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -58,10 +58,10 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('techs span eras 1-11', () => {
+  it('techs span eras 1-12', () => {
     const eras = new Set(TECH_TREE.map(t => t.era));
-    expect(eras.size).toBe(11);
-    for (let era = 1; era <= 11; era++) {
+    expect(eras.size).toBe(12);
+    for (let era = 1; era <= 12; era++) {
       expect(eras).toContain(era);
     }
   });
