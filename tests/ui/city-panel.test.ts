@@ -21,6 +21,43 @@ function clickElement(element: Element | null | undefined): void {
   element!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 
+describe('city-panel national projects', () => {
+  it('labels national-project yields as empire-wide', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.era = 1;
+    state.civilizations.player.techState.completed.push('gathering');
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+    const project = panel.querySelector('[data-item-id="communal_stores"]');
+
+    expect(project?.textContent).toContain('Empire-wide: +2');
+  });
+
+  it('hides an empire-unique project already queued by another city', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.era = 1;
+    state.civilizations.player.techState.completed.push('gathering');
+    state.cities['city-two'] = {
+      ...structuredClone(city),
+      id: 'city-two',
+      productionQueue: ['communal_stores'],
+    };
+    state.civilizations.player.cities.push('city-two');
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-item-id="communal_stores"]')).toBeNull();
+  });
+});
+
 describe('city-panel legendary wonders', () => {
   it('renders a Legendary Wonders entry point and shows carryover in the active city', () => {
     const { container, city, state } = makeWonderPanelFixture();

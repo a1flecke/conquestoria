@@ -5,6 +5,7 @@ import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
+import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -125,12 +126,21 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
   }
 
   const completedTechs = civ.techState.completed ?? [];
+  const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
   return Object.values(state.cities)
     .filter(city => city.owner === civId)
     .filter(city => city.productionQueue.length === 0)
     .filter(city => !city.idleProduction)
     .filter(city => {
-      const buildableBuildings = !!state.map && getAvailableBuildings(city, completedTechs, state.map).length > 0;
+      const buildableBuildings = !!state.map && getAvailableBuildings(
+        city,
+        completedTechs,
+        state.map,
+        undefined,
+        state.era,
+        reservedNationalProjects,
+        civId,
+      ).length > 0;
       const buildableUnits = getTrainableUnitsForCiv(completedTechs, civ.civType).length > 0;
       return buildableBuildings || buildableUnits;
     })
@@ -160,10 +170,19 @@ export function getRecommendedIdleCityChoice(
   }
 
   const completedTechs = civ.techState.completed ?? [];
+  const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
   const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
   const candidates = [
-    ...(state.map ? getAvailableBuildings(city, completedTechs, state.map) : []).map(building => {
+    ...(state.map ? getAvailableBuildings(
+      city,
+      completedTechs,
+      state.map,
+      undefined,
+      state.era,
+      reservedNationalProjects,
+      civId,
+    ) : []).map(building => {
       const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: state.era });
       return {
         itemId: building.id,

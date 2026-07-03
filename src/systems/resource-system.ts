@@ -132,7 +132,7 @@ export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivB
   // Building yields
   for (const buildingId of city.buildings) {
     const building = BUILDINGS[buildingId];
-    if (building) {
+    if (building && !building.nationalProject) {
       yields.food += building.yields.food;
       yields.production += building.yields.production;
       yields.gold += building.yields.gold;

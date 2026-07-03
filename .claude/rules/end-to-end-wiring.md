@@ -40,10 +40,17 @@ paths:
   2. **Unit-renderer icon** in `src/renderer/unit-renderer.ts`.
   3. **Production-completion side-effects.** If the unit type has matching system state (e.g. spies → `state.espionage[civId].spies`, settlers → `state.cities` foundation), `src/core/turn-manager.ts` MUST create that state record at the same moment the `Unit` is added to `state.units`.
   4. **Death cleanup.** If the unit type has matching system state, `src/main.ts` death branches MUST clean it up to avoid zombie records.
-  5. **AI usage.** `src/ai/basic-ai.ts` MUST queue the new unit type when its conditions hold; otherwise AI civs become asymmetric with the player.
+  5. **AI usage.** The catalog-driven candidate and role paths in `src/ai/ai-production.ts` and `src/ai/ai-unit-roles.ts` MUST classify and consider the new unit. Add a narrow role override only for genuinely special behavior; do not add a one-off production branch to `src/ai/basic-ai.ts`.
   6. **Tech-gated dequeue.** `processCity` MUST consult `getTrainableUnitsForCiv(civ.techState.completed)` — or an equivalent — so an obsolete queued unit silently dequeues instead of producing forever.
 - If the unit is terrain- or city-location-gated (for example a naval unit requiring a coastal city), both the production chooser and city processing/dequeue path must consult the same city-aware eligibility helper.
+- If the unit replaces another unit, add `obsoletedByTech` to the source and an explicit `upgradesTo` target. Upgrade targets must never be inferred only from two units sharing a technology ID.
 - Adding a `UnitType` to `TRAINABLE_UNITS` without all six wirings is "dead computed data" and is a bug.
+
+## AI content catalogs must stay generic
+- New trainable units and buildings must flow into AI candidates from `TRAINABLE_UNITS`, `BUILDINGS`, and the shared eligibility helpers. Tests must compare the currently eligible catalogs to generated AI candidates so future additions fail loudly if they are skipped.
+- Unit role tests must derive air, transport, spy, and other semantic classes from typed definition metadata or shared predicates. Do not maintain duplicate hardcoded test lists that silently become stale.
+- National-project availability must use `getReservedNationalProjectKeys`, which includes both completed projects and projects queued in any city. The AI and player must not self-compete for `uniquePerEmpire` content.
+- Legendary-wonder AI must enumerate typed wonder definitions through shared eligibility/presentation helpers, cap simultaneous investment, and preserve global uniqueness. New wonders should not require a wonder-ID branch in AI code.
 
 ## Tech unlock arrays must be wired end-to-end
 - When you add a `TRAINABLE_UNIT` with `techRequired`, add its `type` to that tech's `unlocksUnits` array in `src/systems/tech-definitions.ts`.

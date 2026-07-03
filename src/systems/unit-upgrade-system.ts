@@ -32,16 +32,24 @@ export function getCanonicalUpgradeTarget(
   const currentEntry = TRAINABLE_UNITS.find(candidate => candidate.type === unit.type);
   if (
     !currentEntry?.obsoletedByTech
+    || !currentEntry.upgradesTo
     || !completedTechs.includes(currentEntry.obsoletedByTech)
   ) {
     return null;
   }
-  return TRAINABLE_UNITS.find(candidate =>
-    candidate.techRequired === currentEntry.obsoletedByTech
-    && (
-      !candidate.obsoletedByTech
-      || !completedTechs.includes(candidate.obsoletedByTech)
-    ))?.type ?? null;
+  const target = TRAINABLE_UNITS.find(candidate =>
+    candidate.type === currentEntry.upgradesTo);
+  if (
+    !target
+    || (target.techRequired && !completedTechs.includes(target.techRequired))
+    || (
+      target.obsoletedByTech
+      && completedTechs.includes(target.obsoletedByTech)
+    )
+  ) {
+    return null;
+  }
+  return target.type;
 }
 
 // Returns a new Unit with the upgraded type, full health, and action consumed.

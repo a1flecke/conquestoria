@@ -58,8 +58,10 @@ Movement bonuses are the most easily broken stat — small integers stack to pro
   - 0 or 1: 1.0 (full)
   - 2: 0.5 (fading)
   - ≥ 3: 0.0 (expired — building removed, `city:national-project-expired` event fired)
-- A civ may not queue a national project it has already built empire-wide (`uniquePerEmpire: true`).
+- A civ may not queue a national project it has already built or already queued in another city (`uniquePerEmpire: true`). All production and recommendation paths must use `getReservedNationalProjectKeys`.
+- National-project `yields` are display/balance metadata only; `calculateCityYields` must not apply them to the host city. Active effects enter the economy exactly once through `getNationalProjectCivYieldBonus`.
 - UI must show `(fading)` label when multiplier is 0.5.
+- Build UI must label national-project yield numbers as empire-wide so they cannot be mistaken for host-city yields.
 
 ## Special Building Rules
 
@@ -71,5 +73,7 @@ When adding a new wonder, national project, or special building in any future er
 
 - [ ] Wonder: `civYieldBonus` no single key > 6; ≤ 2 keys; no per-city scaling (or add to allowlist)
 - [ ] National project: single yield type preferred; total ≤ era ceiling; no `cityYieldBonus`; no per-city scaling (or add to allowlist)
+- [ ] National project: AI/player availability uses the shared reserved-project set; UI labels its yields as empire-wide
+- [ ] Wonder/project: definition-driven AI eligibility and global/self-competition tests cover the new entry without ID-specific AI branches
 - [ ] Any movement bonus: update the stacking inventory table above; confirm total ≤ +2 empire-wide for affected unit class
 - [ ] Run `yarn test` — `national-project-balance.test.ts` and `wonder-definitions.test.ts` will fail if ceilings are exceeded

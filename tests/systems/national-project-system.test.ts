@@ -3,6 +3,7 @@ import type { GameState } from '@/core/types';
 import {
   getNationalProjectMultiplier,
   getNationalProjectCivYieldBonus,
+  getReservedNationalProjectKeys,
   expireNationalProjects,
 } from '@/systems/national-project-system';
 
@@ -44,6 +45,31 @@ describe('getNationalProjectMultiplier', () => {
   it('returns 0.5 when delta === 2', () => expect(getNationalProjectMultiplier(7, 5)).toBe(0.5));
   it('returns 0 when delta === 3', () => expect(getNationalProjectMultiplier(8, 5)).toBe(0));
   it('returns 0 when delta > 3', () => expect(getNationalProjectMultiplier(10, 5)).toBe(0));
+});
+
+describe('getReservedNationalProjectKeys', () => {
+  it('reserves both completed and currently queued empire-unique projects', () => {
+    const state = makeState({
+      civilizations: {
+        p1: { id: 'p1', cities: ['c1', 'c2'] } as any,
+        p2: { id: 'p2', cities: ['c3'] } as any,
+      },
+      cities: {
+        c1: { id: 'c1', owner: 'p1', productionQueue: ['communal_stores'] } as any,
+        c2: { id: 'c2', owner: 'p1', productionQueue: ['warrior'] } as any,
+        c3: { id: 'c3', owner: 'p2', productionQueue: ['communal_stores'] } as any,
+      },
+      builtNationalProjects: {
+        'p1:sacred_grove': { civId: 'p1', cityId: 'c2', eraBuilt: 1 },
+        'p2:tribal_muster_ground': { civId: 'p2', cityId: 'c3', eraBuilt: 1 },
+      },
+    });
+
+    expect([...getReservedNationalProjectKeys(state, 'p1')].sort()).toEqual([
+      'p1:communal_stores',
+      'p1:sacred_grove',
+    ]);
+  });
 });
 
 describe('getNationalProjectCivYieldBonus', () => {

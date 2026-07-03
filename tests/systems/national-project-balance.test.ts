@@ -28,10 +28,10 @@ describe('national project structural invariants', () => {
 });
 
 describe('national project yield ceilings', () => {
-  const ERA_CEILINGS: Record<number, number> = { 1: 2, 2: 2, 3: 5, 4: 5, 5: 7, 6: 7, 7: 9, 8: 9, 9: 9, 10: 9, 11: 9 };
+  const ERA_CEILINGS: Record<number, number> = { 1: 2, 2: 2, 3: 5, 4: 5, 5: 7, 6: 7, 7: 9, 8: 9, 9: 9, 10: 9, 11: 9, 12: 9 };
 
-  it('ceiling table covers eras 1–11', () => {
-    expect(Object.keys(ERA_CEILINGS).map(Number).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  it('ceiling table covers eras 1–12', () => {
+    expect(Object.keys(ERA_CEILINGS).map(Number).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
   for (const np of nationalProjects) {

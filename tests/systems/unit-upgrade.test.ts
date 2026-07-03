@@ -9,7 +9,7 @@ import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import type { GameState, Spy, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
-import { foundCity } from '@/systems/city-system';
+import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 
 function makeUnit(type: string, position = { q: 0, r: 0 }): Unit {
   return { id: 'u1', type: type as any, owner: 'player', position, health: 70, movementPointsLeft: 2, hasActed: false, hasMoved: false, experience: 0, isResting: false };
@@ -51,6 +51,49 @@ describe('canUpgradeUnit', () => {
     const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['espionage-scouting', 'espionage-informants'], 25);
     expect(result.canUpgrade).toBe(true);
     expect(result.cost).toBe(25);
+  });
+});
+
+describe('explicit upgrade chains', () => {
+  it('upgrades spy_operative to spy_hacker instead of the conventional cyber unit', () => {
+    const unit = makeUnit('spy_operative');
+
+    const result = canUpgradeUnit(
+      unit,
+      'c1',
+      { c1: { id: 'c1', owner: 'player', position: unit.position } as any },
+      ['cryptography', 'cyber-warfare'],
+    );
+
+    expect(result.targetType).toBe('spy_hacker');
+  });
+
+  it('does not infer cross-role upgrades merely because a tech ID matches', () => {
+    const steamship = makeUnit('steamship');
+    const machineGunner = makeUnit('machine_gunner');
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+
+    expect(canUpgradeUnit(
+      steamship,
+      city.id,
+      { [city.id]: city },
+      ['caravels', 'ironclad-warships'],
+    ).targetType).toBeNull();
+    expect(canUpgradeUnit(
+      machineGunner,
+      city.id,
+      { [city.id]: city },
+      ['mass-firepower', 'armored-tactics'],
+    ).targetType).toBeNull();
+  });
+
+  it('keeps every explicit upgrade target catalog-backed and tech-aligned', () => {
+    for (const unit of TRAINABLE_UNITS) {
+      if (!unit.upgradesTo) continue;
+      const target = TRAINABLE_UNITS.find(candidate => candidate.type === unit.upgradesTo);
+      expect(target, `${unit.type} -> ${unit.upgradesTo}`).toBeDefined();
+      expect(target?.techRequired, `${unit.type} upgrade tech`).toBe(unit.obsoletedByTech);
+    }
   });
 });
 

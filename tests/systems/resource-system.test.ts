@@ -55,6 +55,18 @@ describe('calculateCityYields', () => {
     expect(withBuilding.food).toBeGreaterThan(withoutBuilding.food);
   });
 
+  it('does not apply empire-wide national-project yields again in the host city', () => {
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC());
+    const withoutProject = calculateCityYields(city, map);
+    const withProject = calculateCityYields(
+      { ...city, buildings: ['communal_stores'] },
+      map,
+    );
+
+    expect(withProject).toEqual(withoutProject);
+  });
+
   it('uses explicit workedTiles instead of the first owned tiles', () => {
     const map = generateMap(30, 30, 'explicit-worked-yields');
     const city = foundCity('player', { q: 15, r: 15 }, map, mkC());

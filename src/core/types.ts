@@ -783,6 +783,7 @@ export interface TrainableUnitEntry {
   cost: number;
   techRequired?: string;
   obsoletedByTech?: string;
+  upgradesTo?: UnitType;
   civTypeRequired?: string;  // only available/shown for this civ
   replacesUnit?: UnitType;   // hides this standard unit for the civ above
   resourceRequired?: ResourceType[];
