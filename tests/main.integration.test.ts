@@ -65,6 +65,18 @@ describe('shared city assault wiring', () => {
     );
   });
 
+  it('does not enter capture flow when the surviving attacker cannot occupy a city', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const playerAssault = main.slice(
+      main.indexOf('function beginPlayerCityAssault('),
+      main.indexOf('function executeAttack('),
+    );
+
+    expect(playerAssault).toMatch(
+      /if \(!attacker \|\| !canUnitOccupyCity\(attacker\)\) return 'resolved';/,
+    );
+  });
+
   it('routes player and legacy AI capture transitions through the shared emitter', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const basicAi = readFileSync(

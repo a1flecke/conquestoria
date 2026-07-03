@@ -7,7 +7,6 @@ import type {
   Unit,
   UnitType,
 } from '@/core/types';
-import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import {
@@ -26,6 +25,7 @@ import {
   type AIStrengthObservation,
   type MilitaryStrengthEstimate,
 } from './ai-strength';
+import { isAIHostileOwner } from './ai-hostility';
 
 export type AIPerceptionConfidence = 'visible' | 'remembered' | 'rumored';
 
@@ -153,7 +153,7 @@ export function buildMajorCivPerception(
   const relevantOwner = (ownerId: string) =>
     contactedSet.has(ownerId)
     || actor.diplomacy.atWarWith.includes(ownerId)
-    || isAlwaysHostilePair(actorId, ownerId);
+    || isAIHostileOwner(state, actorId, ownerId);
   const ownCities = actor.cities
     .map(id => state.cities[id])
     .filter((city): city is City => city?.owner === actorId)

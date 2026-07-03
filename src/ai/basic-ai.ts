@@ -6,6 +6,7 @@ import { getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/c
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
   canLoadUnitOntoTransport,
   loadUnitOntoTransport,
@@ -95,6 +96,7 @@ import {
   prepareMajorCivStrategicPlan,
   type PreparedMajorCivPlan,
 } from './ai-prepared-turn';
+import { isAIHostileOwner } from './ai-hostility';
 import { hasAICombatRole } from './ai-unit-roles';
 
 function addAlwaysHostileOwners(
@@ -301,11 +303,7 @@ function activeBlockadeFactionIds(state: GameState, civId: string): Set<string> 
 }
 
 function shouldAiAvoidPirateFaction(state: GameState, civId: string, factionId: string): boolean {
-  const faction = state.pirates?.factions[factionId];
-  return Boolean(
-    faction?.contract?.employerId === civId
-    || (faction?.tributeByCiv[civId]?.protectedUntilRound ?? 0) > state.turn,
-  );
+  return !isAIHostileOwner(state, civId, factionId);
 }
 
 function knownPirateResponseUnitIds(
@@ -541,11 +539,13 @@ export function canDeclareWarForPreparedPlan(
   }
   const target = plan.target;
   if (target.kind === 'city') {
-    return prepared.perception.knownCities.some(city =>
+    return state.cities[target.id]?.owner === targetCivId
+      && prepared.perception.knownCities.some(city =>
       city.id === target.id && city.owner === targetCivId);
   }
   if (target.kind === 'unit') {
-    return prepared.perception.units.some(unit =>
+    return state.units[target.id]?.owner === targetCivId
+      && prepared.perception.units.some(unit =>
       unit.id === target.id && unit.owner === targetCivId);
   }
   return false;
@@ -1261,22 +1261,55 @@ function processAITurnInternal(
           return u?.type === 'expedition' && !u.hasActed;
         });
         const cityPos = city.position;
-        const knownResourceKeys = purposefulAIEnabled
-          ? new Set(
-              administrativePerception.knownResources
-                .map(resource => hexKey(resource.position)),
-            )
-          : null;
-        const hasNearbyUnownedResource = hasForagingTech && Object.values(newState.map.tiles).some(tile => {
-          if (knownResourceKeys && !knownResourceKeys.has(hexKey(tile.coord))) return false;
-          if (!tile.resource || tile.owner !== null || tile.improvement !== 'none') return false;
-          const resDef = RESOURCE_DEFINITIONS.find(d => d.id === tile.resource);
-          if (!resDef || !civ.techState.completed.includes(resDef.tech)) return false;
-          const dist = newState.map.wrapsHorizontally
-            ? wrappedHexDistance(tile.coord, cityPos, newState.map.width)
-            : hexDistance(tile.coord, cityPos);
-          return dist <= 8;
-        });
+        const hasNearbyUnownedResource = hasForagingTech && (
+          purposefulAIEnabled
+            ? administrativePerception.knownResources.some(resource => {
+                if (resource.owner !== null) return false;
+                const resDef = RESOURCE_DEFINITIONS.find(
+                  definition => definition.id === resource.resource,
+                );
+                if (
+                  !resDef
+                  || !civ.techState.completed.includes(resDef.tech)
+                ) {
+                  return false;
+                }
+                const dist = newState.map.wrapsHorizontally
+                  ? wrappedHexDistance(
+                      resource.position,
+                      cityPos,
+                      newState.map.width,
+                    )
+                  : hexDistance(resource.position, cityPos);
+                return dist <= 8;
+              })
+            : Object.values(newState.map.tiles).some(tile => {
+                if (
+                  !tile.resource
+                  || tile.owner !== null
+                  || tile.improvement !== 'none'
+                ) {
+                  return false;
+                }
+                const resDef = RESOURCE_DEFINITIONS.find(
+                  definition => definition.id === tile.resource,
+                );
+                if (
+                  !resDef
+                  || !civ.techState.completed.includes(resDef.tech)
+                ) {
+                  return false;
+                }
+                const dist = newState.map.wrapsHorizontally
+                  ? wrappedHexDistance(
+                      tile.coord,
+                      cityPos,
+                      newState.map.width,
+                    )
+                  : hexDistance(tile.coord, cityPos);
+                return dist <= 8;
+              })
+        );
         if (hasForagingTech && !hasUncommittedExpedition && trainableUnits.includes('expedition') && hasNearbyUnownedResource) {
           city.productionQueue = ['expedition'];
         } else {
@@ -1562,7 +1595,11 @@ function processAITurnInternal(
     // 1) Move idle spy units toward nearest enemy city
     const idleSpyUnits = (newState.civilizations[civId].units ?? [])
       .map(id => newState.units[id])
-      .filter((u): u is Unit => !!u && isSpyUnitType(u.type) && !u.hasActed);
+      .filter((u): u is Unit =>
+        Boolean(u)
+        && isSpyUnitType(u.type)
+        && !u.hasActed
+        && u.movementPointsLeft > 0);
 
     for (const spyUnit of idleSpyUnits) {
       const candidates = (purposefulAIEnabled
@@ -1597,7 +1634,19 @@ function processAITurnInternal(
         u => u.id !== spyUnit.id && `${u.position.q},${u.position.r}` === nextKey,
       );
       if (occupied) continue;
-      newState.units[spyUnit.id] = moveUnit(spyUnit, next, 1);
+      executeUnitMove(
+        newState,
+        spyUnit.id,
+        next,
+        {
+          actor: 'ai',
+          civId,
+          bus,
+          foreignCityEntryId: hexKey(next) === hexKey(targetPosition)
+            ? target.id
+            : undefined,
+        },
+      );
     }
 
     // 2) Attempt infiltration when a spy is on an enemy city tile

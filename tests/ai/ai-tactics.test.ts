@@ -6,6 +6,7 @@ import {
   type AITacticalContext,
 } from '@/ai/ai-tactics';
 import { createNewGame } from '@/core/game-state';
+import { createEmptyPirateState } from '@/core/pirate-state';
 import type {
   AIStrategicPlan,
   GameState,
@@ -136,6 +137,89 @@ describe('AI tactical action ranking', () => {
     expect(actions[0]).toMatchObject({ kind: 'attack', unitId: 'archer' });
     expect(actions.findIndex(action => action.unitId === 'swordsman'))
       .toBeGreaterThan(actions.findIndex(action => action.unitId === 'archer'));
+  });
+
+  it('does not opportunistically attack beasts when beast contests are disabled', () => {
+    const state = makeState('veteran');
+    addUnit(state, 'captor', 'swordsman', AI, { q: 0, r: 0 });
+    addUnit(state, 'beast', 'beast_boar', 'beasts', { q: 1, r: 0 });
+    const city = addCity(state, 'target-city', HUMAN, { q: 4, r: 0 });
+    const plan = makePlan(
+      { kind: 'city', id: city.id, lastKnownPosition: city.position },
+      ['captor'],
+    );
+
+    const actions = rankUnitTacticalActions(
+      context(state, plan),
+      'captor',
+    );
+
+    expect(actions).not.toContainEqual(expect.objectContaining({
+      action: {
+        kind: 'attack',
+        unitId: 'captor',
+        targetUnitId: 'beast',
+      },
+    }));
+  });
+
+  it('does not attack a pirate faction while tribute protection is active', () => {
+    const state = makeState('veteran');
+    state.map.tiles['0,0'].terrain = 'ocean';
+    state.map.tiles['1,0'].terrain = 'ocean';
+    state.map.tiles['3,0'].terrain = 'ocean';
+    addUnit(state, 'warship', 'galley', AI, { q: 0, r: 0 });
+    addUnit(
+      state,
+      'protected-pirate',
+      'pirate_galley',
+      'pirate-1',
+      { q: 1, r: 0 },
+    );
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1',
+      name: 'The Red Wake',
+      spawnedRound: 2,
+      behavior: 'blockading',
+      maritimeStage: 1,
+      notoriety: 1,
+      shipIds: ['protected-pirate'],
+      headquarters: {
+        kind: 'coastal-enclave',
+        position: { q: 3, r: 0 },
+        integrity: 100,
+        maxIntegrity: 100,
+      },
+      tributeByCiv: {
+        [AI]: {
+          paidRound: state.turn,
+          protectedUntilRound: state.turn + 3,
+        },
+      },
+      demandByCiv: {},
+      contract: null,
+      intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+    const plan = makePlan(
+      { kind: 'region', id: 'sea-lane', anchor: { q: 3, r: 0 } },
+      ['warship'],
+      { objective: 'blockade' },
+    );
+
+    const actions = rankUnitTacticalActions(
+      context(state, plan),
+      'warship',
+    );
+
+    expect(actions).not.toContainEqual(expect.objectContaining({
+      action: {
+        kind: 'attack',
+        unitId: 'warship',
+        targetUnitId: 'protected-pirate',
+      },
+    }));
   });
 
   it('does not send a fast unit beyond support cohesion', () => {

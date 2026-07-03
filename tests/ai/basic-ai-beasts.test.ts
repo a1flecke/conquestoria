@@ -96,6 +96,33 @@ describe('AI vs beasts', () => {
     expect(state.units['beast-1']).toBeDefined();
   });
 
+  it('keeps beasts out of the feature-enabled strategic path by default', () => {
+    const state = makeBeastState({
+      aiUnitType: 'swordsman',
+      beastType: 'beast_boar',
+      beastHealth: 20,
+    });
+    state.civilizations['ai-1'].visibility.tiles = {
+      '0,0': 'visible',
+      '1,0': 'visible',
+    };
+    const combatEvents: unknown[] = [];
+    const bus = new EventBus();
+    bus.on('combat:resolved', payload => combatEvents.push(payload));
+
+    const result = processAITurn(state, 'ai-1', bus, {
+      purposefulAIEnabled: true,
+    });
+
+    expect(combatEvents).toHaveLength(0);
+    expect(result.units['beast-1']).toBeDefined();
+    expect(
+      Object.values(
+        result.opponentAI?.majorCivs['ai-1']?.defensePlansByCityId ?? {},
+      ),
+    ).toHaveLength(0);
+  });
+
   it('attacks an adjacent beast when enabled AND local strength advantage >= 1.5x', () => {
     // swordsman (str 25, health 100) vs badly wounded boar (str 18, health 20)
     // myStrength = 25; beastStrength = 18 * 0.2 = 3.6; 25 >= 3.6 * 1.5 → attack

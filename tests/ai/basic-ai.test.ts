@@ -9,7 +9,7 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 import type { GameEvents, GameState } from '@/core/types';
-import { foundCity } from '@/systems/city-system';
+import { BUILDINGS, foundCity } from '@/systems/city-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
@@ -81,6 +81,13 @@ describe('purposeful AI war gating', () => {
       .toBe(true);
     expect(canDeclareWarForPreparedPlan(state, prepared, 'ai-2'))
       .toBe(false);
+    state.cities[city.id] = {
+      ...state.cities[city.id],
+      owner: 'third-party-owner',
+    };
+    expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
+      .toBe(false);
+    state.cities[city.id] = city;
     if (!state.opponentAI) throw new Error('missing opponent AI state');
     state.opponentAI.migrationGraceRoundsRemaining = 1;
     expect(canDeclareWarForPreparedPlan(state, prepared, 'player'))
@@ -109,6 +116,117 @@ describe('purposeful AI administrative intel', () => {
     perception.knownCities = [];
 
     expect(chooseAiSpyTarget(state, aiId, perception)).toBeNull();
+  });
+
+  it('plans production from remembered resource ownership instead of hidden live changes', () => {
+    const state = createNewGame(undefined, 'purposeful-remembered-resource', 'small');
+    const aiId = 'ai-1';
+    state.turn = 10;
+    const settler = state.civilizations[aiId].units
+      .map(id => state.units[id])
+      .find(unit => unit?.type === 'settler');
+    if (!settler) throw new Error('missing AI settler');
+    const city = foundCity(
+      aiId,
+      settler.position,
+      state.map,
+      state.idCounters,
+    );
+    state.cities[city.id] = city;
+    state.civilizations[aiId].cities = [city.id];
+    for (const unitId of state.civilizations[aiId].units) {
+      delete state.units[unitId];
+    }
+    state.civilizations[aiId].units = [];
+    state.civilizations[aiId].techState.completed = ['gathering', 'foraging'];
+    state.builtNationalProjects = Object.fromEntries(
+      Object.entries(BUILDINGS)
+        .filter(([, building]) => Boolean(building.nationalProject))
+        .map(([buildingId]) => [
+          `${aiId}:${buildingId}`,
+          { civId: aiId, cityId: city.id, eraBuilt: state.era },
+        ]),
+    );
+
+    const resourceTile = Object.values(state.map.tiles).find(tile => {
+      const distance = hexDistance(city.position, tile.coord);
+      return distance >= 2 && distance <= 8;
+    });
+    if (!resourceTile) throw new Error('missing nearby resource tile');
+    const resourceKey = hexKey(resourceTile.coord);
+    state.civilizations[aiId].visibility.tiles = {
+      [resourceKey]: 'fog',
+    };
+    state.civilizations[aiId].visibility.lastSeen = {
+      [resourceKey]: {
+        coord: { ...resourceTile.coord },
+        terrain: resourceTile.terrain,
+        elevation: resourceTile.elevation,
+        resource: 'stone',
+        improvement: 'none',
+        improvementTurnsLeft: 0,
+        owner: null,
+        hasRiver: resourceTile.hasRiver,
+        wonder: resourceTile.wonder,
+        observedTurn: state.turn - 1,
+        source: 'observed',
+      },
+    };
+    resourceTile.resource = 'stone';
+    resourceTile.owner = 'player';
+    resourceTile.improvement = 'quarry';
+
+    expect(buildMajorCivPerception(state, aiId).knownResources)
+      .toContainEqual(expect.objectContaining({
+        resource: 'stone',
+        owner: null,
+        confidence: 'remembered',
+      }));
+
+    const result = processAITurn(state, aiId, new EventBus(), {
+      purposefulAIEnabled: true,
+    });
+
+    expect(result.cities[city.id].productionQueue[0]).toBe('expedition');
+    expect(result.civilizations[aiId].techState.currentResearch).not.toBeNull();
+  });
+
+  it('does not move an exhausted spy toward a known foreign city', () => {
+    const state = createNewGame(undefined, 'purposeful-exhausted-spy', 'small');
+    const aiId = 'ai-1';
+    const spyStart = { q: 0, r: 0 };
+    const targetTile = Object.values(state.map.tiles).find(tile =>
+      hexDistance(spyStart, tile.coord) === 2);
+    if (!targetTile) throw new Error('missing spy target tile');
+    const targetCity = foundCity(
+      'player',
+      targetTile.coord,
+      state.map,
+      state.idCounters,
+    );
+    state.cities[targetCity.id] = targetCity;
+    state.civilizations.player.cities = [targetCity.id];
+    state.civilizations[aiId].knownCivilizations = ['player'];
+    state.civilizations[aiId].visibility.tiles = {
+      [hexKey(targetCity.position)]: 'visible',
+    };
+    state.units = {
+      'exhausted-spy': {
+        ...createUnit('spy_scout', aiId, spyStart, state.idCounters),
+        id: 'exhausted-spy',
+        movementPointsLeft: 0,
+      },
+    };
+    state.civilizations[aiId].units = ['exhausted-spy'];
+    state.civilizations.player.units = [];
+    state.espionage ??= {};
+    state.espionage[aiId] = createEspionageCivState();
+
+    const result = processAITurn(state, aiId, new EventBus(), {
+      purposefulAIEnabled: true,
+    });
+
+    expect(result.units['exhausted-spy'].position).toEqual(spyStart);
   });
 });
 
@@ -1528,6 +1646,26 @@ describe('processAITurn', () => {
     expect(result.cities['city-ai'].productionProgress).toBeGreaterThan(0);
     expect(lostEvents).toEqual([
       { civId: 'ai-1', cityId: 'city-ai', wonderId: 'grand-canal', goldRefund: 10, transferableProduction: 10 },
+    ]);
+  });
+
+  it('preserves legendary-wonder administration on the feature-enabled path', () => {
+    const state = makeLegendaryWonderAiFixture();
+    const bus = new EventBus();
+    const lostEvents: Array<{ wonderId: string; cityId: string }> = [];
+    bus.on('wonder:legendary-lost', event => lostEvents.push(event));
+
+    const result = processAITurn(state, 'ai-1', bus, {
+      purposefulAIEnabled: true,
+    });
+
+    expect(result.legendaryWonderProjects!['grand-canal'].phase)
+      .toBe('lost_race');
+    expect(lostEvents).toEqual([
+      expect.objectContaining({
+        wonderId: 'grand-canal',
+        cityId: 'city-ai',
+      }),
     ]);
   });
 
