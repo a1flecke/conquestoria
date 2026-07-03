@@ -24,7 +24,7 @@ import {
 import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wonder-landmark-presentation';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { getUnrestYieldMultiplier } from '@/systems/faction-system';
+import { getUnrestYieldMultiplier, getCityAppeaseCost, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -54,6 +54,7 @@ export interface CityPanelCallbacks {
   onUpgradeUnit?: (unitId: string) => void;
   onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => void;
   onRushBuyActiveProduction?: (cityId: string) => GameState | void;
+  onAppeaseFaction?: (cityId: string) => GameState | void;
   onFindResources?: (
     highlights: HexCoord[],
     toasts: Array<{ message: string; type: 'info' | 'warning' }>,
@@ -202,6 +203,23 @@ export function createCityPanel(
   const maintenanceTooltip = formatMaintenanceTooltip(economyStatus);
   const rushBuyQuote = getRushBuyQuote(state, city.owner, city.id);
   const rushBuyReason = getRushBuyReasonText(rushBuyQuote.reason);
+  const appeaseCost = getCityAppeaseCost(city);
+  const civGoldForAppease = state.civilizations[city.owner]?.gold ?? 0;
+  const appeasedThisTurn = city.appeasedOnTurn === state.turn;
+  const canAffordAppease = civGoldForAppease >= appeaseCost;
+  const appeaseDisabled = !canAffordAppease || appeasedThisTurn || !callbacks.onAppeaseFaction;
+  const appeaseLabel = appeasedThisTurn
+    ? 'Already appeased this turn'
+    : !canAffordAppease
+      ? `Not enough gold (needs ${appeaseCost})`
+      : `Appease (${appeaseCost} gold)`;
+  const unrestSectionHtml = city.unrestLevel > 0 ? `
+    <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#e88;margin-bottom:4px;">
+        ${city.unrestLevel === 2 ? '⚠️ Revolt' : '⚠️ Unrest'} — yields reduced${isCityProductionLocked(city) ? ', production locked' : ''}
+      </div>
+      <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
+    </div>` : '';
   const getFutureBuildingUpkeep = (buildingId: string): number => {
     const projected = calculateCityBuildingMaintenance(state, {
       ...city,
@@ -528,6 +546,7 @@ export function createCityPanel(
       <span>Net treasury: ${economyStatus.netGoldPerTurn >= 0 ? '+' : ''}${economyStatus.netGoldPerTurn}/turn</span>
       ${economyStatus.strainLevel !== 'none' ? '<span style="color:#d9a25c;" data-text="economy-strain"></span>' : ''}
     </div>
+    ${unrestSectionHtml}
 
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Queue</div>
@@ -891,6 +910,14 @@ export function createCityPanel(
   panel.querySelectorAll<HTMLElement>('[data-rush-buy]').forEach(btn => {
     btn.addEventListener('click', () => {
       const nextState = callbacks.onRushBuyActiveProduction?.(city.id);
+      rerenderPanel(nextState);
+    });
+  });
+
+  panel.querySelectorAll<HTMLButtonElement>('[data-appease]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const nextState = callbacks.onAppeaseFaction?.(city.id);
       rerenderPanel(nextState);
     });
   });
