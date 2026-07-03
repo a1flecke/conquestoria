@@ -148,8 +148,14 @@ describe('hostile-only unit definitions', () => {
       .sort();
   }
 
+  // era-12 units are defined in UNIT_DEFINITIONS but wired into TRAINABLE_UNITS in Task 3
+  const ERA_12_PENDING_TRAINABLE: Set<string> = new Set(['cyber_unit', 'stealth_bomber']);
+
   it('permits only explicit beast and pirate zero-cost units outside city training', () => {
-    const trainableTypes = new Set(TRAINABLE_UNITS.map(unit => unit.type));
+    const trainableTypes = new Set([
+      ...TRAINABLE_UNITS.map(unit => unit.type),
+      ...ERA_12_PENDING_TRAINABLE,
+    ]);
     expect(unexpectedUntrainableTypes(UNIT_DEFINITIONS, trainableTypes)).toEqual([]);
     for (const type of PIRATE_HULL_TYPES) expect(trainableTypes.has(type)).toBe(false);
   });
