@@ -390,6 +390,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 0,
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit'] },
   },
+  // Era 12 units
+  cyber_unit: {
+    type: 'cyber_unit', name: 'Cyber Operative', movementPoints: 2,
+    visionRange: 2, strength: 70, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 280,
+    domain: 'land',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['city'] },
+  },
+  stealth_bomber: {
+    type: 'stealth_bomber', name: 'Stealth Bomber', movementPoints: 7,
+    visionRange: 4, strength: 65, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 320,
+    domain: 'air',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+  },
 };
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
@@ -561,6 +576,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   beast_roc: 'The Storm Roc nests on the high peaks and dives on anything that crosses its skies. It flies over terrain that would stop an army.',
   beast_hydra: 'The Swamp Hydra regrows flesh as fast as you can cut it — 10 health every turn. Strike hard and finish it in one assault.',
   beast_dragon: 'The Ancient Dragon, terror of the volcanic peaks. Its fire breath strikes from 2 hexes away. Slaying it is the deed of a lifetime — the hoard contains everything.',
+  cyber_unit: 'Elite cyber operative deployed on the battlefield. Drains enemy city gold each turn when adjacent; cities without a Cyber Defense Center are fully exposed to economic sabotage.',
+  stealth_bomber: 'Advanced stealth aircraft invisible to radar. Evades detection unless an enemy Signals Hub is within 2 hexes — then it must contend with interceptors. Delivers precision strikes from 2 hexes.',
 };
 
 export function getUnmovedUnits(

@@ -5,6 +5,7 @@ import { TECH_TREE_ERAS_8 } from './tech-definitions-eras8';
 import { TECH_TREE_ERAS_9 } from './tech-definitions-eras9';
 import { TECH_TREE_ERAS_10 } from './tech-definitions-eras10';
 import { TECH_TREE_ERAS_11 } from './tech-definitions-eras11';
+import { TECH_TREE_ERAS_12 } from './tech-definitions-eras12';
 
 export { TECH_TREE_ERAS_1_4 } from './tech-definitions-eras1-4';
 export { TECH_TREE_ERAS_5_7 } from './tech-definitions-eras5-7';
@@ -12,6 +13,7 @@ export { TECH_TREE_ERAS_8 } from './tech-definitions-eras8';
 export { TECH_TREE_ERAS_9 } from './tech-definitions-eras9';
 export { TECH_TREE_ERAS_10 } from './tech-definitions-eras10';
 export { TECH_TREE_ERAS_11 } from './tech-definitions-eras11';
+export { TECH_TREE_ERAS_12 } from './tech-definitions-eras12';
 
 export const TECH_TREE: Tech[] = [
   ...TECH_TREE_ERAS_1_4,
@@ -20,6 +22,7 @@ export const TECH_TREE: Tech[] = [
   ...TECH_TREE_ERAS_9,
   ...TECH_TREE_ERAS_10,
   ...TECH_TREE_ERAS_11,
+  ...TECH_TREE_ERAS_12,
 ];
 
 export function getEraAdvancementTechs(era: number): Tech[] {

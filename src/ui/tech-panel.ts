@@ -58,13 +58,10 @@ function titleCase(value: string): string {
 }
 
 export const ERA_NAMES: Record<number, string> = {
-  1: 'Ancient',
-  2: 'Classical',
-  3: 'Medieval',
-  4: 'Renaissance',
-  5: 'Early Modern',
-  6: 'Industrial',
-  7: 'Modern',
+  1: 'Ancient', 2: 'Classical', 3: 'Medieval', 4: 'Renaissance',
+  5: 'Early Modern', 6: 'Industrial', 7: 'Modern',
+  8: 'Nationalist', 9: 'Progressive', 10: 'Cold War',
+  11: 'Space Race', 12: 'Information Age',
 };
 
 function getEraLabel(era: number): string {
