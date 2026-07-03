@@ -66,7 +66,14 @@ describe('wonder-panel', () => {
     const { container, state } = makeWonderPanelFixture();
     state.legendaryWonderProjects!['oracle-of-delphi'].questSteps = [
       { id: 'discover-natural-wonder', description: 'Discover a natural wonder.', completed: true },
-      { id: 'complete-pilgrimage-route', description: 'Establish a pilgrimage trade route.', completed: false },
+      // The panel refreshes description text from the canonical wonder definition at
+      // render time (strategy-game-mechanics.md: "existing seeded projects should
+      // refresh definition-backed descriptions... so panels cannot drift from the
+      // roster"), so this mock description is not what actually renders — the real
+      // text (asserted below) comes from legendary-wonder-definitions.ts's
+      // complete-pilgrimage-route step, fixed in #432 to drop the misleading
+      // "pilgrimage" flavor text. Kept here for readability of the fixture shape only.
+      { id: 'complete-pilgrimage-route', description: 'Establish a trade route.', completed: false },
     ];
 
     const panel = createWonderPanel(container, state, 'city-river', {
@@ -79,7 +86,7 @@ describe('wonder-panel', () => {
 
     expect(rows.map(row => row.dataset.wonderQuestStep)).toEqual(['completed', 'pending']);
     expect(rows[0].textContent).toContain('✓ Complete: Discover a natural wonder.');
-    expect(rows[1].textContent).toContain('○ Pending: Establish a pilgrimage trade route.');
+    expect(rows[1].textContent).toContain('○ Pending: Establish a trade route.');
     expect(rows.some(row => row.dataset.wonderQuestStep === 'blocked')).toBe(false);
   });
 

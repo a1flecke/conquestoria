@@ -9,6 +9,7 @@ import {
   getMinimumStartDistance,
   getStartPositionDistance,
   guaranteeStartResources,
+  getWonderRequiredResourceIds,
 } from '@/systems/map-generator';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import type { GameMap, HexCoord, HexTile, ResourceType, TerrainType } from '@/core/types';
@@ -422,5 +423,55 @@ describe('guaranteeStartResources', () => {
     expect(() =>
       guaranteeStartResources(map, [{ q: 4, r: 4 }], createRng('ocean-test')),
     ).not.toThrow();
+  });
+
+  it('places stone, iron, and gold within reach of each start (#432 — specific resources beyond generic luxury/strategic)', () => {
+    // Unlike the generic luxury/strategic passes (many possible terrain/resource
+    // matches, reliably found within radius 5), stone/iron/gold each require exactly
+    // one terrain type — radius 5 may legitimately have none, in which case the
+    // escalation logic (tested separately below) places it farther out. This test
+    // checks the outer escalation radius, not radius 5, to reflect that.
+    const map = makeSmallMap();
+    for (const tile of Object.values(map.tiles)) tile.resource = null;
+    const starts: HexCoord[] = [{ q: 5, r: 5 }, { q: 15, r: 15 }];
+
+    guaranteeStartResources(map, starts, createRng('guarantee-specific-test'));
+
+    for (const start of starts) {
+      expect(hasResourceTypeWithinRadius(map, start, new Set(['stone']), 40)).toBe(true);
+      expect(hasResourceTypeWithinRadius(map, start, new Set(['iron']), 40)).toBe(true);
+      expect(hasResourceTypeWithinRadius(map, start, new Set(['gold']), 40)).toBe(true);
+    }
+  });
+
+  it('escalates search radius when no eligible terrain for a specific resource exists within radius 5 (#432)', () => {
+    // stone requires 'mountain' terrain and iron/gold require 'hills' — build a map
+    // where the only mountain/hills tiles are well outside radius 5 of the start, to
+    // prove guaranteeStartResources finds them anyway instead of silently giving up.
+    const map = generateMap(40, 40, 'radius-escalation-test');
+    for (const tile of Object.values(map.tiles)) {
+      tile.resource = null;
+      tile.terrain = 'grassland';
+    }
+    const start: HexCoord = { q: 20, r: 20 };
+    const farMountain = map.tiles[hexKey({ q: 20, r: 32 })];
+    const farHills = map.tiles[hexKey({ q: 32, r: 20 })];
+    expect(farMountain).toBeDefined();
+    expect(farHills).toBeDefined();
+    farMountain.terrain = 'mountain';
+    farHills.terrain = 'hills';
+
+    guaranteeStartResources(map, [start], createRng('radius-escalation-test'));
+
+    expect(hasResourceTypeWithinRadius(map, start, new Set(['stone']), 40)).toBe(true);
+    expect(hasResourceTypeWithinRadius(map, start, new Set(['iron', 'gold']), 40)).toBe(true);
+  });
+
+  it('picks up a synthetic new required resource automatically — proves the guarantee is data-driven, not a hardcoded id list (#432)', () => {
+    const syntheticWonders = [
+      { id: 'test-only-wonder', name: 'Test Wonder', era: 2, productionCost: 1, requiredTechs: [], requiredResources: ['silk'], cityRequirement: 'any' as const, questSteps: [], reward: { summary: '' } },
+    ];
+    expect(getWonderRequiredResourceIds(syntheticWonders)).toEqual(new Set(['silk']));
+    expect(getWonderRequiredResourceIds()).toEqual(new Set(['stone', 'iron', 'gold']));
   });
 });

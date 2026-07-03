@@ -5,6 +5,7 @@ import {
   getLegendaryWonderPresentationForCity,
   getLegendaryWonderProductionCost,
   getLegendaryWonderQueueItemMetadata,
+  titleCaseId,
 } from '@/systems/legendary-wonder-presentation';
 import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 
@@ -141,14 +142,26 @@ describe('legendary-wonder-presentation', () => {
     expect(activeOracle?.missingRequirements).toContain('Already under construction in another city');
   });
 
-  it('formats underscore-backed resource identifiers for player-facing requirements', () => {
+  it('titleCaseId formats both hyphen- and underscore-separated ids for player-facing labels (#432)', () => {
+    // No resource id in RESOURCE_DEFINITIONS uses an underscore (palace-of-the-sun's
+    // requiredResources used to be the one exception, via the now-fixed
+    // 'gold_resource' typo — see legendary-wonder-definitions.ts). titleCaseId itself
+    // is still a general-purpose formatter used elsewhere (tech id / quest step id
+    // fallback labels), so its underscore-handling is tested directly here rather
+    // than through a wonder whose data no longer exercises that path.
+    expect(titleCaseId('gold_resource')).toBe('Gold Resource');
+    expect(titleCaseId('some-hyphenated-id')).toBe('Some Hyphenated Id');
+    expect(titleCaseId('gold')).toBe('Gold');
+  });
+
+  it('shows the correct player-facing label for palace-of-the-sun now that its resource id is fixed (#432)', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
 
     const palace = getLegendaryWonderPresentationForCity(state, 'player', 'city-river')
       .find(entry => entry.wonderId === 'palace-of-the-sun');
 
-    expect(palace?.missingRequirements).toContain('Gold Resource');
-    expect(palace?.missingRequirements).not.toContain('Gold_resource');
+    expect(palace?.missingRequirements).toContain('Gold');
+    expect(palace?.missingRequirements).not.toContain('Gold Resource');
   });
 
   it('keeps far-future blocked wonders out of the compact build-list surface', () => {

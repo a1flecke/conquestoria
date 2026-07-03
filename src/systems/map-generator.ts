@@ -1,4 +1,4 @@
-import type { GameMap, HexTile, HexCoord, TerrainType, Elevation, MapScript, ResourceType } from '@/core/types';
+import type { GameMap, HexTile, HexCoord, TerrainType, Elevation, MapScript, ResourceType, LegendaryWonderDefinition } from '@/core/types';
 import {
   hexKey,
   hexDistance,
@@ -8,6 +8,7 @@ import {
 } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
 import { RESOURCE_DEFINITIONS } from './trade-system';
+import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
 // Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
 import { EARTH_START_POSITIONS } from './earth-map-data';
 import { isValidStartTile } from './map-validation';
@@ -272,6 +273,65 @@ export function guaranteeStartResources(
       guaranteePlaceResource(neighborhoodData, strategicIds, terrainResourceMap, start, map, rng);
     }
   }
+
+  guaranteeSpecificWonderResources(map, startPositions, terrainResourceMap, rng);
+}
+
+// Specific resource ids (not just "any luxury"/"any strategic") required by any
+// legendary wonder. Derived from wonder data, not hardcoded, so a future wonder
+// introducing a new required resource is picked up automatically.
+//
+// Not era-filtered: checked during implementation, only 1 of 18 requiredResources
+// entries across the whole roster is era <= 3 (Oracle of Delphi, stone, era 3) — the
+// rest span era 4 through 11, heavily on iron. An early-era-only filter would leave
+// the exact reachability problem this exists to fix unsolved for nearly every wonder
+// that actually has this requirement. Since the roster only ever references 3
+// distinct specific ids in total (stone, iron, gold) regardless of era, guaranteeing
+// all of them has the same footprint as guaranteeing an early-only subset would.
+//
+// Exported (and parameterized with a real default) so a test can inject a synthetic
+// wonder list and prove this reads data rather than a hardcoded set.
+export function getWonderRequiredResourceIds(
+  wonders: LegendaryWonderDefinition[] = LEGENDARY_WONDER_DEFINITIONS,
+): Set<ResourceType> {
+  return new Set(
+    wonders.flatMap(wonder => wonder.requiredResources) as ResourceType[],
+  );
+}
+
+// stone (mountain-only) and iron/gold (hills-only) can legitimately have zero
+// eligible tiles within a small radius on terrain-sparse starts. guaranteePlaceResource
+// silently no-ops when nothing is eligible, so a fixed radius alone would not actually
+// guarantee anything — escalate outward until placed or genuinely nothing exists on
+// the whole map (mirrors the existing "does not crash when no eligible terrain exists"
+// guarantee for the generic luxury/strategic passes).
+const SPECIFIC_RESOURCE_GUARANTEE_RADII = [5, 10, 20, 40];
+
+function guaranteeSpecificWonderResources(
+  map: GameMap,
+  startPositions: HexCoord[],
+  terrainResourceMap: Record<string, ResourceType[]>,
+  rng: () => number,
+): void {
+  const specificIds = getWonderRequiredResourceIds();
+
+  for (const start of startPositions) {
+    for (const resourceId of specificIds) {
+      const targetSet = new Set<ResourceType>([resourceId]);
+      const alreadyPresent = getCandidateNeighborhood(map, start, 5)
+        .map(coord => map.tiles[hexKey(coord)])
+        .some(tile => tile !== undefined && isTargetResource(tile.resource, targetSet));
+      if (alreadyPresent) continue;
+
+      for (const radius of SPECIFIC_RESOURCE_GUARANTEE_RADII) {
+        const neighborhoodData = getCandidateNeighborhood(map, start, radius)
+          .map(coord => ({ coord, tile: map.tiles[hexKey(coord)] }))
+          .filter((item): item is { coord: HexCoord; tile: HexTile } => item.tile !== undefined);
+        const placed = guaranteePlaceResource(neighborhoodData, targetSet, terrainResourceMap, start, map, rng);
+        if (placed) break;
+      }
+    }
+  }
 }
 
 function guaranteePlaceResource(
@@ -281,13 +341,13 @@ function guaranteePlaceResource(
   start: HexCoord,
   map: GameMap,
   rng: () => number,
-): void {
+): boolean {
   const eligible = neighborhoodData.filter(({ tile }) => {
     if (tile.resource !== null) return false;
     const candidates = terrainResourceMap[tile.terrain] ?? [];
     return candidates.some(resource => targetIds.has(resource));
   });
-  if (eligible.length === 0) return;
+  if (eligible.length === 0) return false;
 
   const keyed = eligible.map(item => ({
     ...item,
@@ -301,8 +361,9 @@ function guaranteePlaceResource(
   const target = keyed[0];
   const candidates = (terrainResourceMap[target.tile.terrain] ?? [])
     .filter(resource => targetIds.has(resource));
-  if (candidates.length === 0) return;
+  if (candidates.length === 0) return false;
   target.tile.resource = candidates[Math.floor(rng() * candidates.length)];
+  return true;
 }
 
 function isTargetResource(resource: string | null, targetIds: Set<ResourceType>): resource is ResourceType {
