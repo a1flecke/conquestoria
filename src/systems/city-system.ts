@@ -934,6 +934,108 @@ export const BUILDINGS: Record<string, Building> = {
     uniquePerEmpire: true, nationalProject: { homeEra: 11 },
     civYieldBonus: { production: 6 },
   },
+
+  // === ERA 12 BUILDINGS ===
+
+  automated_port: {
+    id: 'automated_port', name: 'Automated Port', category: 'economy',
+    yields: { food: 0, production: 0, gold: 2, science: 0 },
+    productionCost: 200,
+    description: 'Autonomous logistics eliminates maintenance costs for all trade routes. Coastal cities only.',
+    techRequired: 'autonomous-shipping',
+    coastalRequired: true,
+  },
+
+  biotech_lab: {
+    id: 'biotech_lab', name: 'Biotech Lab', category: 'science',
+    yields: { food: 3, production: 0, gold: 0, science: 2 },
+    productionCost: 190,
+    description: 'Genetic engineering breakthroughs boost food yield. Cities generate +1 food per 3 science per turn (from Genomics tech).',
+    techRequired: 'genomics',
+  },
+
+  broadcast_tower: {
+    id: 'broadcast_tower', name: 'Broadcast Tower', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 3, science: 0 },
+    productionCost: 170,
+    description: 'EM broadcast infrastructure supporting digital communications. Generates gold from digital commerce.',
+    techRequired: 'social-media',
+  },
+
+  cyber_defense_center: {
+    id: 'cyber_defense_center', name: 'Cyber Defense Center', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 0, science: 2 },
+    productionCost: 200,
+    description: 'Probabilistically blocks cyber unit gold drain (65%), spy Market Manipulation (60%), and mass-surveillance exposure (70%). Block chances +10% with a co-located Signals Hub.',
+    techRequired: 'internet',
+  },
+
+  data_center: {
+    id: 'data_center', name: 'Data Center', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 3 },
+    productionCost: 200,
+    description: 'High-performance computing cluster. Requires a Semiconductor Fab.',
+    techRequired: 'quantum-computing',
+    requiresBuildings: ['semiconductor_fab'],
+  },
+
+  fintech_hub: {
+    id: 'fintech_hub', name: 'Fintech Hub', category: 'economy',
+    yields: { food: 0, production: 0, gold: 2, science: 0 },
+    productionCost: 180,
+    description: 'Digital payment infrastructure. With Digital Economy tech, the host city gains +1 gold per active trade route.',
+    techRequired: 'digital-economy',
+  },
+
+  gene_therapy_clinic: {
+    id: 'gene_therapy_clinic', name: 'Gene Therapy Clinic', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 2 },
+    productionCost: 220,
+    description: 'Units trained here start with gene therapy pre-charged — they survive one lethal hit at 1 HP before requiring rest.',
+    techRequired: 'gene-therapy',
+  },
+
+  precision_farm: {
+    id: 'precision_farm', name: 'Precision Farm', category: 'food',
+    yields: { food: 2, production: 0, gold: 0, science: 0 },
+    productionCost: 160,
+    description: "GPS-guided equipment. With Precision Agriculture tech, farm improvements in this city's borders also yield +1 production.",
+    techRequired: 'precision-agriculture',
+  },
+
+  signals_hub: {
+    id: 'signals_hub', name: 'Signals Hub', category: 'espionage',
+    yields: { food: 0, production: 0, gold: 0, science: 2 },
+    productionCost: 200,
+    description: 'Raises all CDC block chances in this city by +10%. Makes stealth bombers within 2 hexes targetable by ranged attacks. Requires a Cyber Defense Center.',
+    techRequired: 'cyber-intelligence',
+    requiresBuildings: ['cyber_defense_center'],
+  },
+
+  smart_grid: {
+    id: 'smart_grid', name: 'Smart Grid', category: 'production',
+    yields: { food: 0, production: 2, gold: 0, science: 1 },
+    productionCost: 200,
+    description: 'Intelligent power distribution. Requires a factory and a semiconductor fab.',
+    techRequired: 'smart-cities',
+    requiresBuildings: ['factory', 'semiconductor_fab'],
+  },
+
+  stealth_airbase: {
+    id: 'stealth_airbase', name: 'Stealth Airbase', category: 'military',
+    yields: { food: 0, production: 2, gold: 0, science: 0 },
+    productionCost: 220,
+    description: 'The only facility capable of training Stealth Bombers. Requires Stealth Technology research.',
+    techRequired: 'stealth-technology',
+  },
+
+  telemedicine_hub: {
+    id: 'telemedicine_hub', name: 'Telemedicine Hub', category: 'food',
+    yields: { food: 2, production: 0, gold: 0, science: 0 },
+    productionCost: 180,
+    description: 'Remote medical care. With Telemedicine tech, friendly units within 3 hexes of this city heal +1 extra HP per turn.',
+    techRequired: 'telemedicine',
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -977,6 +1079,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   // Era 11 units
   { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
+  // Era 12 units (stats are placeholders — Task 3 will update to spec values)
+  { type: 'stealth_bomber', name: 'Stealth Bomber', cost: 320, techRequired: 'stealth-technology', trainedFromBuilding: 'stealth_airbase', pacing: { band: 'marquee', role: 'stealth-strike', impact: 1.7, scope: 'military', snowball: 1.5, urgency: 1.3, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -1273,6 +1377,21 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 11 units
   attack_helicopter: '🚁',
   missile_submarine: '🌊',
+  // Era 12 buildings
+  automated_port: '⚓',
+  biotech_lab: '🧬',
+  broadcast_tower: '📺',
+  cyber_defense_center: '🛡️',
+  data_center: '💻',
+  fintech_hub: '💳',
+  gene_therapy_clinic: '🧪',
+  precision_farm: '🌾',
+  signals_hub: '📡',
+  smart_grid: '⚡',
+  stealth_airbase: '✈️',
+  telemedicine_hub: '🏥',
+  // Era 12 units
+  stealth_bomber: '🛩️',
 };
 
 export const PRODUCTION_ICON_FALLBACK = '🏗️';
@@ -1325,7 +1444,8 @@ export function getTrainableUnitsForCity(
 ): TrainableUnitEntry[] {
   const coastal = isCityCoastal(city, map);
   return getTrainableUnitsForCiv(completedTechs, civType, availableResources)
-    .filter(unit => !unit.coastalRequired || coastal);
+    .filter(unit => !unit.coastalRequired || coastal)
+    .filter(unit => !unit.trainedFromBuilding || (city.buildings ?? []).includes(unit.trainedFromBuilding));
 }
 
 export function getDetectionUnitTypeForCiv(civType?: string): UnitType {

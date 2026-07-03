@@ -49,6 +49,10 @@ import {
   EnvironmentalAgencySprite, SpaceCenterSprite, AgriculturalStationSprite, TransplantHospitalSprite,
   ContainerPortSprite, ResearchNetworkSprite, SurveillanceAgencySprite,
   ArmsControlTreatySprite, GreenRevolutionProgramSprite, StrategicAirCommandSprite,
+  // era 12
+  AutomatedPortSprite, BiotechLabSprite, BroadcastTowerSprite, CyberDefenseCenterSprite,
+  DataCenterSprite, FintechHubSprite, GeneTherapyClinicSprite, PrecisionFarmSprite,
+  SignalsHubSprite, SmartGridSprite, StealthAirbaseSprite, TelemedicineHubSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite, WrightFlyerSprite,
@@ -398,6 +402,19 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   arms_control_treaty:            ArmsControlTreatySprite,
   green_revolution_program:       GreenRevolutionProgramSprite,
   strategic_air_command:          StrategicAirCommandSprite,
+  // era 12 buildings
+  automated_port:                 AutomatedPortSprite,
+  biotech_lab:                    BiotechLabSprite,
+  broadcast_tower:                BroadcastTowerSprite,
+  cyber_defense_center:           CyberDefenseCenterSprite,
+  data_center:                    DataCenterSprite,
+  fintech_hub:                    FintechHubSprite,
+  gene_therapy_clinic:            GeneTherapyClinicSprite,
+  precision_farm:                 PrecisionFarmSprite,
+  signals_hub:                    SignalsHubSprite,
+  smart_grid:                     SmartGridSprite,
+  stealth_airbase:                StealthAirbaseSprite,
+  telemedicine_hub:               TelemedicineHubSprite,
 };
 
 export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<PirateHeadquartersSpriteId, LandmarkSpriteComponent> = {
