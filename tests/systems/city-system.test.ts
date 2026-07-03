@@ -1182,4 +1182,31 @@ describe('processCity — resource dequeue', () => {
     const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>(['iron']));
     expect(result.city.productionQueue).not.toContain('swordsman');
   });
+
+  it('#429 regression: dequeues a queued warrior once rifled-infantry completes', () => {
+    // productionProgress + productionYield (0 + 3 = 3) stays well under warrior's
+    // production cost (8), so removal from the queue can only be the obsoletedByTech
+    // dequeue path, not the unit completing production this turn.
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
+    const result = processCity(city, map, 2, 3, undefined, ['rifled-infantry'], undefined, 1, new Set<ResourceType>());
+    expect(result.city.productionQueue).not.toContain('warrior');
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('#429 regression: keeps a queued warrior when rifled-infantry has not been researched', () => {
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
+    const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>());
+    expect(result.city.productionQueue).toContain('warrior');
+  });
+});
+
+describe('#429 regression: AI training selection respects new obsolescence data', () => {
+  it('warrior drops out of the AI-visible trainable pool once rifled-infantry completes (same getTrainableUnitsForCiv call basic-ai.ts:948 uses)', () => {
+    const before = getTrainableUnitsForCiv([], 'rome', new Set<ResourceType>());
+    const after = getTrainableUnitsForCiv(['rifled-infantry'], 'rome', new Set<ResourceType>());
+    expect(before.some(u => u.type === 'warrior')).toBe(true);
+    expect(after.some(u => u.type === 'warrior')).toBe(false);
+  });
 });

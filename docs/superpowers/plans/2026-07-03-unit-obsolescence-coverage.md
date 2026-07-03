@@ -347,8 +347,11 @@ Inside the existing `describe('processCity — resource dequeue', ...)` block in
 
 ```typescript
   it('#429 regression: dequeues a queued warrior once rifled-infantry completes', () => {
+    // productionProgress + productionYield (0 + 3 = 3) stays well under warrior's
+    // production cost (8), so removal from the queue can only be the obsoletedByTech
+    // dequeue path, not the unit completing production this turn.
     const map = mkMap2();
-    const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 5 };
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
     const result = processCity(city, map, 2, 3, undefined, ['rifled-infantry'], undefined, 1, new Set<ResourceType>());
     expect(result.city.productionQueue).not.toContain('warrior');
     expect(result.city.productionProgress).toBe(0);
@@ -356,11 +359,13 @@ Inside the existing `describe('processCity — resource dequeue', ...)` block in
 
   it('#429 regression: keeps a queued warrior when rifled-infantry has not been researched', () => {
     const map = mkMap2();
-    const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 5 };
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
     const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>());
     expect(result.city.productionQueue).toContain('warrior');
   });
 ```
+
+**Note (caught during implementation):** the original version of this step used `productionProgress: 5`, which combined with `productionYield: 3` reaches exactly `warrior`'s production cost (8) in one turn — the "dequeues" test passed, but for the wrong reason (the unit completing production, not the obsoletedByTech dequeue path), and this was only caught because the sibling "keeps queued" test failed unexpectedly. Fixed to `productionProgress: 0` so progress (3) stays well under the cost and any removal is unambiguously the dequeue path.
 
 This depends on Task 1 already being complete (warrior needs `obsoletedByTech: 'rifled-infantry'` set) — if run before Task 1, the first test fails because nothing dequeues warrior.
 
