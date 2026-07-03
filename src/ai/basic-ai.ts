@@ -57,7 +57,7 @@ import {
   getSpyCaptureRelationshipPenalty,
 } from '@/systems/espionage-system';
 import { createRng } from '@/systems/map-generator';
-import { getCityAppeaseCost } from '@/systems/faction-system';
+import { appeaseFaction } from '@/systems/faction-system';
 import {
   getEligibleLegendaryWonders,
   initializeLegendaryWonderProjectsForAllCities,
@@ -983,16 +983,9 @@ function processAITurnInternal(
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
     if (!city || city.unrestLevel === 0) continue;
-
-    const appeaseCost = getCityAppeaseCost(city);
-    if (newState.civilizations[civId].gold >= appeaseCost) {
-      newState.civilizations[civId].gold -= appeaseCost;
-      newState.cities[cityId] = {
-        ...city,
-        spyUnrestBonus: 0,
-        unrestTurns: Math.max(0, city.unrestTurns - 2),
-        unrestLevel: city.unrestLevel === 2 ? 1 : city.unrestLevel,
-      };
+    const appeaseResult = appeaseFaction(newState, cityId, civId);
+    if (appeaseResult.success) {
+      newState = appeaseResult.state;
     }
   }
 
