@@ -1,7 +1,7 @@
 import type { City, GameState, TechState } from '@/core/types';
 import { BUILDINGS, getAvailableBuildings, getProductionCostForItem, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
-import { getAvailableTechs } from '@/systems/tech-system';
+import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
@@ -84,6 +84,37 @@ export function enqueueResearch(state: TechState, techId: string): TechState {
   return {
     ...state,
     researchQueue: [...state.researchQueue, techId],
+  };
+}
+
+export function activateNextQueuedResearch(state: TechState): TechState {
+  if (state.currentResearch) return state;
+  const completed = new Set(state.completed);
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const techId of state.researchQueue) {
+    if (completed.has(techId) || seen.has(techId)) continue;
+    const tech = TECH_TREE.find(candidate => candidate.id === techId);
+    if (!tech || !tech.prerequisites.every(prerequisite => completed.has(prerequisite))) {
+      continue;
+    }
+    normalized.push(tech.id);
+    seen.add(tech.id);
+    completed.add(tech.id);
+  }
+
+  const [currentResearch, ...researchQueue] = normalized;
+  if (!currentResearch) {
+    return state.researchQueue.length === 0
+      ? state
+      : { ...state, researchQueue: [] };
+  }
+  return {
+    ...state,
+    currentResearch,
+    researchQueue,
+    researchProgress: 0,
   };
 }
 

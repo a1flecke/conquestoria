@@ -127,6 +127,23 @@ describe('purposeful AI administrative intel', () => {
     expect(result.cities[city.id].productionQueue).toEqual(['catapult']);
   });
 
+  it('promotes the valid research queue on the enabled path', () => {
+    const state = createNewGame(undefined, 'purposeful-research-queue', 'small');
+    const civ = state.civilizations['ai-1'];
+    civ.techState.currentResearch = null;
+    civ.techState.researchProgress = 7;
+    civ.techState.researchQueue = ['fire', 'writing'];
+    const prepared = prepareMajorCivStrategicPlan(state, civ.id);
+
+    const result = processPreparedAITurn(state, prepared, new EventBus()).state;
+
+    expect(result.civilizations[civ.id].techState).toMatchObject({
+      currentResearch: 'fire',
+      researchProgress: 0,
+      researchQueue: ['writing'],
+    });
+  });
+
   it('does not select a live foreign city absent from prepared perception', () => {
     const state = createNewGame(undefined, 'purposeful-hidden-spy-city', 'small');
     const aiId = 'ai-1';

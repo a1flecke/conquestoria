@@ -99,6 +99,7 @@ import {
 import { isAIHostileOwner } from './ai-hostility';
 import { hasAICombatRole } from './ai-unit-roles';
 import { applyAIProduction } from './ai-production';
+import { applyAIResearch } from './ai-research';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -957,7 +958,19 @@ function processAITurnInternal(
   }
 
   // --- Handle research (personality-driven) ---
-  if (!civ.techState.currentResearch) {
+  if (purposefulAIEnabled && preparedForTurn) {
+    const research = applyAIResearch(
+      newState,
+      civId,
+      preparedForTurn,
+      personality,
+    );
+    newState = research.state;
+    civ = newState.civilizations[civId];
+    if (research.startedTechId) {
+      bus.emit('tech:started', { civId, techId: research.startedTechId });
+    }
+  } else if (!civ.techState.currentResearch) {
     const available = getAvailableTechs(civ.techState);
     if (available.length > 0) {
       const chosen = chooseTech(personality, available);

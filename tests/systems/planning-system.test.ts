@@ -6,6 +6,7 @@ import { createTechState } from '@/systems/tech-system';
 import {
   enqueueCityProduction,
   enqueueResearch,
+  activateNextQueuedResearch,
   getIdleCityIds,
   getRecommendedIdleCityChoice,
   moveQueuedId,
@@ -58,6 +59,42 @@ describe('planning-system city queues', () => {
 
     expect(started.currentResearch).toBe('fire');
     expect(queued.researchQueue).toEqual(['writing']);
+  });
+
+  it('promotes a valid queued head when no research is active', () => {
+    const state = {
+      ...createTechState(),
+      researchQueue: ['fire', 'writing'],
+      researchProgress: 8,
+    };
+
+    expect(activateNextQueuedResearch(state)).toMatchObject({
+      currentResearch: 'fire',
+      researchQueue: ['writing'],
+      researchProgress: 0,
+    });
+  });
+
+  it('cleans only unknown, completed, duplicate, and dependency-invalid queue entries', () => {
+    const state = {
+      ...createTechState(),
+      completed: ['gathering'],
+      researchQueue: [
+        'unknown',
+        'gathering',
+        'writing',
+        'fire',
+        'fire',
+        'writing',
+        'pottery',
+      ],
+    };
+
+    expect(activateNextQueuedResearch(state)).toMatchObject({
+      currentResearch: 'fire',
+      researchQueue: ['writing', 'pottery'],
+      researchProgress: 0,
+    });
   });
 
   it('allows three queued follow-up techs beyond the active research', () => {
