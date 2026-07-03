@@ -163,7 +163,10 @@ import {
 } from '@/systems/espionage-system';
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
-import { canUpgradeUnit, applyUpgrade } from '@/systems/unit-upgrade-system';
+import {
+  applyUnitUpgradeToState,
+  canUpgradeUnit,
+} from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy, type ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import {
   canLoadUnitOntoTransport,
@@ -996,25 +999,16 @@ function openMarketplacePanel(): void {
   });
 }
 
-// Deduct gold, upgrade unit type, sync spy record unitType if applicable, refresh render.
-// Caller must validate eligibility and afford-ability before calling.
-function executeUpgrade(unitId: string, targetType: import('@/core/types').UnitType, cost: number): void {
-  const unit = gameState.units[unitId];
-  if (!unit) return;
-  const civ = gameState.civilizations[gameState.currentPlayer];
-  gameState.civilizations[gameState.currentPlayer] = { ...civ, gold: civ.gold - cost };
-  gameState.units[unitId] = applyUpgrade(unit, targetType);
-  if (isSpyUnitType(unit.type)) {
-    const civEsp = gameState.espionage?.[gameState.currentPlayer];
-    if (civEsp?.spies[unitId]) {
-      gameState.espionage![gameState.currentPlayer] = {
-        ...civEsp,
-        spies: { ...civEsp.spies, [unitId]: { ...civEsp.spies[unitId], unitType: targetType } },
-      };
-    }
-  }
+function executeUpgrade(
+  unitId: string,
+  targetType: import('@/core/types').UnitType,
+): boolean {
+  const result = applyUnitUpgradeToState(gameState, unitId, targetType);
+  if (!result.upgraded) return false;
+  gameState = result.state;
   renderLoop.setGameState(gameState);
   updateHUD();
+  return true;
 }
 
 function openWonderPanelForCityId(selectedCityId: string): void {
@@ -1140,8 +1134,9 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
         showNotification('Not enough gold to upgrade!', 'warning');
         return;
       }
-      executeUpgrade(unitId, upgrade.targetType, upgrade.cost);
-      showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
+      if (executeUpgrade(unitId, upgrade.targetType)) {
+        showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
+      }
     },
     onSetIdleProduction: (cityId, mode) => {
       const targetCity = gameState.cities[cityId];
@@ -1898,9 +1893,10 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
           showNotification('Not enough gold to upgrade!', 'warning');
           return;
         }
-        executeUpgrade(uid, upgrade.targetType, upgrade.cost);
-        selectUnit(uid);
-        showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
+        if (executeUpgrade(uid, upgrade.targetType)) {
+          selectUnit(uid);
+          showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
+        }
       },
       onEstablishOutpost: (unitId) => {
         if (!canEstablishOutpost(gameState, unitId)) return;

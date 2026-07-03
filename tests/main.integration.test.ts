@@ -53,6 +53,20 @@ describe('shared city founding wiring', () => {
   });
 });
 
+describe('shared unit upgrade wiring', () => {
+  it('delegates the live human handler to the canonical whole-state mutation', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const handler = main.slice(
+      main.indexOf('function executeUpgrade('),
+      main.indexOf('function openWonderPanelForCityId'),
+    );
+
+    expect(handler).toContain('applyUnitUpgradeToState(');
+    expect(handler).not.toContain('civ.gold - cost');
+    expect(handler).not.toContain('applyUpgrade(');
+  });
+});
+
 describe('shared city assault wiring', () => {
   it('passes the live event bus and exact post-combat result into canonical assault', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');

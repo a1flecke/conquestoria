@@ -135,6 +135,34 @@ function prepared(
 }
 
 describe('processMajorCivStrategicTurn', () => {
+  it('modernizes before tactics so an upgraded unit cannot act twice', () => {
+    const state = makeState();
+    const home = addCity(state, 'home-city', AI, { q: 0, r: 0 });
+    addUnit(state, 'obsolete', 'spy_scout', AI, home.position, {
+      experience: 30,
+    });
+    state.civilizations[AI].techState.completed = [
+      'espionage-scouting',
+      'espionage-informants',
+    ];
+    state.civilizations[AI].gold = 200;
+    const target = addCity(state, 'target-city', HUMAN, { q: 5, r: 0 });
+    const plan = makePlan(
+      { kind: 'city', id: target.id, lastKnownPosition: target.position },
+      ['obsolete'],
+    );
+
+    const result = processMajorCivStrategicTurn(
+      state,
+      prepared(state, plan),
+      new EventBus(),
+    );
+
+    expect(result.state.units.obsolete.type).toBe('spy_informant');
+    expect(result.state.units.obsolete.hasActed).toBe(true);
+    expect(result.actions.some(action => action.unitId === 'obsolete')).toBe(false);
+  });
+
   it('rejects a prepared portfolio whose primary plan belongs to another actor', () => {
     const state = makeState();
     addUnit(state, 'attacker', 'swordsman', AI, { q: 0, r: 0 });

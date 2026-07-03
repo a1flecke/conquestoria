@@ -58,6 +58,25 @@ function portfolio(): MajorCivPlanPortfolio {
 }
 
 describe('AI unit assignment', () => {
+  it('keeps route-committed modernization units unavailable to plans', () => {
+    const result = assignUnitsToPortfolio({
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        primaryPlan: plan('attack', 'capture', { frontline: 1 }),
+      },
+      units: [
+        unit('routed', 'warrior', { attack: 1 }, { activeOtherDuty: true }),
+      ],
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: {},
+      eliminationDefensePlanIds: [],
+      onlyImmediateDefenderUnitIds: [],
+      requiresEmbarkationByPlanId: {},
+    });
+
+    expect(result.assignmentsByPlanId.attack).toEqual([]);
+  });
+
   it('never assigns one unit to two plans', () => {
     const result = assignUnitsToPortfolio({
       portfolio: portfolio(),
