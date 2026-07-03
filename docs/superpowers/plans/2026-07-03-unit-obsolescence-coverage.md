@@ -448,7 +448,8 @@ Expected: prints the new issue URL.
 
 ## Final verification checklist (run after all tasks complete)
 
-- [ ] `git diff main --stat` shows only `src/systems/city-system.ts` and `tests/systems/city-system.test.ts` changed.
-- [ ] `bash scripts/run-with-mise.sh yarn build` exits 0.
-- [ ] `bash scripts/run-with-mise.sh yarn test` exits 0.
-- [ ] `grep -c "obsoletedByTech" src/systems/city-system.ts` reports 31 (19 that already existed + 12 added by this plan).
+- [x] `git diff origin/main --stat` shows only `src/systems/city-system.ts`, `tests/systems/city-system.test.ts`, and this plan doc changed.
+- [x] `bash scripts/run-with-mise.sh yarn build` exits 0.
+- [x] `bash scripts/run-with-mise.sh yarn test` exits 0 (4722 passed, up from a 4695 baseline — the 27 tests this plan added).
+- [x] 30 `TRAINABLE_UNITS` entries now carry `obsoletedByTech` (18 that already existed + 12 added by this plan); `grep -c "obsoletedByTech" src/systems/city-system.ts` reports 33 because it also matches 2 JSDoc comment lines and 1 code line in the existing filter check — grep counts lines, not occurrences, so verify with the data-line count above, not the raw grep number.
+- [x] Follow-up issue filed: https://github.com/a1flecke/conquestoria/issues/443
