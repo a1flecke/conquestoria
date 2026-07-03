@@ -1,4 +1,4 @@
-const CACHE_NAME = 'conquestoria-v1';
+const CACHE_NAME = 'conquestoria-dev';
 
 const PRECACHE_URLS = [
   '/conquestoria/',

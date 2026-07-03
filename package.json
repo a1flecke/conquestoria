@@ -3,7 +3,7 @@
   "packageManager": "yarn@4.17.0",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/version-sw-cache.mjs",
     "build:tauri": "tsc && vite build --mode tauri",
     "preview": "vite preview",
     "tauri:dev": "tauri dev",
