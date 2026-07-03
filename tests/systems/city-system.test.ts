@@ -927,6 +927,39 @@ describe('S4b — new unit entries', () => {
   });
 });
 
+describe('#429 — expanded obsolescence coverage', () => {
+  const CASES: Array<{
+    type: UnitType;
+    unlockTech?: string;
+    obsoleteTech: string;
+    resources?: ResourceType[];
+  }> = [
+    { type: 'warrior', obsoleteTech: 'rifled-infantry' },
+    { type: 'archer', unlockTech: 'archery', obsoleteTech: 'tactics' },
+    { type: 'swordsman', unlockTech: 'bronze-working', obsoleteTech: 'rifled-infantry', resources: ['iron'] },
+    { type: 'pikeman', unlockTech: 'fortification', obsoleteTech: 'rifled-infantry' },
+    { type: 'galley', unlockTech: 'galleys', obsoleteTech: 'navigation' },
+    { type: 'trireme', unlockTech: 'triremes', obsoleteTech: 'caravels' },
+    { type: 'grenadier', unlockTech: 'grenade-warfare', obsoleteTech: 'mass-firepower' },
+    { type: 'rifleman', unlockTech: 'rifled-infantry', obsoleteTech: 'mass-firepower' },
+    { type: 'biplane', unlockTech: 'air-superiority', obsoleteTech: 'jet-aviation' },
+  ];
+
+  for (const c of CASES) {
+    it(`${c.type}: still trainable before ${c.obsoleteTech} completes`, () => {
+      const techs = c.unlockTech ? [c.unlockTech] : [];
+      const units = getTrainableUnitsForCiv(techs, undefined, new Set<ResourceType>(c.resources ?? []));
+      expect(units.some(u => u.type === c.type)).toBe(true);
+    });
+
+    it(`${c.type}: no longer trainable once ${c.obsoleteTech} completes`, () => {
+      const techs = c.unlockTech ? [c.unlockTech, c.obsoleteTech] : [c.obsoleteTech];
+      const units = getTrainableUnitsForCiv(techs, undefined, new Set<ResourceType>(c.resources ?? []));
+      expect(units.some(u => u.type === c.type)).toBe(false);
+    });
+  }
+});
+
 describe('S4b — unit definitions completeness', () => {
   const NEW_UNITS: UnitType[] = ['axeman', 'spearman', 'horseman', 'cavalry', 'knight', 'crossbowman', 'catapult', 'ballista'];
 
