@@ -188,6 +188,7 @@ export function assignUnitsToPortfolio(
             !usedUnitIds.has(unit.id)
             && !recovering.has(unit.id)
             && !unit.embarked
+            && !unit.activeOtherDuty
             && roleFit(unit.type, role) > 0
             && Number.isFinite(unit.travelTurnsByPlanId[plan.id]));
         const capacityEligibleCandidates = compatibleCandidates.filter(unit => {
@@ -242,7 +243,11 @@ export function assignUnitsToPortfolio(
 
   for (const unit of context.units) {
     if (usedUnitIds.has(unit.id) || recovering.has(unit.id)) continue;
-    rejectedByUnitId[unit.id] = unit.embarked ? ['embarked'] : ['no-open-compatible-slot'];
+    rejectedByUnitId[unit.id] = unit.embarked
+      ? ['embarked']
+      : unit.activeOtherDuty
+        ? ['active-other-duty']
+        : ['no-open-compatible-slot'];
   }
 
   const demandByRole = new Map<AIStrategicRole, AIForceDemand>();

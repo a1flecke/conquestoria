@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { canUpgradeUnit, getUpgradeCost, applyUpgrade } from '@/systems/unit-upgrade-system';
+import {
+  applyUnitUpgradeToState,
+  canUpgradeUnit,
+  getUpgradeCost,
+  applyUpgrade,
+} from '@/systems/unit-upgrade-system';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import type { GameState, Spy, Unit } from '@/core/types';
+import { createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
 
 function makeUnit(type: string, position = { q: 0, r: 0 }): Unit {
   return { id: 'u1', type: type as any, owner: 'player', position, health: 70, movementPointsLeft: 2, hasActed: false, hasMoved: false, experience: 0, isResting: false };
@@ -74,6 +81,70 @@ describe('applyUpgrade', () => {
     expect(upgraded.id).toBe(unit.id);
     expect(upgraded.owner).toBe(unit.owner);
     expect(upgraded.position).toEqual({ q: 3, r: 4 });
+  });
+});
+
+describe('applyUnitUpgradeToState', () => {
+  function setup() {
+    const state = createNewGame(undefined, 'whole-state-upgrade', 'small');
+    const civ = state.civilizations.player;
+    const source = civ.units.map(id => state.units[id]).find(Boolean)!;
+    const city = foundCity(civ.id, source.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    source.id = 'upgrade-unit';
+    source.type = 'spy_scout';
+    source.health = 41;
+    state.units = { [source.id]: source };
+    civ.units = [source.id];
+    civ.techState.completed = ['espionage-scouting', 'espionage-informants'];
+    civ.gold = 100;
+    return { state, city, source };
+  }
+
+  it('upgrades canonically, deducts exact gold, heals, and consumes the action', () => {
+    const { state } = setup();
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'spy_informant');
+
+    expect(result.upgraded).toBe(true);
+    expect(result.state.civilizations.player.gold).toBe(75);
+    expect(result.state.units['upgrade-unit']).toMatchObject({
+      type: 'spy_informant',
+      health: 100,
+      hasActed: true,
+      movementPointsLeft: 0,
+    });
+  });
+
+  it('rejects a noncanonical target and insufficient treasury without changing state', () => {
+    const { state } = setup();
+    expect(applyUnitUpgradeToState(state, 'upgrade-unit', 'tank')).toEqual({
+      state,
+      upgraded: false,
+      reason: 'invalid-target',
+    });
+    state.civilizations.player.gold = 24;
+    expect(applyUnitUpgradeToState(state, 'upgrade-unit', 'spy_informant')).toEqual({
+      state,
+      upgraded: false,
+      reason: 'insufficient-gold',
+    });
+  });
+
+  it('synchronizes a matching spy record and does not mutate its input', () => {
+    const { state } = setup();
+    state.espionage!.player.spies['upgrade-unit'] = makeTestSpy({
+      id: 'upgrade-unit',
+      unitType: 'spy_scout',
+    });
+    const before = structuredClone(state);
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'spy_informant');
+
+    expect(state).toEqual(before);
+    expect(result.state.espionage!.player.spies['upgrade-unit'].unitType)
+      .toBe('spy_informant');
   });
 });
 

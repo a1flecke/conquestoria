@@ -418,7 +418,11 @@ export function prepareMajorCivStrategicPlan(
       health: unit.health,
       experience: unit.experience,
       embarked: Boolean(unit.transportId),
-      activeOtherDuty: Boolean(unit.workerTask || unit.committedToRouteId),
+      activeOtherDuty: Boolean(
+        unit.workerTask
+        || unit.committedToRouteId
+        || portfolioResult.portfolio.upgradeRoutesByUnitId[unit.id],
+      ),
       travelTurnsByPlanId: Object.fromEntries(plans.map(plan => {
         const path = findPath(
           unit.position,

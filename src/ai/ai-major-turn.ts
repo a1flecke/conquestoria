@@ -59,6 +59,7 @@ import {
 } from './ai-tactics';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
+import { processAIUpgrades } from './ai-upgrades';
 
 export interface ProcessMajorCivStrategicTurnResult {
   state: GameState;
@@ -801,6 +802,12 @@ export function processMajorCivStrategicTurn(
       },
     },
   };
+  working = processAIUpgrades(
+    working,
+    prepared.civId,
+    prepared,
+    bus,
+  ).state;
   const plans = [
     ...Object.values(prepared.portfolio.defensePlansByCityId)
       .sort((left, right) => left.id.localeCompare(right.id)),
@@ -816,7 +823,12 @@ export function processMajorCivStrategicTurn(
       .assignmentsByPlanId[originalPlan.id]
       ?? originalPlan.assignedUnitIds;
     const assignedUnitIds = [...new Set(requestedUnitIds)].filter(unitId =>
-      working.units[unitId]?.owner === prepared.civId);
+      working.units[unitId]?.owner === prepared.civId
+      && !working.units[unitId]?.hasActed
+      && !Boolean(
+        working.opponentAI?.majorCivs[prepared.civId]
+          ?.upgradeRoutesByUnitId[unitId],
+      ));
     if (!targetStillValid(working, originalPlan)) {
       working = writeUpdatedPlan(working, {
         ...originalPlan,
