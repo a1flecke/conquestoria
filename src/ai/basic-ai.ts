@@ -1,9 +1,9 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
-import { foundCity, getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
+import { getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
+import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
-import { collectUsedCityNames } from '@/systems/city-name-system';
 import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import {
   canLoadUnitOntoTransport,
@@ -36,7 +36,11 @@ import {
   inviteToLeague,
   resolveOpponentKind,
 } from '@/systems/diplomacy-system';
-import { resolveMajorCityCapture } from '@/systems/city-capture-system';
+import {
+  beginMajorCityAssault,
+  emitMajorCityCaptureEvents,
+  resolveMajorCityCapture,
+} from '@/systems/city-capture-system';
 import {
   getAvailableMissions,
   embedSpy,
@@ -54,7 +58,6 @@ import { getCityAppeaseCost } from '@/systems/faction-system';
 import {
   getEligibleLegendaryWonders,
   initializeLegendaryWonderProjectsForAllCities,
-  initializeLegendaryWonderProjectsForCity,
   loseLegendaryWonderRace,
   startLegendaryWonderBuild,
 } from '@/systems/legendary-wonder-system';
@@ -547,28 +550,25 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
 
   for (const settler of settlers) {
     const tile = newState.map.tiles[hexKey(settler.position)];
-    if (tile && canFoundCityAt(newState, settler.position)) {
-      const city = foundCity(civId, settler.position, newState.map, newState.idCounters, {
-        civType: civ.civType,
-        namingPool: civDef?.cityNames,
-        civName: civDef?.name ?? civ.name,
-        usedNames: collectUsedCityNames(newState),
-      });
-      newState.cities[city.id] = city;
-      civ.cities.push(city.id);
-      newState = initializeLegendaryWonderProjectsForCity(newState, civId, city.id);
-
-      for (const ownedCoord of city.ownedTiles) {
-        const key = hexKey(ownedCoord);
-        if (newState.map.tiles[key]) {
-          newState.map.tiles[key].owner = civId;
-        }
-      }
-
-      delete newState.units[settler.id];
-      civ.units = civ.units.filter(id => id !== settler.id);
-      bus.emit('city:founded', { city, founderId: civId });
-      city.productionQueue = ['warrior'];
+    if (
+      tile
+      && !settler.hasActed
+      && settler.movementPointsLeft > 0
+      && canFoundCityAt(newState, settler.position)
+    ) {
+      const result = foundCityInState(newState, settler.id, bus);
+      newState = result.state;
+      newState = {
+        ...newState,
+        cities: {
+          ...newState.cities,
+          [result.cityId]: {
+            ...newState.cities[result.cityId],
+            productionQueue: ['warrior'],
+          },
+        },
+      };
+      civ = newState.civilizations[civId];
     }
   }
 
@@ -708,13 +708,16 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
     );
 
     if (exposedEnemyCity) {
-      const movedAttacker = moveUnit(unit, exposedEnemyCity.position, 1);
-      newState.units[unit.id] = {
-        ...movedAttacker,
-        movementPointsLeft: 0,
-        hasMoved: true,
-      };
       const prevOwnerIdForCapture = exposedEnemyCity.owner;
+      const assault = beginMajorCityAssault(
+        newState,
+        unit.id,
+        exposedEnemyCity.id,
+        { actor: 'ai', civId, bus },
+      );
+      if (!assault.ok) continue;
+      newState = assault.state;
+      const beforeCapture = newState;
       const captureResult = resolveMajorCityCapture(
         newState,
         exposedEnemyCity.id,
@@ -723,19 +726,14 @@ export function processAITurn(state: GameState, civId: string, bus: EventBus): G
         newState.turn,
       );
       newState = captureResult.state;
-      for (const event of captureResult.territoryEvents) {
-        bus.emit('territory:tile-flipped', event);
-      }
-      // Spec 3: emit near-defeat / eliminated events (matches main.ts logic for AI path)
-      const prevOwnerPostCapture = newState.civilizations[prevOwnerIdForCapture];
-      if (prevOwnerPostCapture) {
-        const prevCityCount = prevOwnerPostCapture.cities.length;
-        if (prevCityCount === 0) {
-          bus.emit('civ:eliminated', { civId: prevOwnerIdForCapture, eliminatedBy: civId });
-        } else if (prevOwnerPostCapture.nearDefeat) {
-          bus.emit('civ:near-defeat', { civId: prevOwnerIdForCapture });
-        }
-      }
+      emitMajorCityCaptureEvents(
+        beforeCapture,
+        captureResult,
+        exposedEnemyCity.id,
+        civId,
+        prevOwnerIdForCapture,
+        bus,
+      );
       civ = newState.civilizations[civId];
       continue;
     }

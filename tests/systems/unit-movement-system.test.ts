@@ -1,6 +1,7 @@
 import { EventBus } from '@/core/event-bus';
 import type { GameEvents, GameMap, GameState, HexCoord, HexTile, TerrainType, Unit } from '@/core/types';
 import { createUnit } from '@/systems/unit-system';
+import { foundCity } from '@/systems/city-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
 import { abandonWorkerTask, executeUnitMove } from '@/systems/unit-movement-system';
@@ -98,6 +99,119 @@ function movementState(
 }
 
 describe('unit-movement-system', () => {
+  it('reserves foreign-city entry for an explicit canonical capture flow', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    const foreign = createUnit('worker', 'ai-1', { q: 7, r: 7 }, mkC());
+    foreign.id = 'foreign';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }),
+      tile({ q: 1, r: 0 }),
+    ], { extraUnits: [foreign] });
+    const city = foundCity(
+      'ai-1',
+      { q: 1, r: 0 },
+      state.map,
+      state.idCounters,
+    );
+    city.id = 'foreign-city';
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities = [city.id];
+
+    const ordinaryMove = executeUnitMove(
+      state,
+      'mover',
+      city.position,
+      { actor: 'player', civId: 'player' },
+    );
+
+    expect(ordinaryMove).toMatchObject({
+      ok: false,
+      reason: 'foreign-city',
+    });
+    expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
+
+    const captureMove = executeUnitMove(
+      state,
+      'mover',
+      city.position,
+      {
+        actor: 'player',
+        civId: 'player',
+        foreignCityEntryId: city.id,
+      },
+    );
+    expect(captureMove.ok).toBe(true);
+    expect(state.units.mover.position).toEqual(city.position);
+  });
+
+  it('does not path through a foreign city without an alliance', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    const foreign = createUnit('worker', 'ai-1', { q: 7, r: 7 }, mkC());
+    foreign.id = 'foreign';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }),
+      tile({ q: 1, r: 0 }),
+      tile({ q: 2, r: 0 }),
+    ], { extraUnits: [foreign] });
+    const city = foundCity(
+      'ai-1',
+      { q: 1, r: 0 },
+      state.map,
+      state.idCounters,
+    );
+    city.id = 'foreign-city';
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities = [city.id];
+
+    const result = executeUnitMove(
+      state,
+      'mover',
+      { q: 2, r: 0 },
+      { actor: 'player', civId: 'player' },
+    );
+
+    expect(result).toMatchObject({ ok: false, reason: 'foreign-city' });
+    expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('preserves peaceful allied city entry', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    const foreign = createUnit('worker', 'ai-1', { q: 7, r: 7 }, mkC());
+    foreign.id = 'foreign';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }),
+      tile({ q: 1, r: 0 }),
+    ], { extraUnits: [foreign] });
+    const city = foundCity(
+      'ai-1',
+      { q: 1, r: 0 },
+      state.map,
+      state.idCounters,
+    );
+    city.id = 'allied-city';
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities = [city.id];
+    state.civilizations.player.diplomacy.treaties.push({
+      type: 'alliance',
+      civA: 'player',
+      civB: 'ai-1',
+      turnsRemaining: 5,
+    });
+
+    const result = executeUnitMove(
+      state,
+      'mover',
+      city.position,
+      { actor: 'player', civId: 'player' },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(state.units.mover.position).toEqual(city.position);
+  });
+
   it('refuses to execute movement onto an occupied foreign unit tile', () => {
     const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     mover.id = 'mover';

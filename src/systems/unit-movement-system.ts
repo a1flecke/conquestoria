@@ -24,6 +24,7 @@ export interface ExecuteUnitMoveOptions {
   actor: 'player' | 'automation' | 'ai';
   civId: string;
   bus?: EventBus;
+  foreignCityEntryId?: string;
 }
 
 export interface WonderDiscoveryResult {
@@ -221,6 +222,19 @@ function getOwnerCompletedTechs(state: GameState, owner: string): string[] {
   return state.civilizations[owner]?.techState.completed ?? [];
 }
 
+function hasAlliance(
+  state: GameState,
+  civId: string,
+  otherCivId: string,
+): boolean {
+  return state.civilizations[civId]?.diplomacy.treaties.some(treaty =>
+    treaty.type === 'alliance'
+    && (
+      treaty.civA === civId && treaty.civB === otherCivId
+      || treaty.civA === otherCivId && treaty.civB === civId
+    )) ?? false;
+}
+
 function getImpassableReason(
   unitType: string,
   terrain: string,
@@ -261,6 +275,23 @@ export function validateUnitMove(
   const tile = state.map.tiles[hexKey(target)];
   if (!tile) return movementFailure(from, target, [from], 'unknown-tile', 'Too far away to spot.');
 
+  const foreignCity = Object.values(state.cities).find(city =>
+    city.owner !== unit.owner
+    && hexKey(city.position) === hexKey(target));
+  if (
+    foreignCity
+    && options.foreignCityEntryId !== foreignCity.id
+    && !hasAlliance(state, unit.owner, foreignCity.owner)
+  ) {
+    return movementFailure(
+      from,
+      target,
+      [from, target],
+      'foreign-city',
+      'Move adjacent, then use the city assault action.',
+    );
+  }
+
   const completedTechs = getOwnerCompletedTechs(state, unit.owner);
   const targetCost = getMovementCostForUnitInContext(unit, tile.terrain, { completedTechs });
   if (targetCost === Infinity) {
@@ -278,6 +309,24 @@ export function validateUnitMove(
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
   const path = findPath(from, target, state.map, domain, { unit, completedTechs });
   if (!path) return movementFailure(from, target, [from], 'unreachable', 'No passable route to that tile.');
+  const pathCrossesBlockedForeignCity = path.slice(1).some(coord =>
+    Object.values(state.cities).some(city =>
+      city.owner !== unit.owner
+      && hexKey(city.position) === hexKey(coord)
+      && !hasAlliance(state, unit.owner, city.owner)
+      && (
+        options.foreignCityEntryId !== city.id
+        || hexKey(coord) !== hexKey(target)
+      )));
+  if (pathCrossesBlockedForeignCity) {
+    return movementFailure(
+      from,
+      target,
+      path,
+      'foreign-city',
+      'Move adjacent, then use the city assault action.',
+    );
+  }
 
   const visibility = state.civilizations[options.civId]?.visibility;
   const isPlayerControlledMove = options.actor !== 'automation' && options.actor !== 'ai';

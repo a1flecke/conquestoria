@@ -40,7 +40,9 @@ describe('foreign-city-entry-flow', () => {
     const state = makeForeignCityEntryState();
     const bus = new EventBus();
     const warDeclared = vi.fn();
+    const moved = vi.fn();
     bus.on('diplomacy:war-declared', warDeclared);
+    bus.on('unit:move', moved);
 
     const result = beginConfirmedForeignCityEntry(state, 'unit-1', 'athens', bus);
 
@@ -49,6 +51,7 @@ describe('foreign-city-entry-flow', () => {
     expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
     expect(result.pending.cityId).toBe('athens');
     expect(warDeclared).toHaveBeenCalledWith({ attackerId: 'player', defenderId: 'ai-1', opponentKind: 'major' });
+    expect(moved).toHaveBeenCalledOnce();
   });
 
   it('does not duplicate war declarations when already at war', () => {

@@ -24,11 +24,11 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason, findPath } from '@/systems/unit-system';
 import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
-import { foundCity, BUILDINGS, getProductionDisplayName } from '@/systems/city-system';
+import { BUILDINGS, getProductionDisplayName } from '@/systems/city-system';
+import { foundCityInState } from '@/systems/city-founding-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
-import { formatCityFoundingBlockerMessage, getCityFoundingBlockers, recalculateTerritory } from '@/systems/city-territory-system';
+import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
-import { collectUsedCityNames } from '@/systems/city-name-system';
 import { formatImprovementYieldLabel, getImprovementDisplayName } from '@/systems/improvement-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
@@ -129,6 +129,7 @@ import {
   finalizePlayerCityAssaultChoice,
   shouldPromptForPlayerCityCapture,
 } from '@/input/city-assault-flow';
+import { emitMajorCityCaptureEvents } from '@/systems/city-capture-system';
 import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
 import { resolveWonderAtlasIntent } from '@/input/wonder-atlas-intent';
 import { resolveNaturalWonderAudioFocus } from '@/input/natural-wonder-audio-focus';
@@ -173,7 +174,7 @@ import {
 } from '@/systems/transport-system';
 import { getPendingUnload, getUnloadRange, setPendingUnload, clearPendingUnload } from '@/ui/transport-ui-state';
 import { getCapitalCity } from '@/systems/capital-system';
-import type { GameEvents, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
   getNotificationsForPlayer,
@@ -898,9 +899,13 @@ function handleRejectPeaceRequest(requestId: string): void {
 
 function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
   const cityName = gameState.cities[cityId]?.name ?? 'City-State';
-  executeAnimatedUnitMove(unitId, () => executeUnitMove(gameState, unitId, target, {
-    actor: 'player', civId: gameState.currentPlayer, bus,
+  const movement = executeAnimatedUnitMove(unitId, () => executeUnitMove(gameState, unitId, target, {
+    actor: 'player',
+    civId: gameState.currentPlayer,
+    bus,
+    foreignCityEntryId: cityId,
   }));
+  if (!movement.ok) return;
   const movedUnit = gameState.units[unitId];
   if (movedUnit) gameState.units[unitId] = { ...movedUnit, movementPointsLeft: 0 };
   const conquered = conquestMinorCiv(gameState, minorCivId, gameState.currentPlayer);
@@ -1998,27 +2003,6 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
     const unit = gameState.units[unitId];
     if (!unit || unit.owner !== gameState.currentPlayer) return;
 
-    // Post-move: check if the unit has landed on a hostile major-civ city tile.
-    // This handles the case where canReachCityAssault returned false because the unit
-    // was beyond attack range before moving (e.g., melee at distance 2 from city).
-    // Minor civ cities (owner starts with 'mc-') are excluded — they use the
-    // assault-minor-civ intent path. Allied cities are excluded by the atWarWith check.
-    const destKey = hexKey(unit.position);
-    const cityAtDest = Object.values(gameState.cities).find(c =>
-      hexKey(c.position) === destKey
-      && c.owner !== gameState.currentPlayer
-      && !c.owner.startsWith('mc-')
-      && (gameState.civilizations[gameState.currentPlayer]?.diplomacy?.atWarWith?.includes(c.owner) ?? false),
-    );
-    if (cityAtDest) {
-      beginPlayerCityAssault(unitId, cityAtDest.id);
-      SFX.tap(); // match audio feedback of the tap-path assault (line ~2094)
-      renderLoop.setGameState(gameState);
-      updateHUD();
-      // beginPlayerCityAssault handles its own selectNextUnit call via finalizePendingCityCaptureChoice.
-      return;
-    }
-
     if ((unit.movementPointsLeft ?? 0) <= 0) {
       selectNextUnit();
     } else if (selectedUnitId === unitId) {
@@ -2186,45 +2170,27 @@ function foundCityAction(): void {
   const unit = gameState.units[selectedUnitId];
   if (!unit || unit.type !== 'settler') return;
 
-  const cp = gameState.currentPlayer;
   const blockers = getCityFoundingBlockers(gameState, unit.position);
   if (blockers.length > 0) {
     showNotification(formatCityFoundingBlockerMessage(blockers), 'warning');
     return;
   }
 
-  const civDef = currentCivDef();
-  const city = foundCity(cp, unit.position, gameState.map, gameState.idCounters, {
-    civType: currentCiv().civType,
-    namingPool: civDef?.cityNames,
-    civName: civDef?.name ?? currentCiv().name,
-    usedNames: collectUsedCityNames(gameState),
-  });
-  gameState.cities[city.id] = city;
-  currentCiv().cities.push(city.id);
-  gameState = initializeLegendaryWonderProjectsForCity(gameState, cp, city.id);
-  gameState = recalculateTerritory(gameState, {
-    reason: 'founding',
-    preserveForeignHolders: true,
-  }).state;
-
-  // Remove settler
-  delete gameState.units[selectedUnitId];
-  currentCiv().units = currentCiv().units.filter(id => id !== selectedUnitId);
+  let result;
+  try {
+    result = foundCityInState(gameState, selectedUnitId, bus);
+  } catch (error) {
+    showNotification(
+      error instanceof Error ? error.message : 'City cannot be founded here.',
+      'warning',
+    );
+    return;
+  }
+  gameState = result.state;
 
   deselectUnit();
-  const foundedCity = gameState.cities[city.id] ?? city;
-  bus.emit('city:founded', { city: foundedCity, founderId: gameState.currentPlayer });
+  const foundedCity = gameState.cities[result.cityId];
   showNotification(`${foundedCity.name} has been founded!`, 'success');
-  // Spec 3: founding a city can lift near-defeat if founder now has > 1 city
-  const founderCiv = gameState.civilizations[gameState.currentPlayer];
-  if (founderCiv?.nearDefeat) {
-    const founderCityCount = Object.values(gameState.cities).filter(c => c.owner === gameState.currentPlayer).length;
-    if (founderCityCount > 1) {
-      founderCiv.nearDefeat = false;
-      bus.emit('civ:recovered-from-near-defeat', { civId: gameState.currentPlayer });
-    }
-  }
   SFX.foundCity();
 
   // Update visibility
@@ -2277,12 +2243,6 @@ function ensurePlayerWarState(targetCivId: string): void {
   bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
 }
 
-function emitTerritoryTileFlippedEvents(events: GameEvents['territory:tile-flipped'][]): void {
-  for (const event of events) {
-    bus.emit('territory:tile-flipped', event);
-  }
-}
-
 function finalizePendingCityCaptureChoice(
   disposition: 'occupy' | 'raze',
   attackerBonus?: CivBonusEffect,
@@ -2293,14 +2253,20 @@ function finalizePendingCityCaptureChoice(
   const cityBeforeResolution = gameState.cities[pending.cityId];
   const previousOwner = cityBeforeResolution?.owner ?? '';
   const cityName = cityBeforeResolution?.name ?? pending.cityId;
-  // Capture pre-capture nearDefeat for recovery detection (Spec 3)
-  const capturingCivWasNearDefeat = gameState.civilizations[gameState.currentPlayer]?.nearDefeat ?? false;
+  const beforeCapture = gameState;
   const result = finalizePlayerCityAssaultChoice(gameState, pending, disposition, gameState.turn);
 
   pendingCityCaptureChoice = null;
   document.getElementById('city-capture-panel')?.remove();
   gameState = result.state;
-  emitTerritoryTileFlippedEvents(result.territoryEvents);
+  emitMajorCityCaptureEvents(
+    beforeCapture,
+    result,
+    pending.cityId,
+    gameState.currentPlayer,
+    previousOwner,
+    bus,
+  );
 
   if (result.outcome === 'occupied') {
     const capturingCiv = currentCiv();
@@ -2309,28 +2275,6 @@ function finalizePendingCityCaptureChoice(
       showNotification('Viking raid spoils! +30 gold', 'success');
     }
     showNotification(`We have captured ${cityName}!`, 'success');
-    bus.emit('city:captured', { cityId: pending.cityId, newOwner: gameState.currentPlayer, previousOwner });
-
-    // Spec 3: emit near-defeat / eliminated / recovered events.
-    // The nearDefeat flag is set on civilizations by resolveMajorCityCapture
-    // (in city-capture-system.ts), so we can read it directly here.
-    const prevCivAfterCapture = gameState.civilizations[previousOwner];
-    if (prevCivAfterCapture) {
-      const prevCityCount = prevCivAfterCapture.cities.length;
-      if (prevCityCount === 0) {
-        bus.emit('civ:eliminated', { civId: previousOwner, eliminatedBy: gameState.currentPlayer });
-      } else if (prevCivAfterCapture.nearDefeat) {
-        // nearDefeat was just set to true by resolveMajorCityCapture (just entered near-defeat)
-        bus.emit('civ:near-defeat', { civId: previousOwner });
-      }
-    }
-    // If the capturing civ was near-defeat before this capture and now has > 1 city, emit recovery
-    if (capturingCivWasNearDefeat) {
-      const capturingCivAfter = gameState.civilizations[gameState.currentPlayer];
-      if (capturingCivAfter && capturingCivAfter.cities.length > 1) {
-        bus.emit('civ:recovered-from-near-defeat', { civId: gameState.currentPlayer });
-      }
-    }
   } else {
     showNotification(`${cityName} was razed! +${result.goldAwarded} gold`, 'success');
   }
@@ -2344,12 +2288,19 @@ function beginPlayerCityAssault(
   attackerId: string,
   cityId: string,
   attackerBonus?: CivBonusEffect,
+  precedingCombat?: CombatResult,
 ): 'pending' | 'resolved' {
   const city = gameState.cities[cityId];
   if (!city) return 'resolved';
 
   ensurePlayerWarState(city.owner);
-  const begun = beginPlayerCityAssaultChoice(gameState, attackerId, cityId);
+  const begun = beginPlayerCityAssaultChoice(
+    gameState,
+    attackerId,
+    cityId,
+    bus,
+    precedingCombat,
+  );
   gameState = begun.state;
 
   pendingCityCaptureChoice = begun.pending;
@@ -2477,7 +2428,12 @@ function executeAttack(attackerId: string, targetKey: string): void {
           showNotification(`${conqueredCityName} has been conquered!`, 'success');
         }
         if (!cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
-          const assaultStatus = beginPlayerCityAssault(attackerId, cityAtTarget.id, attackerBonus);
+          const assaultStatus = beginPlayerCityAssault(
+            attackerId,
+            cityAtTarget.id,
+            attackerBonus,
+            result,
+          );
           SFX.combat();
           renderLoop.setGameState(gameState);
           updateHUD();

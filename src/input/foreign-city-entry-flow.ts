@@ -39,5 +39,10 @@ export function beginConfirmedForeignCityEntry(
     bus?.emit('diplomacy:war-declared', { attackerId: attackerCivId, defenderId, opponentKind: resolveOpponentKind(defenderId) });
   }
 
-  return beginPlayerCityAssaultChoice(nextState, attackerId, cityId);
+  return beginPlayerCityAssaultChoice(
+    nextState,
+    attackerId,
+    cityId,
+    bus,
+  );
 }
