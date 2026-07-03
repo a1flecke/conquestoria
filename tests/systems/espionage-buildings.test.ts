@@ -51,10 +51,10 @@ describe('applyBuildingCI', () => {
     expect(result.counterIntelligence['c1']).toBe(30);
   });
 
-  it('security-bureau CI halved (to +15) when cyber-warfare researched', () => {
+  it('security-bureau CI halved (to +15) when signals-intelligence researched', () => {
     const civEsp = createEspionageCivState();
     const city = { id: 'c1', buildings: ['security-bureau'] } as any;
-    const result = applyBuildingCI('c1', city, civEsp, ['cyber-warfare']);
+    const result = applyBuildingCI('c1', city, civEsp, ['signals-intelligence']);
     expect(result.counterIntelligence['c1']).toBe(15);
   });
 
@@ -72,10 +72,10 @@ describe('applyBuildingCI', () => {
     expect(result.counterIntelligence['c1']).toBe(50); // 20 + 30
   });
 
-  it('both buildings faded simultaneously with both era techs', () => {
+  it('both buildings faded simultaneously with their respective era techs', () => {
     const civEsp = createEspionageCivState();
     const city = { id: 'c1', buildings: ['intelligence-agency', 'security-bureau'] } as any;
-    const result = applyBuildingCI('c1', city, civEsp, ['digital-surveillance', 'cyber-warfare']);
+    const result = applyBuildingCI('c1', city, civEsp, ['digital-surveillance', 'signals-intelligence']);
     expect(result.counterIntelligence['c1']).toBe(25); // 10 + 15
   });
 

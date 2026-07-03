@@ -1447,7 +1447,7 @@ describe('processAITurn', () => {
     expect(lostEvents).toHaveLength(2);
   });
 
-  it('uses Stage 5 espionage remotely when an idle spy has cyber-warfare tech', () => {
+  it('uses Stage 7 (cyber_attack) espionage remotely when an idle spy has cyber-intelligence tech', () => {
     const state = makeAiDefenseSpyState();
     const bus = new EventBus();
     state.civilizations['ai-1'].techState.completed = [
@@ -1455,7 +1455,7 @@ describe('processAITurn', () => {
       'espionage-informants',
       'spy-networks',
       'digital-surveillance',
-      'cyber-warfare',
+      'cyber-intelligence',
     ];
     state.espionage!['ai-1'] = {
       spies: {

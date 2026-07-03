@@ -7,6 +7,7 @@ import type {
 } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
+  applyBuildingCI,
   createEspionageCivState,
   createSpyFromUnit,
   embedSpy,
@@ -269,16 +270,41 @@ describe('missions', () => {
       expect(missions).toEqual([]);
     });
 
-    it('unlocks Stage 5 missions from digital-surveillance and cyber-warfare', () => {
-      const missions = getAvailableMissions([
-        'espionage-scouting',
-        'espionage-informants',
-        'spy-networks',
-        'cryptography',
-        'digital-surveillance',
-        'cyber-warfare',
-      ]);
+    it('digital-surveillance alone does not unlock any former Stage-5 missions', () => {
+      const missions = getAvailableMissions(['digital-surveillance']);
+      expect(missions).not.toContain('cyber_attack');
+      expect(missions).not.toContain('misinformation_campaign');
+      expect(missions).not.toContain('election_interference');
+      expect(missions).not.toContain('satellite_surveillance');
+    });
 
+    it('cold-war-networks unlocks misinformation and election_interference only', () => {
+      const missions = getAvailableMissions(['cold-war-networks']);
+      expect(missions).toContain('misinformation_campaign');
+      expect(missions).toContain('election_interference');
+      expect(missions).not.toContain('satellite_surveillance');
+      expect(missions).not.toContain('cyber_attack');
+    });
+
+    it('satellite-surveillance tech unlocks satellite_surveillance mission only', () => {
+      const missions = getAvailableMissions(['satellite-surveillance']);
+      expect(missions).toContain('satellite_surveillance');
+      expect(missions).not.toContain('cyber_attack');
+      expect(missions).not.toContain('misinformation_campaign');
+    });
+
+    it('cyber-intelligence unlocks cyber_attack only', () => {
+      const missions = getAvailableMissions(['cyber-intelligence']);
+      expect(missions).toContain('cyber_attack');
+      expect(missions).not.toContain('misinformation_campaign');
+      expect(missions).not.toContain('satellite_surveillance');
+    });
+
+    it('full era-10+ tech ladder unlocks all missions', () => {
+      const missions = getAvailableMissions([
+        'espionage-scouting', 'espionage-informants', 'spy-networks',
+        'cryptography', 'cold-war-networks', 'satellite-surveillance', 'cyber-intelligence',
+      ]);
       expect(missions).toContain('cyber_attack');
       expect(missions).toContain('misinformation_campaign');
       expect(missions).toContain('election_interference');
@@ -308,7 +334,7 @@ describe('missions', () => {
         .toThrow('Spy must be stationed');
     });
 
-    it('allows remote Stage 5 missions from an idle spy when a target is supplied', () => {
+    it('allows remote cyber missions (cyber_attack) from an idle spy when a target is supplied', () => {
       const spy = makeTestSpy('spy-1', 'player');
       const s1 = addSpy(createEspionageCivState(), spy);
 
@@ -586,6 +612,22 @@ describe('espionage diplomatic consequences', () => {
       expect(state.counterIntelligence['city-1']).toBe(100);
       state = setCounterIntelligence(state, 'city-1', -10);
       expect(state.counterIntelligence['city-1']).toBe(0);
+    });
+
+    it('security-bureau CI fade triggers on signals-intelligence, not cyber-warfare', () => {
+      const base = createEspionageCivState();
+      const city = { buildings: ['security-bureau'] };
+
+      // Currently: cyber-warfare triggers the fade → gives 15. After fix: should give 30.
+      const withCyberWarfare = applyBuildingCI('city-1', city, base, ['cyber-warfare']);
+      // Currently: signals-intelligence does NOT trigger fade → gives 30. After fix: should give 15.
+      const withSignalsIntel = applyBuildingCI('city-1', city, base, ['signals-intelligence']);
+      // Neither tech: always full bonus (unchanged).
+      const withNeither = applyBuildingCI('city-1', city, base, []);
+
+      expect(withCyberWarfare.counterIntelligence['city-1']).toBe(30);   // fails until Task 4
+      expect(withSignalsIntel.counterIntelligence['city-1']).toBe(15);   // fails until Task 4
+      expect(withNeither.counterIntelligence['city-1']).toBe(30);
     });
   });
 

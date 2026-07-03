@@ -92,7 +92,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'security-bureau', name: 'Security Bureau', category: 'espionage',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
     productionCost: 100,
-    description: 'Raises CI by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves at cyber-warfare era.',
+    description: 'Raises CI by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves when Signals Intelligence is researched.',
     techRequired: 'counter-intelligence',
     pacing: { band: 'infrastructure', role: 'advanced-counter-intelligence', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 },
   },
