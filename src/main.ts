@@ -542,7 +542,7 @@ function updateHUD(): void {
 
   const goldBtn = document.createElement('button');
   goldBtn.style.cssText =
-    'background:transparent;color:inherit;border:none;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;';
+    'background:transparent;color:inherit;border:none;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
   goldBtn.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
   goldBtn.addEventListener('click', () => drawer?.toggle());
   yieldsRow.appendChild(goldBtn);
