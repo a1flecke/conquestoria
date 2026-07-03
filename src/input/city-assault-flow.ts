@@ -1,19 +1,14 @@
-import type { GameState, HexCoord } from '@/core/types';
-import { moveUnit } from '@/systems/unit-system';
+import type { EventBus } from '@/core/event-bus';
+import type { CombatResult, GameState } from '@/core/types';
 import {
-  computeRazeGold,
+  beginMajorCityAssault,
   resolveMajorCityCapture,
   type MajorCityCaptureDisposition,
   type MajorCityCaptureResult,
+  type PendingMajorCityCapture,
 } from '@/systems/city-capture-system';
 
-export interface PendingCityCaptureChoice {
-  attackerId: string;
-  cityId: string;
-  targetCoord: HexCoord;
-  occupiedPopulation: number;
-  razeGold: number;
-}
+export type PendingCityCaptureChoice = PendingMajorCityCapture;
 
 export function shouldPromptForPlayerCityCapture(
   city: { population: number },
@@ -25,35 +20,24 @@ export function beginPlayerCityAssaultChoice(
   state: GameState,
   attackerId: string,
   cityId: string,
+  bus?: EventBus,
+  precedingCombat?: CombatResult,
 ): { state: GameState; pending: PendingCityCaptureChoice } {
-  const attacker = state.units[attackerId];
-  const city = state.cities[cityId];
-  if (!attacker || !city) {
-    throw new Error('Cannot begin city assault without attacker and city');
+  const result = beginMajorCityAssault(
+    state,
+    attackerId,
+    cityId,
+    {
+      actor: 'player',
+      civId: state.currentPlayer,
+      bus,
+      precedingCombat,
+    },
+  );
+  if (!result.ok) {
+    throw new Error(`Cannot begin city assault: ${result.reason}`);
   }
-
-  const movedAttacker = {
-    ...moveUnit(attacker, city.position, 1),
-    movementPointsLeft: 0,
-    hasMoved: true,
-  };
-
-  return {
-    state: {
-      ...state,
-      units: {
-        ...state.units,
-        [attackerId]: movedAttacker,
-      },
-    },
-    pending: {
-      attackerId,
-      cityId,
-      targetCoord: city.position,
-      occupiedPopulation: Math.max(1, Math.floor(city.population / 2)),
-      razeGold: computeRazeGold(city),
-    },
-  };
+  return result;
 }
 
 export function finalizePlayerCityAssaultChoice(

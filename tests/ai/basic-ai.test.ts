@@ -1161,12 +1161,20 @@ describe('processAITurn', () => {
   it('assaults and occupies an exposed enemy city', () => {
     const state = makeAdjacentExposedCityState({ population: 5 });
     const bus = new EventBus();
+    const moves: GameEvents['unit:move'][] = [];
+    bus.on('unit:move', event => moves.push(event));
 
     const result = processAITurn(state, 'ai-1', bus);
 
     expect(result.cities['city-player'].owner).toBe('ai-1');
     expect(result.cities['city-player'].population).toBe(2);
     expect(result.cities['city-player'].occupation?.turnsRemaining).toBe(10);
+    expect(moves).toHaveLength(1);
+    expect(moves[0]).toMatchObject({
+      unitId: 'ai-attacker',
+      from: { q: 0, r: 0 },
+      to: { q: 1, r: 0 },
+    });
   });
 
   it('emits territory tile-flipped events when AI captures an improved city tile', () => {
@@ -1265,12 +1273,23 @@ describe('processAITurn', () => {
   it('AI settler founds a city when possible', () => {
     const state = createNewGame(undefined, 'ai-test');
     const bus = new EventBus();
+    const founded: GameEvents['city:founded'][] = [];
+    bus.on('city:founded', event => founded.push(event));
     const newState = processAITurn(state, 'ai-1', bus);
     const aiCiv = newState.civilizations['ai-1'];
     // AI should try to found a city with its settler
     expect(aiCiv.cities.length + Object.values(newState.units).filter(
       u => u.owner === 'ai-1' && u.type === 'settler'
     ).length).toBeGreaterThanOrEqual(1);
+    expect(founded).toHaveLength(aiCiv.cities.length);
+    expect(founded[0]).toMatchObject({
+      founderId: 'ai-1',
+      city: {
+        id: aiCiv.cities[0],
+        owner: 'ai-1',
+      },
+    });
+    expect(newState.cities[aiCiv.cities[0]].productionQueue).toEqual(['warrior']);
   });
 
   it('does not found an AI city inside the shared city spacing boundary', () => {

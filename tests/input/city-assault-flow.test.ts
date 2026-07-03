@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
@@ -39,6 +40,8 @@ function makePlayerAssaultState({ population }: { population: number }): GameSta
     ownedTiles: [{ q: 1, r: 0 }],
   };
   state.civilizations['ai-1'].cities = ['athens'];
+  state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+  state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
 
   return state;
 }
@@ -46,16 +49,38 @@ function makePlayerAssaultState({ population }: { population: number }): GameSta
 describe('city-assault-flow', () => {
   it('begins a pending player choice by moving onto a size-2 city and finalizes occupy in place', () => {
     const state = makePlayerAssaultState({ population: 4 });
+    const bus = new EventBus();
+    const moved = vi.fn();
+    bus.on('unit:move', moved);
 
-    const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+    const begun = beginPlayerCityAssaultChoice(
+      state,
+      'unit-1',
+      'athens',
+      bus,
+    );
     const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
 
+    expect(moved).toHaveBeenCalledOnce();
     expect(begun.pending.occupiedPopulation).toBe(2);
     expect(begun.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
     expect(begun.state.units['unit-1'].movementPointsLeft).toBe(0);
     expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
     expect(result.state.units['unit-1'].movementPointsLeft).toBe(0);
     expect(result.state.cities.athens.owner).toBe('player');
+  });
+
+  it('rejects a city assault when war has not been declared', () => {
+    const state = makePlayerAssaultState({ population: 4 });
+    state.civilizations.player.diplomacy.atWarWith = [];
+    state.civilizations['ai-1'].diplomacy.atWarWith = [];
+
+    expect(() => beginPlayerCityAssaultChoice(
+      state,
+      'unit-1',
+      'athens',
+      new EventBus(),
+    )).toThrow('Cannot begin city assault: not-at-war');
   });
 
   it('begins a pending player choice by moving onto a size-2 city and finalizes raze in place', () => {

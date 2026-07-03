@@ -1,10 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import type { GameEvents, GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { foundCity } from '@/systems/city-system';
+import { resolveCombat } from '@/systems/combat-system';
+import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { createUnit } from '@/systems/unit-system';
 import { makeBreakawayFixture } from './helpers/breakaway-fixture';
-import { resolveMajorCityCapture, transferCapturedCityOwnership } from '@/systems/city-capture-system';
+import {
+  beginMajorCityAssault,
+  emitMajorCityCaptureEvents,
+  resolveMajorCityCapture,
+  transferCapturedCityOwnership,
+} from '@/systems/city-capture-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -54,6 +63,238 @@ describe('city-capture-system', () => {
       },
     };
   }
+
+  function makeMajorAssaultState(): GameState {
+    const state = makeExposedCityCaptureState({
+      population: 4,
+      buildings: [],
+    });
+    const attacker = createUnit(
+      'swordsman',
+      'player',
+      { q: 0, r: 0 },
+      state.idCounters,
+    );
+    attacker.id = 'attacker';
+    attacker.movementPointsLeft = 2;
+    state.units = { [attacker.id]: attacker };
+    state.civilizations.player.units = [attacker.id];
+    state.civilizations['ai-1'].units = [];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.map.tiles['0,0'].terrain = 'grassland';
+    state.map.tiles['1,0'].terrain = 'grassland';
+    return state;
+  }
+
+  it('begins a legal major-city assault through canonical movement without mutating input', () => {
+    const state = makeMajorAssaultState();
+    const before = structuredClone(state);
+    const bus = new EventBus();
+    const moved = vi.fn();
+    bus.on('unit:move', moved);
+
+    const result = beginMajorCityAssault(
+      state,
+      'attacker',
+      'athens',
+      { actor: 'player', civId: 'player', bus },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(state).toEqual(before);
+    expect(result.state.units.attacker.position).toEqual({ q: 1, r: 0 });
+    expect(result.state.units.attacker.movementPointsLeft).toBe(0);
+    expect(result.pending.cityId).toBe('athens');
+    expect(moved).toHaveBeenCalledOnce();
+  });
+
+  it('emits capture, territory, and elimination transitions from one shared helper', () => {
+    const state = makeMajorAssaultState();
+    const result = resolveMajorCityCapture(
+      state,
+      'athens',
+      'player',
+      'occupy',
+      state.turn,
+    );
+    const bus = new EventBus();
+    const captured = vi.fn();
+    const flipped = vi.fn();
+    const eliminated = vi.fn();
+    bus.on('city:captured', captured);
+    bus.on('territory:tile-flipped', flipped);
+    bus.on('civ:eliminated', eliminated);
+
+    emitMajorCityCaptureEvents(
+      state,
+      result,
+      'athens',
+      'player',
+      'ai-1',
+      bus,
+    );
+
+    expect(captured).toHaveBeenCalledOnce();
+    expect(flipped).toHaveBeenCalled();
+    expect(eliminated).toHaveBeenCalledWith({
+      civId: 'ai-1',
+      eliminatedBy: 'player',
+    });
+  });
+
+  it('does not re-emit near-defeat when the former owner was already there', () => {
+    const state = makeMajorAssaultState();
+    const second = foundCity(
+      'ai-1',
+      { q: 4, r: 4 },
+      state.map,
+      state.idCounters,
+    );
+    second.id = 'sparta';
+    state.cities[second.id] = second;
+    state.civilizations['ai-1'].cities.push(second.id);
+    state.civilizations['ai-1'].nearDefeat = true;
+    const result = resolveMajorCityCapture(
+      state,
+      'athens',
+      'player',
+      'occupy',
+      state.turn,
+    );
+    const bus = new EventBus();
+    const nearDefeat = vi.fn();
+    bus.on('civ:near-defeat', nearDefeat);
+
+    emitMajorCityCaptureEvents(
+      state,
+      result,
+      'athens',
+      'player',
+      'ai-1',
+      bus,
+    );
+
+    expect(nearDefeat).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: 'peace',
+      mutate: (state: GameState) => {
+        state.civilizations.player.diplomacy.atWarWith = [];
+        state.civilizations['ai-1'].diplomacy.atWarWith = [];
+      },
+      reason: 'not-at-war',
+    },
+    {
+      name: 'exhausted movement',
+      mutate: (state: GameState) => {
+        state.units.attacker.movementPointsLeft = 0;
+      },
+      reason: 'illegal-movement',
+    },
+    {
+      name: 'occupied destination',
+      mutate: (state: GameState) => {
+        const defender = createUnit(
+          'warrior',
+          'ai-1',
+          { q: 1, r: 0 },
+          state.idCounters,
+        );
+        defender.id = 'city-defender';
+        state.units[defender.id] = defender;
+        state.civilizations['ai-1'].units.push(defender.id);
+      },
+      reason: 'city-defended',
+    },
+    {
+      name: 'impassable terrain',
+      mutate: (state: GameState) => {
+        state.map.tiles['1,0'].terrain = 'coast';
+      },
+      reason: 'illegal-movement',
+    },
+    {
+      name: 'non-capturing siege unit',
+      mutate: (state: GameState) => {
+        state.units.attacker.type = 'catapult';
+      },
+      reason: 'cannot-capture',
+    },
+  ])('rejects a major-city assault during $name', ({ mutate, reason }) => {
+    const state = makeMajorAssaultState();
+    mutate(state);
+    const before = structuredClone(state);
+
+    const result = beginMajorCityAssault(
+      state,
+      'attacker',
+      'athens',
+      { actor: 'ai', civId: 'player' },
+    );
+
+    expect(result).toMatchObject({ ok: false, reason });
+    expect(state).toEqual(before);
+  });
+
+  it('allows only the exact surviving attacker to advance after defeating the final city defender', () => {
+    const state = makeMajorAssaultState();
+    const defender = createUnit(
+      'warrior',
+      'ai-1',
+      { q: 1, r: 0 },
+      state.idCounters,
+    );
+    defender.id = 'city-defender';
+    defender.health = 1;
+    state.units[defender.id] = defender;
+    state.civilizations['ai-1'].units.push(defender.id);
+    const combat = resolveCombat(
+      state.units.attacker,
+      defender,
+      state.map,
+      42,
+      undefined,
+      state.era,
+    );
+    const afterCombat = applyCombatOutcomeToState(state, combat, 42).state;
+
+    const result = beginMajorCityAssault(
+      afterCombat,
+      'attacker',
+      'athens',
+      {
+        actor: 'ai',
+        civId: 'player',
+        precedingCombat: combat,
+      },
+    );
+
+    expect(combat.attackerSurvived).toBe(true);
+    expect(combat.defenderSurvived).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.units.attacker.position).toEqual({ q: 1, r: 0 });
+    expect(result.state.units.attacker.hasActed).toBe(true);
+
+    const wrongAttacker = beginMajorCityAssault(
+      afterCombat,
+      'attacker',
+      'athens',
+      {
+        actor: 'ai',
+        civId: 'player',
+        precedingCombat: { ...combat, attackerId: 'somebody-else' },
+      },
+    );
+    expect(wrongAttacker).toMatchObject({
+      ok: false,
+      reason: 'invalid-post-combat-advance',
+    });
+  });
 
   it('keeps instability pressure when the former owner reconquers its own breakaway city', () => {
     const { state, cityId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });

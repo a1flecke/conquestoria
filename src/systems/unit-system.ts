@@ -630,6 +630,7 @@ export type UnitMovementBlockerCode =
   | 'requires-galleys'
   | 'requires-celestial-navigation'
   | 'occupied'
+  | 'foreign-city'
   | 'unreachable'
   | 'insufficient-movement';
 

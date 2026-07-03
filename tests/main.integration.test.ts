@@ -3,8 +3,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { NotificationEntry } from '@/core/notification-log';
 import { routeEraAdvanced, type NotificationSink } from '@/ui/notification-routing';
-import { hexKey } from '@/systems/hex-utils';
-import type { HexCoord } from '@/core/types';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 
@@ -30,6 +28,65 @@ describe('completed-round AI wiring', () => {
     expect(main).not.toContain('processAITurn(');
     expect(main).not.toContain("getAIPlayers(");
     expect(main).not.toContain("'ai-1'");
+  });
+});
+
+describe('shared city founding wiring', () => {
+  it('routes both the live player action and legacy AI through foundCityInState', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const basicAi = readFileSync(
+      resolve(PROJECT_ROOT, 'src/ai/basic-ai.ts'),
+      'utf8',
+    );
+    const playerFlow = main.slice(
+      main.indexOf('function foundCityAction(): void'),
+      main.indexOf('function performWorkerAction('),
+    );
+
+    expect(playerFlow).toContain(
+      'foundCityInState(gameState, selectedUnitId, bus)',
+    );
+    expect(playerFlow).not.toContain('const city = foundCity(');
+    expect(basicAi).toContain(
+      'foundCityInState(newState, settler.id, bus)',
+    );
+  });
+});
+
+describe('shared city assault wiring', () => {
+  it('passes the live event bus and exact post-combat result into canonical assault', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+
+    expect(main).toMatch(
+      /beginPlayerCityAssaultChoice\(\s*gameState,\s*attackerId,\s*cityId,\s*bus,\s*precedingCombat,\s*\)/,
+    );
+    expect(main).toMatch(
+      /beginPlayerCityAssault\(\s*attackerId,\s*cityAtTarget\.id,\s*attackerBonus,\s*result,\s*\)/,
+    );
+  });
+
+  it('routes player and legacy AI capture transitions through the shared emitter', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const basicAi = readFileSync(
+      resolve(PROJECT_ROOT, 'src/ai/basic-ai.ts'),
+      'utf8',
+    );
+
+    expect(main).toContain('emitMajorCityCaptureEvents(');
+    expect(basicAi).toContain('emitMajorCityCaptureEvents(');
+  });
+
+  it('does not resolve minor-civilization conquest after failed movement', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const minorCaptureFlow = main.slice(
+      main.indexOf('function executeMinorCivConquest('),
+      main.indexOf('function handleGiftGold('),
+    );
+
+    expect(minorCaptureFlow).toContain(
+      'const movement = executeAnimatedUnitMove(',
+    );
+    expect(minorCaptureFlow).toMatch(/if \(!movement\.ok\) return;/);
   });
 });
 
@@ -72,64 +129,5 @@ describe('era:advanced notification', () => {
     expect(toastCalls).toHaveLength(1);
     expect(toastCalls[0]!.message).toContain('Era 3');
     expect(factionCalls).toHaveLength(0);
-  });
-});
-
-// ─── Post-move hostile city detection (#264) ─────────────────────────────────
-// Tests the detection logic added inside animateMovedUnit in main.ts.
-// Follows the pattern in tests/integration/city-hex-tap.test.ts: inline the
-// pure detection helper so there's no DOM or module-mocking overhead, but the
-// conditions are proven. If the production logic in animateMovedUnit diverges,
-// these tests will still pass — they prove correctness of the algorithm, not
-// of the wiring. The wiring is covered by the tap-intent regression tests.
-
-type SlimCity = { id: string; owner: string; position: HexCoord };
-type SlimCivs = Record<string, { diplomacy?: { atWarWith?: string[] } }>;
-
-function findHostileWarCity(
-  cities: Record<string, SlimCity>,
-  civilizations: SlimCivs,
-  position: HexCoord,
-  ownerCivId: string,
-): string | null {
-  const key = hexKey(position);
-  const entry = Object.entries(cities).find(([, city]) =>
-    hexKey(city.position) === key
-    && city.owner !== ownerCivId
-    && !city.owner.startsWith('mc-')
-    && (civilizations[ownerCivId]?.diplomacy?.atWarWith?.includes(city.owner) ?? false),
-  );
-  return entry ? entry[0] : null;
-}
-
-describe('post-move hostile city detection', () => {
-  it('detects a hostile at-war major-civ city at the unit landing position', () => {
-    const cities = { 'city-1': { id: 'city-1', owner: 'ai-1', position: { q: 3, r: 2 } } };
-    const civs: SlimCivs = { player: { diplomacy: { atWarWith: ['ai-1'] } } };
-
-    expect(findHostileWarCity(cities, civs, { q: 3, r: 2 }, 'player')).toBe('city-1');
-  });
-
-  it('does not trigger for a city the player is not at war with (allied / neutral)', () => {
-    const cities = { 'city-1': { id: 'city-1', owner: 'ai-1', position: { q: 3, r: 2 } } };
-    const civs: SlimCivs = { player: { diplomacy: { atWarWith: [] } } };
-
-    expect(findHostileWarCity(cities, civs, { q: 3, r: 2 }, 'player')).toBeNull();
-  });
-
-  it('does not trigger for a minor civ city (owner starts with mc-)', () => {
-    const cities = { 'mc-abc': { id: 'mc-abc', owner: 'mc-abc', position: { q: 3, r: 2 } } };
-    const civs: SlimCivs = { player: { diplomacy: { atWarWith: ['mc-abc'] } } };
-
-    expect(findHostileWarCity(cities, civs, { q: 3, r: 2 }, 'player')).toBeNull();
-  });
-
-  it('does not trigger when the mover owns the city (own-city landing)', () => {
-    // The animateMovedUnit guard `c.owner !== gameState.currentPlayer` prevents
-    // a player from assaulting their own city. Verify the algorithm excludes it.
-    const cities = { 'city-1': { id: 'city-1', owner: 'player', position: { q: 3, r: 2 } } };
-    const civs: SlimCivs = { player: { diplomacy: { atWarWith: [] } } };
-
-    expect(findHostileWarCity(cities, civs, { q: 3, r: 2 }, 'player')).toBeNull();
   });
 });
