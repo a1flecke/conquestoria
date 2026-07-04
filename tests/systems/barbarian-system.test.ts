@@ -240,6 +240,31 @@ describe('processPurposefulBarbarians', () => {
       ranged: ['machine_gunner'],
     });
   });
+
+  it('withdraws a surviving raider after its persisted target is removed', () => {
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 7, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const worker = createUnit('worker', 'player', { q: 9, r: 5 }, state.idCounters);
+    worker.id = 'worker';
+    state.units = { raider, worker };
+    state.civilizations.player.units = [worker.id];
+    const planned = processPurposefulBarbarians(state);
+    delete state.units.worker;
+    state.civilizations.player.units = [];
+
+    const result = processPurposefulBarbarians({
+      ...state,
+      turn: state.turn + 1,
+      opponentAI: planned.opponentAI,
+    });
+
+    expect(result.opponentAI.barbarianCamps['camp-a'].phase).toBe('withdrawing');
+    expect(result.moveOrders).toContainEqual({
+      unitId: raider.id,
+      toCoord: { q: 6, r: 5 },
+    });
+  });
 });
 
 describe('barbarian camp evolution', () => {

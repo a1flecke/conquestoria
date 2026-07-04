@@ -358,8 +358,19 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
       && existingPosition
       && sensedByCamp(state, camp, assigned, existingPosition),
     );
+    const existingRaidTargetEscaped = Boolean(
+      existing
+      && existing.objective === 'raid'
+      && existing.target.kind === 'unit'
+      && (
+        !existingPosition
+        || !sensedByCamp(state, camp, assigned, existingPosition)
+      ),
+    );
 
-    let plan: AIStrategicPlan | null = existingValid ? existing : null;
+    let plan: AIStrategicPlan | null = existingRaidTargetEscaped
+      ? { ...existing!, phase: 'withdrawing', lastProgressTurn: state.turn }
+      : existingValid ? existing! : null;
     if (campThreat && (plan?.objective !== 'defend' || plan.target.kind !== 'unit' || plan.target.id !== campThreat.id)) {
       plan = makeBarbarianPlan(
         state,

@@ -392,6 +392,11 @@ export function planPurposefulMinorCivTurn(
   let plan = makeMinorPlan(state, mc, target, objective, reason);
   const existing = state.opponentAI?.minorCivs[mc.id];
   const existingPosition = existing ? minorPlanPosition(state, existing) : null;
+  const existingTargetRemainsHostile = existing?.target.kind !== 'unit'
+    || Boolean(
+      state.units[existing.target.id]
+      && isMinorCivHostileToOwner(state, mc.id, state.units[existing.target.id].owner),
+    );
   const existingMatchesChosen = Boolean(
     chosen
     && existing?.target.kind === 'unit'
@@ -402,6 +407,7 @@ export function planPurposefulMinorCivTurn(
     && existing
     && existing.target.kind !== 'city'
     && existingPosition
+    && existingTargetRemainsHostile
     && state.turn <= existing.expiresAfterTurn
     && minorDistance(state, city.position, existingPosition) <= MINOR_OPERATIONAL_RADIUS
     && (!chosen || existingMatchesChosen)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeMinorCivs, processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, processGuerrilla, processScuffles, applyDiplomaticReaction } from '@/systems/minor-civ-system';
+import { placeMinorCivs, processMinorCivTurn, planPurposefulMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, processGuerrilla, processScuffles, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
@@ -181,6 +181,26 @@ describe('minor civ turn processing', () => {
     expect(hexDistance(result.units[garrison.id].position, city.position))
       .toBeLessThan(hexDistance(start, city.position));
     expect(UNIT_DEFINITIONS[result.units[garrison.id].type].strength).toBe(strengthBefore);
+  });
+
+  it('abandons a persisted retaliation target after peace', () => {
+    const state = createNewGame(undefined, 'mc-purposeful-peace', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    const playerUnit = state.units[state.civilizations.player.units[0]];
+    playerUnit.position = { q: city.position.q + 3, r: city.position.r };
+    mc.diplomacy.atWarWith.push('player');
+    state.civilizations.player.diplomacy.atWarWith.push(mcId);
+    const wartime = planPurposefulMinorCivTurn(state, mcId);
+    state.opponentAI!.minorCivs[mcId] = wartime.plan!;
+
+    mc.diplomacy.atWarWith = [];
+    state.civilizations.player.diplomacy.atWarWith = [];
+    const peacetime = planPurposefulMinorCivTurn(state, mcId);
+
+    expect(peacetime.plan?.target).toMatchObject({ kind: 'region' });
+    expect(peacetime.attackOrders).toEqual([]);
   });
 
   it('replaces lost garrison after cooldown', () => {
