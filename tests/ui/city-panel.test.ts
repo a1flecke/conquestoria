@@ -160,6 +160,40 @@ describe('city-panel unrest section — #436', () => {
   });
 });
 
+describe('city-panel obsolete-building badge — #443', () => {
+  it('shows the obsolete badge and "Obsolete — no upkeep" text for a built, now-obsolete building', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['cavalry-academy'];
+    state.civilizations[state.currentPlayer].techState.completed.push('tank-warfare');
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).toContain('obsolete');
+    expect(rendered).toContain('Obsolete — no upkeep');
+  });
+
+  it('shows neither the obsolete badge nor "Obsolete — no upkeep" for a still-relevant building', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['cavalry-academy'];
+    // tank-warfare NOT completed — cavalry-academy is still relevant
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const rendered = collectText(panel);
+    expect(rendered).not.toContain('obsolete');
+    expect(rendered).not.toContain('Obsolete — no upkeep');
+  });
+});
+
 describe('city-panel legendary wonders', () => {
   it('renders a Legendary Wonders entry point and shows carryover in the active city', () => {
     const { container, city, state } = makeWonderPanelFixture();

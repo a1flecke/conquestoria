@@ -234,7 +234,8 @@ export function createCityPanel(
     const bid = city.buildings[idx];
     const b = BUILDINGS[bid];
     if (b) {
-      const upkeep = cityMaintenance.rows.find(row => row.id === bid)?.upkeep ?? 0;
+      const row = cityMaintenance.rows.find(r => r.id === bid);
+      const upkeep = row?.upkeep ?? 0;
       let fadingBadge = '';
       if (b.nationalProject && b.uniquePerEmpire) {
         const record = state.builtNationalProjects?.[`${city.owner}:${bid}`];
@@ -245,9 +246,18 @@ export function createCityPanel(
           }
         }
       }
+      let obsoleteBadge = '';
+      if (b.obsoletedByTech && state.civilizations[city.owner]?.techState.completed.includes(b.obsoletedByTech)) {
+        obsoleteBadge = ' <span style="color:#e88;font-size:10px;" title="This building\'s purpose no longer applies — later technology has moved past it. No upkeep cost, but no effect either.">⚠️ (obsolete)</span>';
+      }
+      const upkeepText = row?.reason === 'obsolete'
+        ? 'Obsolete — no upkeep'
+        : upkeep > 0
+          ? `Upkeep: -${upkeep} gold/turn`
+          : 'Free support';
       buildingPlaceholders += `<div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:4px;font-size:12px;">
-        <strong data-text="bldg-name-${idx}"></strong>${fadingBadge} — <span data-text="bldg-desc-${idx}"></span>
-        <div style="font-size:11px;opacity:0.72;margin-top:3px;" data-text="bldg-upkeep-${idx}">${upkeep > 0 ? `Upkeep: -${upkeep} gold/turn` : 'Free support'}</div>
+        <strong data-text="bldg-name-${idx}"></strong>${fadingBadge}${obsoleteBadge} — <span data-text="bldg-desc-${idx}"></span>
+        <div style="font-size:11px;opacity:0.72;margin-top:3px;" data-text="bldg-upkeep-${idx}">${upkeepText}</div>
       </div>`;
     }
   }
