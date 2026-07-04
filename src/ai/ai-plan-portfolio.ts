@@ -290,9 +290,10 @@ export function refreshMajorCivPortfolio(
   const plannedThreats = [...urgentThreats, ...retainedThreats].slice(0, 4);
   const defensePlansByCityId = Object.fromEntries(plannedThreats.map(threat => {
     const existing = context.portfolio.defensePlansByCityId[threat.cityId];
+    const retainExisting = existing && context.turn <= existing.expiresAfterTurn;
     return [
       threat.cityId,
-      existing
+      retainExisting
         ? {
             ...existing,
             lastProgressTurn: threat.travelTurns <= 6

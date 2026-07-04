@@ -224,6 +224,37 @@ describe('major-civilization plan portfolios', () => {
     })).portfolio.defensePlansByCityId.old).toBeUndefined();
   });
 
+  it('does not retain a defense plan beyond its explicit expiry', () => {
+    const expired = plan('defend-expired', {
+      objective: 'defend',
+      target: { kind: 'city', id: 'old', lastKnownPosition: { q: 1, r: 1 } },
+      expiresAfterTurn: 9,
+      lastProgressTurn: 9,
+    });
+
+    const result = refreshMajorCivPortfolio(context({
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        defensePlansByCityId: { old: expired },
+      },
+      cityThreats: [{
+        cityId: 'old',
+        position: { q: 1, r: 1 },
+        theaterId: 'home',
+        travelTurns: 2,
+        alreadyAttackedTerritory: true,
+        captureRisk: 80,
+        hostileStrength: 30,
+        isCapital: false,
+        isLastCity: false,
+        threatStillValid: true,
+      }],
+    }));
+
+    expect(result.portfolio.defensePlansByCityId.old?.id).not.toBe('defend-expired');
+    expect(result.portfolio.defensePlansByCityId.old?.createdTurn).toBe(10);
+  });
+
   it('derives receding-defense grace from persisted progress when no counter is supplied', () => {
     const recent = plan('defend-recent', {
       objective: 'defend',
