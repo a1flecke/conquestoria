@@ -148,8 +148,8 @@ describe('hostile-only unit definitions', () => {
       .sort();
   }
 
-  // era-12 units: stealth_bomber is in TRAINABLE_UNITS (Task 2); cyber_unit wired in Task 3
-  const ERA_12_PENDING_TRAINABLE: Set<string> = new Set(['cyber_unit']);
+  // era-12 units: both cyber_unit and stealth_bomber are now in TRAINABLE_UNITS (Task 3)
+  const ERA_12_PENDING_TRAINABLE: Set<string> = new Set([]);
 
   it('permits only explicit beast and pirate zero-cost units outside city training', () => {
     const trainableTypes = new Set([

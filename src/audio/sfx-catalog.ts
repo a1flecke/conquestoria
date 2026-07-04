@@ -238,6 +238,16 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'attack-swing': real('sfx-beast_dragon-attack', 'audio/sfx/beast-dragon-attack.ogg', 1.090),
     death:          real('sfx-beast_dragon-death',  'audio/sfx/beast-dragon-death.ogg',  2.590, 'death'),
   },
+
+  // === Era 12 units ===
+  cyber_unit: {
+    death: real('sfx-cyber_unit-death', 'audio/sfx/cyber-unit-death.ogg', 0.569, 'death'),
+  },
+  stealth_bomber: {
+    'ranged-loose':  real('sfx-stealth_bomber-ranged-loose',  'audio/sfx/stealth-bomber-drop.ogg',   0.800),
+    'ranged-impact': real('sfx-stealth_bomber-ranged-impact', 'audio/sfx/stealth-bomber-impact.ogg', 1.200),
+    death:           real('sfx-stealth_bomber-death',          'audio/sfx/stealth-bomber-death.ogg',   1.500, 'death'),
+  },
 };
 
 // Mirrors UNIT_MOTION_STYLES in src/renderer/sprites/sprite-catalog.ts — keep in sync.

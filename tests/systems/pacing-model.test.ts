@@ -39,7 +39,10 @@ describe('pacing-model', () => {
     expect(getProductionOutputProfileForEra(7)).toBe(16);
     expect(getProductionOutputProfileForEra(8)).toBe(18);
     expect(getProductionOutputProfileForEra(9)).toBe(20);
-    expect(getProductionOutputProfileForEra(99)).toBe(20);
+    expect(getProductionOutputProfileForEra(10)).toBe(22);
+    expect(getProductionOutputProfileForEra(11)).toBe(24);
+    expect(getProductionOutputProfileForEra(12)).toBe(26);
+    expect(getProductionOutputProfileForEra(99)).toBe(26);
   });
 });
 

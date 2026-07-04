@@ -1003,15 +1003,21 @@ function processAITurnInternal(
   const hasBiplane = civUnitsForAir.some(u => u?.type === 'biplane');
   const hasJetFighter = civUnitsForAir.some(u => u?.type === 'jet_fighter');
   const hasAttackHelicopter = civUnitsForAir.some(u => u?.type === 'attack_helicopter');
+  const hasStealthBomber = civUnitsForAir.some(u => u?.type === 'stealth_bomber');
   const hasCarrier = (civ.units ?? []).some(id => newState.units[id]?.type === 'carrier');
   const hasMissileSubmarine = (civ.units ?? []).some(id => newState.units[id]?.type === 'missile_submarine');
+  const hasCyberUnit = (civ.units ?? []).some(id => newState.units[id]?.type === 'cyber_unit');
   let hasQueuedCarrierThisTurn = false;
   let hasQueuedAttackHelicopterThisTurn = false;
   let hasQueuedMissileSubThisTurn = false;
+  let hasQueuedCyberUnitThisTurn = false;
+  let hasQueuedStealthBomberThisTurn = false;
   const hasAirSuperiorityTech = civ.techState.completed.includes('air-superiority');
   const hasJetAviationTech = civ.techState.completed.includes('jet-aviation');
   const hasHelicopterWarfareTech = civ.techState.completed.includes('helicopter-warfare');
   const hasNuclearSubsTech = civ.techState.completed.includes('nuclear-submarines');
+  const hasCyberWarfareTech = civ.techState.completed.includes('cyber-warfare');
+  const hasStealthTech = civ.techState.completed.includes('stealth-technology');
 
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
@@ -1260,6 +1266,39 @@ function processAITurnInternal(
         newState = {
           ...newState,
           cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['missile_submarine'] } },
+        };
+        continue;
+      }
+      // Queue one cyber_unit when cyber-warfare is researched and enemy cities lack CDC
+      if (
+        hasCyberWarfareTech &&
+        !hasCyberUnit && !hasQueuedCyberUnitThisTurn &&
+        trainableUnits.includes('cyber_unit') &&
+        city.productionQueue.length === 0 &&
+        Object.values(newState.cities).some(c =>
+          c.owner !== civId && !(c.buildings ?? []).includes('cyber_defense_center')
+        )
+      ) {
+        hasQueuedCyberUnitThisTurn = true;
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['cyber_unit'] } },
+        };
+        continue;
+      }
+      // Queue one stealth_bomber per civ when stealth-technology is researched and city has stealth_airbase
+      if (
+        hasStealthTech &&
+        !hasStealthBomber && !hasQueuedStealthBomberThisTurn &&
+        trainableUnits.includes('stealth_bomber') &&
+        city.productionQueue.length === 0 &&
+        (city.buildings ?? []).includes('stealth_airbase') &&
+        Object.values(newState.cities).some(c => c.owner !== civId)
+      ) {
+        hasQueuedStealthBomberThisTurn = true;
+        newState = {
+          ...newState,
+          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['stealth_bomber'] } },
         };
         continue;
       }
