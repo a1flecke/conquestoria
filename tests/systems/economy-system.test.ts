@@ -88,6 +88,28 @@ describe('economy maintenance', () => {
     expect(unitBreakdown.supportUsed).toBe(4);
   });
 
+  it('exempts an obsolete building from upkeep with reason "obsolete" (#443)', () => {
+    const state = makeState();
+    city(state).buildings = ['cavalry-academy'];
+    state.civilizations.player.techState.completed.push('tank-warfare');
+
+    const breakdown = calculateCityBuildingMaintenance(state, 'capital');
+    const row = breakdown.rows.find(r => r.id === 'cavalry-academy');
+
+    expect(row?.upkeep).toBe(0);
+    expect(row?.reason).toBe('obsolete');
+  });
+
+  it('charges normal upkeep for cavalry-academy before tank-warfare completes', () => {
+    const state = makeState();
+    city(state).buildings = ['cavalry-academy'];
+
+    const breakdown = calculateCityBuildingMaintenance(state, 'capital');
+    const row = breakdown.rows.find(r => r.id === 'cavalry-academy');
+
+    expect(row?.reason).not.toBe('obsolete');
+  });
+
   it('charges upkeep for all non-exempt buildings beyond the single free slot', () => {
     const state = makeState();
     city(state).buildings = [

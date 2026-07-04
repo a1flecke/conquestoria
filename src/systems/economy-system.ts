@@ -128,7 +128,7 @@ interface LegacyEconomyStatus {
   turn?: number;
 }
 
-export type MaintenanceReason = 'exempt' | 'free-support' | 'free-defender' | 'paid';
+export type MaintenanceReason = 'exempt' | 'free-support' | 'free-defender' | 'paid' | 'obsolete';
 
 export interface MaintenanceRow {
   id: string;
@@ -325,11 +325,17 @@ export function calculateCityBuildingMaintenance(state: GameState, cityOrId: Cit
   const freeSupport = getFreeBuildingSlots(city);
   const exemptBuildings: MaintenanceRow[] = [];
   const candidates: MaintenanceRow[] = [];
+  const owner = state.civilizations[city.owner];
 
   for (const buildingId of city.buildings) {
     if (!BUILDINGS[buildingId]) continue;
     if (ECONOMY_RULES.coreFreeBuildings.has(buildingId)) {
       exemptBuildings.push({ id: buildingId, label: getBuildingLabel(buildingId), upkeep: 0, reason: 'exempt' });
+      continue;
+    }
+    const building = BUILDINGS[buildingId];
+    if (building?.obsoletedByTech && owner?.techState.completed.includes(building.obsoletedByTech)) {
+      exemptBuildings.push({ id: buildingId, label: getBuildingLabel(buildingId), upkeep: 0, reason: 'obsolete' });
       continue;
     }
     candidates.push({
