@@ -135,6 +135,40 @@ describe('SfxDirector', () => {
     }
   });
 
+  it('rechecks suppression after a delayed movement buffer finishes loading', async () => {
+    vi.useFakeTimers();
+    try {
+      let resolveLoad!: (buffer: AudioBuffer) => void;
+      loader.get = vi.fn((_path: string) => new Promise<AudioBuffer>(resolve => {
+        resolveLoad = resolve;
+      }));
+      let suppressed = false;
+      const units = { u1: makeUnit('u1', 'warrior') };
+      director.start(units, busHelper.bus, stateProvider(units), () => suppressed);
+      busHelper.emit('unit:move', {
+        unitId: 'u1',
+        from: { q: 0, r: 0 },
+        to: { q: 1, r: 0 },
+        path: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+        presentationByViewer: {
+          player: {
+            unit: units.u1,
+            visibleSegments: [[{ q: 0, r: 0 }, { q: 1, r: 0 }]],
+          },
+        },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      suppressed = true;
+      resolveLoad({} as AudioBuffer);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mixer.playOneShot).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not fall back to final fog when the event-time viewer was omitted', async () => {
     vi.useFakeTimers();
     try {

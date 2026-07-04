@@ -6,6 +6,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { REVOLT_UNREST_TURNS, BREAKAWAY_REVOLT_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import type { NotificationEntry } from '@/core/notification-log';
+import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 
 export type NotificationSink = (
   civId: string,
@@ -239,6 +240,33 @@ export function queueFirstContactPendingEvents(
   const bName = state.civilizations[civB]?.name ?? civB;
   collectEvent(state.pendingEvents, civA, { type: 'first-contact', message: `Encountered ${bName}.`, turn: state.turn });
   collectEvent(state.pendingEvents, civB, { type: 'first-contact', message: `Encountered ${aName}.`, turn: state.turn });
+}
+
+export function routeStrategicWarning(
+  event: GameEvents['ai:strategic-warning'],
+  sink: NotificationSink,
+): void {
+  const presentation = presentStrategicWarning(event);
+  sink(
+    event.viewerId,
+    presentation.message,
+    presentation.type,
+    presentation.target,
+  );
+}
+
+export function queueStrategicWarningPendingEvent(
+  state: GameState,
+  event: GameEvents['ai:strategic-warning'],
+): void {
+  state.pendingEvents ??= {};
+  const presentation = presentStrategicWarning(event);
+  collectEvent(state.pendingEvents, event.viewerId, {
+    type: 'ai:strategic-warning',
+    message: presentation.message,
+    turn: state.turn,
+    ...(presentation.target ? { target: presentation.target } : {}),
+  });
 }
 
 // Routes to the defender's owner regardless of who is currently acting.

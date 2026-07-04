@@ -105,6 +105,99 @@ describe('AudioSystem integration', () => {
     expect(ctx.transcript.length).toBe(before);
   });
 
+  it('plays one strategic warning cue for the current viewer and turn', async () => {
+    const state = makeState({ turn: 7 });
+    ctx.state = 'running';
+    system.start(state, busHelper.bus, () => state);
+    await flushPromises();
+    ctx.clearTranscript();
+
+    const warning = {
+      viewerId: 'rome',
+      actorId: 'egypt',
+      actorName: 'Egyptian',
+      warningKey: 'rome:egypt:mobilizing:border',
+      kind: 'mobilizing',
+      evidence: 'visible',
+      playAudio: true,
+    };
+    busHelper.emit('ai:strategic-warning', warning);
+    busHelper.emit('ai:strategic-warning', { ...warning, warningKey: `${warning.warningKey}:second` });
+    await flushPromises();
+
+    expect(ctx.transcript.filter(entry => entry.op === 'start')).toHaveLength(1);
+  });
+
+  it('plays a hot-seat strategic warning only after an explicit post-handoff audio event', async () => {
+    const state = makeState({ turn: 8 });
+    ctx.state = 'running';
+    let suppressed = true;
+    system.start(state, busHelper.bus, () => state, () => suppressed);
+    await flushPromises();
+    ctx.clearTranscript();
+
+    busHelper.emit('ai:strategic-warning', {
+      viewerId: 'rome',
+      actorId: 'egypt',
+      actorName: 'Egyptian',
+      warningKey: 'rome:egypt:mobilizing:border',
+      kind: 'mobilizing',
+      evidence: 'visible',
+      playAudio: true,
+    });
+    await flushPromises();
+    expect(ctx.transcript.some(entry => entry.op === 'start')).toBe(false);
+
+    suppressed = false;
+    busHelper.emit('ai:strategic-warning-audio', { viewerId: 'rome', turn: 8 });
+    await flushPromises();
+    expect(ctx.transcript.filter(entry => entry.op === 'start')).toHaveLength(1);
+  });
+
+  it.each([
+    ['wrong viewer', { currentPlayer: 'egypt' }, true, 'running'],
+    ['sound muted', { settings: { ...makeState().settings, soundEnabled: false } }, true, 'running'],
+    ['stingers disabled', { settings: { ...makeState().settings, stingerEnabled: false } }, true, 'running'],
+    ['presentation suppressed', {}, false, 'running'],
+    ['context suspended', {}, true, 'suspended'],
+    ['context closed', {}, true, 'closed'],
+  ] as const)('blocks strategic warning audio when %s', async (
+    _label,
+    overrides,
+    presentationAllowed,
+    contextState,
+  ) => {
+    const state = makeState({ turn: 9, ...(overrides as Partial<GameState>) });
+    ctx.state = contextState;
+    system.start(state, busHelper.bus, () => state, () => !presentationAllowed);
+    await flushPromises();
+    ctx.clearTranscript();
+
+    busHelper.emit('ai:strategic-warning-audio', { viewerId: 'rome', turn: 9 });
+    await flushPromises();
+
+    expect(ctx.transcript.some(entry => entry.op === 'start')).toBe(false);
+  });
+
+  it('blocks strategic warning audio while the document is backgrounded', async () => {
+    const state = makeState({ turn: 10 });
+    ctx.state = 'running';
+    vi.stubGlobal('document', {
+      hidden: true,
+      visibilityState: 'hidden',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+    system.start(state, busHelper.bus, () => state);
+    await flushPromises();
+    ctx.clearTranscript();
+
+    busHelper.emit('ai:strategic-warning-audio', { viewerId: 'rome', turn: 10 });
+    await flushPromises();
+
+    expect(ctx.transcript.some(entry => entry.op === 'start')).toBe(false);
+  });
+
   // Flow E: peace signed (last war)
   it('Flow E: peace:made with warCount=1 transitions to peace', () => {
     system.start(makeState(), busHelper.bus);

@@ -34,6 +34,7 @@ export class AudioSystem {
   private gestureResumeHandler: (() => void) | null = null;
   private isPresentationSuppressed: () => boolean = () => false;
   private loopLoadRequestId = 0;
+  private strategicWarningAudioKeys = new Set<string>();
 
   constructor(private readonly ctx: AudioContext) {
     this.loader = new AudioLoader(ctx);
@@ -191,6 +192,7 @@ export class AudioSystem {
     this.stateProvider = null;
     this.isPresentationSuppressed = () => false;
     this.loopLoadRequestId += 1;
+    this.strategicWarningAudioKeys.clear();
     this.started = false;
   }
 
@@ -226,6 +228,7 @@ export class AudioSystem {
     getState: () => GameState,
     isPresentationSuppressed: () => boolean,
   ): void {
+    this.strategicWarningAudioKeys.clear();
     this.bindCampaignState(state, getState, isPresentationSuppressed);
     this.applySettings(state);
     this.sfxDirector.replaceUnits(
@@ -269,6 +272,17 @@ export class AudioSystem {
       },
     } as EventBus;
     this.unsubscribers.push(
+      bus.on('ai:strategic-warning', warning => {
+        if (!warning.playAudio) return;
+        const turn = this.stateProvider?.().turn;
+        if (!Number.isFinite(turn)) return;
+        this.playStrategicWarning(warning.viewerId, turn!);
+      }),
+
+      bus.on('ai:strategic-warning-audio', event => {
+        this.playStrategicWarning(event.viewerId, event.turn);
+      }),
+
       bus.on('era:advanced', p => {
         void this.preloadForEra(p.era, this.currentCivType);
         this.director.handleEraAdvanced({ era: p.era, civType: this.currentCivType });
@@ -436,6 +450,38 @@ export class AudioSystem {
       bus.on('civ:recovered-from-near-defeat', p => {
         this.director.handleRecoveredFromNearDefeat({ civId: p.civId });
       }),
+    );
+  }
+
+  private canPlayStrategicWarning(viewerId: string): boolean {
+    const state = this.stateProvider?.();
+    if (!state || viewerId !== this.currentPlayerId || state.currentPlayer !== viewerId) {
+      return false;
+    }
+    if (this.isPresentationSuppressed()) return false;
+    if (
+      !state.settings.soundEnabled
+      || state.settings.stingerEnabled === false
+      || (state.settings.stingerVolume ?? 1) <= 0
+    ) {
+      return false;
+    }
+    if (this.ctx.state !== 'running') return false;
+    if (typeof document !== 'undefined') {
+      if (document.hidden || document.visibilityState === 'hidden') return false;
+    }
+    return true;
+  }
+
+  private playStrategicWarning(viewerId: string, turn: number): void {
+    const key = `${viewerId}:${turn}`;
+    if (this.strategicWarningAudioKeys.has(key)) return;
+    if (!this.canPlayStrategicWarning(viewerId)) return;
+    this.strategicWarningAudioKeys.add(key);
+    const era = this.stateProvider?.().era ?? 1;
+    this.director.handleStrategicWarning(
+      era,
+      () => this.canPlayStrategicWarning(viewerId),
     );
   }
 

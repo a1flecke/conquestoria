@@ -63,6 +63,22 @@ describe('MusicDirector', () => {
     expect(mixer.playOneShot).toHaveBeenCalledWith('stinger', fakeBuffer);
   });
 
+  it('reuses the era-transition cue for strategic warnings and rechecks eligibility after load', async () => {
+    let resolveLoad!: (buffer: AudioBuffer) => void;
+    vi.mocked(loader.get).mockReturnValueOnce(new Promise(resolve => {
+      resolveLoad = resolve;
+    }));
+    let eligible = true;
+
+    director.handleStrategicWarning(3, () => eligible);
+    expect(loader.get).toHaveBeenCalledWith(STINGER.eraTransitionCue[resolveEra(3)].file);
+    eligible = false;
+    resolveLoad(fakeBuffer);
+    await flushPromises();
+
+    expect(mixer.playOneShot).not.toHaveBeenCalled();
+  });
+
   it('plays eraAdvance stinger for the resolved era', async () => {
     director.handleEraAdvanced({ era: 3, civType: 'rome' });
     await flushPromises();

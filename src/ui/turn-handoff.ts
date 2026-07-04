@@ -1,5 +1,10 @@
 import type { GameState } from '@/core/types';
-import { generateSummary, type TurnSummary } from '@/core/hotseat-events';
+import {
+  clearEventsForPlayer,
+  generateSummary,
+  type TurnSummary,
+} from '@/core/hotseat-events';
+import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 
@@ -16,6 +21,47 @@ export interface TurnHandoffController {
     callbacks: { onRetry: () => void; onReturnToSaves: () => void },
   ): void;
   remove(): void;
+}
+
+export interface TurnHandoffAcknowledgement {
+  state: GameState;
+  playStrategicWarningAudio: boolean;
+}
+
+export function acknowledgeTurnHandoffSummary(
+  state: GameState,
+  viewerId: string,
+  summary: TurnSummary,
+): TurnHandoffAcknowledgement {
+  const hasStrategicWarning = summary.events.some(
+    event => event.type === 'ai:strategic-warning',
+  );
+  const opponentAI = structuredClone(
+    state.opponentAI ?? createEmptyOpponentAIState(),
+  );
+  const ledger = opponentAI.pressureByHuman[viewerId] ?? {
+    activeIndependentThreatIds: [],
+    recoveryUntilTurn: 0,
+    lastResolvedThreatTurn: null,
+    lastWarningTurnByKey: {},
+    lastStrategicAudioTurn: null,
+  };
+  const playStrategicWarningAudio = hasStrategicWarning
+    && ledger.lastStrategicAudioTurn !== summary.turn;
+  if (hasStrategicWarning) {
+    opponentAI.pressureByHuman[viewerId] = {
+      ...ledger,
+      lastStrategicAudioTurn: summary.turn,
+    };
+  }
+  return {
+    state: {
+      ...state,
+      pendingEvents: clearEventsForPlayer(state.pendingEvents ?? {}, viewerId),
+      ...(hasStrategicWarning ? { opponentAI } : {}),
+    },
+    playStrategicWarningAudio,
+  };
 }
 
 let activeHandoffController: TurnHandoffController | null = null;
