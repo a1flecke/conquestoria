@@ -265,6 +265,9 @@ export function applyCombatOutcomeToState(
     };
   }
 
+  let attackerActuallyDefeated = !result.attackerSurvived;
+  let defenderActuallyDefeated = !result.defenderSurvived;
+
   if (result.attackerSurvived) {
     units[result.attackerId] = {
       ...attackerBefore,
@@ -273,6 +276,32 @@ export function applyCombatOutcomeToState(
       hasMoved: true,
       hasActed: true,
     };
+  } else if (attackerBefore.geneTherapyReady === true) {
+    // Gene therapy: survive lethal hit at 1 HP, enter cooldown
+    units[result.attackerId] = {
+      ...attackerBefore,
+      health: 1,
+      movementPointsLeft: 0,
+      hasMoved: true,
+      hasActed: true,
+      geneTherapyReady: false,
+    };
+    attackerActuallyDefeated = false;
+  } else if (attackerBefore.type === 'cyber_unit') {
+    // Cyber unit: capture (transfer ownership) instead of destroy
+    units[result.attackerId] = { ...attackerBefore, owner: defenderBefore.owner };
+    civilizations = {
+      ...civilizations,
+      [attackerBefore.owner]: {
+        ...civilizations[attackerBefore.owner],
+        units: (civilizations[attackerBefore.owner]?.units ?? []).filter(id => id !== result.attackerId),
+      },
+      [defenderBefore.owner]: {
+        ...civilizations[defenderBefore.owner],
+        units: [...(civilizations[defenderBefore.owner]?.units ?? []), result.attackerId],
+      },
+    };
+    attackerActuallyDefeated = false;
   } else {
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.attackerId);
     units = removed.units;
@@ -285,6 +314,32 @@ export function applyCombatOutcomeToState(
       ...defenderBefore,
       health: Math.max(1, defenderBefore.health - result.defenderDamage),
     };
+  } else if (defenderBefore.geneTherapyReady === true) {
+    // Gene therapy: survive lethal hit at 1 HP, enter cooldown
+    units[result.defenderId] = {
+      ...defenderBefore,
+      health: 1,
+      movementPointsLeft: 0,
+      hasMoved: true,
+      hasActed: true,
+      geneTherapyReady: false,
+    };
+    defenderActuallyDefeated = false;
+  } else if (defenderBefore.type === 'cyber_unit') {
+    // Cyber unit: capture (transfer ownership) instead of destroy
+    units[result.defenderId] = { ...defenderBefore, owner: attackerBefore.owner };
+    civilizations = {
+      ...civilizations,
+      [defenderBefore.owner]: {
+        ...civilizations[defenderBefore.owner],
+        units: (civilizations[defenderBefore.owner]?.units ?? []).filter(id => id !== result.defenderId),
+      },
+      [attackerBefore.owner]: {
+        ...civilizations[attackerBefore.owner],
+        units: [...(civilizations[attackerBefore.owner]?.units ?? []), result.defenderId],
+      },
+    };
+    defenderActuallyDefeated = false;
   } else {
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.defenderId);
     units = removed.units;
@@ -328,7 +383,7 @@ export function applyCombatOutcomeToState(
     nextState = breakPirateTributeOnAttack(nextState, defenderFaction.id, attackerBefore.owner);
   }
   const questTransitions: ChainTransition[] = [];
-  if (!result.defenderSurvived) {
+  if (defenderActuallyDefeated) {
     const progress = applyQuestGameplayAction(nextState, {
       type: 'unit_defeated', actorCivId: attackerBefore.owner, defeatedOwnerId: defenderBefore.owner,
       unitId: defenderBefore.id, position: defenderBefore.position, turn: state.turn,
@@ -336,7 +391,7 @@ export function applyCombatOutcomeToState(
     nextState = progress.state;
     questTransitions.push(...progress.transitions);
   }
-  if (!result.attackerSurvived) {
+  if (attackerActuallyDefeated) {
     const progress = applyQuestGameplayAction(nextState, {
       type: 'unit_defeated', actorCivId: defenderBefore.owner, defeatedOwnerId: attackerBefore.owner,
       unitId: attackerBefore.id, position: attackerBefore.position, turn: state.turn,
@@ -346,7 +401,7 @@ export function applyCombatOutcomeToState(
   }
 
   if (
-    !result.defenderSurvived
+    defenderActuallyDefeated
     && defenderFaction?.headquarters.kind === 'deep-sea-flotilla'
     && defenderFaction.headquarters.flagshipUnitId === defenderBefore.id
   ) {
@@ -361,7 +416,7 @@ export function applyCombatOutcomeToState(
   }
   const attackerFaction = state.pirates?.factions[attackerBefore.owner];
   if (
-    !result.attackerSurvived
+    attackerActuallyDefeated
     && attackerFaction?.headquarters.kind === 'deep-sea-flotilla'
     && attackerFaction.headquarters.flagshipUnitId === attackerBefore.id
   ) {
@@ -378,8 +433,8 @@ export function applyCombatOutcomeToState(
   return {
     state: nextState,
     rewards,
-    attackerDefeated: !result.attackerSurvived,
-    defenderDefeated: !result.defenderSurvived,
+    attackerDefeated: attackerActuallyDefeated,
+    defenderDefeated: defenderActuallyDefeated,
     questTransitions,
     pirateEvents,
   };

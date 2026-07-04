@@ -117,6 +117,15 @@ export function canUnitAttackTarget(
     if (!canUnitAttackBeast(attacker, targetUnit[1]).allowed) return { ok: false, reason: 'unsupported-target' };
     if (!canAttackOwner(state, attacker.owner, targetUnit[1].owner)) return { ok: false, reason: 'not-hostile' };
     if (!profile.targets.includes('unit')) return { ok: false, reason: 'unsupported-target' };
+    // Stealth bomber: cannot be targeted by ranged attacks unless an enemy signals_hub is within 2 hexes
+    if (targetUnit[1].type === 'stealth_bomber' && profile.range > 1) {
+      const hubNearby = Object.values(state.cities).some(city => {
+        if (city.owner === targetUnit[1].owner) return false;
+        if (!city.buildings.includes('signals_hub')) return false;
+        return hexDistance(city.position, targetUnit[1].position) <= 2;
+      });
+      if (!hubNearby) return { ok: false, reason: 'unsupported-target' };
+    }
     return { ok: true, targetType: 'unit', targetUnitId: targetUnit[0], coord, range };
   }
 

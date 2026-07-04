@@ -4,6 +4,8 @@ import { ERA_NAMES } from '@/ui/tech-panel';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_SFX } from '@/audio/sfx-catalog';
+import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import type { GameState, Unit } from '@/core/types';
 
 const era12Techs = TECH_TREE.filter(t => t.era === 12);
 
@@ -118,5 +120,133 @@ describe('ERA_NAMES', () => {
     for (const era of [8, 9, 10, 11]) {
       expect(ERA_NAMES[era], `ERA_NAMES[${era}] missing`).toBeDefined();
     }
+  });
+});
+
+// --- Combat behavior tests (Task 4) ---
+
+function makeCombatState(units: Record<string, Partial<Unit>>, civUnits: Record<string, string[]>): GameState {
+  const civilizations: GameState['civilizations'] = {};
+  for (const [civId, unitIds] of Object.entries(civUnits)) {
+    civilizations[civId] = {
+      id: civId, name: civId, color: civId === 'p1' ? '#fff' : '#000',
+      isHuman: civId === 'p1', civType: 'generic',
+      units: unitIds, cities: [], gold: 100,
+      techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} } as any,
+      diplomacy: { relationships: {}, atWarWith: [civId === 'p1' ? 'p2' : 'p1'], treaties: [], events: [], treacheryScore: 0, vassalage: { isVassal: false } } as any,
+      visibility: { tiles: {} } as any, score: 0,
+    };
+  }
+  const fullUnits: Record<string, Unit> = {};
+  for (const [id, partial] of Object.entries(units)) {
+    fullUnits[id] = {
+      id, type: 'warrior', owner: 'p1', health: 100,
+      position: { q: 0, r: 0 }, movementPointsLeft: 1,
+      hasMoved: false, hasActed: false, experience: 0, isResting: false,
+      ...partial,
+    } as Unit;
+  }
+  return {
+    turn: 1, era: 12, currentPlayer: 'p1', civilizations,
+    units: fullUnits, cities: {},
+    map: { tiles: {}, width: 10, height: 10, wrapsHorizontally: false },
+    idCounters: { unit: 0, city: 0 },
+  } as unknown as GameState;
+}
+
+describe('geneTherapyReady — combat survival', () => {
+  it('unit with geneTherapyReady:true survives lethal hit at 1 HP and sets flag false', () => {
+    const state = makeCombatState(
+      { a1: { owner: 'p1', health: 80, position: { q: 0, r: 0 }, geneTherapyReady: true },
+        d1: { owner: 'p2', health: 100, position: { q: 1, r: 0 } } },
+      { p1: ['a1'], p2: ['d1'] },
+    );
+    const result = {
+      attackerId: 'a1', defenderId: 'd1',
+      attackerDamage: 80, defenderDamage: 30,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.state.units['a1']).toBeDefined();
+    expect(applied.state.units['a1'].health).toBe(1);
+    expect(applied.state.units['a1'].geneTherapyReady).toBe(false);
+    expect(applied.attackerDefeated).toBe(false);
+  });
+
+  it('unit with geneTherapyReady:false is eliminated normally', () => {
+    const state = makeCombatState(
+      { a2: { owner: 'p1', health: 80, position: { q: 0, r: 0 }, geneTherapyReady: false },
+        d2: { owner: 'p2', health: 100, position: { q: 1, r: 0 } } },
+      { p1: ['a2'], p2: ['d2'] },
+    );
+    const result = {
+      attackerId: 'a2', defenderId: 'd2',
+      attackerDamage: 80, defenderDamage: 30,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.state.units['a2']).toBeUndefined();
+    expect(applied.attackerDefeated).toBe(true);
+  });
+
+  it('geneTherapyReady:undefined does NOT save the unit', () => {
+    const state = makeCombatState(
+      { a3: { owner: 'p1', health: 80, position: { q: 0, r: 0 } },
+        d3: { owner: 'p2', health: 100, position: { q: 1, r: 0 } } },
+      { p1: ['a3'], p2: ['d3'] },
+    );
+    const result = {
+      attackerId: 'a3', defenderId: 'd3',
+      attackerDamage: 80, defenderDamage: 30,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.state.units['a3']).toBeUndefined();
+    expect(applied.attackerDefeated).toBe(true);
+  });
+});
+
+describe('cyber_unit capture', () => {
+  it('cyber_unit defender is captured (ownership transferred) not destroyed', () => {
+    const state = makeCombatState(
+      { cu1: { type: 'cyber_unit', owner: 'p1', health: 100, position: { q: 0, r: 0 } },
+        w1:  { type: 'warrior',    owner: 'p2', health: 100, position: { q: 1, r: 0 } } },
+      { p1: ['cu1'], p2: ['w1'] },
+    );
+    const result = {
+      attackerId: 'w1', defenderId: 'cu1',
+      attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 1, r: 0 }, defenderPosition: { q: 0, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.state.units['cu1']).toBeDefined();
+    expect(applied.state.units['cu1'].owner).toBe('p2');
+    expect(applied.defenderDefeated).toBe(false);
+    expect(applied.state.civilizations['p1'].units).not.toContain('cu1');
+    expect(applied.state.civilizations['p2'].units).toContain('cu1');
+  });
+
+  it('cyber_unit attacker is captured (ownership transferred) not destroyed', () => {
+    const state = makeCombatState(
+      { cu2: { type: 'cyber_unit', owner: 'p1', health: 100, position: { q: 0, r: 0 } },
+        w2:  { type: 'warrior',    owner: 'p2', health: 100, position: { q: 1, r: 0 } } },
+      { p1: ['cu2'], p2: ['w2'] },
+    );
+    const result = {
+      attackerId: 'cu2', defenderId: 'w2',
+      attackerDamage: 100, defenderDamage: 0,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.state.units['cu2']).toBeDefined();
+    expect(applied.state.units['cu2'].owner).toBe('p2');
+    expect(applied.attackerDefeated).toBe(false);
+    expect(applied.state.civilizations['p1'].units).not.toContain('cu2');
+    expect(applied.state.civilizations['p2'].units).toContain('cu2');
   });
 });
