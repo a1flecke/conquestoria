@@ -7,7 +7,11 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { processResearch, getTechById } from '@/systems/tech-system';
-import { processBarbarians } from '@/systems/barbarian-system';
+import {
+  processBarbarians,
+  processPurposefulBarbarians,
+  type PurposefulBarbarianProcessResult,
+} from '@/systems/barbarian-system';
 import {
   processBeasts, placeBeastLairs, recordBeastSlain, BEAST_OWNER,
   LAIR_GROWTH_INTERVAL_TURNS, LAIR_GROWTH_CAP, LAIR_GROWTH_EXPERIENCE,
@@ -80,6 +84,11 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from './feature-flags';
+
+export interface ProcessTurnOptions {
+  purposefulAIEnabled?: boolean;
+}
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -98,8 +107,14 @@ export function finalizeOpponentRoundState(state: GameState): GameState {
   };
 }
 
-export function processTurn(state: GameState, bus: EventBus): GameState {
+export function processTurn(
+  state: GameState,
+  bus: EventBus,
+  options: ProcessTurnOptions = {},
+): GameState {
+  const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
+  if (purposefulAIEnabled) newState = normalizeOpponentAIState(newState);
 
   bus.emit('turn:end', { turn: newState.turn, playerId: newState.currentPlayer });
 
@@ -128,7 +143,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
     let totalScience = 0;
     let totalGold = 0;
 
-    const resourceYieldBonus = getCivResourceYieldBonus(newState, civId);
+    const resourceYieldBonus = getCivResourceYieldBonus(newState, civId, {
+      hostileOccupationEnabled: purposefulAIEnabled,
+    });
     const npCivBonuses = getNationalProjectCivYieldBonus(newState, civId);
 
     for (const cityId of civ.cities) {
@@ -154,7 +171,9 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
       totalScience += yields.science;
       totalGold += yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
-      const availableResources = getCivAvailableResources(newState, civId);
+      const availableResources = getCivAvailableResources(newState, civId, {
+        hostileOccupationEnabled: purposefulAIEnabled,
+      });
       const npKeysForCiv = new Set(
         Object.keys(newState.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
       );
@@ -571,14 +590,19 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   const cityTargets = Object.values(newState.cities)
     .filter(city => city.owner !== 'barbarian' && !city.owner.startsWith('mc-') && city.owner !== BEAST_OWNER)
     .map(city => ({ id: city.id, position: city.position, owner: city.owner }));
-  const barbResult = processBarbarians(
-    Object.values(newState.barbarianCamps),
-    newState.map,
-    playerUnits,
-    barbSeed,
-    barbarianUnits,
-    cityTargets,
-  );
+  const barbResult = purposefulAIEnabled
+    ? processPurposefulBarbarians(newState)
+    : processBarbarians(
+        Object.values(newState.barbarianCamps),
+        newState.map,
+        playerUnits,
+        barbSeed,
+        barbarianUnits,
+        cityTargets,
+      );
+  if (purposefulAIEnabled) {
+    newState.opponentAI = (barbResult as PurposefulBarbarianProcessResult).opponentAI;
+  }
   newState.barbarianCamps = {};
   for (const camp of barbResult.updatedCamps) {
     newState.barbarianCamps[camp.id] = camp;
@@ -586,8 +610,11 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
 
   // Spawn barbarian raiders
   for (const spawn of barbResult.spawnedUnits) {
-    const raider = createUnit('warrior', 'barbarian', spawn.position, newState.idCounters);
+    const raider = createUnit(spawn.unitType ?? 'warrior', 'barbarian', spawn.position, newState.idCounters);
     newState.units[raider.id] = raider;
+    if (purposefulAIEnabled && newState.opponentAI) {
+      newState.opponentAI.barbarianHomeCampByUnitId[raider.id] = spawn.campId;
+    }
     bus.emit('barbarian:spawned', { campId: spawn.campId, unitId: raider.id });
   }
 
@@ -595,9 +622,13 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   for (const order of barbResult.moveOrders) {
     const unit = newState.units[order.unitId];
     if (unit) {
-      const tile = newState.map.tiles[`${order.toCoord.q},${order.toCoord.r}`];
-      const cost = tile?.terrain === 'hills' || tile?.terrain === 'forest' ? 2 : 1;
-      newState.units[order.unitId] = moveUnit(unit, order.toCoord, cost);
+      if (purposefulAIEnabled) {
+        executeUnitMove(newState, order.unitId, order.toCoord, { actor: 'world', bus });
+      } else {
+        const tile = newState.map.tiles[`${order.toCoord.q},${order.toCoord.r}`];
+        const cost = tile?.terrain === 'hills' || tile?.terrain === 'forest' ? 2 : 1;
+        newState.units[order.unitId] = moveUnit(unit, order.toCoord, cost);
+      }
     }
   }
 
@@ -666,7 +697,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   }
 
   // --- Minor civ turn phase ---
-  newState = processMinorCivTurn(newState, bus);
+  newState = processMinorCivTurn(newState, bus, { purposefulAIEnabled });
 
   // --- Barbarian evolution check ---
   const evolution = checkCampEvolution(newState, newState.turn);
@@ -1015,7 +1046,7 @@ export function processTurn(state: GameState, bus: EventBus): GameState {
   }
 
   let pirateEconomyModifiers: PirateEconomyModifiers | undefined;
-  const pirateRound = processPiratesForCompletedRound(newState, bus);
+  const pirateRound = processPiratesForCompletedRound(newState, bus, { purposefulAIEnabled });
   newState = pirateRound.state;
   pirateEconomyModifiers = pirateRound.economyModifiers;
 

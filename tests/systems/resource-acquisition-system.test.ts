@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
+import {
+  getCivAvailableResources,
+  isResourceTileDeniedByHostileOccupation,
+  canEstablishOutpost,
+  performEstablishOutpost,
+  canBuyResourceAccess,
+  performBuyResourceAccess,
+} from '@/systems/resource-acquisition-system';
 import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
@@ -115,6 +122,70 @@ function makeState(overrides: {
 }
 
 describe('getCivAvailableResources', () => {
+  it('optionally denies an improved resource occupied by a hostile world unit', () => {
+    const state = makeState({
+      tileResource: 'silk',
+      tileImprovement: 'plantation',
+      tileImprovementTurnsLeft: 0,
+      completed: ['irrigation'],
+    });
+    state.units = {
+      raider: {
+        id: 'raider',
+        type: 'warrior',
+        owner: 'barbarian',
+        position: { q: 4, r: 3 },
+      } as never,
+    };
+
+    expect(isResourceTileDeniedByHostileOccupation(state, 'player', { q: 4, r: 3 })).toBe(true);
+    expect(getCivAvailableResources(state, 'player').has('silk')).toBe(true);
+    expect(getCivAvailableResources(
+      state,
+      'player',
+      { hostileOccupationEnabled: true },
+    ).has('silk')).toBe(false);
+
+    delete state.units.raider;
+    expect(getCivAvailableResources(
+      state,
+      'player',
+      { hostileOccupationEnabled: true },
+    ).has('silk')).toBe(true);
+  });
+
+  it('does not deny resources for cargo, neutral, or friendly occupants', () => {
+    const state = makeState({
+      tileResource: 'silk',
+      tileImprovement: 'plantation',
+      tileImprovementTurnsLeft: 0,
+      completed: ['irrigation'],
+    });
+    state.units = {
+      friendly: {
+        id: 'friendly',
+        type: 'warrior',
+        owner: 'player',
+        position: { q: 4, r: 3 },
+      } as never,
+      neutral: {
+        id: 'neutral',
+        type: 'warrior',
+        owner: 'ai-1',
+        position: { q: 4, r: 3 },
+      } as never,
+      cargo: {
+        id: 'cargo',
+        type: 'warrior',
+        owner: 'barbarian',
+        position: { q: 4, r: 3 },
+        transportId: 'transport',
+      } as never,
+    };
+
+    expect(isResourceTileDeniedByHostileOccupation(state, 'player', { q: 4, r: 3 })).toBe(false);
+  });
+
   it('returns empty set for unknown civId', () => {
     const state = makeState({});
     const result = getCivAvailableResources(state, 'ghost-civ');

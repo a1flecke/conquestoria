@@ -99,6 +99,65 @@ function movementState(
 }
 
 describe('unit-movement-system', () => {
+  it('moves world actors without civilization discovery consequences', () => {
+    const mover = createUnit('warrior', 'barbarian', { q: 0, r: 0 }, mkC());
+    mover.id = 'world-mover';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }),
+      { ...tile({ q: 1, r: 0 }), wonder: 'grand_canyon' },
+    ]);
+    delete state.civilizations.barbarian;
+    const villageId = 'village-world';
+    state.tribalVillages[villageId] = {
+      id: villageId,
+      position: { q: 1, r: 0 },
+    } as never;
+    const beforeWonders = structuredClone(state.discoveredWonders);
+    const moves: Array<GameEvents['unit:move']> = [];
+    const contacts: Array<GameEvents['civilization:first-contact']> = [];
+    const bus = new EventBus();
+    bus.on('unit:move', event => moves.push(event));
+    bus.on('civilization:first-contact', event => contacts.push(event));
+
+    const result = executeUnitMove(
+      state,
+      mover.id,
+      { q: 1, r: 0 },
+      { actor: 'world', bus },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      revealedTiles: [],
+      discoveredWonders: [],
+    });
+    expect(state.units[mover.id].position).toEqual({ q: 1, r: 0 });
+    expect(state.tribalVillages[villageId]).toBeDefined();
+    expect(state.discoveredWonders).toEqual(beforeWonders);
+    expect(contacts).toEqual([]);
+    expect(moves).toHaveLength(1);
+  });
+
+  it('does not let world actors bypass occupancy', () => {
+    const mover = createUnit('warrior', 'barbarian', { q: 0, r: 0 }, mkC());
+    mover.id = 'world-mover';
+    const blocker = createUnit('worker', 'player', { q: 1, r: 0 }, mkC());
+    blocker.id = 'blocker';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }),
+      tile({ q: 1, r: 0 }),
+    ], { extraUnits: [blocker] });
+    delete state.civilizations.barbarian;
+
+    expect(executeUnitMove(
+      state,
+      mover.id,
+      blocker.position,
+      { actor: 'world' },
+    )).toMatchObject({ ok: false, reason: 'occupied' });
+    expect(state.units[mover.id].position).toEqual({ q: 0, r: 0 });
+  });
+
   it('reserves foreign-city entry for an explicit canonical capture flow', () => {
     const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     mover.id = 'mover';

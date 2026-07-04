@@ -367,7 +367,11 @@ function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
   return nextState;
 }
 
-export function processPiratesForCompletedRound(state: GameState, bus: EventBus): ProcessPiratesResult {
+export function processPiratesForCompletedRound(
+  state: GameState,
+  bus: EventBus,
+  _options: { purposefulAIEnabled?: boolean } = {},
+): ProcessPiratesResult {
   const trace = [...PIRATE_ROUND_TRACE];
   const wasActivated = state.pirates?.activatedTurn !== null;
   let normalized = normalizeRoundState(state);
