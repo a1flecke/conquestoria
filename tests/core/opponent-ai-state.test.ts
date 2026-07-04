@@ -244,4 +244,73 @@ describe('opponent AI state normalization', () => {
     expect(plan.traces).toBeUndefined();
     expect(plan.cachedPath).toBeUndefined();
   });
+
+  it('normalizes living-human ledger owners while preserving valid threat IDs for resolution', () => {
+    const state = makeState();
+    const player = state.civilizations.player;
+    state.civilizations['player-2'] = {
+      ...structuredClone(player),
+      id: 'player-2',
+      name: 'Second Player',
+      cities: [],
+      units: [],
+    };
+    state.civilizations['dead-human'] = {
+      ...structuredClone(player),
+      id: 'dead-human',
+      name: 'Dead Player',
+      cities: [],
+      units: [],
+      isEliminated: true,
+    };
+    state.barbarianCamps.live = {
+      id: 'live',
+      position: { q: 1, r: 1 },
+      strength: 5,
+      spawnCooldown: 1,
+    };
+    state.opponentAI!.pressureByHuman = {
+      player: {
+        activeIndependentThreatIds: [
+          'barbarian:missing',
+          'barbarian:live',
+          'pirate:missing',
+          'beast:missing',
+          'major:ai-1',
+          'barbarian:live',
+        ],
+        recoveryUntilTurn: Number.NaN,
+        lastResolvedThreatTurn: Number.NaN,
+        lastWarningTurnByKey: { valid: 3, invalid: Number.NaN },
+        lastStrategicAudioTurn: Number.NaN,
+      },
+      'dead-human': {
+        activeIndependentThreatIds: [],
+        recoveryUntilTurn: 0,
+        lastResolvedThreatTurn: null,
+        lastWarningTurnByKey: {},
+        lastStrategicAudioTurn: null,
+      },
+    };
+    const snapshot = structuredClone(state);
+
+    const normalized = normalizeOpponentAIState(state);
+
+    expect(Object.keys(normalized.opponentAI!.pressureByHuman)).toEqual(['player', 'player-2']);
+    expect(normalized.opponentAI!.pressureByHuman.player).toEqual({
+      activeIndependentThreatIds: [
+        'barbarian:live',
+        'barbarian:missing',
+        'beast:missing',
+        'pirate:missing',
+      ],
+      recoveryUntilTurn: 0,
+      lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: { valid: 3 },
+      lastStrategicAudioTurn: null,
+    });
+    expect(normalized.opponentAI!.pressureByHuman['player-2'].activeIndependentThreatIds)
+      .toEqual([]);
+    expect(state).toEqual(snapshot);
+  });
 });

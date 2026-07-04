@@ -149,6 +149,49 @@ describe('pirate activation and pressure', () => {
     expect(next.pirates!.nextSpawnCheckTurn).toBe(24);
     expect(next.pirates!.factions).toEqual({});
   });
+
+  it('keeps pressure and all side effects unspent when the independent-threat policy denies a spawn', () => {
+    const state = stateWithMap(mapWith([
+      [3, 3, 'plains'], [3, 2, 'coast'], [4, 2, 'coast'], [4, 3, 'coast'],
+      [8, 3, 'plains'],
+    ]));
+    state.turn = 20;
+    state.civilizations.player.techState.completed = ['galleys'];
+    addCity(state, 'nearby-port', 'player', { q: 8, r: 3 });
+    state.pirates = {
+      ...createEmptyPirateState(),
+      activatedTurn: 1,
+      nextSpawnCheckTurn: 20,
+      pressure: { value: 17, suppression: [] },
+    };
+    const beforeCounters = structuredClone(state.idCounters);
+    const bus = new EventBus();
+    const created: string[] = [];
+    const audio: unknown[] = [];
+    const spawned: unknown[] = [];
+    bus.on('unit:created', event => created.push(event.unit.id));
+    bus.on('pirate:faction-spawned', event => spawned.push(event));
+    bus.on('pirate:audio-cue', event => audio.push(event));
+
+    const next = processPirateEcology(state, bus, 'denied-pressure', {
+      spawnPolicy: {
+        canStart: (_candidateState, candidate) => {
+          expect(candidate.threatId).toBe('pirate:pirate-1');
+          expect(candidate.affectedHumanIds).toEqual(['player']);
+          return false;
+        },
+      },
+    });
+
+    expect(next.pirates!.pressure.value).toBe(18);
+    expect(next.pirates!.nextSpawnCheckTurn).toBe(24);
+    expect(next.pirates!.factions).toEqual({});
+    expect(next.pirates!.intelByCiv).toEqual({});
+    expect(next.idCounters).toEqual(beforeCounters);
+    expect(created).toEqual([]);
+    expect(spawned).toEqual([]);
+    expect(audio).toEqual([]);
+  });
 });
 
 describe('pirate habitat candidates', () => {

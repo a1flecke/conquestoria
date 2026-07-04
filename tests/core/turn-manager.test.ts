@@ -16,6 +16,7 @@ import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture'
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 import { createUnit } from '@/systems/unit-system';
 import { createTechState } from '@/systems/tech-system';
+import { processIndependentThreatPressureForHumans } from '@/systems/threat-pressure-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -57,6 +58,74 @@ function createWrappedGrasslandMap(width: number, height: number): GameState['ma
 }
 
 describe('processTurn', () => {
+  it('uses per-human pressure only on the enabled completed-round path', () => {
+    const state = createNewGame(undefined, 'per-human-pressure', 'small');
+    state.turn = 30;
+    state.era = 3;
+    state.barbarianCamps = {};
+    state.units = {};
+    state.map = {
+      width: 20,
+      height: 1,
+      wrapsHorizontally: false,
+      rivers: [],
+      tiles: Object.fromEntries(Array.from({ length: 20 }, (_, q) => [
+        `${q},0`,
+        {
+          coord: { q, r: 0 },
+          terrain: 'grassland',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          owner: q < 5 ? 'player' : q > 9 && q < 15 ? 'ai-1' : null,
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: null,
+          regionKey: 'continent-0',
+        },
+      ])),
+    };
+    const secondHuman = state.civilizations['ai-1'];
+    secondHuman.isHuman = true;
+    secondHuman.isEliminated = false;
+    const playerCity = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    const secondCity = foundCity('ai-1', { q: 10, r: 0 }, state.map, state.idCounters);
+    playerCity.workedTiles = [];
+    playerCity.productionQueue = [];
+    secondCity.workedTiles = [];
+    secondCity.productionQueue = [];
+    state.cities = { [playerCity.id]: playerCity, [secondCity.id]: secondCity };
+    state.resurgentCampCooldownByCivLandmass = { 'player:continent-0': 999 };
+    state.civilizations.player.cities = [playerCity.id];
+    state.civilizations.player.units = [];
+    secondHuman.cities = [secondCity.id];
+    secondHuman.units = [];
+    for (const civ of Object.values(state.civilizations)) {
+      const regionKeys = civ.cities.flatMap(cityId => {
+        const city = state.cities[cityId];
+        const regionKey = city ? state.map.tiles[hexKey(city.position)]?.regionKey : undefined;
+        return regionKey ? [regionKey] : [];
+      });
+      civ.lastCombatTurnByLandmass = Object.fromEntries(
+        regionKeys.map(regionKey => [regionKey, civ.id === 'ai-1' ? 0 : state.turn]),
+      );
+    }
+    expect(Object.values(processIndependentThreatPressureForHumans(
+      structuredClone(state),
+      new EventBus(),
+    ).barbarianCamps).some(camp => camp.resurgent)).toBe(true);
+
+    const legacy = processTurn(structuredClone(state), new EventBus());
+    const purposeful = processTurn(structuredClone(state), new EventBus(), {
+      purposefulAIEnabled: true,
+    });
+
+    expect(Object.values(legacy.barbarianCamps).filter(camp => camp.resurgent)).toHaveLength(0);
+    expect(Object.values(purposeful.barbarianCamps).some(camp => camp.resurgent)).toBe(true);
+    expect(purposeful.opponentAI!.pressureByHuman['ai-1'].activeIndependentThreatIds)
+      .toEqual(expect.arrayContaining([expect.stringMatching(/^barbarian:camp-/)]));
+  });
+
   it('increments the turn counter', () => {
     const state = createNewGame(undefined, 'turn-test');
     const bus = new EventBus();

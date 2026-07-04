@@ -2,8 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
-import { computeThreatScore, empireShare, nearestLandmassId, recordCombatForCiv, processLandResurgence, processThreatPressure, processPirateSpawn, processPirateFleets, PIRATE_OWNER } from '@/systems/threat-pressure-system';
+import {
+  canStartIndependentThreat,
+  computeThreatScore,
+  deriveActiveIndependentThreatIds,
+  empireShare,
+  nearestLandmassId,
+  recordCombatForCiv,
+  processIndependentThreatPressureForHumans,
+  processLandResurgence,
+  processThreatPressure,
+  processPirateSpawn,
+  processPirateFleets,
+  PIRATE_OWNER,
+} from '@/systems/threat-pressure-system';
 import type { GameMap, GameState, HexTile, Civilization } from '@/core/types';
+import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
+import { EventBus } from '@/core/event-bus';
 
 function makeTestState(overrides: Partial<GameState> = {}): GameState {
   const tiles: Record<string, HexTile> = {};
@@ -162,6 +177,28 @@ describe('processLandResurgence', () => {
     expect(camp?.strength).toBeGreaterThanOrEqual(6); // era-2 minimum
     expect(camp?.strength).toBeLessThanOrEqual(10);   // era-2 maximum
   });
+
+  it('does not consume IDs, cooldown, or events when a governed resurgence is denied', () => {
+    const state = makeResurgenceState();
+    const beforeCounters = structuredClone(state.idCounters);
+    const events: string[] = [];
+    const bus = { emit: (event: string) => events.push(event) } as any;
+
+    const updated = processLandResurgence(state, 'p1', 'continent-0', bus, {
+      spawnPolicy: {
+        canStart: (_candidateState, candidate) => {
+          expect(candidate.threatId).toBe(`barbarian:camp-${state.idCounters.nextCampId}`);
+          expect(candidate.affectedHumanIds).toContain('p1');
+          return false;
+        },
+      },
+    });
+
+    expect(updated).toBe(state);
+    expect(state.idCounters).toEqual(beforeCounters);
+    expect(state.resurgentCampCooldownByCivLandmass).toBeUndefined();
+    expect(events).toEqual([]);
+  });
 });
 
 describe('processThreatPressure — hot-seat isolation', () => {
@@ -194,6 +231,360 @@ describe('processThreatPressure — hot-seat isolation', () => {
     const score1 = computeThreatScore(state, 'p1', 'continent-1');
     expect(score0).toBeGreaterThan(2.5);
     expect(score1).toBeGreaterThan(2.5);
+  });
+});
+
+describe('independent threat pressure governor', () => {
+  function makeHuman(id: string, cityId: string, position: { q: number; r: number }): Civilization {
+    return {
+      ...structuredClone(makeTestState().civilizations.p1),
+      id,
+      name: id,
+      cities: [cityId],
+      units: [],
+      isHuman: true,
+      isEliminated: false,
+      visibility: { tiles: {} },
+    };
+  }
+
+  function makePressureState(challenge: 'explorer' | 'standard' | 'veteran' = 'standard'): GameState {
+    const state = makeTestState({
+      opponentChallenge: challenge,
+      opponentAI: createEmptyOpponentAIState(),
+    });
+    state.civilizations = {
+      'player-3': makeHuman('player-3', 'city-3', { q: 8, r: 0 }),
+      'player-1': makeHuman('player-1', 'city-1', { q: 0, r: 0 }),
+      'player-2': makeHuman('player-2', 'city-2', { q: 4, r: 0 }),
+    };
+    state.cities = {
+      'city-1': { id: 'city-1', owner: 'player-1', position: { q: 0, r: 0 } } as any,
+      'city-2': { id: 'city-2', owner: 'player-2', position: { q: 4, r: 0 } } as any,
+      'city-3': { id: 'city-3', owner: 'player-3', position: { q: 8, r: 0 } } as any,
+    };
+    state.currentPlayer = 'player-3';
+    return state;
+  }
+
+  function addPirateThreat(state: GameState, factionId: string, targetCivId: string): void {
+    state.pirates = {
+      version: 1,
+      factions: {
+        ...(state.pirates?.factions ?? {}),
+        [factionId]: {
+          id: factionId,
+          name: factionId,
+          spawnedRound: state.turn,
+          behavior: 'raiding',
+          maritimeStage: 1,
+          notoriety: 0,
+          shipIds: [],
+          headquarters: {
+            kind: 'coastal-enclave',
+            position: { q: 2, r: 0 },
+            integrity: 100,
+            maxIntegrity: 100,
+          },
+          tributeByCiv: {},
+          demandByCiv: {},
+          contract: null,
+          intent: { kind: 'raid', targetCivId, plannedRound: state.turn },
+          transitionGuards: { emittedEventKeys: [] },
+        },
+      },
+      history: [],
+      pressure: { value: 0, suppression: [] },
+      intelByCiv: {},
+      nextSpawnCheckTurn: 0,
+      activatedTurn: 0,
+      activationWarningDeliveredByCiv: {},
+    } as GameState['pirates'];
+  }
+
+  it('reconciles every living human once in stable civilization ID order regardless of current player', () => {
+    const state = makePressureState();
+    state.civilizations['player-2'].isEliminated = true;
+
+    const result = processIndependentThreatPressureForHumans(state, new EventBus());
+
+    expect(Object.keys(result.opponentAI!.pressureByHuman))
+      .toEqual(['player-1', 'player-3']);
+    expect(state.opponentAI!.pressureByHuman).toEqual({});
+  });
+
+  it.each([
+    ['explorer', 1],
+    ['standard', 2],
+    ['veteran', 3],
+  ] as const)('%s caps new independent threats at %i per human', (challenge, cap) => {
+    const state = makePressureState(challenge);
+    state.opponentAI!.pressureByHuman['player-1'] = {
+      activeIndependentThreatIds: Array.from({ length: cap }, (_, index) => `barbarian:camp-${index}`),
+      recoveryUntilTurn: 0,
+      lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: {},
+      lastStrategicAudioTurn: null,
+    };
+    for (let index = 0; index < cap; index++) {
+      state.barbarianCamps[`camp-${index}`] = {
+        id: `camp-${index}`,
+        position: { q: index + 1, r: 0 },
+        strength: 5,
+        spawnCooldown: 2,
+      };
+    }
+
+    expect(canStartIndependentThreat(state, 'player-1', 'barbarian:camp-new'))
+      .toMatchObject({ allowed: false, reason: 'pressure-cap', activeCount: cap, cap });
+  });
+
+  it('keeps shared threat identity per human without sharing their pressure budgets', () => {
+    const state = makePressureState('explorer');
+    addPirateThreat(state, 'pirate-7', 'player-1');
+    state.pirates!.factions['pirate-7'].contract = {
+      employerId: 'player-3',
+      targetId: 'player-2',
+      startedRound: 1,
+      expiresAfterRound: 20,
+      successfulRaidCount: 0,
+      exposed: false,
+      exposureResolvedRaidKeys: [],
+    };
+
+    const result = processIndependentThreatPressureForHumans(state, new EventBus());
+
+    expect(result.opponentAI!.pressureByHuman['player-1'].activeIndependentThreatIds)
+      .toEqual(['pirate:pirate-7']);
+    expect(result.opponentAI!.pressureByHuman['player-2'].activeIndependentThreatIds)
+      .toEqual(['pirate:pirate-7']);
+    expect(canStartIndependentThreat(result, 'player-3', 'barbarian:new'))
+      .toMatchObject({ allowed: true, activeCount: 0 });
+  });
+
+  it('starts a shared resurgence only when every newly affected human has cap room', () => {
+    const makeEligible = () => {
+      const state = makePressureState('explorer');
+      state.turn = 30;
+      state.era = 3;
+      state.civilizations['player-3'].isEliminated = true;
+      state.cities['city-2'].position = { q: 8, r: 0 };
+      state.civilizations['player-1'].lastCombatTurnByLandmass = { 'continent-0': 0 };
+      state.civilizations['player-2'].lastCombatTurnByLandmass = { 'continent-0': 0 };
+      state.map.tiles = Object.fromEntries(Array.from({ length: 9 }, (_, q) => [
+        `${q},0`,
+        {
+          ...state.map.tiles['0,0'],
+          coord: { q, r: 0 },
+          owner: q < 4 ? 'player-1' : q > 4 ? 'player-2' : null,
+          regionKey: 'continent-0',
+        },
+      ]));
+      return state;
+    };
+
+    const allowed = processIndependentThreatPressureForHumans(makeEligible(), new EventBus());
+    const [sharedId] = allowed.opponentAI!.pressureByHuman['player-1']
+      .activeIndependentThreatIds;
+    expect(sharedId).toMatch(/^barbarian:camp-/);
+    expect(allowed.opponentAI!.pressureByHuman['player-2'].activeIndependentThreatIds)
+      .toContain(sharedId);
+
+    const blocked = makeEligible();
+    addPirateThreat(blocked, 'pirate-1', 'player-2');
+    blocked.opponentAI!.pressureByHuman['player-2'] = {
+      activeIndependentThreatIds: ['pirate:pirate-1'],
+      recoveryUntilTurn: 0,
+      lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: {},
+      lastStrategicAudioTurn: null,
+    };
+    const blockedEvents: unknown[] = [];
+    const bus = new EventBus();
+    bus.on('threat:barbarian-resurgence', event => blockedEvents.push(event));
+
+    const result = processIndependentThreatPressureForHumans(blocked, bus);
+
+    expect(result.barbarianCamps).toEqual({});
+    expect(result.idCounters.nextCampId).toBe(blocked.idCounters.nextCampId);
+    expect(result.resurgentCampCooldownByCivLandmass).toBeUndefined();
+    expect(blockedEvents).toEqual([]);
+  });
+
+  it('blocks migration and recovery only for new starts while leaving an existing over-cap threat alive', () => {
+    const state = makePressureState('explorer');
+    addPirateThreat(state, 'pirate-1', 'player-1');
+    addPirateThreat(state, 'pirate-2', 'player-1');
+    state.opponentAI!.migrationGraceRoundsRemaining = 1;
+    state.opponentAI!.pressureByHuman['player-1'] = {
+      activeIndependentThreatIds: ['pirate:pirate-1', 'pirate:pirate-2'],
+      recoveryUntilTurn: state.turn + 3,
+      lastResolvedThreatTurn: state.turn - 1,
+      lastWarningTurnByKey: { existing: 4 },
+      lastStrategicAudioTurn: 5,
+    };
+
+    expect(canStartIndependentThreat(state, 'player-1', 'pirate:pirate-1'))
+      .toMatchObject({ allowed: true, reason: 'allowed', activeCount: 2, cap: 1 });
+    expect(canStartIndependentThreat(state, 'player-1', 'barbarian:new'))
+      .toMatchObject({ allowed: false, reason: 'migration-grace' });
+
+    state.opponentAI!.migrationGraceRoundsRemaining = 0;
+    expect(canStartIndependentThreat(state, 'player-1', 'barbarian:new'))
+      .toMatchObject({ allowed: false, reason: 'recovery' });
+
+    const result = processIndependentThreatPressureForHumans(state, new EventBus());
+    expect(result.pirates!.factions['pirate-1']).toEqual(state.pirates!.factions['pirate-1']);
+    expect(result.opponentAI!.pressureByHuman['player-1'].activeIndependentThreatIds)
+      .toEqual(['pirate:pirate-1', 'pirate:pirate-2']);
+  });
+
+  it.each([
+    ['explorer', 3],
+    ['standard', 2],
+    ['veteran', 1],
+  ] as const)('%s begins %i rounds of recovery only after explicit destruction', (challenge, rounds) => {
+    const state = makePressureState(challenge);
+    addPirateThreat(state, 'pirate-1', 'player-1');
+    state.opponentAI!.pressureByHuman['player-1'] = {
+      activeIndependentThreatIds: ['pirate:pirate-1'],
+      recoveryUntilTurn: 0,
+      lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: { retained: 2 },
+      lastStrategicAudioTurn: 3,
+    };
+    state.pirates!.factions['pirate-1'].intent = null;
+
+    const retargeted = processIndependentThreatPressureForHumans(state, new EventBus());
+    expect(retargeted.opponentAI!.pressureByHuman['player-1'].activeIndependentThreatIds)
+      .toEqual(['pirate:pirate-1']);
+    expect(retargeted.opponentAI!.pressureByHuman['player-1'].recoveryUntilTurn).toBe(0);
+
+    delete state.pirates!.factions['pirate-1'];
+    const resolved = processIndependentThreatPressureForHumans(state, new EventBus());
+    expect(resolved.opponentAI!.pressureByHuman['player-1']).toEqual({
+      activeIndependentThreatIds: [],
+      recoveryUntilTurn: state.turn + rounds,
+      lastResolvedThreatTurn: state.turn,
+      lastWarningTurnByKey: { retained: 2 },
+      lastStrategicAudioTurn: 3,
+    });
+
+    const repeated = processIndependentThreatPressureForHumans(resolved, new EventBus());
+    expect(repeated.opponentAI!.pressureByHuman['player-1']).toEqual(
+      resolved.opponentAI!.pressureByHuman['player-1'],
+    );
+  });
+
+  it('starts recovery for destroyed camps and explicitly slain beasts', () => {
+    const state = makePressureState('standard');
+    state.barbarianCamps['camp-1'] = {
+      id: 'camp-1',
+      position: { q: 2, r: 0 },
+      strength: 5,
+      spawnCooldown: 2,
+    };
+    state.beasts = {
+      mode: 'wild',
+      lairs: {
+        'lair-giant_boar': {
+          id: 'lair-giant_boar',
+          beastId: 'giant_boar',
+          position: { q: 2, r: 0 },
+          status: 'awake',
+          strength: 1,
+          unitIds: [],
+        },
+      },
+      sightingsByCiv: {},
+    };
+    state.opponentAI!.pressureByHuman['player-1'] = {
+      activeIndependentThreatIds: ['barbarian:camp-1', 'beast:lair-giant_boar'],
+      recoveryUntilTurn: 0,
+      lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: {},
+      lastStrategicAudioTurn: null,
+    };
+    const stillActive = processIndependentThreatPressureForHumans(state, new EventBus());
+    expect(stillActive.opponentAI!.pressureByHuman['player-1'].activeIndependentThreatIds)
+      .toEqual(['barbarian:camp-1', 'beast:lair-giant_boar']);
+
+    delete state.barbarianCamps['camp-1'];
+    state.beasts.lairs['lair-giant_boar'].status = 'slain';
+    const resolved = processIndependentThreatPressureForHumans(state, new EventBus());
+
+    expect(resolved.opponentAI!.pressureByHuman['player-1']).toMatchObject({
+      activeIndependentThreatIds: [],
+      lastResolvedThreatTurn: state.turn,
+      recoveryUntilTurn: state.turn + 2,
+    });
+  });
+
+  it('reconciles a resolution before considering a same-round replacement spawn', () => {
+    const state = makePressureState('standard');
+    state.turn = 30;
+    state.era = 3;
+    state.civilizations['player-2'].isEliminated = true;
+    state.civilizations['player-3'].isEliminated = true;
+    state.civilizations['player-1'].lastCombatTurnByLandmass = { 'continent-0': 0 };
+    state.cities = {
+      'city-1': { ...state.cities['city-1'], position: { q: 0, r: 0 } },
+    };
+    state.civilizations['player-1'].cities = ['city-1'];
+    state.map.tiles = Object.fromEntries(Array.from({ length: 20 }, (_, q) => [
+      `${q},0`,
+      {
+        ...state.map.tiles['0,0'],
+        coord: { q, r: 0 },
+        owner: q < 10 ? 'player-1' : null,
+        regionKey: 'continent-0',
+      },
+    ]));
+    state.opponentAI!.pressureByHuman['player-1'] = {
+      activeIndependentThreatIds: ['barbarian:destroyed'],
+      recoveryUntilTurn: 0,
+      lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: {},
+      lastStrategicAudioTurn: null,
+    };
+
+    const result = processIndependentThreatPressureForHumans(state, new EventBus());
+
+    expect(result.barbarianCamps).toEqual({});
+    expect(result.opponentAI!.pressureByHuman['player-1']).toMatchObject({
+      activeIndependentThreatIds: [],
+      recoveryUntilTurn: state.turn + 2,
+      lastResolvedThreatTurn: state.turn,
+    });
+  });
+
+  it('counts only barbarians, modern pirates, and materially threatening awake beasts', () => {
+    const state = makePressureState();
+    state.civilizations.ai = {
+      ...makeHuman('ai', 'ai-city', { q: 9, r: 0 }),
+      isHuman: false,
+    };
+    state.cities['ai-city'] = { id: 'ai-city', owner: 'ai', position: { q: 9, r: 0 } } as any;
+    state.civilizations['player-1'].diplomacy.atWarWith = ['ai', 'player-2'];
+    state.minorCivs.minor = { id: 'minor', isDestroyed: false } as any;
+    state.units.rebel = { id: 'rebel', owner: 'rebels', position: { q: 0, r: 1 } } as any;
+    state.beasts = {
+      mode: 'wild',
+      lairs: {
+        'lair-giant_boar': {
+          id: 'lair-giant_boar',
+          beastId: 'giant_boar',
+          position: { q: 2, r: 0 },
+          status: 'awake',
+          strength: 1,
+          unitIds: [],
+        },
+      },
+      sightingsByCiv: {},
+    };
+
+    expect(deriveActiveIndependentThreatIds(state, 'player-1'))
+      .toEqual(['beast:lair-giant_boar']);
   });
 });
 

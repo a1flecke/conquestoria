@@ -71,6 +71,15 @@ function isFiniteCoord(value: unknown): value is { q: number; r: number } {
   return Number.isFinite(coord.q) && Number.isFinite(coord.r);
 }
 
+function isIndependentThreatId(threatId: unknown): threatId is string {
+  if (typeof threatId !== 'string') return false;
+  return (
+    threatId.startsWith('barbarian:')
+    || threatId.startsWith('pirate:')
+    || threatId.startsWith('beast:')
+  ) && threatId.split(':')[1]!.length > 0;
+}
+
 function isTarget(value: unknown): value is AITarget {
   if (!value || typeof value !== 'object') return false;
   const target = value as Record<string, unknown>;
@@ -287,22 +296,31 @@ export function normalizeOpponentAIState(state: GameState): GameState {
     if (plan) opponentAI.minorCivs[minorId] = plan;
   }
 
-  for (const [humanId, ledger] of Object.entries(source.pressureByHuman ?? {})) {
-    const civ = state.civilizations[humanId];
-    if (!civ?.isHuman || !ledger || typeof ledger !== 'object') continue;
+  const livingHumanIds = Object.values(state.civilizations)
+    .filter(civ => civ.isHuman && !civ.isEliminated)
+    .map(civ => civ.id)
+    .sort();
+  for (const humanId of livingHumanIds) {
+    const ledger = source.pressureByHuman?.[humanId];
     opponentAI.pressureByHuman[humanId] = {
-      activeIndependentThreatIds: Array.isArray(ledger.activeIndependentThreatIds)
-        ? [...new Set(ledger.activeIndependentThreatIds.filter(id => typeof id === 'string'))]
+      activeIndependentThreatIds: Array.isArray(ledger?.activeIndependentThreatIds)
+        ? [...new Set(ledger.activeIndependentThreatIds
+            .filter(id => isIndependentThreatId(id)))]
+            .sort()
         : [],
-      recoveryUntilTurn: Number.isFinite(ledger.recoveryUntilTurn) ? ledger.recoveryUntilTurn : 0,
-      lastResolvedThreatTurn: Number.isFinite(ledger.lastResolvedThreatTurn)
-        ? ledger.lastResolvedThreatTurn
+      recoveryUntilTurn: Number.isFinite(ledger?.recoveryUntilTurn)
+        ? Math.max(0, Math.floor(ledger!.recoveryUntilTurn))
+        : 0,
+      lastResolvedThreatTurn: Number.isFinite(ledger?.lastResolvedThreatTurn)
+        ? Math.max(0, Math.floor(ledger!.lastResolvedThreatTurn!))
         : null,
-      lastWarningTurnByKey: ledger.lastWarningTurnByKey && typeof ledger.lastWarningTurnByKey === 'object'
-        ? { ...ledger.lastWarningTurnByKey }
-        : {},
-      lastStrategicAudioTurn: Number.isFinite(ledger.lastStrategicAudioTurn)
-        ? ledger.lastStrategicAudioTurn
+      lastWarningTurnByKey: Object.fromEntries(
+        Object.entries(ledger?.lastWarningTurnByKey ?? {})
+          .filter((entry): entry is [string, number] => Number.isFinite(entry[1]))
+          .map(([key, turn]) => [key, Math.max(0, Math.floor(turn))]),
+      ),
+      lastStrategicAudioTurn: Number.isFinite(ledger?.lastStrategicAudioTurn)
+        ? Math.max(0, Math.floor(ledger!.lastStrategicAudioTurn!))
         : null,
     };
   }

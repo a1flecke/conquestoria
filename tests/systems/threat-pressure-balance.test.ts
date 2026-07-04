@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeThreatScore } from '@/systems/threat-pressure-system';
 import type { GameState, HexTile, Civilization } from '@/core/types';
+import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
 
 function makeScenario(era: number, idleTurns: number, dominanceRatio: number): GameState {
   const tiles: Record<string, HexTile> = {};
@@ -38,6 +39,19 @@ function makeScenario(era: number, idleTurns: number, dominanceRatio: number): G
 }
 
 describe('threat score balance bands', () => {
+  it('uses the launch pressure caps and recovery bands without stat bonuses', () => {
+    expect(Object.fromEntries(Object.entries(OPPONENT_CHALLENGE_PROFILES).map(
+      ([challenge, profile]) => [challenge, {
+        cap: profile.maxIndependentCrisesPerHuman,
+        recovery: profile.recoveryRounds,
+      }],
+    ))).toEqual({
+      explorer: { cap: 1, recovery: 3 },
+      standard: { cap: 2, recovery: 2 },
+      veteran: { cap: 3, recovery: 1 },
+    });
+  });
+
   it('era-2, 6 idle turns, 50% dominance: score ≥ 2.5 (land resurgence eligible)', () => {
     const state = makeScenario(2, 6, 0.5);
     expect(computeThreatScore(state, 'p1', 'continent-0')).toBeGreaterThanOrEqual(2.5);
