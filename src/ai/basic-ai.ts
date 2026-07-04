@@ -1442,6 +1442,11 @@ function processAITurnInternal(
       if (!currentDiplomacy) {
         continue;
       }
+      // Issue #435 guard: never write treaties or war records against an unmet
+      // civ — those records count as contact evidence and mass-discover civs.
+      if (!hasMetCivilization(newState, civId, decision.targetCiv)) {
+        continue;
+      }
       switch (decision.action) {
         case 'declare_war':
           if (

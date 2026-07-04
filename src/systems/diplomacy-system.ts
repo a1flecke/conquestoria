@@ -16,6 +16,7 @@ import {
   tryReabsorbBreakaway,
 } from '@/systems/breakaway-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { hasMetCivilization } from '@/systems/discovery-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
@@ -352,6 +353,15 @@ export function applyDiplomaticAction(
   const actor = state.civilizations[actorId];
   const target = state.civilizations[targetCivId];
   if (!actor || !target) {
+    return state;
+  }
+
+  // Issue #435 guard: a treaty (or war record) between unmet civs becomes contact
+  // "evidence" and cascades into mass discovery on the next visibility sync.
+  const requiresContact: DiplomaticAction[] = [
+    'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance',
+  ];
+  if (requiresContact.includes(action) && !hasMetCivilization(state, actorId, targetCivId)) {
     return state;
   }
 
