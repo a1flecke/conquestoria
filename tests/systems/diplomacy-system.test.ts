@@ -298,6 +298,70 @@ describe('diplomacy-system', () => {
       expect(rejected.civilizations['ai-1'].diplomacy.atWarWith).toContain('player');
     });
 
+    // Issue #435: treaties between unmet civs become contact "evidence" and cascade
+    // into mass discovery. applyDiplomaticAction is the shared treaty writer, so it
+    // must refuse counterpart actions between civs that have never met.
+    it('refuses to sign a treaty between civs that have never met', () => {
+      const state = createNewGame({
+        civType: 'egypt',
+        mapSize: 'medium',
+        opponentCount: 2,
+        gameTitle: 'Unmet Treaty Guard',
+        seed: 'unmet-treaty-guard',
+      });
+      state.era = 3;
+      state.civilizations['ai-1'].knownCivilizations = [];
+      state.civilizations.player.knownCivilizations = [];
+      state.civilizations['ai-1'].diplomacy.relationships.player = 30;
+      state.civilizations.player.diplomacy.relationships['ai-1'] = 30;
+
+      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'trade_agreement', new EventBus());
+
+      expect(result.civilizations['ai-1'].diplomacy.treaties).toEqual([]);
+      expect(result.civilizations.player.diplomacy.treaties).toEqual([]);
+    });
+
+    it('refuses to declare war on a civ that has never been met', () => {
+      const state = createNewGame({
+        civType: 'egypt',
+        mapSize: 'medium',
+        opponentCount: 2,
+        gameTitle: 'Unmet War Guard',
+        seed: 'unmet-war-guard',
+      });
+      state.civilizations['ai-1'].knownCivilizations = [];
+      state.civilizations.player.knownCivilizations = [];
+
+      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'declare_war', new EventBus());
+
+      expect(result.civilizations['ai-1'].diplomacy.atWarWith).toEqual([]);
+      expect(result.civilizations.player.diplomacy.atWarWith).toEqual([]);
+    });
+
+    it('still signs treaties between civs that have met', () => {
+      const state = createNewGame({
+        civType: 'egypt',
+        mapSize: 'medium',
+        opponentCount: 2,
+        gameTitle: 'Met Treaty Allowed',
+        seed: 'met-treaty-allowed',
+      });
+      state.era = 3;
+      state.civilizations['ai-1'].knownCivilizations = ['player'];
+      state.civilizations.player.knownCivilizations = ['ai-1'];
+      state.civilizations['ai-1'].diplomacy.relationships.player = 30;
+      state.civilizations.player.diplomacy.relationships['ai-1'] = 30;
+
+      const result = applyDiplomaticAction(state, 'ai-1', 'player', 'trade_agreement', new EventBus());
+
+      expect(result.civilizations['ai-1'].diplomacy.treaties).toContainEqual(
+        expect.objectContaining({ type: 'trade_agreement' }),
+      );
+      expect(result.civilizations.player.diplomacy.treaties).toContainEqual(
+        expect.objectContaining({ type: 'trade_agreement' }),
+      );
+    });
+
     it('applies Narnias treaty relationship bonus symmetrically when a treaty is signed', () => {
       const bus = new EventBus();
       const state = {
@@ -306,11 +370,13 @@ describe('diplomacy-system', () => {
           player: {
             id: 'player',
             civType: 'narnia',
+            knownCivilizations: ['ai-egypt'],
             diplomacy: createDiplomacyState(['player', 'ai-egypt'], 'player'),
           },
           'ai-egypt': {
             id: 'ai-egypt',
             civType: 'egypt',
+            knownCivilizations: ['player'],
             diplomacy: createDiplomacyState(['player', 'ai-egypt'], 'ai-egypt'),
           },
         },

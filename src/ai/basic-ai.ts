@@ -1263,6 +1263,8 @@ function processAITurnInternal(
         };
         continue;
       }
+      // cyber_unit and stealth_bomber are handled by the catalog-driven ai-production.ts path
+      // (purposefulAI only) — no one-off legacy branch added per end-to-end-wiring rule.
       if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
         city.productionQueue = ['caravan'];
       } else {
@@ -1438,6 +1440,11 @@ function processAITurnInternal(
     for (const decision of decisions) {
       const currentDiplomacy = newState.civilizations[civId]?.diplomacy;
       if (!currentDiplomacy) {
+        continue;
+      }
+      // Issue #435 guard: never write treaties or war records against an unmet
+      // civ — those records count as contact evidence and mass-discover civs.
+      if (!hasMetCivilization(newState, civId, decision.targetCiv)) {
         continue;
       }
       switch (decision.action) {

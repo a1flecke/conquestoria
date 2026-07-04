@@ -106,14 +106,15 @@ describe('sfx-catalog completeness', () => {
     ]);
   });
 
-  it('allSfxEntries returns exactly 126 entries', () => {
+  it('allSfxEntries returns exactly 130 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
     // + 4 new transport death (carrack, galleon, steamship, troop_transport) + 2 transport load/unload = 76
     // + 16 beast SFX (8 beasts × 2: attack-swing + death) = 92
     // + 33 pirate movement/combat/headquarters/strategic entries = 125
     // + 1 air locomotion move-step = 126
-    expect(allSfxEntries()).toHaveLength(126);
+    // + 4 era-12 unit SFX (cyber_unit: death; stealth_bomber: ranged-loose, ranged-impact, death) = 130
+    expect(allSfxEntries()).toHaveLength(130);
   });
 
   it('no two entries share the same ID', () => {

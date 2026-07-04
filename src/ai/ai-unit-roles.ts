@@ -13,6 +13,7 @@ const ROLE_OVERRIDES: Partial<Record<UnitType, readonly AIStrategicRole[]>> = {
   spy_agent: ['espionage'],
   spy_operative: ['espionage'],
   spy_hacker: ['espionage'],
+  cyber_unit: ['espionage'],
   scout_hound: ['detection', 'frontline'],
   shadow_warden: ['detection', 'frontline'],
   war_hound: ['detection', 'frontline', 'mobile', 'capture'],

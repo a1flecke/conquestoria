@@ -21,12 +21,15 @@ const PRODUCTION_OUTPUT_BY_ERA: Record<number, number> = {
   7: 16,
   8: 18,
   9: 20,
+  10: 22,
+  11: 24,
+  12: 26,
 };
 
 export function getProductionOutputProfileForEra(era: number): number {
   const numericEra = Number.isFinite(era) ? era : 1;
   const normalized = Math.max(1, Math.floor(numericEra));
-  return PRODUCTION_OUTPUT_BY_ERA[Math.min(9, normalized)];
+  return PRODUCTION_OUTPUT_BY_ERA[Math.min(12, normalized)];
 }
 
 export function getTargetTurnWindow(input: { era: number; band: PacingBand; contentType: PacingContentType }): { min: number; max: number } {
