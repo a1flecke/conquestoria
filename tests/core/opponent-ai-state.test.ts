@@ -124,6 +124,35 @@ describe('opponent AI state normalization', () => {
     expect(normalized.opponentAI!.majorCivs['ai-1']).toBeUndefined();
   });
 
+  it('preserves live barbarian assignments owned through a camp mapping', () => {
+    const state = makeState();
+    const unitId = state.civilizations.player.units[0]!;
+    state.units[unitId].owner = 'barbarian';
+    state.barbarianCamps['camp-purposeful'] = {
+      id: 'camp-purposeful',
+      position: state.units[unitId].position,
+      strength: 5,
+      spawnCooldown: 3,
+    };
+    state.opponentAI!.barbarianHomeCampByUnitId[unitId] = 'camp-purposeful';
+    state.opponentAI!.barbarianCamps['camp-purposeful'] = makePlan({
+      id: 'barbarian-plan:camp-purposeful',
+      actorId: 'camp-purposeful',
+      objective: 'raid',
+      target: {
+        kind: 'resource',
+        resource: 'iron',
+        position: { q: 3, r: 3 },
+      },
+      assignedUnitIds: [unitId],
+    });
+
+    const normalized = normalizeOpponentAIState(state);
+
+    expect(normalized.opponentAI!.barbarianCamps['camp-purposeful'].assignedUnitIds)
+      .toEqual([unitId]);
+  });
+
   it('rebuilds unknown versions while retaining the campaign challenge', () => {
     const state = makeState();
     state.opponentChallenge = 'explorer';

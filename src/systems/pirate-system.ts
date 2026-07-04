@@ -2,6 +2,7 @@ import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import type { PirateFactionState } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { canUnitAttackTarget } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { resolveCombat } from './combat-system';
@@ -10,8 +11,10 @@ import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDi
 import {
   applyPlannedRelocation,
   choosePirateIntent,
+  choosePersistentPirateIntent,
   derivePirateBlockades,
   derivePirateRaids,
+  getPirateFleetLeader,
   planFlotillaRelocation,
   type PirateRoundFacts,
 } from './pirate-behavior';
@@ -30,7 +33,17 @@ import {
   deliverPirateActivationWarnings,
   type PirateNotificationEvent,
 } from './pirate-notifications';
-import { createUnit, getMovementStepCost, moveUnit, resetUnitTurn, UNIT_DEFINITIONS } from './unit-system';
+import {
+  createUnit,
+  findPath,
+  getMovementStepCost,
+  moveUnit,
+  resetUnitTurn,
+  UNIT_DEFINITIONS,
+} from './unit-system';
+import { executeUnitMove } from './unit-movement-system';
+import { removeRouteForUnit } from './trade-system';
+import { emitMinorCivQuestTransitions } from './quest-chain-system';
 import {
   buildCombatPresentation,
   buildMovePresentationByViewer,
@@ -74,17 +87,33 @@ function neighbors(state: GameState, coord: HexCoord): HexCoord[] {
   return state.map.wrapsHorizontally ? getWrappedHexNeighbors(coord, state.map.width) : hexNeighbors(coord);
 }
 
-function normalizeRoundState(state: GameState): { state: GameState; events: PirateTransitionEvent[] } {
+function normalizeRoundState(
+  state: GameState,
+  purposefulAIEnabled: boolean,
+): { state: GameState; events: PirateTransitionEvent[] } {
   if (!state.pirates) return { state, events: [] };
   let nextState = state;
   const events: PirateTransitionEvent[] = [];
-  for (const faction of Object.values(state.pirates.factions)) {
+  for (const originalFaction of Object.values(state.pirates.factions)) {
+    let faction = originalFaction;
     if (faction.headquarters.kind === 'deep-sea-flotilla' && !state.units[faction.headquarters.flagshipUnitId]) {
-      const result = destroyPirateFaction(nextState, {
-        factionId: faction.id, destroyedByOwnerId: null, reason: 'missing-flagship',
-      });
-      nextState = result.state;
-      continue;
+      const replacement = purposefulAIEnabled ? getPirateFleetLeader(state, faction.id) : null;
+      if (replacement) {
+        faction = {
+          ...faction,
+          shipIds: faction.shipIds.filter(unitId => Boolean(state.units[unitId])),
+          headquarters: {
+            ...faction.headquarters,
+            flagshipUnitId: replacement.id,
+          },
+        };
+      } else {
+        const result = destroyPirateFaction(nextState, {
+          factionId: faction.id, destroyedByOwnerId: null, reason: 'missing-flagship',
+        });
+        nextState = result.state;
+        continue;
+      }
     }
     const tributeByCiv = Object.fromEntries(Object.entries(faction.tributeByCiv)
       .filter(([, record]) => record.protectedUntilRound > state.turn));
@@ -143,6 +172,7 @@ function attackTarget(
   state: GameState,
   attacker: Unit,
   targetUnitId: string | undefined,
+  bus?: EventBus,
 ): {
   state: GameState;
   result: CombatResult | null;
@@ -158,11 +188,34 @@ function attackTarget(
   const seed = Math.max(1, state.turn * 7919 + attacker.id.length * 97 + defender.id.length);
   const result = resolveCombat(attacker, defender, state.map, seed, undefined, state.era);
   const applied = applyCombatOutcomeToState(state, result, seed);
+  let appliedState = applied.state;
+  if (bus && applied.attackerDefeated && attacker.committedToRouteId) {
+    appliedState = removeRouteForUnit(
+      appliedState,
+      attacker.id,
+      bus,
+      'unit-died',
+      attacker.committedToRouteId,
+    );
+  }
+  if (bus && applied.defenderDefeated && defender.committedToRouteId) {
+    appliedState = removeRouteForUnit(
+      appliedState,
+      defender.id,
+      bus,
+      'unit-died',
+      defender.committedToRouteId,
+    );
+  }
+  if (bus) {
+    emitMinorCivQuestTransitions(bus, applied.questTransitions, appliedState);
+    for (const reward of applied.rewards) bus.emit('combat:reward-earned', { reward });
+  }
   const transportKill = !result.defenderSurvived && UNIT_DEFINITIONS[defender.type]?.cargoCapacity !== undefined
     ? { factionId: attacker.owner as `pirate-${number}`, victimCivId: defender.owner, unitId: defender.id }
     : null;
   return {
-    state: applied.state,
+    state: appliedState,
     result,
     presentation: buildCombatPresentation(state, result, attacker, defender),
     transportKill,
@@ -235,6 +288,245 @@ function processMovementAndCombat(state: GameState, relocated: Set<string>): {
         if (attack.transportKill) facts.transportKills.push(attack.transportKill);
         events.push(...attack.events);
       }
+    }
+  }
+  return { state: nextState, facts, events };
+}
+
+function purposefulTargetPosition(
+  state: GameState,
+  faction: PirateFactionState,
+): HexCoord | null {
+  if (faction.intent?.targetUnitId) {
+    return state.units[faction.intent.targetUnitId]?.position ?? null;
+  }
+  if (faction.intent?.targetCityId) {
+    return state.cities[faction.intent.targetCityId]?.position ?? null;
+  }
+  return null;
+}
+
+function waterApproachTiles(state: GameState, target: HexCoord): HexCoord[] {
+  const targetTerrain = state.map.tiles[hexKey(target)]?.terrain;
+  const adjacent = neighbors(state, target).filter(coord => {
+    const terrain = state.map.tiles[hexKey(coord)]?.terrain;
+    return terrain === 'coast' || terrain === 'ocean';
+  });
+  return targetTerrain === 'coast' || targetTerrain === 'ocean'
+    ? [target, ...adjacent]
+    : adjacent;
+}
+
+function purposefulRetreatTarget(
+  state: GameState,
+  faction: PirateFactionState,
+  leader: Unit,
+): HexCoord | null {
+  if (faction.headquarters.kind === 'coastal-enclave') {
+    return waterApproachTiles(state, faction.headquarters.position)
+      .sort((a, b) =>
+        distance(state, leader.position, a) - distance(state, leader.position, b)
+        || a.q - b.q
+        || a.r - b.r)[0] ?? null;
+  }
+  const hostiles = Object.values(state.units).filter(unit =>
+    unit.owner !== faction.id
+    && UNIT_DEFINITIONS[unit.type]?.domain === 'naval'
+    && UNIT_DEFINITIONS[unit.type].strength > 0);
+  return neighbors(state, leader.position)
+    .filter(coord => {
+      const terrain = state.map.tiles[hexKey(coord)]?.terrain;
+      return terrain === 'coast' || terrain === 'ocean';
+    })
+    .sort((a, b) => {
+      const safety = (coord: HexCoord) => hostiles.length === 0
+        ? 0
+        : Math.min(...hostiles.map(unit => distance(state, coord, unit.position)));
+      return safety(b) - safety(a) || a.q - b.q || a.r - b.r;
+    })[0] ?? null;
+}
+
+function choosePurposefulMoveDestination(
+  state: GameState,
+  unit: Unit,
+  desired: HexCoord,
+  leaderPosition: HexCoord | null,
+): HexCoord | null {
+  const approaches = waterApproachTiles(state, desired)
+    .map(coord => ({
+      coord,
+      path: findPath(unit.position, coord, state.map, 'naval', { unit }),
+    }))
+    .filter((entry): entry is { coord: HexCoord; path: HexCoord[] } => Boolean(entry.path))
+    .sort((a, b) =>
+      a.path.length - b.path.length
+      || a.coord.q - b.coord.q
+      || a.coord.r - b.coord.r);
+  const path = approaches[0]?.path;
+  if (!path || path.length <= 1) return null;
+  const occupied = new Set(Object.values(state.units)
+    .filter(candidate => candidate.id !== unit.id && !candidate.transportId)
+    .map(candidate => hexKey(candidate.position)));
+  let cost = 0;
+  const reachable: HexCoord[] = [];
+  for (let index = 1; index < path.length; index++) {
+    const stepCost = getMovementStepCost(unit, state.map, path[index - 1]!, path[index]!, {});
+    if (!Number.isFinite(stepCost) || cost + stepCost > unit.movementPointsLeft) break;
+    if (occupied.has(hexKey(path[index]!))) break;
+    cost += stepCost;
+    reachable.push(path[index]!);
+  }
+  if (reachable.length === 0) return null;
+  if (!leaderPosition) return reachable.at(-1)!;
+  return [...reachable]
+    .reverse()
+    .find(coord => distance(state, coord, leaderPosition) <= 2)
+    ?? reachable.sort((a, b) =>
+      distance(state, a, leaderPosition) - distance(state, b, leaderPosition)
+      || a.q - b.q
+      || a.r - b.r)[0]!;
+}
+
+function processPurposefulMovementAndCombat(
+  state: GameState,
+  relocated: Set<string>,
+  bus: EventBus,
+): {
+  state: GameState;
+  facts: PirateRoundFacts;
+  events: PirateActionEvent[];
+} {
+  let nextState = state;
+  const facts: PirateRoundFacts = {
+    movements: [],
+    attacks: [],
+    transportKills: [],
+    attackPresentations: [],
+  };
+  const events: PirateActionEvent[] = [];
+
+  for (const factionId of Object.keys(state.pirates?.factions ?? {}).sort()) {
+    let faction = nextState.pirates?.factions[factionId];
+    if (!faction) continue;
+    const intent = choosePersistentPirateIntent(nextState, factionId);
+    faction = { ...faction, intent };
+    nextState = {
+      ...nextState,
+      pirates: {
+        ...nextState.pirates!,
+        factions: { ...nextState.pirates!.factions, [factionId]: faction },
+      },
+    };
+    const leader = getPirateFleetLeader(nextState, factionId);
+    if (!leader) continue;
+    const orderedShipIds = [
+      leader.id,
+      ...faction.shipIds.filter(unitId => unitId !== leader.id).sort(),
+    ];
+    const target = intent?.mode === 'withdraw'
+      ? purposefulRetreatTarget(nextState, faction, leader)
+      : purposefulTargetPosition(nextState, faction);
+    const beforeDistance = target ? distance(nextState, leader.position, target) : null;
+    const attacksBeforeFaction = facts.attacks.length;
+    let currentLeaderPosition = { ...leader.position };
+
+    for (const unitId of orderedShipIds) {
+      let unit = nextState.units[unitId];
+      if (!unit || relocated.has(unitId)) continue;
+      unit = resetUnitTurn(unit);
+      nextState = { ...nextState, units: { ...nextState.units, [unitId]: unit } };
+
+      let attack = intent?.mode !== 'withdraw'
+        ? attackTarget(nextState, unit, intent?.targetUnitId, bus)
+        : { state: nextState, result: null, presentation: null, transportKill: null, events: [] };
+      if (attack.result) {
+        nextState = attack.state;
+        facts.attacks.push(attack.result);
+        facts.attackPresentations!.push(attack.presentation!);
+        if (attack.transportKill) facts.transportKills.push(attack.transportKill);
+        events.push(...attack.events);
+        if (unitId === leader.id && nextState.units[unitId]) {
+          currentLeaderPosition = { ...nextState.units[unitId].position };
+        }
+        continue;
+      }
+
+      if (target) {
+        const desired = unitId === leader.id
+          ? target
+          : distance(nextState, unit.position, currentLeaderPosition) > 2
+            ? currentLeaderPosition
+            : target;
+        const destination = choosePurposefulMoveDestination(
+          nextState,
+          unit,
+          desired,
+          unitId === leader.id ? null : currentLeaderPosition,
+        );
+        if (destination) {
+          const beforeMove = nextState;
+          const move = executeUnitMove(nextState, unitId, destination, { actor: 'world' });
+          if (move.ok) {
+            facts.movements.push({
+              unitId,
+              from: move.from,
+              to: move.to,
+              path: move.path.slice(1),
+              presentationByViewer: buildMovePresentationByViewer(
+                beforeMove,
+                unit,
+                move.path,
+              ),
+            });
+            unit = nextState.units[unitId]!;
+            if (unitId === leader.id) currentLeaderPosition = { ...unit.position };
+          }
+        }
+      }
+
+      attack = intent?.mode !== 'withdraw' && nextState.units[unitId]
+        ? attackTarget(nextState, nextState.units[unitId], intent?.targetUnitId, bus)
+        : attack;
+      if (attack.result) {
+        nextState = attack.state;
+        facts.attacks.push(attack.result);
+        facts.attackPresentations!.push(attack.presentation!);
+        if (attack.transportKill) facts.transportKills.push(attack.transportKill);
+        events.push(...attack.events);
+      }
+    }
+
+    faction = nextState.pirates?.factions[factionId];
+    const currentIntent = faction?.intent;
+    const currentLeader = getPirateFleetLeader(nextState, factionId);
+    const currentTarget = faction ? purposefulTargetPosition(nextState, faction) : null;
+    if (faction && currentIntent && currentLeader) {
+      const afterDistance = currentTarget
+        ? distance(nextState, currentLeader.position, currentTarget)
+        : null;
+      const madeProgress = beforeDistance !== null
+        && afterDistance !== null
+        && (
+          afterDistance < beforeDistance
+          || afterDistance <= 2
+          || facts.attacks.length > attacksBeforeFaction
+        );
+      const updatedIntent = {
+        ...currentIntent,
+        lastTargetDistance: afterDistance ?? currentIntent.lastTargetDistance,
+        lastProgressRound: madeProgress ? state.turn : currentIntent.lastProgressRound,
+        leaderUnitId: currentLeader.id,
+      };
+      nextState = {
+        ...nextState,
+        pirates: {
+          ...nextState.pirates!,
+          factions: {
+            ...nextState.pirates!.factions,
+            [factionId]: { ...faction, intent: updatedIntent },
+          },
+        },
+      };
     }
   }
   return { state: nextState, facts, events };
@@ -370,11 +662,12 @@ function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
 export function processPiratesForCompletedRound(
   state: GameState,
   bus: EventBus,
-  _options: { purposefulAIEnabled?: boolean } = {},
+  options: { purposefulAIEnabled?: boolean } = {},
 ): ProcessPiratesResult {
+  const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
   const trace = [...PIRATE_ROUND_TRACE];
   const wasActivated = state.pirates?.activatedTurn !== null;
-  let normalized = normalizeRoundState(state);
+  let normalized = normalizeRoundState(state, purposefulAIEnabled);
   let nextState = normalized.state;
   const events: PirateTransitionEvent[] = [...normalized.events];
   const relocated = new Set<string>();
@@ -416,7 +709,9 @@ export function processPiratesForCompletedRound(
     }
     if (result.facts.relocation.status === 'moved') events.push({ type: 'relocated', factionId });
   }
-  const processed = processMovementAndCombat(nextState, relocated);
+  const processed = purposefulAIEnabled
+    ? processPurposefulMovementAndCombat(nextState, relocated, bus)
+    : processMovementAndCombat(nextState, relocated);
   nextState = processed.state;
   const facts: PirateRoundFacts = {
     movements: [...relocationFacts, ...processed.facts.movements],

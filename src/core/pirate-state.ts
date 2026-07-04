@@ -74,6 +74,10 @@ export interface PirateIntentState {
   targetCityId?: string;
   targetUnitId?: string;
   plannedRound: number;
+  lastProgressRound?: number;
+  lastTargetDistance?: number;
+  mode?: 'engage' | 'withdraw';
+  leaderUnitId?: string;
 }
 
 export interface PirateTransitionGuards {
