@@ -341,6 +341,29 @@ describe('#443 — building obsolescence data', () => {
   });
 });
 
+describe('#443 — building obsolescence matches the retired unit line', () => {
+  it('stable ("Trains mounted units"): horseman/cavalry/knight are all gone once tank-warfare completes', () => {
+    const units = getTrainableUnitsForCiv(
+      ['horseback-riding', 'iron-forging', 'tank-warfare'],
+      undefined,
+      new Set<ResourceType>(['horses', 'iron']),
+    );
+    expect(units.some(u => u.type === 'horseman')).toBe(false);
+    expect(units.some(u => u.type === 'cavalry')).toBe(false);
+    expect(units.some(u => u.type === 'knight')).toBe(false);
+  });
+
+  it('siege-workshop ("Reduces Catapult and Ballista training cost"): both gone once black-powder completes', () => {
+    const units = getTrainableUnitsForCiv(
+      ['siege-warfare', 'black-powder'],
+      undefined,
+      new Set<ResourceType>(['stone', 'iron']),
+    );
+    expect(units.some(u => u.type === 'catapult')).toBe(false);
+    expect(units.some(u => u.type === 'ballista')).toBe(false);
+  });
+});
+
 describe('getTrainableUnitsForCity', () => {
   function coastalGateMap(): GameMap {
     return {
