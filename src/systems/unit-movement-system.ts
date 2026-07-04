@@ -20,12 +20,17 @@ import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy'
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 
-export interface ExecuteUnitMoveOptions {
-  actor: 'player' | 'automation' | 'ai';
-  civId: string;
-  bus?: EventBus;
-  foreignCityEntryId?: string;
-}
+export type ExecuteUnitMoveOptions =
+  | {
+      actor: 'player' | 'automation' | 'ai';
+      civId: string;
+      bus?: EventBus;
+      foreignCityEntryId?: string;
+    }
+  | {
+      actor: 'world';
+      bus?: EventBus;
+    };
 
 export interface WonderDiscoveryResult {
   wonderId: string;
@@ -125,6 +130,17 @@ export function executeUnitMove(
     path: movePath,
     presentationByViewer,
   });
+
+  if (options.actor === 'world') {
+    return {
+      ok: true,
+      from,
+      to: validation.to,
+      path: movePath,
+      revealedTiles: [],
+      discoveredWonders: [],
+    };
+  }
 
   let villageOutcome: Extract<ExecuteUnitMoveResult, { ok: true }>['villageOutcome'];
   const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(validation.to));
@@ -280,7 +296,7 @@ export function validateUnitMove(
     && hexKey(city.position) === hexKey(target));
   if (
     foreignCity
-    && options.foreignCityEntryId !== foreignCity.id
+    && (options.actor === 'world' || options.foreignCityEntryId !== foreignCity.id)
     && !hasAlliance(state, unit.owner, foreignCity.owner)
   ) {
     return movementFailure(
@@ -315,7 +331,8 @@ export function validateUnitMove(
       && hexKey(city.position) === hexKey(coord)
       && !hasAlliance(state, unit.owner, city.owner)
       && (
-        options.foreignCityEntryId !== city.id
+        options.actor === 'world'
+        || options.foreignCityEntryId !== city.id
         || hexKey(coord) !== hexKey(target)
       )));
   if (pathCrossesBlockedForeignCity) {
@@ -328,8 +345,12 @@ export function validateUnitMove(
     );
   }
 
-  const visibility = state.civilizations[options.civId]?.visibility;
-  const isPlayerControlledMove = options.actor !== 'automation' && options.actor !== 'ai';
+  const visibility = options.actor === 'world'
+    ? undefined
+    : state.civilizations[options.civId]?.visibility;
+  const isPlayerControlledMove = options.actor !== 'automation'
+    && options.actor !== 'ai'
+    && options.actor !== 'world';
   if (
     isPlayerControlledMove
     && visibility

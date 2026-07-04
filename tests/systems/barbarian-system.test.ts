@@ -1,6 +1,8 @@
 import {
   spawnBarbarianCamp,
   processBarbarians,
+  processPurposefulBarbarians,
+  getBarbarianRosterForEra,
   destroyCamp,
   applyCampDestruction,
 } from '@/systems/barbarian-system';
@@ -147,6 +149,95 @@ describe('processBarbarians', () => {
     expect(result.attackOrders).toContainEqual({
       attackerUnitId: 'barb',
       defenderUnitId: 'player-warrior',
+    });
+  });
+});
+
+describe('processPurposefulBarbarians', () => {
+  function purposefulState() {
+    const state = createNewGame(undefined, 'purposeful-barbarians', 'small');
+    for (const tile of Object.values(state.map.tiles)) {
+      tile.terrain = 'plains';
+      tile.elevation = 'lowland';
+      tile.resource = null;
+      tile.improvement = 'none';
+      tile.improvementTurnsLeft = 0;
+    }
+    state.barbarianCamps = {
+      'camp-a': {
+        id: 'camp-a',
+        position: { q: 5, r: 5 },
+        strength: 6,
+        spawnCooldown: 4,
+      },
+    };
+    state.units = {};
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    state.civilizations.player.units = [];
+    state.opponentAI = undefined;
+    return state;
+  }
+
+  it('adopts a nearby raider and prefers an exposed worker over a farther city', () => {
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const worker = createUnit('worker', 'player', { q: 7, r: 5 }, state.idCounters);
+    worker.id = 'worker';
+    state.units = { raider, worker };
+    state.civilizations.player.units = [worker.id];
+    state.cities.far = {
+      id: 'far',
+      owner: 'player',
+      position: { q: 10, r: 5 },
+      hp: 30,
+    } as never;
+    state.civilizations.player.cities = ['far'];
+
+    const first = processPurposefulBarbarians(state);
+    expect(first.opponentAI.barbarianHomeCampByUnitId.raider).toBe('camp-a');
+    expect(first.opponentAI.barbarianCamps['camp-a']).toMatchObject({
+      objective: 'raid',
+      target: { kind: 'unit', id: 'worker' },
+    });
+
+    const persisted = processPurposefulBarbarians({
+      ...state,
+      opponentAI: first.opponentAI,
+      turn: state.turn + 1,
+    });
+    expect(persisted.opponentAI.barbarianCamps['camp-a'].target).toMatchObject({
+      kind: 'unit',
+      id: 'worker',
+    });
+  });
+
+  it('preempts raids to defend a camp and never senses beyond radius seven', () => {
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const defender = createUnit('warrior', 'player', { q: 8, r: 5 }, state.idCounters);
+    defender.id = 'camp-threat';
+    const unseenWorker = createUnit('worker', 'player', { q: 14, r: 5 }, state.idCounters);
+    unseenWorker.id = 'unseen-worker';
+    state.units = { raider, defender, unseenWorker };
+    state.civilizations.player.units = [defender.id, unseenWorker.id];
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.opponentAI.barbarianCamps['camp-a']).toMatchObject({
+      objective: 'defend',
+      target: { kind: 'unit', id: 'camp-threat' },
+    });
+    expect(JSON.stringify(result.opponentAI)).not.toContain('unseen-worker');
+  });
+
+  it('uses the final roster band beyond its declared maximum era', () => {
+    expect(getBarbarianRosterForEra(12)).toEqual({
+      maxEra: 11,
+      melee: ['tank', 'rifleman'],
+      ranged: ['machine_gunner'],
     });
   });
 });

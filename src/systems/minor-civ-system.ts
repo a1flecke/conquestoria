@@ -155,7 +155,11 @@ function hashSeed(seed: string): number {
 
 // === Turn Processing ===
 
-export function processMinorCivTurn(state: GameState, bus: EventBus): GameState {
+export function processMinorCivTurn(
+  state: GameState,
+  bus: EventBus,
+  _options: { purposefulAIEnabled?: boolean } = {},
+): GameState {
   let nextState = structuredClone(state);
   for (const mcId of Object.keys(nextState.minorCivs).sort()) {
     let mc = nextState.minorCivs[mcId];
