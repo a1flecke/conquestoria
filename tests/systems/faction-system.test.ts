@@ -5,6 +5,7 @@ import { createDiplomacyState } from '@/systems/diplomacy-system';
 import {
   REVOLT_UNREST_TURNS,
   BREAKAWAY_REVOLT_TURNS,
+  appeaseFaction,
   canGarrisonCity,
   computeUnrestPressure,
   getCityAppeaseCost,
@@ -508,6 +509,78 @@ describe('faction-system', () => {
     });
 
     expect(canGarrisonCity('city-1', state)).toBe(true);
+  });
+});
+
+describe('appeaseFaction', () => {
+  it('deducts gold, resets spyUnrestBonus, reduces unrestTurns by 2 (floor 0), downgrades unrestLevel 2→1', () => {
+    const state = makeState({ unrestLevel: 2, unrestTurns: 1, spyUnrestBonus: 8 });
+    const result = appeaseFaction(state, 'city-1', 'player');
+    expect(result.success).toBe(true);
+    const city = result.state.cities['city-1'];
+    expect(city.unrestLevel).toBe(1);
+    expect(city.unrestTurns).toBe(0);
+    expect(city.spyUnrestBonus).toBe(0);
+    expect(result.state.civilizations['player'].gold).toBe(100 - getCityAppeaseCost(city));
+  });
+
+  it('does not downgrade unrestLevel below 1 (matches existing AI behavior: 2→1 only, never →0)', () => {
+    const state = makeState({ unrestLevel: 1, unrestTurns: 3 });
+    const result = appeaseFaction(state, 'city-1', 'player');
+    expect(result.success).toBe(true);
+    expect(result.state.cities['city-1'].unrestLevel).toBe(1);
+  });
+
+  it('fails and returns unchanged state when city has no unrest', () => {
+    const state = makeState({ unrestLevel: 0 });
+    const result = appeaseFaction(state, 'city-1', 'player');
+    expect(result.success).toBe(false);
+    expect(result.state).toBe(state);
+  });
+
+  it('fails and returns unchanged state when civ cannot afford the cost', () => {
+    const state = makeState({ unrestLevel: 1, unrestTurns: 2 });
+    state.civilizations['player'].gold = 10; // cost is 60 at default population 4
+    const result = appeaseFaction(state, 'city-1', 'player');
+    expect(result.success).toBe(false);
+    expect(result.state).toBe(state);
+  });
+
+  it('fails on a second call the same turn (spam-click guard) even though unrest and gold both still qualify', () => {
+    const state = makeState({ unrestLevel: 2, unrestTurns: 5 });
+    const first = appeaseFaction(state, 'city-1', 'player');
+    expect(first.success).toBe(true);
+    const second = appeaseFaction(first.state, 'city-1', 'player');
+    expect(second.success).toBe(false);
+    expect(second.state).toBe(first.state);
+  });
+
+  it('sets appeasedOnTurn to the current turn on success', () => {
+    const state = makeState({ unrestLevel: 1, unrestTurns: 2 });
+    const result = appeaseFaction(state, 'city-1', 'player');
+    expect(result.state.cities['city-1'].appeasedOnTurn).toBe(state.turn);
+  });
+
+  it('allows appeasing again on a later turn', () => {
+    const state = makeState({ unrestLevel: 2, unrestTurns: 5 });
+    const first = appeaseFaction(state, 'city-1', 'player');
+    expect(first.success).toBe(true);
+    // Re-fund and re-trigger unrest so the second call has both gold and a
+    // reason to appease — isolates the turn-guard behavior from affordability.
+    const laterState = {
+      ...first.state,
+      turn: first.state.turn + 1,
+      civilizations: {
+        ...first.state.civilizations,
+        player: { ...first.state.civilizations['player'], gold: 1000 },
+      },
+      cities: {
+        ...first.state.cities,
+        'city-1': { ...first.state.cities['city-1'], unrestLevel: 1 as const },
+      },
+    };
+    const second = appeaseFaction(laterState, 'city-1', 'player');
+    expect(second.success).toBe(true);
   });
 });
 

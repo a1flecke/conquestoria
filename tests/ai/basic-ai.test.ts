@@ -14,6 +14,7 @@ import { EventBus } from '@/core/event-bus';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
 import type { GameEvents, GameState } from '@/core/types';
 import { BUILDINGS, foundCity } from '@/systems/city-system';
+import { appeaseFaction, getCityAppeaseCost } from '@/systems/faction-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
 import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { tickLegendaryWonderProjects } from '@/systems/legendary-wonder-system';
@@ -2518,5 +2519,60 @@ describe('AI grenadier production priority', () => {
     state.civilizations['ai-1'].units.push(grenadier.id);
     const result = processAITurn(state, 'ai-1', new EventBus());
     expect(result.cities['city-ai'].productionQueue[0]).not.toBe('grenadier');
+  });
+});
+
+describe('#436 — AI appease uses the shared helper', () => {
+  // createNewGame starts each civ with a Settler and zero founded cities — the AI
+  // founds its own starting city via its settler during its first processAITurn
+  // call. Run one real turn first so aiCityId refers to an actual, well-formed
+  // City record (with a real position) before layering unrest onto it, instead of
+  // assuming civ.cities[0] is already populated right after game creation.
+  function makeSettledAiState(seed: string): { state: GameState; aiCityId: string } {
+    const bus = new EventBus();
+    let state = createNewGame(undefined, seed, 'small');
+    state = processAITurn(state, 'ai-1', bus);
+    const aiCityId = state.civilizations['ai-1'].cities[0];
+    expect(aiCityId).toBeDefined();
+    return { state, aiCityId };
+  }
+
+  it('AI appeasing unrest produces the same city result as a direct appeaseFaction call, and spends at least the appease cost', () => {
+    const { state, aiCityId } = makeSettledAiState('436-ai-appease');
+    state.cities[aiCityId] = {
+      ...state.cities[aiCityId],
+      unrestLevel: 2,
+      unrestTurns: 5,
+      spyUnrestBonus: 10,
+    };
+    state.civilizations['ai-1'].gold = 1000;
+    const cost = getCityAppeaseCost(state.cities[aiCityId]);
+
+    const expected = appeaseFaction(structuredClone(state), aiCityId, 'ai-1');
+
+    const bus = new EventBus();
+    const afterAiTurn = processAITurn(state, 'ai-1', bus);
+
+    // Unrest-specific city fields are only ever touched by appease within a single
+    // AI turn, so these compare exactly against a direct appeaseFaction call.
+    expect(afterAiTurn.cities[aiCityId].unrestLevel).toBe(expected.state.cities[aiCityId].unrestLevel);
+    expect(afterAiTurn.cities[aiCityId].unrestTurns).toBe(expected.state.cities[aiCityId].unrestTurns);
+    expect(afterAiTurn.cities[aiCityId].spyUnrestBonus).toBe(expected.state.cities[aiCityId].spyUnrestBonus);
+    // Gold is not compared for exact equality: processAITurn runs the AI's entire
+    // turn (research, production, possibly other spending), not just appease, so
+    // the only property that must hold is that at least the appease cost was spent.
+    expect(afterAiTurn.civilizations['ai-1'].gold).toBeLessThanOrEqual(1000 - cost);
+  });
+
+  it('AI does not appease when it cannot afford the cost (unchanged unrest)', () => {
+    const { state, aiCityId } = makeSettledAiState('436-ai-appease-poor');
+    state.cities[aiCityId] = { ...state.cities[aiCityId], unrestLevel: 2, unrestTurns: 5 };
+    state.civilizations['ai-1'].gold = 0;
+
+    const bus = new EventBus();
+    const afterAiTurn = processAITurn(state, 'ai-1', bus);
+
+    expect(afterAiTurn.cities[aiCityId].unrestLevel).toBe(2);
+    expect(afterAiTurn.civilizations['ai-1'].gold).toBe(0);
   });
 });

@@ -436,6 +436,7 @@ export interface City {
   occupation?: OccupiedCityState;
   spyUnrestBonus: number;      // bonus pressure injected by enemy espionage; decays 5/turn
   productionDisabledTurns?: number; // late-game sabotage/cyber effect timer
+  appeasedOnTurn?: number;     // turn appeaseFaction last succeeded on this city; blocks a second appease the same turn
   idleProduction?: 'gold' | 'science' | null; // conversion mode when queue is empty
   hp?: number;               // city hit points for pirate siege (default 100)
 }

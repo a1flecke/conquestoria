@@ -11,6 +11,7 @@ import {
   CITY_NAMES,
   TRAINABLE_UNITS,
   PRODUCTION_ICONS,
+  TERMINAL_COMBAT_UNITS,
   getCatalogProductionCost,
   getProductionDisplayName,
   getProductionIconForItem,
@@ -916,14 +917,109 @@ describe('S4b — new unit entries', () => {
     expect(withoutIron.some(u => u.type === 'swordsman')).toBe(false);
   });
 
-  it('horseman has no obsoletedByTech (cavalry dead-end guard)', () => {
+  it('horseman obsoletes at tank-warfare, not iron-forging (avoids the resource dead-end)', () => {
     const entry = TRAINABLE_UNITS.find(u => u.type === 'horseman');
-    expect(entry?.obsoletedByTech).toBeUndefined();
+    expect(entry?.obsoletedByTech).toBe('tank-warfare');
   });
 
-  it('cavalry has no obsoletedByTech (cavalry dead-end guard)', () => {
+  it('cavalry obsoletes at tank-warfare, not iron-forging (avoids the resource dead-end)', () => {
     const entry = TRAINABLE_UNITS.find(u => u.type === 'cavalry');
-    expect(entry?.obsoletedByTech).toBeUndefined();
+    expect(entry?.obsoletedByTech).toBe('tank-warfare');
+  });
+
+  it('knight obsoletes at tank-warfare', () => {
+    const entry = TRAINABLE_UNITS.find(u => u.type === 'knight');
+    expect(entry?.obsoletedByTech).toBe('tank-warfare');
+  });
+
+  it('dead-end prevention: iron-poor civ still has tank once tank-warfare completes, even though it never had cavalry or knight', () => {
+    const noIron = getTrainableUnitsForCiv(
+      ['horseback-riding', 'tank-warfare'],
+      undefined,
+      new Set<ResourceType>(['horses']),
+    );
+    expect(noIron.some(u => u.type === 'cavalry')).toBe(false);
+    expect(noIron.some(u => u.type === 'knight')).toBe(false);
+    expect(noIron.some(u => u.type === 'horseman')).toBe(false);
+    expect(noIron.some(u => u.type === 'tank')).toBe(true);
+  });
+
+  it('horseman remains trainable for an iron-poor civ all the way up to tank-warfare (no premature dead-end)', () => {
+    const midGame = getTrainableUnitsForCiv(
+      ['horseback-riding', 'iron-forging'],
+      undefined,
+      new Set<ResourceType>(['horses']),
+    );
+    expect(midGame.some(u => u.type === 'horseman')).toBe(true);
+  });
+});
+
+describe('#429 — expanded obsolescence coverage', () => {
+  const CASES: Array<{
+    type: UnitType;
+    unlockTech?: string;
+    obsoleteTech: string;
+    resources?: ResourceType[];
+  }> = [
+    { type: 'warrior', obsoleteTech: 'rifled-infantry' },
+    { type: 'archer', unlockTech: 'archery', obsoleteTech: 'tactics' },
+    { type: 'swordsman', unlockTech: 'bronze-working', obsoleteTech: 'rifled-infantry', resources: ['iron'] },
+    { type: 'pikeman', unlockTech: 'fortification', obsoleteTech: 'rifled-infantry' },
+    { type: 'galley', unlockTech: 'galleys', obsoleteTech: 'navigation' },
+    { type: 'trireme', unlockTech: 'triremes', obsoleteTech: 'caravels' },
+    { type: 'grenadier', unlockTech: 'grenade-warfare', obsoleteTech: 'mass-firepower' },
+    { type: 'rifleman', unlockTech: 'rifled-infantry', obsoleteTech: 'mass-firepower' },
+    { type: 'biplane', unlockTech: 'air-superiority', obsoleteTech: 'jet-aviation' },
+    // jet_fighter was correctly terminal when #429 shipped, but era-12 work landed
+    // stealth_bomber afterward — same targets (unit/city), same domain (air), same
+    // range, strictly higher strength/cost/movement/vision, requiring a much later
+    // tech. Caught by rebasing this PR onto main during a full review pass and
+    // re-chained here rather than left stale in TERMINAL_COMBAT_UNITS.
+    { type: 'jet_fighter', unlockTech: 'jet-aviation', obsoleteTech: 'stealth-technology' },
+  ];
+
+  for (const c of CASES) {
+    it(`${c.type}: still trainable before ${c.obsoleteTech} completes`, () => {
+      const techs = c.unlockTech ? [c.unlockTech] : [];
+      const units = getTrainableUnitsForCiv(techs, undefined, new Set<ResourceType>(c.resources ?? []));
+      expect(units.some(u => u.type === c.type)).toBe(true);
+    });
+
+    it(`${c.type}: no longer trainable once ${c.obsoleteTech} completes`, () => {
+      const techs = c.unlockTech ? [c.unlockTech, c.obsoleteTech] : [c.obsoleteTech];
+      const units = getTrainableUnitsForCiv(techs, undefined, new Set<ResourceType>(c.resources ?? []));
+      expect(units.some(u => u.type === c.type)).toBe(false);
+    });
+  }
+});
+
+describe('#429 — unit obsolescence completeness', () => {
+  const UTILITY_TYPES: UnitType[] = ['worker', 'settler', 'troop_transport', 'caravan', 'expedition'];
+
+  it('every combat-capable trainable unit has obsoletedByTech or a TERMINAL_COMBAT_UNITS entry', () => {
+    const missing: string[] = [];
+    for (const entry of TRAINABLE_UNITS) {
+      if (UTILITY_TYPES.includes(entry.type)) continue;
+      const strength = UNIT_DEFINITIONS[entry.type]?.strength ?? 0;
+      if (strength <= 0) continue;
+      if (entry.obsoletedByTech) continue;
+      if (TERMINAL_COMBAT_UNITS[entry.type]) continue;
+      missing.push(entry.type);
+    }
+    expect(missing, `combat units missing an obsolescence decision: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('every TERMINAL_COMBAT_UNITS entry has a non-empty reason', () => {
+    for (const [type, reason] of Object.entries(TERMINAL_COMBAT_UNITS)) {
+      expect(reason.length, `${type} needs a real reason, not an empty string`).toBeGreaterThan(0);
+    }
+  });
+
+  it('TERMINAL_COMBAT_UNITS does not list a unit that already has obsoletedByTech (no contradictory entries)', () => {
+    for (const type of Object.keys(TERMINAL_COMBAT_UNITS)) {
+      const entry = TRAINABLE_UNITS.find(u => u.type === type);
+      expect(entry?.obsoletedByTech, `${type} is in TERMINAL_COMBAT_UNITS but also has obsoletedByTech set`).toBeUndefined();
+    }
   });
 });
 
@@ -1091,5 +1187,32 @@ describe('processCity — resource dequeue', () => {
     const city: City = { ...mkBaseCity2(map), productionQueue: ['swordsman'], productionProgress: 5 };
     const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>(['iron']));
     expect(result.city.productionQueue).not.toContain('swordsman');
+  });
+
+  it('#429 regression: dequeues a queued warrior once rifled-infantry completes', () => {
+    // productionProgress + productionYield (0 + 3 = 3) stays well under warrior's
+    // production cost (8), so removal from the queue can only be the obsoletedByTech
+    // dequeue path, not the unit completing production this turn.
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
+    const result = processCity(city, map, 2, 3, undefined, ['rifled-infantry'], undefined, 1, new Set<ResourceType>());
+    expect(result.city.productionQueue).not.toContain('warrior');
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('#429 regression: keeps a queued warrior when rifled-infantry has not been researched', () => {
+    const map = mkMap2();
+    const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
+    const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>());
+    expect(result.city.productionQueue).toContain('warrior');
+  });
+});
+
+describe('#429 regression: AI training selection respects new obsolescence data', () => {
+  it('warrior drops out of the AI-visible trainable pool once rifled-infantry completes (same getTrainableUnitsForCiv call basic-ai.ts:948 uses)', () => {
+    const before = getTrainableUnitsForCiv([], 'rome', new Set<ResourceType>());
+    const after = getTrainableUnitsForCiv(['rifled-infantry'], 'rome', new Set<ResourceType>());
+    expect(before.some(u => u.type === 'warrior')).toBe(true);
+    expect(after.some(u => u.type === 'warrior')).toBe(false);
   });
 });

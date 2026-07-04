@@ -85,6 +85,46 @@ export function getCityAppeaseCost(city: City): number {
   return city.population * GOLD_APPEASE_COST_PER_POP;
 }
 
+export function appeaseFaction(
+  state: GameState,
+  cityId: string,
+  civId: string,
+): { success: boolean; state: GameState; message: string } {
+  const city = state.cities[cityId];
+  if (!city || city.unrestLevel === 0) {
+    return { success: false, state, message: 'This city has no unrest to appease.' };
+  }
+  if (city.appeasedOnTurn === state.turn) {
+    return { success: false, state, message: 'This city has already been appeased this turn.' };
+  }
+  const cost = getCityAppeaseCost(city);
+  const civ = state.civilizations[civId];
+  if (!civ || civ.gold < cost) {
+    return { success: false, state, message: `Not enough gold — appeasing ${city.name} costs ${cost}.` };
+  }
+  return {
+    success: true,
+    message: `${city.name} appeased for ${cost} gold.`,
+    state: {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        [civId]: { ...civ, gold: civ.gold - cost },
+      },
+      cities: {
+        ...state.cities,
+        [cityId]: {
+          ...city,
+          spyUnrestBonus: 0,
+          unrestTurns: Math.max(0, city.unrestTurns - 2),
+          unrestLevel: city.unrestLevel === 2 ? 1 : city.unrestLevel,
+          appeasedOnTurn: state.turn,
+        },
+      },
+    },
+  };
+}
+
 // --- Yield helpers (used by turn-manager) ---
 
 export function getUnrestYieldMultiplier(city: City): number {
