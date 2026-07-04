@@ -198,9 +198,8 @@ export function processTurn(
           u => u.type === 'cyber_unit' && u.owner !== civId,
         );
         if (enemyCyberUnits.length > 0) {
-          const cityBuildings = newState.cities[cityId]?.buildings ?? [];
-          const hasCDC = cityBuildings.includes('cyber_defense_center');
-          const hasHub = cityBuildings.includes('signals_hub');
+          const hasCDC = city.buildings.includes('cyber_defense_center');
+          const hasHub = city.buildings.includes('signals_hub');
           const blockChance = hasCDC ? (hasHub ? 0.75 : 0.65) : 0;
           for (const cyberUnit of enemyCyberUnits) {
             if (hexDistance(cyberUnit.position, city.position) !== 1) continue;

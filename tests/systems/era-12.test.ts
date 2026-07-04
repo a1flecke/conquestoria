@@ -332,6 +332,7 @@ function makeProcessTurnState(overrides: {
 
 describe('cyber unit gold drain (Task 5)', () => {
   it('drains 2 gold from p1 when p2 cyber_unit is adjacent (no CDC)', () => {
+    // p2 cyber_unit at q=2,r=0 is hexDistance 1 from p1 city at q=1,r=0
     const state = makeProcessTurnState({
       p1Gold: 100,
       p1CityPos: { q: 1, r: 0 },
@@ -353,6 +354,20 @@ describe('cyber unit gold drain (Task 5)', () => {
     const bus = new EventBus();
     const result = processTurn(state, bus);
     expect(result.civilizations['p1'].gold).toBeGreaterThanOrEqual(0);
+  });
+
+  it('cyber_defense_center blocks drain (deterministic: roll 0.382 < blockChance 0.65)', () => {
+    // With turn=1, city.id='city-p1' (charCode 99), cyberUnit.id='cu1' (charCode 99):
+    // roll ≈ 0.382 < 0.65 → drain is blocked; gold stays at or above p1Gold
+    const state = makeProcessTurnState({
+      p1Gold: 100,
+      p1CityPos: { q: 1, r: 0 },
+      cyberUnitPos: { q: 2, r: 0 },
+      p1Buildings: ['cyber_defense_center'],
+    });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.civilizations['p1'].gold).toBeGreaterThanOrEqual(100);
   });
 });
 
@@ -462,5 +477,24 @@ describe('geneTherapyReady cooldown reset (Task 5)', () => {
     const bus = new EventBus();
     const result = processTurn(state, bus);
     expect(result.units['warrior2']?.geneTherapyReady).toBeUndefined();
+  });
+
+  it('unit at geneTherapyReady:false does NOT reset when outside a friendly city', () => {
+    // Unit at q=5,r=5 — not at the city position (q=1,r=0) — cooldown should stay false
+    const state = makeProcessTurnState({
+      p1CityPos: { q: 1, r: 0 },
+      p1Units: ['warrior3'],
+      extraUnits: {
+        warrior3: {
+          type: 'warrior', owner: 'p1',
+          position: { q: 5, r: 5 },
+          hasMoved: false, hasActed: false,
+          geneTherapyReady: false,
+        },
+      },
+    });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.units['warrior3']?.geneTherapyReady).toBe(false);
   });
 });
