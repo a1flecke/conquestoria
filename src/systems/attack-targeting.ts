@@ -6,6 +6,7 @@ import { selectDefenderForAttack } from '@/systems/combat-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { isBeastConcealedFrom, canUnitAttackBeast } from '@/systems/beast-system';
 import { isAlwaysHostilePair, isPirateOwner } from '@/core/owner-kind';
+import { isMinorCivHostileToOwner } from './minor-civ-diplomacy';
 
 export type AttackTargetFailure =
   | 'missing-attacker'
@@ -54,6 +55,9 @@ function isVisibleToViewer(state: GameState, viewerId: string | undefined, coord
 function canAttackOwner(state: GameState, attackerOwner: string, targetOwner: string): boolean {
   if (targetOwner === attackerOwner) return false;
   if (isAlwaysHostilePair(attackerOwner, targetOwner)) return true;
+  if (attackerOwner.startsWith('mc-')) {
+    return isMinorCivHostileToOwner(state, attackerOwner, targetOwner);
+  }
   if (targetOwner.startsWith('mc-')) {
     return state.civilizations[attackerOwner]?.diplomacy.atWarWith.includes(targetOwner) ?? false;
   }

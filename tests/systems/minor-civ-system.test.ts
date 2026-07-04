@@ -5,7 +5,7 @@ import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
 import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -97,6 +97,92 @@ describe('minor civ placement', () => {
 });
 
 describe('minor civ turn processing', () => {
+  it('purposefully intercepts always-hostile units inside its territory', () => {
+    const state = createNewGame(undefined, 'mc-purposeful-defense', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    const garrison = state.units[mc.units[0]];
+    const targetPosition = Object.values(state.map.tiles)
+      .map(tile => tile.coord)
+      .find(coord =>
+        hexDistance(coord, city.position) === 1
+        && !['ocean', 'coast', 'mountain'].includes(state.map.tiles[hexKey(coord)].terrain))!;
+    garrison.position = { ...city.position };
+    const raider = createUnit('warrior', 'barbarian', targetPosition, state.idCounters);
+    raider.id = 'local-raider';
+    state.units[raider.id] = raider;
+    const before = structuredClone(state);
+
+    const result = processMinorCivTurn(
+      state,
+      new EventBus(),
+      { purposefulAIEnabled: true },
+    );
+
+    expect(state).toEqual(before);
+    expect(result.opponentAI?.minorCivs[mcId]).toMatchObject({
+      objective: 'defend',
+      target: { kind: 'unit', id: raider.id },
+    });
+    expect(result.units[garrison.id]?.hasActed).toBe(true);
+  });
+
+  it('does not attack a peaceful major or target anything outside radius six', () => {
+    const state = createNewGame(undefined, 'mc-purposeful-bounds', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    const peaceful = state.units[state.civilizations.player.units[0]];
+    peaceful.position = { q: city.position.q + 1, r: city.position.r };
+    const distant = createUnit(
+      'warrior',
+      'barbarian',
+      { q: city.position.q + 8, r: city.position.r },
+      state.idCounters,
+    );
+    distant.id = 'distant-raider';
+    state.units[distant.id] = distant;
+
+    const result = processMinorCivTurn(
+      state,
+      new EventBus(),
+      { purposefulAIEnabled: true },
+    );
+
+    expect(result.opponentAI?.minorCivs[mcId].target).toMatchObject({
+      kind: 'region',
+    });
+    expect(result.units[peaceful.id].health).toBe(peaceful.health);
+    expect(JSON.stringify(result.opponentAI?.minorCivs[mcId])).not.toContain(distant.id);
+  });
+
+  it('returns a badly damaged unit toward its city without changing combat stats', () => {
+    const state = createNewGame(undefined, 'mc-purposeful-retreat', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    const garrison = state.units[mc.units[0]];
+    const start = Object.values(state.map.tiles)
+      .map(tile => tile.coord)
+      .find(coord =>
+        hexDistance(coord, city.position) === 4
+        && !['ocean', 'coast', 'mountain'].includes(state.map.tiles[hexKey(coord)].terrain))!;
+    garrison.position = start;
+    garrison.health = 10;
+    const strengthBefore = UNIT_DEFINITIONS[garrison.type].strength;
+
+    const result = processMinorCivTurn(
+      state,
+      new EventBus(),
+      { purposefulAIEnabled: true },
+    );
+
+    expect(hexDistance(result.units[garrison.id].position, city.position))
+      .toBeLessThan(hexDistance(start, city.position));
+    expect(UNIT_DEFINITIONS[result.units[garrison.id].type].strength).toBe(strengthBefore);
+  });
+
   it('replaces lost garrison after cooldown', () => {
     const state = createNewGame(undefined, 'mc-garrison', 'small');
     const mcId = Object.keys(state.minorCivs)[0];
@@ -336,6 +422,19 @@ describe('minor civ era upgrades', () => {
 
     processMinorCivEraUpgrade(state, mc);
     expect(state.cities[mc.cityId].population).toBe(popBefore + 1);
+  });
+
+  it('keeps the garrison modern at the current maximum era', () => {
+    const state = createNewGame(undefined, 'mc-era-twelve', 'small');
+    state.era = 12;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    mc.lastEraUpgrade = 4;
+
+    processMinorCivEraUpgrade(state, mc);
+
+    expect(state.units[mc.units[0]].type).toBe('tank');
+    expect(mc.lastEraUpgrade).toBe(12);
   });
 });
 

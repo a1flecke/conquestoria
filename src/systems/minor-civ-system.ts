@@ -1,15 +1,34 @@
-import type { GameState, MinorCivArchetype, MinorCivState, HexCoord, City, Unit, UnitType } from '@/core/types';
+import type {
+  AIStrategicPlan,
+  GameState,
+  MinorCivArchetype,
+  MinorCivState,
+  HexCoord,
+  City,
+  Unit,
+  UnitType,
+} from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
+import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
+import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
+import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
+import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { TECH_TREE } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
-import { hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
-import { createUnit, UNIT_DEFINITIONS } from './unit-system';
+import {
+  getWrappedHexNeighbors,
+  hexDistance,
+  hexKey,
+  hexNeighbors,
+  wrappedHexDistance,
+} from './hex-utils';
+import { createUnit, resetUnitTurn, UNIT_DEFINITIONS } from './unit-system';
 import { foundCity } from './city-system';
 import { collectUsedCityNames } from './city-name-system';
 import { generateQuest } from './quest-system';
-import { isMinorCivAtWar } from './minor-civ-diplomacy';
+import { isMinorCivAtWar, isMinorCivHostileToOwner } from './minor-civ-diplomacy';
 import { resolveCombat } from './combat-system';
 import { hasDiscoveredMinorCiv } from './discovery-system';
 import { canAttackByProfileOnMap } from './attack-targeting';
@@ -20,6 +39,11 @@ import {
   isMinorCivAllianceActive,
   reconcileMinorCivQuestTurn,
 } from './quest-chain-system';
+import { executeUnitMove } from './unit-movement-system';
+import { canUnitAttackTarget } from './attack-targeting';
+import { applyCombatOutcomeToState } from './combat-reward-system';
+import { buildCombatPresentation } from './viewer-event-presentation';
+import { removeRouteForUnit } from './trade-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -158,9 +182,21 @@ function hashSeed(seed: string): number {
 export function processMinorCivTurn(
   state: GameState,
   bus: EventBus,
-  _options: { purposefulAIEnabled?: boolean } = {},
+  options: { purposefulAIEnabled?: boolean } = {},
 ): GameState {
   let nextState = structuredClone(state);
+  const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
+  if (purposefulAIEnabled && !nextState.opponentAI) {
+    nextState.opponentAI = createEmptyOpponentAIState();
+  }
+  if (purposefulAIEnabled) {
+    nextState.opponentAI!.minorCivs = Object.fromEntries(
+      Object.entries(nextState.opponentAI!.minorCivs).filter(([minorCivId]) => {
+        const minor = nextState.minorCivs[minorCivId];
+        return Boolean(minor && !minor.isDestroyed && nextState.cities[minor.cityId]);
+      }),
+    );
+  }
   for (const mcId of Object.keys(nextState.minorCivs).sort()) {
     let mc = nextState.minorCivs[mcId];
     if (mc.isDestroyed) continue;
@@ -168,7 +204,21 @@ export function processMinorCivTurn(
     const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
     if (!def) continue;
 
-    processMovement(nextState, mc);
+    if (purposefulAIEnabled) {
+      for (const unitId of mc.units) {
+        const unit = nextState.units[unitId];
+        if (unit) nextState.units[unitId] = resetUnitTurn(unit);
+      }
+      const planned = planPurposefulMinorCivTurn(nextState, mcId);
+      if (planned.plan) {
+        nextState.opponentAI!.minorCivs[mcId] = planned.plan;
+      } else {
+        delete nextState.opponentAI!.minorCivs[mcId];
+      }
+      nextState = executePurposefulMinorCivOrders(nextState, planned, bus);
+    } else {
+      processMovement(nextState, mc);
+    }
     nextState = processQuests(nextState, mcId, def, bus);
     mc = nextState.minorCivs[mcId];
     nextState = applyAllyBonuses(nextState, mc, def);
@@ -177,6 +227,266 @@ export function processMinorCivTurn(
     emitRelationshipThresholds(nextState, nextState.minorCivs[mcId], bus);
   }
 
+  return nextState;
+}
+
+export interface PurposefulMinorCivPlanResult {
+  plan: AIStrategicPlan | null;
+  moveOrders: Array<{ unitId: string; to: HexCoord }>;
+  attackOrders: Array<{ attackerUnitId: string; defenderUnitId: string }>;
+}
+
+const MINOR_OPERATIONAL_RADIUS = 6;
+const MINOR_RESOURCE_RADIUS = 4;
+
+function minorDistance(state: GameState, a: HexCoord, b: HexCoord): number {
+  return state.map.wrapsHorizontally
+    ? wrappedHexDistance(a, b, state.map.width)
+    : hexDistance(a, b);
+}
+
+function makeMinorPlan(
+  state: GameState,
+  mc: MinorCivState,
+  target: AIStrategicPlan['target'],
+  objective: AIStrategicPlan['objective'],
+  reason: AIStrategicPlan['reasonCodes'][number],
+): AIStrategicPlan {
+  const city = state.cities[mc.cityId]!;
+  return {
+    id: `minor-plan:${mc.id}:${state.turn}:${objective}`,
+    actorId: mc.id,
+    objective,
+    target,
+    theaterId: `minor:${mc.id}`,
+    phase: target.kind === 'region' ? 'scouting' : 'advancing',
+    reasonCodes: [reason],
+    commitment: objective === 'defend' ? 1 : 0.7,
+    createdTurn: state.turn,
+    reconsiderAfterTurn: state.turn + 2,
+    expiresAfterTurn: state.turn + 6,
+    lastProgressTurn: state.turn,
+    rallyPoint: { ...city.position },
+    requiredRoles: { frontline: 1 },
+    assignedUnitIds: mc.units.filter(unitId => Boolean(state.units[unitId])).sort(),
+  };
+}
+
+function minorPlanPosition(state: GameState, plan: AIStrategicPlan): HexCoord | null {
+  if (plan.target.kind === 'unit') return state.units[plan.target.id]?.position ?? null;
+  if (plan.target.kind === 'city') return state.cities[plan.target.id]?.position ?? null;
+  if (plan.target.kind === 'camp') return state.barbarianCamps[plan.target.id]?.position ?? null;
+  return plan.target.kind === 'resource' ? plan.target.position : plan.target.anchor;
+}
+
+function chooseMinorStep(
+  state: GameState,
+  unit: Unit,
+  target: HexCoord,
+): HexCoord | null {
+  const occupied = new Set(Object.values(state.units)
+    .filter(candidate => candidate.id !== unit.id && !candidate.transportId)
+    .map(candidate => hexKey(candidate.position)));
+  const candidates = state.map.wrapsHorizontally
+    ? getWrappedHexNeighbors(unit.position, state.map.width)
+    : hexNeighbors(unit.position);
+  return candidates
+    .filter(coord => {
+      const terrain = state.map.tiles[hexKey(coord)]?.terrain;
+      return terrain !== undefined
+        && terrain !== 'ocean'
+        && terrain !== 'coast'
+        && terrain !== 'mountain'
+        && !occupied.has(hexKey(coord));
+    })
+    .filter(coord =>
+      minorDistance(state, coord, target) < minorDistance(state, unit.position, target))
+    .sort((a, b) =>
+      minorDistance(state, a, target) - minorDistance(state, b, target)
+      || a.q - b.q
+      || a.r - b.r)[0] ?? null;
+}
+
+function isAlliedDefenseTarget(state: GameState, mc: MinorCivState, unit: Unit): boolean {
+  return Object.entries(mc.chainStatusByCiv ?? {}).some(([allyId, status]) => {
+    if (status.status !== 'allied') return false;
+    const ally = state.civilizations[allyId];
+    if (!ally?.diplomacy.atWarWith.includes(unit.owner)) return false;
+    return ally.cities.some(cityId => {
+      const city = state.cities[cityId];
+      return city && minorDistance(state, city.position, unit.position) <= 2;
+    }) || ally.units.some(unitId => {
+      const allyUnit = state.units[unitId];
+      return allyUnit && minorDistance(state, allyUnit.position, unit.position) <= 1;
+    });
+  });
+}
+
+export function planPurposefulMinorCivTurn(
+  state: GameState,
+  minorCivId: string,
+): PurposefulMinorCivPlanResult {
+  const mc = state.minorCivs[minorCivId];
+  const city = mc ? state.cities[mc.cityId] : undefined;
+  if (!mc || mc.isDestroyed || !city) {
+    return { plan: null, moveOrders: [], attackOrders: [] };
+  }
+  const definition = MINOR_CIV_DEFINITIONS.find(candidate => candidate.id === mc.definitionId);
+  if (!definition) return { plan: null, moveOrders: [], attackOrders: [] };
+
+  const localUnits = Object.values(state.units)
+    .filter(unit =>
+      unit.owner !== mc.id
+      && !unit.transportId
+      && minorDistance(state, city.position, unit.position) <= MINOR_OPERATIONAL_RADIUS)
+    .sort((a, b) =>
+      minorDistance(state, city.position, a.position) - minorDistance(state, city.position, b.position)
+      || a.id.localeCompare(b.id));
+  const legalHostiles = localUnits.filter(unit =>
+    isMinorCivHostileToOwner(state, mc.id, unit.owner));
+  const immediateCityThreat = legalHostiles.find(unit =>
+    minorDistance(state, city.position, unit.position) <= 2);
+
+  const resourceCoords = city.ownedTiles
+    .filter(coord => {
+      const tile = state.map.tiles[hexKey(coord)];
+      return minorDistance(state, city.position, coord) <= MINOR_RESOURCE_RADIUS
+        && Boolean(tile?.resource)
+        && tile.improvement !== 'none'
+        && tile.improvementTurnsLeft === 0;
+    });
+  const resourceThreat = legalHostiles.find(unit =>
+    resourceCoords.some(coord => minorDistance(state, coord, unit.position) <= 1));
+  const alwaysHostile = definition.archetype === 'militaristic'
+    ? legalHostiles.find(unit => isAlwaysHostilePair(mc.id, unit.owner))
+    : undefined;
+  const allyThreat = legalHostiles.find(unit => isAlliedDefenseTarget(state, mc, unit));
+  const recentAggressorIds = new Set(mc.diplomacy.events
+    .filter(event => event.type === 'military_attacked' && state.turn - event.turn <= 6)
+    .map(event => event.otherCiv));
+  const retaliatoryTarget = legalHostiles.find(unit => recentAggressorIds.has(unit.owner));
+
+  const chosen = immediateCityThreat
+    ?? resourceThreat
+    ?? alwaysHostile
+    ?? allyThreat
+    ?? retaliatoryTarget;
+  let objective: AIStrategicPlan['objective'] = 'defend';
+  let reason: AIStrategicPlan['reasonCodes'][number] = 'homeland-secure';
+  if (chosen === alwaysHostile && chosen !== immediateCityThreat && chosen !== resourceThreat) {
+    objective = 'repel';
+    reason = 'nearby-opportunity';
+  } else if (chosen === allyThreat && chosen !== immediateCityThreat && chosen !== resourceThreat) {
+    objective = 'support-ally';
+    reason = 'alliance-obligation';
+  } else if (chosen === retaliatoryTarget && chosen !== immediateCityThreat && chosen !== resourceThreat) {
+    objective = 'repel';
+    reason = 'retaliate-recent-attack';
+  } else if (chosen) {
+    reason = 'urgent-defense';
+  }
+
+  const target = chosen
+    ? { kind: 'unit' as const, id: chosen.id, lastKnownPosition: { ...chosen.position } }
+    : { kind: 'region' as const, id: `patrol:${mc.id}`, anchor: { ...city.position } };
+  let plan = makeMinorPlan(state, mc, target, objective, reason);
+  const existing = state.opponentAI?.minorCivs[mc.id];
+  const existingPosition = existing ? minorPlanPosition(state, existing) : null;
+  const existingMatchesChosen = Boolean(
+    chosen
+    && existing?.target.kind === 'unit'
+    && existing.target.id === chosen.id,
+  );
+  if (
+    !immediateCityThreat
+    && existing
+    && existing.target.kind !== 'city'
+    && existingPosition
+    && state.turn <= existing.expiresAfterTurn
+    && minorDistance(state, city.position, existingPosition) <= MINOR_OPERATIONAL_RADIUS
+    && (!chosen || existingMatchesChosen)
+  ) {
+    plan = { ...existing, assignedUnitIds: plan.assignedUnitIds };
+  }
+
+  const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
+  const challengeThreshold = resolveOpponentChallenge(state) === 'explorer'
+    ? 1.15
+    : resolveOpponentChallenge(state) === 'veteran' ? 0.9 : 1;
+  const archetypeThreshold = definition.archetype === 'militaristic' ? 0.9 : 1.2;
+  const ownStrength = mc.units.reduce((total, unitId) => {
+    const unit = state.units[unitId];
+    return total + (unit ? UNIT_DEFINITIONS[unit.type].strength : 0);
+  }, 0);
+  const targetPosition = minorPlanPosition(state, plan) ?? city.position;
+  const targetUnit = plan.target.kind === 'unit' ? state.units[plan.target.id] : undefined;
+  const targetStrength = targetUnit ? UNIT_DEFINITIONS[targetUnit.type].strength : 0;
+  const leavingHome = minorDistance(state, city.position, targetPosition) > 3;
+  const requiredRatio = leavingHome ? archetypeThreshold * challengeThreshold : 0.75;
+  const authorized = targetStrength === 0 || ownStrength >= targetStrength * Math.max(0.75, requiredRatio);
+  const moveOrders: PurposefulMinorCivPlanResult['moveOrders'] = [];
+  const attackOrders: PurposefulMinorCivPlanResult['attackOrders'] = [];
+
+  for (const unitId of [...mc.units].sort()) {
+    const unit = state.units[unitId];
+    if (!unit || unit.movementPointsLeft <= 0 || unit.hasActed) continue;
+    const withdrawing = unit.health < profile.retreatHealthPercent;
+    const destination = withdrawing || !authorized ? city.position : targetPosition;
+    if (
+      !withdrawing
+      && authorized
+      && targetUnit
+      && canUnitAttackTarget(state, unit, targetUnit.position, { requireVisibility: false }).ok
+    ) {
+      attackOrders.push({ attackerUnitId: unit.id, defenderUnitId: targetUnit.id });
+      continue;
+    }
+    if (
+      hexKey(unit.position) === hexKey(destination)
+      || (!chosen && minorDistance(state, unit.position, city.position) <= 3)
+    ) continue;
+    const step = chooseMinorStep(state, unit, destination);
+    if (step) moveOrders.push({ unitId: unit.id, to: step });
+  }
+
+  if (!authorized && chosen) plan = { ...plan, phase: 'mobilizing', commitment: 0.4 };
+  return { plan, moveOrders, attackOrders };
+}
+
+function executePurposefulMinorCivOrders(
+  state: GameState,
+  planned: PurposefulMinorCivPlanResult,
+  bus: EventBus,
+): GameState {
+  let nextState = state;
+  for (const order of planned.attackOrders) {
+    const attacker = nextState.units[order.attackerUnitId];
+    const defender = nextState.units[order.defenderUnitId];
+    if (!attacker || !defender || attacker.hasActed) continue;
+    const legality = canUnitAttackTarget(nextState, attacker, defender.position, { requireVisibility: false });
+    if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
+    const seed = Math.max(1, nextState.turn * 16807 + attacker.id.length * 97 + defender.id.length);
+    const result = resolveCombat(attacker, defender, nextState.map, seed, undefined, nextState.era);
+    const presentation = buildCombatPresentation(nextState, result, attacker, defender);
+    const attackerRouteId = attacker.committedToRouteId;
+    const defenderRouteId = defender.committedToRouteId;
+    const applied = applyCombatOutcomeToState(nextState, result, seed);
+    nextState = applied.state;
+    emitMinorCivQuestTransitions(bus, applied.questTransitions, nextState);
+    if (applied.attackerDefeated && attackerRouteId) {
+      nextState = removeRouteForUnit(nextState, attacker.id, bus, 'unit-died', attackerRouteId);
+    }
+    if (applied.defenderDefeated && defenderRouteId) {
+      nextState = removeRouteForUnit(nextState, defender.id, bus, 'unit-died', defenderRouteId);
+    }
+    bus.emit('combat:resolved', { result, ...presentation });
+    for (const reward of applied.rewards) bus.emit('combat:reward-earned', { reward });
+  }
+  for (const order of planned.moveOrders) {
+    const unit = nextState.units[order.unitId];
+    if (!unit || unit.hasActed || unit.movementPointsLeft <= 0) continue;
+    executeUnitMove(nextState, order.unitId, order.to, { actor: 'world', bus });
+  }
   return nextState;
 }
 
@@ -539,6 +849,14 @@ const ERA_UNIT_MAP: Record<number, UnitType> = {
   2: 'swordsman',
   3: 'pikeman',
   4: 'musketeer',
+  5: 'rifleman',
+  6: 'rifleman',
+  7: 'rifleman',
+  8: 'tank',
+  9: 'tank',
+  10: 'tank',
+  11: 'tank',
+  12: 'tank',
 };
 
 // Pre-built for O(1) lookup in checkEraAdvancement (called every turn)
